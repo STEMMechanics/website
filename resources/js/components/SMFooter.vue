@@ -129,6 +129,7 @@
 
     ul {
         display: flex;
+        flex-direction: row;
         margin: 0 -1rem;
         padding: 0;
         list-style-type: none;
@@ -137,6 +138,8 @@
             padding: 0;
             margin-left: 1rem;
             margin-right: 1rem;
+            margin-bottom: 0;
+            text-align: center;
         }
     }
 
@@ -162,6 +165,22 @@
         .footer-links {
             align-items: center;
             justify-content: center;
+        }
+    }
+}
+
+@media only screen and (max-width: 640px) {
+    .footer {
+        .footer-acknowledgement {
+            padding: 0 1rem;
+        }
+        .footer-links ul {
+            flex-direction: column;
+
+            li {
+                text-align: center;
+                margin-bottom: 0.5rem;
+            }
         }
     }
 }

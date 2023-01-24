@@ -84,12 +84,12 @@
                     Minecraft server, participate in weekly challenges and
                     mini-games.
                 </p>
-                <p class="text-left">
+                <p class="minecraft-education">
                     <img
                         src="/img/minecraft-edu.png"
                         height="96"
                         width="96"
-                        class="float-left mt-2 mr-4" />
+                        class="minecraft-image" />
                     We even have
                     <a
                         href="https://education.minecraft.net/en-us/discover/what-is-minecraft"
@@ -100,7 +100,10 @@
                     you walk. No school accounts needed.
                 </p>
                 <p class="pt-5">
-                    <img src="/img/minecraft-address.png" height="70" />
+                    <img
+                        src="/img/minecraft-address.png"
+                        height="70"
+                        class="minecraft-address" />
                 </p>
             </SMContainer>
         </SMContainer>
@@ -267,10 +270,13 @@ handleLoad();
 
     .about {
         margin-top: 5rem;
+        margin-left: 2rem;
+        margin-right: 2rem;
         background-color: #3d4e5d;
         color: rgb(230, 245, 235);
         border-radius: 24px;
         padding: 4rem 8rem;
+        width: auto;
 
         h2 {
             font-size: 400%;
@@ -301,7 +307,6 @@ handleLoad();
             border-radius: 50rem;
             height: 20rem;
             width: 20rem;
-            // transform: rotateZ(-10deg);
         }
     }
 
@@ -310,6 +315,9 @@ handleLoad();
         color: rgb(56, 79, 95);
         border-radius: 24px;
         padding: 4rem 6rem;
+        margin-left: 2rem;
+        margin-right: 2rem;
+        width: auto;
 
         img {
             border-radius: 24px;
@@ -372,6 +380,21 @@ handleLoad();
             max-width: 44rem;
             margin: 1rem auto;
         }
+
+        .minecraft-education {
+            text-align: left;
+
+            .minecraft-image {
+                float: left;
+                margin-top: 1rem;
+                margin-right: 2rem;
+            }
+        }
+
+        .minecraft-address {
+            width: 100%;
+            height: 100%;
+        }
     }
 
     .subscribe {
@@ -397,6 +420,78 @@ handleLoad();
             width: 100%;
             max-width: 600px;
             margin: 1rem auto;
+        }
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .home {
+        .about {
+            margin-top: 2rem;
+            margin-left: 0;
+            margin-right: 0;
+            padding: 4rem;
+            border-radius: 0;
+        }
+
+        .workshops {
+            margin-top: 4rem;
+            margin-bottom: 4rem;
+        }
+
+        .support {
+            margin-left: 0;
+            margin-right: 0;
+            padding: 4rem;
+            border-radius: 0;
+        }
+
+        .minecraft {
+            margin-top: 0;
+            padding-left: 1rem;
+            padding-right: 1rem;
+
+            .minecraft-education {
+                text-align: center;
+
+                .minecraft-image {
+                    float: none;
+                    display: block;
+                    margin: 0 auto 1rem auto;
+                }
+            }
+        }
+    }
+}
+
+@media only screen and (max-width: 640px) {
+    .home {
+        .about {
+            padding: 2rem;
+
+            h2 {
+                font-size: 300%;
+            }
+
+            p {
+                font-size: 100%;
+                line-height: 150%;
+            }
+        }
+
+        .workshops,
+        .support,
+        .minecraft,
+        .subscribe {
+            padding: 2rem;
+
+            h2 {
+                font-size: 200%;
+            }
+
+            p {
+                font-size: 100%;
+            }
         }
     }
 }

@@ -130,7 +130,7 @@ const disconnectMutationObserver = () => {
 <style lang="scss">
 .carousel {
     position: relative;
-    height: 26rem;
+    height: 28rem;
     background: #eee;
     overflow: hidden;
 

@@ -77,6 +77,7 @@ handleLoad();
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
+    overflow: hidden;
 
     .carousel-slide-loading {
         display: flex;
@@ -145,7 +146,7 @@ handleLoad();
     }
 }
 
-@media (max-width: 768px) {
+@media only screen and (max-width: 768px) {
     .carousel-slide {
         .carousel-slide-body {
             padding: 0;
@@ -158,8 +159,23 @@ handleLoad();
                 padding-left: 5rem;
                 padding-right: 5rem;
                 border-radius: 0;
+
+                .carousel-slide-content-inner {
+                    overflow: hidden;
+                }
+            }
+
+            h3 {
+                font-size: 120%;
+            }
+
+            .carousel-slide-body-buttons {
+                text-align: center;
             }
         }
     }
+}
+
+@media only screen and (max-width: 640px) {
 }
 </style>

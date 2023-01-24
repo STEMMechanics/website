@@ -601,7 +601,7 @@ centered {
     }
 }
 
-@media (max-width: 768px) {
+@media only screen and (max-width: 768px) {
     trix-toolbar .trix-button--icon {
         height: 1.6rem;
     }
