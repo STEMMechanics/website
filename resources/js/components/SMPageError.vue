@@ -1,7 +1,7 @@
 <template v-if="error >= 300 || slots.default">
     <d-error-forbidden v-if="error == 403"></d-error-forbidden>
     <d-error-internal v-if="error >= 500"></d-error-internal>
-    <d-error-notfound v-if="error == 404"></d-error-notfound>
+    <d-error-not-found v-if="error == 404"></d-error-not-found>
     <template v-if="slots.default">
         <slot></slot>
     </template>
@@ -11,7 +11,7 @@
 import { useSlots } from "vue";
 import DErrorForbidden from "./errors/Forbidden.vue";
 import DErrorInternal from "./errors/Internal.vue";
-import DErrorNotfound from "./errors/Notfound.vue";
+import DErrorNotFound from "./errors/NotFound.vue";
 
 defineProps({
     error: {

@@ -5,8 +5,8 @@
                 v-if="pageError == 403 || !hasPermission()"></d-error-forbidden>
             <d-error-internal
                 v-if="pageError >= 500 && hasPermission()"></d-error-internal>
-            <d-error-notfound v-if="pageError == 404 && hasPermission()"
-                >XX</d-error-notfound
+            <d-error-not-found v-if="pageError == 404 && hasPermission()"
+                >XX</d-error-not-found
             >
             <slot v-if="pageError < 300 && hasPermission()"></slot>
             <div v-if="isFull" class="container-inner">
@@ -20,7 +20,7 @@
 import SMLoader from "./SMLoader.vue";
 import DErrorForbidden from "./errors/Forbidden.vue";
 import DErrorInternal from "./errors/Internal.vue";
-import DErrorNotfound from "./errors/Notfound.vue";
+import DErrorNotFound from "./errors/NotFound.vue";
 import { useUserStore } from "../store/UserStore";
 import { computed } from "vue";
 
