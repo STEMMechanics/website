@@ -256,7 +256,7 @@ handleLoad();
 
 <style lang="scss">
 .home {
-    margin-top: -3.25rem;
+    margin-top: -3.25rem !important;
     background-color: #fff;
 
     h2 {
