@@ -141,6 +141,7 @@ import {
     isValidated,
     fieldValidate,
     restParseErrors,
+    clearFormData,
 } from "../helpers/validation";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
@@ -237,7 +238,8 @@ const handleSubscribe = async () => {
                 captcha_token: captcha,
             });
 
-            subscribeFormData.email.value = "";
+            clearFormData(subscribeFormData);
+
             formMessage.type = "success";
             formMessage.message = "Your email address has been subscribed.";
         }

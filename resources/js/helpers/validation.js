@@ -1,6 +1,5 @@
 import { watch } from "vue";
-import { formatAusDateToUniversal } from "../helpers/common";
-import { parse, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 
 let oldFormData = {};
 
@@ -254,7 +253,11 @@ const parseValue = (val) => {
     return val;
 };
 
-const useValidation = (formData, pageRef = null, showMessages = false) => {
+export const useValidation = (
+    formData,
+    pageRef = null,
+    showMessages = false
+) => {
     watch(formData, (newFormData) => {
         if (newFormData) {
             validateRules(newFormData, false, pageRef, showMessages);
@@ -262,7 +265,7 @@ const useValidation = (formData, pageRef = null, showMessages = false) => {
     });
 };
 
-const isValidated = (formData, pageRef = null) => {
+export const isValidated = (formData, pageRef = null) => {
     let result = true;
 
     oldFormData = JSON.parse(JSON.stringify(formData));
@@ -281,11 +284,11 @@ const isValidated = (formData, pageRef = null) => {
     return result;
 };
 
-const fieldValidate = (fieldData) => {
+export const fieldValidate = (fieldData) => {
     validateSingle(fieldData);
 };
 
-const restParseErrors = (formData, formErrorRef, response) => {
+export const restParseErrors = (formData, formErrorRef, response) => {
     let foundKeys = false;
 
     if (response.response?.data?.errors) {
@@ -313,4 +316,13 @@ const restParseErrors = (formData, formErrorRef, response) => {
     }
 };
 
-export { useValidation, isValidated, fieldValidate, restParseErrors };
+export const clearFormData = (formData) => {
+    Object.keys(formData).forEach((key) => {
+        if ("value" in formData[key]) {
+            formData[key]["value"] = "";
+        }
+        if ("error" in formData[key]) {
+            formData[key]["error"] = "";
+        }
+    });
+};
