@@ -97,9 +97,9 @@ handleLoad();
         padding: 1rem;
 
         .carousel-slide-content {
-            background-color: rgba(0, 0, 0, 0.5);
-            max-width: 600px;
-            padding: 2rem 2rem 1.5rem 2rem;
+            background-color: rgba(0, 0, 0, 0.75);
+            max-width: 800px;
+            padding: 2rem 3rem 1.5rem 3rem;
             margin-bottom: 2rem;
             border-radius: 12px;
         }
@@ -127,6 +127,12 @@ handleLoad();
         .button {
             display: inline-block;
             box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+            background: transparent;
+            border-color: #fff;
+
+            &:hover {
+                color: #333;
+            }
         }
     }
 }
