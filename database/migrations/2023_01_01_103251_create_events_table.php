@@ -18,9 +18,9 @@ return new class extends Migration
             $table->string('title');
             $table->string('location');
             $table->string('address')->nullable();
-            $table->timestamp('start_at');
-            $table->timestamp('end_at');
-            $table->timestamp('publish_at')->nullable();
+            $table->timestamp('start_at')->useCurrent();
+            $table->timestamp('end_at')->useCurrent();
+            $table->timestamp('publish_at')->useCurrent()->nullable();
             $table->string('status')->default('draft');
             $table->string('registration_type');
             $table->string('registration_data')->nullable();
