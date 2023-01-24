@@ -155,7 +155,7 @@ export const routes = [
                     title: "Dashboard",
                     middleware: "authenticated",
                 },
-                component: () => import("@/views/Dashboard.vue"),
+                component: () => import("@/views/dashboard.vue"),
             },
             {
                 path: "posts",
@@ -168,7 +168,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/PostList.vue"),
+                            import("@/views/dashboard/PostList.vue"),
                     },
                     {
                         path: "create",
@@ -178,7 +178,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/PostEdit.vue"),
+                            import("@/views/dashboard/PostEdit.vue"),
                     },
                     {
                         path: ":id",
@@ -188,7 +188,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/PostEdit.vue"),
+                            import("@/views/dashboard/PostEdit.vue"),
                     },
                 ],
             },
@@ -203,7 +203,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/EventList.vue"),
+                            import("@/views/dashboard/EventList.vue"),
                     },
                     {
                         path: "create",
@@ -213,7 +213,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/EventEdit.vue"),
+                            import("@/views/dashboard/EventEdit.vue"),
                     },
                     {
                         path: ":id",
@@ -223,7 +223,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/EventEdit.vue"),
+                            import("@/views/dashboard/EventEdit.vue"),
                     },
                 ],
             },
@@ -234,7 +234,7 @@ export const routes = [
                     title: "Account Details",
                     middleware: "authenticated",
                 },
-                component: () => import("@/views/Dashboard/UserEdit.vue"),
+                component: () => import("@/views/dashboard/UserEdit.vue"),
             },
             {
                 path: "users",
@@ -247,7 +247,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/UserList.vue"),
+                            import("@/views/dashboard/UserList.vue"),
                     },
                     {
                         path: ":id",
@@ -257,7 +257,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/UserEdit.vue"),
+                            import("@/views/dashboard/UserEdit.vue"),
                     },
                 ],
             },
@@ -272,7 +272,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/MediaList.vue"),
+                            import("@/views/dashboard/MediaList.vue"),
                     },
                     {
                         path: "upload",
@@ -282,7 +282,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/MediaEdit.vue"),
+                            import("@/views/dashboard/MediaEdit.vue"),
                     },
                     {
                         path: "edit/:id",
@@ -292,7 +292,7 @@ export const routes = [
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/Dashboard/MediaEdit.vue"),
+                            import("@/views/dashboard/MediaEdit.vue"),
                     },
                 ],
             },
