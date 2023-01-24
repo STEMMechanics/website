@@ -13,7 +13,6 @@ import SMRow from "./components/SMRow.vue";
 import SMColumn from "./components/SMColumn.vue";
 import { PromiseDialog } from "vue3-promise-dialog";
 import { VueReCaptcha } from "vue-recaptcha-v3";
-import VueDOMPurifyHTML from "vue-dompurify-html";
 import "trix/dist/trix.css";
 
 const pinia = createPinia();
@@ -24,7 +23,6 @@ createApp(App)
     .use(pinia)
     .use(Router)
     .use(PromiseDialog)
-    .use(VueDOMPurifyHTML)
     .use(VueReCaptcha, {
         siteKey: import.meta.env.GOOGLE_RECAPTCHA_SITE_KEY,
         loaderOptions: {
