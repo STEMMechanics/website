@@ -31,11 +31,6 @@ class EventFilter extends FilterAbstract
         'location' => ['location','address'],
     ];
 
-    // protected $q = [
-    //     'title',
-    //     'content'
-    // ];
-
 
     /**
      * Determine if the user can view the media model
@@ -64,7 +59,7 @@ class EventFilter extends FilterAbstract
         ) {
             return $builder
                 ->where('status', '!=', 'draft')
-                ->where('publish_at', '>=', now());
+                ->where('publish_at', '<=', now());
         }
     }
 }
