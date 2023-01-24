@@ -110,25 +110,67 @@
                 Join our mailing list to receive tips, tricks and be notified of
                 upcoming workshops.
             </p>
-            <div class="form-row">
-                <SMInput ref="email" type="email" placeholder="Email address" />
-                <SMButton label="Subscribe" @click="handleSubscribe" />
-            </div>
+            <SMDialog :loading="formLoading" class="p-0">
+                <form @submit.prevent="handleSubscribe">
+                    <div class="form-row">
+                        <SMMessage
+                            v-if="formMessage.message"
+                            :type="formMessage.type"
+                            :message="formMessage.message"
+                            :icon="formMessage.icon" />
+                        <SMInput
+                            v-model="subscribeFormData.email.value"
+                            placeholder="Email address"
+                            :error="subscribeFormData.email.error"
+                            @blur="fieldValidate(subscribeFormData.email)" />
+                        <SMCaptchaNotice />
+                        <SMButton type="submit" label="Subscribe" />
+                    </div>
+                </form>
+            </SMDialog>
         </SMContainer>
     </SMContainer>
 </template>
 
 <script setup lang="ts">
 import axios from "axios";
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import { buildUrlQuery, excerpt } from "../helpers/common";
+import {
+    useValidation,
+    isValidated,
+    fieldValidate,
+    restParseErrors,
+} from "../helpers/validation";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
 import SMCarouselSlide from "../components/SMCarouselSlide.vue";
+import SMMessage from "../components/SMMessage.vue";
+import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
+import SMDialog from "../components/SMDialog.vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 
 const slides = ref([]);
-const email = ref(null);
+const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
+const subscribeFormData = reactive({
+    email: {
+        value: "",
+        error: "",
+        rules: {
+            required: true,
+            required_message: "An email address is needed.",
+            email: true,
+            email_message: "That does not appear to be an email address.",
+        },
+    },
+});
+const formMessage = reactive({
+    message: "",
+    type: "error",
+    icon: "",
+});
+const formLoading = ref(false);
 
 const handleLoad = async () => {
     slides.value = [];
@@ -179,10 +221,34 @@ const handleLoad = async () => {
     }
 };
 
-const handleSubscribe = () => {
-    console.log("form");
+const handleSubscribe = async () => {
+    formLoading.value = true;
+    formMessage.icon = "";
+    formMessage.type = "error";
+    formMessage.message = "";
+
+    try {
+        if (isValidated(subscribeFormData)) {
+            await recaptchaLoaded();
+            const captcha = await executeRecaptcha("submit");
+
+            await axios.post("subscriptions", {
+                email: subscribeFormData.email.value,
+                captcha_token: captcha,
+            });
+
+            subscribeFormData.email.value = "";
+            formMessage.type = "success";
+            formMessage.message = "Your email address has been subscribed.";
+        }
+    } catch (err) {
+        restParseErrors(subscribeFormData, [formMessage, "message"], err);
+    }
+
+    formLoading.value = false;
 };
 
+useValidation(subscribeFormData);
 handleLoad();
 </script>
 

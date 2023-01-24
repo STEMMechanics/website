@@ -66,6 +66,14 @@ export const routes = [
         component: () => import("@/views/Rules.vue"),
     },
     {
+        path: "/unsubscribe",
+        name: "unsubscribe",
+        meta: {
+            title: "Unsubscribe",
+        },
+        component: () => import("@/views/Unsubscribe.vue"),
+    },
+    {
         path: "/terms",
         name: "terms",
         meta: {

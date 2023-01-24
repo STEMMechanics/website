@@ -92,33 +92,33 @@
 /* Padding */
 @each $index, $size in $spacer {
     .p-#{$index} {
-        padding: #{$size};
+        padding: #{$size} !important;
     }
 
     .pt-#{$index} {
-        padding-top: #{$size};
+        padding-top: #{$size} !important;
     }
 
     .pb-#{$index} {
-        padding-bottom: #{$size};
+        padding-bottom: #{$size} !important;
     }
 
     .pl-#{$index} {
-        padding-left: #{$size};
+        padding-left: #{$size} !important;
     }
 
     .pr-#{$index} {
-        padding-right: #{$size};
+        padding-right: #{$size} !important;
     }
 
     .px-#{$index} {
-        padding-left: #{$size};
-        padding-right: #{$size};
+        padding-left: #{$size} !important;
+        padding-right: #{$size} !important;
     }
 
     .py-#{$index} {
-        padding-top: #{$size};
-        padding-bottom: #{$size};
+        padding-top: #{$size} !important;
+        padding-bottom: #{$size} !important;
     }
 }
 

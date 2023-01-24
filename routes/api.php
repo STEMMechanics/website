@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\SubscriptionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,7 @@ Route::apiResource('posts', PostController::class);
 Route::apiResource('events', EventController::class);
 
 Route::apiResource('subscriptions', SubscriptionController::class);
+Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']);
 
 Route::post('/contact', [ContactController::class, 'send']);
 

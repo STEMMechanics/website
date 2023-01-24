@@ -40,6 +40,8 @@ class BaseRequest extends FormRequest
             $rules = $this->mergeRules($rules, $this->postRules());
         } elseif (method_exists($this, 'putRules') === true && request()->isMethod('put') === true) {
             $rules = $this->mergeRules($rules, $this->postRules());
+        } elseif (method_exists($this, 'destroyRules') === true && request()->isMethod('delete') === true) {
+            $rules = $this->mergeRules($rules, $this->destroyRules());
         }
 
         return $rules;

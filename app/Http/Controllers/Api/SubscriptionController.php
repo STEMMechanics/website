@@ -2,27 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Enum\HttpResponseCodes;
-use App\Filters\UserFilter;
-use App\Http\Requests\UserUpdateRequest;
-use App\Http\Requests\UserStoreRequest;
-use App\Http\Requests\UserForgotPasswordRequest;
-use App\Http\Requests\UserForgotUsernameRequest;
-use App\Http\Requests\UserRegisterRequest;
-use App\Http\Requests\UserResendVerifyEmailRequest;
-use App\Http\Requests\UserResetPasswordRequest;
-use App\Http\Requests\UserVerifyEmailRequest;
+use App\Models\Subscription;
+use App\Filters\SubscriptionFilter;
+use App\Http\Requests\SubscriptionRequest;
 use App\Jobs\SendEmailJob;
-use App\Mail\ChangedEmail;
-use App\Mail\ChangedPassword;
-use App\Mail\ChangeEmailVerify;
-use App\Mail\ForgotUsername;
-use App\Mail\ForgotPassword;
-use App\Mail\EmailVerify;
-use App\Models\User;
-use App\Models\UserCode;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use App\Mail\SubscriptionConfirm;
+use App\Mail\SubscriptionUnsubscribed;
 
 class SubscriptionController extends ApiController
 {
@@ -32,16 +17,16 @@ class SubscriptionController extends ApiController
     public function __construct()
     {
         $this->middleware('auth:sanctum')
-        ->except([]);
+        ->except(['store', 'destroyByEmail']);
     }
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of subscribers.
      *
-     * @param \App\Filters\UserFilter $filter Filter object.
+     * @param \App\Filters\SubscriptionFilter $filter Filter object.
      * @return \Illuminate\Http\Response
      */
-    public function index(UserFilter $filter)
+    public function index(SubscriptionFilter $filter)
     {
         $collection = $filter->filter();
         return $this->respondAsResource(
@@ -51,76 +36,97 @@ class SubscriptionController extends ApiController
     }
 
     /**
-     * Store a newly created user in the database.
+     * Store a subscriber email in the database.
      *
-     * @param  UserStoreRequest $request The user update request.
+     * @param  SubscriptionRequest $request The subscriber update request.
      * @return \Illuminate\Http\Response
      */
-    public function store(UserStoreRequest $request)
+    public function store(SubscriptionRequest $request)
     {
-        if ($request->user()->hasPermission('admin/user') !== true) {
-            return $this->respondForbidden();
+        if (Subscription::where('email', $request->email)->first() !== null) {
+            return $this->respondWithErrors(['email' => 'This email address has already subscribed']);
         }
 
-        $user = User::create($request->all());
-        return $this->respondAsResource((new UserFilter($request))->filter($user), [], HttpResponseCodes::HTTP_CREATED);
+        Subscription::create($request->all());
+        dispatch((new SendEmailJob($request->email, new SubscriptionConfirm($request->email))))->onQueue('mail');
+
+        return $this->respondCreated();
     }
 
 
     /**
      * Display the specified user.
      *
-     * @param  UserFilter $filter The user filter.
-     * @param  User       $user   The user model.
+     * @param  SubscriptionFilter $filter       The subscription filter.
+     * @param  Subscription       $subscription The subscription model.
      * @return \Illuminate\Http\Response
      */
-    public function show(UserFilter $filter, User $user)
+    public function show(SubscriptionFilter $filter, Subscription $subscription)
     {
-        return $this->respondAsResource($filter->filter($user));
+        return $this->respondAsResource($filter->filter($subscription));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  UserUpdateRequest $request The user update request.
-     * @param  User              $user    The specified user.
+     * @param  SubscriptionRequest $request      The subscription update request.
+     * @param  Subscription        $subscription The specified subscription.
      * @return \Illuminate\Http\Response
      */
-    public function update(UserUpdateRequest $request, User $user)
+    public function update(SubscriptionRequest $request, Subscription $subscription)
     {
-        $input = [];
-        $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
+        // $input = [];
+        // $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
 
-        if ($request->user()->hasPermission('admin/user') === true) {
-            $updatable = array_merge($updatable, ['email_verified_at']);
-        } elseif ($request->user()->is($user) !== true) {
-            return $this->respondForbidden();
-        }
+        // if ($request->user()->hasPermission('admin/user') === true) {
+        //     $updatable = array_merge($updatable, ['email_verified_at']);
+        // } elseif ($request->user()->is($user) !== true) {
+        //     return $this->respondForbidden();
+        // }
 
-        $input = $request->only($updatable);
-        if (array_key_exists('password', $input) === true) {
-            $input['password'] = Hash::make($request->input('password'));
-        }
+        // $input = $request->only($updatable);
+        // if (array_key_exists('password', $input) === true) {
+        //     $input['password'] = Hash::make($request->input('password'));
+        // }
 
-        $user->update($input);
+        // $user->update($input);
 
-        return $this->respondAsResource((new UserFilter($request))->filter($user));
+        // return $this->respondAsResource((new UserFilter($request))->filter($user));
     }
 
 
     /**
      * Remove the user from the database.
      *
-     * @param  User $user The specified user.
+     * @param  Subscription $subscription The specified subscription.
      * @return \Illuminate\Http\Response
      */
-    public function destroy(User $user)
+    public function destroy(Subscription $subscription)
     {
-        if ($user->hasPermission('admin/user') === false) {
-            return $this->respondForbidden();
+        // if ($user->hasPermission('admin/user') === false) {
+        //     return $this->respondForbidden();
+        // }
+
+        $email = $subscription->email;
+
+        $subscription->delete();
+        return $this->respondNoContent();
+    }
+
+    /**
+     * Remove the user from the database.
+     *
+     * @param  SubscriptionRequest $request The specified subscription.
+     * @return \Illuminate\Http\Response
+     */
+    public function destroyByEmail(SubscriptionRequest $request)
+    {
+        $subscription = Subscription::where('email', $request->email)->first();
+        if ($subscription !== null) {
+            $subscription->delete();
+            dispatch((new SendEmailJob($request->email, new SubscriptionUnsubscribed($request->email))))->onQueue('mail');
         }
 
-        $user->delete();
         return $this->respondNoContent();
     }
 }
