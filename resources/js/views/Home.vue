@@ -187,7 +187,7 @@ const handleLoad = async () => {
                     content: excerpt(post.content, 200),
                     image: post.hero,
                     url: { name: "post-view", params: { slug: post.slug } },
-                    cta: "View Article",
+                    cta: "Read More...",
                 });
             });
         }
