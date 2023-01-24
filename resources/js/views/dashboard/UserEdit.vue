@@ -45,13 +45,15 @@
                         /></SMColumn>
                     </SMRow>
                     <SMRow>
-                        <SMColumn class="form-group justify-content-end">
-                            <SMButton
-                                type="secondary"
-                                label="Change Password"
-                                @click.prevent="handleChangePassword" />
-                            <SMButton type="submit" label="Update" />
-                        </SMColumn>
+                        <SMFormFooter>
+                            <template #right>
+                                <SMButton
+                                    type="secondary"
+                                    label="Change Password"
+                                    @click.prevent="handleChangePassword" />
+                                <SMButton type="submit" label="Update" />
+                            </template>
+                        </SMFormFooter>
                     </SMRow>
                 </form>
             </SMDialog>
@@ -66,6 +68,7 @@ import SMButton from "../../components/SMButton.vue";
 import SMDialog from "../../components/SMDialog.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMHeading from "../../components/SMHeading.vue";
+import SMFormFooter from "../../components/SMFormFooter.vue";
 import axios from "axios";
 import {
     useValidation,
