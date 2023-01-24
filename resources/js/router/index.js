@@ -13,11 +13,6 @@ export const routes = [
         component: () => import("@/views/Home.vue"),
     },
     {
-        path: "/get-file/:id",
-        name: "get-file",
-        component: () => import("@/views/GetFile.vue"),
-    },
-    {
         path: "/verify-email",
         name: "verify-email",
         meta: {
@@ -320,17 +315,12 @@ export const routes = [
         component: () => import("@/views/ForgotPassword.vue"),
     },
     {
-        path: "/courses",
-        name: "courses",
-        component: () => import("@/views/Courses.vue"),
-    },
-    {
         path: "/error/internal",
         name: "error-internal",
         meta: {
             title: "Server error",
         },
-        component: () => import("@/views/errors/Internal.vue"),
+        component: () => import("@/components/errors/Internal.vue"),
     },
     {
         path: "/error/forbidden",
