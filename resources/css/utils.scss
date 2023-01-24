@@ -1,0 +1,190 @@
+/* Display */
+.d-flex {
+    display: flex;
+}
+
+.d-block {
+    display: block;
+}
+
+.d-inline-block {
+    display: inline-block;
+}
+
+/* Width */
+.w-100 {
+    width: 100%;
+}
+
+.w-75 {
+    width: 75%;
+}
+
+.w-50 {
+    width: 50%;
+}
+
+.w-25 {
+    width: 25%;
+}
+
+/* Float */
+.float-left {
+    float: left;
+}
+
+.float-right {
+    float: right;
+}
+
+.clear {
+    clear: both;
+}
+
+/* Flex */
+.flex-fill {
+    flex: 1;
+}
+
+.flex-0 {
+    flex: 0 !important;
+}
+
+/* Flex Align */
+.align-items-center {
+    align-items: center;
+}
+
+/* Flex Justify */
+.justify-content-center {
+    justify-content: center;
+}
+
+.justify-content-end {
+    justify-content: flex-end !important;
+}
+
+/* Flex Direction */
+.flex-row {
+    flex-direction: row;
+}
+
+.flex-row-reverse {
+    flex-direction: row-reverse;
+}
+
+.flex-column {
+    flex-direction: column;
+}
+
+.flex-column-reverse {
+    flex-direction: column-reverse;
+}
+
+.flex-basis-45 {
+    flex-basis: 45%;
+}
+
+.flex-basis-55 {
+    flex-basis: 55%;
+}
+
+/* Padding */
+@each $index, $size in $spacer {
+    .p-#{$index} {
+        padding: #{$size};
+    }
+
+    .pt-#{$index} {
+        padding-top: #{$size};
+    }
+
+    .pb-#{$index} {
+        padding-bottom: #{$size};
+    }
+
+    .pl-#{$index} {
+        padding-left: #{$size};
+    }
+
+    .pr-#{$index} {
+        padding-right: #{$size};
+    }
+
+    .px-#{$index} {
+        padding-left: #{$size};
+        padding-right: #{$size};
+    }
+
+    .py-#{$index} {
+        padding-top: #{$size};
+        padding-bottom: #{$size};
+    }
+}
+
+/* Margin */
+@each $index, $size in $spacer {
+    .m-#{$index} {
+        margin: #{$size};
+    }
+
+    .mt-#{$index} {
+        margin-top: #{$size};
+    }
+
+    .mb-#{$index} {
+        margin-bottom: #{$size};
+    }
+
+    .ml-#{$index} {
+        margin-left: #{$size};
+    }
+
+    .mr-#{$index} {
+        margin-right: #{$size};
+    }
+
+    .mx-#{$index} {
+        margin-left: #{$size};
+        margin-right: #{$size};
+    }
+
+    .my-#{$index} {
+        margin-top: #{$size};
+        margin-bottom: #{$size};
+    }
+}
+
+.mx-auto {
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+.ml-auto {
+    margin-left: auto !important;
+}
+
+.mr-auto {
+    margin-right: auto !important;
+}
+
+/* Text Align */
+.text-left {
+    text-align: left !important;
+}
+
+.text-center {
+    text-align: center !important;
+}
+
+/* Utility */
+.prevent-select {
+    -webkit-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.small {
+    font-size: 80%;
+    line-height: 150%;
+}

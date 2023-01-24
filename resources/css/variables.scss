@@ -1,0 +1,40 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;1000&display=swap");
+
+$font-family: Nunito, Arial, Helvetica, sans-serif;
+$font-size: 1.1rem;
+
+$font-color: rgba(0, 0, 0, 0.7);
+
+$primary-color-lighter: #cce8fb;
+$primary-color-light: #67bbf4;
+$primary-color: #35a5f1;
+$primary-color-dark: #0e80ce;
+$primary-color-darker: #095589;
+
+$secondary-color: #9ca8b0;
+$secondary-color-dark: #6e7f8a;
+$secondary-color-darker: #49545c;
+
+$danger-color-lighter: #f3c8c8;
+$danger-color-light: #db5c5a;
+$danger-color: #c82e2b;
+$danger-color-dark: #952220;
+$danger-color-darker: #641715;
+
+$success-color-lighter: #b5f1d5;
+$success-color-light: #26d081;
+$success-color: #198754;
+$success-color-dark: #12653e;
+$success-color-darker: #0c4329;
+
+$border-color: #dddddd;
+$secondary-background-color: #efefef;
+
+$spacer: (
+    0: 0,
+    1: 0.5rem,
+    2: 0.75rem,
+    3: 1rem,
+    4: 1.5rem,
+    5: 3rem,
+);

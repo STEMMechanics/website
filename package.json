@@ -1,0 +1,49 @@
+{
+    "private": true,
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "lint": "eslint \"**/*.{js,jsx,.vue}\" --ignore-path .gitignore",
+        "format": "prettier .  --write"
+    },
+    "devDependencies": {
+        "@typescript-eslint/eslint-plugin": "^5.48.1",
+        "@typescript-eslint/parser": "^5.48.1",
+        "axios": "^1.1.2",
+        "eslint": "^8.31.0",
+        "eslint-config-prettier": "^8.6.0",
+        "eslint-plugin-jsdoc": "^39.6.4",
+        "eslint-plugin-vue": "^9.8.0",
+        "laravel-vite-plugin": "^0.7.2",
+        "lodash": "^4.17.19",
+        "postcss": "^8.1.14",
+        "prettier": "2.8.2",
+        "typescript": "^4.9.4",
+        "vite": "^4.0.0"
+    },
+    "dependencies": {
+        "@fortawesome/fontawesome-svg-core": "^6.2.1",
+        "@fortawesome/free-brands-svg-icons": "^6.2.1",
+        "@fortawesome/free-regular-svg-icons": "^6.2.1",
+        "@fortawesome/free-solid-svg-icons": "^6.2.1",
+        "@fortawesome/vue-fontawesome": "^3.0.2",
+        "@vitejs/plugin-vue": "^4.0.0",
+        "@vuepic/vue-datepicker": "^3.6.4",
+        "date-fns": "^2.29.3",
+        "dotenv": "^16.0.3",
+        "element-plus": "^2.2.27",
+        "normalize.css": "^8.0.1",
+        "pinia": "^2.0.28",
+        "pinia-plugin-persistedstate": "^3.0.1",
+        "sass": "^1.57.1",
+        "trix": "^2.0.4",
+        "vue": "^3.2.36",
+        "vue-dompurify-html": "^3.1.2",
+        "vue-final-modal": "^3.4.11",
+        "vue-loader": "^17.0.1",
+        "vue-recaptcha-v3": "^2.0.1",
+        "vue-router": "^4.1.6",
+        "vue3-easy-data-table": "^1.5.24",
+        "vue3-promise-dialog": "^0.3.4"
+    }
+}

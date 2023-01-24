@@ -1,0 +1,335 @@
+<template>
+    <SMContainer full class="home">
+        <SMCarousel>
+            <SMCarouselSlide
+                v-for="(slide, index) in slides"
+                :key="index"
+                :title="slide.title"
+                :content="slide.content"
+                :image="slide.image"
+                :url="slide.url"
+                :cta="slide.cta"></SMCarouselSlide>
+        </SMCarousel>
+        <SMContainer class="about">
+            <h2>Join the Fun!</h2>
+            <p>
+                The world needs more scientists, engineers and problem-solving
+                leaders of tomorrow. Science constantly presents us with
+                breakthroughs, innovations and challenges, creating greater
+                opportunities for problem-solving through technology.
+            </p>
+            <p>
+                STEAM Powered Kids is a company dedicated to providing learning
+                enrichment programs for students in all aspects of STEAM
+                (Science, Technology, Engineering, Arts and Mathematics). Our
+                services include STEM courses, Afterschool STEM clubs, Themed
+                workshops, Robotics, Science parties and Incursions (schools,
+                kindergartens and private venues).
+            </p>
+            <p>
+                Our staff are experienced STEM professionals, teachers and
+                facilitators passionate about STEM and have extensive knowledge
+                and experience in Electrical/Electronics/Mechanical Engineering,
+                Coding, Biomedical Science, Microbiology and Education. Our goal
+                is to educate, motivate, mentor and encourage students to pursue
+                STEM field careers in the future.
+            </p>
+        </SMContainer>
+        <SMContainer class="workshops">
+            <SMRow>
+                <SMColumn class="align-items-center flex-basis-55">
+                    <h2>Build skills while having a great time</h2>
+                    <p>
+                        Our online and physical workshops are packed excitement
+                        that kids can't help but to have fun, meet new friends
+                        and take away life gaining skills.
+                    </p>
+                    <SMButton
+                        :to="{ name: 'workshop-list' }"
+                        label="Explore Workshops" />
+                </SMColumn>
+                <SMColumn
+                    class="align-items-center justify-content-center flex-basis-45">
+                    <img src="/img/green-screen.jpg" />
+                </SMColumn>
+            </SMRow>
+        </SMContainer>
+        <SMContainer class="support">
+            <SMRow>
+                <SMColumn
+                    class="align-items-center justify-content-center flex-basis-45">
+                    <img src="/img/discord.jpg" />
+                </SMColumn>
+                <SMColumn class="align-items-center flex-basis-55">
+                    <h2>And the support doesn't stop!</h2>
+                    <p>
+                        The workshop may have ended, but we are still available
+                        on email and Discord and happy to help with your
+                        projects at home.
+                    </p>
+                    <div class="button-row">
+                        <a href="https://discord.gg/yNzk4x7mpD">Join Discord</a>
+                        <router-link :to="{ name: 'contact' }"
+                            >Contact Us</router-link
+                        >
+                    </div>
+                </SMColumn>
+            </SMRow>
+        </SMContainer>
+        <SMContainer full class="minecraft">
+            <SMContainer>
+                <h2>Play Minecraft with us</h2>
+                <p>
+                    You are welcome to play on our very own Bedrock and Java
+                    Minecraft server, participate in weekly challenges and
+                    mini-games.
+                </p>
+                <p class="text-left">
+                    <img
+                        src="/img/minecraft-edu.png"
+                        height="96"
+                        width="96"
+                        class="float-left mt-2 mr-4" />
+                    We even have
+                    <a
+                        href="https://education.minecraft.net/en-us/discover/what-is-minecraft"
+                        target="_blank"
+                        >Minecraft Education</a
+                    >
+                    workshops, make it rain rabbits, or grow flowers whereever
+                    you walk. No school accounts needed.
+                </p>
+                <p class="pt-5">
+                    <img src="/img/minecraft-address.png" height="70" />
+                </p>
+            </SMContainer>
+        </SMContainer>
+        <SMContainer class="subscribe">
+            <h2>Be the first to know</h2>
+            <p>
+                Join our mailing list to receive tips, tricks and be notified of
+                upcoming workshops.
+            </p>
+            <div class="form-row">
+                <SMInput ref="email" type="email" placeholder="Email address" />
+                <SMButton label="Subscribe" @click="handleSubscribe" />
+            </div>
+        </SMContainer>
+    </SMContainer>
+</template>
+
+<script setup lang="ts">
+import axios from "axios";
+import { ref } from "vue";
+import { buildUrlQuery, excerpt } from "../helpers/common";
+import SMInput from "../components/SMInput.vue";
+import SMButton from "../components/SMButton.vue";
+import SMCarousel from "../components/SMCarousel.vue";
+import SMCarouselSlide from "../components/SMCarouselSlide.vue";
+
+const slides = ref([]);
+const email = ref(null);
+
+const handleLoad = async () => {
+    slides.value = [];
+    let posts = [];
+    let events = [];
+
+    try {
+        let result = await axios.get(buildUrlQuery("posts", { limit: 3 }));
+        if (result.data.posts) {
+            result.data.posts.forEach((post) => {
+                posts.push({
+                    title: post.title,
+                    content: excerpt(post.content, 200),
+                    image: post.hero,
+                    url: { name: "post-view", params: { slug: post.slug } },
+                    cta: "View Article",
+                });
+            });
+        }
+    } catch (error) {
+        /* empty */
+    }
+
+    try {
+        let result = await axios.get(buildUrlQuery("events", { limit: 3 }));
+        if (result.data.events) {
+            result.data.events.forEach((event) => {
+                events.push({
+                    title: event.title,
+                    content: excerpt(event.content, 200),
+                    image: event.hero,
+                    url: { name: "workshop-view", params: { id: event.id } },
+                    cta: "View Workshop",
+                });
+            });
+        }
+    } catch (error) {
+        /* empty */
+    }
+
+    for (let i = 1; i <= Math.max(posts.length, events.length); i++) {
+        if (i <= posts.length) {
+            slides.value.push(posts[i - 1]);
+        }
+        if (i <= events.length) {
+            slides.value.push(events[i - 1]);
+        }
+    }
+};
+
+const handleSubscribe = () => {
+    console.log("form");
+};
+
+handleLoad();
+</script>
+
+<style lang="scss">
+.home {
+    margin-top: -3.25rem;
+    background-color: #fff;
+
+    h2 {
+        font-weight: 1000;
+        text-align: center;
+        margin: 0;
+    }
+
+    .about {
+        margin-top: 5rem;
+        background-color: #3d4e5d;
+        color: rgb(230, 245, 235);
+        border-radius: 24px;
+        padding: 4rem 8rem;
+
+        h2 {
+            font-size: 400%;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+        }
+    }
+
+    .workshops {
+        margin: 8rem auto;
+
+        h2 {
+            font-size: 300%;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+            max-width: 32rem;
+            text-align: center;
+            margin: 1rem auto 2rem auto;
+        }
+
+        img {
+            border-radius: 50rem;
+            height: 20rem;
+            width: 20rem;
+            // transform: rotateZ(-10deg);
+        }
+    }
+
+    .support {
+        background-color: #e6f5eb;
+        color: rgb(56, 79, 95);
+        border-radius: 24px;
+        padding: 4rem 6rem;
+
+        img {
+            border-radius: 24px;
+            height: 80%;
+            width: 80%;
+            transform: rotateZ(-10deg);
+        }
+
+        h2 {
+            font-size: 300%;
+            text-align: left;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 1rem;
+
+            a {
+                font-weight: bold;
+                color: inherit;
+                border: 2px solid rgb(56, 79, 95);
+                border-radius: 24px;
+                padding: 0.5rem 1.5rem;
+                transition: color 0.2s ease-in-out, border 0.2s ease-in-out,
+                    background 0.2s ease-in-out;
+
+                &:hover {
+                    text-decoration: none;
+                    background-color: rgb(56, 79, 95);
+                    color: #e6f5eb;
+                }
+            }
+        }
+    }
+
+    .minecraft {
+        margin-top: 4rem;
+        background-image: url("/img/minecraft.png");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: cover;
+        padding: 4rem;
+        color: #fff;
+
+        h2 {
+            font-size: 300%;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+            text-align: center;
+            max-width: 44rem;
+            margin: 1rem auto;
+        }
+    }
+
+    .subscribe {
+        margin: 6rem auto 0 auto;
+
+        h2 {
+            font-size: 200%;
+        }
+
+        p {
+            text-align: center;
+            font-size: 120%;
+            line-height: 140%;
+            margin: 1rem auto;
+        }
+
+        .form-row {
+            background-color: #eee;
+            border-radius: 24px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 600px;
+            margin: 1rem auto;
+        }
+    }
+}
+</style>

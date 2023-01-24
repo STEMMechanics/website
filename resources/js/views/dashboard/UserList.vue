@@ -1,0 +1,168 @@
+<template>
+    <SMContainer permission="admin/users">
+        <SMHeading heading="Users" />
+        <SMMessage
+            v-if="formMessage.message"
+            :icon="formMessage.icon"
+            :type="formMessage.type"
+            :message="formMessage.message" />
+        <EasyDataTable
+            v-model:server-options="serverOptions"
+            :server-items-length="serverItemsLength"
+            :loading="formLoading"
+            :headers="headers"
+            :items="items"
+            :search-value="searchValue"
+            :header-item-class-name="headerItemClassNameFunction"
+            :body-item-class-name="bodyItemClassNameFunction">
+            <template #loading>
+                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+            </template>
+            <template #item-actions="item">
+                <div class="action-wrapper">
+                    <font-awesome-icon
+                        icon="fa-solid fa-pen-to-square"
+                        @click="handleEdit(item)" />
+                    <font-awesome-icon
+                        icon="fa-regular fa-trash-can"
+                        @click="handleDelete(item)" />
+                </div>
+            </template>
+        </EasyDataTable>
+    </SMContainer>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, watch } from "vue";
+import EasyDataTable from "vue3-easy-data-table";
+import axios from "axios";
+import { relativeDate, toParamString } from "../../helpers/common";
+import { useRouter } from "vue-router";
+import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import { openDialog } from "vue3-promise-dialog";
+import SMHeading from "../../components/SMHeading.vue";
+import SMMessage from "../../components/SMMessage.vue";
+
+const router = useRouter();
+const searchValue = ref("");
+
+const headers = [
+    { text: "Username", value: "username", sortable: true },
+    { text: "First name", value: "first_name", sortable: true },
+    { text: "Last name", value: "last_name", sortable: true },
+    { text: "Email", value: "email", sortable: true },
+    { text: "Phone", value: "phone", sortable: true },
+    { text: "Joined", value: "created_at", sortable: true },
+    // { text: "Last logged in", value: "lastAttended", width: 200},
+    { text: "Actions", value: "actions" },
+];
+
+const items = ref([]);
+const formMessage = reactive({
+    icon: "",
+    type: "",
+    message: "",
+});
+
+const formLoading = ref(false);
+const serverItemsLength = ref(0);
+const serverOptions = ref({
+    page: 1,
+    rowsPerPage: 25,
+    sortBy: null,
+    sortType: null,
+});
+
+const loadFromServer = async () => {
+    formLoading.value = true;
+    formMessage.type = "error";
+    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.message = "";
+
+    try {
+        let params = {};
+        if (serverOptions.value.sortBy) {
+            params["sort"] = serverOptions.value.sortBy;
+            if (
+                serverOptions.value.sortType &&
+                serverOptions.value.sortType === "desc"
+            ) {
+                params["sort"] = "-" + params["sort"];
+            }
+        }
+
+        params["page"] = serverOptions.value.page;
+        params["limit"] = serverOptions.value.rowsPerPage;
+
+        let res = await axios.get(`users${toParamString(params)}`);
+        items.value = res.data.users;
+
+        items.value.forEach((row) => {
+            if (row.created_at !== "undefined") {
+                row.created_at = relativeDate(row.created_at);
+            }
+        });
+
+        serverItemsLength.value = res.data.total;
+    } catch (err) {
+        /* empty */
+    }
+
+    formLoading.value = false;
+};
+
+loadFromServer();
+
+watch(
+    serverOptions,
+    () => {
+        loadFromServer();
+    },
+    { deep: true }
+);
+
+const headerItemClassNameFunction = (header) => {
+    if (["position", "actions"].includes(header.value))
+        return "easy-data-table-cell-center";
+    return "";
+};
+
+const bodyItemClassNameFunction = (column) => {
+    if (["position", "actions"].includes(column))
+        return "easy-data-table-cell-center";
+    return "";
+};
+
+const handleEdit = (user) => {
+    router.push({ name: "user-edit", params: { id: user.id } });
+};
+
+const handleDelete = async (user) => {
+    let result = await openDialog(DialogConfirm, {
+        title: "Delete User?",
+        text: `Are you sure you want to delete the user <strong>${user.username}</strong>?`,
+        cancel: {
+            type: "secondary",
+            label: "Cancel",
+        },
+        confirm: {
+            type: "danger",
+            label: "Delete User",
+        },
+    });
+
+    if (result == true) {
+        try {
+            await axios.delete(`users${user.id}`);
+            loadFromServer();
+
+            formMessage.message = "User deleted successfully";
+            formMessage.type = "success";
+        } catch (err) {
+            formMessage.message = err.response?.data?.message;
+        }
+    }
+};
+</script>
+
+<style lang="scss"></style>

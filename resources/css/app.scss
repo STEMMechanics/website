@@ -1,0 +1,451 @@
+@import "variables.scss";
+@import "utils.scss";
+@import "data-table.scss";
+@import "datepicker.scss";
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    overflow: -moz-scrollbars-vertical;
+    overflow-y: scroll;
+}
+
+html,
+body {
+    font-family: $font-family;
+    font-size: $font-size;
+    color: $font-color;
+    min-height: 100vh;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+a,
+a:visited {
+    color: $primary-color;
+    text-decoration: none;
+    transition: color 0.1s, underline 0.1s;
+
+    &:hover {
+        color: $primary-color-dark;
+        text-decoration: underline;
+    }
+}
+
+h1 {
+    text-align: center;
+    font-weight: 800;
+}
+
+label {
+    display: block;
+    margin-bottom: map-get($spacer, 1);
+
+    &.required:after {
+        content: " *";
+        color: $danger-color;
+    }
+
+    &.inline {
+        display: inline-block;
+        margin-right: map-get($spacer, 3);
+
+        &:after {
+            content: ":";
+        }
+    }
+}
+
+p {
+    line-height: 1.5rem;
+}
+
+input,
+select,
+textarea {
+    box-sizing: border-box;
+    display: block;
+    width: 100%;
+    border: 1px solid $border-color;
+    border-radius: 12px;
+    padding: map-get($spacer, 2) map-get($spacer, 3);
+    color: $font-color;
+    margin-bottom: map-get($spacer, 4);
+
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+textarea {
+    resize: none;
+}
+
+select {
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 24px 18px;
+}
+
+.input-file-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 12px;
+
+    input {
+        opacity: 0;
+        width: 0.1px;
+        height: 0.1px;
+        position: absolute;
+        margin-left: -9999px;
+    }
+
+    label.button {
+        margin-right: map-get($spacer, 4);
+        border-top-left-radius: 10px;
+        border-bottom-left-radius: 10px;
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        margin: 0;
+        height: 3rem;
+        width: auto;
+    }
+
+    .file-name {
+        display: block;
+        border: 1px solid $border-color;
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+        flex: 1;
+        height: 3rem;
+        background-color: #fff;
+        line-height: 3rem;
+        padding: 0 1rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+svg,
+button {
+    @extend .prevent-select;
+}
+
+/* Dialog */
+.modal {
+    position: fixed;
+    display: flex;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 1000;
+    padding: 1rem;
+
+    .dialog {
+        flex: 0 0 auto;
+        margin: 0;
+        box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.2);
+    }
+}
+
+.dialog {
+    flex-direction: column;
+    margin: 0 auto;
+    flex: 1;
+    background-color: #eee;
+    padding: map-get($spacer, 2) map-get($spacer, 5) map-get($spacer, 4)
+        map-get($spacer, 5);
+    border: 1px solid #eee;
+    border-radius: 24px;
+    overflow: hidden;
+    min-width: map-get($spacer, 5) * 12;
+
+    &.dialog-narrow {
+        min-width: auto;
+        max-width: map-get($spacer, 5) * 10;
+    }
+
+    &.dialog-full {
+        width: 100%;
+    }
+
+    .dialog-loading-cover {
+        position: fixed;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        right: 0;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(4px);
+        background-color: rgba(255, 255, 255, 0.5);
+
+        .dialog-loading {
+            display: flex;
+            flex-direction: column;
+            padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
+
+            border: 1px solid transparent;
+            border-radius: 24px;
+
+            svg {
+                font-size: calc(map-get($spacer, 5) * 1.5);
+            }
+
+            span {
+                font-size: map-get($spacer, 4);
+                padding-top: map-get($spacer, 3);
+            }
+        }
+    }
+}
+
+@media only screen and (max-width: 640px) {
+    .dialog {
+        padding: map-get($spacer, 1) map-get($spacer, 3) map-get($spacer, 3)
+            map-get($spacer, 3);
+        min-width: auto;
+
+        .button {
+            display: block;
+            width: 100%;
+            text-align: center;
+
+            margin-top: map-get($spacer, 1);
+            margin-bottom: map-get($spacer, 1);
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+    }
+}
+
+/* Loader */
+.loader-cover {
+    position: fixed;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(4px);
+    background-color: rgba(255, 255, 255, 0.5);
+
+    .loader {
+        display: flex;
+        flex-direction: column;
+        padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
+
+        border: 1px solid transparent;
+        border-radius: 24px;
+
+        svg {
+            font-size: calc(map-get($spacer, 5) * 1.5);
+        }
+
+        span {
+            font-size: map-get($spacer, 4);
+            padding-top: map-get($spacer, 3);
+        }
+    }
+}
+
+/* Button */
+button.button,
+a.button,
+label.button {
+    padding: map-get($spacer, 2) map-get($spacer, 4);
+    color: white;
+    font-weight: 800;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 24px;
+    transition: background-color 0.1s, color 0.1s;
+    cursor: pointer;
+    background-color: $secondary-color;
+    border-color: $secondary-color;
+    min-width: 7rem;
+    text-align: center;
+
+    &:disabled {
+        cursor: not-allowed;
+        background-color: $secondary-color !important;
+        border-color: $secondary-color !important;
+        opacity: 0.5;
+    }
+
+    &:hover:not(:disabled) {
+        text-decoration: none;
+        color: $secondary-color;
+    }
+
+    &.primary {
+        background-color: $primary-color;
+        border-color: $primary-color;
+
+        &:hover:not(:disabled) {
+            color: $primary-color;
+        }
+    }
+
+    &.secondary {
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+
+        &:hover:not(:disabled) {
+            color: $secondary-color;
+        }
+    }
+
+    &.danger {
+        background-color: $danger-color;
+        border-color: $danger-color;
+
+        &:hover:not(:disabled) {
+            color: $danger-color;
+        }
+    }
+
+    &:hover:not(:disabled) {
+        background-color: #fff;
+    }
+
+    svg {
+        padding-left: 0.5rem;
+        vertical-align: middle !important;
+    }
+}
+
+.button + .button {
+    margin: 0 map-get($spacer, 2);
+
+    &:first-child {
+        margin-left: 0;
+    }
+
+    &:last-child {
+        margin-right: 0;
+    }
+}
+
+/* Form Group */
+.form-group {
+    margin-bottom: map-get($spacer, 3);
+    padding: 0 4px;
+    flex: 1;
+
+    input,
+    textarea {
+        margin-bottom: map-get($spacer, 1);
+    }
+
+    .form-group-info {
+        font-size: 85%;
+        margin-bottom: map-get($spacer, 1);
+    }
+
+    .form-group-error {
+        // display: none;
+        font-size: 85%;
+        margin-bottom: map-get($spacer, 1);
+        color: $danger-color;
+    }
+
+    .form-group-help {
+        font-size: 85%;
+        margin-bottom: map-get($spacer, 1);
+        color: $secondary-color;
+
+        svg {
+            vertical-align: middle !important;
+        }
+    }
+
+    &.has-error {
+        input,
+        textarea,
+        .input-file-group,
+        .input-media-group .input-media-display {
+            border: 2px solid $danger-color;
+        }
+
+        .form-group-error {
+            display: block;
+        }
+    }
+}
+
+/* Page Errors */
+.page-error {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    margin-top: map-get($spacer, 5);
+
+    .image {
+        flex: 1;
+        height: 100%;
+        width: 100%;
+        background-position: center;
+        background-size: contain;
+        background-repeat: no-repeat;
+        margin-left: map-get($spacer, 2);
+        margin-right: map-get($spacer, 2);
+    }
+
+    .content {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        justify-content: center;
+        margin-left: map-get($spacer, 2);
+        margin-right: map-get($spacer, 2);
+        margin-bottom: 0;
+
+        h1 {
+            text-align: left;
+            margin-bottom: map-get($spacer, 1);
+        }
+
+        p {
+            margin: 0;
+        }
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .not-found {
+        flex-direction: column-reverse;
+
+        .content {
+            flex: 0;
+            margin-bottom: map-get($spacer, 5);
+
+            align-items: center;
+            h1 {
+                margin-top: 0;
+            }
+        }
+    }
+}
