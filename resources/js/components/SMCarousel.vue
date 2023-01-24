@@ -132,7 +132,7 @@ const disconnectMutationObserver = () => {
     position: relative;
     height: 26rem;
     background: #eee;
-    // overflow: hidden;
+    overflow: hidden;
 
     &:hover {
         .carousel-slide-prev,

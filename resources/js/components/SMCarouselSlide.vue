@@ -7,10 +7,12 @@
         </div>
         <div v-else class="carousel-slide-body">
             <div class="carousel-slide-content">
-                <h3>{{ title }}</h3>
-                <p v-if="content">{{ content }}</p>
-                <div class="carousel-slide-body-buttons">
-                    <SMButton v-if="url" :to="url" :label="cta" />
+                <div class="carousel-slide-content-inner">
+                    <h3>{{ title }}</h3>
+                    <p v-if="content">{{ content }}</p>
+                    <div class="carousel-slide-body-buttons">
+                        <SMButton v-if="url" :to="url" :label="cta" />
+                    </div>
                 </div>
             </div>
         </div>
@@ -97,11 +99,17 @@ handleLoad();
         padding: 1rem;
 
         .carousel-slide-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             background-color: rgba(0, 0, 0, 0.75);
+            width: auto;
+            height: auto;
             max-width: 800px;
             padding: 2rem 3rem 1.5rem 3rem;
             margin-bottom: 2rem;
             border-radius: 12px;
+            margin-left: 3rem;
         }
 
         h3 {
@@ -132,6 +140,24 @@ handleLoad();
 
             &:hover {
                 color: #333;
+            }
+        }
+    }
+}
+
+@media (max-width: 768px) {
+    .carousel-slide {
+        .carousel-slide-body {
+            padding: 0;
+
+            .carousel-slide-content {
+                width: 100%;
+                max-width: 100%;
+                height: 100%;
+                margin: 0;
+                padding-left: 5rem;
+                padding-right: 5rem;
+                border-radius: 0;
             }
         }
     }
