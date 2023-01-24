@@ -1,6 +1,5 @@
 <?php
 
-use App\Mail\EmailVerify;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -13,10 +12,6 @@ use Illuminate\Support\Facades\Route;
 | contains the "web" middleware group. Now create something great!
 |
 */
-
-Route::get('/test-email', function () {
-    return new EmailVerify();
-});
 
 Route::get('/{any}', function () {
     return view('app');
