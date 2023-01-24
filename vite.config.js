@@ -9,6 +9,10 @@ export default defineConfig({
                 compilerOptions: {
                     isCustomElement: (tag) => ["trix-editor"].includes(tag),
                 },
+                transformAssetUrls: {
+                    base: null,
+                    includeAbsolute: false,
+                },
             },
         }),
         laravel({
@@ -24,10 +28,15 @@ export default defineConfig({
         },
     },
     envPrefix: ["VITE_", "GOOGLE_RECAPTCHA_SITE_KEY", "APP_URL"],
+    resolve: {
+        alias: {
+            vue: "vue/dist/vue.esm-bundler.js",
+        },
+    },
+    publicDir: "public",
     // resolve: {
     //     alias: {
-    //         vue: 'vue/dist/vue.esm-bundler.js',
+    //         "@": "/resources/js",
     //     },
     // },
-    publicDir: "public",
 });
