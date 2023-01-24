@@ -155,7 +155,7 @@ export const routes = [
                     title: "Dashboard",
                     middleware: "authenticated",
                 },
-                component: () => import("@/views/dashboard.vue"),
+                component: () => import("@/views/dashboard/Dashboard.vue"),
             },
             {
                 path: "posts",
