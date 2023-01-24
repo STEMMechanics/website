@@ -98,8 +98,10 @@ const submit = async () => {
             const captcha = await executeRecaptcha("submit");
 
             await axios.delete("subscriptions", {
-                email: formData.email.value,
-                captcha_token: captcha,
+                data: {
+                    email: formData.email.value,
+                    captcha_token: captcha,
+                },
             });
 
             formDone.value = true;
