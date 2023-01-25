@@ -198,12 +198,12 @@ handleLoad();
 
         .workshop-body {
             flex: 1;
-            text-align: center;
+            text-align: left;
         }
 
         .workshop-info {
             width: 18rem;
-            margin-left: 1rem;
+            margin-left: 2rem;
 
             h4 {
                 margin-bottom: 0.25rem;
@@ -255,7 +255,7 @@ handleLoad();
         flex-direction: column;
 
         .workshop-body {
-            // text-align: left;
+            text-align: center;
         }
 
         .workshop-info {
