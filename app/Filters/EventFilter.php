@@ -19,7 +19,7 @@ class EventFilter extends FilterAbstract
      *
      * @var string|array
      */
-    protected $defaultSort = 'start_at';
+    protected $defaultSort = '-start_at';
 
     /**
      * Filter columns for q param
