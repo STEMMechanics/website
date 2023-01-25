@@ -155,6 +155,10 @@ const disconnectMutationObserver = () => {
         transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
         opacity: 0.75;
 
+        svg {
+            filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 1));
+        }
+
         &:hover {
             -webkit-transform: translateY(-50%) scale(1.25);
             transform: translateY(-50%) scale(1.25);
