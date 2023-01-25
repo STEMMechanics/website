@@ -25,7 +25,7 @@
         <SMPanelList
             :loading="loading"
             :not-found="events.value?.length == 0"
-            not-found-text="No events found">
+            not-found-text="No workshops found">
             <SMPanel
                 v-for="event in events.value"
                 :key="event.id"
