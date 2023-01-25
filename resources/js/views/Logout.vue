@@ -5,7 +5,9 @@
                 <h1>Logged out</h1>
                 <SMRow>
                     <SMColumn class="justify-content-center">
-                        <p class="mt-0">You have now been logged out</p>
+                        <p class="mt-0 text-center">
+                            You have now been logged out
+                        </p>
                     </SMColumn>
                 </SMRow>
                 <SMRow>
