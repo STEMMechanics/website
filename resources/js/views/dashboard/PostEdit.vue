@@ -102,7 +102,6 @@ import {
 } from "../../helpers/validation";
 import { useRoute } from "vue-router";
 import { useUserStore } from "../../store/UserStore";
-import { formatAusDateToUniversal } from "../../helpers/common";
 import SMFormFooter from "../../components/SMFormFooter.vue";
 
 const route = useRoute();
@@ -206,7 +205,6 @@ const loadData = async () => {
                 throw new Error("The server is currently not available");
             }
 
-            console.log(res.data.post);
             formData.title.value = res.data.post.title;
             formData.slug.value = res.data.post.slug;
             formData.user_id.value = res.data.post.user_id;
@@ -230,7 +228,7 @@ const submit = async () => {
             let data = {
                 title: formData.title.value,
                 slug: formData.slug.value,
-                publish_at: formatAusDateToUniversal(formData.publish_at.value),
+                publish_at: formData.publish_at.value,
                 user_id: formData.user_id.value,
                 content: formData.content.value,
                 hero: formData.hero.value,
@@ -246,6 +244,7 @@ const submit = async () => {
             formMessage.message = "Your details have been updated";
         }
     } catch (err) {
+        console.log(err);
         formMessage.icon = "";
         formMessage.type = "error";
         formMessage.message = "";
