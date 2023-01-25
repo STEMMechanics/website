@@ -8,8 +8,13 @@
             <d-error-not-found v-if="pageError == 404 && hasPermission()"
                 >XX</d-error-not-found
             >
-            <slot v-if="pageError < 300 && hasPermission()"></slot>
-            <div v-if="isFull" class="container-inner">
+            <slot
+                v-if="
+                    pageError < 300 && hasPermission() && slots.default
+                "></slot>
+            <div
+                v-if="pageError < 300 && hasPermission() && slots.inner"
+                class="container-inner">
                 <slot name="inner"></slot>
             </div>
         </SMLoader>
@@ -22,7 +27,7 @@ import DErrorForbidden from "./errors/Forbidden.vue";
 import DErrorInternal from "./errors/Internal.vue";
 import DErrorNotFound from "./errors/NotFound.vue";
 import { useUserStore } from "../store/UserStore";
-import { computed } from "vue";
+import { computed, useSlots } from "vue";
 
 const props = defineProps({
     pageError: {
@@ -46,6 +51,7 @@ const props = defineProps({
         required: false,
     },
 });
+const slots = useSlots();
 const userStore = useUserStore();
 
 const hasPermission = () => {
