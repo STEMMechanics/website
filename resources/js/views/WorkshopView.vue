@@ -22,13 +22,35 @@
                 </div>
                 <div class="workshop-info">
                     <div
-                        v-if="event.registration_type == 'none'"
+                        v-if="
+                            event.status == 'closed' ||
+                            (event.status == 'open' &&
+                                timestampBeforeNow(event.end_at))
+                        "
+                        class="workshop-registration workshop-registration-closed">
+                        Registration for this event has closed
+                    </div>
+                    <div
+                        v-if="event.status == 'cancelled'"
+                        class="workshop-registration workshop-registration-cancelled">
+                        This event has been cancelled
+                    </div>
+                    <div
+                        v-if="
+                            event.status == 'open' &&
+                            timestampAfterNow(event.end_at) &&
+                            event.registration_type == 'none'
+                        "
                         class="workshop-registration workshop-registration-none">
                         Registration not required for this event.<br />Arrive
                         early to avoid disappointment as seating maybe limited.
                     </div>
                     <div
-                        v-else
+                        v-if="
+                            event.status == 'open' &&
+                            timestampAfterNow(event.end_at) &&
+                            event.registration_type != 'none'
+                        "
                         class="workshop-registration workshop-registration-url">
                         <SMButton
                             :href="registerUrl"
@@ -74,7 +96,11 @@ import { format } from "date-fns";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
-import { timestampUtcToLocal } from "../helpers/common";
+import {
+    timestampUtcToLocal,
+    timestampBeforeNow,
+    timestampAfterNow,
+} from "../helpers/common";
 
 const applicationStore = useApplicationStore();
 const event = ref({});
@@ -237,6 +263,16 @@ handleLoad();
                 border: 1px solid #ffeeba;
                 background-color: #fff3cd;
                 color: #856404;
+                text-align: center;
+                font-size: 80%;
+                padding: 0.5rem;
+            }
+
+            .workshop-registration-closed,
+            .workshop-registration-cancelled {
+                border: 1px solid #f5c2c7;
+                background-color: #f8d7da;
+                color: #842029;
                 text-align: center;
                 font-size: 80%;
                 padding: 0.5rem;
