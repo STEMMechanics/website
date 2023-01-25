@@ -27,7 +27,7 @@ import { ref, computed } from "vue";
 import axios from "axios";
 import { useRoute } from "vue-router";
 import SMPageError from "../components/SMPageError.vue";
-import { fullMonthString } from "../helpers/common";
+import { fullMonthString, timestampUtcToLocal } from "../helpers/common";
 import { useApplicationStore } from "../store/ApplicationStore";
 
 const applicationStore = useApplicationStore();
@@ -50,6 +50,11 @@ const loadData = async () => {
                     error.value = 404;
                 } else {
                     post.value = res.data.posts[0];
+
+                    post.value.publish_at = timestampUtcToLocal(
+                        post.value.publish_at
+                    );
+
                     applicationStore.setDynamicTitle(post.value.title);
 
                     try {

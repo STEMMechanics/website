@@ -51,7 +51,13 @@ import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
 import { reactive, ref } from "vue";
 import axios from "axios";
-import { buildUrlQuery } from "../helpers/common";
+import {
+    buildUrlQuery,
+    timestampLocalToUtc,
+    timestampNowUtc,
+    timestampUtcToLocal,
+} from "../helpers/common";
+import { format, parse, parseISO } from "date-fns";
 
 const loading = ref(true);
 const events = reactive([]);
@@ -84,14 +90,25 @@ const handleLoad = async () => {
         }
         if (filterDateRange.value && Array.isArray(filterDateRange.value)) {
             query["start_at"] =
-                filterDateRange.value[0] + "<>" + filterDateRange.value[1];
+                timestampLocalToUtc(filterDateRange.value[0]) +
+                "<>" +
+                timestampLocalToUtc(filterDateRange.value[1]);
+        } else {
+            query["end_at"] = ">" + timestampNowUtc();
         }
+
+        console.log(new Date().toDateString());
 
         const url = buildUrlQuery("events", query);
         let result = await axios.get(url);
 
         if (result.data.events) {
             events.value = result.data.events;
+
+            events.value.forEach((item) => {
+                item.start_at = timestampUtcToLocal(item.start_at);
+                item.end_at = timestampUtcToLocal(item.end_at);
+            });
         }
     } catch (error) {
         if (error.response.status != 404) {

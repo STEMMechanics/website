@@ -52,22 +52,27 @@
 import { ref, watch, reactive } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
 import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import {
+    relativeDate,
+    timestampUtcToLocal,
+    toParamString,
+} from "../../helpers/common";
 import { useRouter } from "vue-router";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
-
 import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
 import { debounce } from "../../helpers/common";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import { restParseErrors } from "../../helpers/validation";
 
 const router = useRouter();
 const search = ref("");
 
 const headers = [
     { text: "Title", value: "title", sortable: true },
+    { text: "Starts", value: "start_at", sortable: true },
     { text: "Created", value: "created_at", sortable: true },
     { text: "Updated", value: "updated_at", sortable: true },
     { text: "Actions", value: "actions" },
@@ -90,6 +95,9 @@ const serverOptions = ref({
 });
 
 const loadFromServer = async () => {
+    formMessage.icon = "";
+    formMessage.type = "error";
+    formMessage.message = "";
     formLoading.value = true;
 
     try {
@@ -121,21 +129,21 @@ const loadFromServer = async () => {
 
         items.value = res.data.events;
 
-        // items.value.forEach((row) => {
-        //     if (row.created_at !== "undefined") {
-        //         row.created_at = relativeDate(row.created_at);
-        //     }
-        //     if (row.updated_at !== "undefined") {
-        //         row.updated_at = relativeDate(row.updated_at);
-        //     }
-        // });
+        items.value.forEach((row) => {
+            if (row.start_at !== "undefined") {
+                row.start_at = relativeDate(timestampUtcToLocal(row.start_at));
+            }
+            if (row.created_at !== "undefined") {
+                row.created_at = relativeDate(row.created_at);
+            }
+            if (row.updated_at !== "undefined") {
+                row.updated_at = relativeDate(row.updated_at);
+            }
+        });
 
         serverItemsLength.value = res.data.total;
     } catch (err) {
-        // formMessage.icon = ''
-        // formMessage.type = 'error'
-        // formMessage.message = ''
-        // restParseErrors(formData, [formMessage, 'message'], err)
+        // restParseErrors(formData, [formMessage, "message"], err);
     }
 
     formLoading.value = false;

@@ -135,9 +135,11 @@
                         </SMColumn>
                     </SMRow>
                     <SMRow>
-                        <SMColumn class="justify-content-end">
-                            <SMButton type="submit" label="Save" />
-                        </SMColumn>
+                        <SMFormFooter>
+                            <template #right>
+                                <SMButton type="submit" label="Save" />
+                            </template>
+                        </SMFormFooter>
                     </SMRow>
                 </form>
             </SMDialog>
@@ -154,6 +156,7 @@ import SMSelect from "../../components/SMSelect.vue";
 import SMDatepicker from "../../components/SMDatePicker.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import SMFormFooter from "../../components/SMFormFooter.vue";
 import axios from "axios";
 import {
     useValidation,
@@ -162,6 +165,7 @@ import {
     restParseErrors,
 } from "../../helpers/validation";
 import { useRoute } from "vue-router";
+import { timestampLocalToUtc, timestampUtcToLocal } from "../../helpers/common";
 import { parseISO } from "date-fns";
 
 const route = useRoute();
@@ -250,11 +254,11 @@ const formData = reactive({
         rules: {
             required: true,
             datetime: true,
-            custom: (value) => {
-                if (parseISO(value) < parseISO(formData.start_at.value)) {
-                    return "The ending date/time must be after the starting date/time.";
-                }
+            afterdate: () => {
+                return formData.start_at.value;
             },
+            afterdate_message:
+                "The ending date/time must be after the starting date/time.",
         },
     },
     publish_at: {
@@ -308,16 +312,19 @@ const loadData = async () => {
                 throw new Error("The server is currently not available");
             }
 
-            console.log(res.data.event);
             formData.title.value = res.data.event.title;
             formData.location.value = res.data.event.location;
             formData.address.value = res.data.event.address
                 ? res.data.event.address
                 : "";
-            formData.start_at.value = res.data.event.start_at;
-            formData.end_at.value = res.data.event.end_at;
+            formData.start_at.value = timestampUtcToLocal(
+                res.data.event.start_at
+            );
+            formData.end_at.value = timestampUtcToLocal(res.data.event.end_at);
             formData.status.value = res.data.event.status;
-            formData.publish_at.value = res.data.event.publish_at;
+            formData.publish_at.value = timestampUtcToLocal(
+                res.data.event.publish_at
+            );
             formData.registration_type.value = res.data.event.registration_type;
             formData.registration_data.value = res.data.event.registration_data;
             formData.content.value = res.data.event.content
@@ -333,32 +340,36 @@ const loadData = async () => {
 };
 
 const submit = async () => {
+    console.log(formData.end_at.value);
+
     try {
         if (isValidated(formData)) {
             let data = {
                 title: formData.title.value,
                 location: formData.location.value,
                 address: formData.address.value,
-                start_at: formData.start_at.value,
-                end_at: formData.end_at.value,
+                start_at: timestampLocalToUtc(formData.start_at.value),
+                end_at: timestampLocalToUtc(formData.end_at.value),
                 status: formData.status.value,
                 publish_at:
                     formData.publish_at.value == ""
                         ? ""
-                        : formData.publish_at.value,
+                        : timestampLocalToUtc(formData.publish_at.value),
                 registration_type: formData.registration_type.value,
                 registration_data: formData.registration_data.value,
                 content: formData.content.value,
                 hero: formData.hero.value,
             };
 
+            let res = {};
             if (route.params.id) {
-                await axios.put(`events/${route.params.id}`, data);
+                res = await axios.put(`events/${route.params.id}`, data);
             } else {
                 console.log(data);
-                await axios.post(`events`, data);
+                res = await axios.post(`events`, data);
             }
 
+            console.log(res);
             formMessage.type = "success";
             formMessage.message = "Your details have been updated";
         }

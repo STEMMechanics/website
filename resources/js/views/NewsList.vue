@@ -30,6 +30,7 @@ import axios from "axios";
 import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
+import { timestampUtcToLocal } from "../helpers/common";
 
 const formMessage = reactive({
     icon: "",
@@ -48,7 +49,10 @@ const handleLoad = async () => {
     try {
         let result = await axios.get("posts?limit=5");
         posts.value = result.data.posts;
-        console.log(result.data.posts);
+
+        posts.value.forEach((post) => {
+            post.publish_at = timestampUtcToLocal(post.publish_at);
+        });
     } catch (error) {
         formMessage.message =
             error.response?.data?.message ||

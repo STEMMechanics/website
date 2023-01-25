@@ -103,6 +103,7 @@ import {
 import { useRoute } from "vue-router";
 import { useUserStore } from "../../store/UserStore";
 import SMFormFooter from "../../components/SMFormFooter.vue";
+import { timestampLocalToUtc, timestampUtcToLocal } from "../../helpers/common";
 
 const route = useRoute();
 const formLoading = ref(false);
@@ -210,7 +211,7 @@ const loadData = async () => {
             formData.user_id.value = res.data.post.user_id;
             formData.content.value = res.data.post.content;
             formData.publish_at.value = res.data.post.publish_at
-                ? new Date(res.data.post.publish_at)
+                ? timestampUtcToLocal(res.data.post.publish_at)
                 : "";
             formData.content.value = res.data.post.content;
             formData.hero.value = res.data.post.hero;
@@ -228,7 +229,7 @@ const submit = async () => {
             let data = {
                 title: formData.title.value,
                 slug: formData.slug.value,
-                publish_at: formData.publish_at.value,
+                publish_at: timestampLocalToUtc(formData.publish_at.value),
                 user_id: formData.user_id.value,
                 content: formData.content.value,
                 hero: formData.hero.value,

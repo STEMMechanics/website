@@ -123,13 +123,19 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = relativeDate(
+                    timestampUtcToLocal(row.created_at)
+                );
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(row.updated_at);
+                row.updated_at = relativeDate(
+                    timestampUtcToLocal(row.updated_at)
+                );
             }
             if (row.publish_at !== "undefined") {
-                row.publish_at = relativeDate(row.publish_at);
+                row.publish_at = relativeDate(
+                    timestampUtcToLocal(row.publish_at)
+                );
             }
         });
 

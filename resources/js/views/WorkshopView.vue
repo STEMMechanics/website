@@ -74,6 +74,7 @@ import { format } from "date-fns";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
+import { timestampUtcToLocal } from "../helpers/common";
 
 const applicationStore = useApplicationStore();
 const event = ref({});
@@ -140,6 +141,9 @@ const handleLoad = async () => {
     try {
         const result = await axios.get(`events/${route.params.id}`);
         event.value = result.data.event;
+
+        event.value.start_at = timestampUtcToLocal(event.value.start_at);
+        event.value.end_at = timestampUtcToLocal(event.value.end_at);
 
         applicationStore.setDynamicTitle(event.value.title);
         handleLoadImage();
