@@ -66,7 +66,7 @@
             </tr>
             <tr>
                 <td style="padding-bottom: 2rem">
-                    <strong>From:</strong>{{ $name }} - {{ $email }}
+                    <strong>From:</strong> {{ $name }} - {{ $email }}
                 </td>
             </tr>
             <tr>
