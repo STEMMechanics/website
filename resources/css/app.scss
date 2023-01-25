@@ -327,6 +327,18 @@ label.button {
         }
     }
 
+    &.outline {
+        background-color: transparent;
+        border-color: $outline-color;
+        color: $outline-color;
+
+        &:hover:not(:disabled) {
+            background-color: $outline-color;
+            border-color: $outline-color;
+            color: $outline-hover-color;
+        }
+    }
+
     &:hover:not(:disabled) {
         background-color: #fff;
     }

@@ -17,7 +17,9 @@
                 :to="{ name: 'post-view', params: { slug: post.slug } }"
                 :title="post.title"
                 :date="post.publish_at"
-                :content="post.content" />
+                :content="post.content"
+                button="Read More"
+                button-type="outline" />
         </SMPanelList>
     </SMContainer>
 </template>

@@ -31,6 +31,9 @@
                 <p>{{ location }}</p>
             </div>
             <div v-if="content" class="panel-content">{{ panelContent }}</div>
+            <div v-if="button.length > 0" class="panel-button">
+                <SMButton :to="to" :type="buttonType" :label="button" />
+            </div>
         </div>
     </router-link>
 </template>
@@ -44,7 +47,8 @@ import {
     replaceHtmlEntites,
     stripHtmlTags,
 } from "../helpers/common";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
+import SMButton from "./SMButton.vue";
 
 const props = defineProps({
     title: {
@@ -94,6 +98,16 @@ const props = defineProps({
         default: "",
         required: false,
     },
+    button: {
+        type: String,
+        default: "",
+        required: false,
+    },
+    buttonType: {
+        type: String,
+        default: "primary",
+        required: false,
+    },
 });
 
 let imageUrl = ref(props.image);
@@ -118,7 +132,7 @@ const panelDate = computed(() => {
 });
 
 const panelContent = computed(() => {
-    return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 250);
+    return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 200);
 });
 
 const hideImageLoader = computed(() => {
@@ -151,7 +165,7 @@ onMounted(async () => {
     border: 1px solid $border-color;
     border-radius: 12px;
     box-shadow: 0 0 28px rgba(0, 0, 0, 0.05);
-    max-width: 18rem;
+    max-width: 21rem;
     width: 100%;
     color: $font-color !important;
     margin-bottom: map-get($spacer, 5);
@@ -205,6 +219,9 @@ onMounted(async () => {
     }
 
     .panel-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
         padding: 0 map-get($spacer, 3) map-get($spacer, 3) map-get($spacer, 3);
     }
 
@@ -237,6 +254,15 @@ onMounted(async () => {
 
     .panel-content {
         margin-top: 1rem;
+        line-height: 130%;
+        flex: 1;
+    }
+
+    .panel-button {
+        .button {
+            display: block;
+            margin-top: 1.5rem;
+        }
     }
 }
 </style>
