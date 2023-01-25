@@ -379,6 +379,38 @@ export const timestampLocalToUtc = (local) => {
     return "";
 };
 
+export const timestampNowLocal = () => {
+    let d = new Date();
+    return (
+        d.getFullYear() +
+        "-" +
+        ("0" + (d.getMonth() + 1)).slice(-2) +
+        "-"("0" + d.getDate()).slice(-2) +
+        " " +
+        ("0" + d.getHours()).slice(-2) +
+        ":" +
+        ("0" + d.getMinutes()).slice(-2) +
+        ":" +
+        ("0" + d.getSeconds()).slice(-2)
+    );
+};
+
+export const timestampNowUtc = () => {
+    try {
+        let d = new Date();
+        return d
+            .toISOString()
+            .replace(
+                /([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*/,
+                "$1 $2"
+            );
+    } catch (error) {
+        /* empty */
+    }
+
+    return "";
+};
+
 export {
     transitionEndEventName,
     waitForElementRender,
