@@ -277,6 +277,7 @@ handleLoad();
         border-radius: 24px;
         padding: 4rem 8rem;
         width: auto;
+        align-self: center;
 
         h2 {
             font-size: 400%;
@@ -290,6 +291,7 @@ handleLoad();
 
     .workshops {
         margin: 8rem auto;
+        align-self: center;
 
         h2 {
             font-size: 300%;
@@ -318,6 +320,7 @@ handleLoad();
         margin-left: 2rem;
         margin-right: 2rem;
         width: auto;
+        align-self: center;
 
         img {
             border-radius: 24px;
@@ -399,6 +402,7 @@ handleLoad();
 
     .subscribe {
         margin: 6rem auto 0 auto;
+        align-self: center;
 
         h2 {
             font-size: 200%;
