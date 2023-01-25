@@ -26,7 +26,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, useSlots, onMounted } from "vue";
+import { useSlots, onMounted, computed, watch } from "vue";
 
 const props = defineProps({
     modelValue: {
@@ -78,11 +78,17 @@ const handleBlur = (event) => {
     }
 };
 
-onMounted(() => {
+const initialOptions = computed(() => {
+    return props.options;
+});
+
+watch(initialOptions, () => {
     if (
-        props.modelValue.length == 0 ||
-        props.modelValue in Object.keys(props.options) == false
+        props.modelValue.length > 0 &&
+        props.modelValue in Object.keys(props.options) == true
     ) {
+        emits("update:modelValue", props.modelValue);
+    } else if (Object.keys(props.options).length > 0) {
         emits("update:modelValue", Object.keys(props.options)[0]);
     }
 });
