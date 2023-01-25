@@ -314,7 +314,14 @@ abstract class FilterAbstract
 
         /* Remove non-viewable attributes from sort list */
         if (count($sortList) > 0) {
-            $sortList = array_intersect($attributes, $sortList);
+            $sortList = array_filter($sortList, function ($item) use ($attributes) {
+                $parsedItem = $item;
+                if (substr($parsedItem, 0, 1) === '-') {
+                    $parsedItem = substr($parsedItem, 1);
+                }
+
+                return in_array($parsedItem, $attributes);
+            });
         }
 
         /* Do we have any sort element left? */
