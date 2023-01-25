@@ -411,6 +411,26 @@ export const timestampNowUtc = () => {
     return "";
 };
 
+export const timestampBeforeNow = (timestamp) => {
+    try {
+        return new Date(timestamp) < new Date();
+    } catch (error) {
+        /* empty */
+    }
+
+    return false;
+};
+
+export const timestampAfterNow = (timestamp) => {
+    try {
+        return new Date(timestamp) > new Date();
+    } catch (error) {
+        /* empty */
+    }
+
+    return false;
+};
+
 export {
     transitionEndEventName,
     waitForElementRender,
