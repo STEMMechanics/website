@@ -1,3 +1,5 @@
+import { format } from "date-fns";
+
 const transitionEndEventName = () => {
     var i,
         undefined,
@@ -343,6 +345,38 @@ export const isUUID = (uuid) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         uuid
     );
+};
+
+export const timestampUtcToLocal = (utc) => {
+    try {
+        let iso = new Date(
+            utc.replace(
+                /([0-9]{4}-[0-9]{2}-[0-9]{2}),? ([0-9]{2}:[0-9]{2}:[0-9]{2})/,
+                "$1T$2.000Z"
+            )
+        );
+        return format(iso, "yyyy/MM/dd hh:mm:ss");
+    } catch (error) {
+        /* empty */
+    }
+
+    return "";
+};
+
+export const timestampLocalToUtc = (local) => {
+    try {
+        let d = new Date(local);
+        return d
+            .toISOString()
+            .replace(
+                /([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*/,
+                "$1 $2"
+            );
+    } catch (error) {
+        /* empty */
+    }
+
+    return "";
 };
 
 export {
