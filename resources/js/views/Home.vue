@@ -12,27 +12,22 @@
         </SMCarousel>
         <SMContainer class="about">
             <h2>Join the Fun!</h2>
+            <p></p>
             <p>
-                The world needs more scientists, engineers and problem-solving
-                leaders of tomorrow. Science constantly presents us with
-                breakthroughs, innovations and challenges, creating greater
-                opportunities for problem-solving through technology.
+                To meet the demands of a constantly evolving world, it is
+                essential to nurture a new generation of scientists, engineers,
+                and leaders who are skilled in problem-solving. Science and
+                technology offer endless possibilities for innovation and
+                progress, and it is through STEM education that we can equip the
+                next generation with the tools they need to tackle these
+                challenges.
             </p>
             <p>
-                STEAM Powered Kids is a company dedicated to providing learning
-                enrichment programs for students in all aspects of STEAM
-                (Science, Technology, Engineering, Arts and Mathematics). Our
-                services include STEM courses, Afterschool STEM clubs, Themed
-                workshops, Robotics, Science parties and Incursions (schools,
-                kindergartens and private venues).
-            </p>
-            <p>
-                Our staff are experienced STEM professionals, teachers and
-                facilitators passionate about STEM and have extensive knowledge
-                and experience in Electrical/Electronics/Mechanical Engineering,
-                Coding, Biomedical Science, Microbiology and Education. Our goal
-                is to educate, motivate, mentor and encourage students to pursue
-                STEM field careers in the future.
+                STEMMechanics is a family-run business that is committed to
+                providing accessible and inclusive STEM education to all. We
+                offer a wide range of STEM courses, after-school clubs, and
+                themed workshops across Queensland, both to the general public
+                and to private groups.
             </p>
         </SMContainer>
         <SMContainer class="workshops">
@@ -40,9 +35,10 @@
                 <SMColumn class="align-items-center flex-basis-55">
                     <h2>Build skills while having a great time</h2>
                     <p>
-                        Our online and physical workshops are packed excitement
-                        that kids can't help but to have fun, meet new friends
-                        and take away life gaining skills.
+                        Our online and in-person workshops are filled with
+                        engaging and exciting activities that kids will love.
+                        They will have fun, make new friends, and gain valuable
+                        skills that they can use throughout their lives.
                     </p>
                     <SMButton
                         :to="{ name: 'workshop-list' }"
@@ -63,9 +59,10 @@
                 <SMColumn class="align-items-center flex-basis-55">
                     <h2>And the support doesn't stop!</h2>
                     <p>
-                        The workshop may have ended, but we are still available
-                        on email and Discord and happy to help with your
-                        projects at home.
+                        Though the workshop has come to a close, we remain
+                        available to assist you via email and Discord with any
+                        projects you undertake at home. We are always happy to
+                        help.
                     </p>
                     <div class="button-row">
                         <a href="https://discord.gg/yNzk4x7mpD">Join Discord</a>
@@ -80,9 +77,9 @@
             <SMContainer>
                 <h2>Play Minecraft with us</h2>
                 <p>
-                    You are welcome to play on our very own Bedrock and Java
-                    Minecraft server, participate in weekly challenges and
-                    mini-games.
+                    We invite you to join us on our Minecraft servers,
+                    supporting both Bedrock and Java clients, where you can
+                    participate in weekly challenges and mini-games.
                 </p>
                 <p class="minecraft-education">
                     <img
@@ -90,14 +87,14 @@
                         height="96"
                         width="96"
                         class="minecraft-image" />
-                    We even have
+                    We also offer workshops for
                     <a
                         href="https://education.minecraft.net/en-us/discover/what-is-minecraft"
                         target="_blank"
                         >Minecraft Education</a
-                    >
-                    workshops, make it rain rabbits, or grow flowers whereever
-                    you walk. No school accounts needed.
+                    >, where you can learn to make it rain rabbits or grow
+                    flowers wherever you walk, all without the need for a school
+                    account.
                 </p>
                 <p class="pt-5">
                     <img
@@ -110,8 +107,8 @@
         <SMContainer class="subscribe">
             <h2>Be the first to know</h2>
             <p>
-                Join our mailing list to receive tips, tricks and be notified of
-                upcoming workshops.
+                Sign up for our mailing list to receive expert tips and tricks,
+                as well as updates on upcoming workshops.
             </p>
             <SMDialog :loading="formLoading" class="p-0">
                 <form @submit.prevent="handleSubscribe">
