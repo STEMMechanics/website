@@ -1,5 +1,4 @@
 import { watch } from "vue";
-import { parseISO } from "date-fns";
 
 let oldFormData = {};
 
@@ -181,12 +180,45 @@ const validateSingle = (fieldData) => {
             fieldData.value.length > 0
         ) {
             try {
-                parseISO(fieldData.value);
+                new Date(fieldData.value);
             } catch (e) {
                 error = validateMessage(
                     fieldData.rules,
                     "datetime",
                     "A valid date/time is required"
+                );
+            }
+        }
+
+        if (
+            error.length == 0 &&
+            Object.keys(fieldData.rules).includes("afterdate") &&
+            fieldData.value != null &&
+            fieldData.value.length > 0
+        ) {
+            let failed = false;
+
+            try {
+                let after = fieldData.rules.afterdate;
+                if (typeof after == "function") {
+                    after = after();
+                }
+
+                if (
+                    after.length > 0 &&
+                    new Date(fieldData.value) <= new Date(after)
+                ) {
+                    failed = true;
+                }
+            } catch (e) {
+                failed = true;
+            }
+
+            if (failed) {
+                error = validateMessage(
+                    fieldData.rules,
+                    "afterdate",
+                    "Date is required to be after the beginning date."
                 );
             }
         }
