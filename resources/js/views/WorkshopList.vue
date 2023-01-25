@@ -98,7 +98,7 @@ const handleLoad = async () => {
 
         if (
             Object.keys(query).length == 1 &&
-            Object.keys(query)[0] == "length"
+            Object.keys(query)[0] == "limit"
         ) {
             query["end_at"] = ">" + timestampNowUtc();
         }
