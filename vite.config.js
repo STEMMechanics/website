@@ -34,9 +34,7 @@ export default defineConfig({
         },
     },
     publicDir: "public",
-    // resolve: {
-    //     alias: {
-    //         "@": "/resources/js",
-    //     },
-    // },
+    build: {
+        chunkSizeWarningLimit: 1600,
+    },
 });
