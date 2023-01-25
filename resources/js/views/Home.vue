@@ -135,7 +135,7 @@
 <script setup lang="ts">
 import axios from "axios";
 import { reactive, ref } from "vue";
-import { buildUrlQuery, excerpt } from "../helpers/common";
+import { buildUrlQuery, excerpt, timestampNowUtc } from "../helpers/common";
 import {
     useValidation,
     isValidated,
@@ -196,7 +196,12 @@ const handleLoad = async () => {
     }
 
     try {
-        let result = await axios.get(buildUrlQuery("events", { limit: 3 }));
+        let query = {
+            limit: 3,
+            end_at: ">" + timestampNowUtc(),
+        };
+
+        let result = await axios.get(buildUrlQuery("events", query));
         if (result.data.events) {
             result.data.events.forEach((event) => {
                 events.push({
