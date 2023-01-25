@@ -14,6 +14,13 @@ class PostFilter extends FilterAbstract
      */
     protected $class = '\App\Models\Post';
 
+    /**
+     * Default column sorting (prefix with - for descending)
+     *
+     * @var string|array
+     */
+    protected $defaultSort = '-publish_at';
+
 
     /**
      * Determine if the user can view the media model
