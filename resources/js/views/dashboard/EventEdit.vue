@@ -162,7 +162,6 @@ import {
     restParseErrors,
 } from "../../helpers/validation";
 import { useRoute } from "vue-router";
-import { formatAusDateToUniversal } from "../../helpers/common";
 import { parseISO } from "date-fns";
 
 const route = useRoute();

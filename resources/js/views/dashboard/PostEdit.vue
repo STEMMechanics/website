@@ -135,8 +135,11 @@ const formData = reactive({
         },
     },
     publish_at: {
-        value: "",
+        value: null,
         error: "",
+        rules: {
+            datetime: true,
+        },
     },
     hero: {
         value: "",
@@ -200,11 +203,14 @@ const loadData = async () => {
                 throw new Error("The server is currently not available");
             }
 
+            console.log(res.data.post);
             formData.title.value = res.data.post.title;
             formData.slug.value = res.data.post.slug;
             formData.user_id.value = res.data.post.user_id;
             formData.content.value = res.data.post.content;
-            formData.publish_at.value = res.data.post.publish_at;
+            formData.publish_at.value = res.data.post.publish_at
+                ? new Date(res.data.post.publish_at)
+                : "";
             formData.content.value = res.data.post.content;
             formData.hero.value = res.data.post.hero;
         } catch (err) {

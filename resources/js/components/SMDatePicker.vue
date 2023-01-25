@@ -124,7 +124,10 @@ const computedEnableTime = computed(() => {
 });
 
 watch(initialContent, (newContent) => {
-    if (typeof date.value == "undefined") {
+    if (
+        typeof date.value == "undefined" ||
+        (typeof date.value == "string" && date.value.length == 0)
+    ) {
         date.value = newContent === undefined ? "" : newContent;
     }
 });

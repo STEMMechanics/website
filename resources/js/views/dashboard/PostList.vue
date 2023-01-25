@@ -68,6 +68,7 @@ const search = ref("");
 
 const headers = [
     { text: "Title", value: "title", sortable: true },
+    { text: "Published", value: "publish_at", sortable: true },
     { text: "Created", value: "created_at", sortable: true },
     { text: "Updated", value: "updated_at", sortable: true },
     { text: "Actions", value: "actions" },
@@ -126,6 +127,9 @@ const loadFromServer = async () => {
             }
             if (row.updated_at !== "undefined") {
                 row.updated_at = relativeDate(row.updated_at);
+            }
+            if (row.publish_at !== "undefined") {
+                row.publish_at = relativeDate(row.publish_at);
             }
         });
 
