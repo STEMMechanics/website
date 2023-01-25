@@ -72,9 +72,11 @@
                         </SMColumn>
                     </SMRow>
                     <SMRow>
-                        <SMColumn class="justify-content-end">
-                            <SMButton type="submit" label="Save" />
-                        </SMColumn>
+                        <SMFormFooter>
+                            <template #right>
+                                <SMButton type="submit" label="Save" />
+                            </template>
+                        </SMFormFooter>
                     </SMRow>
                 </form>
             </SMDialog>
@@ -101,6 +103,7 @@ import {
 import { useRoute } from "vue-router";
 import { useUserStore } from "../../store/UserStore";
 import { formatAusDateToUniversal } from "../../helpers/common";
+import SMFormFooter from "../../components/SMFormFooter.vue";
 
 const route = useRoute();
 const formLoading = ref(false);
