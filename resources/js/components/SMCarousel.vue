@@ -193,4 +193,13 @@ const disconnectMutationObserver = () => {
         }
     }
 }
+
+@media only screen and (max-width: 400px) {
+    .carousel {
+        .carousel-slide-prev,
+        .carousel-slide-next {
+            font-size: 150%;
+        }
+    }
+}
 </style>

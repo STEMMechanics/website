@@ -119,16 +119,19 @@ handleLoad();
             max-width: 600px;
             margin: 0;
             text-shadow: 0 0 8px rgba(0, 0, 0, 1);
+            text-align: left;
         }
 
         p {
+            display: inline-block;
             color: #fff;
-            margin-bottom: 2rem;
             max-width: 600px;
             text-shadow: 0 0 8px rgba(0, 0, 0, 1);
+            text-align: left;
         }
 
         .carousel-slide-body-buttons {
+            margin-top: 2rem;
             text-align: right;
             max-width: 600px;
         }
@@ -177,5 +180,28 @@ handleLoad();
 }
 
 @media only screen and (max-width: 640px) {
+    .carousel-slide .carousel-slide-body {
+        h3,
+        p {
+            text-align: center;
+        }
+    }
+}
+
+@media only screen and (max-width: 400px) {
+    .carousel-slide .carousel-slide-body {
+        .carousel-slide-content {
+            padding-left: 3rem;
+            padding-right: 3rem;
+        }
+
+        h3 {
+            font-size: 175%;
+        }
+
+        p {
+            display: none;
+        }
+    }
 }
 </style>
