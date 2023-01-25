@@ -339,57 +339,6 @@ export const replaceHtmlEntites = (txt) => {
     });
 };
 
-export const formatAusDateToUniversal = (datetime) => {
-    if (
-        /20[0-9]{2}-[0-1][0-9]-[0-3][0-9] [0-2][0-9]:[0-5][0-9]:[0-5][0-9]/.test(
-            datetime
-        ) == true
-    ) {
-        return datetime;
-    }
-
-    var splitted = datetime.match(
-        /([0-9]{1,2}?)\/([0-9]{1,2}?)\/([0-9]{2,4}?)[, ]*([0-9]{1,2}?):([0-9]{2})[:0-9 ]*(AM|PM)?/i
-    );
-
-    try {
-        if (splitted.length >= 5) {
-            if (splitted.length >= 6 && splitted[6].toUpperCase() == "PM") {
-                splitted[4] = parseInt(splitted[4]) + 12;
-            }
-        }
-
-        const d = new Date(
-            splitted[3] +
-                "/" +
-                splitted[2] +
-                "/" +
-                splitted[1] +
-                " " +
-                splitted[4] +
-                ":" +
-                splitted[5]
-        );
-        if (isNaN(d)) {
-            return "";
-        }
-
-        let year = d.getFullYear();
-        let month = (d.getMonth() + 1).toString().padStart(2, "0");
-        let day = d.getDate().toString().padStart(2, "0");
-        let hours = d.getHours();
-        let mins = d.getMinutes();
-        let secs = "00";
-
-        return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
-    } catch (e) {
-        console.log(e);
-        /* empty */
-    }
-
-    return "";
-};
-
 export const isUUID = (uuid) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         uuid
