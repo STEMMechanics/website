@@ -82,6 +82,7 @@ const handleLoad = async () => {
     try {
         let query = {};
         query["limit"] = 10;
+
         if (filterKeywords.value && filterKeywords.value.length > 0) {
             query["q"] = filterKeywords.value;
         }
@@ -93,11 +94,14 @@ const handleLoad = async () => {
                 timestampLocalToUtc(filterDateRange.value[0]) +
                 "<>" +
                 timestampLocalToUtc(filterDateRange.value[1]);
-        } else {
-            query["end_at"] = ">" + timestampNowUtc();
         }
 
-        console.log(new Date().toDateString());
+        if (
+            Object.keys(query).length == 1 &&
+            Object.keys(query)[0] == "length"
+        ) {
+            query["end_at"] = ">" + timestampNowUtc();
+        }
 
         const url = buildUrlQuery("events", query);
         let result = await axios.get(url);
