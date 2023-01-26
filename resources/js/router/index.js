@@ -77,6 +77,14 @@ export const routes = [
         component: () => import("@/views/Terms.vue"),
     },
     {
+        path: "/minecraft",
+        name: "minecraft",
+        meta: {
+            title: "Minecraft",
+        },
+        component: () => import("@/views/Minecraft.vue"),
+    },
+    {
         path: "/workshops",
         children: [
             {
