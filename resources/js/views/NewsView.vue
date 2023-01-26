@@ -1,23 +1,22 @@
 <template>
-    <SMContainer :loading="pageLoading">
+    <SMContainer :loading="pageLoading" full class="page-post-view">
         <SMPageError :error="error">
-            <div class="post-page">
-                <div class="heading">
-                    <div
-                        class="hero-image"
-                        :style="{
-                            backgroundImage: `url('${post.hero_url}')`,
-                        }"></div>
-                    <div class="info">
-                        <h1>{{ post.title }}</h1>
-                        <div class="date-author">
-                            {{ formattedPublishAt(post.publish_at) }}, by
-                            {{ post.user_username }}
-                        </div>
+            <div
+                class="heading"
+                :style="{
+                    backgroundImage: `url('${post.hero_url}')`,
+                }">
+                <div class="heading-info">
+                    <h1>{{ post.title }}</h1>
+                    <div class="date-author">
+                        {{ formattedPublishAt(post.publish_at) }}, by
+                        {{ post.user_username }}
                     </div>
                 </div>
-                <component :is="formattedContent" ref="content"></component>
             </div>
+            <SMContainer>
+                <component :is="formattedContent" ref="content"></component>
+            </SMContainer>
         </SMPageError>
     </SMContainer>
 </template>
@@ -114,47 +113,41 @@ loadData();
 </script>
 
 <style lang="scss">
-.post-page {
-    margin: 0 auto;
-    width: 100%;
-    max-width: 1200px;
-
+.page-post-view {
     .heading {
         display: flex;
-        // justify-content: center;
+        justify-content: center;
         align-items: center;
 
         background-color: #eee;
-        padding: 1rem;
-        border-radius: 24px;
-    }
-
-    h1 {
-        margin: 0 0 map-get($spacer, 3) 0;
-        text-align: left;
-    }
-
-    .date-author {
-        font-size: 80%;
-    }
-
-    .hero-image {
-        width: 12rem;
-        height: 12rem;
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
-        padding: map-get($spacer, 3);
-        border-radius: 100%;
-        border: 3px solid $primary-color-dark;
-        box-shadow: 0 0 0 2px #fff inset;
-        margin-right: map-get($spacer, 4);
-        transition: transform 2s ease-in-out;
-        transition-delay: 0s;
+        padding: map-get($spacer, 5) map-get($spacer, 3);
 
-        &:hover {
-            transform: rotateZ(750deg);
-            transition-delay: 3s;
+        .heading-info {
+            display: flex;
+            justify-content: center;
+            flex-direction: column;
+            background-color: rgba(0, 0, 0, 0.75);
+            width: auto;
+            height: auto;
+            max-width: 800px;
+            padding: map-get($spacer, 4) map-get($spacer, 5);
+            border-radius: 12px;
+            color: #fff;
+
+            h1 {
+                margin: 0 0 map-get($spacer, 3) 0;
+                text-align: left;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                overflow-wrap: break-word;
+            }
+
+            .date-author {
+                font-size: 80%;
+            }
         }
     }
 
@@ -165,6 +158,20 @@ loadData();
 
         a span {
             color: $primary-color !important;
+        }
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .page-post-view .heading {
+        padding: 0;
+
+        .heading-info {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            margin: 0;
+            border-radius: 0;
         }
     }
 }
