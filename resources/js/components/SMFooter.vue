@@ -184,4 +184,11 @@
         }
     }
 }
+
+@media only screen and (max-width: 400px) {
+    .footer ul li {
+        margin-left: 0.5rem;
+        margin-right: 0.5rem;
+    }
+}
 </style>
