@@ -56,7 +56,8 @@
             <SMColumn
                 width="350px"
                 class="justify-content-center align-items-center copyright"
-                >Copyright &copy; 2023</SMColumn
+                >Made with ❤️ by the STEMMechanics staff. Copyright &copy;
+                2023</SMColumn
             >
             <SMColumn class="footer-links">
                 <ul>
