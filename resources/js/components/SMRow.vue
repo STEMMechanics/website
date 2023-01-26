@@ -1,5 +1,6 @@
 <template>
-    <div :class="['row', { 'flex-fill': fill }]">
+    <div
+        :class="['row', { 'row-break-lg': breakLarge }, { 'flex-fill': fill }]">
         <slot></slot>
     </div>
 </template>
@@ -9,6 +10,12 @@ defineProps({
     fill: {
         type: Boolean,
         default: false,
+        required: false,
+    },
+    breakLarge: {
+        type: Boolean,
+        default: false,
+        required: false,
     },
 });
 </script>
@@ -16,11 +23,17 @@ defineProps({
 <style lang="scss">
 .row {
     display: flex;
-    // margin: map-get($spacer, 2) auto;
+    flex-direction: row;
     margin: 0 auto;
     align-items: top;
     width: 100%;
     max-width: 1200px;
+}
+
+@media screen and (max-width: 992px) {
+    .row.row-break-lg {
+        flex-direction: column;
+    }
 }
 
 @media screen and (max-width: 768px) {
