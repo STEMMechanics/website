@@ -105,6 +105,7 @@ const breadcrumbs = computed(() => {
     max-width: 1200px;
     width: 100%;
     margin: 0 auto;
+    padding: 0 1rem 0 0;
     list-style-type: none;
     font-size: 75%;
     color: $secondary-color-dark;
@@ -118,6 +119,13 @@ const breadcrumbs = computed(() => {
         display: flex;
         align-items: center;
         margin: 0;
+        overflow: hidden;
+
+        span {
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
+        }
 
         &:not(:last-child):after {
             display: inline-block;
