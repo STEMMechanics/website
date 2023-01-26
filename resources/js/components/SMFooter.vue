@@ -56,10 +56,9 @@
             <SMColumn
                 width="350px"
                 class="justify-content-center align-items-center copyright"
-                >Made with ❤️ by the STEMMechanics staff. Copyright &copy;
-                2023</SMColumn
+                >Made with ❤️ - Copyright &copy; 2023</SMColumn
             >
-            <SMColumn class="footer-links">
+            <SMColumn class="justify-content-center footer-links">
                 <ul>
                     <li>
                         <router-link :to="{ name: 'contact' }"
