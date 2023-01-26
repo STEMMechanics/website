@@ -73,14 +73,11 @@
                                     :error="formData.content.error"
                                     @blur="fieldValidate(formData.content)" />
                                 <SMCaptchaNotice />
-                                <SMRow class="pb-2">
-                                    <SMColumn class="justify-content-center">
-                                        <SMButton
-                                            type="submit"
-                                            label="Send Message"
-                                            icon="fa-regular fa-paper-plane" />
-                                    </SMColumn>
-                                </SMRow>
+                                <SMButton
+                                    type="submit"
+                                    block
+                                    label="Send Message"
+                                    icon="fa-regular fa-paper-plane" />
                             </form>
                         </template>
                         <template v-else>
@@ -89,11 +86,7 @@
                                 Your message as been sent to us. We will respond
                                 as soon as we can.
                             </p>
-                            <SMRow class="pb-2">
-                                <SMColumn class="justify-content-center">
-                                    <SMButton to="/" label="Home" />
-                                </SMColumn>
-                            </SMRow>
+                            <SMButton block to="/" label="Home" />
                         </template>
                     </SMDialog>
                 </div>
