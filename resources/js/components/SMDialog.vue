@@ -44,7 +44,7 @@ defineProps({
     margin: 0 auto;
     flex: 1;
     background-color: #eee;
-    padding: map-get($spacer, 4) map-get($spacer, 5);
+    padding: map-get($spacer, 5) map-get($spacer, 5);
     border: 1px solid #eee;
     border-radius: 24px;
     overflow: hidden;
