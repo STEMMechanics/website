@@ -10,7 +10,7 @@
 const props = defineProps({
     fill: {
         type: Boolean,
-        default: true,
+        default: false,
     },
     width: {
         type: String,
@@ -31,7 +31,6 @@ if (props.width != "") {
 .column {
     display: flex;
     margin: map-get($spacer, 2);
-    overflow: hidden;
     flex-direction: column;
 }
 
