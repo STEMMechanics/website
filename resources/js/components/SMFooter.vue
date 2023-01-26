@@ -9,22 +9,22 @@
                         /></a>
                     </li>
                     <li>
-                        <a href="https://facebook.com/stemmechanics"
+                        <a href="https://mastodon.au/@stemmechanics"
                             ><font-awesome-icon icon="fa-brands fa-mastodon"
                         /></a>
                     </li>
                     <li>
-                        <a href="https://facebook.com/stemmechanics"
+                        <a href="https://www.youtube.com/@stemmechanics"
                             ><font-awesome-icon icon="fa-brands fa-youtube"
                         /></a>
                     </li>
                     <li>
-                        <a href="https://facebook.com/stemmechanics"
+                        <a href="https://twitter.com/stemmechanics"
                             ><font-awesome-icon icon="fa-brands fa-twitter"
                         /></a>
                     </li>
                     <li>
-                        <a href="https://facebook.com/stemmechanics"
+                        <a href="https://github.com/stemmechanics"
                             ><font-awesome-icon icon="fa-brands fa-github"
                         /></a>
                     </li>
