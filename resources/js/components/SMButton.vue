@@ -3,7 +3,12 @@
         v-if="href.length > 0 || typeof to == 'string'"
         :href="href"
         :disabled="disabled"
-        :class="['button', 'prevent-select', classType]"
+        :class="[
+            'button',
+            'prevent-select',
+            classType,
+            { 'button-block': block },
+        ]"
         :type="buttonType">
         {{ label }}
         <font-awesome-icon v-if="icon" :icon="icon" />
@@ -11,7 +16,12 @@
     <button
         v-else-if="to == null"
         :disabled="disabled"
-        :class="['button', 'prevent-select', classType]"
+        :class="[
+            'button',
+            'prevent-select',
+            classType,
+            { 'button-block': block },
+        ]"
         :type="buttonType">
         {{ label }}
         <font-awesome-icon v-if="icon" :icon="icon" />
@@ -20,7 +30,12 @@
         v-else
         :to="to"
         :disabled="disabled"
-        :class="['button', 'prevent-select', classType]">
+        :class="[
+            'button',
+            'prevent-select',
+            classType,
+            { 'button-block': block },
+        ]">
         {{ label }}
         <font-awesome-icon v-if="icon" :icon="icon" />
     </router-link>
@@ -51,8 +66,22 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    block: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
 
 const buttonType = props.type == "submit" ? "submit" : "button";
 const classType = props.type == "submit" ? "primary" : props.type;
 </script>
+
+<style lang="scss">
+.button {
+    &.button-block {
+        display: block;
+        width: 100%;
+    }
+}
+</style>
