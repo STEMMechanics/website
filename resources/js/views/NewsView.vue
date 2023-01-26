@@ -2,19 +2,19 @@
     <SMContainer :loading="pageLoading" full class="page-post-view">
         <SMPageError :error="error">
             <div
-                class="heading"
+                class="heading-image"
                 :style="{
                     backgroundImage: `url('${post.hero_url}')`,
-                }">
+                }"></div>
+            <SMContainer>
                 <div class="heading-info">
                     <h1>{{ post.title }}</h1>
                     <div class="date-author">
+                        <font-awesome-icon icon="fa-solid fa-calendar" />
                         {{ formattedPublishAt(post.publish_at) }}, by
                         {{ post.user_username }}
                     </div>
                 </div>
-            </div>
-            <SMContainer>
                 <component :is="formattedContent" ref="content"></component>
             </SMContainer>
         </SMPageError>
@@ -114,39 +114,30 @@ loadData();
 
 <style lang="scss">
 .page-post-view {
-    .heading {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-
+    .heading-image {
         background-color: #eee;
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
-        padding: map-get($spacer, 5) map-get($spacer, 3);
+        height: 15rem;
+    }
 
-        .heading-info {
-            display: flex;
-            justify-content: center;
-            flex-direction: column;
-            background-color: rgba(0, 0, 0, 0.75);
-            width: auto;
-            height: auto;
-            max-width: 800px;
-            padding: map-get($spacer, 4) map-get($spacer, 5);
-            border-radius: 12px;
-            color: #fff;
+    .heading-info {
+        padding: 0 map-get($spacer, 3);
 
-            h1 {
-                margin: 0 0 map-get($spacer, 3) 0;
-                text-align: left;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                overflow-wrap: break-word;
-            }
+        h1 {
+            text-align: left;
+            margin-bottom: 0.5rem;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
 
-            .date-author {
-                font-size: 80%;
+        .date-author {
+            font-size: 80%;
+
+            svg {
+                margin-right: 0.5rem;
             }
         }
     }
@@ -163,16 +154,8 @@ loadData();
 }
 
 @media only screen and (max-width: 768px) {
-    .page-post-view .heading {
-        padding: 0;
-
-        .heading-info {
-            width: 100%;
-            max-width: 100%;
-            height: 100%;
-            margin: 0;
-            border-radius: 0;
-        }
+    .page-post-view .heading-image {
+        height: 10rem;
     }
 }
 </style>
