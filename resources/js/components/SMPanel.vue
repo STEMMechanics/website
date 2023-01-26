@@ -18,7 +18,7 @@
         </div>
         <div class="panel-body">
             <h3 class="panel-title">{{ title }}</h3>
-            <div class="panel-date">
+            <div v-if="showDate" class="panel-date">
                 <font-awesome-icon
                     v-if="showTime == false && endDate.length == 0"
                     icon="fa-regular fa-calendar" /><font-awesome-icon
@@ -91,6 +91,11 @@ const props = defineProps({
     showTime: {
         type: Boolean,
         default: false,
+        required: false,
+    },
+    showDate: {
+        type: Boolean,
+        default: true,
         required: false,
     },
     location: {

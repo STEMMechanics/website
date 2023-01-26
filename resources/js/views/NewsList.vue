@@ -18,6 +18,7 @@
                 :title="post.title"
                 :date="post.publish_at"
                 :content="post.content"
+                :show-date="false"
                 button="Read More"
                 button-type="outline" />
         </SMPanelList>
