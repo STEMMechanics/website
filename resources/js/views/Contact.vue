@@ -1,62 +1,102 @@
 <template>
-    <SMContainer>
-        <SMRow>
+    <SMContainer class="page-contact">
+        <SMRow break-large>
             <SMColumn>
-                <SMDialog narrow :loading="formLoading">
-                    <template v-if="!formDone">
-                        <h1>Contact Us</h1>
-                        <SMMessage
-                            v-if="formMessage.message"
-                            :type="formMessage.type"
-                            :message="formMessage.message"
-                            :icon="formMessage.icon" />
-                        <form @submit.prevent="submit">
-                            <SMInput
-                                v-model="formData.name.value"
-                                name="name"
-                                label="Name"
-                                required
-                                :error="formData.name.error"
-                                @blur="fieldValidate(formData.name)" />
-                            <SMInput
-                                v-model="formData.email.value"
-                                name="email"
-                                label="Email"
-                                required
-                                :error="formData.email.error"
-                                @blur="fieldValidate(formData.email)" />
-                            <SMInput
-                                v-model="formData.content.value"
-                                name="content"
-                                type="textarea"
-                                label="Message"
-                                required
-                                :error="formData.content.error"
-                                @blur="fieldValidate(formData.content)" />
-                            <SMCaptchaNotice />
+                <h1 class="text-left">Contact Us</h1>
+                <h2>Questions & Support</h2>
+                <p>
+                    If you have a question or would like help with a project,
+                    you can send it our way using the form on this page or be
+                    emailing
+                    <a href="mailto:hello@stemmechanics.com.au"
+                        >hello@stemmechanics.com.au</a
+                    >.
+                </p>
+                <h2>Wanting a workshop?</h2>
+                <p>
+                    We provide both public and private workshops as well as run
+                    events on behalf of your organisation. If you would like to
+                    discuss a potential opportunity, send us an email at
+                    <a href="mailto:hello@stemmechanics.com.au"
+                        >hello@stemmechanics.com.au</a
+                    >.
+                </p>
+                <h2>Address</h2>
+                <p>
+                    We do not have a physical address as our workshops are
+                    delivered across Queensland. Visit the
+                    <router-link :to="{ name: 'workshop-list' }"
+                        >workshops</router-link
+                    >
+                    page for each specific location.
+                </p>
+                <p>Official mail can be sent to the following address:</p>
+                <div class="text-center">
+                    <p class="font-size-90">
+                        STEMMechanics<br />PO Box 36<br />Edmonton, QLD, 4869<br />Australia
+                    </p>
+                    <p class="font-size-90">
+                        <strong>ABN: </strong>15 772 281 735
+                    </p>
+                </div>
+            </SMColumn>
+            <SMColumn>
+                <div>
+                    <SMDialog narrow :loading="formLoading">
+                        <template v-if="!formDone">
+                            <SMMessage
+                                v-if="formMessage.message"
+                                :type="formMessage.type"
+                                :message="formMessage.message"
+                                :icon="formMessage.icon" />
+                            <form @submit.prevent="submit">
+                                <SMInput
+                                    v-model="formData.name.value"
+                                    name="name"
+                                    label="Name"
+                                    required
+                                    :error="formData.name.error"
+                                    @blur="fieldValidate(formData.name)" />
+                                <SMInput
+                                    v-model="formData.email.value"
+                                    name="email"
+                                    label="Email"
+                                    required
+                                    :error="formData.email.error"
+                                    @blur="fieldValidate(formData.email)" />
+                                <SMInput
+                                    v-model="formData.content.value"
+                                    name="content"
+                                    type="textarea"
+                                    label="Message"
+                                    required
+                                    :error="formData.content.error"
+                                    @blur="fieldValidate(formData.content)" />
+                                <SMCaptchaNotice />
+                                <SMRow class="pb-2">
+                                    <SMColumn class="justify-content-center">
+                                        <SMButton
+                                            type="submit"
+                                            label="Send Message"
+                                            icon="fa-regular fa-paper-plane" />
+                                    </SMColumn>
+                                </SMRow>
+                            </form>
+                        </template>
+                        <template v-else>
+                            <h1>Message Sent!</h1>
+                            <p class="text-center">
+                                Your message as been sent to us. We will respond
+                                as soon as we can.
+                            </p>
                             <SMRow class="pb-2">
                                 <SMColumn class="justify-content-center">
-                                    <SMButton
-                                        type="submit"
-                                        label="Send Message"
-                                        icon="fa-regular fa-paper-plane" />
+                                    <SMButton to="/" label="Home" />
                                 </SMColumn>
                             </SMRow>
-                        </form>
-                    </template>
-                    <template v-else>
-                        <h1>Message Sent!</h1>
-                        <p class="text-center">
-                            Your message as been sent to us. We will respond as
-                            soon as we can.
-                        </p>
-                        <SMRow class="pb-2">
-                            <SMColumn class="justify-content-center">
-                                <SMButton to="/" label="Home" />
-                            </SMColumn>
-                        </SMRow>
-                    </template>
-                </SMDialog>
+                        </template>
+                    </SMDialog>
+                </div>
             </SMColumn>
         </SMRow>
     </SMContainer>
@@ -129,7 +169,7 @@ const submit = async () => {
             await recaptchaLoaded();
             const captcha = await executeRecaptcha("submit");
 
-            let res = await axios.post("contact", {
+            await axios.post("contact", {
                 name: formData.name.value,
                 email: formData.email.value,
                 captcha_token: captcha,
