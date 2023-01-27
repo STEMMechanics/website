@@ -355,7 +355,7 @@ export const timestampUtcToLocal = (utc) => {
                 "$1T$2.000Z"
             )
         );
-        return format(iso, "yyyy/MM/dd hh:mm:ss");
+        return format(iso, "yyyy/MM/dd HH:mm:ss");
     } catch (error) {
         /* empty */
     }
