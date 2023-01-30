@@ -56,7 +56,7 @@
             <SMColumn
                 width="350px"
                 class="justify-content-center align-items-center copyright"
-                >Made with ❤️❤️ - Copyright &copy; 2023</SMColumn
+                >Made with ❤️ - Copyright &copy; 2023</SMColumn
             >
             <SMColumn class="justify-content-center footer-links">
                 <ul>
