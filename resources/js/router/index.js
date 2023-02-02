@@ -304,6 +304,15 @@ export const routes = [
                     },
                 ],
             },
+            {
+                path: "discord-bot-logs",
+                name: "discord-bot-logs",
+                meta: {
+                    title: "Discord Bot Logs",
+                    middleware: "authenticated",
+                },
+                component: () => import("@/views/dashboard/DiscordBotLogs.vue"),
+            },
         ],
     },
     {
