@@ -126,11 +126,10 @@ const workshopDate = computed(() => {
         ) {
             str = [format(new Date(event.value.start_at), "dd/MM/yyyy")];
             if (event.value.end_at.length > 0) {
-                str = [
-                    str,
+                str.push(
                     " - ",
-                    format(new Date(event.value.end_at), "dd/MM/yyyy"),
-                ];
+                    format(new Date(event.value.end_at), "dd/MM/yyyy")
+                );
             }
         } else {
             str = [
