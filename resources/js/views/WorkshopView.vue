@@ -122,10 +122,7 @@ const workshopDate = computed(() => {
                 0,
                 event.value.start_at.indexOf(" ")
             ) !=
-                event.value.start_at.substring(
-                    0,
-                    event.value.end_at.indexOf(" ")
-                )
+                event.value.end_at.substring(0, event.value.end_at.indexOf(" "))
         ) {
             str = format(new Date(props.date), "dd/MM/yyyy");
             if (event.value.end_at.length > 0) {
