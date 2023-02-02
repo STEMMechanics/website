@@ -42,6 +42,7 @@ Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']
 
 Route::post('/contact', [ContactController::class, 'send']);
 
+Route::get('/logs/{name}', [LogController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
