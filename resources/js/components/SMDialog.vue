@@ -52,7 +52,7 @@ defineProps({
     min-width: map-get($spacer, 5) * 12;
 
     & > h1 {
-        padding-top: 0;
+        margin-top: 0;
     }
 
     &.dialog-narrow {
