@@ -51,13 +51,13 @@
             </SMRow>
         </SMContainer>
         <SMContainer class="support">
+            <h2>And the support doesn't stop!</h2>
             <SMRow>
                 <SMColumn
                     class="align-items-center justify-content-center flex-basis-45">
                     <img src="/img/discord.jpg" />
                 </SMColumn>
                 <SMColumn class="align-items-center flex-basis-55">
-                    <h2>And the support doesn't stop!</h2>
                     <p>
                         Though the workshop has come to a close, we remain
                         available to assist you via email and Discord with any
@@ -318,7 +318,7 @@ handleLoad();
         background-color: #e6f5eb;
         color: rgb(56, 79, 95);
         border-radius: 24px;
-        padding: 4rem 6rem;
+        padding: 4rem 5rem;
         margin-left: 2rem;
         margin-right: 2rem;
         width: auto;
@@ -334,6 +334,8 @@ handleLoad();
         h2 {
             font-size: 300%;
             text-align: left;
+            text-align: center;
+            margin-bottom: 1rem;
         }
 
         p {
@@ -430,13 +432,34 @@ handleLoad();
     }
 }
 
+@media only screen and (max-width: 1024px) {
+    .home {
+        .about {
+            padding: 4rem;
+        }
+
+        .support {
+            padding: 4rem;
+        }
+    }
+}
+
+@media only screen and (max-width: 896px) {
+    .home {
+        .support {
+            .row {
+                flex-direction: column;
+            }
+        }
+    }
+}
+
 @media only screen and (max-width: 768px) {
     .home {
         .about {
             margin-top: 2rem;
             margin-left: 0;
             margin-right: 0;
-            padding: 4rem;
             border-radius: 0;
         }
 
@@ -448,7 +471,6 @@ handleLoad();
         .support {
             margin-left: 0;
             margin-right: 0;
-            padding: 4rem;
             border-radius: 0;
         }
 
