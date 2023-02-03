@@ -31,11 +31,11 @@ class LogController extends ApiController
                     // $outputContents = '';
                     // $errorContents = '';
 
-                    $logs = $request->get('logs');
-                    if ($logs === null) {
-                        $logs = ['output', 'error'];
+                    $log = $request->get('log');
+                    if ($log === null) {
+                        $log = ['output', 'error'];
                     } else {
-                        $logs = explode(',', strtolower($logs));
+                        $log = explode(',', strtolower($log));
                     }
 
                     $lines = intval($request->get('lines', 50));
@@ -47,16 +47,16 @@ class LogController extends ApiController
 
                     $before = $request->get('before');
                     if ($before !== null) {
-                        $before = preg_split("/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2}): /", $before, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
-                        if (count($before) < 6) {
+                        $before = preg_split("/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/", $before, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                        if (count($before) !== 6) {
                             $before = null;
                         }
                     }
 
                     $after = $request->get('after');
                     if ($after !== null) {
-                        $after = preg_split("/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2}): /", $after, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
-                        if (count($after) < 6) {
+                        $after = preg_split("/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/", $after, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                        if (count($after) !== 6) {
                             $after = null;
                         }
                     }
@@ -72,7 +72,7 @@ class LogController extends ApiController
                     ];
 
                     foreach ($logFiles as $logFile) {
-                        if (in_array($logFile['name'], $logs) === true) {
+                        if (in_array($logFile['name'], $log) === true) {
                             $logContent = '';
 
                             if (file_exists($logFile['path']) === true) {
