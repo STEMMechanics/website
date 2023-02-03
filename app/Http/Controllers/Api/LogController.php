@@ -28,8 +28,6 @@ class LogController extends ApiController
             switch (strtolower($name)) {
                 case 'discord':
                     $data = [];
-                    // $outputContents = '';
-                    // $errorContents = '';
 
                     $log = $request->get('log');
                     if ($log === null) {
