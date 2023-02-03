@@ -1,17 +1,18 @@
 <template>
     <SMContainer :loading="formLoading" permission="logs/discord">
-        <h1>Discord Bot Logs</h1>
+        <h1>Discord Bot Log</h1>
         <SMMessage
             v-if="formMessage.message"
             :icon="formMessage.icon"
             :type="formMessage.type"
             :message="formMessage.message" />
-        <div>{{ logContent }}</div>
+        <code>{{ logContent }}</code>
+        <SMButton label="Reload" @click="loadData" />
     </SMContainer>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, reactive } from "vue";
 import SMButton from "../../components/SMButton.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import axios from "axios";
@@ -33,7 +34,9 @@ const loadData = async () => {
         formLoading.value = true;
         let res = await axios.get(`logs/discord`);
 
-        logContent = res.data.log;
+        //console.log(res.data.log.split(/2023-02-03T00:23:40: /));
+
+        logContent.value = res.data.log;
     } catch (err) {
         formMessage.message = "Could not load log from server";
     }
