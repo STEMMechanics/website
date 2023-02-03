@@ -51,6 +51,10 @@ defineProps({
     overflow: hidden;
     min-width: map-get($spacer, 5) * 12;
 
+    & > h1 {
+        padding-top: 0;
+    }
+
     &.dialog-narrow {
         min-width: auto;
         max-width: map-get($spacer, 5) * 10;
