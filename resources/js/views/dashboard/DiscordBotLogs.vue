@@ -56,7 +56,7 @@ const loadData = async () => {
             logOutputContent.value = "Log file is empty";
         }
 
-        logErrorContent.value = res.data.log.errors;
+        logErrorContent.value = res.data.log.error;
         if (logErrorContent.value.length === 0) {
             logErrorContent.value = "Log file is empty";
         }
