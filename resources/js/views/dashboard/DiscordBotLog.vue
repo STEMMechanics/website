@@ -6,7 +6,7 @@
             :icon="message.icon"
             :type="message.type"
             :message="message.message" />
-        <SMTabGroup>
+        <SMTabGroup v-if="!message.message">
             <SMTab label="Output">
                 <code v-if="logOutputContent.length > 0">{{
                     logOutputContent
@@ -18,7 +18,10 @@
                 }}</code>
             </SMTab>
         </SMTabGroup>
-        <SMButton label="Reload Logs" @click="loadData" />
+        <SMButton
+            v-if="!message.message"
+            label="Reload Logs"
+            @click="loadData" />
     </SMContainer>
 </template>
 
