@@ -6,7 +6,7 @@
             :icon="formMessage.icon"
             :type="formMessage.type"
             :message="formMessage.message" />
-        <code v-if="logContent.value.length > 0">{{ logContent }}</code>
+        <code v-if="logContent.length > 0">{{ logContent }}</code>
         <SMButton label="Reload" @click="loadData" />
     </SMContainer>
 </template>
