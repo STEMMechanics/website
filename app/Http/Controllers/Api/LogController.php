@@ -35,16 +35,16 @@ class LogController extends ApiController
                         $outputContents = file_get_contents($filePath);
                     }
 
-                    $lines = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $contents, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $lines = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $outputContents, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     $outputContents = implode('', array_reverse($lines));
                     
                     // error log
                     $filePath = '/home/discordbot/.pm2/logs/stemmech-discordbot-error-0.log';
                     if(file_exists($filePath) === true) {
-                        $outputContents = file_get_contents($filePath);
+                        $errorContents = file_get_contents($filePath);
                     }
 
-                    $lines = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $contents, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    $lines = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $errorContents, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
                     $errorContents = implode('', array_reverse($lines));
 
                     return $this->respondJson([
