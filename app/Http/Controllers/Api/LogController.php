@@ -21,10 +21,10 @@ class LogController extends ApiController
      * @param  Request       $request The log request.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request)
+    public function show(Request $request, string $name)
     {
-        if($request->has('name') && $request->user()?->hasPermission('logs/' . $request->get('name'))) {
-            switch(strtolower($request->has('name'))) {
+        if($request->user()?->hasPermission('logs/' . $name)) {
+            switch(strtolower($name)) {
                 case 'discord':
                     $contents = '';
                     $filePath = '/opt/discordbot/discordbot.log';
@@ -32,7 +32,8 @@ class LogController extends ApiController
                         $contents = file_get_contents($filePath);
                     }
 
-                    return $this->respondJson(['log' => $contents]);
+                    $lines = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $contents, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY);
+                    return $this->respondJson(['log' => implode('', array_reverse($lines))]);
             }
         }
 
