@@ -142,6 +142,17 @@ button {
     @extend .prevent-select;
 }
 
+code {
+    font-size: 0.8rem;
+    background-color: #eee;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 30rem;
+    margin-bottom: 1rem;
+}
+
 /* Dialog */
 .modal {
     position: fixed;
