@@ -27,7 +27,7 @@ class LogController extends ApiController
             switch(strtolower($name)) {
                 case 'discord':
                     $contents = '';
-                    $filePath = '/opt/discordbot/discordbot.log';
+                    $filePath = '/home/discordbot/.pm2/logs/stemmech-discordbot-out-0.log';
                     if(file_exists($filePath) === true) {
                         $contents = file_get_contents($filePath);
                     }
