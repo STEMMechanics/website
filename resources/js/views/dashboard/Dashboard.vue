@@ -46,7 +46,7 @@
                 to="/dashboard/discord-bot-logs"
                 class="box">
                 <font-awesome-icon icon="fa-brands fa-discord" />
-                <h2>Discord Bot Logs</h2>
+                <h2>Discord Bot Log</h2>
             </router-link>
         </div>
     </SMContainer>
