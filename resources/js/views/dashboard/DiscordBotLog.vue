@@ -1,47 +1,64 @@
 <template>
     <SMContainer :loading="formLoading" permission="logs/discord">
-        <h1>Discord Bot Log</h1>
+        <h1>Discord Bot Logs</h1>
         <SMMessage
-            v-if="formMessage.message"
-            :icon="formMessage.icon"
-            :type="formMessage.type"
-            :message="formMessage.message" />
-        <code v-if="logContent.length > 0">{{ logContent }}</code>
-        <SMButton label="Reload" @click="loadData" />
+            v-if="message.message"
+            :icon="message.icon"
+            :type="message.type"
+            :message="message.message" />
+        <SMTabGroup>
+            <SMTab label="Output">
+                <code v-if="logOutputContent.length > 0">{{
+                    logOutputContent
+                }}</code>
+            </SMTab>
+            <SMTab label="Errors">
+                <code v-if="logErrorContent.length > 0">{{
+                    logErrorContent
+                }}</code>
+            </SMTab>
+        </SMTabGroup>
+        <SMButton label="Reload Logs" @click="loadData" />
     </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
 import SMButton from "../../components/SMButton.vue";
+import SMTabGroup from "../../components/SMTabGroup.vue";
+import SMTab from "../../components/SMTab.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import axios from "axios";
 
 let formLoading = ref(false);
-let logContent = ref("");
-const formMessage = reactive({
+let logOutputContent = ref("");
+let logErrorContent = ref("");
+const message = reactive({
     icon: "",
     type: "",
     message: "",
 });
 
 const loadData = async () => {
-    formMessage.icon = "";
-    formMessage.type = "error";
-    formMessage.message = "";
+    message.icon = "";
+    message.type = "error";
+    message.message = "";
 
     try {
         formLoading.value = true;
         let res = await axios.get(`logs/discord`);
 
-        //console.log(res.data.log.split(/2023-02-03T00:23:40: /));
+        logOutputContent.value = res.data.log.output;
+        if (logOutputContent.value.length === 0) {
+            logOutputContent.value = "Log file is empty";
+        }
 
-        logContent.value = res.data.log;
-        if (logContent.value.length === 0) {
-            formMessage.message = "Log file is empty";
+        logErrorContent.value = res.data.log.errors;
+        if (logErrorContent.value.length === 0) {
+            logErrorContent.value = "Log file is empty";
         }
     } catch (err) {
-        formMessage.message = "Could not load log from server";
+        message.message = "Could not load logs from server";
     }
 
     formLoading.value = false;
