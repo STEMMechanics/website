@@ -6,7 +6,7 @@
             :icon="formMessage.icon"
             :type="formMessage.type"
             :message="formMessage.message" />
-        <code>{{ logContent }}</code>
+        <code v-if="logContent.value.length > 0">{{ logContent }}</code>
         <SMButton label="Reload" @click="loadData" />
     </SMContainer>
 </template>
@@ -37,6 +37,9 @@ const loadData = async () => {
         //console.log(res.data.log.split(/2023-02-03T00:23:40: /));
 
         logContent.value = res.data.log;
+        if (logContent.value.length === 0) {
+            formMessage.message = "Log file is empty";
+        }
     } catch (err) {
         formMessage.message = "Could not load log from server";
     }

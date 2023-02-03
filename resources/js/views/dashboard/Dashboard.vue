@@ -43,7 +43,7 @@
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('logs/discord')"
-                to="/dashboard/discord-bot-logs"
+                to="/dashboard/discord-bot-log"
                 class="box">
                 <font-awesome-icon icon="fa-brands fa-discord" />
                 <h2>Discord Bot Log</h2>
