@@ -41,6 +41,13 @@
                 <font-awesome-icon icon="fa-solid fa-photo-film" />
                 <h2>Media</h2>
             </router-link>
+            <router-link
+                v-if="userStore.permissions.includes('logs/discord')"
+                to="/dashboard/discord-bot-logs"
+                class="box">
+                <font-awesome-icon icon="fa-brands fa-discord" />
+                <h2>Discord Bot Log</h2>
+            </router-link>
         </div>
     </SMContainer>
 </template>
