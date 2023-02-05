@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\Request;
 use thiagoalessio\TesseractOCR\TesseractOCR;
 use FFMpeg;
+use App\Enum\CurlErrorCodes;
 
 class OCRController extends ApiController
 {
@@ -30,157 +31,169 @@ class OCRController extends ApiController
         if ($url !== null) {
             $data = ['ocr' => []];
 
-            $oem = $request->get('oem');
-            $digits = $request->get('digits');
-            $allowlist = $request->get('allowlist');
+            $filters = $request->get('filters', ['tesseract']);
+            if(is_array($filters) === false) {
+                $filters = explode(',', $filters);
+            }
 
-            $tmpfname = tempnam(sys_get_temp_dir(), 'download');
+            $tesseractOEM = $request->get('tesseract.oem');
+            $tesseractDigits = $request->get('tesseract.digits');
+            $tesseractAllowlist = $request->get('tesseract.allowlist');
 
+            // Download URL
+            $urlDownloadFilePath = tempnam(sys_get_temp_dir(), 'download');
+            $maxDownloadSize = (1024 * 1024); // 1MB
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+
+            // We need progress updates to break the connection mid-way
+            curl_setopt($ch, CURLOPT_BUFFERSIZE, 128); // more progress info
+            curl_setopt($ch, CURLOPT_NOPROGRESS, false);
+            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function(
+                $downloadSize, $downloaded, $uploadSize, $uploaded
+            ) use($maxDownloadSize) {
+                return ($downloaded > $maxDownloadSize) ? 1 : 0;
+            });
+
             $curlResult = curl_exec($ch);
+            $curlError = curl_errno($ch);
+            $curlSize = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
             curl_close($ch);
+            if($curlError !== 0) {
+                $error = 'File size is larger then allowed';
+                if($curlError !== CurlErrorCodes::CURLE_ABORTED_BY_CALLBACK) {
+                    $error = CurlErrorCodes::getMessage($curlError);
+                }
 
-            file_put_contents($tmpfname, $curlResult);
-
-            // Raw OCR
-            $ocr = new TesseractOCR();
-            $ocr->image($tmpfname);
-            if ($oem !== null) {
-                $ocr->oem($oem);
+                return $this->respondWithErrors(['url' => $error]);
             }
-            if ($digits !== null) {
-                $ocr->digits();
-            }
-            if ($allowlist !== null) {
-                $ocr->allowlist($allowlist);
-            }
-            $result = $ocr->run(500);
-            $data['ocr']['raw'] = $result;
 
-            $basefile_path = preg_replace('/\\.[^.\\s]{3,4}$/', '', $tmpfname);
+            // Save url file
+            file_put_contents($urlDownloadFilePath, $curlResult);
+            $urlDownloadFilePathBase = preg_replace('/\\.[^.\\s]{3,4}$/', '', $urlDownloadFilePath);
 
-            // Greyscale OCR
-            $result = '';
-            $imgcreate = imagecreatefrompng($tmpfname);
-            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_GRAYSCALE) === true) {
-                $tmpfname_greyscape = $basefile_path . '_grayscale.png';
-                imagepng($imgcreate, $tmpfname_greyscape);
-                $ocr->image($tmpfname_greyscape);
+            // tesseract (overall)
+            $ocr = null;
+            foreach($filters as $filterItem) {
+                if(str_starts_with($filterItem, 'tesseract') === true) {
+                    $ocr = new TesseractOCR();
+                    $ocr->image($urlDownloadFilePath);
+                    if ($tesseractOEM !== null) {
+                        $ocr->oem($tesseractOEM);
+                    }
+                    if ($tesseractDigits !== null) {
+                        $ocr->digits();
+                    }
+                    if ($tesseractAllowlist !== null) {
+                        $ocr->allowlist($tesseractAllowlist);
+                    }
+                    $result = $ocr->run(500);
+                    break;
+                }
+            }
+
+            // Image Filter Function
+            $tesseractImageFilterFunc = function($filter, $options = null) use($curlResult, $curlSize, $ocr) {
+                $result = '';
+                $img = imagecreatefromstring($curlResult);
+                if ($img !== false && (($options !== null && imagefilter($img, $filter, $options) === true) || ($options === null && imagefilter($img, $filter) === true))) {
+                    $ocr->imageData($img, $curlSize);
+                    imagedestroy($img);
+                    
+                    $result = $ocr->run(500);
+                }
+
+                return $result;
+            };
+
+            // Image Scale Function
+            $tesseractImageScaleFunc = function($scaleFunc) use ($curlResult, $ocr) {
+                $result = '';
+                $srcImage = imagecreatefromstring($curlResult);
+                $srcWidth = imagesx($srcImage);
+                $srcHeight = imagesy($srcImage);
+
+                $dstWidth = $scaleFunc($srcWidth);
+                $dstHeight = $scaleFunc($srcHeight);
+                $dstImage = imagecreatetruecolor($dstWidth, $dstHeight);
+
+                imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $dstWidth, $dstHeight, $srcWidth, $srcHeight);
+
+                ob_start();
+                imagepng($dstImage);
+                $imgOutput = ob_get_contents();
+                ob_end_clean();
+                $imgSize = strlen($imgOutput);
+                
+                imagedestroy($srcImage);
+                imagedestroy($dstImage);
+
+                $ocr->imageData($dstImage, $imgSize);
                 $result = $ocr->run(500);
+                return $result;
+            };
+
+            // filter: tesseract
+            if(in_array('tesseract', $filters) === true) {
+                $data['ocr']['tesseract'] = $ocr->run(500);
             }
 
-            $data['ocr']['greyscale'] = $result;
-            imagedestroy($imgcreate);
-
-            // Double Scale
-            $result = '';
-            $srcImage = imagecreatefrompng($tmpfname);
-            $srcWidth = imagesx($srcImage);
-            $srcHeight = imagesy($srcImage);
-
-            $dstWidth = ($srcWidth * 2);
-            $dstHeight = ($srcHeight * 2);
-            $dstImage = imagecreatetruecolor($dstWidth, $dstHeight);
-
-            // Copy and resize the original image onto the new canvas
-            imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $dstWidth, $dstHeight, $srcWidth, $srcHeight);
-
-            // Generate a temporary filename for the doubled-scale image
-            $tmpfname_scaled = tempnam(sys_get_temp_dir(), 'double_scale');
-            imagepng($dstImage, $tmpfname_scaled);
-            imagedestroy($srcImage);
-            imagedestroy($dstImage);
-
-            // OCR it
-            $ocr->image($tmpfname_scaled);
-            $result = $ocr->run(500);
-            unlink($tmpfname_scaled);
-            $data['ocr']['double_scale'] = $result;
-
-            // Half Scale
-            $result = '';
-            $srcImage = imagecreatefrompng($tmpfname);
-            $srcWidth = imagesx($srcImage);
-            $srcHeight = imagesy($srcImage);
-
-            $dstWidth = ($srcWidth / 2);
-            $dstHeight = ($srcHeight / 2);
-            $dstImage = imagecreatetruecolor($dstWidth, $dstHeight);
-
-            // Copy and resize the original image onto the new canvas
-            imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $dstWidth, $dstHeight, $srcWidth, $srcHeight);
-
-            // Generate a temporary filename for the doubled-scale image
-            $tmpfname_scaled = tempnam(sys_get_temp_dir(), 'double_scale');
-            imagepng($dstImage, $tmpfname_scaled);
-            imagedestroy($srcImage);
-            imagedestroy($dstImage);
-
-            // OCR it
-            $ocr->image($tmpfname_scaled);
-            $result = $ocr->run(500);
-            unlink($tmpfname_scaled);
-            $data['ocr']['half_scale'] = $result;
-
-            // EdgeDetect
-            $result = '';
-            $imgcreate = imagecreatefrompng($tmpfname);
-            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_EDGEDETECT) === true) {
-                $tmpfname_edgedetect = $basefile_path . '_edgedetect.png';
-                imagepng($imgcreate, $tmpfname_edgedetect);
-                $ocr->image($tmpfname_edgedetect);
-                $result = $ocr->run(500);
+            // filter: tesseract.grayscale
+            if (in_array('tesseract.grayscale', $filters) === true) {
+                $data['ocr']['tesseract.grayscale'] = $tesseractImageFilterFunc(IMG_FILTER_GRAYSCALE);
             }
 
-            $data['ocr']['edge_detect'] = $result;
-            imagedestroy($imgcreate);
-
-            // Mean Removal
-            $result = '';
-            $imgcreate = imagecreatefrompng($tmpfname);
-            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_MEAN_REMOVAL) === true) {
-                $tmpfname_edgedetect = $basefile_path . '_meanremoval.png';
-                imagepng($imgcreate, $tmpfname_edgedetect);
-                $ocr->image($tmpfname_edgedetect);
-                $result = $ocr->run(500);
+            // filter: tesseract.double_scale
+            if (in_array('tesseract.double_scale', $filters) === true) {
+                $data['ocr']['tesseract.double_scale'] = $tesseractImageScaleFunc(function($size) {
+                    return $size * 2;
+                });
             }
-            $data['ocr']['mean_removal'] = $result;
-            imagedestroy($imgcreate);
 
-            // Negate
-            $result = '';
-            $imgcreate = imagecreatefrompng($tmpfname);
-            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_NEGATE) === true) {
-                $tmpfname_edgedetect = $basefile_path . '_negate.png';
-                imagepng($imgcreate, $tmpfname_edgedetect);
-                $ocr->image($tmpfname_edgedetect);
-                $result = $ocr->run(500);
+            // filter: tesseract.half_scale
+            if (in_array('tesseract.half_scale', $filters) === true) {
+                $data['ocr']['tesseract.half_scale'] = $tesseractImageScaleFunc(function($size) {
+                    return $size / 2;
+                });
             }
-            $data['ocr']['negate'] = $result;
-            imagedestroy($imgcreate);
 
-            // Pixelate
-            $result = '';
-            $imgcreate = imagecreatefrompng($tmpfname);
-            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_PIXELATE, 3) === true) {
-                $tmpfname_edgedetect = $basefile_path . '_pixelate.png';
-                imagepng($imgcreate, $tmpfname_edgedetect);
-                $ocr->image($tmpfname_edgedetect);
-                $result = $ocr->run(500);
+            // filter: tesseract.edgedetect
+            if (in_array('tesseract.edgedetect', $filters) === true) {
+                $data['ocr']['tesseract.edgedetect'] = $tesseractImageFilterFunc(IMG_FILTER_EDGEDETECT);
             }
-            $data['ocr']['pixelate'] = $result;
-            imagedestroy($imgcreate);
 
-            // keras
-            $cmd = 'python3 ' . base_path() . '/scripts/keras_oc.py ' . $url;
-            $command = escapeshellcmd($cmd); #no special characters it will work
-            $data['ocr']['keras'] = shell_exec($command);
+            // filter: tesseract.mean_removal
+            if (in_array('tesseract.mean_removal', $filters) === true) {
+                $data['ocr']['tesseract.mean_removal'] = $tesseractImageFilterFunc(IMG_FILTER_MEAN_REMOVAL);
+            }
 
-            unlink($tmpfname);
+            // filter: tesseract.negate
+            if (in_array('tesseract.negate', $filters) === true) {
+                $data['ocr']['tesseract.negate'] = $tesseractImageFilterFunc(IMG_FILTER_NEGATE);
+            }
+
+            // filter: tesseract.pixelate
+            if (in_array('tesseract.pixelate', $filters) === true) {
+                $data['ocr']['tesseract.pixelate'] = $tesseractImageFilterFunc(IMG_FILTER_PIXELATE, 3);
+            }
+
+            // filter: keras
+            if(in_array('keras', $filters) === true) {
+                $cmd = '/usr/bin/python3 ' . base_path() . '/scripts/keras_oc.py ' . urlencode($url);
+                $command = escapeshellcmd($cmd);
+                $output = shell_exec($cmd);
+                if ($output !== null && strlen($output) > 0) {
+                    $output = substr($output, strpos($output, '----------START----------') + 25);
+                } else {
+                    $output = '';
+                }
+                $data['ocr']['keras'] = $output;
+            }
+
+            unlink($urlDownloadFilePath);
             return $this->respondJson($data);
         }//end if
 

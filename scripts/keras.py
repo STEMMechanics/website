@@ -1,17 +1,13 @@
-import io
 import sys
-import base64
+import urllib.parse
 import numpy as np
 import keras_ocr
 
 if len(sys.argv) > 1:
-    # Decode the base64-encoded image
-    img = base64.b64decode(sys.argv[1])
-    img = np.array(bytearray(img), dtype=np.uint8)
-
-    # Use Keras-OCR to recognize text in the image
+    url = urllib.parse.unquote(sys.argv[1])
+    image = keras_ocr.tools.read(url)
     pipeline = keras_ocr.pipeline.Pipeline()
-    prediction = pipeline.recognize([img])
-
-    # Return the recognized text
-    print prediction[0][0]['text']
+    prediction = pipeline.recognize([image])
+    print("----------START----------")
+    for text, box in prediction [0]:
+        print(text)
