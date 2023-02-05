@@ -125,6 +125,34 @@ class OCRController extends ApiController
             unlink($tmpfname_scaled);
             $data['ocr_half_scale'] = $result;
 
+            // EdgeDetect
+            $result = '';
+            $imgcreate = imagecreatefrompng($tmpfname);
+            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_EDGEDETECT) === true) {
+                $tmpfname_edgedetect = $basefile_path . '_edgedetect.png';
+                imagepng($imgcreate, $tmpfname_edgedetect);
+                $ocr->image($tmpfname_edgedetect);
+                $result = $ocr->run(500);
+            }
+
+            $data['ocr_edgedetect'] = $result;
+            imagedestroy($imgcreate);
+
+            // Mean Removal
+            $result = '';
+            $imgcreate = imagecreatefrompng($tmpfname);
+            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_MEAN_REMOVAL) === true) {
+                $tmpfname_edgedetect = $basefile_path . '_meanremoval.png';
+                imagepng($imgcreate, $tmpfname_edgedetect);
+                $ocr->image($tmpfname_edgedetect);
+                $result = $ocr->run(500);
+            }
+
+            $data['ocr_meanremoval'] = $result;
+            imagedestroy($imgcreate);
+
+
+
             unlink($tmpfname);
             return $this->respondJson($data);
         }//end if
