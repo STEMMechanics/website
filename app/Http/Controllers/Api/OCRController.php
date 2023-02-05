@@ -29,7 +29,7 @@ class OCRController extends ApiController
         if ($url !== null) {
             $data = [];
 
-            $oem = $request->get('oem', 0);
+            $oem = $request->get('oem');
             $digits = $request->get('digits');
             $allowlist = $request->get('allowlist');
 
@@ -48,7 +48,9 @@ class OCRController extends ApiController
             // Raw OCR
             $ocr = new TesseractOCR();
             $ocr->image($tmpfname);
-            $ocr->oem($oem);
+            if ($oem !== null) {
+                $ocr->oem($oem);
+            }
             if ($digits !== null) {
                 $ocr->digits();
             }
