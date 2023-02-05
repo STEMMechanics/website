@@ -176,7 +176,7 @@ class OCRController extends ApiController
             imagedestroy($imgcreate);
 
             // keras
-            $cmd = "python3 scripts/keras.py " . base64_encode(file_get_contents($tmpfname));
+            $cmd = 'python3 ' . base_path() . '/scripts/keras.py ' . base64_encode(file_get_contents($tmpfname));
             $command = escapeshellcmd($cmd); #no special characters it will work
             $data['ocr']['keras'] = shell_exec($command);
 
