@@ -46,20 +46,6 @@ class OCRController extends ApiController
 
             file_put_contents($tmpfname, $curlResult);
 
-            $ffmpeg = FFMpeg\FFMpeg::create();
-            $inputFile = $ffmpeg->open($tmpfname);
-            if ($inputFile !== null) {
-                $videoFrames = $inputFile->frames();
-                foreach ($videoFrames as $frame) {
-                    unlink($tmpfname);
-                    $tmpfname = tempnam(sys_get_temp_dir(), 'download');
-
-                    // Save the frame as a PNG
-                    $frame->save(new FFMpeg\Format\Video\PNG(), $tmpfname);
-                    break;
-                }
-            }
-
             // Raw OCR
             $ocr = new TesseractOCR();
             $ocr->image($tmpfname);
