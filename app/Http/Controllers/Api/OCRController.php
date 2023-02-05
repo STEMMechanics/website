@@ -47,7 +47,7 @@ class OCRController extends ApiController
             file_put_contents($tmpfname, $curlResult);
 
             $ffmpeg = FFMpeg\FFMpeg::create();
-            $inputFile = $ffmpeg->open('input.mp4');
+            $inputFile = $ffmpeg->open($tmpfname);
             if ($inputFile !== null) {
                 $videoFrames = $inputFile->frames();
                 foreach ($videoFrames as $frame) {
