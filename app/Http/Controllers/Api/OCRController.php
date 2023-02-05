@@ -27,7 +27,7 @@ class OCRController extends ApiController
         // if ($request->user()?->hasPermission('logs/' . $name) === true) {
         $url = $request->get('url');
         if ($url !== null) {
-            $data = [];
+            $data = ['ocr' => []];
 
             $oem = $request->get('oem');
             $digits = $request->get('digits');
@@ -58,7 +58,7 @@ class OCRController extends ApiController
                 $ocr->allowlist($allowlist);
             }
             $result = $ocr->run(500);
-            $data['ocr_raw'] = $result;
+            $data['ocr']['raw'] = $result;
 
             $basefile_path = preg_replace('/\\.[^.\\s]{3,4}$/', '', $tmpfname);
 
@@ -72,7 +72,7 @@ class OCRController extends ApiController
                 $result = $ocr->run(500);
             }
 
-            $data['ocr_greyscale'] = $result;
+            $data['ocr']['greyscale'] = $result;
             imagedestroy($imgcreate);
 
             // Double Scale
@@ -98,7 +98,7 @@ class OCRController extends ApiController
             $ocr->image($tmpfname_scaled);
             $result = $ocr->run(500);
             unlink($tmpfname_scaled);
-            $data['ocr_double_scale'] = $result;
+            $data['ocr']['double_scale'] = $result;
 
             // Half Scale
             $result = '';
@@ -123,7 +123,7 @@ class OCRController extends ApiController
             $ocr->image($tmpfname_scaled);
             $result = $ocr->run(500);
             unlink($tmpfname_scaled);
-            $data['ocr_half_scale'] = $result;
+            $data['ocr']['half_scale'] = $result;
 
             // EdgeDetect
             $result = '';
@@ -135,7 +135,7 @@ class OCRController extends ApiController
                 $result = $ocr->run(500);
             }
 
-            $data['ocr_edgedetect'] = $result;
+            $data['ocr']['edge_detect'] = $result;
             imagedestroy($imgcreate);
 
             // Mean Removal
@@ -147,10 +147,32 @@ class OCRController extends ApiController
                 $ocr->image($tmpfname_edgedetect);
                 $result = $ocr->run(500);
             }
-
-            $data['ocr_meanremoval'] = $result;
+            $data['ocr']['mean_removal'] = $result;
             imagedestroy($imgcreate);
 
+            // Negate
+            $result = '';
+            $imgcreate = imagecreatefrompng($tmpfname);
+            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_NEGATE) === true) {
+                $tmpfname_edgedetect = $basefile_path . '_negate.png';
+                imagepng($imgcreate, $tmpfname_edgedetect);
+                $ocr->image($tmpfname_edgedetect);
+                $result = $ocr->run(500);
+            }
+            $data['ocr']['negate'] = $result;
+            imagedestroy($imgcreate);
+
+            // Pixelate
+            $result = '';
+            $imgcreate = imagecreatefrompng($tmpfname);
+            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_PIXELATE, 3) === true) {
+                $tmpfname_edgedetect = $basefile_path . '_pixelate.png';
+                imagepng($imgcreate, $tmpfname_edgedetect);
+                $ocr->image($tmpfname_edgedetect);
+                $result = $ocr->run(500);
+            }
+            $data['ocr']['pixelate'] = $result;
+            imagedestroy($imgcreate);
 
 
             unlink($tmpfname);
