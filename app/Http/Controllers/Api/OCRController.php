@@ -36,10 +36,10 @@ class OCRController extends ApiController
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            $data = curl_exec($ch);
+            $curlResult = curl_exec($ch);
             curl_close($ch);
 
-            file_put_contents($tmpfname, $data);
+            file_put_contents($tmpfname, $curlResult);
 
             // Raw OCR
             $ocr = new TesseractOCR();
@@ -90,4 +90,28 @@ class OCRController extends ApiController
 
     // // Do something with the text from Tesseract
     // echo $text;
+
+
+    // function is_ani($filename) {
+    //     if(!($fh = @fopen($filename, 'rb')))
+    //       return false;
+    //     $count = 0;
+    //     //an animated gif contains multiple "frames", with each frame having a
+    //     //header made up of:
+    //     // * a static 4-byte sequence (\x00\x21\xF9\x04)
+    //     // * 4 variable bytes
+    //     // * a static 2-byte sequence (\x00\x2C) (some variants may use \x00\x21 ?)
+
+    //     // We read through the file til we reach the end of the file, or we've found
+    //     // at least 2 frame headers
+    //     $chunk = false;
+    //     while(!feof($fh) && $count < 2) {
+    //       //add the last 20 characters from the previous string, to make sure the searched pattern is not split.
+    //       $chunk = ($chunk ? substr($chunk, -20) : "") . fread($fh, 1024 * 100); //read 100kb at a time
+    //       $count += preg_match_all('#\x00\x21\xF9\x04.{4}\x00(\x2C|\x21)#s', $chunk, $matches);
+    //     }
+
+    //     fclose($fh);
+    //     return $count > 1;
+    //   }
 }
