@@ -90,7 +90,7 @@ class OCRController extends ApiController
 
             // Generate a temporary filename for the doubled-scale image
             $tmpfname_scaled = tempnam(sys_get_temp_dir(), 'double_scale');
-            imagejpeg($dstImage, $tmpfname_scaled);
+            imagepng($dstImage, $tmpfname_scaled);
             imagedestroy($srcImage);
             imagedestroy($dstImage);
 
@@ -99,6 +99,31 @@ class OCRController extends ApiController
             $result = $ocr->run(500);
             unlink($tmpfname_scaled);
             $data['ocr_double_scale'] = $result;
+
+            // Half Scale
+            $result = '';
+            $srcImage = imagecreatefrompng($tmpfname);
+            $srcWidth = imagesx($srcImage);
+            $srcHeight = imagesy($srcImage);
+
+            $dstWidth = ($srcWidth / 2);
+            $dstHeight = ($srcHeight / 2);
+            $dstImage = imagecreatetruecolor($dstWidth, $dstHeight);
+
+            // Copy and resize the original image onto the new canvas
+            imagecopyresampled($dstImage, $srcImage, 0, 0, 0, 0, $dstWidth, $dstHeight, $srcWidth, $srcHeight);
+
+            // Generate a temporary filename for the doubled-scale image
+            $tmpfname_scaled = tempnam(sys_get_temp_dir(), 'double_scale');
+            imagepng($dstImage, $tmpfname_scaled);
+            imagedestroy($srcImage);
+            imagedestroy($dstImage);
+
+            // OCR it
+            $ocr->image($tmpfname_scaled);
+            $result = $ocr->run(500);
+            unlink($tmpfname_scaled);
+            $data['ocr_half_scale'] = $result;
 
             unlink($tmpfname);
             return $this->respondJson($data);
