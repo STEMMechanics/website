@@ -23,7 +23,7 @@ class OCRController extends ApiController
      * @param  string  $name    The log name.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, string $name)
+    public function show(Request $request)
     {
         // if ($request->user()?->hasPermission('logs/' . $name) === true) {
         $url = $request->get('url');
