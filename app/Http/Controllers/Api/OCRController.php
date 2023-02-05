@@ -20,7 +20,6 @@ class OCRController extends ApiController
      * Display the specified resource.
      *
      * @param  Request $request The log request.
-     * @param  string  $name    The log name.
      * @return \Illuminate\Http\Response
      */
     public function show(Request $request)
@@ -28,6 +27,8 @@ class OCRController extends ApiController
         // if ($request->user()?->hasPermission('logs/' . $name) === true) {
         $url = $request->get('url');
         if ($url !== null) {
+            $data = [];
+
             $tmpfname = tempnam(sys_get_temp_dir(), 'download');
 
             $ch = curl_init();
@@ -40,15 +41,29 @@ class OCRController extends ApiController
 
             file_put_contents($tmpfname, $data);
 
+            // Raw OCR
             $ocr = new TesseractOCR();
             $ocr->image($tmpfname);
             $result = $ocr->run(500);
+            $data['ocr_raw'] = $result;
+
+            $basefile_path = preg_replace('/\\.[^.\\s]{3,4}$/', '', $tmpfname);
+
+            // Greyscale OCR
+            $result = '';
+            $imgcreate = imagecreatefrompng($tmpfname);
+            if ($imgcreate !== false && imagefilter($imgcreate, IMG_FILTER_GRAYSCALE) === true) {
+                $tmpfname_greyscape = $basefile_path . '_grayscale.png';
+                imagepng($imgcreate, $tmpfname_greyscape);
+                $ocr->image($tmpfname_greyscape);
+                $result = $ocr->run(500);
+            }
+
+            $data['ocr_greyscale'] = $result;
+            imagedestroy($imgcreate);
 
             unlink($tmpfname);
-
-            return $this->respondJson([
-                'ocr' => $result
-            ]);
+            return $this->respondJson($data);
         }//end if
 
         return $this->respondWithErrors(['url' => 'url is missing']);
