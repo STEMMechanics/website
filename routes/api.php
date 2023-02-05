@@ -2,13 +2,14 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MediaController;
-use App\Http\Controllers\Api\ContactController;
+use App\Http\Controllers\Api\OCRController;
+use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +45,7 @@ Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']
 Route::post('/contact', [ContactController::class, 'send']);
 
 Route::get('/logs/{name}', [LogController::class, 'show']);
+Route::get('/ocr', [OCRController::class, 'show']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
