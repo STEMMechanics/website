@@ -137,7 +137,7 @@ class OCRController extends ApiController
                 imagedestroy($srcImage);
                 imagedestroy($dstImage);
 
-                $ocr->imageData($dstImage, $imgDataSize);
+                $ocr->imageData($imgData, $imgDataSize);
                 $result = $ocr->run(500);
                 return $result;
             };
