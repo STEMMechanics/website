@@ -90,7 +90,6 @@ class OCRController extends ApiController
                     if ($tesseractAllowlist !== null) {
                         $ocr->allowlist($tesseractAllowlist);
                     }
-                    $result = $ocr->run(500);
                     break;
                 }
             }
@@ -100,7 +99,14 @@ class OCRController extends ApiController
                 $result = '';
                 $img = imagecreatefromstring($curlResult);
                 if ($img !== false && (($options !== null && imagefilter($img, $filter, $options) === true) || ($options === null && imagefilter($img, $filter) === true))) {
-                    $ocr->imageData($img, $curlSize);
+
+                    ob_start();
+                    imagepng($img);
+                    $imgData = ob_get_contents();
+                    ob_end_clean();
+                    $imgDataSize = strlen($imgData);
+
+                    $ocr->imageData($imgData, $imgDataSize);
                     imagedestroy($img);
                     
                     $result = $ocr->run(500);
@@ -124,14 +130,14 @@ class OCRController extends ApiController
 
                 ob_start();
                 imagepng($dstImage);
-                $imgOutput = ob_get_contents();
+                $imgData = ob_get_contents();
                 ob_end_clean();
-                $imgSize = strlen($imgOutput);
+                $imgDataSize = strlen($imgData);
                 
                 imagedestroy($srcImage);
                 imagedestroy($dstImage);
 
-                $ocr->imageData($dstImage, $imgSize);
+                $ocr->imageData($dstImage, $imgDataSize);
                 $result = $ocr->run(500);
                 return $result;
             };
