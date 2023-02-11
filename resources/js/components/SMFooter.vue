@@ -1,6 +1,6 @@
 <template>
-    <SMContainer :full="true" class="footer">
-        <SMRow class="social">
+    <SMContainer :full="true" class="sm-footer">
+        <SMRow class="sm-social">
             <SMColumn class="align-items-center">
                 <ul>
                     <li>
@@ -40,15 +40,26 @@
             <SMColumn
                 width="350px"
                 class="align-items-center justify-content-center align-items-center">
-                <router-link to="/" class="brand"></router-link>
+                <router-link to="/" class="sm-brand"></router-link>
             </SMColumn>
-            <SMColumn class="footer-acknowledgement">
+            <SMColumn class="sm-footer-text">
                 <p>
                     STEMMechanics Australia acknowledges the Traditional Owners
                     of Country throughout Australia and the continuing
                     connection to land, cultures and communities. We pay our
                     respect to Aboriginal and Torres Strait Islander cultures;
                     and to Elders both past, present and emerging.
+                </p>
+                <p class="small">
+                    This site is protected by reCAPTCHA and the Google
+                    <a href="https://policies.google.com/privacy"
+                        >Privacy Policy</a
+                    >
+                    and
+                    <a href="https://policies.google.com/terms"
+                        >Terms of Service</a
+                    >
+                    apply.
                 </p>
             </SMColumn>
         </SMRow>
@@ -58,7 +69,7 @@
                 class="justify-content-center align-items-center copyright"
                 >Made with ❤️ - Copyright &copy; 2023</SMColumn
             >
-            <SMColumn class="justify-content-center footer-links">
+            <SMColumn class="justify-content-center sm-footer-links">
                 <ul>
                     <li>
                         <router-link :to="{ name: 'contact' }"
@@ -85,14 +96,14 @@
 </template>
 
 <style lang="scss" scoped>
-.footer {
+.sm-footer {
     flex: 0;
     align-items: center;
     font-size: 80%;
     background-color: #f8f8f8;
     padding: 0 0 map-get($spacer, 5) 0;
 
-    .social {
+    .sm-social {
         font-size: 200%;
         max-width: 100%;
         border-top: 1px solid #ddd;
@@ -107,7 +118,7 @@
         }
     }
 
-    .brand {
+    .sm-brand {
         display: inline-block;
         background-image: url("/img/logo.png");
         background-position: left top;
@@ -142,26 +153,30 @@
         }
     }
 
-    .footer-acknowledgement {
+    .sm-footer-text {
         p {
             padding: 0;
             margin: 0 0 0.5rem 0;
+        }
+
+        p:last-of-type {
+            margin-bottom: 0;
         }
     }
 }
 
 @media only screen and (max-width: 768px) {
-    .footer {
+    .sm-footer {
         .row:first-of-type {
             padding-bottom: 0;
         }
 
-        .footer-acknowledgement {
+        .sm-footer-text {
             align-items: center;
             text-align: center;
         }
 
-        .footer-links {
+        .sm-footer-links {
             align-items: center;
             justify-content: center;
         }
@@ -169,11 +184,11 @@
 }
 
 @media only screen and (max-width: 640px) {
-    .footer {
-        .footer-acknowledgement {
+    .sm-footer {
+        .sm-footer-text {
             padding: 0 1rem;
         }
-        .footer-links ul {
+        .sm-footer-links ul {
             flex-direction: column;
 
             li {
@@ -185,7 +200,7 @@
 }
 
 @media only screen and (max-width: 400px) {
-    .footer ul li {
+    .sm-footer ul li {
         margin-left: 0.5rem;
         margin-right: 0.5rem;
     }
