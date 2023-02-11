@@ -88,7 +88,6 @@
 .footer {
     flex: 0;
     align-items: center;
-    margin-top: calc(map-get($spacer, 5) * 2);
     font-size: 80%;
     background-color: #f8f8f8;
     padding: 0 0 map-get($spacer, 5) 0;
