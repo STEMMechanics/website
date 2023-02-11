@@ -238,3 +238,6 @@ dist/
 /public/uploads
 /public/build
 *.key
+
+### Synk ###
+.dccache
