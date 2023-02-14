@@ -7,7 +7,8 @@ export default defineConfig({
         vue({
             template: {
                 compilerOptions: {
-                    isCustomElement: (tag) => ["trix-editor"].includes(tag),
+                    isCustomElement: (tag) =>
+                        ["trix-editor", "ion-icon"].includes(tag),
                 },
                 transformAssetUrls: {
                     base: null,

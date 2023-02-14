@@ -1,33 +1,21 @@
 <template>
-    <SMContainer>
+    <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow :loading="formLoading">
+            <SMDialog narrow>
                 <template v-if="!formDone">
                     <h1>Unsubscribe</h1>
                     <p>
                         If you would like to unsubscribe from our mailing list,
                         you have come to the right page!
                     </p>
-                    <SMMessage
-                        v-if="formMessage.message"
-                        :type="formMessage.type"
-                        :message="formMessage.message"
-                        :icon="formMessage.icon" />
-                    <form @submit.prevent="submit">
-                        <SMInput
-                            v-model="formData.email.value"
-                            name="email"
-                            label="Email"
-                            required
-                            :error="formData.email.error"
-                            @blur="fieldValidate(formData.email)" />
-                        <SMCaptchaNotice />
+                    <SMForm v-model="form" @submit="handleSubmit">
+                        <SMInput control="email" />
                         <SMFormFooter>
                             <template #right>
                                 <SMButton type="submit" label="Unsubscribe" />
                             </template>
                         </SMFormFooter>
-                    </form>
+                    </SMForm>
                 </template>
                 <template v-else>
                     <h1>Unsubscribed</h1>
@@ -42,79 +30,56 @@
                 </template>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
+import { api } from "../helpers/api";
+import { FormObject, FormControl } from "../helpers/form";
+import { And, Email, Required } from "../helpers/validate";
 import { ref, reactive } from "vue";
-import SMInput from "../components/SMInput.vue";
-import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
-import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
 import { useRoute } from "vue-router";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../helpers/validation";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import SMButton from "../components/SMButton.vue";
+import SMDialog from "../components/SMDialog.vue";
+import SMForm from "../components/SMForm.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+import SMPage from "../components/SMPage.vue";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const formLoading = ref(false);
 const formDone = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formData = reactive({
-    email: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "An email address is required.",
-            email: true,
-            email_message: "That does not look like an email address.",
-        },
-    },
-});
+const form = reactive(
+    FormObject({
+        email: FormControl("", And([Required(), Email()])),
+    })
+);
 
-useValidation(formData);
-
-const submit = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
+const handleSubmit = async () => {
+    form.loading(true);
 
     try {
-        if (isValidated(formData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
 
-            await axios.delete("subscriptions", {
-                data: {
-                    email: formData.email.value,
-                    captcha_token: captcha,
-                },
-            });
+        await api.delete({
+            url: "/subscriptions",
+            body: {
+                email: form.email.value,
+                captcha_token: captcha,
+            },
+        });
 
-            formDone.value = true;
-        }
-    } catch (err) {
-        restParseErrors(formData, [formMessage, "message"], err);
+        formDone.value = true;
+    } catch (error) {
+        form.apiErrors(error);
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
 if (useRoute().query.email !== undefined) {
-    formData.email.value = useRoute().query.email;
-    submit();
+    form.email.value = useRoute().query.email;
+    handleSubmit();
 }
 </script>

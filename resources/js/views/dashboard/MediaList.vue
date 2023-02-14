@@ -29,19 +29,19 @@
             :items="items"
             :search-value="search">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-size="item">
                 {{ bytesReadable(item.size) }}
             </template>
             <template #item-actions="item">
                 <div class="action-wrapper">
-                    <font-awesome-icon
+                    <!-- <font-awesome-icon
                         icon="fa-solid fa-pen-to-square"
                         @click.stop="handleEdit(item)" />
                     <font-awesome-icon
                         icon="fa-regular fa-trash-can"
-                        @click.stop="handleDelete(item)" />
+                        @click.stop="handleDelete(item)" /> -->
                     <d-file-link :href="item.url" target="_blank" @click.stop=""
                         ><font-awesome-icon icon="fa-solid fa-download"
                     /></d-file-link>
@@ -65,6 +65,7 @@ import { debounce, parseErrorType, bytesReadable } from "../../helpers/common";
 import SMMessage from "../../components/SMMessage.vue";
 import DFileLink from "../../components/DFileLink.vue";
 import { useUserStore } from "../../store/UserStore";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const search = ref("");

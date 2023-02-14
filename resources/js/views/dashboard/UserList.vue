@@ -16,16 +16,16 @@
             :header-item-class-name="headerItemClassNameFunction"
             :body-item-class-name="bodyItemClassNameFunction">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-actions="item">
                 <div class="action-wrapper">
-                    <font-awesome-icon
+                    <!-- <font-awesome-icon
                         icon="fa-solid fa-pen-to-square"
                         @click="handleEdit(item)" />
                     <font-awesome-icon
                         icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" />
+                        @click="handleDelete(item)" /> -->
                 </div>
             </template>
         </EasyDataTable>
@@ -42,6 +42,7 @@ import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const searchValue = ref("");

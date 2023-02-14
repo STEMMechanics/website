@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="page-contact">
+    <SMPage class="page-contact">
         <SMRow break-large>
             <SMColumn>
                 <h1 class="text-left">Contact Us</h1>
@@ -42,43 +42,20 @@
             </SMColumn>
             <SMColumn>
                 <div>
-                    <SMDialog narrow :loading="formLoading">
-                        <template v-if="!formDone">
-                            <SMMessage
-                                v-if="formMessage.message"
-                                :type="formMessage.type"
-                                :message="formMessage.message"
-                                :icon="formMessage.icon" />
-                            <form @submit.prevent="submit">
+                    <SMDialog narrow>
+                        <template v-if="!formSubmitted">
+                            <SMForm v-model="form" @submit="handleSubmit">
+                                <SMInput control="name" />
+                                <SMInput control="email" type="email" />
                                 <SMInput
-                                    v-model="formData.name.value"
-                                    name="name"
-                                    label="Name"
-                                    required
-                                    :error="formData.name.error"
-                                    @blur="fieldValidate(formData.name)" />
-                                <SMInput
-                                    v-model="formData.email.value"
-                                    name="email"
-                                    label="Email"
-                                    required
-                                    :error="formData.email.error"
-                                    @blur="fieldValidate(formData.email)" />
-                                <SMInput
-                                    v-model="formData.content.value"
-                                    name="content"
-                                    type="textarea"
+                                    control="content"
                                     label="Message"
-                                    required
-                                    :error="formData.content.error"
-                                    @blur="fieldValidate(formData.content)" />
-                                <SMCaptchaNotice />
+                                    type="textarea" />
                                 <SMButton
                                     type="submit"
                                     block
-                                    label="Send Message"
-                                    icon="fa-regular fa-paper-plane" />
-                            </form>
+                                    label="Send Message" />
+                            </SMForm>
                         </template>
                         <template v-else>
                             <h1>Message Sent!</h1>
@@ -86,98 +63,65 @@
                                 Your message as been sent to us. We will respond
                                 as soon as we can.
                             </p>
-                            <SMButton block to="/" label="Home" />
+                            <SMButton
+                                block
+                                :to="{ name: 'home' }"
+                                label="Home" />
                         </template>
                     </SMDialog>
                 </div>
             </SMColumn>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../helpers/validation";
+import SMForm from "../components/SMForm.vue";
+import SMInput from "../components/SMInput.vue";
+import SMPage from "../components/SMPage.vue";
+
+import { api } from "../helpers/api";
+import { FormObject, FormControl } from "../helpers/form";
+import { And, Email, Min, Required } from "../helpers/validate";
+
+import { ref, reactive } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const formLoading = ref(false);
-const formDone = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formData = reactive({
-    name: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A name is needed",
-            min: 4,
-            min_message: "A name needs to be is at least 4 characters",
-        },
-    },
-    email: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A email address is needed",
-            email: true,
-            email_message: "That email address does not look right",
-        },
-    },
-    content: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A message is required",
-            min: 8,
-            min_message: "The message needs to be at least %d characters",
-        },
-    },
-});
+const form = reactive(
+    FormObject({
+        name: FormControl("", And([Required(), Min(4)])),
+        email: FormControl("", And([Required(), Email()])),
+        content: FormControl("", And([Required(), Min(8)])),
+    })
+);
+const formSubmitted = ref(false);
 
-useValidation(formData);
-
-const submit = async () => {
-    formLoading.value = true;
+const handleSubmit = async () => {
+    form.loading(true);
 
     try {
-        if (isValidated(formData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
 
-            await axios.post("contact", {
-                name: formData.name.value,
-                email: formData.email.value,
+        await api.post({
+            url: "/contact",
+            body: {
+                name: form.name.value,
+                email: form.email.value,
                 captcha_token: captcha,
-                content: formData.content.value,
-            });
+                content: form.content.value,
+            },
+        });
 
-            formDone.value = true;
-        }
+        formSubmitted.value = true;
     } catch (err) {
-        formLoading.value = false;
-        formMessage.type = "error";
-        formMessage.icon = "fa-solid fa-circle-exclamation";
-        restParseErrors(formData, [formMessage, "message"], err);
+        console.log(err);
+        form.apiErrors(err);
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 </script>

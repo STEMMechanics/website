@@ -1,26 +1,14 @@
 <template>
-    <SMContainer>
+    <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow :loading="formLoading">
+            <SMDialog narrow>
                 <template v-if="!formDone">
                     <h1>Resend Verify Email</h1>
-                    <SMMessage
-                        v-if="formMessage.message"
-                        :type="formMessage.type"
-                        :message="formMessage.message"
-                        :icon="formMessage.icon" />
-                    <form @submit.prevent="submit">
-                        <SMInput
-                            v-model="formData.username.value"
-                            name="username"
-                            label="Username"
-                            required
-                            :error="formData.username.error"
-                            @blur="fieldValidate(formData.username)" />
-                        <SMCaptchaNotice />
+                    <SMForm v-model="form" @submit="handleSubmit">
+                        <SMInput control="username" />
                         <SMFormFooter>
                             <template #left>
-                                <div>
+                                <div class="small">
                                     <span class="pr-1">Stuck?</span
                                     ><router-link to="/contact"
                                         >Contact Us</router-link
@@ -31,10 +19,10 @@
                                 <SMButton
                                     type="submit"
                                     label="Send"
-                                    icon="fa-solid fa-arrow-right" />
+                                    icon="arrow-forward-outline" />
                             </template>
                         </SMFormFooter>
-                    </form>
+                    </SMForm>
                 </template>
                 <template v-else>
                     <h1>Email Sent!</h1>
@@ -51,7 +39,7 @@
                 </template>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
@@ -60,69 +48,45 @@ import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
-import { useRoute } from "vue-router";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../helpers/validation";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
+import SMForm from "../components/SMForm.vue";
+import SMPage from "../components/SMPage.vue";
+import { api } from "../helpers/api";
+import { Required } from "../helpers/validate";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import { FormObject, FormControl } from "../helpers/form";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const formLoading = ref(false);
 const formDone = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formData = reactive({
-    username: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "Your username is needed",
-            min: 4,
-            min_message: "Your username is at least %d characters",
-        },
-    },
-});
+const form = reactive(
+    FormObject({
+        username: FormControl("", Required()),
+    })
+);
 
-useValidation(formData);
-
-const submit = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
+const handleSubmit = async () => {
+    form.loading(true);
 
     try {
-        if (isValidated(formData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
 
-            let res = await axios.post("users/resendVerifyEmailCode", {
-                username: formData.username.value,
+        await api.post({
+            url: "/users/resendVerifyEmailCode",
+            body: {
+                username: form.username.value,
                 captcha_token: captcha,
-            });
+            },
+        });
 
-            formDone.value = true;
-        }
-    } catch (err) {
-        if (err.response.status == 422) {
+        formDone.value = true;
+    } catch (error) {
+        if (error.status == 422) {
             formDone.value = true;
         } else {
-            restParseErrors(formData, [formMessage, "message"], err);
+            form.apiErrors(error);
         }
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 </script>
-
-<style lang="scss"></style>

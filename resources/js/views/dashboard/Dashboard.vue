@@ -1,58 +1,59 @@
 <template>
-    <SMContainer class="dashboard mx-auto">
+    <SMPage class="dashboard mx-auto">
         <h1>Dashboard</h1>
         <div class="boxes">
             <router-link to="/dashboard/details" class="box">
-                <font-awesome-icon icon="fa-solid fa-user-pen" />
+                <ion-icon name="location-outline" />
                 <h2>My Details</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/posts')"
                 to="/dashboard/posts"
                 class="box">
-                <font-awesome-icon icon="fa-regular fa-newspaper" />
+                <ion-icon name="newspaper-outline" />
                 <h2>Posts</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/users')"
                 :to="{ name: 'user-list' }"
                 class="box">
-                <font-awesome-icon icon="fa-solid fa-users" />
+                <ion-icon name="people-outline" />
                 <h2>Users</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/events')"
                 to="/dashboard/events"
                 class="box">
-                <font-awesome-icon icon="fa-regular fa-calendar" />
+                <ion-icon name="calendar-outline" />
                 <h2>Events</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/courses')"
                 to="/dashboard/courses"
                 class="box">
-                <font-awesome-icon icon="fa-solid fa-graduation-cap" />
+                <ion-icon name="school-outline" />
                 <h2>{{ courseBoxTitle }}</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/media')"
                 to="/dashboard/media"
                 class="box">
-                <font-awesome-icon icon="fa-solid fa-photo-film" />
+                <ion-icon name="film-outline" />
                 <h2>Media</h2>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('logs/discord')"
                 :to="{ name: 'discord-bot-logs' }"
                 class="box">
-                <font-awesome-icon icon="fa-brands fa-discord" />
+                <ion-icon name="logo-discord" />
                 <h2>Discord Bot Logs</h2>
             </router-link>
         </div>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
+import SMPage from "../../components/SMPage.vue";
 import { computed } from "vue";
 import { useUserStore } from "../../store/UserStore";
 
@@ -90,6 +91,7 @@ const courseBoxTitle = computed(() => {
         font-size: map-get($spacer, 3);
         color: $font-color;
         transition: background-color 0.3s, border 0.3s;
+        align-items: center;
         text-align: center;
 
         h2 {
@@ -97,7 +99,7 @@ const courseBoxTitle = computed(() => {
             margin-bottom: 0;
         }
 
-        svg {
+        ion-icon {
             font-size: map-get($spacer, 5);
         }
 

@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="mx-auto workshop-list">
+    <SMPage class="mx-auto workshop-list">
         <h1>Workshops</h1>
         <div class="toolbar">
             <SMInput
@@ -40,7 +40,7 @@
                     event.location == 'online' ? 'Online Event' : event.address
                 "></SMPanel>
         </SMPanelList>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
@@ -49,15 +49,14 @@ import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
+import SMPage from "../components/SMPage.vue";
 import { reactive, ref } from "vue";
-import axios from "axios";
+import { api } from "../helpers/api";
 import {
-    buildUrlQuery,
     timestampLocalToUtc,
     timestampNowUtc,
     timestampUtcToLocal,
-} from "../helpers/common";
-import { format, parse, parseISO } from "date-fns";
+} from "../helpers/datetime";
 
 const loading = ref(true);
 const events = reactive([]);
@@ -103,11 +102,13 @@ const handleLoad = async () => {
             query["end_at"] = ">" + timestampNowUtc();
         }
 
-        const url = buildUrlQuery("events", query);
-        let result = await axios.get(url);
+        let result = await api.get({
+            url: "/events",
+            params: query,
+        });
 
-        if (result.data.events) {
-            events.value = result.data.events;
+        if (result.json.events) {
+            events.value = result.json.events;
 
             events.value.forEach((item) => {
                 item.start_at = timestampUtcToLocal(item.start_at);

@@ -1,7 +1,7 @@
 <template>
     <SMContainer
         :full="true"
-        :class="['navbar', { showDropdown: showToggle }]"
+        :class="['sm-navbar', { showDropdown: showToggle }]"
         @click="handleHideMenu">
         <template #inner>
             <div class="navbar-container">
@@ -24,12 +24,12 @@
                     :to="{ name: 'workshop-list' }"
                     class="navbar-cta"
                     label="Find a workshop"
-                    icon="fa-solid fa-arrow-right" />
+                    icon="arrow-forward-outline" />
                 <div class="menuButton" @click.stop="handleToggleMenu">
                     <span>Menu</span
-                    ><font-awesome-icon
-                        icon="fa-solid fa-bars"
-                        class="menuButtonIcon" />
+                    ><ion-icon
+                        class="menuButtonIcon"
+                        name="reorder-three-outline"></ion-icon>
                 </div>
             </div>
         </template>
@@ -37,9 +37,7 @@
         <ul class="navbar-dropdown">
             <li class="ml-auto">
                 <div class="menuClose" @click.stop="handleToggleMenu">
-                    <font-awesome-icon
-                        icon="fa-solid fa-xmark"
-                        class="menuCloseIcon" />
+                    <ion-icon name="close-outline"></ion-icon>
                 </div>
             </li>
             <template v-for="item in menuItems">
@@ -47,7 +45,7 @@
                     v-if="item.show == undefined || item.show()"
                     :key="item.name">
                     <router-link :to="item.to"
-                        ><font-awesome-icon :icon="item.icon" />{{
+                        ><ion-icon :name="item.icon" />{{
                             item.label
                         }}</router-link
                     >
@@ -69,13 +67,13 @@ const menuItems = [
         name: "news",
         label: "News",
         to: "/news",
-        icon: "fa-regular fa-newspaper",
+        icon: "newspaper-outline",
     },
     {
         name: "workshops",
         label: "Workshops",
         to: "/workshops",
-        icon: "fa-solid fa-pen-ruler",
+        icon: "shapes-outline",
     },
     // {
     //     name: "courses",
@@ -87,13 +85,13 @@ const menuItems = [
         name: "contact",
         label: "Contact us",
         to: "/contact",
-        icon: "fa-regular fa-envelope",
+        icon: "mail-outline",
     },
     {
         name: "register",
         label: "Register",
         to: "/register",
-        icon: "fa-solid fa-pen-to-square",
+        icon: "person-add-outline",
         show: () => !userStore.id,
         inNav: false,
     },
@@ -101,7 +99,7 @@ const menuItems = [
         name: "login",
         label: "Log in",
         to: "/login",
-        icon: "fa-solid fa-right-to-bracket",
+        icon: "log-in-outline",
         show: () => !userStore.id,
         inNav: false,
     },
@@ -109,7 +107,7 @@ const menuItems = [
         name: "dashboard",
         label: "Dashboard",
         to: "/dashboard",
-        icon: "fa-regular fa-circle-user",
+        icon: "apps-outline",
         show: () => userStore.id,
         inNav: false,
     },
@@ -117,7 +115,7 @@ const menuItems = [
         name: "logout",
         label: "Log out",
         to: "/logout",
-        icon: "fa-solid fa-right-from-bracket",
+        icon: "log-out-outline",
         show: () => userStore.id,
         inNav: false,
     },
@@ -135,7 +133,7 @@ const handleHideMenu = () => {
 </script>
 
 <style lang="scss">
-.navbar {
+.sm-navbar {
     height: 4.5rem;
     align-items: center;
     justify-content: center;
@@ -143,6 +141,7 @@ const handleHideMenu = () => {
     position: relative;
     flex: 0 0 auto !important;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
 
     &.showDropdown {
         .navbar-dropdown-cover {
@@ -195,8 +194,10 @@ const handleHideMenu = () => {
                 display: inline-block;
                 width: map-get($spacer, 5) * 3;
 
-                svg {
+                ion-icon {
                     padding-right: map-get($spacer, 1);
+                    font-size: map-get($spacer, 4);
+                    vertical-align: middle;
                 }
             }
         }
@@ -224,7 +225,7 @@ const handleHideMenu = () => {
             }
         }
 
-        .menuClose svg {
+        .menuClose ion-icon {
             cursor: pointer;
             font-size: map-get($spacer, 4);
             padding-left: map-get($spacer, 1);
@@ -271,7 +272,7 @@ const handleHideMenu = () => {
 
             .menuButtonIcon {
                 margin-left: 0.5rem;
-                font-size: 1.4rem;
+                font-size: map-get($spacer, 4);
             }
         }
     }

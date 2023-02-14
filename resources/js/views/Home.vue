@@ -1,5 +1,5 @@
 <template>
-    <SMContainer full class="home">
+    <SMPage full class="home">
         <SMCarousel>
             <SMCarouselSlide
                 v-for="(slide, index) in slides"
@@ -110,100 +110,85 @@
                 Sign up for our mailing list to receive expert tips and tricks,
                 as well as updates on upcoming workshops.
             </p>
-            <SMDialog :loading="formLoading" class="p-0">
-                <form @submit.prevent="handleSubscribe">
+            <SMDialog class="p-0">
+                <SMForm v-model="form" @submit.prevent="handleSubscribe">
                     <div class="form-row">
-                        <SMMessage
-                            v-if="formMessage.message"
-                            :type="formMessage.type"
-                            :message="formMessage.message"
-                            :icon="formMessage.icon" />
-                        <SMInput
-                            v-model="subscribeFormData.email.value"
-                            placeholder="Email address"
-                            :error="subscribeFormData.email.error"
-                            @blur="fieldValidate(subscribeFormData.email)" />
-                        <SMCaptchaNotice />
+                        <SMInput control="email" />
                         <SMButton type="submit" label="Subscribe" />
                     </div>
-                </form>
+                </SMForm>
             </SMDialog>
         </SMContainer>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { reactive, ref } from "vue";
-import { buildUrlQuery, excerpt, timestampNowUtc } from "../helpers/common";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-    clearFormData,
-} from "../helpers/validation";
+import { excerpt } from "../helpers/common";
+import { timestampNowUtc } from "../helpers/datetime";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
 import SMCarouselSlide from "../components/SMCarouselSlide.vue";
-import SMMessage from "../components/SMMessage.vue";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
+import SMForm from "../components/SMForm.vue";
 import SMDialog from "../components/SMDialog.vue";
+import SMPage from "../components/SMPage.vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import { FormObject, FormControl } from "../helpers/form";
+import { And, Email, Required } from "../helpers/validate";
+import { api } from "../helpers/api";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const subscribeFormData = reactive({
-    email: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "An email address is needed.",
-            email: true,
-            email_message: "That does not appear to be an email address.",
-        },
-    },
-});
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formLoading = ref(false);
+const form = reactive(
+    FormObject({
+        email: FormControl("", And([Required(), Email()])),
+    })
+);
 
 const handleLoad = async () => {
     slides.value = [];
     let posts = [];
     let events = [];
 
-    try {
-        let result = await axios.get(buildUrlQuery("posts", { limit: 3 }));
-        if (result.data.posts) {
-            result.data.posts.forEach((post) => {
-                posts.push({
-                    title: post.title,
-                    content: excerpt(post.content, 200),
-                    image: post.hero,
-                    url: { name: "post-view", params: { slug: post.slug } },
-                    cta: "Read More...",
-                });
-            });
-        }
-    } catch (error) {
-        /* empty */
-    }
-
-    try {
-        let query = {
+    api.get({
+        url: "/posts",
+        params: {
             limit: 3,
-            end_at: ">" + timestampNowUtc(),
-        };
+        },
+        progress: ({ loaded, total }) => {
+            console.log("progress", `${loaded} - ${total}`);
+        },
+    })
+        .then((response) => {
+            if (response.data.posts) {
+                response.data.posts.forEach((post) => {
+                    posts.push({
+                        title: post.title,
+                        content: excerpt(post.content, 200),
+                        image: post.hero,
+                        url: { name: "post-view", params: { slug: post.slug } },
+                        cta: "Read More...",
+                    });
+                });
+            }
+        })
+        .catch((error) => {
+            console.log("error", error);
+            /* empty */
+        });
 
-        let result = await axios.get(buildUrlQuery("events", query));
-        if (result.data.events) {
-            result.data.events.forEach((event) => {
+    try {
+        let result = await api.get({
+            url: "/events",
+            params: {
+                limit: 3,
+                end_at: ">" + timestampNowUtc(),
+            },
+        });
+
+        if (result.json.events) {
+            result.json.events.forEach((event) => {
                 events.push({
                     title: event.title,
                     content: excerpt(event.content, 200),
@@ -228,34 +213,30 @@ const handleLoad = async () => {
 };
 
 const handleSubscribe = async () => {
-    formLoading.value = true;
-    formMessage.icon = "";
-    formMessage.type = "error";
-    formMessage.message = "";
+    form.loading(true);
+    form.message();
 
     try {
-        if (isValidated(subscribeFormData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
 
-            await axios.post("subscriptions", {
-                email: subscribeFormData.email.value,
+        await api.post({
+            url: "/subscriptions",
+            body: {
+                email: form.email.value,
                 captcha_token: captcha,
-            });
+            },
+        });
 
-            clearFormData(subscribeFormData);
-
-            formMessage.type = "success";
-            formMessage.message = "Your email address has been subscribed.";
-        }
+        form.email.value = "";
+        form.message("Your email address has been subscribed.", "success");
     } catch (err) {
-        restParseErrors(subscribeFormData, [formMessage, "message"], err);
+        form.apiErrors(err);
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
-useValidation(subscribeFormData);
 handleLoad();
 </script>
 

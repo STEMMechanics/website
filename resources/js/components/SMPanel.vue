@@ -11,23 +11,22 @@
                     {{ format(new Date(date), "MMM") }}
                 </div>
             </div>
-            <font-awesome-icon
+            <ion-icon
                 v-if="hideImageLoader == false"
                 class="panel-image-loader"
-                icon="fa-regular fa-image" />
+                name="image-outline" />
         </div>
         <div class="panel-body">
             <h3 class="panel-title">{{ title }}</h3>
             <div v-if="showDate" class="panel-date">
-                <font-awesome-icon
+                <ion-icon
                     v-if="showTime == false && endDate.length == 0"
-                    icon="fa-regular fa-calendar" /><font-awesome-icon
-                    v-else
-                    icon="fa-regular fa-clock" />
+                    name="calendar-outline" />
+                <ion-icon v-else name="time-outline" />
                 <p>{{ panelDate }}</p>
             </div>
             <div v-if="location" class="panel-location">
-                <font-awesome-icon icon="fa-solid fa-location-dot" />
+                <ion-icon name="location-outline" />
                 <p>{{ location }}</p>
             </div>
             <div v-if="content" class="panel-content">{{ panelContent }}</div>
@@ -39,7 +38,6 @@
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { onMounted, computed, ref } from "vue";
 import {
     excerpt,
@@ -49,6 +47,7 @@ import {
 } from "../helpers/common";
 import { format } from "date-fns";
 import SMButton from "./SMButton.vue";
+import { api } from "../helpers/api";
 
 const props = defineProps({
     title: {
@@ -151,10 +150,10 @@ const hideImageLoader = computed(() => {
 onMounted(async () => {
     if (imageUrl.value && imageUrl.value.length > 0 && isUUID(imageUrl.value)) {
         try {
-            let result = await axios.get(`media/${props.image}`);
+            let result = await api.get(`/media/${props.image}`);
 
-            if (result.data.medium) {
-                imageUrl.value = result.data.medium.url;
+            if (result.json.medium) {
+                imageUrl.value = result.json.medium.url;
             }
         } catch (error) {
             /* empty */

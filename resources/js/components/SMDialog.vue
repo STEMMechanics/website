@@ -8,7 +8,7 @@
         <transition name="fade">
             <div v-if="loading" class="dialog-loading-cover">
                 <div class="dialog-loading">
-                    <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                    <SMLoadingIcon />
                     <span>{{ loadingMessage }}</span>
                 </div>
             </div>
@@ -18,6 +18,8 @@
 </template>
 
 <script setup lang="ts">
+import SMLoadingIcon from "./SMLoadingIcon.vue";
+
 defineProps({
     loading: {
         type: Boolean,
@@ -50,6 +52,7 @@ defineProps({
     border-radius: 24px;
     overflow: hidden;
     min-width: map-get($spacer, 5) * 12;
+    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
 
     & > h1 {
         margin-top: 0;

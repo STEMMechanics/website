@@ -1,6 +1,5 @@
 <template>
     <SMNavbar />
-    <SMBreadcrumbs />
     <main>
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -14,7 +13,6 @@
 
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
-import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
 import SMFooter from "../components/SMFooter.vue";
 import { DialogWrapper } from "vue3-promise-dialog";
 </script>

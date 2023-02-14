@@ -1,4 +1,4 @@
-import axios from "axios";
+import { api } from "../helpers/api";
 import { defineStore } from "pinia";
 
 export interface UserDetails {
@@ -51,16 +51,16 @@ export const useUserStore = defineStore({
         },
 
         async fetchUser() {
-            const res = await axios.get("users/" + this.$state.id);
+            const res = await api.get("/users/" + this.$state.id);
 
-            this.$state.id = res.data.user.id;
-            this.$state.token = res.data.token;
-            this.$state.username = res.data.user.username;
-            this.$state.firstName = res.data.user.first_name;
-            this.$state.lastName = res.data.user.last_name;
-            this.$state.email = res.data.user.email;
-            this.$state.phone = res.data.user.phone;
-            this.$state.permissions = res.data.user.permissions || [];
+            this.$state.id = res.json.user.id;
+            this.$state.token = res.json.token;
+            this.$state.username = res.json.user.username;
+            this.$state.firstName = res.json.user.first_name;
+            this.$state.lastName = res.json.user.last_name;
+            this.$state.email = res.json.user.email;
+            this.$state.phone = res.json.user.phone;
+            this.$state.permissions = res.json.user.permissions || [];
         },
 
         clearUser() {

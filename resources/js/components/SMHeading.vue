@@ -4,13 +4,13 @@
             v-if="back != ''"
             :to="{ name: back }"
             class="heading-back">
-            <font-awesome-icon icon="fa-solid fa-arrow-left" />{{ backLabel }}
+            <ion-icon name="arrow-back-outline" />{{ backLabel }}
         </router-link>
         <router-link v-if="close != ''" :to="{ name: close }" class="close">
-            <font-awesome-icon icon="fa-solid fa-close" />
+            <ion-icon name="close-outline" />
         </router-link>
         <span v-if="closeBack" class="close" @click="handleBack">
-            <font-awesome-icon icon="fa-solid fa-close" />
+            <ion-icon name="close-outline" />
         </span>
         <h1>{{ heading }}</h1>
     </div>

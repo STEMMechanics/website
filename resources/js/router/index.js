@@ -1,7 +1,7 @@
-import axios from "axios";
 import { createWebHistory, createRouter } from "vue-router";
 import { useUserStore } from "@/store/UserStore";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { api } from "../helpers/api";
 
 export const routes = [
     {
@@ -386,10 +386,10 @@ router.beforeEach(async (to, from, next) => {
         let redirect = false;
 
         try {
-            let res = await axios.get("me");
-            userStore.setUserDetails(res.data.user);
+            let res = await api.get("/me");
+            userStore.setUserDetails(res.json.user);
         } catch (err) {
-            if (err.response.status == 401) {
+            if (err.status == 401) {
                 userStore.clearUser();
                 redirect = true;
             }

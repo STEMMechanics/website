@@ -23,7 +23,7 @@ import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
 import { reactive } from "vue";
-import axios from "axios";
+import { api } from "../helpers/api";
 
 const events = reactive([]);
 
@@ -39,12 +39,16 @@ const handleLoad = async () => {
     formMessage.message = "";
 
     try {
-        let result = await axios.get("events?limit=10");
-        events.value = result.data.events;
+        let result = await api.get({
+            url: "/events",
+            params: {
+                limit: 10,
+            },
+        });
+        events.value = result.json.events;
     } catch (error) {
         formMessage.message =
-            error.response?.data?.message ||
-            "Could not load any events from the server.";
+            error.json?.message || "Could not load any events from the server.";
     }
 };
 

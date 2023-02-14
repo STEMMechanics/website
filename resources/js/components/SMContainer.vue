@@ -1,5 +1,5 @@
 <template>
-    <div :class="['container', { full: isFull }]">
+    <div :class="['container', { full: isFull }]" :style="styleObject">
         <SMLoader :loading="loading">
             <d-error-forbidden
                 v-if="pageError == 403 || !hasPermission()"></d-error-forbidden>
@@ -50,9 +50,19 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    background: {
+        type: String,
+        default: "",
+        required: false,
+    },
 });
 const slots = useSlots();
 const userStore = useUserStore();
+let styleObject = {};
+
+if (props.background != "") {
+    styleObject["backgroundImage"] = `url('${props.background}')`;
+}
 
 const hasPermission = () => {
     return (
@@ -76,6 +86,9 @@ const isFull = computed(() => {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 
     &.full {
         padding-left: 0;

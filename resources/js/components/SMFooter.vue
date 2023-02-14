@@ -5,33 +5,33 @@
                 <ul>
                     <li>
                         <a href="https://facebook.com/stemmechanics"
-                            ><font-awesome-icon icon="fa-brands fa-facebook"
-                        /></a>
+                            ><ion-icon name="logo-facebook"></ion-icon
+                        ></a>
                     </li>
                     <li>
                         <a href="https://mastodon.au/@stemmechanics"
-                            ><font-awesome-icon icon="fa-brands fa-mastodon"
-                        /></a>
+                            ><ion-icon name="logo-mastodon"></ion-icon
+                        ></a>
                     </li>
                     <li>
                         <a href="https://www.youtube.com/@stemmechanics"
-                            ><font-awesome-icon icon="fa-brands fa-youtube"
-                        /></a>
+                            ><ion-icon name="logo-youtube"></ion-icon
+                        ></a>
                     </li>
                     <li>
                         <a href="https://twitter.com/stemmechanics"
-                            ><font-awesome-icon icon="fa-brands fa-twitter"
-                        /></a>
+                            ><ion-icon name="logo-twitter"></ion-icon
+                        ></a>
                     </li>
                     <li>
                         <a href="https://github.com/stemmechanics"
-                            ><font-awesome-icon icon="fa-brands fa-github"
-                        /></a>
+                            ><ion-icon name="logo-github"></ion-icon
+                        ></a>
                     </li>
                     <li>
                         <a href="https://discord.gg/yNzk4x7mpD"
-                            ><font-awesome-icon icon="fa-brands fa-discord"
-                        /></a>
+                            ><ion-icon name="logo-discord"></ion-icon
+                        ></a>
                     </li>
                 </ul>
             </SMColumn>

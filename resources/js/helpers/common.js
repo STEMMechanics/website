@@ -1,5 +1,3 @@
-import { format } from "date-fns";
-
 const transitionEndEventName = () => {
     var i,
         undefined,
@@ -173,41 +171,6 @@ export function parseErrorType(
     return def;
 }
 
-export const relativeDate = (d) => {
-    if (isString(d)) {
-        d = new Date(d);
-    }
-
-    // const d = new Date(0);
-    // // d.setUTCSeconds(parseInt(epoch));
-    // d.setUTCSeconds(epoch);
-
-    const now = new Date();
-    const dif = Math.round((now.getTime() - d.getTime()) / 1000);
-
-    if (dif < 60) {
-        // let v = dif;
-        // return v + " sec" + (v != 1 ? "s" : "") + " ago";
-        return "Just now";
-    } else if (dif < 3600) {
-        const v = Math.round(dif / 60);
-        return v + " min" + (v != 1 ? "s" : "") + " ago";
-    } else if (dif < 86400) {
-        const v = Math.round(dif / 3600);
-        return v + " hour" + (v != 1 ? "s" : "") + " ago";
-    } else if (dif < 604800) {
-        const v = Math.round(dif / 86400);
-        return v + " day" + (v != 1 ? "s" : "") + " ago";
-    } else if (dif < 2419200) {
-        const v = Math.round(dif / 604800);
-        return v + " week" + (v != 1 ? "s" : "") + " ago";
-    }
-
-    return (
-        monthString[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear()
-    );
-};
-
 export const buildUrlQuery = (url, query) => {
     let s = "";
 
@@ -345,90 +308,6 @@ export const isUUID = (uuid) => {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         uuid
     );
-};
-
-export const timestampUtcToLocal = (utc) => {
-    try {
-        let iso = new Date(
-            utc.replace(
-                /([0-9]{4}-[0-9]{2}-[0-9]{2}),? ([0-9]{2}:[0-9]{2}:[0-9]{2})/,
-                "$1T$2.000Z"
-            )
-        );
-        return format(iso, "yyyy/MM/dd HH:mm:ss");
-    } catch (error) {
-        /* empty */
-    }
-
-    return "";
-};
-
-export const timestampLocalToUtc = (local) => {
-    try {
-        let d = new Date(local);
-        return d
-            .toISOString()
-            .replace(
-                /([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*/,
-                "$1 $2"
-            );
-    } catch (error) {
-        /* empty */
-    }
-
-    return "";
-};
-
-export const timestampNowLocal = () => {
-    let d = new Date();
-    return (
-        d.getFullYear() +
-        "-" +
-        ("0" + (d.getMonth() + 1)).slice(-2) +
-        "-"("0" + d.getDate()).slice(-2) +
-        " " +
-        ("0" + d.getHours()).slice(-2) +
-        ":" +
-        ("0" + d.getMinutes()).slice(-2) +
-        ":" +
-        ("0" + d.getSeconds()).slice(-2)
-    );
-};
-
-export const timestampNowUtc = () => {
-    try {
-        let d = new Date();
-        return d
-            .toISOString()
-            .replace(
-                /([0-9]{4}-[0-9]{2}-[0-9]{2})T([0-9]{2}:[0-9]{2}:[0-9]{2}).*/,
-                "$1 $2"
-            );
-    } catch (error) {
-        /* empty */
-    }
-
-    return "";
-};
-
-export const timestampBeforeNow = (timestamp) => {
-    try {
-        return new Date(timestamp) < new Date();
-    } catch (error) {
-        /* empty */
-    }
-
-    return false;
-};
-
-export const timestampAfterNow = (timestamp) => {
-    try {
-        return new Date(timestamp) > new Date();
-    } catch (error) {
-        /* empty */
-    }
-
-    return false;
 };
 
 export {

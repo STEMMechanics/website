@@ -26,19 +26,19 @@
                         >Page {{ page }} of {{ totalPages }}</span
                     >
                     <span class="media-browser-page-changer">
-                        <font-awesome-icon
+                        <ion-icon
+                            name="chevron-back-outline"
                             :class="[
                                 'changer-button',
                                 { disabled: prevDisabled },
                             ]"
-                            icon="fa-solid fa-angle-left"
                             @click="handlePrev" />
-                        <font-awesome-icon
+                        <ion-icon
+                            name="chevron-forward-outline"
                             :class="[
                                 'changer-button',
                                 { disabled: nextDisabled },
                             ]"
-                            icon="fa-solid fa-angle-right"
                             @click="handleNext" />
                     </span>
                 </div>
@@ -73,7 +73,6 @@
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { computed, watch, ref, reactive, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
 import SMButton from "../SMButton.vue";
@@ -82,6 +81,7 @@ import SMDialog from "../SMDialog.vue";
 import SMMessage from "../SMMessage.vue";
 import SMModal from "../SMModal.vue";
 import { toParamString } from "../../helpers/common";
+import { api } from "../../helpers/api";
 
 const uploader = ref(null);
 const formLoading = ref(false);
@@ -134,18 +134,18 @@ const handleLoad = async () => {
         params.limit = perPage.value;
         // params.fields = "url";
 
-        let res = await axios.get(`media${toParamString(params)}`);
+        let res = await api.get(`/media${toParamString(params)}`);
 
-        totalItems.value = res.data.total;
-        mediaItems.value = res.data.media;
+        totalItems.value = res.json.total;
+        mediaItems.value = res.json.media;
     } catch (error) {
-        if (error.response.status == 404) {
+        if (error.status == 404) {
             formMessage.type = "primary";
             formMessage.icon = "fa-regular fa-folder-open";
             formMessage.message = "No media items found";
         } else {
             formMessage.message =
-                error.response?.data?.message || "An unexpected error occurred";
+                error?.json?.message || "An unexpected error occurred";
         }
     }
 };
@@ -165,18 +165,20 @@ const handleUpload = async () => {
         if (uploader.value.files[0] instanceof File) {
             submitFormData.append("file", uploader.value.files[0]);
 
-            let res = await axios.post("media", submitFormData, {
+            let res = await api.post({
+                url: "/media",
+                body: submitFormData,
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
-                onUploadProgress: (progressEvent) =>
-                    (formLoadingMessage.value = `Uploading Files ${Math.floor(
-                        (progressEvent.loaded / progressEvent.total) * 100
-                    )}%`),
+                // onUploadProgress: (progressEvent) =>
+                //     (formLoadingMessage.value = `Uploading Files ${Math.floor(
+                //         (progressEvent.loaded / progressEvent.total) * 100
+                //     )}%`),
             });
 
-            if (res.data.medium) {
-                closeDialog(res.data.medium);
+            if (res.json.medium) {
+                closeDialog(res.json.medium);
             } else {
                 formMessage.message =
                     "An unexpected response was received from the server";

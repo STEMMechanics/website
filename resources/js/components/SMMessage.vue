@@ -1,6 +1,7 @@
 <template>
     <div :class="['message', type]">
-        <font-awesome-icon v-if="icon" :icon="icon" />{{ message }}
+        <ion-icon v-if="icon" :name="icon"></ion-icon>
+        <p>{{ message }}</p>
     </div>
 </template>
 
@@ -23,15 +24,12 @@ defineProps({
 
 <style lang="scss">
 .message {
+    display: flex;
     padding: map-get($spacer, 2) map-get($spacer, 3);
     margin-bottom: map-get($spacer, 4);
     text-align: center;
     font-size: 90%;
     word-break: break-word;
-
-    svg {
-        padding-right: map-get($spacer, 1);
-    }
 
     &.primary {
         background-color: $primary-color-lighter;
@@ -52,6 +50,21 @@ defineProps({
         color: $danger-color-darker;
         border: 1px solid $danger-color-lighter;
         border-radius: 12px;
+    }
+
+    ion-icon {
+        height: 1.3em;
+        width: 1.3em;
+        justify-content: center;
+        align-self: center;
+    }
+
+    p {
+        flex: 1;
+        margin-bottom: 0;
+        justify-content: center;
+        align-self: center;
+        white-space: pre-wrap;
     }
 }
 </style>

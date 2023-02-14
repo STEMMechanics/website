@@ -3,10 +3,10 @@
         <div
             class="workshop-image"
             :style="{ backgroundImage: `url('${imageUrl}')` }">
-            <font-awesome-icon
+            <ion-icon
                 v-if="imageUrl.length == 0"
                 class="workshop-image-loader"
-                icon="fa-regular fa-image" />
+                name="image-outline" />
         </div>
         <template #inner>
             <SMMessage
@@ -57,10 +57,7 @@
                             label="Register for Event"></SMButton>
                     </div>
                     <div class="workshop-date">
-                        <h4>
-                            <font-awesome-icon
-                                icon="fa-regular fa-calendar" />Date / Time
-                        </h4>
+                        <h4><ion-icon name="calendar-outline" />Date / Time</h4>
                         <p
                             v-for="(line, index) in workshopDate"
                             :key="index"
@@ -69,10 +66,7 @@
                         </p>
                     </div>
                     <div class="workshop-location">
-                        <h4>
-                            <font-awesome-icon
-                                icon="fa-solid fa-location-dot" />Location
-                        </h4>
+                        <h4><ion-icon name="location-outline" />Location</h4>
                         <p>
                             {{
                                 event.location == "online"
@@ -88,19 +82,19 @@
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
+import { api } from "../helpers/api";
 import { computed, ref, reactive } from "vue";
 import { useRoute } from "vue-router";
 import { useApplicationStore } from "../store/ApplicationStore";
-import { format } from "date-fns";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
 import {
+    format,
     timestampUtcToLocal,
     timestampBeforeNow,
     timestampAfterNow,
-} from "../helpers/common";
+} from "../helpers/datetime";
 
 const applicationStore = useApplicationStore();
 const event = ref({});
@@ -162,8 +156,8 @@ const handleLoad = async () => {
     formMessage.message = "";
 
     try {
-        const result = await axios.get(`events/${route.params.id}`);
-        event.value = result.data.event;
+        const result = await api.get(`events/${route.params.id}`);
+        event.value = result.json.event;
 
         event.value.start_at = timestampUtcToLocal(event.value.start_at);
         event.value.end_at = timestampUtcToLocal(event.value.end_at);
@@ -172,16 +166,16 @@ const handleLoad = async () => {
         handleLoadImage();
     } catch (error) {
         formMessage.message =
-            error.response?.data?.message ||
+            error.json?.message ||
             "Could not load event information from the server.";
     }
 };
 
 const handleLoadImage = async () => {
     try {
-        const result = await axios.get(`media/${event.value.hero}`);
-        if (result.data.medium) {
-            imageUrl.value = result.data.medium.url;
+        const result = await api.get(`media/${event.value.hero}`);
+        if (result.json.medium) {
+            imageUrl.value = result.json.medium.url;
         }
     } catch (error) {
         /* empty */

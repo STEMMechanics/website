@@ -33,7 +33,6 @@
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { useUserStore } from "../../store/UserStore";
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
@@ -82,15 +81,17 @@ const handleConfirm = async () => {
         if (isValidated(formData)) {
             try {
                 formLoading.value = true;
-                await axios.put(`users/${userStore.id}`, {
-                    password: formData.password.value,
+                await api.put({
+                    url: `/users/${userStore.id}`,
+                    body: {
+                        password: formData.password.value,
+                    },
                 });
 
                 isSuccessful.value = true;
             } catch (err) {
                 formData.password.error =
-                    err.response?.data?.message ||
-                    "An unexpected error occurred";
+                    err.json?.message || "An unexpected error occurred";
             }
         }
     }

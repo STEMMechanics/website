@@ -2,7 +2,7 @@
     <d-error-forbidden v-if="error == 403"></d-error-forbidden>
     <d-error-internal v-if="error >= 500"></d-error-internal>
     <d-error-not-found v-if="error == 404"></d-error-not-found>
-    <template v-if="slots.default">
+    <template v-if="slots.default && error < 300">
         <slot></slot>
     </template>
 </template>

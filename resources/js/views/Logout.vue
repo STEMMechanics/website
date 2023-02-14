@@ -1,7 +1,7 @@
 <template>
-    <SMContainer>
+    <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow>
+            <SMDialog narrow class="mt-5" :loading="formLoading">
                 <h1>Logged out</h1>
                 <SMRow>
                     <SMColumn class="justify-content-center">
@@ -17,33 +17,28 @@
                 </SMRow>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import SMButton from "@/components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
+import { api } from "../helpers/api";
+import { ref } from "vue";
 import { useUserStore } from "../store/UserStore";
-import { useRouter } from "vue-router";
 
-const router = useRouter();
+import SMButton from "../components/SMButton.vue";
+import SMDialog from "../components/SMDialog.vue";
+import SMPage from "../components/SMPage.vue";
+
 const userStore = useUserStore();
 const formLoading = ref(false);
-const formMessage = reactive({
-    type: "info",
-    message: "Logging you out...",
-    icon: "",
-});
-
-formLoading.value = true;
 
 const logout = async () => {
     formLoading.value = true;
+
     try {
-        await axios.post("logout");
+        await api.post({
+            url: "/logout",
+        });
     } catch (err) {
         console.log(err);
     }

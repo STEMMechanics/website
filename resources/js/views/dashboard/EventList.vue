@@ -26,7 +26,7 @@
             :items="items"
             :search-value="search">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-title="item">
                 <router-link
@@ -36,12 +36,12 @@
             </template>
             <template #item-actions="item">
                 <div class="action-wrapper">
-                    <font-awesome-icon
+                    <!-- <font-awesome-icon
                         icon="fa-solid fa-pen-to-square"
                         @click="handleEdit(item)" />
                     <font-awesome-icon
                         icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" />
+                        @click="handleDelete(item)" /> -->
                 </div>
             </template>
         </EasyDataTable>
@@ -66,6 +66,7 @@ import { debounce } from "../../helpers/common";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import { restParseErrors } from "../../helpers/validation";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const search = ref("");

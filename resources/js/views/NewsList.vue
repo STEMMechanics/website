@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="news-list">
+    <SMPage class="news-list">
         <SMMessage
             v-if="formMessage.message"
             :icon="formMessage.icon"
@@ -22,15 +22,16 @@
                 button="Read More"
                 button-type="outline" />
         </SMPanelList>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import axios from "axios";
+import { api } from "../helpers/api";
 import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
+import SMPage from "../components/SMPage.vue";
 import { timestampUtcToLocal } from "../helpers/common";
 
 const formMessage = reactive({
@@ -48,8 +49,13 @@ const handleLoad = async () => {
     formMessage.message = "";
 
     try {
-        let result = await axios.get("posts?limit=5");
-        posts.value = result.data.posts;
+        let result = await api.get({
+            url: "/posts",
+            params: {
+                limit: 5,
+            },
+        });
+        posts.value = result.json.posts;
 
         posts.value.forEach((post) => {
             post.publish_at = timestampUtcToLocal(post.publish_at);
@@ -65,5 +71,3 @@ const handleLoad = async () => {
 
 handleLoad();
 </script>
-
-<style lang="scss"></style>

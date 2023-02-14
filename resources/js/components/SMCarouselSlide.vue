@@ -3,7 +3,7 @@
         class="carousel-slide"
         :style="{ backgroundImage: `url('${imageUrl}')` }">
         <div v-if="imageUrl == null" class="carousel-slide-loading">
-            <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+            <SMLoadingIcon />
         </div>
         <div v-else class="carousel-slide-body">
             <div class="carousel-slide-content">
@@ -20,9 +20,10 @@
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { ref } from "vue";
+import { api } from "../helpers/api";
 import SMButton from "./SMButton.vue";
+import SMLoadingIcon from "./SMLoadingIcon.vue";
 
 const props = defineProps({
     title: {
@@ -56,9 +57,9 @@ let imageUrl = ref(null);
 
 const handleLoad = async () => {
     try {
-        let result = await axios.get(`media/${props.image}`);
-        if (result.data.medium) {
-            imageUrl.value = result.data.medium.url;
+        let result = await api.get(`/media/${props.image}`);
+        if (result.json.medium) {
+            imageUrl.value = result.json.medium.url;
         }
     } catch (error) {
         imageUrl.value = "";

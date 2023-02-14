@@ -1,10 +1,10 @@
 <template>
     <div class="panel-list">
         <div v-if="loading" class="panel-list-loading">
-            <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+            <SMLoadingIcon />
         </div>
         <div v-else-if="notFound" class="panel-list-not-found">
-            <font-awesome-icon icon="fa-regular fa-face-frown-open" />
+            <ion-icon name="alert-circle-outline" />
             <p>{{ notFoundText }}</p>
         </div>
         <slot></slot>
@@ -12,6 +12,8 @@
 </template>
 
 <script setup lang="ts">
+import SMLoadingIcon from "./SMLoadingIcon.vue";
+
 defineProps({
     loading: {
         type: Boolean,

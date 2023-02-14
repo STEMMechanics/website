@@ -11,7 +11,7 @@
         ]"
         :type="buttonType">
         {{ label }}
-        <font-awesome-icon v-if="icon" :icon="icon" />
+        <ion-icon v-if="icon" :icon="icon" />
     </a>
     <button
         v-else-if="to == null"
@@ -24,7 +24,7 @@
         ]"
         :type="buttonType">
         {{ label }}
-        <font-awesome-icon v-if="icon" :icon="icon" />
+        <ion-icon v-if="icon" :icon="icon" />
     </button>
     <router-link
         v-else
@@ -37,7 +37,7 @@
             { 'button-block': block },
         ]">
         {{ label }}
-        <font-awesome-icon v-if="icon" :icon="icon" />
+        <ion-icon v-if="icon" :icon="icon" />
     </router-link>
 </template>
 
@@ -82,6 +82,12 @@ const classType = props.type == "submit" ? "primary" : props.type;
     &.button-block {
         display: block;
         width: 100%;
+    }
+
+    ion-icon {
+        height: 1.2rem;
+        width: 1.2rem;
+        vertical-align: middle;
     }
 }
 </style>

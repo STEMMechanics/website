@@ -43,50 +43,31 @@ h1 {
     font-weight: 800;
 }
 
-label {
-    display: block;
-    margin-bottom: map-get($spacer, 1);
-
-    &.required:after {
-        content: " *";
-        color: $danger-color;
-    }
-
-    &.inline {
-        display: inline-block;
-        margin-right: map-get($spacer, 3);
-
-        &:after {
-            content: ":";
-        }
-    }
-}
-
 p {
     line-height: 1.5rem;
     margin-top: 0;
 }
 
-input,
-select,
-textarea {
-    box-sizing: border-box;
-    display: block;
-    width: 100%;
-    border: 1px solid $border-color;
-    border-radius: 12px;
-    padding: map-get($spacer, 2) map-get($spacer, 3);
-    color: $font-color;
-    margin-bottom: map-get($spacer, 4);
+// input,
+// select,
+// textarea {
+//     box-sizing: border-box;
+//     display: block;
+//     width: 100%;
+//     border: 1px solid $border-color;
+//     border-radius: 12px;
+//     padding: map-get($spacer, 2) map-get($spacer, 3);
+//     color: $font-color;
+//     margin-bottom: map-get($spacer, 4);
 
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-}
+//     -webkit-appearance: none;
+//     -moz-appearance: none;
+//     appearance: none;
+// }
 
-textarea {
-    resize: none;
-}
+// textarea {
+//     resize: none;
+// }
 
 select {
     padding-right: 2.5rem;
@@ -178,39 +159,6 @@ code {
     }
 }
 
-/* Loader */
-.loader-cover {
-    position: fixed;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(4px);
-    background-color: rgba(255, 255, 255, 0.5);
-
-    .loader {
-        display: flex;
-        flex-direction: column;
-        padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
-
-        border: 1px solid transparent;
-        border-radius: 24px;
-
-        svg {
-            font-size: calc(map-get($spacer, 5) * 1.5);
-        }
-
-        span {
-            font-size: map-get($spacer, 4);
-            padding-top: map-get($spacer, 3);
-        }
-    }
-}
-
 /* Button */
 button.button,
 a.button,
@@ -298,53 +246,6 @@ label.button {
 
     &:last-child {
         margin-right: 0;
-    }
-}
-
-/* Form Group */
-.form-group {
-    margin-bottom: map-get($spacer, 3);
-    padding: 0 4px;
-    flex: 1;
-
-    input,
-    textarea {
-        margin-bottom: map-get($spacer, 1);
-    }
-
-    .form-group-info {
-        font-size: 85%;
-        margin-bottom: map-get($spacer, 1);
-    }
-
-    .form-group-error {
-        // display: none;
-        font-size: 85%;
-        margin-bottom: map-get($spacer, 1);
-        color: $danger-color;
-    }
-
-    .form-group-help {
-        font-size: 85%;
-        margin-bottom: map-get($spacer, 1);
-        color: $secondary-color;
-
-        svg {
-            vertical-align: middle !important;
-        }
-    }
-
-    &.has-error {
-        input,
-        textarea,
-        .input-file-group,
-        .input-media-group .input-media-display {
-            border: 2px solid $danger-color;
-        }
-
-        .form-group-error {
-            display: block;
-        }
     }
 }
 

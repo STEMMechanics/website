@@ -7,22 +7,20 @@
             <slot></slot>
         </div>
         <div class="carousel-slide-prev" @click="handleSlidePrev">
-            <font-awesome-icon icon="fa-solid fa-chevron-left" />
+            <ion-icon name="chevron-back-outline" />
         </div>
         <div class="carousel-slide-next" @click="handleSlideNext">
-            <font-awesome-icon icon="fa-solid fa-chevron-right" />
+            <ion-icon name="chevron-forward-outline" />
         </div>
         <div class="carousel-slide-indicators">
             <div
                 v-for="(indicator, index) in slideElements"
                 :key="index"
-                class="carousel-slide-indicator-dot">
-                <font-awesome-icon
-                    v-if="currentSlide != index"
-                    icon="fa-regular fa-circle"
-                    @click="handleIndicator(index)" />
-                <font-awesome-icon v-else icon="fa-solid fa-circle" />
-            </div>
+                :class="[
+                    'carousel-slide-indicator-item',
+                    { highlighted: currentSlide == index },
+                ]"
+                @click="handleIndicator(index)"></div>
         </div>
     </div>
 </template>
@@ -184,12 +182,20 @@ const disconnectMutationObserver = () => {
         opacity: 0.75;
         transition: opacity 0.2s ease-in-out;
 
-        svg {
+        .carousel-slide-indicator-item {
+            height: map-get($spacer, 1);
+            width: map-get($spacer, 1);
+            border: 1px solid white;
+            border-radius: 50%;
             cursor: pointer;
             font-size: 80%;
-            padding: 0 0.25rem;
+            margin: 0 calc(#{map-get($spacer, 1)} / 3);
             color: #fff;
             filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 1));
+
+            &.highlighted {
+                background-color: white;
+            }
         }
     }
 }
