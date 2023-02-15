@@ -219,3 +219,60 @@ export const relativeDate = (d) => {
         monthString[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear()
     );
 };
+
+export const isValidAusDate = (dateString: string): boolean => {
+    const [day, month, year] = dateString.split("/");
+    const date = new Date(`${year}-${month}-${day}`);
+    return (
+        !isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === `${year}-${month}-${day}`
+    );
+};
+
+export const parseAusDate = (dateString: string): Date | null => {
+    const [day, month, year] = dateString.split("/");
+    const date = new Date(`${year}-${month}-${day}`);
+    if (
+        !isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === `${year}-${month}-${day}`
+    ) {
+        return null;
+    }
+
+    return date;
+};
+
+export const isValidTime = (timeString: string): boolean => {
+    return /^([01]\d|2[0-3]):[0-5]\d$/.test(timeString);
+};
+
+export const convertTimeToMinutes = (timeString: string): number => {
+    if (isValidTime(timeString)) {
+        const [hour, minute] = timeString
+            .split(":")
+            .map((str) => parseInt(str, 10));
+        return hour * 60 + minute;
+    }
+
+    return -1;
+};
+
+export const createAusDateTimeObject = (
+    dateString: string,
+    timeString: string
+): Date | null => {
+    const dateRegex = /^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/\d{4}$/;
+    const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+    if (!dateRegex.test(dateString) || !timeRegex.test(timeString)) {
+        return null;
+    }
+
+    const [day, month, year] = dateString
+        .split("/")
+        .map((str) => parseInt(str, 10));
+    const [hour, minute] = timeString
+        .split(":")
+        .map((str) => parseInt(str, 10));
+    return new Date(year, month - 1, day, hour, minute);
+};
