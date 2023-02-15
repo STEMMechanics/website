@@ -1,3 +1,9 @@
+import {
+    parseAusDate,
+    isValidTime,
+    convertTimeToMinutes,
+} from "../helpers/datetime";
+
 export interface ValidationObject {
     validate: (value: string) => ValidationResult;
 }
@@ -280,6 +286,193 @@ export function Phone(options?: ValidationPhoneOptions): ValidationPhoneObject {
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
                         : this.invalidMessage(this),
+                ],
+            };
+        },
+    };
+}
+
+/**
+ * NUMBER
+ */
+interface ValidationNumberOptions {
+    invalidMessage?: string | ((options: ValidationNumberOptions) => string);
+}
+
+interface ValidationNumberObject extends ValidationNumberOptions {
+    validate: (value: string) => ValidationResult;
+}
+
+const defaultValidationNumberOptions: ValidationNumberOptions = {
+    invalidMessage: "Must be a number.",
+};
+
+/**
+ * Validate field is in a valid Whole number format
+ *
+ * @param options options data
+ * @returns ValidationNumberObject
+ */
+export function Number(
+    options?: ValidationNumberOptions
+): ValidationNumberObject {
+    options = { ...defaultValidationNumberOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: string): ValidationResult {
+            return {
+                valid: /^0?\d+$/.test(value),
+                invalidMessages: [
+                    typeof this.invalidMessage === "string"
+                        ? this.invalidMessage
+                        : this.invalidMessage(this),
+                ],
+            };
+        },
+    };
+}
+
+/**
+ * DATE
+ */
+interface ValidationDateOptions {
+    before: string;
+    after: string;
+    invalidMessage?: string | ((options: ValidationDateOptions) => string);
+    invalidBeforeMessage?:
+        | string
+        | ((options: ValidationDateOptions) => string);
+    invalidAfterMessage?: string | ((options: ValidationDateOptions) => string);
+}
+
+interface ValidationDateObject extends ValidationDateOptions {
+    validate: (value: string) => ValidationResult;
+}
+
+const defaultValidationDateOptions: ValidationDateOptions = {
+    before: "",
+    after: "",
+    invalidMessage: "Must be a valid date.",
+    invalidBeforeMessage: (options: ValidationDateOptions) => {
+        return `Must be a date before ${options.before}.`;
+    },
+    invalidAfterMessage: (options: ValidationDateOptions) => {
+        return `Must be a date after ${options.after}.`;
+    },
+};
+
+/**
+ * Validate field is in a valid Date format
+ *
+ * @param options options data
+ * @returns ValidationDateObject
+ */
+export function Date(options?: ValidationDateOptions): ValidationDateObject {
+    options = { ...defaultValidationDateOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: string): ValidationResult {
+            let valid = true;
+            let invalidMessageType = "invalidMessage";
+
+            const parsedDate = parseAusDate(value);
+
+            if (parsedDate != null) {
+                const beforeDate = parseAusDate(options?.before || "");
+                const afterDate = parseAusDate(options?.after || "");
+                if (beforeDate != null && parsedDate > beforeDate) {
+                    valid = false;
+                    invalidMessageType = "invalidBeforeMessage";
+                }
+                if (afterDate != null && parsedDate > afterDate) {
+                    valid = false;
+                    invalidMessageType = "invalidAfterMessage";
+                }
+            } else {
+                valid = false;
+            }
+
+            return {
+                valid: valid,
+                invalidMessages: [
+                    typeof this[invalidMessageType] === "string"
+                        ? this[invalidMessageType]
+                        : this[invalidMessageType](this),
+                ],
+            };
+        },
+    };
+}
+
+/**
+ * TIME
+ */
+interface ValidationTimeOptions {
+    before: string;
+    after: string;
+    invalidMessage?: string | ((options: ValidationTimeOptions) => string);
+    invalidBeforeMessage?:
+        | string
+        | ((options: ValidationTimeOptions) => string);
+    invalidAfterMessage?: string | ((options: ValidationTimeOptions) => string);
+}
+
+interface ValidationTimeObject extends ValidationTimeOptions {
+    validate: (value: string) => ValidationResult;
+}
+
+const defaultValidationTimeOptions: ValidationTimeOptions = {
+    before: "",
+    after: "",
+    invalidMessage: "Must be a valid time.",
+    invalidBeforeMessage: (options: ValidationTimeOptions) => {
+        return `Must be a time before ${options.before}.`;
+    },
+    invalidAfterMessage: (options: ValidationTimeOptions) => {
+        return `Must be a time after ${options.after}.`;
+    },
+};
+
+/**
+ * Validate field is in a valid Time format
+ *
+ * @param options options data
+ * @returns ValidationTimeObject
+ */
+export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
+    options = { ...defaultValidationTimeOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: string): ValidationResult {
+            let valid = true;
+            let invalidMessageType = "invalidMessage";
+
+            if (isValidTime(value)) {
+                const parsedTime = convertTimeToMinutes(value);
+                const beforeTime = convertTimeToMinutes(options?.before || "");
+                const afterTime = convertTimeToMinutes(options?.after || "");
+
+                if (beforeTime != -1 && parsedTime > beforeTime) {
+                    valid = false;
+                    invalidMessageType = "invalidBeforeMessage";
+                }
+                if (afterTime != -1 && parsedTime > afterTime) {
+                    valid = false;
+                    invalidMessageType = "invalidAfterMessage";
+                }
+            } else {
+                valid = false;
+            }
+
+            return {
+                valid: valid,
+                invalidMessages: [
+                    typeof this[invalidMessageType] === "string"
+                        ? this[invalidMessageType]
+                        : this[invalidMessageType](this),
                 ],
             };
         },
