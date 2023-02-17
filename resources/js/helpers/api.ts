@@ -21,7 +21,7 @@ interface ApiOptions {
 interface ApiResponse {
     status: number;
     message: string;
-    data: object;
+    data: { [key: string]: unknown };
 }
 
 const apiDefaultHeaders = {
