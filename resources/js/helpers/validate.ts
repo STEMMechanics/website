@@ -4,6 +4,7 @@ import {
     isValidTime,
     convertTimeToMinutes,
 } from "../helpers/datetime";
+import { bytesReadable } from "../helpers/common";
 
 export interface ValidationObject {
     validate: (value: string) => ValidationResult;
@@ -771,6 +772,51 @@ export function Url(options?: ValidationUrlOptions): ValidationUrlObject {
                 valid: /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*(:\d+)?([/?#][^\s]*)?$/.test(
                     value
                 ),
+                invalidMessages: [
+                    typeof this.invalidMessage === "string"
+                        ? this.invalidMessage
+                        : this.invalidMessage(this),
+                ],
+            };
+        },
+    };
+}
+
+/**
+ * FileSize
+ */
+interface ValidationFileSizeOptions {
+    size: number;
+    invalidMessage?: string | ((options: ValidationFileSizeOptions) => string);
+}
+
+interface ValidationFileSizeObject extends ValidationFileSizeOptions {
+    validate: (value: File) => ValidationResult;
+}
+
+const defaultValidationFileSizeOptions: ValidationFileSizeOptions = {
+    size: 1024 * 1024 * 1024, // 1 Mb
+    invalidMessage: (options) => {
+        return `The file size must be less than ${bytesReadable(options.size)}`;
+    },
+};
+
+/**
+ * Validate field is in a valid Email format
+ *
+ * @param options options data
+ * @returns ValidationEmailObject
+ */
+export function FileSize(
+    options?: ValidationFileSizeOptions
+): ValidationFileSizeObject {
+    options = { ...defaultValidationFileSizeOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: File): ValidationResult {
+            return {
+                valid: value.size < options.size,
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
