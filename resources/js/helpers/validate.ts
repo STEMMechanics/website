@@ -338,8 +338,8 @@ export function Number(
  * DATE
  */
 interface ValidationDateOptions {
-    before: string;
-    after: string;
+    before?: string;
+    after?: string;
     invalidMessage?: string | ((options: ValidationDateOptions) => string);
     invalidBeforeMessage?:
         | string
@@ -411,8 +411,8 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
  * TIME
  */
 interface ValidationTimeOptions {
-    before: string;
-    after: string;
+    before?: string;
+    after?: string;
     invalidMessage?: string | ((options: ValidationTimeOptions) => string);
     invalidBeforeMessage?:
         | string
@@ -484,8 +484,8 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
  * DATETIME
  */
 interface ValidationDateTimeOptions {
-    before: string;
-    after: string;
+    before?: string;
+    after?: string;
     invalidMessage?: string | ((options: ValidationDateTimeOptions) => string);
     invalidBeforeMessage?:
         | string
