@@ -338,8 +338,8 @@ export function Number(
  * DATE
  */
 interface ValidationDateOptions {
-    before?: string;
-    after?: string;
+    before?: string | ((value: string) => string);
+    after?: string | ((value: string) => string);
     invalidMessage?: string | ((options: ValidationDateOptions) => string);
     invalidBeforeMessage?:
         | string
@@ -381,8 +381,18 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
             const parsedDate = parseAusDate(value);
 
             if (parsedDate != null) {
-                const beforeDate = parseAusDate(options?.before || "");
-                const afterDate = parseAusDate(options?.after || "");
+                const beforeDate = parseAusDate(
+                    typeof (options["before"] = options?.before || "") ===
+                        "function"
+                        ? options.before(value)
+                        : options.before
+                );
+                const afterDate = parseAusDate(
+                    typeof (options["after"] = options?.after || "") ===
+                        "function"
+                        ? options.after(value)
+                        : options.after
+                );
                 if (beforeDate != null && parsedDate > beforeDate) {
                     valid = false;
                     invalidMessageType = "invalidBeforeMessage";
@@ -411,8 +421,8 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
  * TIME
  */
 interface ValidationTimeOptions {
-    before?: string;
-    after?: string;
+    before?: string | ((value: string) => string);
+    after?: string | ((value: string) => string);
     invalidMessage?: string | ((options: ValidationTimeOptions) => string);
     invalidBeforeMessage?:
         | string
@@ -453,8 +463,18 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
 
             if (isValidTime(value)) {
                 const parsedTime = convertTimeToMinutes(value);
-                const beforeTime = convertTimeToMinutes(options?.before || "");
-                const afterTime = convertTimeToMinutes(options?.after || "");
+                const beforeTime = convertTimeToMinutes(
+                    typeof (options["before"] = options?.before || "") ===
+                        "function"
+                        ? options.before(value)
+                        : options.before
+                );
+                const afterTime = convertTimeToMinutes(
+                    typeof (options["after"] = options?.after || "") ===
+                        "function"
+                        ? options.after(value)
+                        : options.after
+                );
 
                 if (beforeTime != -1 && parsedTime > beforeTime) {
                     valid = false;
@@ -484,8 +504,8 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
  * DATETIME
  */
 interface ValidationDateTimeOptions {
-    before?: string;
-    after?: string;
+    before?: string | ((value: string) => string);
+    after?: string | ((value: string) => string);
     invalidMessage?: string | ((options: ValidationDateTimeOptions) => string);
     invalidBeforeMessage?:
         | string
@@ -531,8 +551,18 @@ export function DateTime(
             const parsedDate = parseAusDateTime(value);
 
             if (parsedDate != null) {
-                const beforeDate = parseAusDateTime(options?.before || "");
-                const afterDate = parseAusDateTime(options?.after || "");
+                const beforeDate = parseAusDate(
+                    typeof (options["before"] = options?.before || "") ===
+                        "function"
+                        ? options.before(value)
+                        : options.before
+                );
+                const afterDate = parseAusDate(
+                    typeof (options["after"] = options?.after || "") ===
+                        "function"
+                        ? options.after(value)
+                        : options.after
+                );
                 if (beforeDate != null && parsedDate > beforeDate) {
                     valid = false;
                     invalidMessageType = "invalidBeforeMessage";
