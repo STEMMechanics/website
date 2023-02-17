@@ -1,5 +1,6 @@
 import {
     parseAusDate,
+    parseAusDateTime,
     isValidTime,
     convertTimeToMinutes,
 } from "../helpers/datetime";
@@ -460,6 +461,83 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
                     invalidMessageType = "invalidBeforeMessage";
                 }
                 if (afterTime != -1 && parsedTime > afterTime) {
+                    valid = false;
+                    invalidMessageType = "invalidAfterMessage";
+                }
+            } else {
+                valid = false;
+            }
+
+            return {
+                valid: valid,
+                invalidMessages: [
+                    typeof this[invalidMessageType] === "string"
+                        ? this[invalidMessageType]
+                        : this[invalidMessageType](this),
+                ],
+            };
+        },
+    };
+}
+
+/**
+ * DATETIME
+ */
+interface ValidationDateTimeOptions {
+    before: string;
+    after: string;
+    invalidMessage?: string | ((options: ValidationDateTimeOptions) => string);
+    invalidBeforeMessage?:
+        | string
+        | ((options: ValidationDateTimeOptions) => string);
+    invalidAfterMessage?:
+        | string
+        | ((options: ValidationDateTimeOptions) => string);
+}
+
+interface ValidationDateTimeObject extends ValidationDateTimeOptions {
+    validate: (value: string) => ValidationResult;
+}
+
+const defaultValidationDateTimeOptions: ValidationDateTimeOptions = {
+    before: "",
+    after: "",
+    invalidMessage: "Must be a valid date and time.",
+    invalidBeforeMessage: (options: ValidationDateTimeOptions) => {
+        return `Must be a date/time before ${options.before}.`;
+    },
+    invalidAfterMessage: (options: ValidationDateTimeOptions) => {
+        return `Must be a date/time after ${options.after}.`;
+    },
+};
+
+/**
+ * Validate field is in a valid Date format
+ *
+ * @param options options data
+ * @returns ValidationDateObject
+ */
+export function DateTime(
+    options?: ValidationDateTimeOptions
+): ValidationDateTimeObject {
+    options = { ...defaultValidationDateTimeOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: string): ValidationResult {
+            let valid = true;
+            let invalidMessageType = "invalidMessage";
+
+            const parsedDate = parseAusDateTime(value);
+
+            if (parsedDate != null) {
+                const beforeDate = parseAusDateTime(options?.before || "");
+                const afterDate = parseAusDateTime(options?.after || "");
+                if (beforeDate != null && parsedDate > beforeDate) {
+                    valid = false;
+                    invalidMessageType = "invalidBeforeMessage";
+                }
+                if (afterDate != null && parsedDate > afterDate) {
                     valid = false;
                     invalidMessageType = "invalidAfterMessage";
                 }
