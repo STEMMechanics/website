@@ -183,6 +183,11 @@ export const api = {
         return await this.send(options);
     },
 
+    put: async function (options: ApiOptions): Promise<ApiResponse> {
+        options.method = "PUT";
+        return await this.send(options);
+    },
+
     delete: async function (options: ApiOptions): Promise<ApiResponse> {
         options.method = "DELETE";
         return await this.send(options);
