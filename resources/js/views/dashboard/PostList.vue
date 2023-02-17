@@ -51,12 +51,11 @@
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { relativeDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
-
+import { api } from "../../helpers/api";
 import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
 import { debounce } from "../../helpers/common";
@@ -113,8 +112,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`posts${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/posts",
+            params: params,
         });
         if (!res.data.posts) {
             throw new Error("The server is currently not available");
@@ -195,7 +195,7 @@ const handleDelete = async (item) => {
 
     if (result == true) {
         try {
-            await axios.delete(`posts${item.id}`);
+            await api.delete(`posts${item.id}`);
             loadFromServer();
 
             formMessage.message = "Post deleted successfully";

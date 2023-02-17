@@ -35,8 +35,8 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { api } from "../../helpers/api";
+import { relativeDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -95,7 +95,10 @@ const loadFromServer = async () => {
         params["page"] = serverOptions.value.page;
         params["limit"] = serverOptions.value.rowsPerPage;
 
-        let res = await axios.get(`users${toParamString(params)}`);
+        let res = await api.get({
+            url: "/users",
+            params: params,
+        });
         items.value = res.data.users;
 
         items.value.forEach((row) => {
@@ -154,7 +157,7 @@ const handleDelete = async (user) => {
 
     if (result == true) {
         try {
-            await axios.delete(`users${user.id}`);
+            await api.delete(`users${user.id}`);
             loadFromServer();
 
             formMessage.message = "User deleted successfully";

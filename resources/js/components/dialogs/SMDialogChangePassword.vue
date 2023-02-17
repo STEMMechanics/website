@@ -12,8 +12,7 @@
                 type="password"
                 label="New Password"
                 required
-                :error="formData.password.error"
-                @blur="fieldValidate(formData.password)" />
+                :error="formData.password.error" />
             <SMFormFooter>
                 <template v-if="!isSuccessful" #left>
                     <SMButton
@@ -42,11 +41,6 @@ import SMMessage from "../SMMessage.vue";
 import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-} from "../../helpers/validation";
 
 const formData = reactive({
     password: {
@@ -78,21 +72,19 @@ const handleConfirm = async () => {
     if (isSuccessful.value == true) {
         closeDialog(true);
     } else {
-        if (isValidated(formData)) {
-            try {
-                formLoading.value = true;
-                await api.put({
-                    url: `/users/${userStore.id}`,
-                    body: {
-                        password: formData.password.value,
-                    },
-                });
+        try {
+            formLoading.value = true;
+            await api.put({
+                url: `/users/${userStore.id}`,
+                body: {
+                    password: formData.password.value,
+                },
+            });
 
-                isSuccessful.value = true;
-            } catch (err) {
-                formData.password.error =
-                    err.json?.message || "An unexpected error occurred";
-            }
+            isSuccessful.value = true;
+        } catch (err) {
+            formData.password.error =
+                err.json?.message || "An unexpected error occurred";
         }
     }
 
@@ -114,6 +106,4 @@ onMounted(() => {
 onUnmounted(() => {
     document.removeEventListener("keyup", eventKeyUp);
 });
-
-useValidation(formData);
 </script>

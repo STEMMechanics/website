@@ -54,8 +54,8 @@
 <script setup lang="ts">
 import { ref, reactive, watch } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { api } from "../../helpers/api";
+import { relativeDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -122,8 +122,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`media${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/media",
+            params: params,
         });
         if (!res.data.media) {
             throw new Error("The server is currently not available");
@@ -199,7 +200,7 @@ const handleDelete = async (item) => {
 
     if (result) {
         try {
-            await axios.delete(`media/${item.id}`);
+            await api.delete(`media/${item.id}`);
             loadFromServer();
         } catch (err) {
             alert(

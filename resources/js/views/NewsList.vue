@@ -32,7 +32,7 @@ import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
 import SMPage from "../components/SMPage.vue";
-import { timestampUtcToLocal } from "../helpers/common";
+import { timestampUtcToLocal } from "../helpers/datetime";
 
 const formMessage = reactive({
     icon: "",

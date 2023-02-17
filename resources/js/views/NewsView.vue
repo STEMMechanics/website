@@ -25,7 +25,8 @@
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
 import SMPageError from "../components/SMPageError.vue";
-import { fullMonthString, timestampUtcToLocal } from "../helpers/common";
+import { fullMonthString } from "../helpers/common";
+import { timestampUtcToLocal } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { api } from "../helpers/api";
 import SMPage from "../components/SMPage.vue";

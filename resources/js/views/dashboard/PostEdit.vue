@@ -1,50 +1,26 @@
 <template>
-    <SMContainer :page-error="pageError" permission="admin/posts">
+    <SMPage :page-error="pageError" permission="admin/posts">
         <SMRow>
-            <SMDialog :loading="formLoading">
+            <SMDialog>
                 <h1>{{ page_title }}</h1>
-                <SMMessage
-                    v-if="formMessage.message"
-                    :icon="formMessage.icon"
-                    :type="formMessage.type"
-                    :message="formMessage.message" />
-                <form @submit.prevent="submit">
+                <SMForm :model-value="form" @submit="handleSubmit">
                     <SMRow>
                         <SMColumn
-                            ><SMInput
-                                v-model="formData.title.value"
-                                label="Title"
-                                required
-                                :error="formData.title.error"
-                                @blur="
-                                    fieldValidate(formData.title);
-                                    updateSlug();
-                                "
+                            ><SMInput control="title" @blur="updateSlug()"
                         /></SMColumn>
                     </SMRow>
                     <SMRow>
-                        <SMColumn
-                            ><SMInput
-                                v-model="formData.slug.value"
-                                label="Slug"
-                                required
-                                :error="formData.slug.error"
-                                @blur="fieldValidate(formData.slug)"
-                        /></SMColumn>
+                        <SMColumn><SMInput control="slug" /></SMColumn>
                         <SMColumn>
                             <SMDatepicker
-                                v-model="formData.publish_at.value"
-                                label="Publish Date"
-                                :error="formData.publish_at.error"
-                                @blur="
-                                    fieldValidate(formData.publish_at)
-                                "></SMDatepicker>
+                                control="publish_at"
+                                label="Publish Date"></SMDatepicker>
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMInput
-                                v-model="formData.hero.value"
+                                control="hero"
                                 type="media"
                                 label="Hero image"
                                 required />
@@ -53,16 +29,15 @@
                     <SMRow>
                         <SMColumn>
                             <SMSelect
-                                v-model="formData.user_id.value"
+                                control="user_id"
                                 label="Created By"
-                                required
-                                :options="formData.user_id.options"></SMSelect>
+                                :options="authors"></SMSelect>
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMEditor
-                                v-model:srcContent="formData.content.value"
+                                v-model:srcContent="form.content.value"
                                 :mime-types="[
                                     'image/png',
                                     'image/jpeg',
@@ -78,93 +53,54 @@
                             </template>
                         </SMFormFooter>
                     </SMRow>
-                </form>
+                </SMForm>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive } from "vue";
+import { api } from "../../helpers/api";
+import { FormObject, FormControl } from "../../helpers/form";
+import { And, Required, Min, DateTime } from "../../helpers/validate";
+import {
+    timestampLocalToUtc,
+    timestampUtcToLocal,
+} from "../../helpers/datetime";
+import { useUserStore } from "../../store/UserStore";
+import { useRoute } from "vue-router";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMDialog from "../../components/SMDialog.vue";
 import SMSelect from "../../components/SMSelect.vue";
 import SMDatepicker from "../../components/SMDatePicker.vue";
 import SMEditor from "../../components/SMEditor.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../../helpers/validation";
-import { useRoute } from "vue-router";
-import { useUserStore } from "../../store/UserStore";
+import SMPage from "../../components/SMPage.vue";
+import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
-import { timestampLocalToUtc, timestampUtcToLocal } from "../../helpers/common";
 
 const route = useRoute();
-const formLoading = ref(false);
 const userStore = useUserStore();
 const page_title = route.params.id ? "Edit Post" : "Create New Post";
 const pageError = ref(200);
+const authors = ref({});
 
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
-const formData = reactive({
-    title: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A post title is required",
-            min: 8,
-            min_message: "Your post title should be at least 8 letters long",
-        },
-    },
-    slug: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A slug is required",
-            min: 6,
-            min_message: "The slug least 6 letters long",
-        },
-    },
-    publish_at: {
-        value: null,
-        error: "",
-        rules: {
-            datetime: true,
-        },
-    },
-    hero: {
-        value: "",
-        error: "",
-    },
-    user_id: {
-        options: {},
-        value: userStore.id,
-        error: "",
-    },
-    content: {
-        value: "",
-        error: "",
-    },
-});
-
-useValidation(formData);
+const form = reactive(
+    FormObject({
+        title: FormControl("", And([Required(), Min(8)])),
+        slug: FormControl("", And([Required(), Min(6)])),
+        publish_at: FormControl("", DateTime()),
+        hero: FormControl(),
+        user_id: FormControl(userStore.id),
+        content: FormControl(),
+    })
+);
 
 const updateSlug = async () => {
-    if (formData.slug.value == "" && formData.title.value != "") {
+    if (form.slug.value == "" && form.title.value != "") {
         let idx = 0;
-        let pre_slug = formData.title.value
+        let pre_slug = form.title.value
             .toLowerCase()
             .replace(/[^a-z0-9]/gim, "-")
             .replace(/-+/g, "-")
@@ -178,12 +114,17 @@ const updateSlug = async () => {
                     slug += "-" + idx;
                 }
 
-                await axios.get(`posts?slug=${slug}`);
+                await api.get({
+                    url: "/posts",
+                    params: {
+                        slug: slug,
+                    },
+                });
                 idx++;
             } catch (error) {
-                if (error.response.status == 404) {
-                    if (formData.slug.value == "") {
-                        formData.slug.value = slug;
+                if (error.status == 404) {
+                    if (form.slug.value == "") {
+                        form.slug.value = slug;
                     }
                 }
 
@@ -194,27 +135,24 @@ const updateSlug = async () => {
 };
 
 const loadData = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
+    form.loading(true);
 
     if (route.params.id) {
         try {
-            let res = await axios.get("posts/" + route.params.id);
+            let res = await api.get("/posts/" + route.params.id);
             if (!res.data.post) {
                 throw new Error("The server is currently not available");
             }
 
-            formData.title.value = res.data.post.title;
-            formData.slug.value = res.data.post.slug;
-            formData.user_id.value = res.data.post.user_id;
-            formData.content.value = res.data.post.content;
-            formData.publish_at.value = res.data.post.publish_at
+            form.title.value = res.data.post.title;
+            form.slug.value = res.data.post.slug;
+            form.user_id.value = res.data.post.user_id;
+            form.content.value = res.data.post.content;
+            form.publish_at.value = res.data.post.publish_at
                 ? timestampUtcToLocal(res.data.post.publish_at)
                 : "";
-            formData.content.value = res.data.post.content;
-            formData.hero.value = res.data.post.hero;
+            form.content.value = res.data.post.content;
+            form.hero.value = res.data.post.hero;
         } catch (err) {
             pageError.value = err.response.status;
         }
@@ -223,33 +161,32 @@ const loadData = async () => {
     formLoading.value = false;
 };
 
-const submit = async () => {
+const handleSubmit = async () => {
     try {
-        if (isValidated(formData)) {
-            let data = {
-                title: formData.title.value,
-                slug: formData.slug.value,
-                publish_at: timestampLocalToUtc(formData.publish_at.value),
-                user_id: formData.user_id.value,
-                content: formData.content.value,
-                hero: formData.hero.value,
-            };
+        let data = {
+            title: form.title.value,
+            slug: form.slug.value,
+            publish_at: timestampLocalToUtc(form.publish_at.value),
+            user_id: form.user_id.value,
+            content: form.content.value,
+            hero: form.hero.value,
+        };
 
-            if (route.params.id) {
-                await axios.put(`posts/${route.params.id}`, data);
-            } else {
-                await axios.post(`posts`, data);
-            }
-
-            formMessage.type = "success";
-            formMessage.message = "Your details have been updated";
+        if (route.params.id) {
+            await api.put({
+                url: `/posts/${route.params.id}`,
+                body: data,
+            });
+        } else {
+            await api.post({
+                url: "/posts",
+                body: data,
+            });
         }
+
+        form.message("Your details have been updated", "success");
     } catch (err) {
-        console.log(err);
-        formMessage.icon = "";
-        formMessage.type = "error";
-        formMessage.message = "";
-        restParseErrors(formData, [formMessage, "message"], err);
+        form.apiError(err);
     }
 
     window.scrollTo({
@@ -276,11 +213,13 @@ const attachmentAdd = async (event) => {
         fileFormData.append("file", event.attachment.file);
 
         try {
-            let res = await axios.post("media", fileFormData, {
+            let res = await api.post({
+                url: "/media",
+                body: fileFormData,
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
-                onUploadProgress: (progressEvent) =>
+                progress: (progressEvent) =>
                     event.attachment.setUploadProgress(
                         (progressEvent.loaded * progressEvent.total) / 100
                     ),
@@ -302,25 +241,25 @@ const attachmentAdd = async (event) => {
 
 const loadOptionsAuthors = async () => {
     try {
-        let res = await axios.get(
-            "users?fields=id,username,first_name,last_name&limit=100",
-            { redirect: false }
-        );
+        let res = await api.get({
+            url: "/users",
+            params: {
+                fields: "id,username,first_name,last_name",
+                limit: 100,
+            },
+        });
 
         if (!res.data.users) {
             throw new Error("The server is currently not available");
         }
 
-        formData.user_id.options = {};
+        authors.value = {};
 
         res.data.users.forEach((item) => {
-            formData.user_id.options[item.id] = `${item.username}`;
+            authors.value[item.id] = `${item.username}`;
         });
     } catch (err) {
-        formMessage.icon = "";
-        formMessage.type = "error";
-        formMessage.message = "";
-        restParseErrors(formData, [formMessage, "message"], err);
+        form.apiError(err);
     }
 };
 

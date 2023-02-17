@@ -3,7 +3,7 @@
         <SMRow>
             <SMDialog :loading="formLoading">
                 <h1>{{ page_title }}</h1>
-                <SMForm v-model="form" @submit="handleSubmit">
+                <SMForm :model-value="form" @submit="handleSubmit">
                     <SMRow>
                         <SMColumn><SMInput control="title" /></SMColumn>
                     </SMRow>
@@ -132,7 +132,6 @@ import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
 
 const route = useRoute();
-const formLoading = ref(false);
 const page_title = route.params.id ? "Edit Event" : "Create New Event";
 const pageError = ref(200);
 

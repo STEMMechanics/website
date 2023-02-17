@@ -51,12 +51,8 @@
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import {
-    relativeDate,
-    timestampUtcToLocal,
-    toParamString,
-} from "../../helpers/common";
+import { api } from "../../helpers/api";
+import { relativeDate, timestampUtcToLocal } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -65,7 +61,6 @@ import SMButton from "../../components/SMButton.vue";
 import { debounce } from "../../helpers/common";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
-import { restParseErrors } from "../../helpers/validation";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
@@ -120,8 +115,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`events${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/events",
+            params: params,
         });
 
         if (!res.data.events) {
@@ -193,7 +189,7 @@ const handleDelete = async (item) => {
 
     if (result == true) {
         try {
-            await axios.delete(`events${item.id}`);
+            await api.delete(`events${item.id}`);
             loadFromServer();
 
             formMessage.message = "Post deleted successfully";
