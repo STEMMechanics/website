@@ -261,7 +261,8 @@ export const createAusDateTimeObject = (
     dateString: string,
     timeString: string
 ): Date | null => {
-    const dateRegex = /^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/\d{4}$/;
+    const dateRegex =
+        /^(0?[1-9]|[1-2][0-9]|3[0-1])\/(0?[1-9]|1[0-2])\/(19|20)\d{2}$/;
     const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 
     if (!dateRegex.test(dateString) || !timeRegex.test(timeString)) {
@@ -275,4 +276,44 @@ export const createAusDateTimeObject = (
         .split(":")
         .map((str) => parseInt(str, 10));
     return new Date(year, month - 1, day, hour, minute);
+};
+
+export const parseAusDateTime = (dateTimeStr: string): Date | null => {
+    const dateStr = dateTimeStr.split(" ")[0];
+    const timeStr = dateTimeStr.split(" ")[1];
+
+    let year: number, month: number, day: number;
+    const dateParts = dateStr.split("/");
+    if (dateParts[2] && dateParts[2].length === 4) {
+        // If year is in yyyy format
+        year = +dateParts[2];
+        month = +dateParts[1];
+        day = +dateParts[0];
+    } else {
+        // If year is in yy format
+        year = +(
+            new Date().getFullYear().toString().substr(0, 2) + dateParts[2]
+        );
+        month = +dateParts[1];
+        day = +dateParts[0];
+    }
+
+    let hour = 0,
+        minute = 0,
+        second = 0;
+    if (timeStr) {
+        const timeParts = timeStr.split(":");
+        hour = +timeParts[0];
+        minute = +timeParts[1];
+
+        if (timeParts[2]) {
+            second = +timeParts[2];
+        }
+
+        if (dateTimeStr.toLowerCase().includes("pm") && hour < 12) {
+            hour += 12;
+        }
+    }
+
+    return new Date(year, month - 1, day, hour, minute, second);
 };
