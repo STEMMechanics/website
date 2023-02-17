@@ -178,18 +178,44 @@ export const api = {
         return await this.send(apiOptions);
     },
 
-    post: async function (options: ApiOptions): Promise<ApiResponse> {
-        options.method = "POST";
+    post: async function (options: ApiOptions | string): Promise<ApiResponse> {
+        let apiOptions = {} as ApiOptions;
+
+        if (typeof options == "string") {
+            apiOptions.url = options;
+        } else {
+            apiOptions = options;
+        }
+
+        apiOptions.method = "POST";
         return await this.send(options);
     },
 
-    put: async function (options: ApiOptions): Promise<ApiResponse> {
-        options.method = "PUT";
+    put: async function (options: ApiOptions | string): Promise<ApiResponse> {
+        let apiOptions = {} as ApiOptions;
+
+        if (typeof options == "string") {
+            apiOptions.url = options;
+        } else {
+            apiOptions = options;
+        }
+
+        apiOptions.method = "PUT";
         return await this.send(options);
     },
 
-    delete: async function (options: ApiOptions): Promise<ApiResponse> {
-        options.method = "DELETE";
+    delete: async function (
+        options: ApiOptions | string
+    ): Promise<ApiResponse> {
+        let apiOptions = {} as ApiOptions;
+
+        if (typeof options == "string") {
+            apiOptions.url = options;
+        } else {
+            apiOptions = options;
+        }
+
+        apiOptions.method = "DELETE";
         return await this.send(options);
     },
 };
