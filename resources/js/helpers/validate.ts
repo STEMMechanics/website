@@ -739,3 +739,44 @@ export function Required(
         },
     };
 }
+
+/**
+ * Url
+ */
+interface ValidationUrlOptions {
+    invalidMessage?: string | ((options: ValidationUrlOptions) => string);
+}
+
+interface ValidationUrlObject extends ValidationUrlOptions {
+    validate: (value: string) => ValidationResult;
+}
+
+const defaultValidationUrlOptions: ValidationUrlOptions = {
+    invalidMessage: "Not a supported Url format.",
+};
+
+/**
+ * Validate field is in a valid Email format
+ *
+ * @param options options data
+ * @returns ValidationEmailObject
+ */
+export function Url(options?: ValidationUrlOptions): ValidationUrlObject {
+    options = { ...defaultValidationUrlOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: string): ValidationResult {
+            return {
+                valid: /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*(:\d+)?([/?#][^\s]*)?$/.test(
+                    value
+                ),
+                invalidMessages: [
+                    typeof this.invalidMessage === "string"
+                        ? this.invalidMessage
+                        : this.invalidMessage(this),
+                ],
+            };
+        },
+    };
+}
