@@ -129,7 +129,7 @@ const props = defineProps({
 
 const init = {
     promotion: false,
-    emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
+    // emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
     skin_url: "/tinymce/skins/ui/oxide",
     content_css: "/tinymce/skins/content/default/content.min.css",
     height: 500,
@@ -156,7 +156,7 @@ const init = {
         "importcss",
         "directionality",
         "visualchars",
-        "emoticons",
+        // "emoticons",
         "autosave",
     ],
     toolbar:
