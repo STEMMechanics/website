@@ -18,7 +18,8 @@
                 type == 'password' ||
                 type == 'email' ||
                 type == 'url' ||
-                type == 'daterange'
+                type == 'daterange' ||
+                type == 'datetime'
             "
             :type="type"
             :placeholder="placeholder"
