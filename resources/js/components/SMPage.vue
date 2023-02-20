@@ -1,5 +1,7 @@
 <template>
-    <div :class="['sm-page-outer', { 'sm-no-breadcrumbs': noBreadcrumbs }]">
+    <div
+        :class="['sm-page-outer', { 'sm-no-breadcrumbs': noBreadcrumbs }]"
+        :style="styleObject">
         <SMBreadcrumbs v-if="!noBreadcrumbs" />
         <SMLoader :loading="loading">
             <SMErrorForbidden
@@ -8,10 +10,7 @@
                 v-if="pageError >= 500 && hasPermission()"></SMErrorInternal>
             <SMErrorNotFound
                 v-if="pageError == 404 && hasPermission()"></SMErrorNotFound>
-            <div
-                v-if="pageError < 300 && hasPermission()"
-                class="sm-page"
-                :style="styleObject">
+            <div v-if="pageError < 300 && hasPermission()" class="sm-page">
                 <slot></slot>
                 <SMContainer v-if="slots.container"
                     ><slot name="container"></slot
