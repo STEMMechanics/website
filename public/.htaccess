@@ -18,6 +18,11 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # Pass to media handler if the media request has query
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{QUERY_STRING} .
+    RewriteRule ^uploads/(.+)\.(jpg|png)$ media.php?url=uploads/$1.$2 [QSA,L]
+
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
