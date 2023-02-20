@@ -1,3 +1,5 @@
+import { transformWithEsbuild } from "vite";
+
 export class SMDate {
     date: Date | null = null;
     dayString: string[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -46,7 +48,7 @@ export class SMDate {
         dateOrString: string | Date = "",
         options: { format?: string; utc?: boolean } = {}
     ) {
-        this.date = new Date();
+        this.date = null;
 
         if (typeof dateOrString === "string") {
             if (dateOrString.length > 0) {
@@ -74,6 +76,11 @@ export class SMDate {
         options: { format?: string; utc?: boolean } = {}
     ): SMDate {
         const now = new Date();
+
+        if (dateString.toLowerCase() == "now") {
+            this.date = now;
+            return this;
+        }
 
         // Parse the date format to determine the order of the date components
         const order = (options.format || "dmy").toLowerCase().split("");
@@ -441,3 +448,5 @@ export class SMDate {
         return result;
     }
 }
+
+console.log(new SMDate("").isValid());
