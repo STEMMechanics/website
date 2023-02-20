@@ -124,16 +124,22 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = new SMDate(row.created_at, {format: 'yMd', utc: true}).relative();
-                );
+                row.created_at = new SMDate(row.created_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = new SMDate(row.updated_at, {format: 'yMd', utc: true}).relative();
-                );
+                row.updated_at = new SMDate(row.updated_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
             if (row.publish_at !== "undefined") {
-                row.publish_at = new SMDate(row.publish_at, {format: 'yMd', utc: true}).relative();
-                );
+                row.publish_at = new SMDate(row.publish_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
         });
 

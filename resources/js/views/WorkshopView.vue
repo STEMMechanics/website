@@ -20,7 +20,9 @@
                         v-if="
                             event.status == 'closed' ||
                             (event.status == 'open' &&
-                                new SMDate(event.end_at, {format: 'ymd'}).isBefore()
+                                new SMDate(event.end_at, {
+                                    format: 'ymd',
+                                }).isBefore())
                         "
                         class="workshop-registration workshop-registration-closed">
                         Registration for this event has closed

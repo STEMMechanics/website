@@ -64,10 +64,7 @@ import { ref, reactive } from "vue";
 import { api } from "../../helpers/api";
 import { FormObject, FormControl } from "../../helpers/form";
 import { And, Required, Min, DateTime } from "../../helpers/validate";
-import {
-    timestampLocalToUtc,
-    timestampUtcToLocal,
-} from "../../helpers/datetime";
+import { SMDate } from "../../helpers/datetime";
 import { useUserStore } from "../../store/UserStore";
 import { useRoute } from "vue-router";
 import SMInput from "../../components/SMInput.vue";
@@ -149,7 +146,10 @@ const loadData = async () => {
             form.user_id.value = res.data.post.user_id;
             form.content.value = res.data.post.content;
             form.publish_at.value = res.data.post.publish_at
-                ? timestampUtcToLocal(res.data.post.publish_at)
+                ? new SMDate(res.data.post.publish_at, {
+                      format: "yMd",
+                      utc: true,
+                  })
                 : "";
             form.content.value = res.data.post.content;
             form.hero.value = res.data.post.hero;
@@ -166,7 +166,10 @@ const handleSubmit = async () => {
         let data = {
             title: form.title.value,
             slug: form.slug.value,
-            publish_at: timestampLocalToUtc(form.publish_at.value),
+            publish_at: new SMDate(form.publish_at.value).format(
+                "yyyy/MM/dd HH:mm:ss",
+                { utc: true }
+            ),
             user_id: form.user_id.value,
             content: form.content.value,
             hero: form.hero.value,

@@ -36,7 +36,7 @@
 import { ref, reactive, watch } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
 import { api } from "../../helpers/api";
-import { relativeDate } from "../../helpers/datetime";
+import { SMDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -103,7 +103,10 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = new SMDate(row.created_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
         });
 
