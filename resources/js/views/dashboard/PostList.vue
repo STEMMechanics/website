@@ -51,14 +51,14 @@
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
-import { relativeDate } from "../../helpers/datetime";
+import { SMDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
 import { api } from "../../helpers/api";
 import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce } from "../../helpers/common";
+import { debounce } from "../../helpers/debounce";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
@@ -124,18 +124,15 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(
-                    timestampUtcToLocal(row.created_at)
+                row.created_at = new SMDate(row.created_at, {format: 'yMd', utc: true}).relative();
                 );
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(
-                    timestampUtcToLocal(row.updated_at)
+                row.updated_at = new SMDate(row.updated_at, {format: 'yMd', utc: true}).relative();
                 );
             }
             if (row.publish_at !== "undefined") {
-                row.publish_at = relativeDate(
-                    timestampUtcToLocal(row.publish_at)
+                row.publish_at = new SMDate(row.publish_at, {format: 'yMd', utc: true}).relative();
                 );
             }
         });

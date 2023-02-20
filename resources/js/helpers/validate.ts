@@ -1,5 +1,5 @@
 import { SMDate } from "./datetime";
-import { bytesReadable } from "../helpers/common";
+import { bytesReadable } from "../helpers/types";
 
 export interface ValidationObject {
     validate: (value: string) => ValidationResult;

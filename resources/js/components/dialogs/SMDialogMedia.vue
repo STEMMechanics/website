@@ -80,7 +80,6 @@ import SMFormFooter from "../SMFormFooter.vue";
 import SMDialog from "../SMDialog.vue";
 import SMMessage from "../SMMessage.vue";
 import SMModal from "../SMModal.vue";
-import { toParamString } from "../../helpers/common";
 import { api } from "../../helpers/api";
 
 const uploader = ref(null);
@@ -134,10 +133,13 @@ const handleLoad = async () => {
         params.limit = perPage.value;
         // params.fields = "url";
 
-        let res = await api.get(`/media${toParamString(params)}`);
+        let res = await api.get({
+            url: "/media",
+            params: params,
+        });
 
-        totalItems.value = res.json.total;
-        mediaItems.value = res.json.media;
+        totalItems.value = res.data.total;
+        mediaItems.value = res.data.media;
     } catch (error) {
         if (error.status == 404) {
             formMessage.type = "primary";
@@ -145,7 +147,7 @@ const handleLoad = async () => {
             formMessage.message = "No media items found";
         } else {
             formMessage.message =
-                error?.json?.message || "An unexpected error occurred";
+                error?.data?.message || "An unexpected error occurred";
         }
     }
 };

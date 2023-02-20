@@ -7,8 +7,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount } from "vue";
-import { transitionEnter, transitionLeave } from "../helpers/common";
+import { ref } from "vue";
+import { transitionEnter, transitionLeave } from "../helpers/transition";
 
 const root = ref(null);
 const classes = ref(["mdialog-mask", "fade-enter-from"]);

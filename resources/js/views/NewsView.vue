@@ -26,7 +26,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import { fullMonthString } from "../helpers/common";
 import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { api } from "../helpers/api";
@@ -92,14 +91,7 @@ const loadData = async () => {
 };
 
 const formattedPublishAt = (dateStr) => {
-    const date = new Date(Date.parse(dateStr));
-    return (
-        fullMonthString[date.getMonth()] +
-        " " +
-        date.getDate() +
-        ", " +
-        date.getFullYear()
-    );
+    return new SMDate(dateStr, { format: "yMd" }).format("MMMM d, yyyy");
 };
 
 const formattedContent = computed(() => {
@@ -109,7 +101,7 @@ const formattedContent = computed(() => {
             `<a ([^>]*?)href="${import.meta.env.APP_URL}(.*?>.*?)</a>`,
             "ig"
         );
-        html = html.replaceAll(regex, '<router-link $1to="$2</router-link>');
+        html = html.replace(regex, '<router-link $1to="$2</router-link>');
     }
 
     return {

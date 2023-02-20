@@ -27,7 +27,7 @@
 <script setup lang="ts">
 import Trix from "trix";
 import { ref, watch, computed, onUnmounted } from "vue";
-import { arrayIncludesMatchBasic } from "../helpers/common";
+import { arrayHasBasicMatch } from "../helpers/array";
 
 import DialogMedia from "./dialogs/SMDialogMedia.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -154,7 +154,7 @@ const emitEditorState = (value) => {
 
 const emitFileAccept = (event) => {
     if (props.mimeTypes) {
-        if (!arrayIncludesMatchBasic(props.mimeTypes, event.file.type)) {
+        if (!arrayHasBasicMatch(props.mimeTypes, event.file.type)) {
             window.alert("That file type is not supported");
             event.preventDefault();
             return;

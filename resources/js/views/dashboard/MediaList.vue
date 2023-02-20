@@ -61,7 +61,8 @@ import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
 import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce, parseErrorType, bytesReadable } from "../../helpers/common";
+import { debounce } from "../../helpers/debounce";
+import { bytesReadable } from "../../helpers/types";
 import SMMessage from "../../components/SMMessage.vue";
 import SMFileLink from "../../components/SMFileLink.vue";
 import { useUserStore } from "../../store/UserStore";
@@ -161,7 +162,7 @@ const loadFromServer = async () => {
 
         serverItemsLength.value = res.data.total;
     } catch (err) {
-        formMessage.message = parseErrorType(err);
+        // formMessage.message = parseErrorTyp(err);
     }
 
     formLoading.value = false;

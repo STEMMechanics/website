@@ -72,7 +72,7 @@ import { api } from "../../helpers/api";
 import { FormObject, FormControl } from "../../helpers/form";
 import { And, Required, FileSize } from "../../helpers/validate";
 import { useRoute } from "vue-router";
-import { bytesReadable } from "../../helpers/common";
+import { bytesReadable } from "../../helpers/types";
 import { useRouter } from "vue-router";
 
 const router = useRouter();

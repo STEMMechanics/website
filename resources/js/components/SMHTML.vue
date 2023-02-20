@@ -20,7 +20,7 @@ const parsedContent = computed(() => {
         `<a ([^>]*?)href="${import.meta.env.APP_URL}(.*?>.*?)</a>`,
         "ig"
     );
-    html = props.html.replaceAll(regex, '<router-link $1to="$2</router-link>');
+    html = props.html.replace(regex, '<router-link $1to="$2</router-link>');
 
     return {
         template: `<div class="content">${html}</div>`,

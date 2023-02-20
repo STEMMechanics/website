@@ -39,12 +39,8 @@
 
 <script setup lang="ts">
 import { onMounted, computed, ref } from "vue";
-import {
-    excerpt,
-    isUUID,
-    replaceHtmlEntites,
-    stripHtmlTags,
-} from "../helpers/common";
+import { isUUID } from "../helpers/types";
+import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
 import { format } from "date-fns";
 import { api } from "../helpers/api";
 import { imageLoad } from "../helpers/image";

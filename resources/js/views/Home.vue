@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { excerpt } from "../helpers/common";
+import { excerpt } from "../helpers/string";
 import { SMDate } from "../helpers/datetime";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";

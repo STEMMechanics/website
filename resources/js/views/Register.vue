@@ -88,7 +88,7 @@ import {
     Required,
 } from "../helpers/validate";
 
-import { debounce } from "../helpers/common";
+import { debounce } from "../helpers/debounce";
 import { useReCaptcha } from "vue-recaptcha-v3";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
