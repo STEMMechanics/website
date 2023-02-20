@@ -125,3 +125,9 @@ const handleSubmit = async () => {
     form.loading(false);
 };
 </script>
+
+<style lang="scss">
+.page-contact {
+    background-color: #f8f8f8;
+}
+</style>
