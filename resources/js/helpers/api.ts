@@ -15,6 +15,7 @@ interface ApiOptions {
     method?: string;
     headers?: HeadersInit;
     body?: string | object;
+    signal?: AbortSignal | null;
     progress?: ApiProgressCallback;
 }
 
@@ -64,6 +65,7 @@ export const api = {
                 method: options.method || "GET",
                 headers: options.headers,
                 body: options.body,
+                signal: options.signal || null,
             };
 
             let receivedData = false;
