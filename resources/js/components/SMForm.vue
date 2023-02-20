@@ -33,4 +33,10 @@ const handleSubmit = function () {
 provide("form", props.modelValue);
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.sm-form-columns {
+    .sm-input-group {
+        margin-bottom: 0;
+    }
+}
+</style>

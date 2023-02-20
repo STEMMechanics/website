@@ -1,31 +1,32 @@
 <template>
-    <SMPage>
-        <SMRow>
-            <SMDialog>
-                <SMHeading :heading="pageHeading" />
-                <SMForm :model-value="form" @submit="handleSubmit">
-                    <SMRow>
-                        <SMColumn><SMInput control="first_name" /></SMColumn>
-                        <SMColumn><SMInput control="last_name" /></SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn><SMInput control="email" /></SMColumn>
-                        <SMColumn><SMInput control="phone" /></SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMFormFooter>
-                            <template #right>
-                                <SMButton
-                                    type="secondary"
-                                    label="Change Password"
-                                    @click.prevent="handleChangePassword" />
-                                <SMButton type="submit" label="Update" />
-                            </template>
-                        </SMFormFooter>
-                    </SMRow>
-                </SMForm>
-            </SMDialog>
-        </SMRow>
+    <SMPage class="sm-page-user-edit">
+        <template #container>
+            <SMHeading :heading="pageHeading" />
+            <SMForm
+                class="sm-form-columns"
+                :model-value="form"
+                @submit="handleSubmit">
+                <SMRow>
+                    <SMColumn><SMInput control="first_name" /></SMColumn>
+                    <SMColumn><SMInput control="last_name" /></SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn><SMInput control="email" /></SMColumn>
+                    <SMColumn><SMInput control="phone" /></SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMFormFooter>
+                        <template #right>
+                            <SMButton
+                                type="secondary"
+                                label="Change Password"
+                                @click.prevent="handleChangePassword" />
+                            <SMButton type="submit" label="Update" />
+                        </template>
+                    </SMFormFooter>
+                </SMRow>
+            </SMForm>
+        </template>
     </SMPage>
 </template>
 
@@ -116,3 +117,9 @@ const pageHeading = computed(() => {
 
 loadData();
 </script>
+
+<style lang="scss">
+.sm-page-user-edit {
+    background-color: #f8f8f8;
+}
+</style>
