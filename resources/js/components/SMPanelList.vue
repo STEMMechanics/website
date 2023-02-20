@@ -58,8 +58,9 @@ defineProps({
         flex-direction: column;
         flex: 1;
         justify-content: center;
+        align-items: center;
 
-        svg {
+        ion-icon {
             font-size: 300%;
         }
 
