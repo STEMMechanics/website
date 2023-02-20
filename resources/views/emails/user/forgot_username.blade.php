@@ -68,7 +68,7 @@
                 </td>
             </tr>
             <tr>
-                <td>
+                <td style="padding-bottom: 2rem;">
                     @if (count($usernames) == 1)
                     Guess what, your username is <strong>{{ $usernames[0] }}</strong>.
                     @else
@@ -76,8 +76,8 @@
                 </td>
             </tr>
             <tr>
-                <td>
-                    <ul style="padding-top: 2rem; padding-bottom: 2rem;">
+                <td style="padding-bottom: 2rem;">
+                    <ul>
                         @foreach($usernames as $username)
                         <li>{{ $username }}</li>
                         @endforeach
