@@ -94,12 +94,23 @@ export class SMDate {
             if (components[i].includes(":")) {
                 time = components[i];
                 components.splice(i, 1);
-                if (i < components.length && /^(am|pm)$/i.test(components[i])) {
+                if (
+                    i < components.length &&
+                    /^(am?|a\.m\.|pm?|p\.m\.)$/i.test(components[i])
+                ) {
                     time += " " + components[i].toUpperCase();
                     components.splice(i, 1);
                 }
                 break;
             }
+        }
+
+        if (components.every((v) => !isNaN(parseInt(v))) == false) {
+            return this;
+        }
+
+        if (components.length > 3) {
+            return this;
         }
 
         // Map the date components to the expected order based on the format
@@ -113,6 +124,10 @@ export class SMDate {
         let parsedDay: number = 0,
             parsedMonth: number = 0,
             parsedYear: number = 0;
+
+        if (year.length == 3 || year.length >= 5) {
+            return this;
+        }
 
         if (day && day.length != 0 && month && month.length != 0) {
             // Parse the day, month, and year components
@@ -131,17 +146,31 @@ export class SMDate {
             parsedMinutes: number = 0,
             parsedSeconds: number = 0;
         if (time) {
-            const match = time.match(/(\d+)(?::(\d+))?(?::(\d+))? ?(AM|PM)?/i);
-            if (match) {
-                parsedHours = parseInt(match[1]);
-                parsedMinutes = match[2] ? parseInt(match[2]) : 0;
-                parsedSeconds = match[3] ? parseInt(match[3]) : 0;
-                if (match[4] && /pm/i.test(match[4])) {
-                    parsedHours += 12;
+            const regEx = new RegExp(
+                /^(\d+)(?::(\d+))?(?::(\d+))? ?(am?|a\.m\.|pm?|p\.m\.)?$/,
+                "i"
+            );
+            if (regEx.test(time)) {
+                const match = time.match(regEx);
+                if (match) {
+                    parsedHours = parseInt(match[1]);
+                    parsedMinutes = match[2] ? parseInt(match[2]) : 0;
+                    parsedSeconds = match[3] ? parseInt(match[3]) : 0;
+                    if (match[4] && /pm/i.test(match[4])) {
+                        parsedHours += 12;
+                    }
+                    if (
+                        match[4] &&
+                        /am/i.test(match[4]) &&
+                        parsedHours === 12
+                    ) {
+                        parsedHours = 0;
+                    }
+                } else {
+                    return this;
                 }
-                if (match[4] && /am/i.test(match[4]) && parsedHours === 12) {
-                    parsedHours = 0;
-                }
+            } else {
+                return this;
             }
         }
 
@@ -448,5 +477,3 @@ export class SMDate {
         return result;
     }
 }
-
-console.log(new SMDate("").isValid());
