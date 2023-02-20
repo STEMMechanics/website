@@ -96,7 +96,7 @@ defineProps({
             border: 1px solid transparent;
             border-radius: 24px;
 
-            svg {
+            ion-icon {
                 font-size: calc(map-get($spacer, 5) * 1.5);
             }
 
