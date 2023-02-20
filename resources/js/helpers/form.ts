@@ -10,12 +10,12 @@ export const FormObject = (controls) => {
         const keys = item ? [item] : Object.keys(this);
         let valid = true;
 
-        keys.every((key) => {
+        keys.every(async (key) => {
             if (
                 typeof this[key] == "object" &&
                 Object.keys(this[key]).includes("validation")
             ) {
-                this[key].validation.result = this[
+                this[key].validation.result = await this[
                     key
                 ].validation.validator.validate(this[key].value);
 

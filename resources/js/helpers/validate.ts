@@ -237,9 +237,9 @@ export function Email(options?: ValidationEmailOptions): ValidationEmailObject {
         ...options,
         validate: function (value: string): ValidationResult {
             return {
-                valid: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(
-                    value
-                ),
+                valid:
+                    value.length == 0 ||
+                    /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(value),
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
@@ -278,7 +278,9 @@ export function Phone(options?: ValidationPhoneOptions): ValidationPhoneObject {
         ...options,
         validate: function (value: string): ValidationResult {
             return {
-                valid: /^(\+|00)?[0-9][0-9 \-().]{7,32}$/.test(value),
+                valid:
+                    value.length == 0 ||
+                    /^(\+|00)?[0-9][0-9 \-().]{7,32}$/.test(value),
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
@@ -319,7 +321,7 @@ export function Number(
         ...options,
         validate: function (value: string): ValidationResult {
             return {
-                valid: /^0?\d+$/.test(value),
+                valid: value.length == 0 || /^0?\d+$/.test(value),
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
@@ -612,14 +614,14 @@ interface ValidationCustomOptions {
 }
 
 interface ValidationCustomObject extends ValidationCustomOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationCustomOptions: ValidationCustomOptions = {
     callback: () => {
         return true;
     },
-    invalidMessage: "Your Custom number is not in a supported format.",
+    invalidMessage: "This field is invalid.",
 };
 
 export function Custom(
@@ -653,7 +655,7 @@ export function Custom(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
+        validate: async function (value: string): Promise<ValidationResult> {
             const validateResult = {
                 valid: true,
                 invalidMessages: [
@@ -665,7 +667,7 @@ export function Custom(
 
             const callbackResult =
                 typeof this.callback === "function"
-                    ? this.callback(value)
+                    ? await this.callback(value)
                     : true;
 
             if (typeof callbackResult === "string") {
