@@ -284,7 +284,7 @@ const handleHideMenu = () => {
 }
 
 @media only screen and (max-width: 1200px) {
-    .navbar .navbar-container {
+    .sm-navbar .navbar-container {
         .navmenu li {
             display: none;
         }
@@ -300,7 +300,7 @@ const handleHideMenu = () => {
 }
 
 @media only screen and (max-width: 992px) {
-    .navbar {
+    .sm-navbar {
         height: 4.5rem;
 
         .navbar-dropdown-cover {
@@ -323,7 +323,7 @@ const handleHideMenu = () => {
 }
 
 @media only screen and (max-width: 640px) {
-    .navbar {
+    .sm-navbar {
         height: 4.5rem;
 
         .navbar-dropdown-cover {
@@ -341,7 +341,7 @@ const handleHideMenu = () => {
                 font-size: 0.9rem;
                 padding: 0.5rem 0.75rem;
 
-                svg {
+                ion-icon {
                     display: none;
                 }
             }
