@@ -745,10 +745,11 @@ export function Required(
         validate: function (value: string): ValidationResult {
             return {
                 valid: value.length > 0,
-                invalidMessages:
+                invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
                         : this.invalidMessage(this),
+                ],
             };
         },
     };
