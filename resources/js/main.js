@@ -3,17 +3,14 @@ import { createApp } from "vue";
 import { createPinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import Router from "@/router";
-// import "./axios.js";
 import "normalize.css";
 import "../css/app.scss";
 import App from "./views/App.vue";
-// import FontAwesomeIcon from "@/helpers/fontawesome";
 import SMContainer from "./components/SMContainer.vue";
 import SMRow from "./components/SMRow.vue";
 import SMColumn from "./components/SMColumn.vue";
 import { PromiseDialog } from "vue3-promise-dialog";
 import { VueReCaptcha } from "vue-recaptcha-v3";
-import "trix/dist/trix.css";
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);

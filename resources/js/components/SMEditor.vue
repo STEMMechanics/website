@@ -1,21 +1,7 @@
 <template>
     <div class="editor">
         <label v-if="label" :class="{ required: required }">{{ label }}</label>
-        <trix-editor
-            ref="trix"
-            :contenteditable="!disabledEditor"
-            :class="['trix-content']"
-            :placeholder="placeholder"
-            :input="computedId"
-            @trix-change="handleContentChange"
-            @trix-file-accept="emitFileAccept"
-            @trix-attachment-add="emitAttachmentAdd"
-            @trix-attachment-remove="emitAttachmentRemove"
-            @trix-selection-change="emitSelectionChange"
-            @trix-initialize="handleInitialize"
-            @trix-before-initialize="emitBeforeInitialize"
-            @trix-focus="processTrixFocus"
-            @trix-blur="processTrixBlur" />
+        <editor id="tinymce" v-model="editorContent" :init="init" />
         <input
             :id="computedId"
             type="hidden"
@@ -25,7 +11,51 @@
 </template>
 
 <script setup lang="ts">
-import Trix from "trix";
+import "tinymce/tinymce";
+import Editor from "@tinymce/tinymce-vue";
+import "tinymce/themes/silver";
+
+import "tinymce/icons/default";
+import "tinymce/models/dom";
+
+import "tinymce/plugins/image"; // 插入上传图片插件
+import "tinymce/plugins/media"; // 插入视频插件
+import "tinymce/plugins/table"; // 插入表格插件
+import "tinymce/plugins/lists"; // 列表插件
+import "tinymce/plugins/advlist";
+import "tinymce/plugins/link"; // 列表插件
+import "tinymce/plugins/autolink";
+import "tinymce/plugins/lists";
+import "tinymce/plugins/link";
+import "tinymce/plugins/image";
+import "tinymce/plugins/charmap";
+import "tinymce/plugins/searchreplace";
+import "tinymce/plugins/visualblocks";
+import "tinymce/plugins/code";
+import "tinymce/plugins/fullscreen";
+// import "tinymce/plugins/print";
+import "tinymce/plugins/preview";
+import "tinymce/plugins/anchor";
+import "tinymce/plugins/insertdatetime";
+import "tinymce/plugins/media";
+import "tinymce/plugins/help";
+import "tinymce/plugins/table";
+import "tinymce/plugins/importcss";
+import "tinymce/plugins/directionality";
+import "tinymce/plugins/visualchars";
+import "tinymce/plugins/template";
+import "tinymce/plugins/codesample";
+// import "tinymce/plugins/hr";
+import "tinymce/plugins/pagebreak";
+import "tinymce/plugins/nonbreaking";
+// import "tinymce/plugins/toc";
+// import "tinymce/plugins/imagetools";
+// import "tinymce/plugins/textpattern";
+// import "tinymce/plugins/noneditable";
+import "tinymce/plugins/emoticons";
+import "tinymce/plugins/autosave";
+
+// import Trix from "trix";
 import { ref, watch, computed, onUnmounted } from "vue";
 import { arrayHasBasicMatch } from "../helpers/array";
 
@@ -84,6 +114,67 @@ const props = defineProps({
     },
 });
 
+/*                height: 500,
+                menubar: false,
+                plugins: [
+                    'advlist autolink lists link image charmap print preview anchor',
+                    'searchreplace visualblocks code fullscreen',
+                    'insertdatetime media table paste code help wordcount',
+                ],
+                toolbar:
+                    'undo redo | formatselect | bold italic backcolor | \
+           alignleft aligncenter alignright alignjustify | \
+           bullist numlist outdent indent | removeformat | help',
+*/
+
+const init = {
+    promotion: false,
+    emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
+    skin_url: "/tinymce/skins/ui/oxide",
+    content_css: "/tinymce/skins/content/default/content.min.css",
+    height: 500,
+    plugins: [
+        "link",
+        "autolink",
+        "lists",
+        "advlist",
+        "image",
+        "table",
+        "charmap",
+        "searchreplace",
+        "visualblocks",
+        "code",
+        "fullscreen",
+        "preview",
+        "anchor",
+        "insertdatetime",
+        "media",
+        "help",
+        "codesample",
+        "pagebreak",
+        "nonbreaking",
+        "importcss",
+        "directionality",
+        "visualchars",
+        "emoticons",
+        "autosave",
+    ],
+    toolbar:
+        "undo redo | bold italic underline strikethrough | fontselect fontsizeselect formatselect | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl",
+    branding: false,
+    menubar: true,
+    // https://www.tiny.cloud/docs/configure/file-image-upload/#images_upload_handler
+    images_upload_handler: (blobInfo, success, failure) => {
+        console.log(blobInfo);
+        console.log(success);
+        console.log(failure);
+
+        const img = "data:image/jpeg;base64," + blobInfo.base64();
+        console.log(img);
+        success(img);
+    },
+};
+
 const trix = ref(null);
 const editorContent = ref(props.srcContent);
 const isActive = ref(null);
@@ -138,13 +229,13 @@ const handleInitialize = () => {
 const handleInitialContentChange = (newContent, oldContent) => {
     newContent = newContent === undefined ? "" : newContent;
 
-    if (trix.value && trix.value.innerHTML !== newContent) {
-        editorContent.value = newContent;
-    }
+    // if (trix.value && trix.value.innerHTML !== newContent) {
+    editorContent.value = newContent;
+    // }
 
-    if (!isActive.value) {
-        reloadEditorContent(editorContent.value);
-    }
+    // if (!isActive.value) {
+    //     reloadEditorContent(editorContent.value);
+    // }
 };
 
 const emitEditorState = (value) => {
@@ -201,9 +292,8 @@ const whenInitalized = (func) => {
 
 const reloadEditorContent = async (newContent) => {
     whenInitalized(() => {
-        trix.value.editor.loadHTML(newContent);
-        trix.value.editor.setSelectedRange(getContentEndPosition());
-
+        // trix.value.editor.loadHTML(newContent);
+        // trix.value.editor.setSelectedRange(getContentEndPosition());
         // console.log(Trix.config);
         // console.log(trix.value.toolbarElement);
     });

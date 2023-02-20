@@ -24,6 +24,7 @@
         "vitest": "^0.28.5"
     },
     "dependencies": {
+        "@tinymce/tinymce-vue": "^4.0.7",
         "@vitejs/plugin-vue": "^4.0.0",
         "@vuepic/vue-datepicker": "^3.6.4",
         "dotenv": "^16.0.3",
@@ -31,7 +32,7 @@
         "pinia": "^2.0.28",
         "pinia-plugin-persistedstate": "^3.0.1",
         "sass": "^1.57.1",
-        "trix": "^2.0.4",
+        "tinymce": "^6.3.1",
         "vue": "^3.2.36",
         "vue-dompurify-html": "^3.1.2",
         "vue-final-modal": "^3.4.11",
