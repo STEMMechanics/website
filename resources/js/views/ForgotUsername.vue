@@ -1,7 +1,7 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow class="mt-5">
+            <SMDialog class="mt-5">
                 <template v-if="!formDone">
                     <h1>Forgot Username</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
