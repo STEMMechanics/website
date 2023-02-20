@@ -81,6 +81,9 @@ const hasPermission = () => {
     flex: 1;
     width: 100%;
     padding-bottom: calc(map-get($spacer, 5) * 2);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
 
     &.sm-no-breadcrumbs {
         margin-bottom: 0;
@@ -92,9 +95,6 @@ const hasPermission = () => {
     }
 
     .sm-page {
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
         display: flex;
         flex-direction: column;
         flex: 1;
