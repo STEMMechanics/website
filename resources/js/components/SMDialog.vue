@@ -49,7 +49,6 @@ defineProps({
 .dialog {
     flex-direction: column;
     margin: 0 auto;
-    flex: 1;
     background-color: #eee;
     padding: map-get($spacer, 5) map-get($spacer, 5)
         calc(map-get($spacer, 5) / 1.5) map-get($spacer, 5);
@@ -111,8 +110,8 @@ defineProps({
 
 @media only screen and (max-width: 640px) {
     .dialog {
-        padding: map-get($spacer, 1) map-get($spacer, 3) map-get($spacer, 3)
-            map-get($spacer, 3);
+        padding: map-get($spacer, 5) map-get($spacer, 4) map-get($spacer, 4)
+            map-get($spacer, 4);
         min-width: auto;
 
         .button {
