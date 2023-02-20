@@ -1,14 +1,12 @@
 <template>
     <router-link :to="to" class="panel">
-        <div
-            class="panel-image"
-            :style="{ backgroundImage: `url('${imageUrl}')` }">
-            <div v-if="dateInImage" class="panel-image-date">
+        <div class="panel-image" :style="styleObject">
+            <div v-if="dateInImage && date" class="panel-image-date">
                 <div class="panel-image-date-day">
-                    {{ format(new Date(date), "dd") }}
+                    {{ new SMDate(date, { format: "yMd" }).format("dd") }}
                 </div>
                 <div class="panel-image-date-month">
-                    {{ format(new Date(date), "MMM") }}
+                    {{ new SMDate(date, { format: "yMd" }).format("MMM") }}
                 </div>
             </div>
             <ion-icon
@@ -18,7 +16,7 @@
         </div>
         <div class="panel-body">
             <h3 class="panel-title">{{ title }}</h3>
-            <div v-if="showDate" class="panel-date">
+            <div v-if="showDate && date" class="panel-date">
                 <ion-icon
                     v-if="showTime == false && endDate.length == 0"
                     name="calendar-outline" />
@@ -38,14 +36,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed, ref } from "vue";
+import { onMounted, computed, ref, reactive, watch } from "vue";
 import { isUUID } from "../helpers/types";
 import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
-import { format } from "date-fns";
 import { api } from "../helpers/api";
 import { imageLoad } from "../helpers/image";
-import SMButton from "./SMButton.vue";
 import { ApiMedia } from "../helpers/api.types";
+import { SMDate } from "../helpers/datetime";
+import SMButton from "./SMButton.vue";
 
 const props = defineProps({
     title: {
@@ -56,7 +54,12 @@ const props = defineProps({
     image: {
         type: String,
         default: "",
-        required: true,
+        required: false,
+    },
+    icon: {
+        type: String,
+        default: "",
+        required: false,
     },
     to: {
         type: Object,
@@ -73,7 +76,7 @@ const props = defineProps({
     date: {
         type: String,
         default: "",
-        required: true,
+        required: false,
     },
     endDate: {
         type: String,
@@ -112,22 +115,35 @@ const props = defineProps({
     },
 });
 
-let imageUrl = ref(props.image);
+let styleObject = reactive({});
+let imageUrl = ref("");
+
 const panelDate = computed(() => {
     let str = "";
 
-    if (
-        (props.endDate.length > 0 &&
-            props.date.substring(0, props.date.indexOf(" ")) !=
-                props.endDate.substring(0, props.endDate.indexOf(" "))) ||
-        props.showTime == false
-    ) {
-        str = format(new Date(props.date), "dd/MM/yyyy");
-        if (props.endDate.length > 0) {
-            str = str + " - " + format(new Date(props.endDate), "dd/MM/yyyy");
+    if (props.date.length > 0) {
+        if (
+            (props.endDate.length > 0 &&
+                props.date.substring(0, props.date.indexOf(" ")) !=
+                    props.endDate.substring(0, props.endDate.indexOf(" "))) ||
+            props.showTime == false
+        ) {
+            str = new SMDate(props.date, { format: "yMd" }).format(
+                "dd/MM/yyyy"
+            );
+            if (props.endDate.length > 0) {
+                str =
+                    str +
+                    " - " +
+                    new SMDate(props.endDate, { format: "yMd" }).format(
+                        "dd/MM/yyyy"
+                    );
+            }
+        } else {
+            str = new SMDate(props.endDate, { format: "yMd" }).format(
+                "dd/MM/yyyy @ h:mm aa"
+            );
         }
-    } else {
-        str = format(new Date(props.date), "dd/MM/yyyy @ h:mm aa");
     }
 
     return str;
@@ -146,7 +162,7 @@ const hideImageLoader = computed(() => {
 });
 
 onMounted(async () => {
-    if (imageUrl.value && imageUrl.value.length > 0 && isUUID(imageUrl.value)) {
+    if (props.image && props.image.length > 0 && isUUID(props.image)) {
         api.get(`/media/${props.image}`).then((result) => {
             const data = result.data as ApiMedia;
 
@@ -158,6 +174,13 @@ onMounted(async () => {
         });
     }
 });
+
+watch(
+    () => imageUrl.value,
+    (value) => {
+        styleObject["backgroundImage"] = `url('${value}')`;
+    }
+);
 </script>
 
 <style lang="scss">
