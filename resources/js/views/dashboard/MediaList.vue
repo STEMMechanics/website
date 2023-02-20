@@ -42,9 +42,9 @@
                     <font-awesome-icon
                         icon="fa-regular fa-trash-can"
                         @click.stop="handleDelete(item)" /> -->
-                    <d-file-link :href="item.url" target="_blank" @click.stop=""
+                    <SMFileLink :href="item.url" target="_blank" @click.stop=""
                         ><font-awesome-icon icon="fa-solid fa-download"
-                    /></d-file-link>
+                    /></SMFileLink>
                 </div>
             </template>
         </EasyDataTable>
@@ -63,7 +63,7 @@ import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
 import { debounce, parseErrorType, bytesReadable } from "../../helpers/common";
 import SMMessage from "../../components/SMMessage.vue";
-import DFileLink from "../../components/DFileLink.vue";
+import SMFileLink from "../../components/SMFileLink.vue";
 import { useUserStore } from "../../store/UserStore";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
