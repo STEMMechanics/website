@@ -1,6 +1,6 @@
 <template>
-    <div class="modal">
-        <div class="dialog dialog-narrow">
+    <SMModal>
+        <SMDialog>
             <h1>{{ props.title }}</h1>
             <p v-html="sanitizedHtml"></p>
             <SMFormFooter>
@@ -8,17 +8,17 @@
                     <SMButton
                         :type="props.cancel.type"
                         :label="props.cancel.label"
-                        @click.stop="handleCancel()" />
+                        @click="handleCancel()" />
                 </template>
                 <template #right>
                     <SMButton
                         :type="props.confirm.type"
                         :label="props.confirm.label"
-                        @click.stop="handleConfirm()" />
+                        @click="handleConfirm()" />
                 </template>
             </SMFormFooter>
-        </div>
-    </div>
+        </SMDialog>
+    </SMModal>
 </template>
 
 <script setup lang="ts">
@@ -26,6 +26,8 @@ import { onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
 import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
+import SMModal from "../SMModal.vue";
+import SMDialog from "../SMDialog.vue";
 // import sanitizeHtml from "sanitize-html";
 
 const props = defineProps({
