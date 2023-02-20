@@ -21,6 +21,7 @@
             'prevent-select',
             classType,
             { 'button-block': block },
+            { 'dropdown-button': dropdown },
         ]"
         :type="buttonType"
         @click="handleClick">
@@ -29,12 +30,15 @@
         <ion-icon
             v-if="dropdown != null"
             name="caret-down-outline"
-            @click="handleToggleDropdown" />
-        <ul v-if="dropdown != null" v-show="showDropdown">
+            @click.stop="handleToggleDropdown" />
+        <ul
+            v-if="dropdown != null"
+            ref="dropdownMenu"
+            @mouseleave="handleMouseLeave">
             <li
                 v-for="(dropdownLabel, dropdownItem) in dropdown"
                 :key="dropdownItem"
-                @click="handleClickItem(dropdownItem)">
+                @click.stop="handleClickItem(dropdownItem)">
                 {{ dropdownLabel }}
             </li>
         </ul>
@@ -94,22 +98,24 @@ const props = defineProps({
     },
 });
 
-const showDropdown = ref(false);
 const buttonType = props.type == "submit" ? "submit" : "button";
 const classType = props.type == "submit" ? "primary" : props.type;
+const dropdownMenu = ref(null);
 
 const emits = defineEmits(["click"]);
 const handleClick = () => {
-    showDropdown.value = false;
     emits("click", "");
 };
 
 const handleToggleDropdown = () => {
-    showDropdown.value = !showDropdown.value;
+    dropdownMenu.value.style.display = "block";
+};
+
+const handleMouseLeave = () => {
+    dropdownMenu.value.style.display = "none";
 };
 
 const handleClickItem = (item: string) => {
-    showDropdown.value = false;
     emits("click", item);
 };
 </script>
@@ -117,10 +123,16 @@ const handleClickItem = (item: string) => {
 <style lang="scss">
 .button {
     cursor: pointer;
+    position: relative;
 
     &.button-block {
         display: block;
         width: 100%;
+    }
+
+    &.dropdown-button {
+        padding: map-get($spacer, 1) map-get($spacer, 2);
+        white-space: nowrap;
     }
 
     ion-icon {
@@ -132,28 +144,28 @@ const handleClickItem = (item: string) => {
 
     ul {
         position: absolute;
-        z-index: 1;
-        top: 100%;
-        left: 0;
+        display: none;
+        z-index: 100;
+        top: 20%;
+        right: 0;
+        min-width: 100%;
         list-style: none;
         padding: 0;
         margin: 0;
         background-color: #f9f9f9;
         border: 1px solid #ddd;
+        color: $primary-color;
+        box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
     }
 
     li {
         padding: 12px 16px;
         cursor: pointer;
+        transition: background 0.1s ease-in-out;
     }
 
     li:hover {
-        background-color: #f1f1f1;
+        background-color: #ddd;
     }
-}
-
-// New content here
-.dropdown {
-    position: relative;
 }
 </style>
