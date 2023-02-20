@@ -1,4 +1,4 @@
-type DebounceCallback = () => void;
+type DebounceCallback = (...args: unknown[]) => void;
 type DebounceResult = (...args: unknown[]) => void;
 
 /**
