@@ -38,7 +38,7 @@ import { useUserStore } from "../store/UserStore";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../helpers/api";
 import { FormObject, FormControl } from "../helpers/form";
-import { And, Min, Required, Password } from "../helpers/validate";
+import { And, Min, Required } from "../helpers/validate";
 import SMPage from "../components/SMPage.vue";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
@@ -51,7 +51,7 @@ const userStore = useUserStore();
 const form = reactive(
     FormObject({
         username: FormControl("", And([Required(), Min(4)])),
-        password: FormControl("", Password()),
+        password: FormControl("", Required()),
     })
 );
 
