@@ -2,7 +2,7 @@
     <div
         class="carousel-slide"
         :style="{ backgroundImage: `url('${imageUrl}')` }">
-        <div v-if="imageUrl == null" class="carousel-slide-loading">
+        <div v-if="imageUrl.length == 0" class="carousel-slide-loading">
             <SMLoadingIcon />
         </div>
         <div v-else class="carousel-slide-body">
