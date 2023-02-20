@@ -1,67 +1,70 @@
 <template>
-    <SMContainer permission="admin/posts">
-        <SMHeading heading="Posts" />
-        <SMMessage
-            v-if="formMessage.message"
-            :icon="formMessage.icon"
-            :type="formMessage.type"
-            :message="formMessage.message" />
-        <SMToolbar>
-            <template #left>
-                <SMButton
-                    type="primary"
-                    label="Create Post"
-                    @click="handleCreate" />
-            </template>
-            <template #right>
-                <input v-model="search" placeholder="Search" />
-            </template>
-        </SMToolbar>
+    <SMPage permission="admin/posts" class="sm-page-post-list">
+        <template #container>
+            <SMHeading heading="Posts" />
+            <SMMessage
+                v-if="formMessage.message"
+                :icon="formMessage.icon"
+                :type="formMessage.type"
+                :message="formMessage.message" />
+            <SMToolbar>
+                <template #left>
+                    <SMButton
+                        type="primary"
+                        label="Create Post"
+                        @click="handleCreate" />
+                </template>
+                <template #right>
+                    <input v-model="search" placeholder="Search" />
+                </template>
+            </SMToolbar>
 
-        <EasyDataTable
-            v-model:server-options="serverOptions"
-            :server-items-length="serverItemsLength"
-            :loading="formLoading"
-            :headers="headers"
-            :items="items"
-            :search-value="search">
-            <template #loading>
-                <SMLoadingIcon />
-            </template>
-            <template #item-title="item">
-                <router-link
-                    :to="{ name: 'post-edit', params: { id: item.id } }"
-                    >{{ item.title }}</router-link
-                >
-            </template>
-            <template #item-actions="item">
-                <div class="action-wrapper">
-                    <!-- <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" /> -->
-                </div>
-            </template>
-        </EasyDataTable>
-    </SMContainer>
+            <EasyDataTable
+                v-model:server-options="serverOptions"
+                :server-items-length="serverItemsLength"
+                :loading="formLoading"
+                :headers="headers"
+                :items="items"
+                :search-value="search">
+                <template #loading>
+                    <SMLoadingIcon />
+                </template>
+                <template #item-title="item">
+                    <router-link
+                        :to="{ name: 'post-edit', params: { id: item.id } }"
+                        >{{ item.title }}</router-link
+                    >
+                </template>
+                <template #item-actions="item">
+                    <div class="action-wrapper">
+                        <SMButton
+                            label="Edit"
+                            :dropdown="{
+                                delete: 'Delete',
+                            }"
+                            @click="handleClick(item, $event)"></SMButton>
+                    </div>
+                </template>
+            </EasyDataTable>
+        </template>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, reactive } from "vue";
-import EasyDataTable from "vue3-easy-data-table";
 import { SMDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
-import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
 import { api } from "../../helpers/api";
+import { debounce } from "../../helpers/debounce";
+import EasyDataTable from "vue3-easy-data-table";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce } from "../../helpers/debounce";
 import SMHeading from "../../components/SMHeading.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
+import SMPage from "../../components/SMPage.vue";
 
 const router = useRouter();
 const search = ref("");
@@ -89,6 +92,14 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const handleClick = (item, extra: string): void => {
+    if (extra.length == 0) {
+        handleEdit(item);
+    } else if (extra.toLowerCase() == "delete") {
+        handleDelete(item);
+    }
+};
 
 const loadFromServer = async () => {
     formLoading.value = true;
@@ -210,4 +221,8 @@ const handleDelete = async (item) => {
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.sm-page-post-list {
+    background-color: #f8f8f8;
+}
+</style>
