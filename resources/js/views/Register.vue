@@ -1,7 +1,7 @@
 <template>
-    <SMContainer>
-        <SMRow>
-            <SMDialog :narrow="formDone">
+    <SMPage no-breadcrumbs background="/img/background.jpg">
+        <template #container>
+            <SMDialog full class="mt-5" :narrow="formDone">
                 <template v-if="!formDone">
                     <h1>Register</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
@@ -65,8 +65,8 @@
                     </SMRow>
                 </template>
             </SMDialog>
-        </SMRow>
-    </SMContainer>
+        </template>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
@@ -76,6 +76,7 @@ import SMButton from "../components/SMButton.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
+import SMPage from "../components/SMPage.vue";
 import { api } from "../helpers/api";
 import { FormControl, FormObject } from "../helpers/form";
 import {
@@ -92,29 +93,48 @@ import { debounce } from "../helpers/debounce";
 import { useReCaptcha } from "vue-recaptcha-v3";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
+let abortController: AbortController | null = null;
 
-const checkUsername = (value: string): boolean | string => {
-    if (lastUsernameCheck.value != form.username.value) {
-        lastUsernameCheck.value = form.username.value;
-        api.get({
-            url: "/users",
-            params: {
-                username: form.username.value,
-            },
-        })
+const checkUsername = async (value: string): boolean | string => {
+    if (lastUsernameCheck.value != value) {
+        console.log("api-get");
+        lastUsernameCheck.value = value;
+
+        if (abortController != null) {
+            abortController.abort();
+            abortController = null;
+        }
+
+        abortController = new AbortController();
+
+        let x = await api
+            .get({
+                url: "/users",
+                params: {
+                    username: value,
+                },
+                signal: abortController.signal,
+            })
             .then((response) => {
+                console.log("The username has already been taken.", response);
                 return "The username has already been taken.";
             })
             .catch((error) => {
+                console.log(error);
                 if (error.status != 404) {
                     return (
                         error.json?.message ||
                         "An unexpected server error occurred."
                     );
                 }
+
+                return true;
             });
+
+        return x;
     }
 
+    console.log("here");
     return true;
 };
 
@@ -160,16 +180,16 @@ const handleSubmit = async () => {
 
 const lastUsernameCheck = ref("");
 
-const debouncedFilter = debounce(checkUsername, 1000);
-let oldUsernameValue = "";
-watch(
-    form,
-    (value) => {
-        if (value.username.value !== oldUsernameValue) {
-            oldUsernameValue = value.username.value;
-            debouncedFilter();
-        }
-    },
-    { deep: true }
-);
+// const debouncedFilter = debounce(checkUsername, 1000);
+// let oldUsernameValue = "";
+// watch(
+//     form,
+//     (value) => {
+//         if (value.username.value !== oldUsernameValue) {
+//             oldUsernameValue = value.username.value;
+//             // debouncedFilter(lastUsernameCheck.value);
+//         }
+//     },
+//     { deep: true }
+// );
 </script>
