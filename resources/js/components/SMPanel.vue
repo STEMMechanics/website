@@ -46,8 +46,10 @@ import {
     stripHtmlTags,
 } from "../helpers/common";
 import { format } from "date-fns";
-import SMButton from "./SMButton.vue";
 import { api } from "../helpers/api";
+import { imageLoad } from "../helpers/image";
+import SMButton from "./SMButton.vue";
+import { ApiMedia } from "../helpers/api.types";
 
 const props = defineProps({
     title: {
@@ -149,15 +151,15 @@ const hideImageLoader = computed(() => {
 
 onMounted(async () => {
     if (imageUrl.value && imageUrl.value.length > 0 && isUUID(imageUrl.value)) {
-        try {
-            let result = await api.get(`/media/${props.image}`);
+        api.get(`/media/${props.image}`).then((result) => {
+            const data = result.data as ApiMedia;
 
-            if (result.json.medium) {
-                imageUrl.value = result.json.medium.url;
+            if (data && data.medium) {
+                imageLoad(data.medium.url, (url) => {
+                    imageUrl.value = url;
+                });
             }
-        } catch (error) {
-            /* empty */
-        }
+        });
     }
 });
 </script>
@@ -168,6 +170,7 @@ onMounted(async () => {
     flex-direction: column;
     border: 1px solid $border-color;
     border-radius: 12px;
+    overflow: hidden;
     box-shadow: 0 0 28px rgba(0, 0, 0, 0.05);
     max-width: 21rem;
     width: 100%;
@@ -227,6 +230,7 @@ onMounted(async () => {
         flex-direction: column;
         flex: 1;
         padding: 0 map-get($spacer, 3) map-get($spacer, 3) map-get($spacer, 3);
+        background-color: #fff;
     }
 
     .panel-title {
@@ -241,7 +245,7 @@ onMounted(async () => {
         font-size: 80%;
         margin-bottom: 0.4rem;
 
-        svg {
+        ion-icon {
             flex: 0 1 1rem;
             margin-right: map-get($spacer, 1);
             padding-top: 0.1rem;

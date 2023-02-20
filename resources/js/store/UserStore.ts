@@ -1,4 +1,3 @@
-import { api } from "../helpers/api";
 import { defineStore } from "pinia";
 
 export interface UserDetails {
@@ -11,7 +10,7 @@ export interface UserDetails {
     permissions: string[];
 }
 
-export interface UserStore {
+export interface UserState {
     id: string;
     token: string;
     username: string;
@@ -22,9 +21,9 @@ export interface UserStore {
     permissions: string[];
 }
 
-export const useUserStore = defineStore({
+export const useUserStore = defineStore<string, UserState>({
     id: "user",
-    state: (): UserStore => ({
+    state: (): UserState => ({
         id: "",
         token: "",
         username: "",
@@ -48,19 +47,6 @@ export const useUserStore = defineStore({
 
         async setUserToken(token: string) {
             this.$state.token = token;
-        },
-
-        async fetchUser() {
-            const res = await api.get("/users/" + this.$state.id);
-
-            this.$state.id = res.json.user.id;
-            this.$state.token = res.json.token;
-            this.$state.username = res.json.user.username;
-            this.$state.firstName = res.json.user.first_name;
-            this.$state.lastName = res.json.user.last_name;
-            this.$state.email = res.json.user.email;
-            this.$state.phone = res.json.user.phone;
-            this.$state.permissions = res.json.user.permissions || [];
         },
 
         clearUser() {

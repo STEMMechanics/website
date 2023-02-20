@@ -109,6 +109,7 @@ type FormSetValidation = (
 
 interface FormControlObject {
     value: string;
+    validate: () => ValidationResult;
     validation: FormControlValidation;
     clearValidations: FormClearValidations;
     setValidationResult: FormSetValidation;
@@ -132,6 +133,13 @@ export const FormControl = (
             this.validation.result = defaultValidationResult;
         },
         setValidationResult: createValidationResult,
+        validate: function () {
+            if (this.validation.validator) {
+                return this.validation.validator(this.value);
+            }
+
+            return defaultValidationResult;
+        },
     };
 };
 /* eslint-enable indent */

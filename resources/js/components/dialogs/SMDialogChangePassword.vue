@@ -2,36 +2,39 @@
     <SMModal>
         <SMDialog :loading="formLoading">
             <h1>Change Password</h1>
-            <SMMessage
-                v-if="isSuccessful"
-                type="success"
-                message="Your password has been changed successfully" />
-            <SMInput
-                v-if="!isSuccessful"
-                v-model="formData.password.value"
-                type="password"
-                label="New Password"
-                required
-                :error="formData.password.error" />
-            <SMFormFooter>
-                <template v-if="!isSuccessful" #left>
-                    <SMButton
-                        type="secondary"
-                        label="Cancel"
-                        @click="handleCancel()" />
-                </template>
-                <template #right>
-                    <SMButton
-                        type="primary"
-                        :label="btnConfirm"
-                        @click="handleConfirm()" />
-                </template>
-            </SMFormFooter>
+            <SMForm v-model="form">
+                <SMMessage
+                    v-if="isSuccessful"
+                    type="success"
+                    message="Your password has been changed successfully" />
+                <SMInput
+                    v-if="!isSuccessful"
+                    control="password"
+                    type="password"
+                    label="New Password" />
+                <SMFormFooter>
+                    <template v-if="!isSuccessful" #left>
+                        <SMButton
+                            type="secondary"
+                            label="Cancel"
+                            @click="handleCancel()" />
+                    </template>
+                    <template #right>
+                        <SMButton
+                            type="primary"
+                            :label="btnConfirm"
+                            @click="handleConfirm()" />
+                    </template>
+                </SMFormFooter>
+            </SMForm>
         </SMDialog>
     </SMModal>
 </template>
 
 <script setup lang="ts">
+import { api } from "../../helpers/api";
+import { FormControl } from "../../helpers/form";
+import { And, Required, Password } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
 import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
@@ -42,20 +45,9 @@ import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
 
-const formData = reactive({
-    password: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A password is needed",
-            min: 8,
-            min_message: "Your password needs to be at least %d characters",
-            password: "special",
-        },
-    },
-});
-
+const controlPassword = reactive(
+    FormControl("", And([Required(), Password()]))
+);
 const userStore = useUserStore();
 const formLoading = ref(false);
 const isSuccessful = ref(false);
@@ -72,18 +64,20 @@ const handleConfirm = async () => {
     if (isSuccessful.value == true) {
         closeDialog(true);
     } else {
+        const valid = controlPassword.validate();
+
         try {
             formLoading.value = true;
             await api.put({
                 url: `/users/${userStore.id}`,
                 body: {
-                    password: formData.password.value,
+                    password: controlPassword.value,
                 },
             });
 
             isSuccessful.value = true;
         } catch (err) {
-            formData.password.error =
+            controlPassword.error =
                 err.json?.message || "An unexpected error occurred";
         }
     }

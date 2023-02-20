@@ -1,14 +1,9 @@
 <template>
-    <SMContainer :full="true" class="workshop-view">
+    <SMPage :full="true" :loading="imageUrl.length == 0" class="workshop-view">
         <div
             class="workshop-image"
-            :style="{ backgroundImage: `url('${imageUrl}')` }">
-            <ion-icon
-                v-if="imageUrl.length == 0"
-                class="workshop-image-loader"
-                name="image-outline" />
-        </div>
-        <template #inner>
+            :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
+        <SMContainer>
             <SMMessage
                 v-if="formMessage.message"
                 :icon="formMessage.icon"
@@ -25,7 +20,7 @@
                         v-if="
                             event.status == 'closed' ||
                             (event.status == 'open' &&
-                                timestampBeforeNow(event.end_at))
+                                new SMDate(event.end_at, {format: 'ymd'}).isBefore()
                         "
                         class="workshop-registration workshop-registration-closed">
                         Registration for this event has closed
@@ -38,7 +33,9 @@
                     <div
                         v-if="
                             event.status == 'open' &&
-                            timestampAfterNow(event.end_at) &&
+                            new SMDate(event.end_at, {
+                                format: 'ymd',
+                            }).isAfter() &&
                             event.registration_type == 'none'
                         "
                         class="workshop-registration workshop-registration-none">
@@ -48,7 +45,9 @@
                     <div
                         v-if="
                             event.status == 'open' &&
-                            timestampAfterNow(event.end_at) &&
+                            new SMDate(event.end_at, {
+                                format: 'ymd',
+                            }).isAfter() &&
                             event.registration_type != 'none'
                         "
                         class="workshop-registration workshop-registration-url">
@@ -77,8 +76,8 @@
                     </div>
                 </div>
             </SMContainer>
-        </template>
-    </SMContainer>
+        </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
@@ -86,15 +85,13 @@ import { api } from "../helpers/api";
 import { computed, ref, reactive } from "vue";
 import { useRoute } from "vue-router";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { SMDate } from "../helpers/datetime";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
-import {
-    format,
-    timestampUtcToLocal,
-    timestampBeforeNow,
-    timestampAfterNow,
-} from "../helpers/datetime";
+import SMPage from "../components/SMPage.vue";
+import { ApiEvent, ApiMedia } from "../helpers/api.types";
+import { imageLoad } from "../helpers/image";
 
 const applicationStore = useApplicationStore();
 const event = ref({});
@@ -107,7 +104,7 @@ const formMessage = reactive({
 });
 
 const workshopDate = computed(() => {
-    let str = [];
+    let str: string[] = [];
 
     if (Object.keys(event.value).length > 0) {
         if (
@@ -118,19 +115,30 @@ const workshopDate = computed(() => {
             ) !=
                 event.value.end_at.substring(0, event.value.end_at.indexOf(" "))
         ) {
-            str = [format(new Date(event.value.start_at), "dd/MM/yyyy")];
+            str = [
+                new SMDate(event.value.start_at, { format: "ymd" }).format(
+                    "dd/MM/yyyy"
+                ),
+            ];
             if (event.value.end_at.length > 0) {
                 str[0] =
                     str[0] +
                     " - " +
-                    format(new Date(event.value.end_at), "dd/MM/yyyy");
+                    new SMDate(event.value.end_at, { format: "ymd" }).format(
+                        "dd/MM/yyyy"
+                    );
             }
         } else {
             str = [
-                format(new Date(event.value.start_at), "EEEE dd MMM yyyy"),
-                format(new Date(event.value.start_at), "h:mm aa") +
+                new SMDate(event.value.start_at, { format: "ymd" }).format(
+                    "EEEE dd MMM yyyy"
+                ),
+                new SMDate(event.value.start_at, { format: "ymd" }).format(
+                    "h:mm aa"
+                ) +
                     " - " +
-                    format(new Date(event.value.end_at), "h:mm aa"),
+                    SMDate(event.value.end_at, { format: "ymd" }),
+                format("h:mm aa"),
             ];
         }
     }
@@ -155,27 +163,66 @@ const handleLoad = async () => {
     formMessage.icon = "fa-solid fa-circle-exclamation";
     formMessage.message = "";
 
-    try {
-        const result = await api.get(`events/${route.params.id}`);
-        event.value = result.json.event;
+    api.get(`/events/${route.params.id}`)
+        .then((result) => {
+            event.value =
+                result.data &&
+                (result.data as ApiEvent).event &&
+                Object.keys((result.data as ApiEvent).event).length > 0
+                    ? (result.data as ApiEvent).event
+                    : {};
 
-        event.value.start_at = timestampUtcToLocal(event.value.start_at);
-        event.value.end_at = timestampUtcToLocal(event.value.end_at);
+            if (event.value) {
+                // event.value = result.data.event as ApiEventItem;
 
-        applicationStore.setDynamicTitle(event.value.title);
-        handleLoadImage();
-    } catch (error) {
-        formMessage.message =
-            error.json?.message ||
-            "Could not load event information from the server.";
-    }
+                event.value.start_at = new SMDate(event.value.start_at, {
+                    format: "ymd",
+                    utc: true,
+                }).format("yyyy/MM/dd HH:mm:ss");
+                event.value.end_at = new SMDate(event.value.end_at, {
+                    format: "ymd",
+                    utc: true,
+                }).format("yyyy/MM/dd HH:mm:ss");
+
+                applicationStore.setDynamicTitle(event.value.title);
+                handleLoadImage();
+            } else {
+                formMessage.message =
+                    "Could not load event information from the server.";
+            }
+        })
+        .catch((error) => {
+            formMessage.message =
+                error.data?.message ||
+                "Could not load event information from the server.";
+        });
+
+    // try {
+    //     const result = await api.get(`/events/${route.params.id}`);
+    //     event.value = result.data.event as ApiEventItem;
+
+    //     event.value.start_at = timestampUtcToLocal(event.value.start_at);
+    //     event.value.end_at = timestampUtcToLocal(event.value.end_at);
+
+    //     applicationStore.setDynamicTitle(event.value.title);
+    //     handleLoadImage();
+    // } catch (error) {
+    //     formMessage.message =
+    //         error.data?.message ||
+    //         "Could not load event information from the server.";
+    // }
 };
 
 const handleLoadImage = async () => {
     try {
-        const result = await api.get(`media/${event.value.hero}`);
-        if (result.json.medium) {
-            imageUrl.value = result.json.medium.url;
+        console.log(event.value);
+        const result = await api.get(`/media/${event.value.hero}`);
+        const data = result.data as ApiMedia;
+
+        if (data && data.medium) {
+            imageLoad(data.medium.url, (url) => {
+                imageUrl.value = url;
+            });
         }
     } catch (error) {
         /* empty */
@@ -197,6 +244,7 @@ handleLoad();
         background-repeat: no-repeat;
         background-size: cover;
         background-color: #eee;
+        transition: background-image 0.2s;
 
         .workshop-image-loader {
             font-size: 5rem;
@@ -228,7 +276,7 @@ handleLoad();
                 align-items: center;
                 height: 1rem;
 
-                svg {
+                ion-icon {
                     display: inline-block;
                     width: 1rem;
                     margin-right: 0.5rem;

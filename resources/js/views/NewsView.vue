@@ -1,32 +1,33 @@
 <template>
-    <SMPage :loading="pageLoading" full class="page-post-view">
-        <SMPageError :error="error">
-            <div
-                class="heading-image"
-                :style="{
-                    backgroundImage: `url('${post.hero_url}')`,
-                }"></div>
-            <SMContainer>
-                <div class="heading-info">
-                    <h1>{{ post.title }}</h1>
-                    <div class="date-author">
-                        <ion-icon name="calendar-outline" />
-                        {{ formattedPublishAt(post.publish_at) }}, by
-                        {{ post.user_username }}
-                    </div>
+    <SMPage
+        :loading="pageLoading"
+        full
+        class="page-post-view"
+        :page-error="error">
+        <div
+            class="heading-image"
+            :style="{
+                backgroundImage: `url('${post.hero_url}')`,
+            }"></div>
+        <SMContainer>
+            <div class="heading-info">
+                <h1>{{ post.title }}</h1>
+                <div class="date-author">
+                    <ion-icon name="calendar-outline" />
+                    {{ formattedPublishAt(post.publish_at) }}, by
+                    {{ post.user_username }}
                 </div>
-                <component :is="formattedContent" ref="content"></component>
-            </SMContainer>
-        </SMPageError>
+            </div>
+            <component :is="formattedContent" ref="content"></component>
+        </SMContainer>
     </SMPage>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useRoute } from "vue-router";
-import SMPageError from "../components/SMPageError.vue";
 import { fullMonthString } from "../helpers/common";
-import { timestampUtcToLocal } from "../helpers/datetime";
+import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { api } from "../helpers/api";
 import SMPage from "../components/SMPage.vue";
@@ -48,17 +49,18 @@ const loadData = async () => {
                     limit: 1,
                 },
             });
-            if (!res.json.posts) {
+            if (!res.data.posts) {
                 error.value = 500;
             } else {
-                if (res.json.total == 0) {
+                if (res.data.total == 0) {
                     error.value = 404;
                 } else {
-                    post.value = res.json.posts[0];
+                    post.value = res.data.posts[0];
 
-                    post.value.publish_at = timestampUtcToLocal(
-                        post.value.publish_at
-                    );
+                    post.value.publish_at = new SMDate(post.value.publish_at, {
+                        format: "ymd",
+                        utc: true,
+                    }).format("yyyy/MM/dd HH:mm:ss");
 
                     applicationStore.setDynamicTitle(post.value.title);
 
@@ -66,7 +68,7 @@ const loadData = async () => {
                         let result = await api.get({
                             url: `/media/${post.value.hero}`,
                         });
-                        post.value.hero_url = result.json.medium.url;
+                        post.value.hero_url = result.data.medium.url;
                     } catch (error) {
                         /* empty */
                     }
@@ -75,7 +77,7 @@ const loadData = async () => {
                         let result = await api.get({
                             url: `/users/${post.value.user_id}`,
                         });
-                        post.value.user_username = result.json.user.username;
+                        post.value.user_username = result.data.user.username;
                     } catch (error) {
                         /* empty */
                     }

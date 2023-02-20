@@ -129,31 +129,31 @@ const handleClickItem = (item: string) => {
         vertical-align: middle;
         cursor: pointer;
     }
+
+    ul {
+        position: absolute;
+        z-index: 1;
+        top: 100%;
+        left: 0;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+    }
+
+    li {
+        padding: 12px 16px;
+        cursor: pointer;
+    }
+
+    li:hover {
+        background-color: #f1f1f1;
+    }
 }
 
 // New content here
 .dropdown {
     position: relative;
-}
-
-ul {
-    position: absolute;
-    z-index: 1;
-    top: 100%;
-    left: 0;
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    background-color: #f9f9f9;
-    border: 1px solid #ddd;
-}
-
-li {
-    padding: 12px 16px;
-    cursor: pointer;
-}
-
-li:hover {
-    background-color: #f1f1f1;
 }
 </style>

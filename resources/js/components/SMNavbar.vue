@@ -73,7 +73,7 @@ const menuItems = [
         name: "workshops",
         label: "Workshops",
         to: "/workshops",
-        icon: "shapes-outline",
+        icon: "library-outline",
     },
     // {
     //     name: "courses",
@@ -107,7 +107,7 @@ const menuItems = [
         name: "dashboard",
         label: "Dashboard",
         to: "/dashboard",
-        icon: "apps-outline",
+        icon: "grid-outline",
         show: () => userStore.id,
         inNav: false,
     },

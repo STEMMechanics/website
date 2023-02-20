@@ -110,7 +110,7 @@
                 Sign up for our mailing list to receive expert tips and tricks,
                 as well as updates on upcoming workshops.
             </p>
-            <SMDialog class="p-0">
+            <SMDialog class="p-0" no-shadow>
                 <SMForm v-model="form" @submit.prevent="handleSubscribe">
                     <div class="form-row">
                         <SMInput control="email" />
@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { excerpt } from "../helpers/common";
-import { timestampNowUtc } from "../helpers/datetime";
+import { SMDate } from "../helpers/datetime";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
@@ -156,39 +156,33 @@ const handleLoad = async () => {
         params: {
             limit: 3,
         },
-        progress: ({ loaded, total }) => {
-            console.log("progress", `${loaded} - ${total}`);
-        },
-    })
-        .then((response) => {
-            if (response.data.posts) {
-                response.data.posts.forEach((post) => {
-                    posts.push({
-                        title: post.title,
-                        content: excerpt(post.content, 200),
-                        image: post.hero,
-                        url: { name: "post-view", params: { slug: post.slug } },
-                        cta: "Read More...",
-                    });
+    }).then((response) => {
+        if (response.data.posts) {
+            response.data.posts.forEach((post) => {
+                posts.push({
+                    title: post.title,
+                    content: excerpt(post.content, 200),
+                    image: post.hero,
+                    url: { name: "post-view", params: { slug: post.slug } },
+                    cta: "Read More...",
                 });
-            }
-        })
-        .catch((error) => {
-            console.log("error", error);
-            /* empty */
-        });
+            });
+        }
+    });
 
     try {
         let result = await api.get({
             url: "/events",
             params: {
                 limit: 3,
-                end_at: ">" + timestampNowUtc(),
+                end_at:
+                    ">" +
+                    new SMDate().format("yyyy-MM-dd HH:mm:ss", { utc: true }),
             },
         });
 
-        if (result.json.events) {
-            result.json.events.forEach((event) => {
+        if (result.data.events) {
+            result.data.events.forEach((event) => {
                 events.push({
                     title: event.title,
                     content: excerpt(event.content, 200),

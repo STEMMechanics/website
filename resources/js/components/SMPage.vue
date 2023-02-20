@@ -13,18 +13,23 @@
                 class="sm-page"
                 :style="styleObject">
                 <slot></slot>
+                <SMContainer v-if="slots.container"
+                    ><slot name="container"></slot
+                ></SMContainer>
             </div>
         </SMLoader>
     </div>
 </template>
 
 <script setup lang="ts">
+import { useUserStore } from "../store/UserStore";
+import { useSlots } from "vue";
 import SMLoader from "./SMLoader.vue";
 import SMErrorForbidden from "./errors/Forbidden.vue";
 import SMErrorInternal from "./errors/Internal.vue";
 import SMErrorNotFound from "./errors/NotFound.vue";
 import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
-import { useUserStore } from "../store/UserStore";
+import SMContainer from "./SMContainer.vue";
 
 const props = defineProps({
     pageError: {
@@ -53,6 +58,8 @@ const props = defineProps({
         required: false,
     },
 });
+
+const slots = useSlots();
 const userStore = useUserStore();
 let styleObject = {};
 
@@ -74,7 +81,7 @@ const hasPermission = () => {
     flex-direction: column;
     flex: 1;
     width: 100%;
-    margin-bottom: calc(map-get($spacer, 5) * 2);
+    padding-bottom: calc(map-get($spacer, 5) * 2);
 
     &.sm-no-breadcrumbs {
         margin-bottom: 0;

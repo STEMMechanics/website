@@ -17,7 +17,8 @@
                 type == 'email' ||
                 type == 'password' ||
                 type == 'email' ||
-                type == 'url'
+                type == 'url' ||
+                type == 'daterange'
             "
             :type="type"
             :placeholder="placeholder"
@@ -130,8 +131,8 @@ const objForm = inject("form", props.form);
 const objControl =
     !isEmpty(objForm) && props.control != "" ? objForm[props.control] : null;
 
-const label = ref("");
-const feedbackInvalid = ref("");
+const label = ref(props.label);
+const feedbackInvalid = ref(props.feedbackInvalid);
 
 watch(
     () => props.label,
@@ -238,6 +239,7 @@ const inline = computed(() => {
     display: flex;
     flex-direction: column;
     margin-bottom: map-get($spacer, 4);
+    flex: 1;
 
     &.sm-input-active {
         label {

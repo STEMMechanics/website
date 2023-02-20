@@ -56,7 +56,7 @@ const handleMouseLeave = () => {
 
 const handleSlidePrev = () => {
     if (currentSlide.value == 0) {
-        currentSlide.value = maxSlide;
+        currentSlide.value = maxSlide.value;
     } else {
         currentSlide.value--;
     }
@@ -165,10 +165,12 @@ const disconnectMutationObserver = () => {
 
     .carousel-slide-prev {
         left: 1rem;
+        filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 1));
     }
 
     .carousel-slide-next {
         right: 1rem;
+        filter: drop-shadow(0px 0px 2px rgba(0, 0, 0, 1));
     }
 
     .carousel-slide-indicators {

@@ -55,7 +55,7 @@
 import { ref, reactive, watch } from "vue";
 import EasyDataTable from "vue3-easy-data-table";
 import { api } from "../../helpers/api";
-import { relativeDate } from "../../helpers/datetime";
+import { SMDate } from "../../helpers/datetime";
 import { useRouter } from "vue-router";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "vue3-promise-dialog";
@@ -134,7 +134,7 @@ const loadFromServer = async () => {
 
         items.value.forEach(async (row) => {
             if (Object.keys(users).includes(row.user_id) === false) {
-                await axios.get(`users/${row.user_id}`).then((res) => {
+                await api.get(`users/${row.user_id}`).then((res) => {
                     users[row.user_id] = res.data.user.username;
                 });
             }
@@ -146,10 +146,16 @@ const loadFromServer = async () => {
             }
 
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = new SMDate(row.created_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(row.updated_at);
+                row.updated_at = new SMDate(row.updated_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
         });
 

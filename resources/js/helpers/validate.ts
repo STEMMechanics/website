@@ -1,9 +1,4 @@
-import {
-    parseAusDate,
-    parseAusDateTime,
-    isValidTime,
-    convertTimeToMinutes,
-} from "../helpers/datetime";
+import { SMDate } from "./datetime";
 import { bytesReadable } from "../helpers/common";
 
 export interface ValidationObject {
@@ -226,7 +221,7 @@ interface ValidationEmailObject extends ValidationEmailOptions {
 }
 
 const defaultValidationEmailOptions: ValidationEmailOptions = {
-    invalidMessage: "Your Email is not in a supported format.",
+    invalidMessage: "Your email is not in a supported format.",
 };
 
 /**
@@ -379,26 +374,32 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
-            const parsedDate = parseAusDate(value);
+            const parsedDate = new SMDate(value);
 
-            if (parsedDate != null) {
-                const beforeDate = parseAusDate(
+            if (parsedDate.isValid() == true) {
+                const beforeDate = new SMDate(
                     typeof (options["before"] = options?.before || "") ===
-                        "function"
+                    "function"
                         ? options.before(value)
                         : options.before
                 );
-                const afterDate = parseAusDate(
+                const afterDate = new SMDate(
                     typeof (options["after"] = options?.after || "") ===
-                        "function"
+                    "function"
                         ? options.after(value)
                         : options.after
                 );
-                if (beforeDate != null && parsedDate > beforeDate) {
+                if (
+                    beforeDate.isValid() == true &&
+                    parsedDate.isBefore(beforeDate) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidBeforeMessage";
                 }
-                if (afterDate != null && parsedDate > afterDate) {
+                if (
+                    afterDate.isValid() == true &&
+                    parsedDate.isAfter(afterDate) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidAfterMessage";
                 }
@@ -462,26 +463,32 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
-            if (isValidTime(value)) {
-                const parsedTime = convertTimeToMinutes(value);
-                const beforeTime = convertTimeToMinutes(
+            const parsedTime = new SMDate(value);
+            if (parsedTime.isValid() == true) {
+                const beforeTime = new SMDate(
                     typeof (options["before"] = options?.before || "") ===
-                        "function"
+                    "function"
                         ? options.before(value)
                         : options.before
                 );
-                const afterTime = convertTimeToMinutes(
+                const afterTime = new SMDate(
                     typeof (options["after"] = options?.after || "") ===
-                        "function"
+                    "function"
                         ? options.after(value)
                         : options.after
                 );
 
-                if (beforeTime != -1 && parsedTime > beforeTime) {
+                if (
+                    beforeTime.isValid() == true &&
+                    parsedTime.isBefore(beforeTime) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidBeforeMessage";
                 }
-                if (afterTime != -1 && parsedTime > afterTime) {
+                if (
+                    afterTime.isValid() == true &&
+                    parsedTime.isAfter(afterTime) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidAfterMessage";
                 }
@@ -549,26 +556,32 @@ export function DateTime(
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
-            const parsedDate = parseAusDateTime(value);
+            const parsedDate = new SMDate(value);
 
-            if (parsedDate != null) {
-                const beforeDate = parseAusDate(
+            if (parsedDate.isValid() == true) {
+                const beforeDate = new SMDate(
                     typeof (options["before"] = options?.before || "") ===
-                        "function"
+                    "function"
                         ? options.before(value)
                         : options.before
                 );
-                const afterDate = parseAusDate(
+                const afterDate = new SMDate(
                     typeof (options["after"] = options?.after || "") ===
-                        "function"
+                    "function"
                         ? options.after(value)
                         : options.after
                 );
-                if (beforeDate != null && parsedDate > beforeDate) {
+                if (
+                    beforeDate.isValid() == true &&
+                    parsedDate.isBefore(beforeDate) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidBeforeMessage";
                 }
-                if (afterDate != null && parsedDate > afterDate) {
+                if (
+                    afterDate.isValid() == true &&
+                    parsedDate.isAfter(afterDate) == false
+                ) {
                     valid = false;
                     invalidMessageType = "invalidAfterMessage";
                 }

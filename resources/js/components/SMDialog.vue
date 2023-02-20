@@ -4,6 +4,7 @@
             'dialog',
             { 'dialog-narrow': narrow },
             { 'dialog-full': full },
+            { 'dialog-noshadow': noShadow },
         ]">
         <transition name="fade">
             <div v-if="loading" class="dialog-loading-cover">
@@ -37,6 +38,10 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    noShadow: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 
@@ -53,6 +58,10 @@ defineProps({
     overflow: hidden;
     min-width: map-get($spacer, 5) * 12;
     box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
+
+    &.dialog-noshadow {
+        box-shadow: none !important;
+    }
 
     & > h1 {
         margin-top: 0;

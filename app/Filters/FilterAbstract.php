@@ -165,9 +165,10 @@ abstract class FilterAbstract
      *
      * @param array     $attributes Attributes currently visible.
      * @param User|null $user       Current logged in user or null.
+     * @param object    $modelData  Model data if a single object is requested.
      * @return mixed
      */
-    protected function seeAttributes(array $attributes, mixed $user)
+    protected function seeAttributes(array $attributes, mixed $user, ?object $modelData = null)
     {
         return $attributes;
     }
@@ -224,7 +225,7 @@ abstract class FilterAbstract
         }
 
         /* Run attribute modifiers*/
-        $modifiedAttribs = $this->seeAttributes($attributes, $this->request->user());
+        $modifiedAttribs = $this->seeAttributes($attributes, $this->request->user(), $model);
         if (is_array($modifiedAttribs) === true) {
             $attributes = $modifiedAttribs;
         }

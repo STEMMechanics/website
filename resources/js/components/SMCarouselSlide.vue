@@ -22,6 +22,8 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { api } from "../helpers/api";
+import { ApiMedia } from "../helpers/api.types";
+import { imageLoad } from "../helpers/image";
 import SMButton from "./SMButton.vue";
 import SMLoadingIcon from "./SMLoadingIcon.vue";
 
@@ -53,17 +55,20 @@ const props = defineProps({
     },
 });
 
-let imageUrl = ref(null);
+let imageUrl = ref("");
 
-const handleLoad = async () => {
-    try {
-        let result = await api.get(`/media/${props.image}`);
-        if (result.json.medium) {
-            imageUrl.value = result.json.medium.url;
+const handleLoad = () => {
+    imageUrl.value = "";
+
+    api.get(`/media/${props.image}`).then((result) => {
+        const data = result.data as ApiMedia;
+
+        if (data && data.medium) {
+            imageLoad(data.medium.url, (url) => {
+                imageUrl.value = url;
+            });
         }
-    } catch (error) {
-        imageUrl.value = "";
-    }
+    });
 };
 
 handleLoad();

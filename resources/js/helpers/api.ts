@@ -18,10 +18,10 @@ interface ApiOptions {
     progress?: ApiProgressCallback;
 }
 
-interface ApiResponse {
+export interface ApiResponse {
     status: number;
     message: string;
-    data: { [key: string]: unknown };
+    data: unknown;
 }
 
 const apiDefaultHeaders = {

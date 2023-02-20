@@ -116,10 +116,7 @@ import {
 } from "../../helpers/validate";
 import { FormObject, FormControl } from "../../helpers/form";
 import { useRoute } from "vue-router";
-import {
-    timestampLocalToUtc,
-    timestampUtcToLocal,
-} from "../../helpers/datetime";
+import { SMDate } from "../../helpers/datetime";
 import { api } from "../../helpers/api";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
@@ -241,12 +238,19 @@ const loadData = async () => {
             form.address.value = res.data.event.address
                 ? res.data.event.address
                 : "";
-            form.start_at.value = timestampUtcToLocal(res.data.event.start_at);
-            form.end_at.value = timestampUtcToLocal(res.data.event.end_at);
+            form.start_at.value = new SMDate(res.data.event.start_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+            form.end_at.value = new SMDate(res.data.event.end_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
             form.status.value = res.data.event.status;
-            form.publish_at.value = timestampUtcToLocal(
-                res.data.event.publish_at
-            );
+            form.publish_at.value = new SMDate(res.data.event.publish_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
             form.registration_type.value = res.data.event.registration_type;
             form.registration_data.value = res.data.event.registration_data;
             form.content.value = res.data.event.content
@@ -267,13 +271,21 @@ const handleSubmit = async () => {
             title: form.title.value,
             location: form.location.value,
             address: form.address.value,
-            start_at: timestampLocalToUtc(form.start_at.value),
-            end_at: timestampLocalToUtc(form.end_at.value),
+            start_at: new SMDate(form.start_at.value, { format: "dmy" }).format(
+                "yyyy/MM/dd HH:mm:ss",
+                { utc: true }
+            ),
+            end_at: new SMDate(form.end_at.value, { format: "dmy" }).format(
+                "yyyy/MM/dd HH:mm:ss",
+                { utc: true }
+            ),
             status: form.status.value,
             publish_at:
                 form.publish_at.value == ""
                     ? ""
-                    : timestampLocalToUtc(form.publish_at.value),
+                    : new SMDate(form.publish_at.value, {
+                          format: "dmy",
+                      }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
             registration_type: form.registration_type.value,
             registration_data: form.registration_data.value,
             content: form.content.value,

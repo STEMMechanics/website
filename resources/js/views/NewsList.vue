@@ -32,7 +32,7 @@ import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
 import SMPage from "../components/SMPage.vue";
-import { timestampUtcToLocal } from "../helpers/datetime";
+import { SMDate } from "../helpers/datetime";
 
 const formMessage = reactive({
     icon: "",
@@ -58,7 +58,10 @@ const handleLoad = async () => {
         posts.value = result.json.posts;
 
         posts.value.forEach((post) => {
-            post.publish_at = timestampUtcToLocal(post.publish_at);
+            post.publish_at = new SMDate(post.publish_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
         });
     } catch (error) {
         formMessage.message =

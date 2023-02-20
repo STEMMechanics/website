@@ -31,7 +31,7 @@ import SMButton from "../../components/SMButton.vue";
 import SMTabGroup from "../../components/SMTabGroup.vue";
 import SMTab from "../../components/SMTab.vue";
 import SMMessage from "../../components/SMMessage.vue";
-import axios from "axios";
+import { api } from "../../helpers/api";
 
 let formLoading = ref(false);
 let logOutputContent = ref("");
@@ -49,7 +49,7 @@ const loadData = async () => {
 
     try {
         formLoading.value = true;
-        let res = await axios.get(`logs/discord`);
+        let res = await api.get(`logs/discord`);
 
         logOutputContent.value = res.data.log.output;
         if (logOutputContent.value.length === 0) {
