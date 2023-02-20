@@ -1,6 +1,6 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
-        <SMDialog narrow class="mt-5">
+        <SMDialog class="mt-5">
             <h1>Log in</h1>
             <SMForm v-model="form" @submit="handleSubmit">
                 <SMInput control="username">
