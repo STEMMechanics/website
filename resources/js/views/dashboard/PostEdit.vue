@@ -1,61 +1,64 @@
 <template>
-    <SMPage :page-error="pageError" permission="admin/posts">
-        <SMRow>
-            <SMDialog>
-                <h1>{{ page_title }}</h1>
-                <SMForm :model-value="form" @submit="handleSubmit">
-                    <SMRow>
-                        <SMColumn
-                            ><SMInput control="title" @blur="updateSlug()"
-                        /></SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn><SMInput control="slug" /></SMColumn>
-                        <SMColumn>
-                            <SMDatepicker
-                                control="publish_at"
-                                label="Publish Date"></SMDatepicker>
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn>
-                            <SMInput
-                                control="hero"
-                                type="media"
-                                label="Hero image"
-                                required />
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn>
-                            <SMSelect
-                                control="user_id"
-                                label="Created By"
-                                :options="authors"></SMSelect>
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn>
-                            <SMEditor
-                                v-model:srcContent="form.content.value"
-                                :mime-types="[
-                                    'image/png',
-                                    'image/jpeg',
-                                    'image/gif',
-                                ]"
-                                @trix-attachment-add="attachmentAdd" />
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMFormFooter>
-                            <template #right>
-                                <SMButton type="submit" label="Save" />
-                            </template>
-                        </SMFormFooter>
-                    </SMRow>
-                </SMForm>
-            </SMDialog>
-        </SMRow>
+    <SMPage
+        class="sm-page-post-edit"
+        :page-error="pageError"
+        permission="admin/posts">
+        <template #container>
+            <h1>{{ page_title }}</h1>
+            <SMForm :model-value="form" @submit="handleSubmit">
+                <SMRow>
+                    <SMColumn
+                        ><SMInput control="title" @blur="updateSlug()"
+                    /></SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn><SMInput control="slug" /></SMColumn>
+                    <SMColumn>
+                        <SMInput
+                            type="datetime"
+                            control="publish_at"
+                            label="Publish Date" />
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn>
+                        <SMInput
+                            control="hero"
+                            type="media"
+                            label="Hero image"
+                            required />
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn>
+                        <SMInput
+                            control="user_id"
+                            label="Created By"
+                            type="select"
+                            :options="authors" />
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn>
+                        <SMEditor
+                            v-model:srcContent="form.content.value"
+                            :mime-types="[
+                                'image/png',
+                                'image/jpeg',
+                                'image/gif',
+                            ]"
+                            @trix-attachment-add="attachmentAdd" />
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMFormFooter>
+                        <template #right>
+                            <SMButton type="submit" label="Save" />
+                        </template>
+                    </SMFormFooter>
+                </SMRow>
+            </SMForm>
+        </template>
     </SMPage>
 </template>
 
@@ -69,9 +72,6 @@ import { useUserStore } from "../../store/UserStore";
 import { useRoute } from "vue-router";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
-import SMSelect from "../../components/SMSelect.vue";
-import SMDatepicker from "../../components/SMDatePicker.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
@@ -141,6 +141,8 @@ const loadData = async () => {
                 throw new Error("The server is currently not available");
             }
 
+            console.log(res.data);
+
             form.title.value = res.data.post.title;
             form.slug.value = res.data.post.slug;
             form.user_id.value = res.data.post.user_id;
@@ -149,7 +151,7 @@ const loadData = async () => {
                 ? new SMDate(res.data.post.publish_at, {
                       format: "yMd",
                       utc: true,
-                  })
+                  }).format("dd/MM/yyyy HH:mm")
                 : "";
             form.content.value = res.data.post.content;
             form.hero.value = res.data.post.hero;
@@ -158,7 +160,7 @@ const loadData = async () => {
         }
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
 const handleSubmit = async () => {
@@ -269,3 +271,9 @@ const loadOptionsAuthors = async () => {
 loadOptionsAuthors();
 loadData();
 </script>
+
+<style lang="scss">
+.sm-page-post-edit {
+    background-color: #f8f8f8;
+}
+</style>
