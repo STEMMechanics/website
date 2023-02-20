@@ -76,6 +76,7 @@ import SMEditor from "../../components/SMEditor.vue";
 import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
+import { ApiCollectionPost, ApiUsers } from "../../helpers/api.types";
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -103,7 +104,8 @@ const updateSlug = async () => {
             .replace(/-+/g, "-")
             .replace(/^-*(.+?)-*$/, "$1");
 
-        while (1) {
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
             let slug = pre_slug;
 
             try {
@@ -135,29 +137,27 @@ const loadData = async () => {
     form.loading(true);
 
     if (route.params.id) {
-        try {
-            let res = await api.get("/posts/" + route.params.id);
-            if (!res.data.post) {
-                throw new Error("The server is currently not available");
-            }
+        api.get("/posts/" + route.params.id)
+            .then((result) => {
+                const data = result.data as ApiCollectionPost;
 
-            console.log(res.data);
-
-            form.title.value = res.data.post.title;
-            form.slug.value = res.data.post.slug;
-            form.user_id.value = res.data.post.user_id;
-            form.content.value = res.data.post.content;
-            form.publish_at.value = res.data.post.publish_at
-                ? new SMDate(res.data.post.publish_at, {
-                      format: "yMd",
-                      utc: true,
-                  }).format("dd/MM/yyyy HH:mm")
-                : "";
-            form.content.value = res.data.post.content;
-            form.hero.value = res.data.post.hero;
-        } catch (err) {
-            pageError.value = err.response.status;
-        }
+                form.title.value = data.post.title;
+                form.slug.value = data.post.slug;
+                form.user_id.value = data.post.user_id;
+                form.content.value = data.post.content;
+                form.publish_at.value = data.post.publish_at
+                    ? new SMDate(data.post.publish_at, {
+                          format: "yMd",
+                          utc: true,
+                      }).format("dd/MM/yyyy HH:mm")
+                    : "";
+                form.content.value = data.post.content;
+                form.hero.value = data.post.hero;
+            })
+            .catch((error) => {
+                pageError.value =
+                    error.data.message || "An unknown error occurred";
+            });
     }
 
     form.loading(false);
@@ -245,27 +245,27 @@ const attachmentAdd = async (event) => {
 };
 
 const loadOptionsAuthors = async () => {
-    try {
-        let res = await api.get({
-            url: "/users",
-            params: {
-                fields: "id,username,first_name,last_name",
-                limit: 100,
-            },
+    api.get({
+        url: "/users",
+        params: {
+            fields: "id,username,first_name,last_name",
+            limit: 100,
+        },
+    })
+        .then((result) => {
+            const data = result.data as ApiUsers;
+
+            if (data && data.users) {
+                authors.value = {};
+
+                data.users.forEach((item) => {
+                    authors.value[item.id] = `${item.username}`;
+                });
+            }
+        })
+        .catch((error) => {
+            form.apiError(error);
         });
-
-        if (!res.data.users) {
-            throw new Error("The server is currently not available");
-        }
-
-        authors.value = {};
-
-        res.data.users.forEach((item) => {
-            authors.value[item.id] = `${item.username}`;
-        });
-    } catch (err) {
-        form.apiError(err);
-    }
 };
 
 loadOptionsAuthors();
