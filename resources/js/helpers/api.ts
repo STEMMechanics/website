@@ -79,12 +79,6 @@ export const api = {
 
                         if (!response.body) {
                             return response;
-                            // return {
-                            //     status: 0,
-                            //     message:
-                            //         "ReadableStream not yet supported in this browser.",
-                            //     data: null,
-                            // };
                         }
 
                         let contentLength =
@@ -138,7 +132,12 @@ export const api = {
                     return response;
                 })
                 .then(async (response) => {
-                    const data = response.json ? await response.json() : {};
+                    let data: string | object = "";
+                    if (response.headers.get("content-type") == null) {
+                        data = response.text ? await response.text() : "";
+                    } else {
+                        data = response.json ? await response.json() : {};
+                    }
                     const result = {
                         status: response.status,
                         statusText: response.statusText,
@@ -154,7 +153,6 @@ export const api = {
                     resolve(result);
                 })
                 .catch((error) => {
-                    console.log(error);
                     // Handle any errors thrown during the fetch process
                     const { response, ...rest } = error;
                     reject({
