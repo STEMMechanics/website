@@ -155,6 +155,8 @@ const objControl =
 
 const label = ref(props.label);
 const feedbackInvalid = ref(props.feedbackInvalid);
+const value = ref(props.modelValue);
+const inputActive = ref(value.value.length > 0 || props.type == "select");
 
 watch(
     () => props.label,
@@ -163,7 +165,6 @@ watch(
     }
 );
 
-const value = ref(props.modelValue);
 if (objControl) {
     if (value.value.length > 0) {
         objControl.value = value.value;
@@ -184,6 +185,14 @@ if (objControl) {
         },
         { deep: true }
     );
+
+    watch(
+        () => objControl.value,
+        (newValue) => {
+            value.value = newValue;
+        },
+        { deep: true }
+    );
 }
 
 watch(
@@ -200,7 +209,12 @@ watch(
     }
 );
 
-const inputActive = ref(value.value.length > 0 || props.type == "select");
+watch(
+    () => value.value,
+    (newValue) => {
+        inputActive.value = newValue.length > 0;
+    }
+);
 
 const handleChange = (event) => {
     emits("update:modelValue", event.target.files[0]);
