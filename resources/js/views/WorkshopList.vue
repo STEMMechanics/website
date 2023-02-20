@@ -149,9 +149,10 @@ const handleLoad = async () => {
                     error.response?.data?.message ||
                     "Could not load any events from the server.";
             }
+        })
+        .finally(() => {
+            loading.value = false;
         });
-
-    loading.value = false;
 };
 
 const handleFilter = async () => {
