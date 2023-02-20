@@ -29,14 +29,14 @@
             @blur="handleBlur"
             @keydown="handleKeydown" />
         <textarea
-            v-if="type == 'textarea'"
+            v-else-if="type == 'textarea'"
             rows="5"
             :value="value"
             @input="handleInput"
             @focus="handleFocus"
             @blur="handleBlur"
             @keydown="handleKeydown"></textarea>
-        <div v-if="type == 'file'" class="input-file-group">
+        <div v-else-if="type == 'file'" class="input-file-group">
             <input
                 id="file"
                 type="file"
@@ -48,10 +48,25 @@
                 {{ modelValue?.name ? modelValue.name : modelValue }}
             </div>
         </div>
-        <a v-if="type == 'link'" :href="href" target="_blank">{{
+        <a v-else-if="type == 'link'" :href="href" target="_blank">{{
             props.modelValue
         }}</a>
-        <span v-if="type == 'static'">{{ props.modelValue }}</span>
+        <span v-else-if="type == 'static'">{{ props.modelValue }}</span>
+        <select
+            v-else-if="type == 'select'"
+            :value="value"
+            @input="handleInput"
+            @focus="handleFocus"
+            @blur="handleBlur"
+            @keydown="handleKeydown">
+            <option
+                v-for="(optionValue, key) in options"
+                :key="key"
+                :value="key"
+                :selected="key == value">
+                {{ optionValue }}
+            </option>
+        </select>
         <div v-if="slots.default || feedbackInvalid" class="sm-input-help">
             <span v-if="feedbackInvalid" class="sm-input-invalid">{{
                 feedbackInvalid
@@ -111,6 +126,12 @@ const props = defineProps({
     accept: {
         type: String,
         default: "",
+    },
+    options: {
+        type: Object,
+        default() {
+            return {};
+        },
     },
     control: {
         type: String,
@@ -179,7 +200,7 @@ watch(
     }
 );
 
-const inputActive = ref(value.value.length > 0);
+const inputActive = ref(value.value.length > 0 || props.type == "select");
 
 const handleChange = (event) => {
     emits("update:modelValue", event.target.files[0]);
@@ -254,6 +275,11 @@ const inline = computed(() => {
         }
 
         textarea {
+            padding: calc(#{map-get($spacer, 2)} * 2) map-get($spacer, 3)
+                calc(#{map-get($spacer, 2)} / 2) map-get($spacer, 3);
+        }
+
+        select {
             padding: calc(#{map-get($spacer, 2)} * 2) map-get($spacer, 3)
                 calc(#{map-get($spacer, 2)} / 2) map-get($spacer, 3);
         }
