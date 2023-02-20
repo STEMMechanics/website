@@ -237,6 +237,7 @@ dist/
 ### This Project ###
 /public/uploads
 /public/build
+/public/tinymce
 *.key
 
 ### Synk ###
