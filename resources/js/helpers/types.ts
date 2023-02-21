@@ -57,7 +57,7 @@ export const isUUID = (uuid: string): boolean => {
  * @returns {string} The bytes in human readable string.
  */
 export const bytesReadable = (bytes: number): string => {
-    if (isNaN(bytes)) {
+    if (Number.isNaN(bytes)) {
         return "0 Bytes";
     }
 

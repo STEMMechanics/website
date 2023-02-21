@@ -56,7 +56,7 @@ export class SMDate {
             }
         } else if (
             dateOrString instanceof Date &&
-            !isNaN(dateOrString.getTime())
+            !Number.isNaN(dateOrString.getTime())
         ) {
             this.date = dateOrString;
         }
@@ -223,7 +223,7 @@ export class SMDate {
         }
 
         if (
-            isNaN(date.getTime()) == false &&
+            Number.isNaN(date.getTime()) == false &&
             checkYear == parsedYear &&
             checkMonth == parsedMonth &&
             checkDay == parsedDay &&
