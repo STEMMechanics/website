@@ -66,31 +66,31 @@ const menuItems = [
     {
         name: "news",
         label: "News",
-        to: "/news",
+        to: { name: "news" },
         icon: "newspaper-outline",
     },
     {
         name: "workshops",
         label: "Workshops",
-        to: "/workshops",
+        to: { name: "workshop-list" },
         icon: "library-outline",
     },
-    // {
-    //     name: "courses",
-    //     label: "Courses",
-    //     to: "/courses",
-    //     icon: "fa-solid fa-graduation-cap",
-    // },
+    {
+        name: "courses",
+        label: "Courses",
+        to: "/courses",
+        icon: "briefcase-outline",
+    },
     {
         name: "contact",
         label: "Contact us",
-        to: "/contact",
+        to: { name: "contact" },
         icon: "mail-outline",
     },
     {
         name: "register",
         label: "Register",
-        to: "/register",
+        to: { name: "register" },
         icon: "person-add-outline",
         show: () => !userStore.id,
         inNav: false,
@@ -98,7 +98,7 @@ const menuItems = [
     {
         name: "login",
         label: "Log in",
-        to: "/login",
+        to: { name: "login" },
         icon: "log-in-outline",
         show: () => !userStore.id,
         inNav: false,
@@ -106,7 +106,7 @@ const menuItems = [
     {
         name: "dashboard",
         label: "Dashboard",
-        to: "/dashboard",
+        to: { name: "dashboard" },
         icon: "grid-outline",
         show: () => userStore.id,
         inNav: false,
@@ -114,7 +114,7 @@ const menuItems = [
     {
         name: "logout",
         label: "Log out",
-        to: "/logout",
+        to: { name: "logout" },
         icon: "log-out-outline",
         show: () => userStore.id,
         inNav: false,
