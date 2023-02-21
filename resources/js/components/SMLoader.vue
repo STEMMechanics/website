@@ -2,7 +2,8 @@
     <template v-if="loading">
         <transition name="fade">
             <div v-if="loading" class="sm-loader">
-                <SMLoadingIcon />
+                <SMLoadingIconToolbox v-if="type.toLowerCase() == 'toolbox'" />
+                <SMLoadingIconBalls v-else />
             </div>
         </transition>
     </template>
@@ -10,12 +11,19 @@
 </template>
 
 <script setup lang="ts">
-import SMLoadingIcon from "./SMLoadingIcon.vue";
+import SMLoadingIconToolbox from "./SMLoadingIconToolbox.vue";
+import SMLoadingIconBalls from "./SMLoadingIconBalls.vue";
 
 defineProps({
     loading: {
         type: Boolean,
         default: false,
+        required: true,
+    },
+    type: {
+        type: String,
+        default: "",
+        required: false,
     },
 });
 </script>
