@@ -368,16 +368,21 @@ const router = createRouter({
 
 // export let activeRoutes = [];
 
-router.beforeEach(async (to, from, next) => {
-    // BC Start
-    // activeRoutes = [];
-    // to.matched.forEach((record) => {
-    //     console.log(record.routeName);
-    //     activeRoutes.push(record);
-    // });
+let routerLoadingTimeout = null;
 
+router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const applicationStore = useApplicationStore();
+
+    if (routerLoadingTimeout != null) {
+        clearTimeout(routerLoadingTimeout);
+        routerLoadingTimeout = null;
+    }
+
+    routerLoadingTimeout = window.setTimeout(() => {
+        routerLoadingTimeout = null;
+        applicationStore.setRouterLoading(true);
+    }, 1000);
 
     applicationStore.clearDynamicTitle();
 
@@ -459,6 +464,16 @@ router.beforeEach(async (to, from, next) => {
     } else {
         next();
     }
+});
+
+router.afterEach((to, from) => {
+    if (routerLoadingTimeout != null) {
+        clearTimeout(routerLoadingTimeout);
+        routerLoadingTimeout = null;
+    }
+
+    const applicationStore = useApplicationStore();
+    applicationStore.setRouterLoading(false);
 });
 
 export default router;

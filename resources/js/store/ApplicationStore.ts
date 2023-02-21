@@ -2,14 +2,14 @@ import { defineStore } from "pinia";
 
 export interface ApplicationStore {
     dynamicTitle: string;
-    racers: boolean;
+    routerLoading: boolean;
 }
 
 export const useApplicationStore = defineStore({
     id: "application",
     state: (): ApplicationStore => ({
         dynamicTitle: "",
-        racers: false,
+        routerLoading: false,
     }),
 
     actions: {
@@ -20,6 +20,10 @@ export const useApplicationStore = defineStore({
 
         clearDynamicTitle() {
             this.$state.dynamicTitle = "";
+        },
+
+        setRouterLoading(loading: boolean) {
+            this.$state.routerLoading = loading;
         },
     },
 });

@@ -8,13 +8,18 @@
         </router-view>
     </main>
     <SMFooter />
+    <SMLoader :loading="applicationStore.routerLoading" />
     <DialogWrapper :transition-attrs="{ name: 'fade' }" />
 </template>
 
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
 import SMFooter from "../components/SMFooter.vue";
+import SMLoader from "../components/SMLoader.vue";
 import { DialogWrapper } from "vue3-promise-dialog";
+import { useApplicationStore } from "../store/ApplicationStore";
+
+const applicationStore = useApplicationStore();
 </script>
 
 <style lang="scss">
