@@ -70,12 +70,12 @@ const handleSubmit = async () => {
             },
         });
 
-        userStore.setUserDetails(res.json.user);
-        userStore.setUserToken(res.json.token);
+        userStore.setUserDetails(res.data.user);
+        userStore.setUserToken(res.data.token);
         if (redirect !== undefined) {
             if (redirect.startsWith("api/")) {
                 window.location.href =
-                    redirect + "?token=" + encodeURIComponent(res.json.token);
+                    redirect + "?token=" + encodeURIComponent(res.data.token);
             } else {
                 router.push({ path: redirect });
             }
