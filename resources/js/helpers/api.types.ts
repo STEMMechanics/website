@@ -1,21 +1,30 @@
-export interface ApiEventItem {
+export interface Event {
     start_at: string;
     end_at: string;
 }
 
-export interface ApiEvent {
-    event: ApiEventItem;
+export interface EventResponse {
+    event: Event;
 }
 
-export interface ApiMediaItem {
+export interface EventCollection {
+    events: Event;
+}
+
+export interface Media {
     url: string;
 }
 
-export interface ApiMedia {
-    medium: ApiMediaItem;
+export interface MediaResponse {
+    medium: Media;
 }
 
-export interface ApiPostItem {
+export interface MediaCollection {
+    medium: Array<Media>;
+}
+
+export interface Post {
+    id: string;
     title: string;
     slug: string;
     user_id: string;
@@ -24,23 +33,23 @@ export interface ApiPostItem {
     hero: string;
 }
 
-export interface ApiCollectionPost {
-    post: ApiPostItem;
+export interface PostResponse {
+    post: Post;
 }
 
-export interface ApiCollectionPosts {
-    posts: Array<ApiPostItem>;
+export interface PostCollection {
+    posts: Array<Post>;
 }
 
-export interface ApiUser {
+export interface User {
     id: string;
     username: string;
 }
 
-export interface ApiCollectionUser {
-    user: ApiUser;
+export interface UserResponse {
+    user: User;
 }
 
-export interface ApiCollectionUsers {
-    users: Array<ApiUser>;
+export interface UserCollection {
+    users: Array<User>;
 }
