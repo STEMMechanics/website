@@ -218,6 +218,7 @@ class MediaController extends ApiController
             $headerExpires = $updated_at->addMonth()->toRfc2822String();
         }//end if
 
+        // deepcode ignore InsecureHash: Browsers expect Etag to be a md5 hash
         $headerEtag = md5($updated_at->format('U'));
         $headerLastModified = $updated_at->toRfc2822String();
 
