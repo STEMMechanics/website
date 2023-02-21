@@ -72,7 +72,7 @@ const courseBoxTitle = computed(() => {
 
 <style lang="scss">
 .sm-dashboard {
-    background-color: #f8f8f8;
+    background-color: $secondary-background-color;
 
     .boxes {
         display: flex;
@@ -84,17 +84,15 @@ const courseBoxTitle = computed(() => {
             display: flex;
             flex-basis: map-get($spacer, 5) * 4.5;
             flex-direction: column;
-            border: 1px solid $border-color;
             border-radius: 12px;
-            border: 2px solid $font-color;
-            background-color: #fff;
+            border: 2px solid $primary-color-dark;
+            background-color: $primary-color-lighter;
             padding: map-get($spacer, 5) map-get($spacer, 4);
             margin: map-get($spacer, 3);
             font-size: map-get($spacer, 3);
-            color: $font-color;
-            color: $font-color !important;
+            color: $primary-color-dark !important;
             margin-bottom: map-get($spacer, 5);
-            transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+            transition: all 0.2s ease-in-out;
             align-items: center;
             text-align: center;
 
@@ -109,8 +107,9 @@ const courseBoxTitle = computed(() => {
 
             &:hover {
                 text-decoration: none;
-                // background-color: $secondary-color;
-                color: $font-color;
+                background-color: $primary-color-light;
+                border-color: $primary-color-darker;
+                color: $primary-color-darker !important;
                 box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
                 transform: scale(1.01);
             }
