@@ -135,17 +135,37 @@ const handleClickItem = (item: string) => {
         white-space: nowrap;
         display: flex;
         align-items: center;
+        font-weight: normal;
+        background: #fff !important;
+        color: $primary-color !important;
+        border-radius: 12px;
+        border-width: 1px;
+        font-size: 0.8rem;
+        min-width: auto;
 
         span {
             flex: 1;
-            border-right: 1px solid rgba(255, 255, 255, 0.5);
-            padding-top: map-get($spacer, 1);
-            padding-bottom: map-get($spacer, 1);
-            padding-left: map-get($spacer, 2);
+            border-right: 1px solid $primary-color;
+            padding: 0;
+            padding-top: calc(#{map-get($spacer, 1)} / 1.5);
+            padding-bottom: calc(#{map-get($spacer, 1)} / 1.5);
+            padding-left: map-get($spacer, 3);
+            padding-right: map-get($spacer, 3);
         }
 
         ion-icon {
-            padding: 0 calc(#{map-get($spacer, 1)} / 2);
+            height: 1rem;
+            width: 1rem;
+            padding: 0 map-get($spacer, 1) 0 map-get($spacer, 1);
+        }
+
+        &:hover {
+            background-color: $primary-color !important;
+            color: #fff !important;
+
+            span {
+                border-right: 1px solid $primary-color-light;
+            }
         }
     }
 
@@ -166,8 +186,8 @@ const handleClickItem = (item: string) => {
         list-style: none;
         padding: 0;
         margin: 0;
-        background-color: #f9f9f9;
-        border: 1px solid #ddd;
+        background-color: #f8f8f8;
+        border: 1px solid $border-color;
         color: $primary-color;
         box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
     }
@@ -179,7 +199,8 @@ const handleClickItem = (item: string) => {
     }
 
     li:hover {
-        background-color: #ddd;
+        background-color: $primary-color;
+        color: #f8f8f8;
     }
 }
 </style>
