@@ -9,7 +9,7 @@
                 class="mt-5" />
             <SMPanelList
                 :loading="loading"
-                :not-found="posts?.length == 0"
+                :not-found="!loading && posts.length == 0"
                 not-found-text="No news found">
                 <SMPanel
                     v-for="post in posts"
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { Ref, ref } from "vue";
 import { api } from "../helpers/api";
 import SMMessage from "../components/SMMessage.vue";
 import SMPanelList from "../components/SMPanelList.vue";
@@ -39,7 +39,7 @@ import { PostCollection, Post } from "../helpers/api.types";
 
 const message = ref("");
 const loading = ref(true);
-let posts: Array<Post> = reactive([]);
+const posts: Ref<Post[]> = ref([]);
 
 const handleLoad = async () => {
     message.value = "";
@@ -53,8 +53,8 @@ const handleLoad = async () => {
         .then((result) => {
             const data = result.data as PostCollection;
 
-            posts = data.posts;
-            posts.forEach((post) => {
+            posts.value = data.posts;
+            posts.value.forEach((post) => {
                 post.publish_at = new SMDate(post.publish_at, {
                     format: "ymd",
                     utc: true,
@@ -64,9 +64,10 @@ const handleLoad = async () => {
         .catch((error) => {
             message.value =
                 error.data?.message || "The server is currently not available";
+        })
+        .finally(() => {
+            loading.value = false;
         });
-
-    loading.value = false;
 };
 
 handleLoad();
