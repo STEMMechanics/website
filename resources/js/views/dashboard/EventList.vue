@@ -35,14 +35,7 @@
                 >
             </template>
             <template #item-actions="item">
-                <div class="action-wrapper">
-                    <!-- <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" /> -->
-                </div>
+                <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
     </SMContainer>

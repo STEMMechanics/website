@@ -162,7 +162,7 @@ const registerUrl = computed(() => {
 
 const handleLoad = async () => {
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     api.get(`/events/${route.params.id}`)

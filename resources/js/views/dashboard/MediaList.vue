@@ -36,14 +36,8 @@
             </template>
             <template #item-actions="item">
                 <div class="action-wrapper">
-                    <!-- <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click.stop="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click.stop="handleDelete(item)" /> -->
                     <SMFileLink :href="item.url" target="_blank" @click.stop=""
-                        ><font-awesome-icon icon="fa-solid fa-download"
+                        ><font-awesome-icon icon="cloud-download-outline"
                     /></SMFileLink>
                 </div>
             </template>
@@ -101,7 +95,7 @@ const serverOptions = ref({
 const loadFromServer = async () => {
     formLoading.value = true;
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {

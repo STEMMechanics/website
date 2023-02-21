@@ -35,7 +35,7 @@ const formMessage = reactive({
 
 const handleLoad = async () => {
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {

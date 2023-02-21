@@ -19,14 +19,7 @@
                 <SMLoadingIcon />
             </template>
             <template #item-actions="item">
-                <div class="action-wrapper">
-                    <!-- <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" /> -->
-                </div>
+                <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
     </SMContainer>
@@ -77,7 +70,7 @@ const serverOptions = ref({
 const loadFromServer = async () => {
     formLoading.value = true;
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {

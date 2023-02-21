@@ -119,7 +119,7 @@ const handlePickSelection = (item) => {
 
 const handleLoad = async () => {
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
     selected.value = "";
 
@@ -143,7 +143,7 @@ const handleLoad = async () => {
     } catch (error) {
         if (error.status == 404) {
             formMessage.type = "primary";
-            formMessage.icon = "fa-regular fa-folder-open";
+            formMessage.icon = "folder-open-outline";
             formMessage.message = "No media items found";
         } else {
             formMessage.message =
@@ -159,7 +159,7 @@ const handleAskUpload = () => {
 const handleUpload = async () => {
     formLoading.value = true;
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {
