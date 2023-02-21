@@ -8,7 +8,7 @@
         </router-view>
     </main>
     <SMFooter />
-    <SMLoader :loading="applicationStore.routerLoading" />
+    <SMLoader type="toolbox" :loading="applicationStore.routerLoading" />
     <DialogWrapper :transition-attrs="{ name: 'fade' }" />
 </template>
 
