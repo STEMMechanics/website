@@ -12,7 +12,7 @@
 
 <script setup lang="ts">
 import SMLoadingIconToolbox from "./SMLoadingIconToolbox.vue";
-import SMLoadingIconBalls from "./SMLoadingIconBalls.vue";
+import SMLoadingIconBalls from "./SMLoadingIcon.vue";
 
 defineProps({
     loading: {
