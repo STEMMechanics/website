@@ -11,6 +11,7 @@ import SMRow from "./components/SMRow.vue";
 import SMColumn from "./components/SMColumn.vue";
 import { PromiseDialog } from "vue3-promise-dialog";
 import { VueReCaptcha } from "vue-recaptcha-v3";
+import "./lib/prism";
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
