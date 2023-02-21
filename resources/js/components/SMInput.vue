@@ -321,7 +321,7 @@ const inline = computed(() => {
         transform-origin: top left;
         transform: translate(0, 1px) scale(1);
         transition: all 0.1s ease-in-out;
-        color: $font-color;
+        color: $secondary-color-dark;
         pointer-events: none;
     }
 
