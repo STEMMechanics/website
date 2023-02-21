@@ -25,7 +25,7 @@
         ]"
         :type="buttonType"
         @click="handleClick">
-        {{ label }}
+        <span>{{ label }}</span>
         <ion-icon v-if="icon && dropdown == null" :icon="icon" />
         <ion-icon
             v-if="dropdown != null"
@@ -131,8 +131,22 @@ const handleClickItem = (item: string) => {
     }
 
     &.dropdown-button {
-        padding: map-get($spacer, 1) map-get($spacer, 2);
+        padding: 0;
         white-space: nowrap;
+        display: flex;
+        align-items: center;
+
+        span {
+            flex: 1;
+            border-right: 1px solid rgba(255, 255, 255, 0.5);
+            padding-top: map-get($spacer, 1);
+            padding-bottom: map-get($spacer, 1);
+            padding-left: map-get($spacer, 2);
+        }
+
+        ion-icon {
+            padding: 0 calc(#{map-get($spacer, 1)} / 2);
+        }
     }
 
     ion-icon {
