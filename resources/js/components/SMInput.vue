@@ -176,6 +176,8 @@ if (objControl) {
         label.value = toTitleCase(props.control);
     }
 
+    inputActive.value = value.value.length > 0;
+
     watch(
         () => objControl.validation.result.valid,
         (newValue) => {
