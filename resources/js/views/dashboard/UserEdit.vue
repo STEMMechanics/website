@@ -15,15 +15,17 @@
                     <SMColumn><SMInput control="phone" /></SMColumn>
                 </SMRow>
                 <SMRow>
-                    <SMFormFooter>
-                        <template #right>
-                            <SMButton
-                                type="secondary"
-                                label="Change Password"
-                                @click.prevent="handleChangePassword" />
-                            <SMButton type="submit" label="Update" />
-                        </template>
-                    </SMFormFooter>
+                    <SMColumn>
+                        <SMFormFooter>
+                            <template #right>
+                                <SMButton
+                                    type="secondary"
+                                    label="Change Password"
+                                    @click.prevent="handleChangePassword" />
+                                <SMButton type="submit" label="Update" />
+                            </template>
+                        </SMFormFooter>
+                    </SMColumn>
                 </SMRow>
             </SMForm>
         </template>
@@ -40,7 +42,6 @@ import { useRoute } from "vue-router";
 import { openDialog } from "vue3-promise-dialog";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMPage from "../../components/SMPage.vue";
 import SMHeading from "../../components/SMHeading.vue";
