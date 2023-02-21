@@ -18,12 +18,12 @@ import "tinymce/themes/silver";
 import "tinymce/icons/default";
 import "tinymce/models/dom";
 
-import "tinymce/plugins/image"; // 插入上传图片插件
-import "tinymce/plugins/media"; // 插入视频插件
-import "tinymce/plugins/table"; // 插入表格插件
-import "tinymce/plugins/lists"; // 列表插件
+import "tinymce/plugins/image";
+import "tinymce/plugins/media";
+import "tinymce/plugins/table";
+import "tinymce/plugins/lists";
 import "tinymce/plugins/advlist";
-import "tinymce/plugins/link"; // 列表插件
+import "tinymce/plugins/link";
 import "tinymce/plugins/autolink";
 import "tinymce/plugins/lists";
 import "tinymce/plugins/link";
@@ -33,7 +33,6 @@ import "tinymce/plugins/searchreplace";
 import "tinymce/plugins/visualblocks";
 import "tinymce/plugins/code";
 import "tinymce/plugins/fullscreen";
-// import "tinymce/plugins/print";
 import "tinymce/plugins/preview";
 import "tinymce/plugins/anchor";
 import "tinymce/plugins/insertdatetime";
@@ -45,17 +44,11 @@ import "tinymce/plugins/directionality";
 import "tinymce/plugins/visualchars";
 import "tinymce/plugins/template";
 import "tinymce/plugins/codesample";
-// import "tinymce/plugins/hr";
 import "tinymce/plugins/pagebreak";
 import "tinymce/plugins/nonbreaking";
-// import "tinymce/plugins/toc";
-// import "tinymce/plugins/imagetools";
-// import "tinymce/plugins/textpattern";
-// import "tinymce/plugins/noneditable";
 import "tinymce/plugins/emoticons";
 import "tinymce/plugins/autosave";
 
-// import Trix from "trix";
 import { ref, watch, computed, onUnmounted } from "vue";
 import { arrayHasBasicMatch } from "../helpers/array";
 
@@ -114,19 +107,6 @@ const props = defineProps({
     },
 });
 
-/*                height: 500,
-                menubar: false,
-                plugins: [
-                    'advlist autolink lists link image charmap print preview anchor',
-                    'searchreplace visualblocks code fullscreen',
-                    'insertdatetime media table paste code help wordcount',
-                ],
-                toolbar:
-                    'undo redo | formatselect | bold italic backcolor | \
-           alignleft aligncenter alignright alignjustify | \
-           bullist numlist outdent indent | removeformat | help',
-*/
-
 const init = {
     promotion: false,
     // emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
@@ -162,7 +142,21 @@ const init = {
     toolbar:
         "undo redo | bold italic underline strikethrough | fontselect fontsizeselect formatselect | alignleft aligncenter alignright alignjustify | outdent indent |  numlist bullist | forecolor backcolor removeformat | pagebreak | charmap emoticons | fullscreen  preview save print | insertfile image media template link anchor codesample | ltr rtl",
     branding: false,
-    menubar: true,
+    menubar: false,
+    toolbar_mode: "wrap",
+    link_list: [
+        { title: "Tiny Home Page", value: "https://www.tiny.cloud" },
+        { title: "Tiny Blog", value: "https://www.tiny.cloud/blog" },
+        {
+            title: "TinyMCE Documentation",
+            value: "https://www.tiny.cloud/docs/",
+        },
+        {
+            title: "TinyMCE on Stack Overflow",
+            value: "https://stackoverflow.com/questions/tagged/tinymce",
+        },
+        { title: "TinyMCE GitHub", value: "https://github.com/tinymce/" },
+    ],
     // https://www.tiny.cloud/docs/configure/file-image-upload/#images_upload_handler
     images_upload_handler: (blobInfo, success, failure) => {
         console.log(blobInfo);
