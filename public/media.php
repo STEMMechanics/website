@@ -1,6 +1,14 @@
 <?php
-if (isset($_GET['url']) && strpos($_GET['url'], 'uploads/') === 0 && is_file($_GET['url'])) {
-    $image = imagecreatefromstring(file_get_contents($_GET['url']));
+// file deepcode ignore PT: Input is sanitized using realpath which is ignored by Snyk
+// file deepcode ignore Ssrf: Input is sanitized using realpath which is ignored by Snyk
+
+$filepath = "";
+if (isset($_GET['url'])) {
+    $filepath = realpath($_GET['url']);
+}
+
+if ($filepath !== false && strlen($filepath) > 0 && strpos($filepath, 'uploads/') === 0 && is_file($filepath)) {
+    $image = imagecreatefromstring(file_get_contents($filepath));
 
     $newWidth = (isset($_GET['w']) ? intval($_GET['w']) : -1);
     $newHeight = (isset($_GET['h']) ? intval($_GET['h']) : -1);
@@ -39,8 +47,8 @@ if (isset($_GET['url']) && strpos($_GET['url'], 'uploads/') === 0 && is_file($_G
         imagedestroy($newImage);
     } else {
         // Output the original image to the browser
-        header('Content-Type:  '. mime_content_type($_GET['url']));
-        readfile($_GET['url']);
+        header('Content-Type:  '. mime_content_type($filepath));
+        readfile($filepath);
     }
 
     // Clean up the image resources
