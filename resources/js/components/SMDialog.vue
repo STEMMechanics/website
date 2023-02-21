@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import SMLoadingIcon from "./SMLoadingIcon.vue";
+import SMLoadingIcon from "./SMLoadingIconBalls.vue";
 
 defineProps({
     loading: {
