@@ -272,6 +272,10 @@ const inline = computed(() => {
 </script>
 
 <style lang="scss">
+.sm-column > .sm-input-group {
+    margin-bottom: 0;
+}
+
 .sm-input-group {
     position: relative;
     display: flex;

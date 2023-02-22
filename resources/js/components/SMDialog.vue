@@ -1,7 +1,7 @@
 <template>
     <div
         :class="[
-            'dialog',
+            'sm-dialog',
             { 'dialog-narrow': narrow },
             { 'dialog-full': full },
             { 'dialog-noshadow': noShadow },
@@ -46,7 +46,7 @@ defineProps({
 </script>
 
 <style lang="scss">
-.dialog {
+.sm-dialog {
     flex-direction: column;
     margin: 0 auto;
     background-color: #eee;
@@ -109,7 +109,7 @@ defineProps({
 }
 
 @media only screen and (max-width: 640px) {
-    .dialog {
+    .sm-dialog {
         padding: map-get($spacer, 5) map-get($spacer, 4) map-get($spacer, 4)
             map-get($spacer, 4);
         min-width: auto;
