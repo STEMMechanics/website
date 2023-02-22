@@ -20,7 +20,8 @@ export interface MediaResponse {
 }
 
 export interface MediaCollection {
-    medium: Array<Media>;
+    media: Array<Media>;
+    total: number;
 }
 
 export interface Post {
