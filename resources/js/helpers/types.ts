@@ -39,18 +39,6 @@ export function isString(target: unknown): boolean {
 }
 
 /**
- * Test if target is a UUID
- *
- * @param {string} uuid The variable to test
- * @returns {boolean} If the varible is a UUID
- */
-export const isUUID = (uuid: string): boolean => {
-    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-        uuid
-    );
-};
-
-/**
  * Convert bytes to a human readable string.
  *
  * @param {number} bytes The bytes to convert.
