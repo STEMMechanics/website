@@ -2,10 +2,7 @@
     <SMPage class="sm-page-user-edit">
         <template #container>
             <SMHeading :heading="pageHeading" />
-            <SMForm
-                class="sm-form-columns"
-                :model-value="form"
-                @submit="handleSubmit">
+            <SMForm :model-value="form" @submit="handleSubmit">
                 <SMRow>
                     <SMColumn><SMInput control="first_name" /></SMColumn>
                     <SMColumn><SMInput control="last_name" /></SMColumn>
