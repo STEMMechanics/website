@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { onMounted, computed, ref, reactive, watch } from "vue";
-import { isUUID } from "../helpers/types";
+import { isUUID } from "../helpers/uuid";
 import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
 import { api } from "../helpers/api";
 import { imageLoad } from "../helpers/image";
