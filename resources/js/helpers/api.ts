@@ -58,7 +58,19 @@ export const api = {
             }
 
             if (options.body && typeof options.body === "object") {
-                options.body = JSON.stringify(options.body);
+                if (options.body instanceof FormData) {
+                    if (
+                        Object.prototype.hasOwnProperty.call(
+                            options.headers,
+                            "Content-Type"
+                        )
+                    ) {
+                        // remove the "Content-Type" key from the headers object
+                        delete options.headers["Content-Type"];
+                    }
+                } else {
+                    options.body = JSON.stringify(options.body);
+                }
             }
 
             const fetchOptions: RequestInit = {
