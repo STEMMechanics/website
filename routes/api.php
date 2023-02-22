@@ -22,7 +22,7 @@ use App\Http\Controllers\Api\UserController;
 |
 */
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/register', [UserController::class, 'register']);
 
 Route::apiResource('users', UserController::class);
