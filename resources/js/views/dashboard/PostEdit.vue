@@ -40,14 +40,7 @@
                 </SMRow>
                 <SMRow>
                     <SMColumn>
-                        <SMEditor
-                            v-model:srcContent="form.content.value"
-                            :mime-types="[
-                                'image/png',
-                                'image/jpeg',
-                                'image/gif',
-                            ]"
-                            @trix-attachment-add="attachmentAdd" />
+                        <SMEditor v-model:model-value="form.content.value" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>

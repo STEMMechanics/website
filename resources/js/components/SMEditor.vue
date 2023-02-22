@@ -5,10 +5,13 @@
             id="tinymce"
             ref="tinyeditor"
             v-model="editorContent"
-            model-events="change keydown blur focus paste"
+            model-events="change blur focus"
             output-format="html"
             :init="init"
-            @blur="handleBlur" />
+            :disabled="props.disabled"
+            @blur="handleBlur"
+            @focus="handleFocus"
+            @change="handleChange" />
     </div>
 </template>
 
@@ -63,53 +66,14 @@ interface PageList {
 }
 
 const props = defineProps({
-    disabledEditor: {
+    modelValue: {
+        type: String,
+        required: true,
+    },
+    disabled: {
         type: Boolean,
         required: false,
         default: false,
-    },
-    srcContent: {
-        type: String,
-        required: false,
-        default: "",
-    },
-    inputId: {
-        type: String,
-        required: false,
-        default: "",
-    },
-    inputName: {
-        type: String,
-        required: false,
-        default: "content",
-    },
-    placeholder: {
-        type: String,
-        required: false,
-        default: "",
-    },
-    label: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    required: {
-        type: Boolean,
-        required: false,
-    },
-    mimeTypes: {
-        type: Array,
-        default() {
-            return [];
-        },
-        required: false,
-    },
-    removeButtons: {
-        type: Array,
-        required: false,
-        default() {
-            return [];
-        },
     },
 });
 
@@ -194,38 +158,33 @@ const init = {
     },
 };
 
-const editorContent = ref(props.srcContent);
-const isActive = ref(false);
+const editorContent = ref(props.modelValue);
 
-const emits = defineEmits(["input", "update", "blur"]);
+const emits = defineEmits(["input", "update:modelValue", "blur", "focus"]);
 
-const handleContentChange = (event) => {
-    editorContent.value = event.srcElement
-        ? event.srcElement.value
-        : event.target.value;
-    emits("input", editorContent.value);
-};
-
+/* Updating value */
 const handleInitialContentChange = (newContent) => {
     newContent = newContent === undefined ? "" : newContent;
     editorContent.value = newContent;
 };
 
-const handleBlur = (event, editor) => {
-    isActive.value = false;
-    console.log("blur", editorContent.value, editor);
-    emits("blur", event);
-};
-
 const initialContent = computed(() => {
-    return props.srcContent;
-});
-
-const isDisabled = computed(() => {
-    return props.disabledEditor;
+    return props.modelValue;
 });
 
 watch(initialContent, handleInitialContentChange);
+
+const handleBlur = (event, editor) => {
+    emits("blur", event);
+};
+
+const handleFocus = (event, editor) => {
+    emits("focus", event);
+};
+
+const handleChange = (event, editor) => {
+    emits("update:modelValue", editor.getContent());
+};
 
 const fetchLinkList = () => {
     const buildPageList = (
