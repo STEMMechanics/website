@@ -59,7 +59,7 @@ class MediaController extends ApiController
     {
         $file = $request->file('file');
         if ($file === null) {
-            return $this->respondError(['file' => 'An error occurred uploading the file to the server.']);
+            return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
         }
 
         if ($file->isValid() !== true) {
@@ -68,9 +68,9 @@ class MediaController extends ApiController
                 case UPLOAD_ERR_FORM_SIZE:
                     return $this->respondTooLarge();
                 case UPLOAD_ERR_PARTIAL:
-                    return $this->respondError(['file' => 'The file upload was interrupted.']);
+                    return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
                 default:
-                    return $this->respondError(['file' => 'An error occurred uploading the file to the server.']);
+                    return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
             }
         }
 
@@ -82,7 +82,7 @@ class MediaController extends ApiController
         $mime = $file->getMimeType();
         $fileInfo = Media::store($file, empty($request->input('permission')));
         if ($fileInfo === null) {
-            return $this->respondError(
+            return $this->respondWithErrors(
                 ['file' => 'The file could not be stored on the server'],
                 HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
             );
@@ -121,7 +121,7 @@ class MediaController extends ApiController
             $oldPath = $medium->path();
             $fileInfo = Media::store($file, empty($request->input('permission')));
             if ($fileInfo === null) {
-                return $this->respondError(
+                return $this->respondWithErrors(
                     ['file' => 'The file could not be stored on the server'],
                     HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
                 );
