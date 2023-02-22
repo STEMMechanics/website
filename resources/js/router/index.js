@@ -336,6 +336,7 @@ export const routes = [
         name: "error-internal",
         meta: {
             title: "Server error",
+            hideInEditor: true,
         },
         component: () => import("@/components/errors/Internal.vue"),
     },
@@ -344,6 +345,7 @@ export const routes = [
         name: "forbidden",
         meta: {
             title: "Forbidden",
+            hideInEditor: true,
         },
         component: () => import("@/components/errors/Forbidden.vue"),
     },
@@ -352,6 +354,7 @@ export const routes = [
         name: "not-found",
         meta: {
             title: "Page not found",
+            hideInEditor: true,
         },
         component: () => import("@/components/errors/NotFound.vue"),
     },
