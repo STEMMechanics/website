@@ -45,6 +45,7 @@
                                 control="status"
                                 :options="{
                                     draft: 'Draft',
+                                    soon: 'Opening Soon',
                                     open: 'Open',
                                     closed: 'Closed',
                                     cancelled: 'Cancelled',

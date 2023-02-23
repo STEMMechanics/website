@@ -25,12 +25,17 @@
                                 }).isBefore())
                         "
                         class="workshop-registration workshop-registration-closed">
-                        Registration for this event has closed
+                        Registration for this event has closed.
+                    </div>
+                    <div
+                        v-if="event.status == 'soon'"
+                        class="workshop-registration workshop-registration-soon">
+                        Registration for this event will open soon.
                     </div>
                     <div
                         v-if="event.status == 'cancelled'"
                         class="workshop-registration workshop-registration-cancelled">
-                        This event has been cancelled
+                        This event has been cancelled.
                     </div>
                     <div
                         v-if="
@@ -300,7 +305,8 @@ handleLoad();
                 }
             }
 
-            .workshop-registration-none {
+            .workshop-registration-none,
+            .workshop-registration-soon {
                 border: 1px solid #ffeeba;
                 background-color: #fff3cd;
                 color: #856404;
