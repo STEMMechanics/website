@@ -185,8 +185,8 @@ const disconnectMutationObserver = () => {
         transition: opacity 0.2s ease-in-out;
 
         .carousel-slide-indicator-item {
-            height: map-get($spacer, 1);
-            width: map-get($spacer, 1);
+            height: 12px;
+            width: 12px;
             border: 1px solid white;
             border-radius: 50%;
             cursor: pointer;
