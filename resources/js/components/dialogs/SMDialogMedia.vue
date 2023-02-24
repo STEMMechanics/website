@@ -1,61 +1,71 @@
 <template>
     <SMModal>
         <SMDialog
-            :loading="formLoading"
+            :loading="dialogLoading"
             full
-            :loading_message="formLoadingMessage"
+            :loading_message="dialogLoadingMessage"
             class="sm-dialog-media">
             <h1>Insert Media</h1>
             <SMMessage
                 v-if="formMessage"
                 icon="alert-circle-outline"
                 type="error"
-                :message="formMessage" />
-            <div
-                v-if="mediaItems.length > 0"
-                class="media-browser media-browser-grid">
-                <ul>
-                    <li
-                        v-for="item in mediaItems"
-                        :key="item.id"
-                        :class="[{ selected: item.id == selected }]"
-                        @click="handleSelection(item.id)"
-                        @dblclick="handlePickSelection(item.id)">
-                        <div
-                            :style="{ backgroundImage: `url('${item.url}')` }"
-                            class="media-image"></div>
-                        <span class="media-title">{{ item.title }}</span>
-                        <span class="media-size">{{
-                            bytesReadable(item.size)
-                        }}</span>
-                    </li>
-                </ul>
-                <div class="media-browser-page-info">
-                    <span class="media-browser-layouts">
-                        <ion-icon name="grid-outline"></ion-icon>
-                        <ion-icon name="list-outline"></ion-icon>
-                    </span>
-                    <span class="media-browser-page-changer">
+                :message="formMessage"
+                class="d-flex" />
+            <div class="media-browser" :class="mediaBrowserClasses">
+                <div class="media-browser-content">
+                    <SMLoadingIcon v-if="mediaLoading" />
+                    <div
+                        v-if="!mediaLoading && mediaItems.length == 0"
+                        class="media-none">
+                        <ion-icon name="sad-outline"></ion-icon>
+                        <p>No media found</p>
+                    </div>
+                    <ul v-if="!mediaLoading && mediaItems.length > 0">
+                        <li
+                            v-for="item in mediaItems"
+                            :key="item.id"
+                            :class="[{ selected: item.id == selected }]"
+                            @click="handleClickItem(item.id)"
+                            @dblclick="handleDblClickItem(item.id)">
+                            <div
+                                :style="{
+                                    backgroundImage: `url('${getFilePreview(
+                                        item.url
+                                    )}')`,
+                                }"
+                                class="media-image"></div>
+                            <span class="media-title">{{ item.title }}</span>
+                            <span class="media-size">{{
+                                bytesReadable(item.size)
+                            }}</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="media-browser-toolbar">
+                    <div class="layout-buttons">
+                        <ion-icon
+                            name="grid-outline"
+                            class="layout-button-grid"
+                            @click="handleClickGridLayout"></ion-icon>
+                        <ion-icon
+                            name="list-outline"
+                            class="layout-button-list"
+                            @click="handleClickListLayout"></ion-icon>
+                    </div>
+                    <div class="pagination-buttons">
                         <ion-icon
                             name="chevron-back-outline"
-                            :class="[
-                                'changer-button',
-                                { disabled: prevDisabled },
-                            ]"
-                            @click="handlePrev" />
-                        <span class="media-browser-page-number"
-                            >{{ (page - 1) * perPage + 1 }} -
-                            {{ (page - 1) * perPage + 12 }} of
-                            {{ totalItems }}</span
-                        >
+                            :class="[{ disabled: computedDisablePrevButton }]"
+                            @click="handleClickPrev" />
+                        <span class="pagination-info">{{
+                            computedPaginationInfo
+                        }}</span>
                         <ion-icon
                             name="chevron-forward-outline"
-                            :class="[
-                                'changer-button',
-                                { disabled: nextDisabled },
-                            ]"
-                            @click="handleNext" />
-                    </span>
+                            :class="[{ disabled: computedDisableNextButton }]"
+                            @click="handleClickNext" />
+                    </div>
                 </div>
             </div>
             <SMFormFooter>
@@ -63,26 +73,29 @@
                     <SMButton
                         type="button"
                         label="Cancel"
-                        @click="handleCancel" />
+                        @click="handleClickCancel" />
                 </template>
                 <template #right>
                     <SMButton
+                        v-if="props.allowUpload"
                         type="button"
                         label="Upload"
-                        @click="handleAskUpload" />
+                        @click="handleClickUpload" />
                     <SMButton
                         type="primary"
                         label="Insert"
                         :disabled="selected.length == 0"
-                        @click="handleConfirm" />
+                        @click="handleClickInsert" />
                 </template>
             </SMFormFooter>
             <input
+                v-if="props.allowUpload"
                 id="file"
-                ref="uploader"
+                ref="refUploadInput"
                 type="file"
                 style="display: none"
-                @change="handleUpload" />
+                :accept="computedAccepts"
+                @change="handleChangeUpload" />
         </SMDialog>
     </SMModal>
 </template>
@@ -97,7 +110,9 @@ import SMMessage from "../SMMessage.vue";
 import SMModal from "../SMModal.vue";
 import { api } from "../../helpers/api";
 import { bytesReadable } from "../../helpers/types";
-import { Media } from "../../helpers/api.types";
+import { getFilePreview } from "../../helpers/utils";
+import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
+import SMLoadingIcon from "../SMLoadingIcon.vue";
 
 const props = defineProps({
     mime: {
@@ -105,141 +120,337 @@ const props = defineProps({
         default: "image/",
         required: false,
     },
+    accepts: {
+        type: String,
+        default: "image/*",
+        required: false,
+    },
+    allowUpload: {
+        type: Boolean,
+        default: true,
+        required: false,
+    },
 });
 
-const uploader = ref(null);
-const formLoading = ref(false);
-const formLoadingMessage = ref("");
+/**
+ * Reference to the File Upload Input element.
+ */
+const refUploadInput = ref<HTMLInputElement | null>(null);
+
+/**
+ * Is the dialog loading/busy
+ */
+const dialogLoading = ref(false);
+
+/**
+ * The dialog loading message to display
+ */
+const dialogLoadingMessage = ref("");
+
+/**
+ * The form user message to display
+ */
 const formMessage = ref("");
 
+/**
+ * Is the media loading/busy
+ */
+const mediaLoading = ref(true);
+
+/**
+ * Classes to apply to the media browser
+ */
+const mediaBrowserClasses = ref(["media-browser-grid"]);
+
+/**
+ * Current page.
+ */
 const page = ref(1);
+
+/**
+ * Total media items expressed by API.
+ */
 const totalItems = ref(0);
+
+/**
+ * List of current media items.
+ */
 const mediaItems: Ref<Media[]> = ref([]);
+
+/**
+ * Selected media item id.
+ */
 const selected = ref("");
+
+/**
+ * How many media items are we showing per page.
+ */
 const perPage = ref(12);
 
-const handleCancel = () => {
+/**
+ * Returns the pagination info
+ */
+const computedPaginationInfo = computed(() => {
+    if (totalItems.value == 0) {
+        return "0 - 0 of 0";
+    }
+
+    const start = (page.value - 1) * perPage.value + 1;
+    const end = start + perPage.value - 1;
+
+    return `${start} - ${end} of ${totalItems.value}`;
+});
+
+/**
+ * Returns the file types accepted.
+ */
+const computedAccepts = computed(() => {
+    if (props.accepts.length > 0) {
+        return props.accepts;
+    }
+
+    if (props.mime.endsWith("/")) {
+        return `${props.mime}*`;
+    }
+
+    return props.mime;
+});
+
+/**
+ * Return the total number of pages.
+ */
+const computedTotalPages = computed(() => {
+    return Math.ceil(totalItems.value / perPage.value);
+});
+
+/**
+ * Return if the previous button should be disabled.
+ */
+const computedDisablePrevButton = computed(() => {
+    return page.value <= 1;
+});
+
+/**
+ * Return if the next button should be disabled.
+ */
+const computedDisableNextButton = computed(() => {
+    return page.value >= computedTotalPages.value;
+});
+
+/**
+ * Get the media item by id.
+ *
+ * @param {string} item_id The media item id.
+ * @returns {Media | null} The media object or null.
+ */
+const getMediaItem = (item_id: string): Media | null => {
+    let found: Media | null = null;
+
+    mediaItems.value.every((item) => {
+        console.log(item.id, item_id);
+        if (item.id == item_id) {
+            found = item;
+            return false;
+        }
+
+        return true;
+    });
+
+    return found;
+};
+
+/**
+ * Handle user clicking the cancel/close button.
+ */
+const handleClickCancel = () => {
     closeDialog(false);
 };
 
-const handleConfirm = () => {
+/**
+ * Handle user clicking the insert button.
+ */
+const handleClickInsert = () => {
     if (selected.value !== "") {
-        closeDialog(selected.value);
-    } else {
-        closeDialog(false);
+        const mediaItem = getMediaItem(selected.value);
+        console.log(mediaItem, selected.value);
+        if (mediaItem != null) {
+            closeDialog(mediaItem);
+            return;
+        }
     }
+
+    closeDialog(false);
 };
 
-const handleSelection = (item_id: string): void => {
+/**
+ * Handle user clicking a media item (selecting).
+ *
+ * @param {string} item_id The media id.
+ */
+const handleClickItem = (item_id: string): void => {
     selected.value = item_id;
 };
 
-const handlePickSelection = (item_id: string): void => {
-    closeDialog(item_id);
-};
-
-const handleLoad = async () => {
-    formMessage.value = "";
-    selected.value = "";
-
-    try {
-        let params = {
-            page: 0,
-            limit: 0,
-            // fields: "",
-        };
-        params.page = page.value;
-        params.limit = perPage.value;
-        // params.fields = "url";
-
-        let res = await api.get({
-            url: "/media",
-            params: params,
-        });
-
-        totalItems.value = res.data.total;
-        mediaItems.value = res.data.media;
-    } catch (error) {
-        if (error.status == 404) {
-            // formMessage.type = "primary";
-            // formMessage.icon = "folder-open-outline";
-            // formMessage.message = "No media items found";
-        } else {
-            formMessage.value =
-                error?.data?.message || "An unexpected error occurred";
-        }
-    }
-};
-
-const handleAskUpload = () => {
-    uploader.value.click();
-};
-
-const handleUpload = async () => {
-    formLoading.value = true;
-    formMessage.value = "";
-
-    try {
-        let submitFormData = new FormData();
-        if (uploader.value.files[0] instanceof File) {
-            submitFormData.append("file", uploader.value.files[0]);
-
-            let res = await api.post({
-                url: "/media",
-                params: {
-                    mime: props.mime,
-                },
-                body: submitFormData,
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                // onUploadProgress: (progressEvent) =>
-                //     (formLoadingMessage.value = `Uploading Files ${Math.floor(
-                //         (progressEvent.loaded / progressEvent.total) * 100
-                //     )}%`),
-            });
-
-            if (res.data.medium) {
-                closeDialog(res.data.medium);
-            } else {
-                formMessage.value =
-                    "An unexpected response was received from the server";
-            }
-        } else {
-            formMessage.value = "No file was selected to upload";
-        }
-    } catch (err) {
-        console.log(err);
-        formMessage.value =
-            err.response?.data?.message || "An unexpected error occurred";
+/**
+ * Handle user double clicking a media item.
+ *
+ * @param item_id The media id.
+ */
+const handleDblClickItem = (item_id: string): void => {
+    const mediaItem = getMediaItem(item_id);
+    if (mediaItem != null) {
+        closeDialog(mediaItem);
+        return;
     }
 
-    formLoading.value = false;
+    closeDialog(false);
 };
 
-const handlePrev = ($event) => {
+/**
+ * Handle Grid layout request click
+ */
+const handleClickGridLayout = () => {
+    mediaBrowserClasses.value = ["media-browser-grid"];
+};
+
+/**
+ * Handle List layout request click
+ */
+const handleClickListLayout = () => {
+    mediaBrowserClasses.value = ["media-browser-list"];
+};
+
+/**
+ * Handle click on previous button
+ *
+ * @param {MouseEvent} $event The mouse event.
+ */
+const handleClickPrev = ($event: MouseEvent): void => {
     if (
-        $event.target.classList.contains("disabled") == false &&
+        $event.target &&
+        ($event.target as HTMLElement).classList.contains("disabled") ==
+            false &&
         page.value > 1
     ) {
         page.value--;
     }
 };
 
-const handleNext = ($event) => {
+/**
+ * Handle click on next button
+ *
+ * @param {MouseEvent} $event The mouse event.
+ */
+const handleClickNext = ($event: MouseEvent): void => {
     if (
-        $event.target.classList.contains("disabled") == false &&
-        page.value < totalPages.value
+        $event.target &&
+        ($event.target as HTMLElement).classList.contains("disabled") ==
+            false &&
+        page.value < computedTotalPages.value
     ) {
         page.value++;
     }
 };
 
+/**
+ * When the user clicks the upload button
+ */
+const handleClickUpload = () => {
+    if (refUploadInput.value != null) {
+        refUploadInput.value.click();
+    }
+};
+
+/**
+ * Upload the file to the server.
+ */
+const handleChangeUpload = async () => {
+    dialogLoading.value = true;
+    formMessage.value = "";
+
+    if (refUploadInput.value != null && refUploadInput.value.files != null) {
+        const firstFile: File | undefined = refUploadInput.value.files[0];
+        if (firstFile != null) {
+            let submitFormData = new FormData();
+            submitFormData.append("file", firstFile);
+
+            api.post({
+                url: "/media",
+                body: submitFormData,
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+                // progress: (progressData) =>
+                //     (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
+                //         (progressData.loaded / progressData.total) * 100
+                //     )}%`),
+            })
+                .then((result) => {
+                    if (result.data) {
+                        const data = result.data as MediaResponse;
+                        closeDialog(data.medium);
+                    } else {
+                        formMessage.value =
+                            "An unexpected response was received from the server";
+                    }
+                })
+                .catch((error) => {
+                    formMessage.value =
+                        error.response?.data?.message ||
+                        "An unexpected error occurred";
+                });
+        } else {
+            formMessage.value = "No file was selected to upload";
+        }
+    } else {
+        formMessage.value = "No file was selected to upload";
+    }
+
+    dialogLoading.value = false;
+};
+
+/**
+ * Load the data of the dialog
+ */
+const handleLoad = async () => {
+    mediaLoading.value = true;
+
+    api.get({
+        url: "/media",
+        params: {
+            page: page.value,
+            limit: perPage.value,
+        },
+    })
+        .then((result) => {
+            if (result.data) {
+                const data = result.data as MediaCollection;
+
+                totalItems.value = data.total;
+                mediaItems.value = data.media;
+            }
+        })
+        .catch((error) => {
+            formMessage.value =
+                error?.data?.message || "An unexpected error occurred";
+        })
+        .finally(() => {
+            mediaLoading.value = false;
+        });
+};
+
+/**
+ * Handle the user pressing keyboard keys.
+ *
+ * @param {KeyboardEvent} event The keyboard event.
+ */
 const eventKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
-        handleCancel();
+        handleClickCancel();
     } else if (event.key === "Enter") {
-        handleConfirm();
+        if (selected.value.length > 0) {
+            handleClickInsert();
+        }
     }
 };
 
@@ -251,19 +462,7 @@ onUnmounted(() => {
     document.removeEventListener("keyup", eventKeyUp);
 });
 
-const totalPages = computed(() => {
-    return Math.ceil(totalItems.value / perPage.value);
-});
-
-const prevDisabled = computed(() => {
-    return page.value <= 1;
-});
-
-const nextDisabled = computed(() => {
-    return page.value >= totalPages.value;
-});
-
-watch(page, (value) => {
+watch(page, () => {
     handleLoad();
 });
 
@@ -273,27 +472,114 @@ handleLoad();
 <style lang="scss">
 .sm-dialog-media {
     .media-browser {
-        ul {
+        display: flex;
+        flex-direction: column;
+
+        .media-browser-content {
             display: flex;
-            list-style-type: none;
-            margin: 0 0 1rem 0;
-            padding: map-get($spacer, 3);
-            overflow: auto;
-            max-height: 40vh;
+            height: 40vh;
             border: 1px solid $border-color;
             background-color: #fff;
-            gap: 1rem;
             justify-content: center;
+            align-items: center;
+            margin: 0 0 1rem 0;
 
-            li {
+            .media-none {
+                font-size: 1.5rem;
+                text-align: center;
+
+                ion-icon {
+                    font-size: 3rem;
+                    margin-bottom: 0.5rem;
+                }
+            }
+
+            ul {
+                display: block;
+                list-style-type: none;
+                overflow: auto;
+                max-height: 40vh;
+                height: 100%;
+                width: 100%;
+                gap: 1rem;
+                justify-content: center;
+                padding: map-get($spacer, 3);
+
+                li {
+                    display: flex;
+                    align-items: center;
+                    border: 3px solid transparent;
+                    box-sizing: content-box;
+                    padding: 2px;
+
+                    &.selected,
+                    &:hover {
+                        border-color: $primary-color-dark;
+                    }
+
+                    .media-image {
+                        background-size: contain;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                    }
+                }
+            }
+        }
+
+        .media-browser-toolbar {
+            display: flex;
+            margin-bottom: map-get($spacer, 3);
+
+            .layout-buttons,
+            .pagination-buttons {
+                flex: 1;
                 display: flex;
                 align-items: center;
             }
 
-            .media-image {
-                background-size: cover;
-                background-position: center;
-                background-repeat: no-repeat;
+            .layout-buttons {
+                ion-icon {
+                    &:first-of-type {
+                        border-top-right-radius: 0;
+                        border-bottom-right-radius: 0;
+                    }
+                    &:last-of-type {
+                        border-top-left-radius: 0;
+                        border-bottom-left-radius: 0;
+                        border-left: 0;
+                    }
+                }
+            }
+
+            .pagination-buttons {
+                justify-content: right;
+            }
+
+            ion-icon {
+                border: 1px solid $secondary-color;
+                border-radius: 4px;
+                padding: 0.25rem;
+
+                cursor: pointer;
+                transition: color 0.1s ease-in-out,
+                    background-color 0.1s ease-in-out;
+                color: $font-color;
+
+                &.disabled {
+                    cursor: not-allowed;
+                    color: $secondary-color;
+                }
+
+                &:not(.disabled) {
+                    &:hover {
+                        background-color: $secondary-color;
+                        color: #eee;
+                    }
+                }
+            }
+
+            .pagination-info {
+                margin: 0 map-get($spacer, 3);
             }
         }
 
@@ -322,99 +608,60 @@ handleLoad();
             .media-size {
                 font-size: 75%;
             }
+
+            .media-browser-toolbar {
+                .layout-button-grid {
+                    color: $font-color;
+                }
+
+                .layout-button-list {
+                    color: $primary-color;
+                }
+            }
         }
 
         &.media-browser-grid {
             ul {
+                display: flex;
                 flex-direction: row;
                 flex-wrap: wrap;
             }
 
             li {
                 flex-direction: column;
-                height: 11rem;
-                width: 13rem;
+                height: 194px;
+                width: 220px;
+
+                .media-image {
+                    min-height: 132px;
+                    min-width: 220px;
+                }
+
+                .media-title {
+                    text-align: center;
+                    padding: map-get($spacer, 1) 4px;
+                    width: 13rem;
+                    display: block;
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+
+                .media-size {
+                    font-size: 75%;
+                }
             }
 
-            .media-image {
-                min-height: 7.5rem;
-                min-width: 13rem;
-                margin-right: map-get($spacer, 1);
-            }
+            .media-browser-toolbar {
+                .layout-button-grid {
+                    color: $primary-color;
+                }
 
-            .media-title {
-                text-align: center;
-                padding: map-get($spacer, 1) 0;
-                width: 13rem;
-                display: block;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .media-size {
-                font-size: 75%;
+                .layout-button-list {
+                    color: $font-color;
+                }
             }
         }
     }
 }
-
-// .media-browser-list {
-//     border: 1px solid $border-color;
-//     background-color: #fff;
-//     overflow: auto;
-//     max-height: 40vh;
-//     display: flex;
-//     list-style-type: none;
-//     margin: 0 0 1rem 0;
-//     padding: map-get($spacer, 3);
-//     justify-content: center;
-//     gap: 0.3rem;
-//     flex-wrap: wrap;
-
-//     li {
-//         display: flex;
-//         height: 7.5rem;
-//         width: 13rem;
-//         border: 3px solid transparent;
-//         padding: 1px;
-
-//         &.selected {
-//             border-color: $primary-color-darker;
-//         }
-
-//         img {
-//             width: 100%;
-//             height: 100%;
-//         }
-//     }
-// }
-
-// .media-browser-page-info {
-//     margin-bottom: 1rem;
-//     display: flex;
-//     justify-content: flex-end;
-
-//     .media-browser-page-changer {
-//         margin-left: 1rem;
-//     }
-
-//     .changer-button {
-//         cursor: pointer;
-//         transition: color 0.1s ease-in;
-//         color: $font-color;
-//         margin: 0 0.25rem;
-
-//         &.disabled {
-//             cursor: not-allowed;
-//             color: $secondary-color;
-//         }
-
-//         &:not(.disabled) {
-//             &:hover {
-//                 color: $primary-color;
-//             }
-//         }
-//     }
-// }
 </style>
