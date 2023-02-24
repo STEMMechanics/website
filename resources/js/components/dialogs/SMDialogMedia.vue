@@ -3,28 +3,38 @@
         <SMDialog
             :loading="formLoading"
             full
-            :loading_message="formLoadingMessage">
+            :loading_message="formLoadingMessage"
+            class="sm-dialog-media">
             <h1>Insert Media</h1>
             <SMMessage
-                v-if="formMessage.message"
-                :icon="formMessage.icon"
-                :type="formMessage.type"
-                :message="formMessage.message" />
-            <div v-if="mediaItems.length > 0" class="media-browser">
-                <ul class="media-browser-list">
+                v-if="formMessage"
+                icon="alert-circle-outline"
+                type="error"
+                :message="formMessage" />
+            <div
+                v-if="mediaItems.length > 0"
+                class="media-browser media-browser-grid">
+                <ul>
                     <li
                         v-for="item in mediaItems"
                         :key="item.id"
-                        :class="[{ selected: item == selected }]"
-                        @click="handleSelection(item)"
-                        @dblclick="handlePickSelection(item)">
-                        <img :src="item.url" :title="item.title" />
+                        :class="[{ selected: item.id == selected }]"
+                        @click="handleSelection(item.id)"
+                        @dblclick="handlePickSelection(item.id)">
+                        <div
+                            :style="{ backgroundImage: `url('${item.url}')` }"
+                            class="media-image"></div>
+                        <span class="media-title">{{ item.title }}</span>
+                        <span class="media-size">{{
+                            bytesReadable(item.size)
+                        }}</span>
                     </li>
                 </ul>
                 <div class="media-browser-page-info">
-                    <span class="media-browser-page-number"
-                        >Page {{ page }} of {{ totalPages }}</span
-                    >
+                    <span class="media-browser-layouts">
+                        <ion-icon name="grid-outline"></ion-icon>
+                        <ion-icon name="list-outline"></ion-icon>
+                    </span>
                     <span class="media-browser-page-changer">
                         <ion-icon
                             name="chevron-back-outline"
@@ -33,6 +43,11 @@
                                 { disabled: prevDisabled },
                             ]"
                             @click="handlePrev" />
+                        <span class="media-browser-page-number"
+                            >{{ (page - 1) * perPage + 1 }} -
+                            {{ (page - 1) * perPage + 12 }} of
+                            {{ totalItems }}</span
+                        >
                         <ion-icon
                             name="chevron-forward-outline"
                             :class="[
@@ -73,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, reactive, onMounted, onUnmounted } from "vue";
+import { computed, watch, ref, onMounted, onUnmounted, Ref } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
 import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
@@ -81,19 +96,25 @@ import SMDialog from "../SMDialog.vue";
 import SMMessage from "../SMMessage.vue";
 import SMModal from "../SMModal.vue";
 import { api } from "../../helpers/api";
+import { bytesReadable } from "../../helpers/types";
+import { Media } from "../../helpers/api.types";
+
+const props = defineProps({
+    mime: {
+        type: String,
+        default: "image/",
+        required: false,
+    },
+});
 
 const uploader = ref(null);
 const formLoading = ref(false);
 const formLoadingMessage = ref("");
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
+const formMessage = ref("");
 
 const page = ref(1);
 const totalItems = ref(0);
-const mediaItems = ref([]);
+const mediaItems: Ref<Media[]> = ref([]);
 const selected = ref("");
 const perPage = ref(12);
 
@@ -109,18 +130,16 @@ const handleConfirm = () => {
     }
 };
 
-const handleSelection = (item) => {
-    selected.value = item;
+const handleSelection = (item_id: string): void => {
+    selected.value = item_id;
 };
 
-const handlePickSelection = (item) => {
-    closeDialog(item);
+const handlePickSelection = (item_id: string): void => {
+    closeDialog(item_id);
 };
 
 const handleLoad = async () => {
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
+    formMessage.value = "";
     selected.value = "";
 
     try {
@@ -142,11 +161,11 @@ const handleLoad = async () => {
         mediaItems.value = res.data.media;
     } catch (error) {
         if (error.status == 404) {
-            formMessage.type = "primary";
-            formMessage.icon = "folder-open-outline";
-            formMessage.message = "No media items found";
+            // formMessage.type = "primary";
+            // formMessage.icon = "folder-open-outline";
+            // formMessage.message = "No media items found";
         } else {
-            formMessage.message =
+            formMessage.value =
                 error?.data?.message || "An unexpected error occurred";
         }
     }
@@ -158,9 +177,7 @@ const handleAskUpload = () => {
 
 const handleUpload = async () => {
     formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
+    formMessage.value = "";
 
     try {
         let submitFormData = new FormData();
@@ -169,6 +186,9 @@ const handleUpload = async () => {
 
             let res = await api.post({
                 url: "/media",
+                params: {
+                    mime: props.mime,
+                },
                 body: submitFormData,
                 headers: {
                     "Content-Type": "multipart/form-data",
@@ -179,18 +199,18 @@ const handleUpload = async () => {
                 //     )}%`),
             });
 
-            if (res.json.medium) {
-                closeDialog(res.json.medium);
+            if (res.data.medium) {
+                closeDialog(res.data.medium);
             } else {
-                formMessage.message =
+                formMessage.value =
                     "An unexpected response was received from the server";
             }
         } else {
-            formMessage.message = "No file was selected to upload";
+            formMessage.value = "No file was selected to upload";
         }
     } catch (err) {
         console.log(err);
-        formMessage.message =
+        formMessage.value =
             err.response?.data?.message || "An unexpected error occurred";
     }
 
@@ -251,62 +271,150 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.media-browser-list {
-    border: 1px solid $border-color;
-    background-color: #fff;
-    overflow: auto;
-    max-height: 40vh;
-    display: flex;
-    list-style-type: none;
-    margin: 0 0 1rem 0;
-    padding: map-get($spacer, 3);
-    justify-content: center;
-    gap: 0.3rem;
-    flex-wrap: wrap;
+.sm-dialog-media {
+    .media-browser {
+        ul {
+            display: flex;
+            list-style-type: none;
+            margin: 0 0 1rem 0;
+            padding: map-get($spacer, 3);
+            overflow: auto;
+            max-height: 40vh;
+            border: 1px solid $border-color;
+            background-color: #fff;
+            gap: 1rem;
+            justify-content: center;
 
-    li {
-        display: flex;
-        height: 7.5rem;
-        width: 13rem;
-        border: 3px solid transparent;
-        padding: 1px;
+            li {
+                display: flex;
+                align-items: center;
+            }
 
-        &.selected {
-            border-color: $primary-color-darker;
+            .media-image {
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+            }
         }
 
-        img {
-            width: 100%;
-            height: 100%;
+        &.media-browser-list {
+            ul {
+                flex-direction: column;
+                flex-wrap: nowrap;
+            }
+
+            li {
+                height: auto;
+                width: auto;
+            }
+
+            .media-image {
+                width: 64px;
+                height: 64px;
+                margin-right: map-get($spacer, 1);
+            }
+
+            .media-title {
+                flex: 1;
+                text-align: left;
+            }
+
+            .media-size {
+                font-size: 75%;
+            }
         }
-    }
-}
 
-.media-browser-page-info {
-    margin-bottom: 1rem;
-    display: flex;
-    justify-content: flex-end;
+        &.media-browser-grid {
+            ul {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
 
-    .media-browser-page-changer {
-        margin-left: 1rem;
-    }
+            li {
+                flex-direction: column;
+                height: 11rem;
+                width: 13rem;
+            }
 
-    .changer-button {
-        cursor: pointer;
-        transition: color 0.1s ease-in;
-        color: $font-color;
-        margin: 0 0.25rem;
+            .media-image {
+                min-height: 7.5rem;
+                min-width: 13rem;
+                margin-right: map-get($spacer, 1);
+            }
 
-        &.disabled {
-            cursor: not-allowed;
-            color: $secondary-color;
-        }
+            .media-title {
+                text-align: center;
+                padding: map-get($spacer, 1) 0;
+                width: 13rem;
+                display: block;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
 
-        &:not(.disabled) {
-            &:hover {
-                color: $primary-color;
+            .media-size {
+                font-size: 75%;
             }
         }
     }
 }
+
+// .media-browser-list {
+//     border: 1px solid $border-color;
+//     background-color: #fff;
+//     overflow: auto;
+//     max-height: 40vh;
+//     display: flex;
+//     list-style-type: none;
+//     margin: 0 0 1rem 0;
+//     padding: map-get($spacer, 3);
+//     justify-content: center;
+//     gap: 0.3rem;
+//     flex-wrap: wrap;
+
+//     li {
+//         display: flex;
+//         height: 7.5rem;
+//         width: 13rem;
+//         border: 3px solid transparent;
+//         padding: 1px;
+
+//         &.selected {
+//             border-color: $primary-color-darker;
+//         }
+
+//         img {
+//             width: 100%;
+//             height: 100%;
+//         }
+//     }
+// }
+
+// .media-browser-page-info {
+//     margin-bottom: 1rem;
+//     display: flex;
+//     justify-content: flex-end;
+
+//     .media-browser-page-changer {
+//         margin-left: 1rem;
+//     }
+
+//     .changer-button {
+//         cursor: pointer;
+//         transition: color 0.1s ease-in;
+//         color: $font-color;
+//         margin: 0 0.25rem;
+
+//         &.disabled {
+//             cursor: not-allowed;
+//             color: $secondary-color;
+//         }
+
+//         &:not(.disabled) {
+//             &:hover {
+//                 color: $primary-color;
+//             }
+//         }
+//     }
+// }
 </style>
