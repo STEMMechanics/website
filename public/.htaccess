@@ -4,7 +4,7 @@
     </IfModule>
 
     <IfModule mod_headers.c>
-        <FilesMatch "\.(?i:pdf|doc|docx|zip|txt|mp4)$">
+        <FilesMatch "^(uploads|img)/.+">
             <If "%{QUERY_STRING} =~ /(^|&)download=1($|&)/">
                 Header set Content-Disposition "attachment"
             </If>
