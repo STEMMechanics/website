@@ -1,7 +1,7 @@
-/* https://blog.logrocket.com/axios-vs-fetch-best-http-requests/ */
-
 import { useUserStore } from "../store/UserStore";
+import { ProgressFinisher, useProgress } from "@marcoschulte/vue3-progress";
 
+const progresses = [] as ProgressFinisher[];
 interface ApiProgressData {
     loaded: number;
     total: number;
@@ -81,6 +81,8 @@ export const api = {
             };
 
             let receivedData = false;
+
+            progresses.push(useProgress().start());
 
             fetch(url, fetchOptions)
                 .then((response) => {
@@ -173,6 +175,9 @@ export const api = {
                         ...rest,
                         response: response && response.json(),
                     });
+                })
+                .finally(() => {
+                    progresses.pop()?.finish();
                 });
         });
     },

@@ -2,6 +2,9 @@ import { createWebHistory, createRouter } from "vue-router";
 import { useUserStore } from "@/store/UserStore";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { api } from "../helpers/api";
+import { useProgress } from "@marcoschulte/vue3-progress";
+
+const progresses = [];
 
 export const routes = [
     {
@@ -371,22 +374,11 @@ const router = createRouter({
 
 // export let activeRoutes = [];
 
-let routerLoadingTimeout = null;
-
 router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const applicationStore = useApplicationStore();
 
-    if (routerLoadingTimeout != null) {
-        clearTimeout(routerLoadingTimeout);
-        routerLoadingTimeout = null;
-    }
-
-    routerLoadingTimeout = window.setTimeout(() => {
-        routerLoadingTimeout = null;
-        applicationStore.setRouterLoading(true);
-    }, 1000);
-
+    progresses.push(useProgress().start());
     applicationStore.clearDynamicTitle();
 
     // Check Token
@@ -470,13 +462,7 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    if (routerLoadingTimeout != null) {
-        clearTimeout(routerLoadingTimeout);
-        routerLoadingTimeout = null;
-    }
-
-    const applicationStore = useApplicationStore();
-    applicationStore.setRouterLoading(false);
+    progresses.pop()?.finish();
 });
 
 export default router;

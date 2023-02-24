@@ -2,14 +2,12 @@ import { defineStore } from "pinia";
 
 export interface ApplicationStore {
     dynamicTitle: string;
-    routerLoading: boolean;
 }
 
 export const useApplicationStore = defineStore({
     id: "application",
     state: (): ApplicationStore => ({
         dynamicTitle: "",
-        routerLoading: false,
     }),
 
     actions: {
