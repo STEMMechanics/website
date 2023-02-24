@@ -12,7 +12,16 @@ export interface EventCollection {
 }
 
 export interface Media {
+    id: string;
+    user_id: string;
+    title: string;
+    name: string;
+    mime: string;
+    permission: Array<string>;
+    size: number;
     url: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface MediaResponse {
@@ -32,6 +41,7 @@ export interface Post {
     content: string;
     publish_at: string;
     hero: string;
+    attachments: Array<Media>;
 }
 
 export interface PostResponse {
