@@ -67,6 +67,13 @@
                 {{ optionValue }}
             </option>
         </select>
+        <div v-else-if="type == 'media'" class="sm-input-media-group">
+            <div class="sm-input-media-display">
+                <img v-if="mediaUrl.length > 0" :src="mediaUrl" />
+                <ion-icon v-else name="image-outline" />
+            </div>
+            <a class="button" @click.prevent="handleMediaSelect">Select file</a>
+        </div>
         <div v-if="slots.default || feedbackInvalid" class="sm-input-help">
             <span v-if="feedbackInvalid" class="sm-input-invalid">{{
                 feedbackInvalid
@@ -84,8 +91,10 @@
 
 <script setup lang="ts">
 import { watch, computed, useSlots, ref, inject } from "vue";
+import { openDialog } from "vue3-promise-dialog";
 import { toTitleCase } from "../helpers/string";
 import { isEmpty } from "../helpers/utils";
+import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 
 const props = defineProps({
     modelValue: {
@@ -148,6 +157,7 @@ const props = defineProps({
 
 const emits = defineEmits(["update:modelValue", "focus", "blur", "keydown"]);
 const slots = useSlots();
+const mediaUrl = ref("");
 
 const objForm = inject("form", props.form);
 const objControl =
@@ -269,6 +279,14 @@ const handleKeydown = (event: Event) => {
 const inline = computed(() => {
     return ["static", "link"].includes(props.type);
 });
+
+const handleMediaSelect = async (event) => {
+    let result = await openDialog(SMDialogMedia);
+    if (result) {
+        mediaUrl.value = result.url;
+        emits("update:modelValue", result.id);
+    }
+};
 </script>
 
 <style lang="scss">
@@ -358,6 +376,22 @@ const inline = computed(() => {
 
     textarea {
         resize: none;
+    }
+
+    .sm-input-media-display {
+        display: flex;
+        margin-bottom: 1rem;
+        border: 1px solid $border-color;
+        background-color: #fff;
+
+        img {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        ion-icon {
+            padding: 4rem;
+        }
     }
 
     .sm-input-help {
