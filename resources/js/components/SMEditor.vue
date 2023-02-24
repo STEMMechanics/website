@@ -303,6 +303,7 @@ const imageBrowser = (callback, value, meta) => {
             params: {
                 limit: 12,
                 page: galleryPage,
+                mime: "image/",
             },
         })
             .then((result) => {
