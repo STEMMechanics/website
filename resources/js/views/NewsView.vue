@@ -19,6 +19,7 @@
                 </div>
             </div>
             <component :is="formattedContent" ref="content"></component>
+            <SMAttachments :attachments="post.attachments" />
         </SMContainer>
     </SMPage>
 </template>
@@ -30,6 +31,7 @@ import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { api } from "../helpers/api";
 import SMPage from "../components/SMPage.vue";
+import SMAttachments from "../components/SMAttachments.vue";
 
 const applicationStore = useApplicationStore();
 const route = useRoute();
