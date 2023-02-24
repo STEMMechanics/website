@@ -87,6 +87,7 @@ defineProps({
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(4px);
         background-color: rgba(255, 255, 255, 0.5);
+        z-index: 19000;
 
         .dialog-loading {
             display: flex;
