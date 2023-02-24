@@ -63,13 +63,13 @@ import { And, Required, Min, DateTime } from "../../helpers/validate";
 import { SMDate } from "../../helpers/datetime";
 import { useUserStore } from "../../store/UserStore";
 import { useRoute } from "vue-router";
+import { PostResponse, UserCollection } from "../../helpers/api.types";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
-import { ApiCollectionPost, ApiUsers } from "../../helpers/api.types";
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -132,7 +132,7 @@ const loadData = async () => {
     if (route.params.id) {
         api.get("/posts/" + route.params.id)
             .then((result) => {
-                const data = result.data as ApiCollectionPost;
+                const data = result.data as PostResponse;
 
                 form.title.value = data.post.title;
                 form.slug.value = data.post.slug;
@@ -246,7 +246,7 @@ const loadOptionsAuthors = async () => {
         },
     })
         .then((result) => {
-            const data = result.data as ApiUsers;
+            const data = result.data as UserCollection;
 
             if (data && data.users) {
                 authors.value = {};
