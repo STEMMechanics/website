@@ -119,7 +119,8 @@ const handleLoad = async () => {
 
     if (Object.keys(query).length == 1 && Object.keys(query)[0] == "limit") {
         query["end_at"] =
-            ">" + new SMDate().format("yyyy/MM/dd HH:mm:ss", { utc: true });
+            ">" +
+            new SMDate("now").format("yyyy/MM/dd HH:mm:ss", { utc: true });
     }
 
     api.get({

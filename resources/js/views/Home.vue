@@ -177,7 +177,9 @@ const handleLoad = async () => {
                 limit: 3,
                 end_at:
                     ">" +
-                    new SMDate().format("yyyy-MM-dd HH:mm:ss", { utc: true }),
+                    new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
+                        utc: true,
+                    }),
             },
         });
 

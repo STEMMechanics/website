@@ -144,8 +144,9 @@ const workshopDate = computed(() => {
                     "h:mm aa"
                 ) +
                     " - " +
-                    SMDate(event.value.end_at, { format: "ymd" }),
-                format("h:mm aa"),
+                    new SMDate(event.value.end_at, { format: "ymd" }).format(
+                        "h:mm aa"
+                    ),
             ];
         }
     }
@@ -222,7 +223,6 @@ const handleLoad = async () => {
 
 const handleLoadImage = async () => {
     try {
-        console.log(event.value);
         const result = await api.get(`/media/${event.value.hero}`);
         const data = result.data as ApiMedia;
 
