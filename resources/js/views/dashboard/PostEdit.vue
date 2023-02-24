@@ -44,6 +44,11 @@
                     </SMColumn>
                 </SMRow>
                 <SMRow>
+                    <SMColumn>
+                        <SMInputAttachments :model-value="attachments" />
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
                     <SMFormFooter>
                         <template #right>
                             <SMButton type="submit" label="Save" />
@@ -70,12 +75,14 @@ import SMEditor from "../../components/SMEditor.vue";
 import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
+import SMInputAttachments from "../../components/SMInputAttachments.vue";
 
 const route = useRoute();
 const userStore = useUserStore();
 const page_title = route.params.id ? "Edit Post" : "Create New Post";
 const pageError = ref(200);
 const authors = ref({});
+const attachments = ref(["4687166e-7f9e-4394-abdf-2d254c8bb087"]);
 
 const form = reactive(
     FormObject({
