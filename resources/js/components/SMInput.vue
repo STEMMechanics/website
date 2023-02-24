@@ -6,6 +6,7 @@
                 'sm-input-active': inputActive,
                 'sm-feedback-invalid': feedbackInvalid,
             },
+            computedClassType,
         ]">
         <label v-if="label">{{ label }}</label>
         <ion-icon
@@ -22,7 +23,6 @@
                 type == 'datetime'
             "
             :type="type"
-            :placeholder="placeholder"
             :value="value"
             @input="handleInput"
             @focus="handleFocus"
@@ -48,10 +48,6 @@
                 {{ modelValue?.name ? modelValue.name : modelValue }}
             </div>
         </div>
-        <a v-else-if="type == 'link'" :href="href" target="_blank">{{
-            props.modelValue
-        }}</a>
-        <span v-else-if="type == 'static'">{{ props.modelValue }}</span>
         <select
             v-else-if="type == 'select'"
             :value="value"
@@ -67,8 +63,8 @@
                 {{ optionValue }}
             </option>
         </select>
-        <div v-else-if="type == 'media'" class="sm-input-media-group">
-            <div class="sm-input-media-display">
+        <div v-else-if="type == 'media'" class="sm-input-media">
+            <div class="sm-input-media-item">
                 <img v-if="mediaUrl.length > 0" :src="mediaUrl" />
                 <ion-icon v-else name="image-outline" />
             </div>
@@ -81,10 +77,6 @@
             <span v-if="slots.default" class="sm-input-info">
                 <slot></slot>
             </span>
-        </div>
-        <div v-if="help" class="form-group-help">
-            <ion-icon v-if="helpIcon" name="information-circle-outline" />
-            {{ help }}
         </div>
     </div>
 </template>
@@ -107,28 +99,11 @@ const props = defineProps({
         default: "",
         required: false,
     },
-    placeholder: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    required: {
-        type: Boolean,
-        default: false,
-    },
     type: {
         type: String,
         default: "text",
     },
     feedbackInvalid: {
-        type: String,
-        default: "",
-    },
-    help: {
-        type: String,
-        default: "",
-    },
-    helpIcon: {
         type: String,
         default: "",
     },
@@ -167,6 +142,13 @@ const label = ref(props.label);
 const feedbackInvalid = ref(props.feedbackInvalid);
 const value = ref(props.modelValue);
 const inputActive = ref(value.value.length > 0 || props.type == "select");
+
+/**
+ * Return the classname based on type
+ */
+const computedClassType = computed(() => {
+    return `sm-input-${props.type}`;
+});
 
 watch(
     () => props.label,
@@ -276,10 +258,6 @@ const handleKeydown = (event: Event) => {
     emits("keydown", event);
 };
 
-const inline = computed(() => {
-    return ["static", "link"].includes(props.type);
-});
-
 const handleMediaSelect = async (event) => {
     let result = await openDialog(SMDialogMedia);
     if (result) {
@@ -378,19 +356,35 @@ const handleMediaSelect = async (event) => {
         resize: none;
     }
 
-    .sm-input-media-display {
-        display: flex;
-        margin-bottom: 1rem;
-        border: 1px solid $border-color;
-        background-color: #fff;
+    &.sm-input-media {
+        label {
+            position: relative;
+            transform: none;
+        }
+    }
 
-        img {
-            max-width: 100%;
-            max-height: 100%;
+    .sm-input-media {
+        text-align: center;
+
+        .sm-input-media-item {
+            display: block;
+            margin-bottom: 0.5rem;
+
+            img {
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+            ion-icon {
+                padding: 4rem;
+                font-size: 3rem;
+                border: 1px solid $border-color;
+                background-color: #fff;
+            }
         }
 
-        ion-icon {
-            padding: 4rem;
+        .button {
+            display: inline-block;
         }
     }
 
