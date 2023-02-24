@@ -1,6 +1,5 @@
 <template>
     <div class="sm-editor">
-        <label v-if="label" :class="{ required: required }">{{ label }}</label>
         <Editor
             id="tinymce"
             ref="tinyeditor"
