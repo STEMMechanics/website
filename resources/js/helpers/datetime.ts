@@ -379,13 +379,17 @@ export class SMDate {
      * @param {Date|SMDate} d (optional) The date to check. If none, use now
      * @returns {boolean} If the date is before the passed date.
      */
-    public isBefore(d: Date | SMDate = new Date()): boolean {
+    public isBefore(d: Date | SMDate = new SMDate("now")): boolean {
         const otherDate = d instanceof SMDate ? d.date : d;
         if (otherDate == null) {
             return false;
         }
 
-        return otherDate < otherDate;
+        if (this.date == null) {
+            return true;
+        }
+
+        return otherDate > this.date;
     }
 
     /**
@@ -394,13 +398,17 @@ export class SMDate {
      * @param {Date|SMDate} d (optional) The date to check. If none, use now
      * @returns {boolean} If the date is after the passed date.
      */
-    public isAfter(d: Date | SMDate = new Date()): boolean {
+    public isAfter(d: Date | SMDate = new SMDate("now")): boolean {
         const otherDate = d instanceof SMDate ? d.date : d;
         if (otherDate == null) {
             return false;
         }
 
-        return otherDate > otherDate;
+        if (this.date == null) {
+            return true;
+        }
+
+        return otherDate < this.date;
     }
 
     /**
