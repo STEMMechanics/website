@@ -86,7 +86,7 @@ const courseBoxTitle = computed(() => {
             flex-direction: column;
             border-radius: 12px;
             border: 2px solid $primary-color-dark;
-            background-color: $primary-color-lighter;
+            background-color: #f8f8f8;
             padding: map-get($spacer, 5) map-get($spacer, 4);
             margin: map-get($spacer, 3);
             font-size: map-get($spacer, 3);
@@ -107,7 +107,7 @@ const courseBoxTitle = computed(() => {
 
             &:hover {
                 text-decoration: none;
-                background-color: $primary-color-light;
+                background-color: $primary-color-lighter;
                 border-color: $primary-color-darker;
                 color: $primary-color-darker !important;
                 box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
