@@ -22,6 +22,11 @@ body {
     min-height: 100vh;
 }
 
+// Who knows why ion-icon randomally sets this to hidden.....
+ion-icon {
+    visibility: visible;
+}
+
 #app {
     display: flex;
     flex-direction: column;
