@@ -27,12 +27,20 @@ class Post extends Model
 
 
     /**
-     * Get the file user
+     * Get the post user
      *
      * @return BelongsTo
      */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get all of the post's attachments.
+     */
+    public function attachments()
+    {
+        return $this->morphMany('App\Attachment', 'attachable');
     }
 }

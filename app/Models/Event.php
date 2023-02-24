@@ -29,4 +29,12 @@ class Event extends Model
         'hero',
         'content'
     ];
+
+    /**
+     * Get all of the post's attachments.
+     */
+    public function attachments()
+    {
+        return $this->morphMany('App\Attachment', 'attachable');
+    }
 }
