@@ -48,3 +48,17 @@ export const getFilePreview = (url: string): string => {
 
     return "/img/fileicons/unknown.png";
 };
+
+/**
+ * Clamps a number between 2 numbers.
+ *
+ * @param {number} n The number to clamp.
+ * @param {number} min The minimum allowable number.
+ * @param {number} max The maximum allowable number.
+ * @returns {number} The clamped number.
+ */
+export const clamp = (n: number, min: number, max: number): number => {
+    if (n < min) return min;
+    if (n > max) return max;
+    return n;
+};
