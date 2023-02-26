@@ -19,7 +19,7 @@
                 </div>
             </div>
             <component :is="formattedContent" ref="content"></component>
-            <SMAttachments :attachments="post.attachments" />
+            <SMAttachments :attachments="post.attachments || []" />
         </SMContainer>
     </SMPage>
 </template>
