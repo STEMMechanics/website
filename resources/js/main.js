@@ -18,7 +18,6 @@ const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
 
 createApp(App)
-    // .component("FontAwesomeIcon", FontAwesomeIcon)
     .use(pinia)
     .use(Router)
     .use(PromiseDialog)
