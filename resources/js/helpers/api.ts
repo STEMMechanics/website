@@ -37,12 +37,21 @@ export const api = {
             let url = this.baseUrl + options.url;
 
             if (options.params) {
-                url =
-                    url +
-                    "?" +
-                    Object.keys(options.params)
-                        .map((key) => key + "=" + options.params[key])
-                        .join("&");
+                let params = "";
+
+                for (const [key, value] of Object.entries(options.params)) {
+                    const placeholder = `{${key}}`;
+                    if (url.includes(placeholder)) {
+                        url = url.replace(placeholder, value);
+                    } else {
+                        params += `&${key}=${value}`;
+                    }
+                }
+
+                url = url.replace(/{(.*?)}/g, "$1");
+                if (params.length > 0) {
+                    url += (url.includes("?") ? "" : "?") + params.substring(1);
+                }
             }
 
             options.headers = {
