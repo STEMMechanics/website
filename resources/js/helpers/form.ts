@@ -101,18 +101,20 @@ const defaultFormControlValidation: FormControlValidation = {
     result: defaultValidationResult,
 };
 
-type FormClearValidations = () => void;
-type FormSetValidation = (
+type FormControlClearValidations = () => void;
+type FormControlSetValidation = (
     valid: boolean,
     message?: string | Array<string>
 ) => ValidationResult;
+type FormControlIsValid = () => boolean;
 
-interface FormControlObject {
+export interface FormControlObject {
     value: string;
     validate: () => ValidationResult;
     validation: FormControlValidation;
-    clearValidations: FormClearValidations;
-    setValidationResult: FormSetValidation;
+    clearValidations: FormControlClearValidations;
+    setValidationResult: FormControlSetValidation;
+    isValid: FormControlIsValid;
 }
 
 /* eslint-disable indent */
@@ -135,10 +137,16 @@ export const FormControl = (
         setValidationResult: createValidationResult,
         validate: function () {
             if (this.validation.validator) {
-                return this.validation.validator(this.value);
+                this.validation.result = this.validation.validator.validate(
+                    this.value
+                );
+                return this.validation.result;
             }
 
             return defaultValidationResult;
+        },
+        isValid: function () {
+            return this.validation.result.valid;
         },
     };
 };
