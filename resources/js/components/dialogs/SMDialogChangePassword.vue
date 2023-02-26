@@ -2,7 +2,7 @@
     <SMModal>
         <SMDialog :loading="dialogLoading">
             <h1>Change Password</h1>
-            <p>Enter your new password below</p>
+            <p class="text-center">Enter your new password below</p>
             <SMForm :model-value="form" @submit="handleSubmit">
                 <SMInput
                     control="password"
