@@ -118,7 +118,7 @@ const props = defineProps({
         },
     },
     control: {
-        type: String,
+        type: [String, Object],
         default: "",
     },
     form: {
@@ -136,7 +136,13 @@ const mediaUrl = ref("");
 
 const objForm = inject("form", props.form);
 const objControl =
-    !isEmpty(objForm) && props.control != "" ? objForm[props.control] : null;
+    typeof props.control == "object"
+        ? props.control
+        : !isEmpty(objForm) &&
+          typeof props.control == "string" &&
+          props.control != ""
+        ? objForm[props.control]
+        : null;
 
 const label = ref(props.label);
 const feedbackInvalid = ref(props.feedbackInvalid);
@@ -237,12 +243,10 @@ const handleFocus = (event: Event) => {
     emits("focus", event);
 };
 
-const handleBlur = (event: Event) => {
+const handleBlur = async (event: Event) => {
     if (objControl) {
-        objForm.validate(props.control);
-        feedbackInvalid.value = objForm[props.control].validation.result.valid
-            ? ""
-            : objForm[props.control].validation.result.invalidMessages[0];
+        objControl.validate();
+        objControl.isValid();
     }
 
     const target = event.target as HTMLInputElement;
