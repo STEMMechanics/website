@@ -87,11 +87,10 @@ onMounted(() => {
     background-color: #fff;
     padding: map-get($spacer, 2) map-get($spacer, 2) map-get($spacer, 2)
         map-get($spacer, 2);
-    border: 1px solid #fff;
     border-radius: 12px;
+    border: 1px solid $border-color;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
     margin-bottom: 1rem;
-    border: 1px solid $border-color;
     transition: opacity 0.2s ease-in, margin 0.2s ease-in;
 
     .sm-toast-inner {

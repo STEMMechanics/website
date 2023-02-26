@@ -21,10 +21,11 @@ const toastStore = useToastStore();
 .sm-toast-container {
     position: fixed;
     height: 2px;
-    top: 4rem;
-    right: 1rem;
+    top: 3.5rem;
+    right: 0.75rem;
     height: 100%;
     z-index: 3000;
+    padding: 10px;
     overflow: hidden;
 }
 </style>
