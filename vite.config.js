@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import laravel from "laravel-vite-plugin";
 import vue from "@vitejs/plugin-vue";
+import analyzer from "rollup-plugin-analyzer";
 
 export default defineConfig({
     plugins: [
@@ -20,6 +21,7 @@ export default defineConfig({
             input: ["resources/css/app.scss", "resources/js/main.js"],
             refresh: true,
         }),
+        analyzer({ summaryOnly: true }),
     ],
     css: {
         preprocessorOptions: {
