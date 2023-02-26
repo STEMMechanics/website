@@ -66,6 +66,10 @@ defineProps({
         margin-top: 0;
     }
 
+    & > p {
+        font-size: 90%;
+    }
+
     &.dialog-narrow {
         min-width: auto;
         max-width: map-get($spacer, 5) * 10;
