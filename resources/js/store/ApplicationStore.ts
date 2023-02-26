@@ -1,13 +1,19 @@
 import { defineStore } from "pinia";
 
+type ApplicationStoreEventKeyUpCallback = (event: KeyboardEvent) => boolean;
+
 export interface ApplicationStore {
     dynamicTitle: string;
+    eventKeyUpStack: ApplicationStoreEventKeyUpCallback[];
+    _addedListener: boolean;
 }
 
 export const useApplicationStore = defineStore({
     id: "application",
     state: (): ApplicationStore => ({
         dynamicTitle: "",
+        eventKeyUpStack: [],
+        _addedListener: false,
     }),
 
     actions: {
@@ -20,8 +26,29 @@ export const useApplicationStore = defineStore({
             this.$state.dynamicTitle = "";
         },
 
-        setRouterLoading(loading: boolean) {
-            this.$state.routerLoading = loading;
+        addKeyUpListener(callback: ApplicationStoreEventKeyUpCallback) {
+            this.eventKeyUpStack.push(callback);
+
+            if (!this._addedListener) {
+                document.addEventListener("keyup", (event: KeyboardEvent) => {
+                    this.eventKeyUpStack.every(
+                        (item: ApplicationStoreEventKeyUpCallback) => {
+                            const result = item(event);
+                            if (result) {
+                                return false;
+                            }
+
+                            return true;
+                        }
+                    );
+                });
+            }
+        },
+
+        removeKeyUpListener(callback: ApplicationStoreEventKeyUpCallback) {
+            this.eventKeyUpStack = this.eventKeyUpStack.filter(
+                (item: ApplicationStoreEventKeyUpCallback) => item !== callback
+            );
         },
     },
 });
