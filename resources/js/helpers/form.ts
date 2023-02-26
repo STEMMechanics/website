@@ -1,13 +1,37 @@
+import { ApiResponse } from "./api";
 import {
+    createValidationResult,
+    defaultValidationResult,
     ValidationObject,
     ValidationResult,
-    defaultValidationResult,
-    createValidationResult,
 } from "./validate";
 
-export const FormObject = (controls) => {
-    controls.validate = function (item = null) {
-        const keys = item ? [item] : Object.keys(this);
+type FormObjectValidateFunction = (item: string | null) => boolean;
+type FormObjectLoadingFunction = (state: boolean) => void;
+type FormObjectMessageFunction = (
+    message: string,
+    type: string,
+    icon: string
+) => void;
+type FormObjectErrorFunction = (message: string) => void;
+type FormObjectApiErrorsFunction = (apiErrors: ApiResponse) => void;
+
+export interface FormObject {
+    validate: FormObjectValidateFunction;
+    loading: FormObjectLoadingFunction;
+    message: FormObjectMessageFunction;
+    error: FormObjectErrorFunction;
+    apiErrors: FormObjectApiErrorsFunction;
+    _loading: boolean;
+    _message: string;
+    _messageType: string;
+    _messageIcon: string;
+    controls: { [key: string]: FormControlObject };
+}
+
+const defaultFormObject: FormObject = {
+    validate: function (item = null) {
+        const keys = item ? [item] : Object.keys(this.controls);
         let valid = true;
 
         keys.every(async (key) => {
@@ -28,18 +52,11 @@ export const FormObject = (controls) => {
         });
 
         return valid;
-    };
-
-    controls._loading = false;
-    controls.loading = function (state = true) {
+    }.bind(this),
+    loading: function (state = true) {
         this._loading = state;
-    };
-
-    controls._message = "";
-    controls._messageType = "primary";
-    controls._messageIcon = "";
-
-    controls.message = function (message = "", type = "", icon = "") {
+    }.bind(this),
+    message: function (message = "", type = "", icon = "") {
         this._message = message;
 
         if (type.length > 0) {
@@ -48,29 +65,32 @@ export const FormObject = (controls) => {
         if (icon.length > 0) {
             this._messageIcon = icon;
         }
-    };
-
-    controls.error = function (message = "") {
+    }.bind(this),
+    error: function (message = "") {
         if (message == "") {
             this.message("");
         } else {
             this.message(message, "error", "alert-circle-outline");
         }
-    };
-
-    controls.apiErrors = function (apiResponse) {
+    }.bind(this),
+    apiErrors: function (apiResponse: ApiResponse) {
         let foundKeys = false;
 
-        if (apiResponse?.json?.errors) {
-            Object.keys(apiResponse.json.errors).forEach((key) => {
+        if (
+            apiResponse.json &&
+            typeof apiResponse.json === "object" &&
+            apiResponse.json.errors
+        ) {
+            const errors = apiResponse.json.errors as Record<string, string>;
+            Object.keys(errors).forEach((key) => {
                 if (
-                    typeof this[key] == "object" &&
+                    typeof this[key] === "object" &&
                     Object.keys(this[key]).includes("validation")
                 ) {
                     foundKeys = true;
                     this[key].validation.result = createValidationResult(
                         false,
-                        apiResponse.json.errors[key]
+                        errors[key]
                     );
                 }
             });
@@ -82,9 +102,28 @@ export const FormObject = (controls) => {
                     "An unknown server error occurred.\nPlease try again later."
             );
         }
-    };
+    }.bind(this),
+    controls: {},
 
-    return controls;
+    _loading: false,
+    _message: "",
+    _messageType: "primary",
+    _messageIcon: "",
+};
+
+/**
+ * Create a new Form object.
+ *
+ * @param {Record<string, FormControlObject>} controls The controls included in the form.
+ * @returns {FormObject} Returns a form object.
+ */
+export const Form = (
+    controls: Record<string, FormControlObject>
+): FormObject => {
+    const form = defaultFormObject;
+    form.controls = controls;
+
+    return form;
 };
 
 interface FormControlValidation {
@@ -117,9 +156,15 @@ export interface FormControlObject {
     isValid: FormControlIsValid;
 }
 
-/* eslint-disable indent */
+/**
+ * Create a new form control object.
+ *
+ * @param {string} value The control name.
+ * @param {ValidationObject | null} validator The control validation rules.
+ * @returns {FormControlObject} The form control object.
+ */
 export const FormControl = (
-    value = "",
+    value: string = "",
     validator: ValidationObject | null = null
 ): FormControlObject => {
     return {
@@ -150,4 +195,3 @@ export const FormControl = (
         },
     };
 };
-/* eslint-enable indent */
