@@ -9,7 +9,7 @@
                     </SMRow>
                     <SMRow>
                         <SMColumn>
-                            <SMSelect
+                            <SMInput
                                 control="location"
                                 :options="{
                                     online: 'Online',
@@ -41,7 +41,7 @@
                                 label="Publish Date/Time"></SMDatepicker>
                         </SMColumn>
                         <SMColumn>
-                            <SMSelect
+                            <SMInput
                                 control="status"
                                 :options="{
                                     draft: 'Draft',
@@ -54,7 +54,7 @@
                     </SMRow>
                     <SMRow>
                         <SMColumn>
-                            <SMSelect
+                            <SMInput
                                 control="registration_type"
                                 label="Registration"
                                 :options="{
@@ -122,7 +122,6 @@ import { api } from "../../helpers/api";
 import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMDialog from "../../components/SMDialog.vue";
-import SMSelect from "../../components/SMSelect.vue";
 import SMDatepicker from "../../components/SMDatePicker.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
