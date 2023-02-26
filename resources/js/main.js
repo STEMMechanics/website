@@ -12,7 +12,6 @@ import SMColumn from "./components/SMColumn.vue";
 import { PromiseDialog } from "vue3-promise-dialog";
 import { VueReCaptcha } from "vue-recaptcha-v3";
 import "./lib/prism";
-import { Vue3ProgressPlugin } from "@marcoschulte/vue3-progress";
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
@@ -27,7 +26,6 @@ createApp(App)
             autoHideBadge: true,
         },
     })
-    .use(Vue3ProgressPlugin)
     .component("SMContainer", SMContainer)
     .component("SMRow", SMRow)
     .component("SMColumn", SMColumn)

@@ -21,12 +21,12 @@ export const useProgressStore = defineStore({
 
     actions: {
         start() {
-            if (this.queue == 0) {
+            if (this.queue == 0 && this.opacity == 0) {
                 this.set(0);
 
                 const work = () => {
                     window.setTimeout(() => {
-                        if (this.status != null) {
+                        if (this.status < 1) {
                             this._trickle();
                             work();
                         }
@@ -43,7 +43,7 @@ export const useProgressStore = defineStore({
                     this.timeoutID = window.setTimeout(() => {
                         this._show();
                         this.timeoutID = null;
-                    }, 200);
+                    }, 2000);
                 }
 
                 if (this.spinner == 0) {
@@ -55,7 +55,8 @@ export const useProgressStore = defineStore({
         },
 
         set(number: number) {
-            this.status = clamp(number, 0.08, 1);
+            const n = clamp(number, 0.08, 1);
+            this.status = n;
         },
 
         finish() {
@@ -67,21 +68,29 @@ export const useProgressStore = defineStore({
         _trickle() {
             const n = this.status;
 
-            if (this.queue == 0 && this.timeoutID == null) {
-                this.timeoutID = window.setTimeout(() => {
-                    this.set(1);
+            if (this.queue == 0) {
+                if (this.opacity == 0 && this.timeoutID != null) {
+                    this._hide();
+                    window.clearTimeout(this.timeoutID);
                     this.timeoutID = null;
-
+                } else if (this.timeoutID == null) {
                     this.timeoutID = window.setTimeout(() => {
-                        this._hide();
+                        this.set(1);
                         this.timeoutID = null;
+
+                        this.timeoutID = window.setTimeout(() => {
+                            this._hide();
+                            this.timeoutID = null;
+
+                            window.setTimeout(() => {
+                                this.status = 0;
+                            }, 150);
+                        }, 500);
                     }, 500);
-                }, 200);
+                }
             }
 
-            if (n == 0) {
-                this.start();
-            } else if (n < 1) {
+            if (n > 0 && n < 1) {
                 let amount = 0;
 
                 if (n >= 0 && n < 0.2) {

@@ -4,8 +4,6 @@ import { useApplicationStore } from "../store/ApplicationStore";
 import { useProgressStore } from "../store/ProgressStore";
 import { api } from "../helpers/api";
 
-const progresses = [];
-
 export const routes = [
     {
         path: "/",
@@ -379,7 +377,6 @@ router.beforeEach(async (to, from, next) => {
     const applicationStore = useApplicationStore();
     const progressStore = useProgressStore();
 
-    // progressStore.reset();
     progressStore.start();
 
     applicationStore.clearDynamicTitle();

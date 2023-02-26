@@ -9,10 +9,10 @@
                     width: `${(progressStore.status || 0) * 100}%`,
                 }"></div>
         </div>
-        <div
-            class="sm-spinner"
-            :style="{ opacity: `${progressStore.spinner || 0}` }">
-            <div class="sm-spinner-icon"></div>
+        <div class="sm-spinner">
+            <div
+                class="sm-spinner-icon"
+                :style="{ opacity: `${progressStore.spinner || 0}` }"></div>
         </div>
     </div>
 </template>
@@ -48,7 +48,7 @@ const progressStore = useProgressStore();
     position: fixed;
     top: 10px;
     right: 10px;
-    transition: opacity 0.2s ease-in-out;
+    opacity: 0.5;
 
     .sm-spinner-icon {
         width: 18px;
@@ -59,6 +59,8 @@ const progressStore = useProgressStore();
         border-top-color: #29d;
         border-left-color: #29d;
         border-radius: 50%;
+
+        transition: opacity 0.2s ease-in-out;
 
         -webkit-animation: sm-progress-spinner 500ms linear infinite;
         animation: sm-progress-spinner 500ms linear infinite;
