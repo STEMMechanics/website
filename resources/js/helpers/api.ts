@@ -1,7 +1,5 @@
 import { useUserStore } from "../store/UserStore";
-import { ProgressFinisher, useProgress } from "@marcoschulte/vue3-progress";
-
-const progresses = [] as ProgressFinisher[];
+import { useProgressStore } from "../store/ProgressStore";
 interface ApiProgressData {
     loaded: number;
     total: number;
@@ -82,7 +80,8 @@ export const api = {
 
             let receivedData = false;
 
-            progresses.push(useProgress().start());
+            const progressStore = useProgressStore();
+            progressStore.start();
 
             fetch(url, fetchOptions)
                 .then((response) => {
@@ -177,7 +176,7 @@ export const api = {
                     });
                 })
                 .finally(() => {
-                    progresses.pop()?.finish();
+                    progressStore.finish();
                 });
         });
     },

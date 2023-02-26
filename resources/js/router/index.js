@@ -1,8 +1,8 @@
 import { createWebHistory, createRouter } from "vue-router";
 import { useUserStore } from "@/store/UserStore";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { useProgressStore } from "../store/ProgressStore";
 import { api } from "../helpers/api";
-import { useProgress } from "@marcoschulte/vue3-progress";
 
 const progresses = [];
 
@@ -377,8 +377,11 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const applicationStore = useApplicationStore();
+    const progressStore = useProgressStore();
 
-    progresses.push(useProgress().start());
+    // progressStore.reset();
+    progressStore.start();
+
     applicationStore.clearDynamicTitle();
 
     // Check Token
@@ -451,7 +454,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.meta.middleware == "authenticated" && !userStore.id) {
-        progresses.pop()?.finish();
+        progressStore.finish();
         next({ name: "login", query: { redirect: to.fullPath } });
     } else {
         next();
@@ -459,7 +462,8 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    progresses.pop()?.finish();
+    const progressStore = useProgressStore();
+    progressStore.finish();
 });
 
 export default router;

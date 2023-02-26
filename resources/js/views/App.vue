@@ -8,13 +8,14 @@
         </router-view>
     </main>
     <SMFooter />
-    <vue3-progress-bar></vue3-progress-bar>
+    <SMProgress />
     <DialogWrapper :transition-attrs="{ name: 'fade' }" />
 </template>
 
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
 import SMFooter from "../components/SMFooter.vue";
+import SMProgress from "../components/SMProgress.vue";
 import { DialogWrapper } from "vue3-promise-dialog";
 </script>
 
