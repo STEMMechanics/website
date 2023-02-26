@@ -1,29 +1,22 @@
 <template>
     <SMModal>
-        <SMDialog :loading="formLoading">
+        <SMDialog :loading="dialogLoading">
             <h1>Change Password</h1>
-            <SMForm v-model="form">
-                <SMMessage
-                    v-if="isSuccessful"
-                    type="success"
-                    message="Your password has been changed successfully" />
+            <p>Enter your new password below</p>
+            <SMForm :model-value="form" @submit="handleSubmit">
                 <SMInput
-                    v-if="!isSuccessful"
                     control="password"
                     type="password"
                     label="New Password" />
                 <SMFormFooter>
-                    <template v-if="!isSuccessful" #left>
+                    <template #left>
                         <SMButton
                             type="secondary"
                             label="Cancel"
-                            @click="handleCancel()" />
+                            @click="handleClickCancel" />
                     </template>
                     <template #right>
-                        <SMButton
-                            type="primary"
-                            :label="btnConfirm"
-                            @click="handleConfirm()" />
+                        <SMButton type="submit" label="Update" />
                     </template>
                 </SMFormFooter>
             </SMForm>
@@ -33,63 +26,62 @@
 
 <script setup lang="ts">
 import { api } from "../../helpers/api";
-import { FormControl } from "../../helpers/form";
+import { FormObject, FormControl } from "../../helpers/form";
 import { And, Required, Password } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { ref, reactive, onMounted, onUnmounted } from "vue";
+import { useToastStore } from "../../store/ToastStore";
 import { closeDialog } from "vue3-promise-dialog";
 import SMModal from "../SMModal.vue";
 import SMDialog from "../SMDialog.vue";
-import SMMessage from "../SMMessage.vue";
+import SMForm from "../SMForm.vue";
 import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
 
-const controlPassword = reactive(
-    FormControl("", And([Required(), Password()]))
+const form = reactive(
+    FormObject({
+        password: FormControl("", And([Required(), Password()])),
+    })
 );
+
 const userStore = useUserStore();
-const formLoading = ref(false);
-const isSuccessful = ref(false);
+const dialogLoading = ref(false);
 
-const btnConfirm = computed(() => {
-    return isSuccessful.value ? "Close" : "Update";
-});
-
-const handleCancel = () => {
+const handleClickCancel = () => {
     closeDialog(false);
 };
 
-const handleConfirm = async () => {
-    if (isSuccessful.value == true) {
-        closeDialog(true);
-    } else {
-        const valid = controlPassword.validate();
+const handleSubmit = async () => {
+    dialogLoading.value = true;
 
-        try {
-            formLoading.value = true;
-            await api.put({
-                url: `/users/${userStore.id}`,
-                body: {
-                    password: controlPassword.value,
-                },
+    api.put({
+        url: `/users/${userStore.id}`,
+        body: {
+            password: form.password.value,
+        },
+    })
+        .then(() => {
+            const toastStore = useToastStore();
+
+            toastStore.addToast({
+                title: "Password Reset",
+                content: "Your password has been reset",
+                type: "success",
             });
-
-            isSuccessful.value = true;
-        } catch (err) {
-            controlPassword.error =
-                err.json?.message || "An unexpected error occurred";
-        }
-    }
-
-    formLoading.value = false;
+            closeDialog(false);
+        })
+        .catch((error) => {
+            form.apiErrors(error);
+        })
+        .finally(() => {
+            dialogLoading.value = false;
+        });
 };
 
 const eventKeyUp = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
-        handleCancel();
-    } else if (event.key === "Enter") {
-        handleConfirm();
+        handleClickCancel();
     }
 };
 
