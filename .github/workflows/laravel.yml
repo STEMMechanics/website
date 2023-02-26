@@ -58,6 +58,6 @@ jobs:
                       php artisan migrate --force
                       npm install
                       npm run build
-                      mkdir -p public/tinymce/skins && cp -r node_modules/tinymce/skins public/tinymce
+                      npm run prepare
                       php artisan optimize
                       php artisan up
