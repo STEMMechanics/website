@@ -450,11 +450,8 @@ router.beforeEach(async (to, from, next) => {
             .forEach((tag) => document.head.appendChild(tag));
     }
 
-    // Middleware
-    // if (to.meta.middleware == 'guest' && userStore.id) {
-    //     next({ name: 'home'})
-    // } else
     if (to.meta.middleware == "authenticated" && !userStore.id) {
+        progresses.pop()?.finish();
         next({ name: "login", query: { redirect: to.fullPath } });
     } else {
         next();
