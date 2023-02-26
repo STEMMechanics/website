@@ -18,7 +18,7 @@
                                 <SMButton
                                     type="secondary"
                                     label="Change Password"
-                                    @click.prevent="handleChangePassword" />
+                                    @click="handleChangePassword" />
                                 <SMButton type="submit" label="Update" />
                             </template>
                         </SMFormFooter>
