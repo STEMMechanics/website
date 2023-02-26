@@ -25,40 +25,51 @@
 </template>
 
 <script setup lang="ts">
-import { api } from "../../helpers/api";
-import { FormObject, FormControl } from "../../helpers/form";
-import { And, Required, Password } from "../../helpers/validate";
-import { useUserStore } from "../../store/UserStore";
-import { ref, reactive, onMounted, onUnmounted } from "vue";
-import { useToastStore } from "../../store/ToastStore";
+import { onMounted, onUnmounted, reactive, ref } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
-import SMModal from "../SMModal.vue";
+import { api } from "../../helpers/api";
+import { Form, FormControl, FormObject } from "../../helpers/form";
+import { And, Password, Required } from "../../helpers/validate";
+import { useApplicationStore } from "../../store/ApplicationStore";
+import { useToastStore } from "../../store/ToastStore";
+import { useUserStore } from "../../store/UserStore";
+import SMButton from "../SMButton.vue";
 import SMDialog from "../SMDialog.vue";
 import SMForm from "../SMForm.vue";
-import SMButton from "../SMButton.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
+import SMModal from "../SMModal.vue";
 
-const form = reactive(
-    FormObject({
+const form: FormObject = reactive(
+    Form({
         password: FormControl("", And([Required(), Password()])),
     })
 );
 
+const applicationStore = useApplicationStore();
 const userStore = useUserStore();
 const dialogLoading = ref(false);
 
+/**
+ * User clicks cancel button to close dialog
+ */
 const handleClickCancel = () => {
     closeDialog(false);
 };
 
+/**
+ * User clicks form submit button
+ */
 const handleSubmit = async () => {
     dialogLoading.value = true;
 
     api.put({
-        url: `/users/${userStore.id}`,
+        url: "/users/{id}",
+        params: {
+            id: userStore.id,
+        },
         body: {
-            password: form.password.value,
+            password: form.controls.password.value,
         },
     })
         .then(() => {
@@ -79,17 +90,26 @@ const handleSubmit = async () => {
         });
 };
 
-const eventKeyUp = (event: KeyboardEvent) => {
+/**
+ * Handle a keyboard event in this component.
+ *
+ * @param {KeyboardEvent} event The keyboard event.
+ * @returns {boolean} If the event was handled.
+ */
+const eventKeyUp = (event: KeyboardEvent): boolean => {
     if (event.key === "Escape") {
         handleClickCancel();
+        return true;
     }
+
+    return false;
 };
 
 onMounted(() => {
-    document.addEventListener("keyup", eventKeyUp);
+    applicationStore.addKeyUpListener(eventKeyUp);
 });
 
 onUnmounted(() => {
-    document.removeEventListener("keyup", eventKeyUp);
+    applicationStore.removeKeyUpListener(eventKeyUp);
 });
 </script>
