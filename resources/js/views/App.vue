@@ -9,6 +9,7 @@
     </main>
     <SMFooter />
     <SMProgress />
+    <SMToastList />
     <DialogWrapper :transition-attrs="{ name: 'fade' }" />
 </template>
 
@@ -16,6 +17,7 @@
 import SMNavbar from "../components/SMNavbar.vue";
 import SMFooter from "../components/SMFooter.vue";
 import SMProgress from "../components/SMProgress.vue";
+import SMToastList from "../components/SMToastList.vue";
 import { DialogWrapper } from "vue3-promise-dialog";
 </script>
 
