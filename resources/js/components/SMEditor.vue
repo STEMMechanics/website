@@ -15,8 +15,8 @@
 
 <script setup lang="ts">
 import Editor from "@tinymce/tinymce-vue";
-import "tinymce/themes/silver";
 import "tinymce/tinymce";
+import "tinymce/themes/silver";
 
 import "tinymce/icons/default";
 import "tinymce/models/dom";
