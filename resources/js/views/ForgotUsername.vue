@@ -4,6 +4,10 @@
             <SMDialog class="mt-5">
                 <template v-if="!formDone">
                     <h1>Forgot Username</h1>
+                    <p>
+                        Enter your email address, and if an account exists, we
+                        will email you your username.
+                    </p>
                     <SMForm v-model="form" @submit="handleSubmit">
                         <SMInput control="email" />
                         <SMFormFooter>

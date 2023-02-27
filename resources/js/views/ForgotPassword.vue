@@ -4,6 +4,10 @@
             <SMDialog class="mt-5">
                 <template v-if="!formDone">
                     <h1>Forgot Password</h1>
+                    <p>
+                        Enter your username below to receive a password reset
+                        link to your email address.
+                    </p>
                     <SMForm v-model="form" @submit="handleSubmit">
                         <SMInput control="username" />
                         <SMFormFooter>
@@ -47,6 +51,7 @@ import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
+import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
