@@ -3,10 +3,10 @@
         <div v-if="image" class="sm-panel-image" :style="styleObject">
             <div v-if="dateInImage && date" class="sm-panel-image-date">
                 <div class="sm-panel-image-date-day">
-                    {{ new SMDate(date, { format: "yMd" }).format("dd") }}
+                    {{ computedDay }}
                 </div>
                 <div class="sm-panel-image-date-month">
-                    {{ new SMDate(date, { format: "yMd" }).format("MMM") }}
+                    {{ computedMonth }}
                 </div>
             </div>
             <ion-icon
@@ -145,30 +145,30 @@ let imageUrl = ref("");
 const computedDate = computed(() => {
     let str = "";
 
-    // if (props.date.length > 0) {
-    //     if (
-    //         (props.endDate.length > 0 &&
-    //             props.date.substring(0, props.date.indexOf(" ")) !=
-    //                 props.endDate.substring(0, props.endDate.indexOf(" "))) ||
-    //         props.showTime == false
-    //     ) {
-    //         str = new SMDate(props.date, { format: "yMd" }).format(
-    //             "dd/MM/yyyy"
-    //         );
-    //         if (props.endDate.length > 0) {
-    //             str =
-    //                 str +
-    //                 " - " +
-    //                 new SMDate(props.endDate, { format: "yMd" }).format(
-    //                     "dd/MM/yyyy"
-    //                 );
-    //         }
-    //     } else {
-    //         str = new SMDate(props.endDate, { format: "yMd" }).format(
-    //             "dd/MM/yyyy @ h:mm aa"
-    //         );
-    //     }
-    // }
+    if (props.date.length > 0) {
+        if (
+            (props.endDate.length > 0 &&
+                props.date.substring(0, props.date.indexOf(" ")) !=
+                    props.endDate.substring(0, props.endDate.indexOf(" "))) ||
+            props.showTime == false
+        ) {
+            str = new SMDate(props.date, { format: "yMd" }).format(
+                "dd/MM/yyyy"
+            );
+            if (props.endDate.length > 0) {
+                str =
+                    str +
+                    " - " +
+                    new SMDate(props.endDate, { format: "yMd" }).format(
+                        "dd/MM/yyyy"
+                    );
+            }
+        } else {
+            str = new SMDate(props.endDate, { format: "yMd" }).format(
+                "dd/MM/yyyy @ h:mm aa"
+            );
+        }
+    }
 
     return str;
 });
@@ -178,6 +178,14 @@ const computedDate = computed(() => {
  */
 const computedContent = computed(() => {
     return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 200);
+});
+
+const computedDay = computed(() => {
+    return new SMDate(props.date, { format: "yMd" }).format("dd");
+});
+
+const computedMonth = computed(() => {
+    return new SMDate(props.date, { format: "yMd" }).format("MMM");
 });
 
 onMounted(async () => {
