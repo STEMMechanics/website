@@ -3,6 +3,14 @@
         Options -MultiViews -Indexes
     </IfModule>
 
+    <IfModule mod_headers.c>
+        <FilesMatch "^(uploads|img)/.+">
+            <If "%{QUERY_STRING} =~ /(^|&)download=1($|&)/">
+                Header set Content-Disposition "attachment"
+            </If>
+        </FilesMatch>
+    </IfModule>
+
     RewriteEngine On
 
     # Add www subdomain if missing
@@ -17,6 +25,11 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
+
+    # Pass to media handler if the media request has query
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteCond %{QUERY_STRING} .
+    RewriteRule ^uploads/(.+)\.(jpe?g|png)$ media.php?url=uploads/$1.$2 [NC,QSA,L]
 
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d

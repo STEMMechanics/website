@@ -1,118 +1,115 @@
 <template>
     <SMModal>
-        <SMDialog :loading="formLoading">
+        <SMDialog :loading="dialogLoading">
             <h1>Change Password</h1>
-            <SMMessage
-                v-if="isSuccessful"
-                type="success"
-                message="Your password has been changed successfully" />
-            <SMInput
-                v-if="!isSuccessful"
-                v-model="formData.password.value"
-                type="password"
-                label="New Password"
-                required
-                :error="formData.password.error"
-                @blur="fieldValidate(formData.password)" />
-            <SMFormFooter>
-                <template v-if="!isSuccessful" #left>
-                    <SMButton
-                        type="secondary"
-                        label="Cancel"
-                        @click="handleCancel()" />
-                </template>
-                <template #right>
-                    <SMButton
-                        type="primary"
-                        :label="btnConfirm"
-                        @click="handleConfirm()" />
-                </template>
-            </SMFormFooter>
+            <p class="text-center">Enter your new password below</p>
+            <SMForm :model-value="form" @submit="handleSubmit">
+                <SMInput
+                    control="password"
+                    type="password"
+                    label="New Password" />
+                <SMFormFooter>
+                    <template #left>
+                        <SMButton
+                            type="secondary"
+                            label="Cancel"
+                            @click="handleClickCancel" />
+                    </template>
+                    <template #right>
+                        <SMButton type="submit" label="Update" />
+                    </template>
+                </SMFormFooter>
+            </SMForm>
         </SMDialog>
     </SMModal>
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
-import { useUserStore } from "../../store/UserStore";
-import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted, reactive, ref } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
-import SMModal from "../SMModal.vue";
-import SMDialog from "../SMDialog.vue";
-import SMMessage from "../SMMessage.vue";
+import { api } from "../../helpers/api";
+import { Form, FormControl, FormObject } from "../../helpers/form";
+import { And, Password, Required } from "../../helpers/validate";
+import { useApplicationStore } from "../../store/ApplicationStore";
+import { useToastStore } from "../../store/ToastStore";
+import { useUserStore } from "../../store/UserStore";
 import SMButton from "../SMButton.vue";
+import SMDialog from "../SMDialog.vue";
+import SMForm from "../SMForm.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-} from "../../helpers/validation";
+import SMModal from "../SMModal.vue";
 
-const formData = reactive({
-    password: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A password is needed",
-            min: 8,
-            min_message: "Your password needs to be at least %d characters",
-            password: "special",
-        },
-    },
-});
+const form: FormObject = reactive(
+    Form({
+        password: FormControl("", And([Required(), Password()])),
+    })
+);
 
+const applicationStore = useApplicationStore();
 const userStore = useUserStore();
-const formLoading = ref(false);
-const isSuccessful = ref(false);
+const dialogLoading = ref(false);
 
-const btnConfirm = computed(() => {
-    return isSuccessful.value ? "Close" : "Update";
-});
-
-const handleCancel = () => {
+/**
+ * User clicks cancel button to close dialog
+ */
+const handleClickCancel = () => {
     closeDialog(false);
 };
 
-const handleConfirm = async () => {
-    if (isSuccessful.value == true) {
-        closeDialog(true);
-    } else {
-        if (isValidated(formData)) {
-            try {
-                formLoading.value = true;
-                await axios.put(`users/${userStore.id}`, {
-                    password: formData.password.value,
-                });
+/**
+ * User clicks form submit button
+ */
+const handleSubmit = async () => {
+    dialogLoading.value = true;
 
-                isSuccessful.value = true;
-            } catch (err) {
-                formData.password.error =
-                    err.response?.data?.message ||
-                    "An unexpected error occurred";
-            }
-        }
-    }
+    api.put({
+        url: "/users/{id}",
+        params: {
+            id: userStore.id,
+        },
+        body: {
+            password: form.controls.password.value,
+        },
+    })
+        .then(() => {
+            const toastStore = useToastStore();
 
-    formLoading.value = false;
+            toastStore.addToast({
+                title: "Password Reset",
+                content: "Your password has been reset",
+                type: "success",
+            });
+            closeDialog(false);
+        })
+        .catch((error) => {
+            form.apiErrors(error);
+        })
+        .finally(() => {
+            dialogLoading.value = false;
+        });
 };
 
-const eventKeyUp = (event: KeyboardEvent) => {
+/**
+ * Handle a keyboard event in this component.
+ *
+ * @param {KeyboardEvent} event The keyboard event.
+ * @returns {boolean} If the event was handled.
+ */
+const eventKeyUp = (event: KeyboardEvent): boolean => {
     if (event.key === "Escape") {
-        handleCancel();
-    } else if (event.key === "Enter") {
-        handleConfirm();
+        handleClickCancel();
+        return true;
     }
+
+    return false;
 };
 
 onMounted(() => {
-    document.addEventListener("keyup", eventKeyUp);
+    applicationStore.addKeyUpListener(eventKeyUp);
 });
 
 onUnmounted(() => {
-    document.removeEventListener("keyup", eventKeyUp);
+    applicationStore.removeKeyUpListener(eventKeyUp);
 });
-
-useValidation(formData);
 </script>

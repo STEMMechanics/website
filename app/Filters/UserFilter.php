@@ -19,11 +19,12 @@ class UserFilter extends FilterAbstract
      *
      * @param array     $attributes Attributes currently visible.
      * @param User|null $user       Current logged in user or null.
+     * @param object    $userData   User model if single object is requested.
      * @return mixed
      */
-    protected function seeAttributes(array $attributes, mixed $user)
+    protected function seeAttributes(array $attributes, mixed $user, ?object $userData = null)
     {
-        if ($user?->hasPermission('admin/users') !== true) {
+        if ($user?->hasPermission('admin/users') !== true && ($user === null || $userData === null || $user?->id !== $userData?->id)) {
             return ['id', 'username'];
         }
     }

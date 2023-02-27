@@ -1,79 +1,41 @@
 <template>
-    <SMContainer>
-        <SMRow>
-            <SMDialog :narrow="formDone" :loading="formLoading">
+    <SMPage no-breadcrumbs background="/img/background.jpg">
+        <template #container>
+            <SMDialog full class="mt-5" :narrow="formDone">
                 <template v-if="!formDone">
                     <h1>Register</h1>
-                    <SMMessage
-                        v-if="formMessage.message"
-                        :type="formMessage.type"
-                        :message="formMessage.message"
-                        :icon="formMessage.icon" />
-                    <form @submit.prevent="submit">
+                    <SMForm v-model="form" @submit="handleSubmit">
                         <SMRow>
                             <SMColumn>
-                                <SMInput
-                                    v-model="formData.username.value"
-                                    label="Username"
-                                    required
-                                    :error="formData.username.error"
-                                    @blur="
-                                        fieldValidate(formData.username)
-                                    "></SMInput>
+                                <SMInput control="username" />
                             </SMColumn>
                             <SMColumn>
                                 <SMInput
-                                    v-model="formData.password.value"
-                                    type="password"
-                                    label="Password"
-                                    required
-                                    :error="formData.password.error"
-                                    @blur="
-                                        fieldValidate(formData.password)
-                                    "></SMInput>
+                                    control="password"
+                                    type="password"></SMInput>
                             </SMColumn>
                         </SMRow>
                         <SMRow>
                             <SMColumn>
-                                <SMInput
-                                    v-model="formData.first_name.value"
-                                    label="First Name"
-                                    required
-                                    :error="formData.first_name.error"
-                                    @blur="
-                                        fieldValidate(formData.first_name)
-                                    " />
+                                <SMInput control="first_name" />
                             </SMColumn>
                             <SMColumn>
-                                <SMInput
-                                    v-model="formData.last_name.value"
-                                    label="Last Name"
-                                    required
-                                    :error="formData.last_name.error"
-                                    @blur="fieldValidate(formData.last_name)" />
+                                <SMInput control="last_name" />
                             </SMColumn>
                         </SMRow>
                         <SMRow>
                             <SMColumn>
-                                <SMInput
-                                    v-model="formData.email.value"
-                                    label="Email"
-                                    required
-                                    :error="formData.email.error"
-                                    @blur="fieldValidate(formData.email)" />
+                                <SMInput control="email" />
                             </SMColumn>
                             <SMColumn>
-                                <SMInput
-                                    v-model="formData.phone.value"
-                                    label="Phone Number"
-                                    :error="formData.phone.error"
-                                    @blur="fieldValidate(formData.phone)" />
+                                <SMInput control="phone">
+                                    This field is optional.
+                                </SMInput>
                             </SMColumn>
                         </SMRow>
-                        <SMCaptchaNotice />
                         <SMFormFooter>
                             <template #left>
-                                <div>
+                                <div class="small">
                                     <span class="pr-1"
                                         >Already have an account?</span
                                     ><router-link to="/login"
@@ -85,10 +47,10 @@
                                 <SMButton
                                     type="submit"
                                     label="Register"
-                                    icon="fa-solid fa-arrow-right" />
+                                    icon="arrow-forward-outline" />
                             </template>
                         </SMFormFooter>
-                    </form>
+                    </SMForm>
                 </template>
                 <template v-else>
                     <h1>Email Sent!</h1>
@@ -103,170 +65,100 @@
                     </SMRow>
                 </template>
             </SMDialog>
-        </SMRow>
-    </SMContainer>
+        </template>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
-import SMInput from "../components/SMInput.vue";
-import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
-import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../helpers/validation";
-import { debounce } from "../helpers/common";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
+import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import SMButton from "../components/SMButton.vue";
+import SMDialog from "../components/SMDialog.vue";
+import SMForm from "../components/SMForm.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
+import {
+    And,
+    Custom,
+    Email,
+    Min,
+    Password,
+    Phone,
+    Required,
+} from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const lastUsernameCheck = ref("");
-const formLoading = ref(false);
-const formDone = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formData = reactive({
-    first_name: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A first name is needed",
-            min: 2,
-            min_message: "Your first name should be at least 2 letters long",
-        },
-    },
-    last_name: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A last name is needed",
-            min: 2,
-            min_message: "Your last name should be at least 2 letters long",
-        },
-    },
-    email: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A email address is needed",
-            email: true,
-            email_message: "Your email address is not correct",
-        },
-    },
-    phone: {
-        value: "",
-        error: "",
-        rules: {
-            phone: true,
-            phone_message: "Your phone number does not look correct",
-        },
-    },
-    username: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A username is needed",
-            min: 4,
-            min_message: "Your username needs to be at least %d characters",
-            custom: () => {
-                checkUsername();
-            },
-        },
-    },
-    password: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A password is needed",
-            min: 8,
-            min_message: "Your password needs to be at least %d characters",
-            password: "special",
-            password_message:
-                "Your password needs to have at least a letter, a number and a special character",
-        },
-    },
-});
+let abortController: AbortController | null = null;
 
-useValidation(formData);
-
-const submit = async () => {
-    formLoading.value = true;
-
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
-
+const checkUsername = async (value: string): Promise<boolean | string> => {
     try {
-        if (isValidated(formData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        if (lastUsernameCheck.value != value) {
+            lastUsernameCheck.value = value;
 
-            let res = await axios.post("register", {
-                first_name: formData.first_name.value,
-                last_name: formData.last_name.value,
-                email: formData.email.value,
-                phone: formData.phone.value,
-                username: formData.username.value,
-                password: formData.password.value,
-                captcha_token: captcha,
+            if (abortController != null) {
+                abortController.abort();
+                abortController = null;
+            }
+
+            abortController = new AbortController();
+
+            await api.get({
+                url: "/users",
+                params: {
+                    username: `=${value}`,
+                },
+                signal: abortController.signal,
             });
 
-            formDone.value = true;
+            return "The username has already been taken.";
         }
-    } catch (err) {
-        restParseErrors(formData, [formMessage, "message"], err);
-    }
 
-    formLoading.value = false;
-};
-
-const checkUsername = async () => {
-    try {
-        if (
-            formData.username.value.length >= 4 &&
-            lastUsernameCheck.value != formData.username.value
-        ) {
-            lastUsernameCheck.value = formData.username.value;
-            await axios.get(`users?username=${formData.username.value}`);
-            formData.username.error = "The username has already been taken.";
-        }
+        return true;
     } catch (error) {
-        if (error.response.status == 404) {
-            formData.username.error = "";
-        } else {
-            formMessage.type = "error";
-            formMessage.icon = "fa-solid fa-circle-exclamation";
-            formMessage.message =
-                error.response.message ||
-                "An unexpected server error occurred.";
-        }
+        return true;
     }
 };
 
-const debouncedFilter = debounce(checkUsername, 1000);
-let oldUsernameValue = "";
-watch(
-    formData,
-    (value) => {
-        if (value.username.value !== oldUsernameValue) {
-            oldUsernameValue = value.username.value;
-            debouncedFilter();
-        }
-    },
-    { deep: true }
+const formDone = ref(false);
+const lastUsernameCheck = ref("");
+const form = reactive(
+    Form({
+        first_name: FormControl("", Required()),
+        last_name: FormControl("", Required()),
+        email: FormControl("", And([Required(), Email()])),
+        phone: FormControl("", Phone()),
+        username: FormControl("", And([Min(4), Custom(checkUsername)])),
+        password: FormControl("", And([Required(), Password()])),
+    })
 );
+
+const handleSubmit = async () => {
+    form.loading(true);
+
+    try {
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
+
+        await api.post({
+            url: "/register",
+            body: {
+                first_name: form.controls.first_name.value,
+                last_name: form.controls.last_name.value,
+                email: form.controls.email.value,
+                phone: form.controls.phone.value,
+                username: form.controls.username.value,
+                password: form.controls.password.value,
+                captcha_token: captcha,
+            },
+        });
+
+        formDone.value = true;
+    } catch (error) {
+        form.apiErrors(error);
+    } finally {
+        form.loading(false);
+    }
+};
 </script>

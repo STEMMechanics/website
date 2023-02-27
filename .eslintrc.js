@@ -11,7 +11,8 @@ module.exports = {
     ],
     rules: {
         "vue/multi-word-component-names": "off",
-        indent: ["error", 4],
+        indent: ["off", 4, { ignoredNodes: ["ConditionalExpression"] }],
+        "@typescript-eslint/no-inferrable-types": "off",
     },
     plugins: ["jsdoc", "@typescript-eslint"],
     parser: "vue-eslint-parser",

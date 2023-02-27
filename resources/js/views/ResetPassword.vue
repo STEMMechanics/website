@@ -1,34 +1,15 @@
 <template>
-    <SMContainer>
+    <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow :loading="formLoading">
+            <SMDialog narrow>
                 <template v-if="!formDone">
                     <h1>Reset Password</h1>
-                    <SMMessage
-                        v-if="formMessage.message"
-                        :type="formMessage.type"
-                        :message="formMessage.message"
-                        :icon="formMessage.icon" />
-                    <form @submit.prevent="submit">
-                        <SMInput
-                            v-model="formData.code.value"
-                            name="code"
-                            label="Reset Code"
-                            required
-                            :error="formData.code.error"
-                            @blur="fieldValidate(formData.code)" />
-                        <SMInput
-                            v-model="formData.password.value"
-                            type="password"
-                            name="password"
-                            label="New Password"
-                            required
-                            :error="formData.password.error"
-                            @blur="fieldValidate(formData.password)" />
-                        <SMCaptchaNotice />
+                    <SMForm v-model="form" @submit="handleSubmit">
+                        <SMInput control="code" />
+                        <SMInput control="password" type="password" />
                         <SMFormFooter>
                             <template #left>
-                                <div>
+                                <div class="small">
                                     <router-link
                                         :to="{ name: 'forgot-password' }"
                                         >Resend Code</router-link
@@ -39,10 +20,10 @@
                                 <SMButton
                                     type="submit"
                                     label="Reset Password"
-                                    icon="fa-solid fa-arrow-right" />
+                                    icon="arrow-forward-outline" />
                             </template>
                         </SMFormFooter>
-                    </form>
+                    </SMForm>
                 </template>
                 <template v-else>
                     <h1>Password Reset!</h1>
@@ -57,94 +38,61 @@
                 </template>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import SMInput from "../components/SMInput.vue";
-import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
-import SMDialog from "../components/SMDialog.vue";
-import SMMessage from "../components/SMMessage.vue";
-import axios from "axios";
-import { useRoute } from "vue-router";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../helpers/validation";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
+import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import { useRoute } from "vue-router";
+import SMButton from "../components/SMButton.vue";
+import SMDialog from "../components/SMDialog.vue";
+import SMForm from "../components/SMForm.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
+import { And, Max, Min, Password, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const formLoading = ref(false);
 const formDone = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formData = reactive({
-    code: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "The code is needed",
-            min: 6,
-            min_message: "The code should be 6 characters",
-            max: 6,
-            max_message: "The code should be 6 characters",
-        },
-    },
-    password: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A new password is required",
-            min: 8,
-            min_message: "Your password needs to be at least %d characters",
-            password: "special",
-            password_message:
-                "Your password needs to have at least a letter, a number and a special character",
-        },
-    },
-});
-
-useValidation(formData);
+const form = reactive(
+    Form({
+        code: FormControl("", And([Required(), Min(6), Max(6)])),
+        password: FormControl("", And([Required(), Password()])),
+    })
+);
 
 if (useRoute().query.code !== undefined) {
-    formData.code.value = useRoute().query.code;
-}
-
-const submit = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
-
-    try {
-        if (isValidated(formData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
-
-            let res = await axios.post("users/resetPassword", {
-                code: formData.code.value,
-                password: formData.password.value,
-                captcha_token: captcha,
-            });
-
-            formDone.value = true;
-        }
-    } catch (err) {
-        restParseErrors(formData, [formMessage, "message"], err);
+    let queryCode = useRoute().query.code;
+    if (Array.isArray(queryCode)) {
+        queryCode = queryCode[0];
     }
 
-    formLoading.value = false;
+    form.controls.code.value = queryCode;
+}
+
+const handleSubmit = async () => {
+    form.loading(true);
+
+    try {
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
+
+        await api.post({
+            url: "/users/resetPassword",
+            body: {
+                code: form.controls.code.value,
+                password: form.controls.password.value,
+                captcha_token: captcha,
+            },
+        });
+
+        formDone.value = true;
+    } catch (error) {
+        form.apiErrors(error);
+    } finally {
+        form.loading(false);
+    }
 };
 </script>
-
-<style lang="scss"></style>

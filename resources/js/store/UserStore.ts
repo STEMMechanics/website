@@ -1,5 +1,4 @@
-import axios from "axios";
-import { defineStore } from "pinia";
+import { defineStore, DefineStoreOptions } from "pinia";
 
 export interface UserDetails {
     id: string;
@@ -11,7 +10,7 @@ export interface UserDetails {
     permissions: string[];
 }
 
-export interface UserStore {
+export interface UserState {
     id: string;
     token: string;
     username: string;
@@ -24,7 +23,7 @@ export interface UserStore {
 
 export const useUserStore = defineStore({
     id: "user",
-    state: (): UserStore => ({
+    state: (): UserState => ({
         id: "",
         token: "",
         username: "",
@@ -50,19 +49,6 @@ export const useUserStore = defineStore({
             this.$state.token = token;
         },
 
-        async fetchUser() {
-            const res = await axios.get("users/" + this.$state.id);
-
-            this.$state.id = res.data.user.id;
-            this.$state.token = res.data.token;
-            this.$state.username = res.data.user.username;
-            this.$state.firstName = res.data.user.first_name;
-            this.$state.lastName = res.data.user.last_name;
-            this.$state.email = res.data.user.email;
-            this.$state.phone = res.data.user.phone;
-            this.$state.permissions = res.data.user.permissions || [];
-        },
-
         clearUser() {
             this.$state.id = null;
             this.$state.token = null;
@@ -76,4 +62,4 @@ export const useUserStore = defineStore({
     },
 
     persist: true,
-});
+} as DefineStoreOptions<string, unknown, unknown, unknown> & { persist?: boolean });

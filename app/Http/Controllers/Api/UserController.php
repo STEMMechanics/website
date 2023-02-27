@@ -240,7 +240,7 @@ class UserController extends ApiController
         }
 
         return $this->respondError([
-            'code' => 'The code was not found or has expired'
+            'code' => 'The code was not found or has expired.'
         ]);
     }
 
@@ -278,7 +278,7 @@ class UserController extends ApiController
         }//end if
 
         return $this->respondWithErrors([
-            'code' => 'The code was not found or has expired'
+            'code' => 'The code was not found or has expired.'
         ]);
     }
 

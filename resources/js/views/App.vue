@@ -1,6 +1,5 @@
 <template>
     <SMNavbar />
-    <SMBreadcrumbs />
     <main>
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -9,13 +8,16 @@
         </router-view>
     </main>
     <SMFooter />
+    <SMProgress />
+    <SMToastList />
     <DialogWrapper :transition-attrs="{ name: 'fade' }" />
 </template>
 
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
-import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
 import SMFooter from "../components/SMFooter.vue";
+import SMProgress from "../components/SMProgress.vue";
+import SMToastList from "../components/SMToastList.vue";
 import { DialogWrapper } from "vue3-promise-dialog";
 </script>
 

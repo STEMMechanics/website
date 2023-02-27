@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="rules">
+    <SMPage class="sm-rules">
         <h1>Rules</h1>
         <p>
             Oh gosh, no body likes rules but to ensure that we have a fun,
@@ -72,11 +72,13 @@
                 grief other players builds outside of the Survival game-mode.
             </li>
         </ul>
-    </SMContainer>
+    </SMPage>
 </template>
 
+<script setup lang="ts"></script>
+
 <style lang="scss">
-.rules {
+.sm-rules {
     h2 {
         margin-bottom: 0.5rem;
     }

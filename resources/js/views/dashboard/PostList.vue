@@ -1,67 +1,78 @@
 <template>
-    <SMContainer permission="admin/posts">
-        <SMHeading heading="Posts" />
-        <SMMessage
-            v-if="formMessage.message"
-            :icon="formMessage.icon"
-            :type="formMessage.type"
-            :message="formMessage.message" />
-        <SMToolbar>
-            <template #left>
-                <SMButton
-                    type="primary"
-                    label="Create Post"
-                    @click="handleCreate" />
-            </template>
-            <template #right>
-                <input v-model="search" placeholder="Search" />
-            </template>
-        </SMToolbar>
+    <SMPage permission="admin/posts" class="sm-page-post-list">
+        <template #container>
+            <SMHeading heading="Posts" />
+            <SMMessage
+                v-if="formMessage.message"
+                :icon="formMessage.icon"
+                :type="formMessage.type"
+                :message="formMessage.message" />
+            <SMToolbar>
+                <template #left>
+                    <SMButton
+                        type="primary"
+                        label="Create Post"
+                        :small="true"
+                        @click="handleCreate" />
+                </template>
+                <template #right>
+                    <SMInput
+                        v-model="search"
+                        label="Search"
+                        :small="true"
+                        style="max-width: 250px" />
+                </template>
+            </SMToolbar>
 
-        <EasyDataTable
-            v-model:server-options="serverOptions"
-            :server-items-length="serverItemsLength"
-            :loading="formLoading"
-            :headers="headers"
-            :items="items"
-            :search-value="search">
-            <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
-            </template>
-            <template #item-title="item">
-                <router-link
-                    :to="{ name: 'post-edit', params: { id: item.id } }"
-                    >{{ item.title }}</router-link
-                >
-            </template>
-            <template #item-actions="item">
-                <div class="action-wrapper">
-                    <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" />
-                </div>
-            </template>
-        </EasyDataTable>
-    </SMContainer>
+            <EasyDataTable
+                v-model:server-options="serverOptions"
+                :server-items-length="serverItemsLength"
+                :loading="formLoading"
+                :headers="headers"
+                :items="items"
+                :search-value="search">
+                <template #loading>
+                    <SMLoadingIcon />
+                </template>
+                <template #item-title="item">
+                    <router-link
+                        :to="{
+                            name: 'dashboard-post-edit',
+                            params: { id: item.id },
+                        }"
+                        >{{ item.title }}</router-link
+                    >
+                </template>
+                <template #item-actions="item">
+                    <div class="action-wrapper">
+                        <SMButton
+                            label="Edit"
+                            :dropdown="{
+                                delete: 'Delete',
+                            }"
+                            @click="handleClick(item, $event)"></SMButton>
+                    </div>
+                </template>
+            </EasyDataTable>
+        </template>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
-import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
-
-import SMToolbar from "../../components/SMToolbar.vue";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce } from "../../helpers/common";
 import SMHeading from "../../components/SMHeading.vue";
+import SMInput from "../../components/SMInput.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import SMToolbar from "../../components/SMToolbar.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { debounce } from "../../helpers/debounce";
 
 const router = useRouter();
 const search = ref("");
@@ -90,6 +101,14 @@ const serverOptions = ref({
     sortType: null,
 });
 
+const handleClick = (item, extra: string): void => {
+    if (extra.length == 0) {
+        handleEdit(item);
+    } else if (extra.toLowerCase() == "delete") {
+        handleDelete(item);
+    }
+};
+
 const loadFromServer = async () => {
     formLoading.value = true;
 
@@ -112,8 +131,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`posts${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/posts",
+            params: params,
         });
         if (!res.data.posts) {
             throw new Error("The server is currently not available");
@@ -123,19 +143,22 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(
-                    timestampUtcToLocal(row.created_at)
-                );
+                row.created_at = new SMDate(row.created_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(
-                    timestampUtcToLocal(row.updated_at)
-                );
+                row.updated_at = new SMDate(row.updated_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
             if (row.publish_at !== "undefined") {
-                row.publish_at = relativeDate(
-                    timestampUtcToLocal(row.publish_at)
-                );
+                row.publish_at = new SMDate(row.publish_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
         });
 
@@ -167,15 +190,15 @@ watch(search, () => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
 };
 
 const handleCreate = () => {
-    router.push({ name: "post-create" });
+    router.push({ name: "dashboard-post-create" });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {
@@ -194,7 +217,7 @@ const handleDelete = async (item) => {
 
     if (result == true) {
         try {
-            await axios.delete(`posts${item.id}`);
+            await api.delete(`posts${item.id}`);
             loadFromServer();
 
             formMessage.message = "Post deleted successfully";
@@ -206,4 +229,8 @@ const handleDelete = async (item) => {
 };
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.sm-page-post-list {
+    background-color: #f8f8f8;
+}
+</style>

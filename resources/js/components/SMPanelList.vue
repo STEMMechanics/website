@@ -1,10 +1,10 @@
 <template>
-    <div class="panel-list">
-        <div v-if="loading" class="panel-list-loading">
-            <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+    <div class="sm-panel-list">
+        <div v-if="loading" class="sm-panel-list-loading">
+            <SMLoadingIcon />
         </div>
-        <div v-else-if="notFound" class="panel-list-not-found">
-            <font-awesome-icon icon="fa-regular fa-face-frown-open" />
+        <div v-else-if="notFound" class="sm-panel-list-not-found">
+            <ion-icon name="alert-circle-outline" />
             <p>{{ notFoundText }}</p>
         </div>
         <slot></slot>
@@ -12,6 +12,8 @@
 </template>
 
 <script setup lang="ts">
+import SMLoadingIcon from "./SMLoadingIcon.vue";
+
 defineProps({
     loading: {
         type: Boolean,
@@ -32,7 +34,7 @@ defineProps({
 </script>
 
 <style lang="scss">
-.panel-list {
+.sm-panel-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -41,23 +43,20 @@ defineProps({
     width: 100%;
     margin: 0 auto;
 
-    .panel-list-loading {
+    .sm-panel-list-loading {
         display: flex;
         flex: 1;
         justify-content: center;
-
-        svg {
-            font-size: 500%;
-        }
     }
 
-    .panel-list-not-found {
+    .sm-panel-list-not-found {
         display: flex;
         flex-direction: column;
         flex: 1;
         justify-content: center;
+        align-items: center;
 
-        svg {
+        ion-icon {
             font-size: 300%;
         }
 

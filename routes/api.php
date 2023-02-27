@@ -22,7 +22,7 @@ use App\Http\Controllers\Api\UserController;
 |
 */
 
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/register', [UserController::class, 'register']);
 
 Route::apiResource('users', UserController::class);
@@ -36,8 +36,14 @@ Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
 Route::apiResource('posts', PostController::class);
+Route::get('posts/{post}/attachments', [PostController::class, 'getAttachments']);
+Route::post('posts/{post}/attachments', [PostController::class, 'storeAttachment']);
+Route::delete('posts/{post}/attachments/{attachment}', [PostController::class, 'deleteAttachment']);
 
 Route::apiResource('events', EventController::class);
+Route::get('events/{event}/attachments', [PostController::class, 'getAttachments']);
+Route::post('events/{event}/attachments', [PostController::class, 'storeAttachment']);
+Route::delete('events/{event}/attachments/{attachment}', [PostController::class, 'deleteAttachment']);
 
 Route::apiResource('subscriptions', SubscriptionController::class);
 Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']);

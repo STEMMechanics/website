@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/media">
+    <SMPage permission="admin/media">
         <h1>Media</h1>
 
         <SMMessage
@@ -29,41 +29,37 @@
             :items="items"
             :search-value="search">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-size="item">
                 {{ bytesReadable(item.size) }}
             </template>
             <template #item-actions="item">
                 <div class="action-wrapper">
-                    <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click.stop="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click.stop="handleDelete(item)" />
-                    <d-file-link :href="item.url" target="_blank" @click.stop=""
-                        ><font-awesome-icon icon="fa-solid fa-download"
-                    /></d-file-link>
+                    <SMFileLink :href="item.url" target="_blank" @click.stop=""
+                        ><font-awesome-icon icon="cloud-download-outline"
+                    /></SMFileLink>
                 </div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
-import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
-import SMToolbar from "../../components/SMToolbar.vue";
+import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce, parseErrorType, bytesReadable } from "../../helpers/common";
+import SMFileLink from "../../components/SMFileLink.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
-import DFileLink from "../../components/DFileLink.vue";
+import SMToolbar from "../../components/SMToolbar.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { debounce } from "../../helpers/debounce";
+import { bytesReadable } from "../../helpers/types";
 import { useUserStore } from "../../store/UserStore";
 
 const router = useRouter();
@@ -99,7 +95,7 @@ const serverOptions = ref({
 const loadFromServer = async () => {
     formLoading.value = true;
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {
@@ -121,8 +117,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`media${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/media",
+            params: params,
         });
         if (!res.data.media) {
             throw new Error("The server is currently not available");
@@ -132,7 +129,7 @@ const loadFromServer = async () => {
 
         items.value.forEach(async (row) => {
             if (Object.keys(users).includes(row.user_id) === false) {
-                await axios.get(`users/${row.user_id}`).then((res) => {
+                await api.get(`users/${row.user_id}`).then((res) => {
                     users[row.user_id] = res.data.user.username;
                 });
             }
@@ -144,16 +141,22 @@ const loadFromServer = async () => {
             }
 
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = new SMDate(row.created_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(row.updated_at);
+                row.updated_at = new SMDate(row.updated_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
         });
 
         serverItemsLength.value = res.data.total;
     } catch (err) {
-        formMessage.message = parseErrorType(err);
+        // formMessage.message = parseErrorTyp(err);
     }
 
     formLoading.value = false;
@@ -175,11 +178,11 @@ watch(search, (value) => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "media-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "media-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {
@@ -198,7 +201,7 @@ const handleDelete = async (item) => {
 
     if (result) {
         try {
-            await axios.delete(`media/${item.id}`);
+            await api.delete(`media/${item.id}`);
             loadFromServer();
         } catch (err) {
             alert(

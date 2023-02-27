@@ -58,5 +58,6 @@ jobs:
                       php artisan migrate --force
                       npm install
                       npm run build
+                      npm run prepare
                       php artisan optimize
                       php artisan up

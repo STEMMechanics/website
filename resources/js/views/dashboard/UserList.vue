@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/users">
+    <SMPage permission="admin/users">
         <SMHeading heading="Users" />
         <SMMessage
             v-if="formMessage.message"
@@ -16,32 +16,26 @@
             :header-item-class-name="headerItemClassNameFunction"
             :body-item-class-name="bodyItemClassNameFunction">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-actions="item">
-                <div class="action-wrapper">
-                    <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" />
-                </div>
+                <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
-import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import { relativeDate, toParamString } from "../../helpers/common";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
+import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMHeading from "../../components/SMHeading.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
 
 const router = useRouter();
 const searchValue = ref("");
@@ -76,7 +70,7 @@ const serverOptions = ref({
 const loadFromServer = async () => {
     formLoading.value = true;
     formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
+    formMessage.icon = "alert-circle-outline";
     formMessage.message = "";
 
     try {
@@ -94,12 +88,18 @@ const loadFromServer = async () => {
         params["page"] = serverOptions.value.page;
         params["limit"] = serverOptions.value.rowsPerPage;
 
-        let res = await axios.get(`users${toParamString(params)}`);
+        let res = await api.get({
+            url: "/users",
+            params: params,
+        });
         items.value = res.data.users;
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = new SMDate(row.created_at, {
+                    format: "yMd",
+                    utc: true,
+                }).relative();
             }
         });
 
@@ -134,7 +134,7 @@ const bodyItemClassNameFunction = (column) => {
 };
 
 const handleEdit = (user) => {
-    router.push({ name: "user-edit", params: { id: user.id } });
+    router.push({ name: "dashboard-user-edit", params: { id: user.id } });
 };
 
 const handleDelete = async (user) => {
@@ -153,7 +153,7 @@ const handleDelete = async (user) => {
 
     if (result == true) {
         try {
-            await axios.delete(`users${user.id}`);
+            await api.delete(`users${user.id}`);
             loadFromServer();
 
             formMessage.message = "User deleted successfully";

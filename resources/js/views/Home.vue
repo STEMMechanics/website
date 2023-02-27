@@ -1,5 +1,5 @@
 <template>
-    <SMContainer full class="home">
+    <SMPage full class="home">
         <SMCarousel>
             <SMCarouselSlide
                 v-for="(slide, index) in slides"
@@ -41,7 +41,7 @@
                         skills that they can use throughout their lives.
                     </p>
                     <SMButton
-                        :to="{ name: 'workshop-list' }"
+                        :to="{ name: 'event-list' }"
                         label="Explore Workshops" />
                 </SMColumn>
                 <SMColumn
@@ -110,68 +110,42 @@
                 Sign up for our mailing list to receive expert tips and tricks,
                 as well as updates on upcoming workshops.
             </p>
-            <SMDialog :loading="formLoading" class="p-0">
-                <form @submit.prevent="handleSubscribe">
+            <SMDialog class="p-0" no-shadow>
+                <SMForm v-model="form" @submit="handleSubscribe">
                     <div class="form-row">
-                        <SMMessage
-                            v-if="formMessage.message"
-                            :type="formMessage.type"
-                            :message="formMessage.message"
-                            :icon="formMessage.icon" />
-                        <SMInput
-                            v-model="subscribeFormData.email.value"
-                            placeholder="Email address"
-                            :error="subscribeFormData.email.error"
-                            @blur="fieldValidate(subscribeFormData.email)" />
-                        <SMCaptchaNotice />
+                        <SMInput control="email" />
                         <SMButton type="submit" label="Subscribe" />
                     </div>
-                </form>
+                </SMForm>
             </SMDialog>
         </SMContainer>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
 import { reactive, ref } from "vue";
-import { buildUrlQuery, excerpt, timestampNowUtc } from "../helpers/common";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-    clearFormData,
-} from "../helpers/validation";
-import SMInput from "../components/SMInput.vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
 import SMCarouselSlide from "../components/SMCarouselSlide.vue";
-import SMMessage from "../components/SMMessage.vue";
-import SMCaptchaNotice from "../components/SMCaptchaNotice.vue";
 import SMDialog from "../components/SMDialog.vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
+import SMForm from "../components/SMForm.vue";
+import SMInput from "../components/SMInput.vue";
+
+import { api } from "../helpers/api";
+import { EventCollection, PostCollection } from "../helpers/api.types";
+import { SMDate } from "../helpers/datetime";
+import { Form, FormControl } from "../helpers/form";
+import { excerpt } from "../helpers/string";
+import { And, Email, Required } from "../helpers/validate";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const subscribeFormData = reactive({
-    email: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "An email address is needed.",
-            email: true,
-            email_message: "That does not appear to be an email address.",
-        },
-    },
-});
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const formLoading = ref(false);
+const form = reactive(
+    Form({
+        email: FormControl("", And([Required(), Email()])),
+    })
+);
 
 const handleLoad = async () => {
     slides.value = [];
@@ -179,9 +153,17 @@ const handleLoad = async () => {
     let events = [];
 
     try {
-        let result = await axios.get(buildUrlQuery("posts", { limit: 3 }));
-        if (result.data.posts) {
-            result.data.posts.forEach((post) => {
+        const result = await api.get({
+            url: "/posts",
+            params: {
+                limit: 3,
+            },
+        });
+
+        const data = result.data as PostCollection;
+
+        if (data && data.posts) {
+            data.posts.forEach((post) => {
                 posts.push({
                     title: post.title,
                     content: excerpt(post.content, 200),
@@ -191,29 +173,37 @@ const handleLoad = async () => {
                 });
             });
         }
-    } catch (error) {
+    } catch {
         /* empty */
     }
 
     try {
-        let query = {
-            limit: 3,
-            end_at: ">" + timestampNowUtc(),
-        };
+        const result = await api.get({
+            url: "/events",
+            params: {
+                limit: 3,
+                end_at:
+                    ">" +
+                    new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
+                        utc: true,
+                    }),
+            },
+        });
 
-        let result = await axios.get(buildUrlQuery("events", query));
-        if (result.data.events) {
-            result.data.events.forEach((event) => {
+        const data = result.data as EventCollection;
+
+        if (data && data.events) {
+            data.events.forEach((event) => {
                 events.push({
                     title: event.title,
                     content: excerpt(event.content, 200),
                     image: event.hero,
-                    url: { name: "workshop-view", params: { id: event.id } },
+                    url: { name: "event-view", params: { id: event.id } },
                     cta: "View Workshop",
                 });
             });
         }
-    } catch (error) {
+    } catch {
         /* empty */
     }
 
@@ -221,6 +211,7 @@ const handleLoad = async () => {
         if (i <= posts.length) {
             slides.value.push(posts[i - 1]);
         }
+
         if (i <= events.length) {
             slides.value.push(events[i - 1]);
         }
@@ -228,34 +219,30 @@ const handleLoad = async () => {
 };
 
 const handleSubscribe = async () => {
-    formLoading.value = true;
-    formMessage.icon = "";
-    formMessage.type = "error";
-    formMessage.message = "";
+    form.loading(true);
+    form.message();
 
     try {
-        if (isValidated(subscribeFormData)) {
-            await recaptchaLoaded();
-            const captcha = await executeRecaptcha("submit");
+        await recaptchaLoaded();
+        const captcha = await executeRecaptcha("submit");
 
-            await axios.post("subscriptions", {
-                email: subscribeFormData.email.value,
+        await api.post({
+            url: "/subscriptions",
+            body: {
+                email: form.controls.email.value,
                 captcha_token: captcha,
-            });
+            },
+        });
 
-            clearFormData(subscribeFormData);
-
-            formMessage.type = "success";
-            formMessage.message = "Your email address has been subscribed.";
-        }
+        form.controls.email.value = "";
+        form.message("Your email address has been subscribed.", "success");
     } catch (err) {
-        restParseErrors(subscribeFormData, [formMessage, "message"], err);
+        form.apiErrors(err);
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
-useValidation(subscribeFormData);
 handleLoad();
 </script>
 

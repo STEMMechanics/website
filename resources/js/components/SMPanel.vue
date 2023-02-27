@@ -1,53 +1,59 @@
 <template>
-    <router-link :to="to" class="panel">
-        <div
-            class="panel-image"
-            :style="{ backgroundImage: `url('${imageUrl}')` }">
-            <div v-if="dateInImage" class="panel-image-date">
-                <div class="panel-image-date-day">
-                    {{ format(new Date(date), "dd") }}
+    <router-link :to="to" class="sm-panel">
+        <div v-if="image" class="sm-panel-image" :style="styleObject">
+            <div v-if="dateInImage && date" class="sm-panel-image-date">
+                <div class="sm-panel-image-date-day">
+                    {{ new SMDate(date, { format: "yMd" }).format("dd") }}
                 </div>
-                <div class="panel-image-date-month">
-                    {{ format(new Date(date), "MMM") }}
+                <div class="sm-panel-image-date-month">
+                    {{ new SMDate(date, { format: "yMd" }).format("MMM") }}
                 </div>
             </div>
-            <font-awesome-icon
-                v-if="hideImageLoader == false"
-                class="panel-image-loader"
-                icon="fa-regular fa-image" />
+            <ion-icon
+                v-if="imageUrl.length == 0"
+                class="sm-panel-image-loader"
+                name="image-outline" />
         </div>
-        <div class="panel-body">
-            <h3 class="panel-title">{{ title }}</h3>
-            <div v-if="showDate" class="panel-date">
-                <font-awesome-icon
+        <div class="sm-panel-body">
+            <h3 class="sm-panel-title">{{ title }}</h3>
+            <div v-if="showDate && date" class="sm-panel-date">
+                <ion-icon
                     v-if="showTime == false && endDate.length == 0"
-                    icon="fa-regular fa-calendar" /><font-awesome-icon
-                    v-else
-                    icon="fa-regular fa-clock" />
-                <p>{{ panelDate }}</p>
+                    name="calendar-outline" />
+                <ion-icon v-else name="time-outline" />
+                <p>{{ computedDate }}</p>
             </div>
-            <div v-if="location" class="panel-location">
-                <font-awesome-icon icon="fa-solid fa-location-dot" />
+            <div v-if="location" class="sm-panel-location">
+                <ion-icon name="location-outline" />
                 <p>{{ location }}</p>
             </div>
-            <div v-if="content" class="panel-content">{{ panelContent }}</div>
-            <div v-if="button.length > 0" class="panel-button">
-                <SMButton :to="to" :type="buttonType" :label="button" />
+            <div v-if="content" class="sm-panel-content">
+                {{ computedContent }}
+            </div>
+            <div v-if="button.length > 0" class="sm-panel-button">
+                <SMButton
+                    :to="to"
+                    :type="buttonType"
+                    :block="true"
+                    :label="button" />
+            </div>
+            <div
+                v-if="banner"
+                :class="['sm-panel-banner', `sm-panel-banner-${bannerType}`]">
+                {{ banner }}
             </div>
         </div>
     </router-link>
 </template>
 
 <script setup lang="ts">
-import axios from "axios";
-import { onMounted, computed, ref } from "vue";
-import {
-    excerpt,
-    isUUID,
-    replaceHtmlEntites,
-    stripHtmlTags,
-} from "../helpers/common";
-import { format } from "date-fns";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { api } from "../helpers/api";
+import { MediaResponse } from "../helpers/api.types";
+import { SMDate } from "../helpers/datetime";
+import { imageLoad } from "../helpers/image";
+import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
+import { isUUID } from "../helpers/uuid";
 import SMButton from "./SMButton.vue";
 
 const props = defineProps({
@@ -59,7 +65,12 @@ const props = defineProps({
     image: {
         type: String,
         default: "",
-        required: true,
+        required: false,
+    },
+    icon: {
+        type: String,
+        default: "",
+        required: false,
     },
     to: {
         type: Object,
@@ -76,7 +87,7 @@ const props = defineProps({
     date: {
         type: String,
         default: "",
-        required: true,
+        required: false,
     },
     endDate: {
         type: String,
@@ -113,68 +124,103 @@ const props = defineProps({
         default: "primary",
         required: false,
     },
+    banner: {
+        type: String,
+        default: "",
+        required: false,
+    },
+    bannerType: {
+        type: String,
+        default: "primary",
+        required: false,
+    },
 });
 
-let imageUrl = ref(props.image);
-const panelDate = computed(() => {
+let styleObject = reactive({});
+let imageUrl = ref("");
+
+/**
+ * Return a human readable date based on props.date and props.endDate.
+ */
+const computedDate = computed(() => {
     let str = "";
 
-    if (
-        (props.endDate.length > 0 &&
-            props.date.substring(0, props.date.indexOf(" ")) !=
-                props.endDate.substring(0, props.endDate.indexOf(" "))) ||
-        props.showTime == false
-    ) {
-        str = format(new Date(props.date), "dd/MM/yyyy");
-        if (props.endDate.length > 0) {
-            str = str + " - " + format(new Date(props.endDate), "dd/MM/yyyy");
+    if (props.date.length > 0) {
+        if (
+            (props.endDate.length > 0 &&
+                props.date.substring(0, props.date.indexOf(" ")) !=
+                    props.endDate.substring(0, props.endDate.indexOf(" "))) ||
+            props.showTime == false
+        ) {
+            str = new SMDate(props.date, { format: "yMd" }).format(
+                "dd/MM/yyyy"
+            );
+            if (props.endDate.length > 0) {
+                str =
+                    str +
+                    " - " +
+                    new SMDate(props.endDate, { format: "yMd" }).format(
+                        "dd/MM/yyyy"
+                    );
+            }
+        } else {
+            str = new SMDate(props.endDate, { format: "yMd" }).format(
+                "dd/MM/yyyy @ h:mm aa"
+            );
         }
-    } else {
-        str = format(new Date(props.date), "dd/MM/yyyy @ h:mm aa");
     }
 
     return str;
 });
 
-const panelContent = computed(() => {
+/**
+ * Return the content string cleaned from HTML.
+ */
+const computedContent = computed(() => {
     return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 200);
 });
 
-const hideImageLoader = computed(() => {
-    return (
-        imageUrl.value &&
-        imageUrl.value.length > 0 &&
-        isUUID(imageUrl.value) == false
-    );
-});
-
 onMounted(async () => {
-    if (imageUrl.value && imageUrl.value.length > 0 && isUUID(imageUrl.value)) {
-        try {
-            let result = await axios.get(`media/${props.image}`);
+    if (props.image && props.image.length > 0 && isUUID(props.image)) {
+        api.get({ url: "/media/{medium}", params: { medium: props.image } })
+            .then((result) => {
+                const data = result.data as MediaResponse;
 
-            if (result.data.medium) {
-                imageUrl.value = result.data.medium.url;
-            }
-        } catch (error) {
-            /* empty */
-        }
+                if (data && data.medium) {
+                    imageLoad(data.medium.url, (url) => {
+                        imageUrl.value = url;
+                    });
+                }
+            })
+            .catch(() => {
+                /* empty */
+            });
     }
 });
+
+watch(
+    () => imageUrl.value,
+    (value) => {
+        styleObject["backgroundImage"] = `url('${value}')`;
+    }
+);
 </script>
 
 <style lang="scss">
-.panel {
+.sm-panel {
     display: flex;
     flex-direction: column;
     border: 1px solid $border-color;
     border-radius: 12px;
+    overflow: hidden;
     box-shadow: 0 0 28px rgba(0, 0, 0, 0.05);
     max-width: 21rem;
     width: 100%;
     color: $font-color !important;
     margin-bottom: map-get($spacer, 5);
     transition: box-shadow 0.2s ease-in-out;
+    position: relative;
+    overflow: hidden;
 
     &:hover {
         color: $font-color;
@@ -182,7 +228,7 @@ onMounted(async () => {
         box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
     }
 
-    .panel-image {
+    .sm-panel-image {
         position: relative;
         display: flex;
         justify-content: center;
@@ -195,12 +241,12 @@ onMounted(async () => {
         border-top-right-radius: 12px;
         background-color: #eee;
 
-        .panel-image-loader {
+        .sm-panel-image-loader {
             font-size: 5rem;
             color: $secondary-color;
         }
 
-        .panel-image-date {
+        .sm-panel-image-date {
             background-color: #fff;
             padding: 0.75rem 1rem;
             text-align: center;
@@ -211,38 +257,39 @@ onMounted(async () => {
             box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2);
             text-align: center;
 
-            .panel-image-date-day {
+            .sm-panel-image-date-day {
                 font-weight: bold;
                 font-size: 130%;
             }
 
-            .panel-image-date-month {
+            .sm-panel-image-date-month {
                 text-transform: uppercase;
                 font-size: 80%;
             }
         }
     }
 
-    .panel-body {
+    .sm-panel-body {
         display: flex;
         flex-direction: column;
         flex: 1;
         padding: 0 map-get($spacer, 3) map-get($spacer, 3) map-get($spacer, 3);
+        background-color: #fff;
     }
 
-    .panel-title {
+    .sm-panel-title {
         margin-bottom: 1rem;
     }
 
-    .panel-date,
-    .panel-location {
+    .sm-panel-date,
+    .sm-panel-location {
         display: flex;
         flex-direction: row;
         align-items: top;
         font-size: 80%;
         margin-bottom: 0.4rem;
 
-        svg {
+        ion-icon {
             flex: 0 1 1rem;
             margin-right: map-get($spacer, 1);
             padding-top: 0.1rem;
@@ -257,16 +304,50 @@ onMounted(async () => {
         }
     }
 
-    .panel-content {
+    .sm-panel-content {
         margin-top: 1rem;
         line-height: 130%;
         flex: 1;
     }
 
-    .panel-button {
-        .button {
-            display: block;
-            margin-top: 1.5rem;
+    .sm-panel-button {
+        margin-top: map-get($spacer, 4);
+    }
+
+    .sm-panel-banner {
+        position: absolute;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 65px;
+        right: -10px;
+        height: 20px;
+        width: 120px;
+        font-size: 70%;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #fff;
+        background-color: $primary-color;
+        transform-origin: 100%;
+        transform: rotateZ(45deg);
+
+        &.sm-panel-banner-success {
+            background-color: $success-color;
+        }
+
+        &.sm-panel-banner-danger {
+            background-color: $danger-color;
+            font-size: 60%;
+        }
+
+        &.sm-panel-banner-warning {
+            background-color: $warning-color-darker;
+            color: $font-color;
+            font-size: 60%;
+        }
+
+        &.sm-panel-banner-expired {
+            background-color: purple;
         }
     }
 }

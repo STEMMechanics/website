@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="terms">
+    <SMPage class="sm-terms">
         <h1>Terms and Conditions</h1>
         <p>
             Please read these terms carefully. By accessing or using our website
@@ -560,5 +560,5 @@
             be responsible for warranty and after sales service but this is
             allowed under the Law.
         </p>
-    </SMContainer>
+    </SMPage>
 </template>

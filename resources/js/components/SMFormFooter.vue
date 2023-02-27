@@ -1,26 +1,25 @@
 <template>
-    <div class="form-footer">
-        <div class="form-footer-column form-footer-column-left">
+    <div class="sm-form-footer">
+        <div class="sm-form-footer-column sm-form-footer-column-left">
             <slot name="left"></slot>
         </div>
-        <div class="form-footer-column form-footer-column-right">
+        <div class="sm-form-footer-column sm-form-footer-column-right">
             <slot name="right"></slot>
         </div>
     </div>
 </template>
 
 <style lang="scss">
-.form-footer {
+.sm-form-footer {
     display: flex;
     flex: 1;
-    // margin-bottom: map-get($spacer, 3);
 
-    .form-footer-column {
+    .sm-form-footer-column {
         display: flex;
         align-items: center;
 
-        &.form-footer-column-left,
-        &.form-footer-column-right {
+        &.sm-form-footer-column-left,
+        &.sm-form-footer-column-right {
             a,
             button {
                 margin-left: map-get($spacer, 1);
@@ -36,7 +35,7 @@
             }
         }
 
-        &.form-footer-column-right {
+        &.sm-form-footer-column-right {
             flex: 1;
             justify-content: flex-end;
         }
@@ -44,12 +43,12 @@
 }
 
 @media screen and (max-width: 768px) {
-    .form-footer {
+    .sm-form-footer {
         flex-direction: column-reverse;
 
-        .form-footer-column {
-            &.form-footer-column-left,
-            &.form-footer-column-right {
+        .sm-form-footer-column {
+            &.sm-form-footer-column-left,
+            &.sm-form-footer-column-right {
                 display: flex;
                 flex-direction: column-reverse;
                 justify-content: center;
@@ -66,11 +65,11 @@
                 }
             }
 
-            &.form-footer-column-left {
+            &.sm-form-footer-column-left {
                 margin-bottom: -#{calc(map-get($spacer, 1) / 2)};
             }
 
-            &.form-footer-column-right {
+            &.sm-form-footer-column-right {
                 margin-top: -#{calc(map-get($spacer, 1) / 2)};
             }
         }

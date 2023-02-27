@@ -1,84 +1,51 @@
 <template>
-    <SMContainer :page-error="pageError" permission="admin/events">
+    <SMPage :page-error="pageError" permission="admin/events">
         <SMRow>
             <SMDialog :loading="formLoading">
                 <h1>{{ page_title }}</h1>
-                <SMMessage
-                    v-if="formMessage.message"
-                    :icon="formMessage.icon"
-                    :type="formMessage.type"
-                    :message="formMessage.message" />
-                <form @submit.prevent="submit">
+                <SMForm :model-value="form" @submit="handleSubmit">
                     <SMRow>
-                        <SMColumn
-                            ><SMInput
-                                v-model="formData.title.value"
-                                label="Title"
-                                required
-                                :error="formData.title.error"
-                                @blur="fieldValidate(formData.title)"
-                        /></SMColumn>
+                        <SMColumn><SMInput control="title" /></SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
-                            <SMSelect
-                                v-model="formData.location.value"
-                                label="Location"
+                            <SMInput
+                                control="location"
                                 :options="{
                                     online: 'Online',
                                     physical: 'Physical',
-                                }"
-                                @change="fieldValidate(formData.address)" />
+                                }" />
                         </SMColumn>
                         <SMColumn
                             ><SMInput
-                                v-if="formData.location.value !== 'online'"
-                                v-model="formData.address.value"
-                                :label="address_data?.title"
-                                type="text"
-                                :required="address_data?.required"
-                                :error="formData.address.error"
-                                @blur="fieldValidate(formData.address)"
+                                v-if="form.location.value !== 'online'"
+                                control="address"
                         /></SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMDatepicker
-                                v-model="formData.start_at.value"
-                                label="Start Date/Time"
-                                :error="formData.start_at.error"
-                                required
-                                @blur="
-                                    fieldValidate(formData.start_at)
-                                "></SMDatepicker>
+                                control="start_at"
+                                label="Start Date/Time"></SMDatepicker>
                         </SMColumn>
                         <SMColumn>
                             <SMDatepicker
-                                v-model="formData.end_at.value"
-                                label="End Date/Time"
-                                :error="formData.end_at.error"
-                                required
-                                @blur="
-                                    fieldValidate(formData.end_at)
-                                "></SMDatepicker>
+                                control="end_at"
+                                label="End Date/Time"></SMDatepicker>
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMDatepicker
-                                v-model="formData.publish_at.value"
-                                label="Publish Date/Time"
-                                :error="formData.publish_at.error"
-                                @blur="
-                                    fieldValidate(formData.publish_at)
-                                "></SMDatepicker>
+                                control="publish_at"
+                                label="Publish Date/Time"></SMDatepicker>
                         </SMColumn>
                         <SMColumn>
-                            <SMSelect
-                                v-model="formData.status.value"
-                                label="Status"
+                            <SMInput
+                                control="status"
                                 :options="{
                                     draft: 'Draft',
+                                    soon: 'Opening Soon',
                                     open: 'Open',
                                     closed: 'Closed',
                                     cancelled: 'Cancelled',
@@ -87,45 +54,35 @@
                     </SMRow>
                     <SMRow>
                         <SMColumn>
-                            <SMSelect
-                                v-model="formData.registration_type.value"
+                            <SMInput
+                                control="registration_type"
                                 label="Registration"
                                 :options="{
                                     none: 'None',
                                     email: 'Email',
                                     link: 'Link',
-                                }"
-                                @change="
-                                    fieldValidate(formData.registration_data)
-                                " />
+                                }" />
                         </SMColumn>
                         <SMColumn>
                             <SMInput
                                 v-if="registration_data?.visible"
-                                v-model="formData.registration_data.value"
+                                control="registration_data"
                                 :label="registration_data?.title"
-                                :type="registration_data?.type"
-                                required
-                                :error="formData.registration_data.error"
-                                @blur="
-                                    fieldValidate(formData.registration_data)
-                                " />
+                                :type="registration_data?.type" />
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMInput
-                                v-model="formData.hero.value"
+                                control="hero"
                                 type="media"
-                                label="Hero image"
-                                :error="formData.hero.error"
-                                required />
+                                label="Hero image" />
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMEditor
-                                v-model:srcContent="formData.content.value"
+                                v-model:srcContent="form.content.value"
                                 :mime-types="[
                                     'image/png',
                                     'image/jpeg',
@@ -141,43 +98,39 @@
                             </template>
                         </SMFormFooter>
                     </SMRow>
-                </form>
+                </SMForm>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import SMInput from "../../components/SMInput.vue";
-import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
-import SMSelect from "../../components/SMSelect.vue";
-import SMDatepicker from "../../components/SMDatePicker.vue";
-import SMEditor from "../../components/SMEditor.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import SMFormFooter from "../../components/SMFormFooter.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../../helpers/validation";
+import { computed, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { timestampLocalToUtc, timestampUtcToLocal } from "../../helpers/common";
-import { parseISO } from "date-fns";
+import SMButton from "../../components/SMButton.vue";
+import SMDatepicker from "../../components/SMDatePicker.vue";
+import SMDialog from "../../components/SMDialog.vue";
+import SMEditor from "../../components/SMEditor.vue";
+import SMFormFooter from "../../components/SMFormFooter.vue";
+import SMInput from "../../components/SMInput.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { FormControl } from "../../helpers/form";
+import {
+    And,
+    Custom,
+    DateTime,
+    Email,
+    Min,
+    Required,
+    Url,
+} from "../../helpers/validate";
+
+import SMForm from "../../components/SMForm.vue";
 
 const route = useRoute();
-const formLoading = ref(false);
 const page_title = route.params.id ? "Edit Event" : "Create New Event";
 const pageError = ref(200);
-
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
 
 const address_data = computed(() => {
     let data = {
@@ -185,9 +138,9 @@ const address_data = computed(() => {
         required: false,
     };
 
-    if (formData?.location.value === "online") {
+    if (form?.location.value === "online") {
         data.required = false;
-    } else if (formData?.location.value === "physical") {
+    } else if (form?.location.value === "physical") {
         data.title = "Address";
         data.required = true;
     }
@@ -202,11 +155,11 @@ const registration_data = computed(() => {
         type: "text",
     };
 
-    if (formData?.registration_type.value === "email") {
+    if (form?.registration_type.value === "email") {
         data.visible = true;
         data.title = "Registration email";
         data.type = "email";
-    } else if (formData?.registration_type.value === "link") {
+    } else if (form?.registration_type.value === "link") {
         data.visible = true;
         data.title = "Registration URL";
         data.type = "url";
@@ -215,170 +168,145 @@ const registration_data = computed(() => {
     return data;
 });
 
-const formData = reactive({
-    title: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "An event title is required",
-            min: 6,
-            min_message: "Your event title should be at least 6 letters long",
-        },
-    },
-    location: {
-        value: "online",
-        error: "",
-    },
-    address: {
-        value: "",
-        error: "",
-        rules: {
-            required: () => {
-                return address_data?.value.required;
-            },
-            required_message: "An address is required",
-        },
-    },
-    start_at: {
-        value: null,
-        error: "",
-        rules: {
-            required: true,
-            datetime: true,
-        },
-    },
-    end_at: {
-        value: null,
-        error: "",
-        rules: {
-            required: true,
-            datetime: true,
-            afterdate: () => {
-                return formData.start_at.value;
-            },
-            afterdate_message:
-                "The ending date/time must be after the starting date/time.",
-        },
-    },
-    publish_at: {
-        value: null,
-        error: "",
-    },
-    status: {
-        value: "",
-        error: "",
-    },
-    registration_type: {
-        value: "none",
-        error: "",
-    },
-    registration_data: {
-        value: "",
-        error: "",
-        rules: {
-            type:
-                // eslint-disable-next-line
-                registration_data,
-            email_message: "A valid email address is required",
-            url_message: "A valid URL is required",
-        },
-    },
-    hero: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-        },
-    },
-    content: {
-        value: "",
-        error: "",
-    },
-});
+const form = reactive(
+    Form({
+        title: FormControl("", And([Required(), Min(6)])),
+        location: FormControl("online"),
+        address: FormControl(
+            "",
+            Custom((value) => {
+                return address_data?.value.required && value.length == 0
+                    ? "A venue address is required"
+                    : false;
+            })
+        ),
+        start_at: FormControl("", And([Required(), DateTime()])),
+        end_at: FormControl(
+            "",
+            And([
+                Required(),
+                DateTime({
+                    after: (v) => {
+                        return form.start_at.value;
+                    },
+                    invalidAfterMessage:
+                        "The ending date/time must be after the starting date/time.",
+                }),
+            ])
+        ),
+        publish_at: FormControl("", DateTime()),
+        status: FormControl(),
+        registration_type: FormControl("none"),
+        registration_data: FormControl(
+            "",
+            Custom((v) => {
+                let validationResult = {
+                    valid: true,
+                    invalidMessages: [""],
+                };
 
-useValidation(formData);
+                if (registration_data.value.type == "email") {
+                    validationResult = Email().validate(v);
+                } else if (registration_data.value.type == "url") {
+                    validationResult = Url().validate(v);
+                }
+
+                if (!validationResult.valid) {
+                    return validationResult.invalidMessages[0];
+                }
+
+                return true;
+            })
+        ),
+        hero: FormControl("", Required()),
+        content: FormControl(),
+    })
+);
 
 const loadData = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
+    form.loading(true);
 
     if (route.params.id) {
         try {
-            let res = await axios.get("events/" + route.params.id);
+            let res = await api.get("/events/" + route.params.id);
             if (!res.data.event) {
                 throw new Error("The server is currently not available");
             }
 
-            formData.title.value = res.data.event.title;
-            formData.location.value = res.data.event.location;
-            formData.address.value = res.data.event.address
+            form.title.value = res.data.event.title;
+            form.location.value = res.data.event.location;
+            form.address.value = res.data.event.address
                 ? res.data.event.address
                 : "";
-            formData.start_at.value = timestampUtcToLocal(
-                res.data.event.start_at
-            );
-            formData.end_at.value = timestampUtcToLocal(res.data.event.end_at);
-            formData.status.value = res.data.event.status;
-            formData.publish_at.value = timestampUtcToLocal(
-                res.data.event.publish_at
-            );
-            formData.registration_type.value = res.data.event.registration_type;
-            formData.registration_data.value = res.data.event.registration_data;
-            formData.content.value = res.data.event.content
+            form.start_at.value = new SMDate(res.data.event.start_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+            form.end_at.value = new SMDate(res.data.event.end_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+            form.status.value = res.data.event.status;
+            form.publish_at.value = new SMDate(res.data.event.publish_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+            form.registration_type.value = res.data.event.registration_type;
+            form.registration_data.value = res.data.event.registration_data;
+            form.content.value = res.data.event.content
                 ? res.data.event.content
                 : "";
-            formData.hero.value = res.data.event.hero;
+            form.hero.value = res.data.event.hero;
         } catch (err) {
             pageError.value = err.response.status;
         }
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
-const submit = async () => {
-    console.log(formData.end_at.value);
-
+const handleSubmit = async () => {
     try {
-        if (isValidated(formData)) {
-            let data = {
-                title: formData.title.value,
-                location: formData.location.value,
-                address: formData.address.value,
-                start_at: timestampLocalToUtc(formData.start_at.value),
-                end_at: timestampLocalToUtc(formData.end_at.value),
-                status: formData.status.value,
-                publish_at:
-                    formData.publish_at.value == ""
-                        ? ""
-                        : timestampLocalToUtc(formData.publish_at.value),
-                registration_type: formData.registration_type.value,
-                registration_data: formData.registration_data.value,
-                content: formData.content.value,
-                hero: formData.hero.value,
-            };
+        let data = {
+            title: form.title.value,
+            location: form.location.value,
+            address: form.address.value,
+            start_at: new SMDate(form.start_at.value, { format: "dmy" }).format(
+                "yyyy/MM/dd HH:mm:ss",
+                { utc: true }
+            ),
+            end_at: new SMDate(form.end_at.value, { format: "dmy" }).format(
+                "yyyy/MM/dd HH:mm:ss",
+                { utc: true }
+            ),
+            status: form.status.value,
+            publish_at:
+                form.publish_at.value == ""
+                    ? ""
+                    : new SMDate(form.publish_at.value, {
+                          format: "dmy",
+                      }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
+            registration_type: form.registration_type.value,
+            registration_data: form.registration_data.value,
+            content: form.content.value,
+            hero: form.hero.value,
+        };
 
-            let res = {};
-            if (route.params.id) {
-                res = await axios.put(`events/${route.params.id}`, data);
-            } else {
-                console.log(data);
-                res = await axios.post(`events`, data);
-            }
-
-            console.log(res);
-            formMessage.type = "success";
-            formMessage.message = "Your details have been updated";
+        if (route.params.id) {
+            await api.put({
+                url: `/events/${route.params.id}`,
+                body: data,
+            });
+        } else {
+            await api.post({
+                url: "events",
+                body: data,
+            });
         }
-    } catch (err) {
-        console.log(err);
-        formMessage.icon = "";
-        formMessage.type = "error";
-        formMessage.message = "";
-        restParseErrors(formData, [formMessage, "message"], err);
+
+        form.message("Your details have been updated", "success");
+    } catch (error) {
+        form.apiError(error);
     }
 
     window.scrollTo({

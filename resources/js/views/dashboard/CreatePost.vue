@@ -1,118 +1,72 @@
 <template>
-    <SMContainer>
-        <SMMessage
-            v-if="formMessage.message"
-            :type="formMessage.type"
-            :message="formMessage.message"
-            :icon="formMessage.icon" />
-        <form @submit.prevent="submit">
+    <SMPage>
+        <SMForm v-model="form" @submit="handleSubmit">
             <SMRow>
-                <SMInput
-                    v-model="formData.title.value"
-                    label="Title"
-                    required
-                    :error="formData.title.error"
-                    @blur="fieldValidate(formData.title)" />
+                <SMInput control="title" />
             </SMRow>
             <SMRow>
                 <SMEditor
                     id="content"
-                    v-model="formData.content.value"
+                    v-model="form.content.value"
                     @file-accept="fileAccept"
                     @attachment-add="attachmentAdd" />
             </SMRow>
             <SMRow>
                 <SMButton type="submit" label="Save" />
             </SMRow>
-        </form>
-    </SMContainer>
+        </SMForm>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import DEditor from "../../components/SMEditor.vue";
-import SMInput from "../../components/SMInput.vue";
-import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../../helpers/validation";
-import { useUserStore } from "@/store/UserStore";
+import { reactive } from "vue";
 import { useRoute } from "vue-router";
-import { createTemplateLiteral } from "@vue/compiler-core";
+import SMButton from "../../components/SMButton.vue";
+import SMForm from "../../components/SMForm.vue";
+import SMInput from "../../components/SMInput.vue";
+
+import { api } from "../../helpers/api";
+import { Form, FormControl } from "../../helpers/form";
+import { And, Min, Required } from "../../helpers/validate";
 
 const route = useRoute();
-const userStore = useUserStore();
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
-const formData = reactive({
-    title: {
-        value: "",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A first name is needed",
-            min: 2,
-            min_message: "Your first name should be at least 2 letters long",
-        },
-    },
-    content: {
-        value: "<div>Hello <strong>People</strong> persons!</div>",
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A last name is needed",
-            min: 2,
-            min_message: "Your last name should be at least 2 letters long",
-        },
-    },
-});
+const form = reactive(
+    Form({
+        title: FormControl("", And([Required(), Min(2)])),
+        content: FormControl("", Required()),
+    })
+);
 
-useValidation(formData);
+// const getPostById = async () => {
+//     try {
+//         if (isValidated(formData)) {
+//             let res = await axios.get("posts/" + route.params.id);
 
-const getPostById = async () => {
+//             formData.title.value = res.data.title;
+//             formData.content.value = res.data.content;
+//         }
+//     } catch (err) {
+//         console.log(err);
+//         formMessage.icon = "";
+//         formMessage.type = "error";
+//         formMessage.message = "";
+//         restParseErrors(formData, [formMessage, "message"], err);
+//     }
+// };
+
+const handleSubmit = async () => {
     try {
-        if (isValidated(formData)) {
-            let res = await axios.get("posts/" + route.params.id);
+        await api.post({
+            url: "/posts",
+            body: {
+                title: form.title.value,
+                content: form.content.value,
+            },
+        });
 
-            formData.title.value = res.data.title;
-            formData.content.value = res.data.content;
-        }
-    } catch (err) {
-        console.log(err);
-        formMessage.icon = "";
-        formMessage.type = "error";
-        formMessage.message = "";
-        restParseErrors(formData, [formMessage, "message"], err);
-    }
-};
-
-const submit = async () => {
-    try {
-        if (isValidated(formData)) {
-            let res = await axios.post("posts", {
-                title: formData.title.value,
-                content: formData.content.value,
-            });
-
-            console.log(ref);
-            formMessage.type = "success";
-            formMessage.message = "Your details have been updated";
-        }
-    } catch (err) {
-        console.log(err);
-        formMessage.icon = "";
-        formMessage.type = "error";
-        formMessage.message = "";
-        restParseErrors(formData, [formMessage, "message"], err);
+        form.message("The post has been saved", "success");
+    } catch (error) {
+        form.apiError(error);
     }
 };
 
@@ -162,21 +116,3 @@ const attachmentAdd = async (event) => {
     }
 };
 </script>
-
-<style lang="scss">
-// .dialog {
-//     flex-direction: column;
-//     margin: 0 auto;
-//     max-width: 600px;
-// }
-
-// .buttonFooter {
-//     flex-direction: row;
-// }
-
-// @media screen and (max-width: 768px) {
-//     .buttonFooter {
-//         flex-direction: column-reverse;
-//     }
-// }
-</style>

@@ -1,51 +1,56 @@
 <template>
     <SMContainer
-        v-if="showBreadcrumbs"
         :class="[
             'flex-0',
-            'breadcrumbs-outer',
-            { closed: breadcrumbs.length == 0 },
+            'sm-breadcrumbs-container',
+            { closed: computedRouteCrumbs.length == 0 },
         ]">
-        <ul class="breadcrumbs">
+        <ul class="sm-breadcrumbs">
             <li><router-link :to="{ name: 'home' }">Home</router-link></li>
-            <li v-for="(val, idx) of breadcrumbs" :key="val.name">
+            <li
+                v-for="(routeItem, index) of computedRouteCrumbs"
+                :key="routeItem.name">
                 <router-link
-                    v-if="idx != breadcrumbs.length - 1"
-                    :to="{ name: val.name }"
-                    >{{ val.meta?.title || val.name }}</router-link
-                ><span v-else>{{ val.meta?.title || val.name }}</span>
+                    v-if="index != computedRouteCrumbs.length - 1"
+                    :to="{ name: routeItem.name }"
+                    >{{ routeItem.meta?.title || routeItem.name }}</router-link
+                ><span v-else>{{
+                    routeItem.meta?.title || routeItem.name
+                }}</span>
             </li>
         </ul>
     </SMContainer>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { useRoute } from "vue-router";
+import { computed, ComputedRef } from "vue";
+import { RouteRecordRaw, useRoute } from "vue-router";
 import { routes } from "../router";
 import { useApplicationStore } from "../store/ApplicationStore";
 
 const applicationStore = useApplicationStore();
-const showBreadcrumbs = ref(true);
 
-const breadcrumbs = computed(() => {
+/**
+ * Return a list of routes from the current page back to the root
+ */
+const computedRouteCrumbs: ComputedRef<RouteRecordRaw[]> = computed(() => {
     const currentPageName = useRoute().name;
 
     if (currentPageName == "home") {
         return [];
     }
 
-    const findMatch = (list) => {
-        let found = null;
-        let index = null;
-        let child = null;
+    const findMatch = (list: RouteRecordRaw[]): RouteRecordRaw[] | null => {
+        let found: RouteRecordRaw[] | null = null;
+        let index: RouteRecordRaw | null = null;
+        let child: RouteRecordRaw[] | null = null;
 
-        list.every((entry) => {
+        list.every((entry: RouteRecordRaw) => {
             if (index == null && "path" in entry && entry.path == "") {
                 index = entry;
             }
 
-            if (child == null && "children" in entry) {
+            if (child == null && entry.children) {
                 child = findMatch(entry.children);
             }
 
@@ -76,10 +81,10 @@ const breadcrumbs = computed(() => {
     let itemList = findMatch(routes);
     if (itemList) {
         if (applicationStore.dynamicTitle.length > 0) {
-            let meta = [];
+            let meta = {};
 
-            if ("meta" in itemList) {
-                meta = itemList[itemList.length - 1];
+            if ("meta" in itemList[itemList.length - 1]) {
+                meta = itemList[itemList.length - 1]["meta"];
             }
 
             meta["title"] = applicationStore.dynamicTitle;
@@ -93,13 +98,13 @@ const breadcrumbs = computed(() => {
 </script>
 
 <style lang="scss">
-.breadcrumbs-outer.closed .breadcrumbs {
+.sm-breadcrumbs-container.closed .sm-breadcrumbs {
     opacity: 0;
     transition: opacity 0s;
     transition-delay: 0s;
 }
 
-.breadcrumbs {
+.sm-breadcrumbs {
     height: 3.25rem;
     display: flex;
     max-width: 1200px;

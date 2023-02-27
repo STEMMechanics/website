@@ -1,9 +1,11 @@
 <template>
-    <component :is="parsedContent"></component>
+    <component :is="computedContent"></component>
 </template>
 
 <script setup lang="ts">
+import DOMPurify from "dompurify";
 import { computed } from "vue";
+import { ImportMetaExtras } from "../../../import-meta";
 
 const props = defineProps({
     html: {
@@ -13,14 +15,21 @@ const props = defineProps({
     },
 });
 
-const parsedContent = computed(() => {
+/**
+ * Return the html as a component, relative links as router-link and sanitized.
+ */
+const computedContent = computed(() => {
     let html = "";
 
     const regex = new RegExp(
-        `<a ([^>]*?)href="${import.meta.env.APP_URL}(.*?>.*?)</a>`,
+        `<a ([^>]*?)href="${
+            (import.meta as ImportMetaExtras).env.APP_URL
+        }(.*?>.*?)</a>`,
         "ig"
     );
-    html = props.html.replaceAll(regex, '<router-link $1to="$2</router-link>');
+
+    html = props.html.replace(regex, '<router-link $1to="$2</router-link>');
+    html = DOMPurify.sanitize(html);
 
     return {
         template: `<div class="content">${html}</div>`,

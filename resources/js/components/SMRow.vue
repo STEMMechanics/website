@@ -1,6 +1,10 @@
 <template>
     <div
-        :class="['row', { 'row-break-lg': breakLarge }, { 'flex-fill': fill }]">
+        :class="[
+            'sm-row',
+            { 'row-break-lg': breakLarge },
+            { 'flex-fill': fill },
+        ]">
         <slot></slot>
     </div>
 </template>
@@ -21,7 +25,7 @@ defineProps({
 </script>
 
 <style lang="scss">
-.row {
+.sm-row {
     display: flex;
     flex-direction: row;
     margin: 0 auto;
@@ -31,13 +35,13 @@ defineProps({
 }
 
 @media screen and (max-width: 992px) {
-    .row.row-break-lg {
+    .sm-row.row-break-lg {
         flex-direction: column;
     }
 }
 
 @media screen and (max-width: 768px) {
-    .row {
+    .sm-row {
         flex-direction: column;
     }
 }

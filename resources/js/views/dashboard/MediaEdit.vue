@@ -1,31 +1,21 @@
 <template>
-    <SMContainer :page-error="pageError" permission="admin/media">
+    <SMPage :page-error="pageError" permission="admin/media">
         <SMRow>
-            <SMDialog
-                :loading="formLoading"
-                :loading_message="formLoadingMessage">
+            <SMDialog>
                 <h1>{{ page_title }}</h1>
-                <SMMessage
-                    v-if="formMessage.message"
-                    :icon="formMessage.icon"
-                    :type="formMessage.type"
-                    :message="formMessage.message" />
-                <form @submit.prevent="handleSubmit">
+                <SMForm
+                    :model-value="form"
+                    :loading_message="formLoadingMessage"
+                    @submit="handleSubmit">
                     <SMRow>
                         <SMColumn>
-                            <SMInput
-                                v-model="formData.file.value"
-                                type="file"
-                                label="File"
-                                required
-                                :error="formData.file.error"
-                                @blur="fieldValidate(formData.file)" />
+                            <SMInput control="file" type="file" />
                         </SMColumn>
                     </SMRow>
                     <SMRow>
                         <SMColumn>
                             <SMInput
-                                v-model="formData.url.value"
+                                contorl="url"
                                 type="link"
                                 label="URL"
                                 :href="formData.url.value" />
@@ -65,144 +55,104 @@
                             <SMButton type="submit" label="Save" />
                         </SMColumn>
                     </SMRow>
-                </form>
+                </SMForm>
             </SMDialog>
         </SMRow>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import SMInput from "../../components/SMInput.vue";
+import { computed, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
 import SMDialog from "../../components/SMDialog.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import axios from "axios";
-import {
-    useValidation,
-    isValidated,
-    fieldValidate,
-    restParseErrors,
-} from "../../helpers/validation";
-import { useRoute } from "vue-router";
-import { bytesReadable } from "../../helpers/common";
-import { useRouter } from "vue-router";
+import SMForm from "../../components/SMForm.vue";
+import SMInput from "../../components/SMInput.vue";
+
+import { api } from "../../helpers/api";
+import { Form, FormControl } from "../../helpers/form";
+import { bytesReadable } from "../../helpers/types";
+import { And, FileSize, Required } from "../../helpers/validate";
 
 const router = useRouter();
 const pageError = ref(200);
-const formLoading = ref(false);
 const formLoadingMessage = ref("");
 
 const route = useRoute();
 const page_title = route.params.id ? "Edit Media" : "Upload Media";
 
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
-const formData = reactive({
-    file: {
-        value: null,
-        error: "",
-        rules: {
-            required: true,
-            required_message: "A file is required",
-            fileSize: 5242880,
-            fileSize_message: "The file is larger than %b",
-        },
-    },
-    url: {
-        value: "",
-        error: "",
-    },
-    mime: {
-        value: "",
-        error: "",
-    },
-    size: {
-        value: "",
-        error: "",
-    },
-    permission: {
-        value: "",
-        error: "",
-    },
+const form = reactive(
+    Form({
+        file: FormControl("", And([Required(), FileSize(5242880)])),
+        permission: FormControl(),
+    })
+);
+
+const fileData = reactive({
+    url: "",
+    mime: "",
+    size: 0,
 });
 
 const handleLoad = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
-
     if (route.params.id) {
         try {
-            let res = await axios.get(`media/${route.params.id}`);
+            let res = await api.get(`media/${route.params.id}`);
 
-            console.log(res.data.media);
-
-            formData.file.value = res.data.media.name;
-            formData.permission.value = res.data.media.permission;
-            formData.url.value = res.data.media.url;
-            formData.mime.value = res.data.media.mime;
-            formData.size.value = res.data.media.size;
+            form.file.value = res.data.media.name;
+            form.permission.value = res.data.media.permission;
+            fileData.url = res.data.media.url;
+            fileData.mime = res.data.media.mime;
+            fileData.size = res.data.media.size;
         } catch (err) {
-            console.log(err);
-            restParseErrors(formData, [formMessage, "message"], err);
+            form.apiErrors(err);
         }
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
 const handleSubmit = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "fa-solid fa-circle-exclamation";
-    formMessage.message = "";
-
     try {
-        if (isValidated(formData)) {
-            let res = null;
-            // let data = {
-            //     title: formData.title.value,
-            //     slug: formData.slug.value,
-            //     user_id: formData.user_id.value,
-            //     content: formData.content.value
-            // }
+        let res = null;
+        // let data = {
+        //     title: formData.title.value,
+        //     slug: formData.slug.value,
+        //     user_id: formData.user_id.value,
+        //     content: formData.content.value
+        // }
 
-            // if(route.params.id) {
-            //     res = await axios.put(`posts/${route.params.id}`, data);
-            // } else {
-            //     res = await axios.post(`posts`, data);
-            // }
+        // if(route.params.id) {
+        //     res = await axios.put(`posts/${route.params.id}`, data);
+        // } else {
+        //     res = await axios.post(`posts`, data);
+        // }
 
-            let submitFormData = new FormData();
-            if (formData.file.value instanceof File) {
-                submitFormData.append("file", formData.file.value);
-            }
-
-            submitFormData.append("permission", formData.permission.value);
-
-            await axios.post("media", submitFormData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                onUploadProgress: (progressEvent) =>
-                    (formLoadingMessage.value = `Uploading Files ${Math.floor(
-                        (progressEvent.loaded / progressEvent.total) * 100
-                    )}%`),
-            });
-
-            formMessage.type = "success";
-            formMessage.message = "Your details have been updated";
+        let submitFormData = new FormData();
+        if (form.file.value instanceof File) {
+            submitFormData.append("file", form.file.value);
         }
+
+        submitFormData.append("permission", form.permission.value);
+
+        await api.post({
+            url: "/media",
+            body: submitFormData,
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+            progress: (progressEvent) =>
+                (formLoadingMessage.value = `Uploading Files ${Math.floor(
+                    (progressEvent.loaded / progressEvent.total) * 100
+                )}%`),
+        });
+
+        form.message("Your details have been updated", "success");
     } catch (err) {
-        restParseErrors(formData, [formMessage, "message"], err);
+        form.apiErrors(err);
     }
 
-    formLoading.value = false;
+    form.loading(false);
 };
 
 const handleDelete = async () => {
@@ -221,7 +171,7 @@ const handleDelete = async () => {
 
     if (result) {
         try {
-            await axios.delete(`media/${item.id}`);
+            await api.delete(`media/${item.id}`);
             router.push({ name: "media" });
         } catch (err) {
             alert(
@@ -233,9 +183,8 @@ const handleDelete = async () => {
 };
 
 const computedFileSize = computed(() => {
-    return bytesReadable(formData.size.value);
+    return bytesReadable(fileData.size);
 });
 
-useValidation(formData);
 handleLoad();
 </script>

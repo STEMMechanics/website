@@ -1,104 +1,119 @@
 <template>
-    <div :class="['form-group', { 'has-error': error }]">
-        <label v-if="label" :class="{ required: required, inline: inline }">{{
-            label
-        }}</label>
+    <div
+        :class="[
+            'sm-input-group',
+            {
+                'sm-input-active': inputActive,
+                'sm-feedback-invalid': feedbackInvalid,
+                'sm-input-small': small,
+            },
+            computedClassType,
+        ]">
+        <label v-if="label">{{ label }}</label>
+        <ion-icon
+            class="sm-invalid-icon"
+            name="alert-circle-outline"></ion-icon>
         <input
             v-if="
                 type == 'text' ||
+                type == 'email' ||
                 type == 'password' ||
                 type == 'email' ||
-                type == 'url'
+                type == 'url' ||
+                type == 'daterange' ||
+                type == 'datetime'
             "
             :type="type"
-            :value="modelValue"
-            :placeholder="placeholder"
-            @input="input"
+            :value="value"
+            @input="handleInput"
+            @focus="handleFocus"
             @blur="handleBlur"
-            @keydown="handleBlur" />
+            @keydown="handleKeydown" />
         <textarea
-            v-if="type == 'textarea'"
+            v-else-if="type == 'textarea'"
             rows="5"
-            :value="modelValue"
-            :placeholder="placeholder"
-            @input="input"
+            :value="value"
+            @input="handleInput"
+            @focus="handleFocus"
             @blur="handleBlur"
-            @keydown="handleBlur"></textarea>
-        <div v-if="type == 'file'" class="input-file-group">
+            @keydown="handleKeydown"></textarea>
+        <div v-else-if="type == 'file'" class="input-file-group">
             <input
                 id="file"
                 type="file"
                 class="file"
                 :accept="props.accept"
                 @change="handleChange" />
-            <label class="button" for="file">Select file</label>
+            <label class="sm-button" for="file">Select file</label>
             <div class="file-name">
                 {{ modelValue?.name ? modelValue.name : modelValue }}
             </div>
         </div>
-        <a v-if="type == 'link'" :href="href" target="_blank">{{
-            props.modelValue
-        }}</a>
-        <span v-if="type == 'static'">{{ props.modelValue }}</span>
-        <div v-if="type == 'media'" class="input-media-group">
-            <div class="input-media-display">
+        <select
+            v-else-if="type == 'select'"
+            :value="value"
+            @input="handleInput"
+            @focus="handleFocus"
+            @blur="handleBlur"
+            @keydown="handleKeydown">
+            <option
+                v-for="(optionValue, key) in options"
+                :key="key"
+                :value="key"
+                :selected="key == value">
+                {{ optionValue }}
+            </option>
+        </select>
+        <div v-else-if="type == 'media'" class="sm-input-media">
+            <div class="sm-input-media-item">
                 <img v-if="mediaUrl.length > 0" :src="mediaUrl" />
-                <font-awesome-icon v-else icon="fa-regular fa-image" />
+                <ion-icon v-else name="image-outline" />
             </div>
-            <div v-if="type == 'media'" class="form-group-error">
-                {{ error }}
-            </div>
-            <a class="button" @click.prevent="handleMediaSelect">Select file</a>
+            <a
+                class="sm-button sm-button-small"
+                @click.prevent="handleMediaSelect"
+                >Select file</a
+            >
         </div>
-        <div v-if="type != 'media'" class="form-group-error">{{ error }}</div>
-        <div v-if="slots.default" class="form-group-info">
-            <slot></slot>
-        </div>
-        <div v-if="help" class="form-group-help">
-            <font-awesome-icon v-if="helpIcon" :icon="helpIcon" />
-            {{ help }}
+        <div v-if="slots.default || feedbackInvalid" class="sm-input-help">
+            <span v-if="feedbackInvalid" class="sm-input-invalid">{{
+                feedbackInvalid
+            }}</span>
+            <span v-if="slots.default" class="sm-input-info">
+                <slot></slot>
+            </span>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, useSlots, ref, watch } from "vue";
-import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
+import { computed, inject, ref, useSlots, watch } from "vue";
 import { openDialog } from "vue3-promise-dialog";
-import axios from "axios";
+import { toTitleCase } from "../helpers/string";
+import { isEmpty } from "../helpers/utils";
+import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 
 const props = defineProps({
     modelValue: {
         type: String,
         default: "",
+        required: false,
     },
     label: {
         type: String,
         default: "",
         required: false,
     },
-    placeholder: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    required: {
-        type: Boolean,
-        default: false,
-    },
     type: {
         type: String,
         default: "text",
     },
-    error: {
-        type: String,
-        default: "",
+    small: {
+        type: Boolean,
+        default: false,
+        required: false,
     },
-    help: {
-        type: String,
-        default: "",
-    },
-    helpIcon: {
+    feedbackInvalid: {
         type: String,
         default: "",
     },
@@ -106,100 +121,312 @@ const props = defineProps({
         type: String,
         default: "",
     },
-    href: {
-        type: String,
+    options: {
+        type: Object,
+        default() {
+            return {};
+        },
+    },
+    control: {
+        type: [String, Object],
         default: "",
+    },
+    form: {
+        type: Object,
+        default: () => {
+            return {};
+        },
+        required: false,
     },
 });
 
-const emits = defineEmits(["update:modelValue", "blur"]);
+const emits = defineEmits(["update:modelValue", "focus", "blur", "keydown"]);
 const slots = useSlots();
 const mediaUrl = ref("");
 
+const objForm = inject("form", props.form);
+const objControl =
+    typeof props.control == "object"
+        ? props.control
+        : !isEmpty(objForm) &&
+          typeof props.control == "string" &&
+          props.control != ""
+        ? objForm.controls[props.control]
+        : null;
+
+const label = ref(props.label);
+const feedbackInvalid = ref(props.feedbackInvalid);
+const value = ref(props.modelValue);
+const inputActive = ref(value.value.length > 0 || props.type == "select");
+
+/**
+ * Return the classname based on type
+ */
+const computedClassType = computed(() => {
+    return `sm-input-${props.type}`;
+});
+
+watch(
+    () => props.label,
+    (newValue) => {
+        label.value = newValue;
+    }
+);
+
+if (objControl) {
+    if (value.value.length > 0) {
+        objControl.value = value.value;
+    } else {
+        value.value = objControl.value;
+    }
+
+    if (label.value.length == 0) {
+        label.value = toTitleCase(props.control);
+    }
+
+    inputActive.value = value.value.length > 0;
+
+    watch(
+        () => objControl.validation.result.valid,
+        (newValue) => {
+            feedbackInvalid.value = newValue
+                ? ""
+                : objControl.validation.result.invalidMessages[0];
+        },
+        { deep: true }
+    );
+
+    watch(
+        () => objControl.value,
+        (newValue) => {
+            value.value = newValue;
+        },
+        { deep: true }
+    );
+}
+
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        value.value = newValue;
+    }
+);
+
+watch(
+    () => props.feedbackInvalid,
+    (newValue) => {
+        feedbackInvalid.value = newValue;
+    }
+);
+
+watch(
+    () => value.value,
+    (newValue) => {
+        inputActive.value = newValue.length > 0;
+    }
+);
+
 const handleChange = (event) => {
     emits("update:modelValue", event.target.files[0]);
+};
+
+const handleInput = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    value.value = target.value;
+    emits("update:modelValue", target.value);
+
+    if (objControl) {
+        objControl.value = target.value;
+        feedbackInvalid.value = "";
+    }
+};
+
+const handleFocus = (event: Event) => {
+    inputActive.value = true;
+
+    if (event instanceof KeyboardEvent) {
+        if (event.key === undefined || event.key === "Tab") {
+            emits("blur", event);
+        }
+    }
+
+    emits("focus", event);
+};
+
+const handleBlur = async (event: Event) => {
+    if (objControl) {
+        await objControl.validate();
+        objControl.isValid();
+    }
+
+    const target = event.target as HTMLInputElement;
+
+    if (target.value.length == 0) {
+        inputActive.value = false;
+    }
+
     emits("blur", event);
 };
 
-const input = (event) => {
-    emits("update:modelValue", event.target.value);
-};
-
-const handleBlur = (event) => {
-    if (event.keyCode == undefined || event.keyCode == 9) {
-        emits("blur", event);
-    }
+const handleKeydown = (event: Event) => {
+    emits("keydown", event);
 };
 
 const handleMediaSelect = async (event) => {
     let result = await openDialog(SMDialogMedia);
-
-    console.log(result);
     if (result) {
         mediaUrl.value = result.url;
         emits("update:modelValue", result.id);
     }
 };
-
-const inline = computed(() => {
-    return ["static", "link"].includes(props.type);
-});
-
-const handleLoad = async () => {
-    if (props.type == "media" && props.modelValue.length > 0) {
-        try {
-            let result = await axios.get(`media/${props.modelValue}`);
-            mediaUrl.value = result.data.medium.url;
-        } catch (error) {
-            /* empty */
-        }
-    }
-};
-
-watch(
-    () => props.modelValue,
-    () => {
-        handleLoad();
-    }
-);
 </script>
 
 <style lang="scss">
-.input-media-group {
+.sm-input-group {
+    position: relative;
     display: flex;
-    margin: 0 auto;
-    max-width: 26rem;
     flex-direction: column;
-    align-items: center;
+    margin-bottom: map-get($spacer, 4);
+    flex: 1;
+    width: 100%;
 
-    .input-media-display {
-        display: flex;
-        margin-bottom: 1rem;
+    &.sm-input-small {
+        font-size: 80%;
+
+        &.sm-input-active {
+            label {
+                transform: translate(6px, -3px) scale(0.7);
+            }
+
+            input {
+                padding: calc(#{map-get($spacer, 1)} * 1.5) map-get($spacer, 2)
+                    calc(#{map-get($spacer, 1)} / 2) map-get($spacer, 2);
+            }
+        }
+
+        input,
+        label {
+            padding: map-get($spacer, 1) map-get($spacer, 2);
+        }
+    }
+
+    &.sm-input-active {
+        label {
+            transform: translate(8px, -3px) scale(0.7);
+            color: $secondary-color-dark;
+        }
+
+        input {
+            padding: calc(#{map-get($spacer, 2)} * 1.5) map-get($spacer, 3)
+                calc(#{map-get($spacer, 2)} / 2) map-get($spacer, 3);
+        }
+
+        textarea {
+            padding: calc(#{map-get($spacer, 2)} * 2) map-get($spacer, 3)
+                calc(#{map-get($spacer, 2)} / 2) map-get($spacer, 3);
+        }
+
+        select {
+            padding: calc(#{map-get($spacer, 2)} * 2) map-get($spacer, 3)
+                calc(#{map-get($spacer, 2)} / 2) map-get($spacer, 3);
+        }
+    }
+
+    &.sm-feedback-invalid {
+        input,
+        select,
+        textarea {
+            border: 2px solid $danger-color;
+        }
+
+        .sm-invalid-icon {
+            display: block;
+        }
+    }
+
+    label {
+        position: absolute;
+        display: block;
+        padding: map-get($spacer, 2) map-get($spacer, 3);
+        line-height: 1.5;
+        transform-origin: top left;
+        transform: translate(0, 1px) scale(1);
+        transition: all 0.1s ease-in-out;
+        color: $secondary-color-dark;
+        pointer-events: none;
+    }
+
+    .sm-invalid-icon {
+        position: absolute;
+        display: none;
+        right: 0;
+        top: 2px;
+        padding: map-get($spacer, 2) map-get($spacer, 3);
+        color: $danger-color;
+        font-size: 120%;
+    }
+
+    input,
+    select,
+    textarea {
+        box-sizing: border-box;
+        display: block;
+        width: 100%;
         border: 1px solid $border-color;
-        background-color: #fff;
+        border-radius: 12px;
+        padding: map-get($spacer, 2) map-get($spacer, 3);
+        color: $font-color;
+        margin-bottom: map-get($spacer, 1);
 
-        img {
-            max-width: 100%;
-            max-height: 100%;
-        }
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+    }
 
-        svg {
-            padding: 4rem;
+    textarea {
+        resize: none;
+    }
+
+    &.sm-input-media {
+        label {
+            position: relative;
+            transform: none;
         }
     }
 
-    .button {
-        max-width: 13rem;
+    .sm-input-media {
+        text-align: center;
+
+        .sm-input-media-item {
+            display: block;
+            margin-bottom: 0.5rem;
+
+            img {
+                max-width: 100%;
+                max-height: 100%;
+            }
+
+            ion-icon {
+                padding: 4rem;
+                font-size: 3rem;
+                border: 1px solid $border-color;
+                background-color: #fff;
+            }
+        }
+
+        .button {
+            display: inline-block;
+        }
     }
-}
 
-.input-media-group + .form-group-error {
-    text-align: center;
-}
+    .sm-input-help {
+        font-size: 75%;
+        margin: 0 map-get($spacer, 1);
 
-@media screen and (max-width: 768px) {
-    .input-media-group {
-        max-width: 13rem;
+        .sm-input-invalid {
+            color: $danger-color;
+            padding-right: map-get($spacer, 1);
+        }
     }
 }
 </style>

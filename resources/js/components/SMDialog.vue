@@ -1,14 +1,15 @@
 <template>
     <div
         :class="[
-            'dialog',
-            { 'dialog-narrow': narrow },
-            { 'dialog-full': full },
+            'sm-dialog',
+            { 'sm-dialog-narrow': narrow },
+            { 'sm-dialog-full': full },
+            { 'sm-dialog-noshadow': noShadow },
         ]">
         <transition name="fade">
-            <div v-if="loading" class="dialog-loading-cover">
-                <div class="dialog-loading">
-                    <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+            <div v-if="loading" class="sm-dialog-loading-cover">
+                <div class="sm-dialog-loading">
+                    <SMLoadingIcon />
                     <span>{{ loadingMessage }}</span>
                 </div>
             </div>
@@ -18,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+import SMLoadingIcon from "./SMLoadingIcon.vue";
+
 defineProps({
     loading: {
         type: Boolean,
@@ -35,14 +38,17 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    noShadow: {
+        type: Boolean,
+        default: false,
+    },
 });
 </script>
 
 <style lang="scss">
-.dialog {
+.sm-dialog {
     flex-direction: column;
     margin: 0 auto;
-    flex: 1;
     background-color: #eee;
     padding: map-get($spacer, 5) map-get($spacer, 5)
         calc(map-get($spacer, 5) / 1.5) map-get($spacer, 5);
@@ -50,21 +56,30 @@ defineProps({
     border-radius: 24px;
     overflow: hidden;
     min-width: map-get($spacer, 5) * 12;
+    box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
+
+    &.sm-dialog-noshadow {
+        box-shadow: none !important;
+    }
 
     & > h1 {
         margin-top: 0;
     }
 
-    &.dialog-narrow {
+    & > p {
+        font-size: 90%;
+    }
+
+    &.sm-dialog-narrow {
         min-width: auto;
         max-width: map-get($spacer, 5) * 10;
     }
 
-    &.dialog-full {
+    &.sm-dialog-full {
         width: 100%;
     }
 
-    .dialog-loading-cover {
+    .sm-dialog-loading-cover {
         position: fixed;
         display: flex;
         justify-content: center;
@@ -76,16 +91,18 @@ defineProps({
         backdrop-filter: blur(14px);
         -webkit-backdrop-filter: blur(4px);
         background-color: rgba(255, 255, 255, 0.5);
+        z-index: 19000;
 
-        .dialog-loading {
+        .sm-dialog-loading {
             display: flex;
             flex-direction: column;
             padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
+            align-items: center;
 
             border: 1px solid transparent;
             border-radius: 24px;
 
-            svg {
+            ion-icon {
                 font-size: calc(map-get($spacer, 5) * 1.5);
             }
 
@@ -98,12 +115,12 @@ defineProps({
 }
 
 @media only screen and (max-width: 640px) {
-    .dialog {
-        padding: map-get($spacer, 1) map-get($spacer, 3) map-get($spacer, 3)
-            map-get($spacer, 3);
+    .sm-dialog {
+        padding: map-get($spacer, 5) map-get($spacer, 4) map-get($spacer, 4)
+            map-get($spacer, 4);
         min-width: auto;
 
-        .button {
+        .sm-button {
             display: block;
             width: 100%;
             text-align: center;

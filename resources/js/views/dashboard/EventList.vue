@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/events">
+    <SMPage permission="admin/events">
         <SMHeading heading="Events" />
         <SMMessage
             v-if="formMessage.message"
@@ -26,46 +26,38 @@
             :items="items"
             :search-value="search">
             <template #loading>
-                <font-awesome-icon icon="fa-solid fa-spinner" pulse />
+                <SMLoadingIcon />
             </template>
             <template #item-title="item">
                 <router-link
-                    :to="{ name: 'event-edit', params: { id: item.id } }"
+                    :to="{
+                        name: 'dashboard-event-edit',
+                        params: { id: item.id },
+                    }"
                     >{{ item.title }}</router-link
                 >
             </template>
             <template #item-actions="item">
-                <div class="action-wrapper">
-                    <font-awesome-icon
-                        icon="fa-solid fa-pen-to-square"
-                        @click="handleEdit(item)" />
-                    <font-awesome-icon
-                        icon="fa-regular fa-trash-can"
-                        @click="handleDelete(item)" />
-                </div>
+                <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
-import EasyDataTable from "vue3-easy-data-table";
-import axios from "axios";
-import {
-    relativeDate,
-    timestampUtcToLocal,
-    toParamString,
-} from "../../helpers/common";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
-import SMToolbar from "../../components/SMToolbar.vue";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import { debounce } from "../../helpers/common";
 import SMHeading from "../../components/SMHeading.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
-import { restParseErrors } from "../../helpers/validation";
+import SMToolbar from "../../components/SMToolbar.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { debounce } from "../../helpers/debounce";
 
 const router = useRouter();
 const search = ref("");
@@ -119,8 +111,9 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await axios.get(`events${toParamString(params)}`, {
-            redirect: false,
+        let res = await api.get({
+            url: "/events",
+            params: params,
         });
 
         if (!res.data.events) {
@@ -131,13 +124,22 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.start_at !== "undefined") {
-                row.start_at = relativeDate(timestampUtcToLocal(row.start_at));
+                row.start_at = new SMDate(row.start_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
             if (row.created_at !== "undefined") {
-                row.created_at = relativeDate(row.created_at);
+                row.created_at = new SMDate(row.creative_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = relativeDate(row.updated_at);
+                row.updated_at = new SMDate(row.updated_at, {
+                    format: "ymd",
+                    utc: true,
+                }).relative();
             }
         });
 
@@ -165,15 +167,15 @@ watch(search, () => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "event-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
 };
 
 const handleCreate = () => {
-    router.push({ name: "event-create" });
+    router.push({ name: "dashboard-event-create" });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "event-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {
@@ -192,7 +194,7 @@ const handleDelete = async (item) => {
 
     if (result == true) {
         try {
-            await axios.delete(`events${item.id}`);
+            await api.delete(`events${item.id}`);
             loadFromServer();
 
             formMessage.message = "Post deleted successfully";

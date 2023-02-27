@@ -20,7 +20,7 @@
             <slot></slot>
         </div>
         <div v-if="help" class="form-group-help">
-            <font-awesome-icon v-if="helpIcon" :icon="helpIcon" />
+            <!-- <font-awesome-icon v-if="helpIcon" :icon="helpIcon" /> -->
             {{ help }}
         </div>
     </div>

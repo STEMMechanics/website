@@ -1,84 +1,68 @@
 <template>
-    <div class="toolbar">
-        <div class="toolbar-column toolbar-column-left">
+    <div class="sm-toolbar">
+        <div v-if="slots.left" class="sm-toolbar-column sm-toolbar-column-left">
             <slot name="left"></slot>
         </div>
-        <div class="toolbar-column toolbar-column-right">
+        <div v-if="slots.default" class="sm-toolbar-column">
+            <slot></slot>
+        </div>
+        <div
+            v-if="slots.right"
+            class="sm-toolbar-column sm-toolbar-column-right">
             <slot name="right"></slot>
         </div>
     </div>
 </template>
 
+<script setup lang="ts">
+import { useSlots } from "vue";
+
+const slots = useSlots();
+</script>
+
 <style lang="scss">
-.toolbar {
+.sm-toolbar {
     display: flex;
     justify-content: space-between;
     margin-bottom: map-get($spacer, 2);
 
-    .toolbar-column {
+    .sm-toolbar-column {
         display: flex;
+        flex: 1;
         flex-direction: row;
-        align-items: center;
+        align-items: flex-start;
 
-        &.toolbar-column-left {
+        &.sm-toolbar-column-left {
             justify-content: flex-start;
         }
 
-        input {
-            margin-bottom: 0;
+        & > * {
+            margin: 0 map-get($spacer, 1);
+
+            &:first-child {
+                margin-left: 0;
+            }
+
+            &:last-child {
+                margin-right: 0;
+            }
         }
 
-        // &.form-footer-column-left, &.form-footer-column-right {
-        //             a, button {
-        //                 margin-left: map-get($spacer, 1);
-        //                 margin-right: map-get($spacer, 1);
-
-        //                 &:first-of-type {
-        //                     margin-left: 0;
-        //                 }
-
-        //                 &:last-of-type {
-        //                     margin-right: 0;
-        //                 }
-        //             }
-        //         }
-
-        &.toolbar-column-right {
+        &.sm-toolbar-column-right {
             justify-content: flex-end;
         }
-        //     }
-        // }
+    }
+}
 
-        // @media screen and (max-width: 768px) {
-        //     .form-footer {
-        //         flex-direction: column-reverse;
+@media screen and (max-width: 768px) {
+    .sm-toolbar {
+        .sm-toolbar-column {
+            flex-direction: column;
 
-        //         .form-footer-column {
-        //             &.form-footer-column-left, &.form-footer-column-right {
-        //                 display: flex;
-        //                 flex-direction: column-reverse;
-        //                 justify-content: center;
-
-        //                 & > * {
-        //                     display: block;
-        //                     width: 100%;
-        //                     text-align: center;
-
-        //                     margin-top: map-get($spacer, 1);
-        //                     margin-bottom: map-get($spacer, 1);
-        //                     margin-left: 0 !important;
-        //                     margin-right: 0  !important;
-        //                 }
-        //             }
-
-        //             &.form-footer-column-left {
-        //                 margin-bottom: -#{map-get($spacer, 1) / 2};
-        //             }
-
-        //             &.form-footer-column-right {
-        //                 margin-top: -#{map-get($spacer, 1) / 2};
-        //             }
-        //         }
+            & > * {
+                margin: 0;
+            }
+        }
     }
 }
 </style>
