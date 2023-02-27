@@ -50,7 +50,6 @@ import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Max, Min, Password, Required } from "../helpers/validate";
@@ -65,7 +64,12 @@ const form = reactive(
 );
 
 if (useRoute().query.code !== undefined) {
-    form.code.value = useRoute().query.code;
+    let queryCode = useRoute().query.code;
+    if (Array.isArray(queryCode)) {
+        queryCode = queryCode[0];
+    }
+
+    form.controls.code.value = queryCode;
 }
 
 const handleSubmit = async () => {
@@ -78,17 +82,17 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/resetPassword",
             body: {
-                code: form.code.value,
-                password: form.password.value,
+                code: form.controls.code.value,
+                password: form.controls.password.value,
                 captcha_token: captcha,
             },
         });
 
         formDone.value = true;
     } catch (error) {
-        form.apiError(error);
+        form.apiErrors(error);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 </script>

@@ -5,6 +5,7 @@
         :class="[
             'sm-button',
             classType,
+            { 'sm-button-small': small },
             { 'sm-button-block': block },
             { 'sm-dropdown-button': dropdown },
         ]"
@@ -37,7 +38,12 @@
         v-else-if="!isEmpty(to) && typeof to == 'string'"
         :href="to"
         :disabled="disabled"
-        :class="['sm-button', classType, { 'sm-button-block': block }]"
+        :class="[
+            'sm-button',
+            classType,
+            { 'sm-button-small': small },
+            { 'sm-button-block': block },
+        ]"
         :type="buttonType">
         {{ label }}
         <ion-icon v-if="icon" :icon="icon" />
@@ -46,7 +52,12 @@
         v-else-if="!isEmpty(to) && typeof to == 'object'"
         :to="to"
         :disabled="disabled"
-        :class="['sm-button', classType, { 'sm-button-block': block }]">
+        :class="[
+            'sm-button',
+            classType,
+            { 'sm-button-small': small },
+            { 'sm-button-block': block },
+        ]">
         <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
         {{ label }}
         <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
@@ -67,7 +78,7 @@ const props = defineProps({
     },
     iconLocation: {
         type: String,
-        default: "before",
+        default: "after",
         required: false,
         validator: (value: string) => {
             return ["before", "after"].includes(value);
@@ -85,6 +96,11 @@ const props = defineProps({
         required: false,
     },
     block: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
+    small: {
         type: Boolean,
         default: false,
         required: false,

@@ -38,14 +38,6 @@ export const routes = [
         component: () => import("@/views/ResetPassword.vue"),
     },
     {
-        path: "/about",
-        name: "about",
-        meta: {
-            title: "About",
-        },
-        component: () => import("@/views/About.vue"),
-    },
-    {
         path: "/privacy",
         name: "privacy",
         meta: {
@@ -90,16 +82,16 @@ export const routes = [
         children: [
             {
                 path: "",
-                name: "workshop-list",
+                name: "event-list",
                 meta: {
                     title: "Workshops",
                 },
-                component: () => import("@/views/WorkshopList.vue"),
+                component: () => import("@/views/EventList.vue"),
             },
             {
                 path: ":id",
-                name: "workshop-view",
-                component: () => import("@/views/WorkshopView.vue"),
+                name: "event-view",
+                component: () => import("@/views/EventView.vue"),
             },
         ],
     },
@@ -141,16 +133,16 @@ export const routes = [
         children: [
             {
                 path: "",
-                name: "news",
+                name: "post-list",
                 meta: {
                     title: "News",
                 },
-                component: () => import("@/views/NewsList.vue"),
+                component: () => import("@/views/PostList.vue"),
             },
             {
                 path: ":slug",
                 name: "post-view",
-                component: () => import("@/views/NewsView.vue"),
+                component: () => import("@/views/PostView.vue"),
             },
         ],
     },
@@ -171,7 +163,7 @@ export const routes = [
                 children: [
                     {
                         path: "",
-                        name: "post-list",
+                        name: "dashboard-post-list",
                         meta: {
                             title: "Posts",
                             middleware: "authenticated",
@@ -181,7 +173,7 @@ export const routes = [
                     },
                     {
                         path: "create",
-                        name: "post-create",
+                        name: "dashboard-post-create",
                         meta: {
                             title: "Create Post",
                             middleware: "authenticated",
@@ -191,7 +183,7 @@ export const routes = [
                     },
                     {
                         path: ":id",
-                        name: "post-edit",
+                        name: "dashboard-post-edit",
                         meta: {
                             title: "Edit Post",
                             middleware: "authenticated",
@@ -206,7 +198,7 @@ export const routes = [
                 children: [
                     {
                         path: "",
-                        name: "event-list",
+                        name: "dashboard-event-list",
                         meta: {
                             title: "Events",
                             middleware: "authenticated",
@@ -216,7 +208,7 @@ export const routes = [
                     },
                     {
                         path: "create",
-                        name: "event-create",
+                        name: "dashboard-event-create",
                         meta: {
                             title: "Create Event",
                             middleware: "authenticated",
@@ -226,7 +218,7 @@ export const routes = [
                     },
                     {
                         path: ":id",
-                        name: "event-edit",
+                        name: "dashboard-event-edit",
                         meta: {
                             title: "Event Post",
                             middleware: "authenticated",
@@ -238,7 +230,7 @@ export const routes = [
             },
             {
                 path: "details",
-                name: "account-details",
+                name: "dashboard-account-details",
                 meta: {
                     title: "Account Details",
                     middleware: "authenticated",
@@ -250,7 +242,7 @@ export const routes = [
                 children: [
                     {
                         path: "",
-                        name: "user-list",
+                        name: "dashboard-user-list",
                         meta: {
                             title: "Users",
                             middleware: "authenticated",
@@ -260,7 +252,7 @@ export const routes = [
                     },
                     {
                         path: ":id",
-                        name: "user-edit",
+                        name: "dashboard-user-edit",
                         meta: {
                             title: "Edit User",
                             middleware: "authenticated",
@@ -275,7 +267,7 @@ export const routes = [
                 children: [
                     {
                         path: "",
-                        name: "media",
+                        name: "dashboard-media",
                         meta: {
                             title: "Media",
                             middleware: "authenticated",
@@ -285,7 +277,7 @@ export const routes = [
                     },
                     {
                         path: "upload",
-                        name: "media-upload",
+                        name: "dashboard-media-upload",
                         meta: {
                             title: "Upload Media",
                             middleware: "authenticated",
@@ -295,7 +287,7 @@ export const routes = [
                     },
                     {
                         path: "edit/:id",
-                        name: "media-edit",
+                        name: "dashboard-media-edit",
                         meta: {
                             title: "Edit Media",
                             middleware: "authenticated",
@@ -307,7 +299,7 @@ export const routes = [
             },
             {
                 path: "discord-bot-logs",
-                name: "discord-bot-logs",
+                name: "dashboard-discord-bot-logs",
                 meta: {
                     title: "Discord Bot Logs",
                     middleware: "authenticated",

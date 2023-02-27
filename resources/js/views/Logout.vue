@@ -1,49 +1,35 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
-        <SMRow>
-            <SMDialog narrow class="mt-5" :loading="formLoading">
-                <h1>Logged out</h1>
-                <SMRow>
-                    <SMColumn class="justify-content-center">
-                        <p class="mt-0 text-center">
-                            You have now been logged out
-                        </p>
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn class="justify-content-center">
-                        <SMButton :to="{ name: 'home' }" label="Home" />
-                    </SMColumn>
-                </SMRow>
-            </SMDialog>
-        </SMRow>
+        <SMLoader :loading="true" />
     </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { useRouter } from "vue-router";
+import SMLoader from "../components/SMLoader.vue";
 import { api } from "../helpers/api";
+import { useToastStore } from "../store/ToastStore";
 import { useUserStore } from "../store/UserStore";
 
-import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
-
+const router = useRouter();
 const userStore = useUserStore();
-const formLoading = ref(false);
+const toastStore = useToastStore();
 
+/**
+ * Logout the current user and redirect to home page.
+ */
 const logout = async () => {
-    formLoading.value = true;
-
-    try {
-        await api.post({
-            url: "/logout",
+    api.post({
+        url: "/logout",
+    }).finally(() => {
+        userStore.clearUser();
+        toastStore.addToast({
+            title: "Logged Out",
+            content: "You have been logged out.",
+            type: "success",
         });
-    } catch (err) {
-        console.log(err);
-    }
-
-    userStore.clearUser();
-    formLoading.value = false;
+        router.push({ name: "home" });
+    });
 };
 
 logout();

@@ -6,7 +6,7 @@ import {
     ValidationResult,
 } from "./validate";
 
-type FormObjectValidateFunction = (item: string | null) => boolean;
+type FormObjectValidateFunction = (item: string | null) => Promise<boolean>;
 type FormObjectLoadingFunction = (state: boolean) => void;
 type FormObjectMessageFunction = (
     message?: string,
@@ -30,26 +30,27 @@ export interface FormObject {
 }
 
 const defaultFormObject: FormObject = {
-    validate: function (item = null) {
+    validate: async function (item = null) {
         const keys = item ? [item] : Object.keys(this.controls);
         let valid = true;
 
-        keys.every(async (key) => {
-            if (
-                typeof this[key] == "object" &&
-                Object.keys(this[key]).includes("validation")
-            ) {
-                this[key].validation.result = await this[
-                    key
-                ].validation.validator.validate(this[key].value);
+        await Promise.all(
+            keys.map(async (key) => {
+                if (
+                    typeof this.controls[key] == "object" &&
+                    Object.keys(this.controls[key]).includes("validation")
+                ) {
+                    const validationResult = await this.controls[
+                        key
+                    ].validation.validator.validate(this.controls[key].value);
+                    this.controls[key].validation.result = validationResult;
 
-                if (!this[key].validation.result.valid) {
-                    valid = false;
+                    if (!validationResult.valid) {
+                        valid = false;
+                    }
                 }
-            }
-
-            return true;
-        });
+            })
+        );
 
         return valid;
     },

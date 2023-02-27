@@ -50,7 +50,6 @@ import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { Required } from "../helpers/validate";
@@ -73,7 +72,7 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/resendVerifyEmailCode",
             body: {
-                username: form.username.value,
+                username: form.controls.username.value,
                 captcha_token: captcha,
             },
         });
@@ -85,8 +84,8 @@ const handleSubmit = async () => {
         } else {
             form.apiErrors(error);
         }
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 </script>

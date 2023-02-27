@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="terms">
+    <SMPage class="sm-terms">
         <h1>Terms and Conditions</h1>
         <p>
             Please read these terms carefully. By accessing or using our website
@@ -562,5 +562,3 @@
         </p>
     </SMPage>
 </template>
-
-<script setup lang="ts"></script>

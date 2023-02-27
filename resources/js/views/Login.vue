@@ -57,6 +57,9 @@ const form = reactive(
 
 const redirectQuery = useRoute().query.redirect;
 
+/**
+ * Handle the user submitting the login form.
+ */
 const handleSubmit = async () => {
     form.message();
     form.loading(true);
@@ -70,7 +73,7 @@ const handleSubmit = async () => {
             },
         });
 
-        const login = result.data as unknown as LoginResponse;
+        const login = result.data as LoginResponse;
 
         userStore.setUserDetails(login.user);
         userStore.setUserToken(login.token);
@@ -84,6 +87,7 @@ const handleSubmit = async () => {
             router.push({ name: "dashboard" });
         }
     } catch (err) {
+        form.controls.password.value = "";
         form.apiErrors(err);
     } finally {
         form.loading(false);

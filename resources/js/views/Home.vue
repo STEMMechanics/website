@@ -41,7 +41,7 @@
                         skills that they can use throughout their lives.
                     </p>
                     <SMButton
-                        :to="{ name: 'workshop-list' }"
+                        :to="{ name: 'event-list' }"
                         label="Explore Workshops" />
                 </SMColumn>
                 <SMColumn
@@ -111,7 +111,7 @@
                 as well as updates on upcoming workshops.
             </p>
             <SMDialog class="p-0" no-shadow>
-                <SMForm v-model="form" @submit.prevent="handleSubscribe">
+                <SMForm v-model="form" @submit="handleSubscribe">
                     <div class="form-row">
                         <SMInput control="email" />
                         <SMButton type="submit" label="Subscribe" />
@@ -133,6 +133,7 @@ import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
 
 import { api } from "../helpers/api";
+import { EventCollection, PostCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { Form, FormControl } from "../helpers/form";
 import { excerpt } from "../helpers/string";
@@ -156,47 +157,55 @@ const handleLoad = async () => {
         params: {
             limit: 3,
         },
-    }).then((response) => {
-        if (response.data.posts) {
-            response.data.posts.forEach((post) => {
-                posts.push({
-                    title: post.title,
-                    content: excerpt(post.content, 200),
-                    image: post.hero,
-                    url: { name: "post-view", params: { slug: post.slug } },
-                    cta: "Read More...",
-                });
-            });
-        }
-    });
+    })
+        .then((result) => {
+            const data = result.data as PostCollection;
 
-    try {
-        let result = await api.get({
-            url: "/events",
-            params: {
-                limit: 3,
-                end_at:
-                    ">" +
-                    new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
-                        utc: true,
-                    }),
-            },
+            if (data && data.posts) {
+                data.posts.forEach((post) => {
+                    posts.push({
+                        title: post.title,
+                        content: excerpt(post.content, 200),
+                        image: post.hero,
+                        url: { name: "post-view", params: { slug: post.slug } },
+                        cta: "Read More...",
+                    });
+                });
+            }
+        })
+        .catch(() => {
+            /* empty */
         });
 
-        if (result.data.events) {
-            result.data.events.forEach((event) => {
-                events.push({
-                    title: event.title,
-                    content: excerpt(event.content, 200),
-                    image: event.hero,
-                    url: { name: "workshop-view", params: { id: event.id } },
-                    cta: "View Workshop",
+    api.get({
+        url: "/events",
+        params: {
+            limit: 3,
+            end_at:
+                ">" +
+                new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
+                    utc: true,
+                }),
+        },
+    })
+        .then((result) => {
+            const data = result.data as EventCollection;
+
+            if (data && data.events) {
+                data.events.forEach((event) => {
+                    events.push({
+                        title: event.title,
+                        content: excerpt(event.content, 200),
+                        image: event.hero,
+                        url: { name: "event-view", params: { id: event.id } },
+                        cta: "View Workshop",
+                    });
                 });
-            });
-        }
-    } catch (error) {
-        /* empty */
-    }
+            }
+        })
+        .catch(() => {
+            /* empty */
+        });
 
     for (let i = 1; i <= Math.max(posts.length, events.length); i++) {
         if (i <= posts.length) {
@@ -219,12 +228,12 @@ const handleSubscribe = async () => {
         await api.post({
             url: "/subscriptions",
             body: {
-                email: form.email.value,
+                email: form.controls.email.value,
                 captcha_token: captcha,
             },
         });
 
-        form.email.value = "";
+        form.controls.email.value = "";
         form.message("Your email address has been subscribed.", "success");
     } catch (err) {
         form.apiErrors(err);

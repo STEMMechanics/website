@@ -1,5 +1,5 @@
 <template>
-    <SMContainer class="privacy">
+    <SMContainer class="sm-privacy">
         <h1>Privacy Policy</h1>
         <h3>We take our customers' privacy & security seriously.</h3>
         <p>
@@ -322,7 +322,7 @@
 </template>
 
 <style lang="scss">
-.privacy {
+.sm-privacy {
     h4 {
         margin-bottom: 0.5rem;
     }

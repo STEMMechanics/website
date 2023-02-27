@@ -1,6 +1,15 @@
 export interface Event {
+    id: string;
+    title: string;
+    hero: string;
+    content: string;
     start_at: string;
     end_at: string;
+    location: string;
+    address: string;
+    status: string;
+    registration_type: string;
+    registration_data: string;
 }
 
 export interface EventResponse {
@@ -8,7 +17,7 @@ export interface EventResponse {
 }
 
 export interface EventCollection {
-    events: Event;
+    events: Event[];
 }
 
 export interface Media {
@@ -50,6 +59,7 @@ export interface PostResponse {
 
 export interface PostCollection {
     posts: Array<Post>;
+    total: number;
 }
 
 export interface User {

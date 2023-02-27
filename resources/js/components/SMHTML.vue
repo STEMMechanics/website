@@ -5,7 +5,7 @@
 <script setup lang="ts">
 import DOMPurify from "dompurify";
 import { computed } from "vue";
-import "../../../import-meta";
+import { ImportMetaExtras } from "../../../import-meta";
 
 const props = defineProps({
     html: {
@@ -22,7 +22,9 @@ const computedContent = computed(() => {
     let html = "";
 
     const regex = new RegExp(
-        `<a ([^>]*?)href="${import.meta.env.APP_URL}(.*?>.*?)</a>`,
+        `<a ([^>]*?)href="${
+            (import.meta as ImportMetaExtras).env.APP_URL
+        }(.*?>.*?)</a>`,
         "ig"
     );
 

@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="rules">
+    <SMPage class="sm-rules">
         <h1>Rules</h1>
         <p>
             Oh gosh, no body likes rules but to ensure that we have a fun,
@@ -78,7 +78,7 @@
 <script setup lang="ts"></script>
 
 <style lang="scss">
-.rules {
+.sm-rules {
     h2 {
         margin-bottom: 0.5rem;
     }

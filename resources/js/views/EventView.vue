@@ -1,21 +1,25 @@
 <template>
-    <SMPage :full="true" :loading="imageUrl.length == 0" class="workshop-view">
+    <SMPage
+        :full="true"
+        :loading="imageUrl.length == 0"
+        class="sm-workshop-view"
+        :error="pageError">
         <div
-            class="workshop-image"
+            class="sm-workshop-image"
             :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
         <SMContainer>
             <SMMessage
-                v-if="formMessage.message"
-                :icon="formMessage.icon"
-                :type="formMessage.type"
-                :message="formMessage.message"
+                v-if="formMessage"
+                icon="alert-circle-outline"
+                type="error"
+                :message="formMessage"
                 class="mt-5" />
-            <SMContainer class="workshop-page">
-                <div class="workshop-body">
-                    <h2 class="workshop-title">{{ event.title }}</h2>
-                    <SMHTML :html="event.content" class="workshop-content" />
+            <SMContainer class="sm-workshop-page">
+                <div class="sm-workshop-body">
+                    <h2 class="sm-workshop-title">{{ event.title }}</h2>
+                    <SMHTML :html="event.content" class="sm-workshop-content" />
                 </div>
-                <div class="workshop-info">
+                <div class="sm-workshop-info">
                     <div
                         v-if="
                             event.status == 'closed' ||
@@ -24,17 +28,17 @@
                                     format: 'ymd',
                                 }).isBefore())
                         "
-                        class="workshop-registration workshop-registration-closed">
+                        class="sm-workshop-registration sm-workshop-registration-closed">
                         Registration for this event has closed.
                     </div>
                     <div
                         v-if="event.status == 'soon'"
-                        class="workshop-registration workshop-registration-soon">
+                        class="sm-workshop-registration sm-workshop-registration-soon">
                         Registration for this event will open soon.
                     </div>
                     <div
                         v-if="event.status == 'cancelled'"
-                        class="workshop-registration workshop-registration-cancelled">
+                        class="sm-workshop-registration sm-workshop-registration-cancelled">
                         This event has been cancelled.
                     </div>
                     <div
@@ -45,7 +49,7 @@
                             }).isAfter() &&
                             event.registration_type == 'none'
                         "
-                        class="workshop-registration workshop-registration-none">
+                        class="sm-workshop-registration sm-workshop-registration-none">
                         Registration not required for this event.<br />Arrive
                         early to avoid disappointment as seating maybe limited.
                     </div>
@@ -57,12 +61,13 @@
                             }).isAfter() &&
                             event.registration_type != 'none'
                         "
-                        class="workshop-registration workshop-registration-url">
+                        class="sm-workshop-registration sm-workshop-registration-url">
                         <SMButton
                             :href="registerUrl"
+                            :block="true"
                             label="Register for Event"></SMButton>
                     </div>
-                    <div class="workshop-date">
+                    <div class="sm-workshop-date">
                         <h4><ion-icon name="calendar-outline" />Date / Time</h4>
                         <p
                             v-for="(line, index) in workshopDate"
@@ -71,7 +76,7 @@
                             {{ line }}
                         </p>
                     </div>
-                    <div class="workshop-location">
+                    <div class="sm-workshop-location">
                         <h4><ion-icon name="location-outline" />Location</h4>
                         <p>
                             {{
@@ -88,27 +93,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, Ref, ref } from "vue";
 import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
 import { api } from "../helpers/api";
+import { Event, EventResponse, MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { imageLoad } from "../helpers/image";
 import { useApplicationStore } from "../store/ApplicationStore";
 
-import { ApiEvent, ApiMedia } from "../helpers/api.types";
-import { imageLoad } from "../helpers/image";
-
 const applicationStore = useApplicationStore();
-const event = ref({});
+
+/**
+ * Event data
+ */
+const event: Ref<Event | null> = ref(null);
+
 const imageUrl = ref("");
+
 const route = useRoute();
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
+
+/**
+ * Page message.
+ */
+const formMessage = ref("");
+
+/**
+ * Page error.
+ */
+let pageError = 200;
 
 const workshopDate = computed(() => {
     let str: string[] = [];
@@ -166,23 +181,23 @@ const registerUrl = computed(() => {
     return href;
 });
 
+/**
+ * Load the page data.
+ */
 const handleLoad = async () => {
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
+    formMessage.value = "";
 
-    api.get(`/events/${route.params.id}`)
+    api.get({
+        url: "/events/{event}",
+        params: {
+            event: route.params.id,
+        },
+    })
         .then((result) => {
-            event.value =
-                result.data &&
-                (result.data as ApiEvent).event &&
-                Object.keys((result.data as ApiEvent).event).length > 0
-                    ? (result.data as ApiEvent).event
-                    : {};
+            const eventData = result.data as EventResponse;
 
-            if (event.value) {
-                // event.value = result.data.event as ApiEventItem;
-
+            if (eventData && eventData.event) {
+                event.value = eventData.event;
                 event.value.start_at = new SMDate(event.value.start_at, {
                     format: "ymd",
                     utc: true,
@@ -195,53 +210,46 @@ const handleLoad = async () => {
                 applicationStore.setDynamicTitle(event.value.title);
                 handleLoadImage();
             } else {
-                formMessage.message =
-                    "Could not load event information from the server.";
+                pageError = 404;
             }
         })
         .catch((error) => {
-            formMessage.message =
+            formMessage.value =
                 error.data?.message ||
                 "Could not load event information from the server.";
         });
-
-    // try {
-    //     const result = await api.get(`/events/${route.params.id}`);
-    //     event.value = result.data.event as ApiEventItem;
-
-    //     event.value.start_at = timestampUtcToLocal(event.value.start_at);
-    //     event.value.end_at = timestampUtcToLocal(event.value.end_at);
-
-    //     applicationStore.setDynamicTitle(event.value.title);
-    //     handleLoadImage();
-    // } catch (error) {
-    //     formMessage.message =
-    //         error.data?.message ||
-    //         "Could not load event information from the server.";
-    // }
 };
 
+/**
+ * Load the hero image.
+ */
 const handleLoadImage = async () => {
-    try {
-        const result = await api.get(`/media/${event.value.hero}`);
-        const data = result.data as ApiMedia;
+    api.get({
+        url: "/media/{medium}",
+        params: {
+            medium: event.value.hero,
+        },
+    })
+        .then((result) => {
+            const data = result.data as MediaResponse;
 
-        if (data && data.medium) {
-            imageLoad(data.medium.url, (url) => {
-                imageUrl.value = url;
-            });
-        }
-    } catch (error) {
-        /* empty */
-    }
+            if (data && data.medium) {
+                imageLoad(data.medium.url, (url) => {
+                    imageUrl.value = url;
+                });
+            }
+        })
+        .catch(() => {
+            /* empty */
+        });
 };
 
 handleLoad();
 </script>
 
 <style lang="scss">
-.workshop-view {
-    .workshop-image {
+.sm-workshop-view {
+    .sm-workshop-image {
         display: flex;
         justify-content: center;
         align-items: center;
@@ -253,27 +261,27 @@ handleLoad();
         background-color: #eee;
         transition: background-image 0.2s;
 
-        .workshop-image-loader {
+        .sm-workshop-image-loader {
             font-size: 5rem;
             color: $secondary-color;
         }
     }
 
-    .workshop-page {
+    .sm-workshop-page {
         display: flex;
         flex-direction: row;
 
-        .workshop-body,
-        .workshop-info {
+        .sm-workshop-body,
+        .sm-workshop-info {
             line-height: 1.5rem;
         }
 
-        .workshop-body {
+        .sm-workshop-body {
             flex: 1;
             text-align: left;
         }
 
-        .workshop-info {
+        .sm-workshop-info {
             width: 18rem;
             margin-left: 2rem;
 
@@ -296,17 +304,13 @@ handleLoad();
                 font-size: 90%;
             }
 
-            .workshop-registration {
+            .sm-workshop-registration {
                 margin-top: 1.5rem;
                 line-height: 1.25rem;
-
-                .button {
-                    display: block;
-                }
             }
 
-            .workshop-registration-none,
-            .workshop-registration-soon {
+            .sm-workshop-registration-none,
+            .sm-workshop-registration-soon {
                 border: 1px solid #ffeeba;
                 background-color: #fff3cd;
                 color: #856404;
@@ -315,8 +319,8 @@ handleLoad();
                 padding: 0.5rem;
             }
 
-            .workshop-registration-closed,
-            .workshop-registration-cancelled {
+            .sm-workshop-registration-closed,
+            .sm-workshop-registration-cancelled {
                 border: 1px solid #f5c2c7;
                 background-color: #f8d7da;
                 color: #842029;
@@ -325,8 +329,8 @@ handleLoad();
                 padding: 0.5rem;
             }
 
-            .workshop-date,
-            .workshop-location {
+            .sm-workshop-date,
+            .sm-workshop-location {
                 padding: 0 1rem;
             }
         }
@@ -334,14 +338,14 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .workshop-view .workshop-page {
+    .sm-workshop-view .sm-workshop-page {
         flex-direction: column;
 
-        .workshop-body {
+        .sm-workshop-body {
             text-align: center;
         }
 
-        .workshop-info {
+        .sm-workshop-info {
             width: 100%;
             margin-left: 0;
 

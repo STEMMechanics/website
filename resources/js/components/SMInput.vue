@@ -286,6 +286,7 @@ const handleMediaSelect = async (event) => {
     flex-direction: column;
     margin-bottom: map-get($spacer, 4);
     flex: 1;
+    width: 100%;
 
     &.sm-input-active {
         label {

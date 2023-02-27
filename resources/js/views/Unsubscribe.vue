@@ -65,7 +65,7 @@ const handleSubmit = async () => {
         await api.delete({
             url: "/subscriptions",
             body: {
-                email: form.email.value,
+                email: form.controls.email.value,
                 captcha_token: captcha,
             },
         });
@@ -73,13 +73,18 @@ const handleSubmit = async () => {
         formDone.value = true;
     } catch (error) {
         form.apiErrors(error);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
 if (useRoute().query.email !== undefined) {
-    form.email.value = useRoute().query.email;
+    let queryEmail = useRoute().query.email;
+    if (Array.isArray(queryEmail)) {
+        queryEmail = queryEmail[0];
+    }
+
+    form.controls.email.value = queryEmail;
     handleSubmit();
 }
 </script>

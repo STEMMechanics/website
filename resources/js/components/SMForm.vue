@@ -27,8 +27,8 @@ const emits = defineEmits(["submit"]);
 /**
  * Handle the user submitting the form.
  */
-const handleSubmit = function () {
-    if (props.modelValue.validate()) {
+const handleSubmit = async function () {
+    if (await props.modelValue.validate()) {
         emits("submit");
     }
 };

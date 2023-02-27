@@ -20,7 +20,7 @@ interface ApiOptions {
 export interface ApiResponse {
     status: number;
     message: string;
-    data: Record<string, unknown>;
+    data: unknown;
     json?: Record<string, unknown>;
 }
 
@@ -84,9 +84,12 @@ export const api = {
             const fetchOptions: RequestInit = {
                 method: options.method || "GET",
                 headers: options.headers,
-                body: options.body,
                 signal: options.signal || null,
             };
+
+            if (typeof options.body == "string" && options.body.length > 0) {
+                fetchOptions.body = options.body;
+            }
 
             const progressStore = useProgressStore();
             progressStore.start();

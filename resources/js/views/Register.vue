@@ -71,12 +71,12 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import {
@@ -89,14 +89,11 @@ import {
     Required,
 } from "../helpers/validate";
 
-import { useReCaptcha } from "vue-recaptcha-v3";
-
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 let abortController: AbortController | null = null;
 
-const checkUsername = async (value: string): boolean | string => {
+const checkUsername = (value: string): boolean | string => {
     if (lastUsernameCheck.value != value) {
-        console.log("api-get");
         lastUsernameCheck.value = value;
 
         if (abortController != null) {
@@ -106,14 +103,13 @@ const checkUsername = async (value: string): boolean | string => {
 
         abortController = new AbortController();
 
-        let x = await api
-            .get({
-                url: "/users",
-                params: {
-                    username: value,
-                },
-                signal: abortController.signal,
-            })
+        api.get({
+            url: "/users",
+            params: {
+                username: value,
+            },
+            signal: abortController.signal,
+        })
             .then((response) => {
                 console.log("The username has already been taken.", response);
                 return "The username has already been taken.";
@@ -129,15 +125,13 @@ const checkUsername = async (value: string): boolean | string => {
 
                 return true;
             });
-
-        return x;
     }
 
-    console.log("here");
     return true;
 };
 
 const formDone = ref(false);
+const lastUsernameCheck = ref("");
 const form = reactive(
     Form({
         first_name: FormControl("", Required()),
@@ -159,36 +153,21 @@ const handleSubmit = async () => {
         await api.post({
             url: "/register",
             body: {
-                first_name: form.first_name.value,
-                last_name: form.last_name.value,
-                email: form.email.value,
-                phone: form.phone.value,
-                username: form.username.value,
-                password: form.password.value,
+                first_name: form.controls.first_name.value,
+                last_name: form.controls.last_name.value,
+                email: form.controls.email.value,
+                phone: form.controls.phone.value,
+                username: form.controls.username.value,
+                password: form.controls.password.value,
                 captcha_token: captcha,
             },
         });
 
         formDone.value = true;
-    } catch (err) {
-        form.apiErrors(err);
+    } catch (error) {
+        form.apiErrors(error);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
-
-const lastUsernameCheck = ref("");
-
-// const debouncedFilter = debounce(checkUsername, 1000);
-// let oldUsernameValue = "";
-// watch(
-//     form,
-//     (value) => {
-//         if (value.username.value !== oldUsernameValue) {
-//             oldUsernameValue = value.username.value;
-//             // debouncedFilter(lastUsernameCheck.value);
-//         }
-//     },
-//     { deep: true }
-// );
 </script>

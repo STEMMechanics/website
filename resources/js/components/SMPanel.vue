@@ -31,7 +31,11 @@
                 {{ computedContent }}
             </div>
             <div v-if="button.length > 0" class="sm-panel-button">
-                <SMButton :to="to" :type="buttonType" :label="button" />
+                <SMButton
+                    :to="to"
+                    :type="buttonType"
+                    :block="true"
+                    :label="button" />
             </div>
         </div>
     </router-link>
@@ -287,6 +291,10 @@ watch(
         margin-top: 1rem;
         line-height: 130%;
         flex: 1;
+    }
+
+    .sm-panel-button {
+        margin-top: map-get($spacer, 4);
     }
 }
 </style>

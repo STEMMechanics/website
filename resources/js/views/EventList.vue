@@ -1,8 +1,8 @@
 <template>
-    <SMPage class="workshop-list">
+    <SMPage class="sm-workshop-list">
         <template #container>
             <h1>Workshops</h1>
-            <div class="toolbar">
+            <SMToolbar>
                 <SMInput
                     v-model="filterKeywords"
                     label="Keywords"
@@ -17,21 +17,21 @@
                     label="Date Range"
                     :feedback-invalid="dateRangeError"
                     @change="handleFilter" />
-            </div>
+            </SMToolbar>
             <SMMessage
-                v-if="formMessage.message"
-                :icon="formMessage.icon"
-                :type="formMessage.type"
-                :message="formMessage.message"
+                v-if="formMessage"
+                icon="alert-circle-outline"
+                type="error"
+                :message="formMessage"
                 class="mt-5" />
             <SMPanelList
                 :loading="loading"
-                :not-found="events.value?.length == 0"
+                :not-found="events.length == 0"
                 not-found-text="No workshops found">
                 <SMPanel
-                    v-for="event in events.value"
+                    v-for="event in events"
                     :key="event.id"
-                    :to="{ name: 'workshop-view', params: { id: event.id } }"
+                    :to="{ name: 'event-view', params: { id: event.id } }"
                     :title="event.title"
                     :image="event.hero"
                     :show-time="true"
@@ -54,30 +54,25 @@ import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMPanel from "../components/SMPanel.vue";
 import SMPanelList from "../components/SMPanelList.vue";
+import SMToolbar from "../components/SMToolbar.vue";
 import { api } from "../helpers/api";
+import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 
 const loading = ref(true);
-const events = reactive([]);
+let events: Event[] = reactive([]);
 const dateRangeError = ref("");
 
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
+const formMessage = ref("");
 
 const filterKeywords = ref("");
 const filterLocation = ref("");
 const filterDateRange = ref("");
 
+/**
+ * Load page data.
+ */
 const handleLoad = async () => {
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
-
-    events.value = [];
-
     let query = {};
     query["limit"] = 10;
 
@@ -111,10 +106,15 @@ const handleLoad = async () => {
             dateRangeError.value = "";
         } else {
             dateRangeError.value = "Invalid date range";
+            return;
         }
     } else {
         dateRangeError.value = "";
     }
+
+    loading.value = true;
+    formMessage.value = "";
+    events = [];
 
     if (Object.keys(query).length == 1 && Object.keys(query)[0] == "limit") {
         query["end_at"] =
@@ -127,10 +127,12 @@ const handleLoad = async () => {
         params: query,
     })
         .then((result) => {
-            if (result.data.events) {
-                events.value = result.data.events;
+            const data = result.data as EventCollection;
 
-                events.value.forEach((item) => {
+            if (data && data.events) {
+                events = data.events;
+
+                events.forEach((item) => {
                     item.start_at = new SMDate(item.start_at, {
                         format: "yyyy-MM-dd HH:mm:ss",
                         utc: true,
@@ -145,7 +147,7 @@ const handleLoad = async () => {
         })
         .catch((error) => {
             if (error.status != 404) {
-                formMessage.message =
+                formMessage.value =
                     error.response?.data?.message ||
                     "Could not load any events from the server.";
             }
@@ -156,7 +158,6 @@ const handleLoad = async () => {
 };
 
 const handleFilter = async () => {
-    loading.value = true;
     handleLoad();
 };
 
@@ -188,7 +189,7 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .workshop-list .toolbar {
+    .sm-workshop-list .toolbar {
         flex-direction: column;
 
         & > * {

@@ -9,42 +9,42 @@
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/posts')"
-                    to="/dashboard/posts"
+                    :to="{ name: 'dashboard-post-list' }"
                     class="box">
                     <ion-icon name="newspaper-outline" />
                     <h2>Posts</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/users')"
-                    :to="{ name: 'user-list' }"
+                    :to="{ name: 'dashboard-user-list' }"
                     class="box">
                     <ion-icon name="people-outline" />
                     <h2>Users</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/events')"
-                    to="/dashboard/events"
+                    :to="{ name: 'dashboard-event-list' }"
                     class="box">
                     <ion-icon name="calendar-outline" />
                     <h2>Events</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/courses')"
-                    to="/dashboard/courses"
+                    :to="{ name: 'dashboard-course-list' }"
                     class="box">
                     <ion-icon name="school-outline" />
                     <h2>{{ courseBoxTitle }}</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/media')"
-                    to="/dashboard/media"
+                    :to="{ name: 'dashboard-media-list' }"
                     class="box">
                     <ion-icon name="film-outline" />
                     <h2>Media</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('logs/discord')"
-                    :to="{ name: 'discord-bot-logs' }"
+                    :to="{ name: 'dashboard-discord-bot-logs' }"
                     class="box">
                     <ion-icon name="logo-discord" />
                     <h2>Discord Bot Logs</h2>

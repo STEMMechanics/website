@@ -23,7 +23,7 @@
                     </template>
                 </ul>
                 <SMButton
-                    :to="{ name: 'workshop-list' }"
+                    :to="{ name: 'event-list' }"
                     class="sm-navbar-cta"
                     label="Find a workshop"
                     icon="arrow-forward-outline" />
@@ -70,13 +70,13 @@ const menuItems = [
     {
         name: "news",
         label: "News",
-        to: { name: "news" },
+        to: { name: "post-list" },
         icon: "newspaper-outline",
     },
     {
         name: "workshops",
         label: "Workshops",
-        to: { name: "workshop-list" },
+        to: { name: "event-list" },
         icon: "library-outline",
     },
     {
