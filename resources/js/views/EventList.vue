@@ -176,22 +176,22 @@ const handleLoad = async () => {
                 item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
                 item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
 
-                if (
-                    parsedEndAt.isBefore(new SMDate("now")) ||
-                    item.status == "closed"
-                ) {
-                    banner = "closed";
-                    bannerType = "expired";
-                } else if (item.status == "open") {
-                    banner = "open";
-                    bannerType = "success";
-                } else if (item.status == "cancelled") {
-                    banner = "cancelled";
-                    bannerType = "danger";
-                } else if (item.status == "soon") {
-                    banner = "Open Soon";
-                    bannerType = "warning";
-                }
+                // if (
+                //     parsedEndAt.isBefore(new SMDate("now")) ||
+                //     item.status == "closed"
+                // ) {
+                //     banner = "closed";
+                //     bannerType = "expired";
+                // } else if (item.status == "open") {
+                //     banner = "open";
+                //     bannerType = "success";
+                // } else if (item.status == "cancelled") {
+                //     banner = "cancelled";
+                //     bannerType = "danger";
+                // } else if (item.status == "soon") {
+                //     banner = "Open Soon";
+                //     bannerType = "warning";
+                // }
 
                 events.push({
                     event: item,
