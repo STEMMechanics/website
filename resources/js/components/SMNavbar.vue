@@ -79,12 +79,12 @@ const menuItems = [
         to: { name: "event-list" },
         icon: "library-outline",
     },
-    {
-        name: "courses",
-        label: "Courses",
-        to: "/courses",
-        icon: "briefcase-outline",
-    },
+    // {
+    //     name: "courses",
+    //     label: "Courses",
+    //     to: "/courses",
+    //     icon: "briefcase-outline",
+    // },
     {
         name: "contact",
         label: "Contact",
