@@ -134,12 +134,12 @@ const handleLoad = async () => {
         events = [];
 
         if (Object.keys(query).length == 0) {
-            const now = new Date();
-            const startingDate = new Date(now.setDate(now.getDate() - 14));
+            // const now = new Date();
+            // const startingDate = new Date(now.setDate(now.getDate() - 14));
 
             query["end_at"] =
                 ">" +
-                new SMDate(startingDate).format("yyyy/MM/dd HH:mm:ss", {
+                new SMDate("now").format("yyyy/MM/dd HH:mm:ss", {
                     utc: true,
                 });
         }
