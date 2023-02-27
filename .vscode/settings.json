@@ -2,8 +2,8 @@
     "editor.formatOnType": true,
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": true,
-        "source.organizeImports": true
+        "source.fixAll.eslint": true
+        // "source.organizeImports": true // <-- when enabled, breaks tinymce required import order
     },
     "editor.defaultFormatter": "esbenp.prettier-vscode",
     "[vue]": {
