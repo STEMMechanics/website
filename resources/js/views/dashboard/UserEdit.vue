@@ -39,8 +39,8 @@ import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
 import SMHeading from "../../components/SMHeading.vue";
 import SMInput from "../../components/SMInput.vue";
-
 import { api } from "../../helpers/api";
+import { UserResponse } from "../../helpers/api.types";
 import { Form, FormControl } from "../../helpers/form";
 import { And, Email, Phone, Required } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
@@ -57,50 +57,72 @@ const form = reactive(
     })
 );
 
+/**
+ * Load the page data.
+ */
 const loadData = async () => {
     if (route.params.id) {
         try {
             form.loading(true);
-            let res = await api.get(`users/${route.params.id}`);
+            const result = await api.get({
+                url: "users/{id}",
+                params: {
+                    id: route.params.id,
+                },
+            });
 
-            form.first_name.value = res.data.user.first_name;
-            form.last_name.value = res.data.user.last_name;
-            form.phone.value = res.data.user.phone;
-            form.email.value = res.data.user.email;
+            const data = result.data as UserResponse;
+
+            if (data && data.user) {
+                form.controls.first_name.value = data.user.first_name;
+                form.controls.last_name.value = data.user.last_name;
+                form.controls.phone.value = data.user.phone;
+                form.controls.email.value = data.user.email;
+            }
         } catch (err) {
             form.apiErrors(err);
+        } finally {
+            form.loading(false);
         }
     } else {
-        form.first_name.value = userStore.firstName;
-        form.last_name.value = userStore.lastName;
-        form.phone.value = userStore.phone;
-        form.email.value = userStore.email;
+        form.controls.first_name.value = userStore.firstName;
+        form.controls.last_name.value = userStore.lastName;
+        form.controls.phone.value = userStore.phone;
+        form.controls.email.value = userStore.email;
     }
-
-    form.loading(false);
 };
 
+/**
+ * Handle the user submitting the form.
+ */
 const handleSubmit = async () => {
     try {
         form.loading(true);
-        let res = await api.put({
-            url: `users/${userStore.id}`,
+        const result = await api.put({
+            url: "users/{id}",
+            params: {
+                id: userStore.id,
+            },
             body: {
-                first_name: form.first_name.value,
-                last_name: form.last_name.value,
-                email: form.email.value,
-                phone: form.phone.value,
+                first_name: form.controls.first_name.value,
+                last_name: form.controls.last_name.value,
+                email: form.controls.email.value,
+                phone: form.controls.phone.value,
             },
         });
 
-        userStore.setUserDetails(res.data.user);
+        const data = result.data as UserResponse;
+
+        if (data && data.user) {
+            userStore.setUserDetails(data.user);
+        }
 
         form.message("Your details have been updated", "success");
     } catch (err) {
         form.apiErrors(err);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
 const handleChangePassword = () => {
