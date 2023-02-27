@@ -66,6 +66,10 @@ export interface PostCollection {
 export interface User {
     id: string;
     username: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+    phone: string;
 }
 
 export interface UserResponse {
