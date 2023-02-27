@@ -48,7 +48,6 @@ import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Max, Min, Required } from "../helpers/validate";
@@ -71,21 +70,30 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/verifyEmail",
             body: {
-                code: form.code.value,
+                code: form.controls.code.value,
                 captcha_token: captcha,
             },
         });
 
         formDone.value = true;
-    } catch (err) {
-        form.apiErrors(err);
+    } catch (error) {
+        form.apiErrors(error);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
 if (useRoute().query.code !== undefined) {
-    form.code.value = useRoute().query.code;
+    const code = useRoute().query.code;
+
+    if (Array.isArray(code)) {
+        if (code.length > 0) {
+            form.controls.code.value = code[0];
+        }
+    } else {
+        form.controls.code.value = code;
+    }
+
     handleSubmit();
 }
 </script>

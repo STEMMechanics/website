@@ -40,8 +40,8 @@ import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
+import { LoginResponse } from "../helpers/api.types";
 import { Form, FormControl } from "../helpers/form";
 import { And, Min, Required } from "../helpers/validate";
 import { useUserStore } from "../store/UserStore";
@@ -55,39 +55,39 @@ const form = reactive(
     })
 );
 
-const redirect = useRoute().query.redirect;
+const redirectQuery = useRoute().query.redirect;
 
 const handleSubmit = async () => {
     form.message();
     form.loading(true);
 
     try {
-        let res = await api.post({
+        let result = await api.post({
             url: "/login",
             body: {
-                username: form.username.value,
-                password: form.password.value,
+                username: form.controls.username.value,
+                password: form.controls.password.value,
             },
         });
 
-        userStore.setUserDetails(res.data.user);
-        userStore.setUserToken(res.data.token);
-        if (redirect !== undefined) {
-            if (redirect.startsWith("api/")) {
-                window.location.href =
-                    redirect + "?token=" + encodeURIComponent(res.data.token);
-            } else {
-                router.push({ path: redirect });
-            }
+        const login = result.data as unknown as LoginResponse;
+
+        userStore.setUserDetails(login.user);
+        userStore.setUserToken(login.token);
+        if (redirectQuery !== undefined) {
+            const redirect = Array.isArray(redirectQuery)
+                ? redirectQuery[0]
+                : redirectQuery;
+
+            router.push({ path: redirect });
         } else {
             router.push({ name: "dashboard" });
         }
     } catch (err) {
-        console.log(err);
         form.apiErrors(err);
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
 if (userStore.token) {

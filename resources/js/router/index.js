@@ -124,7 +124,7 @@ export const routes = [
         path: "/contact",
         name: "contact",
         meta: {
-            title: "Contact Us",
+            title: "Contact",
         },
         component: () => import("@/views/Contact.vue"),
     },

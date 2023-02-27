@@ -9,9 +9,9 @@ import {
 type FormObjectValidateFunction = (item: string | null) => boolean;
 type FormObjectLoadingFunction = (state: boolean) => void;
 type FormObjectMessageFunction = (
-    message: string,
-    type: string,
-    icon: string
+    message?: string,
+    type?: string,
+    icon?: string
 ) => void;
 type FormObjectErrorFunction = (message: string) => void;
 type FormObjectApiErrorsFunction = (apiErrors: ApiResponse) => void;
@@ -77,21 +77,19 @@ const defaultFormObject: FormObject = {
         let foundKeys = false;
 
         if (
-            apiResponse.json &&
-            typeof apiResponse.json === "object" &&
-            apiResponse.json.errors
+            apiResponse.data &&
+            typeof apiResponse.data === "object" &&
+            apiResponse.data.errors
         ) {
-            const errors = apiResponse.json.errors as Record<string, string>;
+            const errors = apiResponse.data.errors as Record<string, string>;
             Object.keys(errors).forEach((key) => {
                 if (
-                    typeof this[key] === "object" &&
-                    Object.keys(this[key]).includes("validation")
+                    typeof this.controls[key] === "object" &&
+                    Object.keys(this.controls[key]).includes("validation")
                 ) {
                     foundKeys = true;
-                    this[key].validation.result = createValidationResult(
-                        false,
-                        errors[key]
-                    );
+                    this.controls[key].validation.result =
+                        createValidationResult(false, errors[key]);
                 }
             });
         }

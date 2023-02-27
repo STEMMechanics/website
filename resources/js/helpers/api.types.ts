@@ -64,3 +64,8 @@ export interface UserResponse {
 export interface UserCollection {
     users: Array<User>;
 }
+
+export interface LoginResponse {
+    user: User;
+    token: string;
+}

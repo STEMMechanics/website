@@ -20,7 +20,7 @@ interface ApiOptions {
 export interface ApiResponse {
     status: number;
     message: string;
-    data: unknown;
+    data: Record<string, unknown>;
     json?: Record<string, unknown>;
 }
 

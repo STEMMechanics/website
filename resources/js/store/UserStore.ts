@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { defineStore, DefineStoreOptions } from "pinia";
 
 export interface UserDetails {
     id: string;
@@ -21,7 +21,7 @@ export interface UserState {
     permissions: string[];
 }
 
-export const useUserStore = defineStore<string, UserState>({
+export const useUserStore = defineStore({
     id: "user",
     state: (): UserState => ({
         id: "",
@@ -62,4 +62,4 @@ export const useUserStore = defineStore<string, UserState>({
     },
 
     persist: true,
-});
+} as DefineStoreOptions<string, unknown, unknown, unknown> & { persist?: boolean });

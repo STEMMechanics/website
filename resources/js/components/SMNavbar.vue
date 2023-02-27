@@ -87,7 +87,7 @@ const menuItems = [
     },
     {
         name: "contact",
-        label: "Contact us",
+        label: "Contact",
         to: { name: "contact" },
         icon: "mail-outline",
     },

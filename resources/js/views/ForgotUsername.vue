@@ -43,17 +43,15 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { api } from "../helpers/api";
-import { Form, FormControl } from "../helpers/form";
-import { And, Email, Required } from "../helpers/validate";
-
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-
-import { useReCaptcha } from "vue-recaptcha-v3";
+import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
+import { And, Email, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
@@ -73,7 +71,7 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/forgotUsername",
             body: {
-                email: form.email.value,
+                email: form.controls.email.value,
                 captcha_token: captcha,
             },
         });

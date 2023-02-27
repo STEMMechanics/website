@@ -30,7 +30,7 @@ defineProps({
     align-self: center;
 
     .sm-message {
-        display: inline-flex;
+        display: flex;
         padding: map-get($spacer, 2) map-get($spacer, 3);
         margin-bottom: map-get($spacer, 4);
         text-align: center;
@@ -69,6 +69,7 @@ defineProps({
             justify-content: center;
             align-self: center;
             white-space: pre-wrap;
+            flex: 1;
         }
     }
 }

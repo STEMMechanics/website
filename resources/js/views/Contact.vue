@@ -60,7 +60,7 @@
                         <template v-else>
                             <h1>Message Sent!</h1>
                             <p class="text-center">
-                                Your message as been sent to us. We will respond
+                                Your message as been sent.<br />We will respond
                                 as soon as we can.
                             </p>
                             <SMButton
@@ -76,22 +76,20 @@
 </template>
 
 <script setup lang="ts">
+import { reactive, ref } from "vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
-
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Email, Min, Required } from "../helpers/validate";
 
-import { reactive, ref } from "vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
-
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const form = reactive(
     Form({
-        name: FormControl("", And([Required(), Min(4)])),
+        name: FormControl("", And([Required()])),
         email: FormControl("", And([Required(), Email()])),
         content: FormControl("", And([Required(), Min(8)])),
     })
@@ -108,20 +106,19 @@ const handleSubmit = async () => {
         await api.post({
             url: "/contact",
             body: {
-                name: form.name.value,
-                email: form.email.value,
+                name: form.controls.name.value,
+                email: form.controls.email.value,
                 captcha_token: captcha,
-                content: form.content.value,
+                content: form.controls.content.value,
             },
         });
 
         formSubmitted.value = true;
-    } catch (err) {
-        console.log(err);
-        form.apiErrors(err);
+    } catch (error) {
+        form.error("A captcha error occurred. Try reloading the page.");
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 </script>
 
