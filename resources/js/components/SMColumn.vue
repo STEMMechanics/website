@@ -44,11 +44,6 @@ if (props.width != "") {
     }
 }
 
-.sm-dialog .sm-column {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
 @media screen and (max-width: 768px) {
     .sm-column {
         flex-basis: auto !important;
