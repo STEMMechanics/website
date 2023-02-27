@@ -183,7 +183,7 @@
     }
 }
 
-@media only screen and (max-width: 640px) {
+@media only screen and (max-width: 864px) {
     .sm-footer {
         .sm-footer-text {
             padding: 0 1rem;
