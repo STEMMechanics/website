@@ -173,15 +173,15 @@ const handleLoad = async () => {
                 //     utc: true,
                 // });
 
-                item.start_at = new SMDate(item.start_at, {
-                    format: "yyyy-MM-dd HH:mm:ss",
-                    utc: true,
-                }).format("yyyy-MM-dd HH:mm:ss");
+                // item.start_at = new SMDate(item.start_at, {
+                //     format: "yyyy-MM-dd HH:mm:ss",
+                //     utc: true,
+                // }).format("yyyy-MM-dd HH:mm:ss");
 
-                item.end_at = new SMDate(item.end_at, {
-                    format: "yyyy-MM-dd HH:mm:ss",
-                    utc: true,
-                }).format("yyyy-MM-dd HH:mm:ss");
+                // item.end_at = new SMDate(item.end_at, {
+                //     format: "yyyy-MM-dd HH:mm:ss",
+                //     utc: true,
+                // }).format("yyyy-MM-dd HH:mm:ss");
 
                 // if (
                 //     parsedEndAt.isBefore(new SMDate("now")) ||
