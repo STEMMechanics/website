@@ -1,5 +1,3 @@
-import { transformWithEsbuild } from "vite";
-
 export class SMDate {
     date: Date | null = null;
     dayString: string[] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
