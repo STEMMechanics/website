@@ -43,22 +43,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import SMInput from "../components/SMInput.vue";
+import { reactive, ref } from "vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
-import SMPage from "../components/SMPage.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+
 import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
 import { Required } from "../helpers/validate";
-import { useReCaptcha } from "vue-recaptcha-v3";
-import { FormObject, FormControl } from "../helpers/form";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 const form = reactive(
-    FormObject({
+    Form({
         username: FormControl("", Required()),
     })
 );

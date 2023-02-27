@@ -24,6 +24,9 @@ const props = defineProps({
 });
 const emits = defineEmits(["submit"]);
 
+/**
+ * Handle the user submitting the form.
+ */
 const handleSubmit = function () {
     if (props.modelValue.validate()) {
         emits("submit");

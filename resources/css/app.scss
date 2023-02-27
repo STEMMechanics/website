@@ -124,11 +124,6 @@ select {
     }
 }
 
-svg,
-button {
-    @extend .prevent-select;
-}
-
 code {
     display: block;
     font-size: 0.8rem;
@@ -162,96 +157,6 @@ code {
         flex: 0 0 auto;
         margin: 0;
         box-shadow: 4px 4px 12px rgba(0, 0, 0, 0.2);
-    }
-}
-
-/* Button */
-button.button,
-a.button,
-label.button {
-    padding: map-get($spacer, 2) map-get($spacer, 4);
-    color: white;
-    font-weight: 800;
-    border-width: 2px;
-    border-style: solid;
-    border-radius: 24px;
-    transition: background-color 0.1s, color 0.1s;
-    cursor: pointer;
-    background-color: $secondary-color;
-    border-color: $secondary-color;
-    min-width: 7rem;
-    text-align: center;
-
-    &:disabled {
-        cursor: not-allowed;
-        background-color: $secondary-color !important;
-        border-color: $secondary-color !important;
-        opacity: 0.5;
-    }
-
-    &:hover:not(:disabled) {
-        text-decoration: none;
-        color: $secondary-color;
-    }
-
-    &.primary {
-        background-color: $primary-color;
-        border-color: $primary-color;
-
-        &:hover:not(:disabled) {
-            color: $primary-color;
-        }
-    }
-
-    &.secondary {
-        background-color: $secondary-color;
-        border-color: $secondary-color;
-
-        &:hover:not(:disabled) {
-            color: $secondary-color;
-        }
-    }
-
-    &.danger {
-        background-color: $danger-color;
-        border-color: $danger-color;
-
-        &:hover:not(:disabled) {
-            color: $danger-color;
-        }
-    }
-
-    &.outline {
-        background-color: transparent;
-        border-color: $outline-color;
-        color: $outline-color;
-
-        &:hover:not(:disabled) {
-            background-color: $outline-color;
-            border-color: $outline-color;
-            color: $outline-hover-color;
-        }
-    }
-
-    &:hover:not(:disabled) {
-        background-color: #fff;
-    }
-
-    svg {
-        padding-left: 0.5rem;
-        vertical-align: middle !important;
-    }
-}
-
-.button + .button {
-    margin: 0 map-get($spacer, 2);
-
-    &:first-child {
-        margin-left: 0;
-    }
-
-    &:last-child {
-        margin-right: 0;
     }
 }
 

@@ -40,7 +40,8 @@
                 </SMRow>
                 <SMRow>
                     <SMColumn>
-                        <SMEditor v-model:model-value="form.content.value" />
+                        <SMEditor
+                            v-model:model-value="form.controls.content.value" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>
@@ -61,21 +62,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
-import { api } from "../../helpers/api";
-import { FormObject, FormControl } from "../../helpers/form";
-import { And, Required, Min, DateTime } from "../../helpers/validate";
-import { SMDate } from "../../helpers/datetime";
-import { useUserStore } from "../../store/UserStore";
+import { reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { PostResponse, UserCollection } from "../../helpers/api.types";
-import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
-import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
+import SMInput from "../../components/SMInput.vue";
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
+
+import { api } from "../../helpers/api";
+import { PostResponse, UserCollection } from "../../helpers/api.types";
+import { SMDate } from "../../helpers/datetime";
+import { Form, FormControl } from "../../helpers/form";
+import { And, DateTime, Min, Required } from "../../helpers/validate";
+import { useUserStore } from "../../store/UserStore";
 
 const route = useRoute();
 const userStore = useUserStore();
@@ -85,7 +86,7 @@ const authors = ref({});
 const attachments = ref(["4687166e-7f9e-4394-abdf-2d254c8bb087"]);
 
 const form = reactive(
-    FormObject({
+    Form({
         title: FormControl("", And([Required(), Min(8)])),
         slug: FormControl("", And([Required(), Min(6)])),
         publish_at: FormControl("", DateTime()),
@@ -96,9 +97,9 @@ const form = reactive(
 );
 
 const updateSlug = async () => {
-    if (form.slug.value == "" && form.title.value != "") {
+    if (form.controls.slug.value == "" && form.controls.title.value != "") {
         let idx = 0;
-        let pre_slug = form.title.value
+        let pre_slug = form.controls.title.value
             .toLowerCase()
             .replace(/[^a-z0-9]/gim, "-")
             .replace(/-+/g, "-")
@@ -122,8 +123,8 @@ const updateSlug = async () => {
                 idx++;
             } catch (error) {
                 if (error.status == 404) {
-                    if (form.slug.value == "") {
-                        form.slug.value = slug;
+                    if (form.controls.slug.value == "") {
+                        form.controls.slug.value = slug;
                     }
                 }
 
@@ -141,18 +142,18 @@ const loadData = async () => {
             .then((result) => {
                 const data = result.data as PostResponse;
 
-                form.title.value = data.post.title;
-                form.slug.value = data.post.slug;
-                form.user_id.value = data.post.user_id;
-                form.content.value = data.post.content;
-                form.publish_at.value = data.post.publish_at
+                form.controls.title.value = data.post.title;
+                form.controls.slug.value = data.post.slug;
+                form.controls.user_id.value = data.post.user_id;
+                form.controls.content.value = data.post.content;
+                form.controls.publish_at.value = data.post.publish_at
                     ? new SMDate(data.post.publish_at, {
                           format: "yMd",
                           utc: true,
                       }).format("dd/MM/yyyy HH:mm")
                     : "";
-                form.content.value = data.post.content;
-                form.hero.value = data.post.hero;
+                form.controls.content.value = data.post.content;
+                form.controls.hero.value = data.post.hero;
             })
             .catch((error) => {
                 pageError.value =
@@ -166,15 +167,15 @@ const loadData = async () => {
 const handleSubmit = async () => {
     try {
         let data = {
-            title: form.title.value,
-            slug: form.slug.value,
-            publish_at: new SMDate(form.publish_at.value).format(
+            title: form.controls.title.value,
+            slug: form.controls.slug.value,
+            publish_at: new SMDate(form.controls.publish_at.value).format(
                 "yyyy/MM/dd HH:mm:ss",
                 { utc: true }
             ),
-            user_id: form.user_id.value,
-            content: form.content.value,
-            hero: form.hero.value,
+            user_id: form.controls.user_id.value,
+            content: form.controls.content.value,
+            hero: form.controls.hero.value,
         };
 
         if (route.params.id) {

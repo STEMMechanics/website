@@ -70,15 +70,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
-import SMInput from "../components/SMInput.vue";
+import { reactive, ref } from "vue";
 import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
-import SMPage from "../components/SMPage.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+
 import { api } from "../helpers/api";
-import { FormControl, FormObject } from "../helpers/form";
+import { Form, FormControl } from "../helpers/form";
 import {
     And,
     Custom,
@@ -89,7 +89,6 @@ import {
     Required,
 } from "../helpers/validate";
 
-import { debounce } from "../helpers/debounce";
 import { useReCaptcha } from "vue-recaptcha-v3";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
@@ -140,7 +139,7 @@ const checkUsername = async (value: string): boolean | string => {
 
 const formDone = ref(false);
 const form = reactive(
-    FormObject({
+    Form({
         first_name: FormControl("", Required()),
         last_name: FormControl("", Required()),
         email: FormControl("", And([Required(), Email()])),

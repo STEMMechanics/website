@@ -51,20 +51,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
-import { SMDate } from "../../helpers/datetime";
+import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { openDialog } from "vue3-promise-dialog";
-import { api } from "../../helpers/api";
-import { debounce } from "../../helpers/debounce";
 import EasyDataTable from "vue3-easy-data-table";
+import { openDialog } from "vue3-promise-dialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import SMToolbar from "../../components/SMToolbar.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMHeading from "../../components/SMHeading.vue";
-import SMMessage from "../../components/SMMessage.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
-import SMPage from "../../components/SMPage.vue";
+import SMMessage from "../../components/SMMessage.vue";
+import SMToolbar from "../../components/SMToolbar.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { debounce } from "../../helpers/debounce";
 
 const router = useRouter();
 const search = ref("");

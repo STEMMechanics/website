@@ -43,7 +43,7 @@
                 class="file"
                 :accept="props.accept"
                 @change="handleChange" />
-            <label class="button" for="file">Select file</label>
+            <label class="sm-button" for="file">Select file</label>
             <div class="file-name">
                 {{ modelValue?.name ? modelValue.name : modelValue }}
             </div>
@@ -68,7 +68,11 @@
                 <img v-if="mediaUrl.length > 0" :src="mediaUrl" />
                 <ion-icon v-else name="image-outline" />
             </div>
-            <a class="button" @click.prevent="handleMediaSelect">Select file</a>
+            <a
+                class="sm-button sm-button-small"
+                @click.prevent="handleMediaSelect"
+                >Select file</a
+            >
         </div>
         <div v-if="slots.default || feedbackInvalid" class="sm-input-help">
             <span v-if="feedbackInvalid" class="sm-input-invalid">{{
@@ -82,7 +86,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, computed, useSlots, ref, inject } from "vue";
+import { computed, inject, ref, useSlots, watch } from "vue";
 import { openDialog } from "vue3-promise-dialog";
 import { toTitleCase } from "../helpers/string";
 import { isEmpty } from "../helpers/utils";
@@ -141,7 +145,7 @@ const objControl =
         : !isEmpty(objForm) &&
           typeof props.control == "string" &&
           props.control != ""
-        ? objForm[props.control]
+        ? objForm.controls[props.control]
         : null;
 
 const label = ref(props.label);

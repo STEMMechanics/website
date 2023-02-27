@@ -1,9 +1,9 @@
 <template>
-    <div class="panel-list">
-        <div v-if="loading" class="panel-list-loading">
+    <div class="sm-panel-list">
+        <div v-if="loading" class="sm-panel-list-loading">
             <SMLoadingIcon />
         </div>
-        <div v-else-if="notFound" class="panel-list-not-found">
+        <div v-else-if="notFound" class="sm-panel-list-not-found">
             <ion-icon name="alert-circle-outline" />
             <p>{{ notFoundText }}</p>
         </div>
@@ -34,7 +34,7 @@ defineProps({
 </script>
 
 <style lang="scss">
-.panel-list {
+.sm-panel-list {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
@@ -43,17 +43,13 @@ defineProps({
     width: 100%;
     margin: 0 auto;
 
-    .panel-list-loading {
+    .sm-panel-list-loading {
         display: flex;
         flex: 1;
         justify-content: center;
-
-        svg {
-            font-size: 500%;
-        }
     }
 
-    .panel-list-not-found {
+    .sm-panel-list-not-found {
         display: flex;
         flex-direction: column;
         flex: 1;

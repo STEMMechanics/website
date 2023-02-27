@@ -21,13 +21,12 @@
 </template>
 
 <script setup lang="ts">
-import { api } from "../helpers/api";
 import { ref } from "vue";
+import { api } from "../helpers/api";
 import { useUserStore } from "../store/UserStore";
 
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
-import SMPage from "../components/SMPage.vue";
 
 const userStore = useUserStore();
 const formLoading = ref(false);

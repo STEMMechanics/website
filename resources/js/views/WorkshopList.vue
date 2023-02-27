@@ -50,13 +50,12 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { api } from "../helpers/api";
-import { SMDate } from "../helpers/datetime";
 import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
-import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
-import SMPage from "../components/SMPage.vue";
+import SMPanelList from "../components/SMPanelList.vue";
+import { api } from "../helpers/api";
+import { SMDate } from "../helpers/datetime";
 
 const loading = ref(true);
 const events = reactive([]);

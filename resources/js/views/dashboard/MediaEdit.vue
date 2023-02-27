@@ -62,18 +62,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import SMInput from "../../components/SMInput.vue";
+import { computed, reactive, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
 import SMDialog from "../../components/SMDialog.vue";
 import SMForm from "../../components/SMForm.vue";
-import SMPage from "../../components/SMPage.vue";
+import SMInput from "../../components/SMInput.vue";
+
 import { api } from "../../helpers/api";
-import { FormObject, FormControl } from "../../helpers/form";
-import { And, Required, FileSize } from "../../helpers/validate";
-import { useRoute } from "vue-router";
+import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
-import { useRouter } from "vue-router";
+import { And, FileSize, Required } from "../../helpers/validate";
 
 const router = useRouter();
 const pageError = ref(200);
@@ -83,7 +82,7 @@ const route = useRoute();
 const page_title = route.params.id ? "Edit Media" : "Upload Media";
 
 const form = reactive(
-    FormObject({
+    Form({
         file: FormControl("", And([Required(), FileSize(5242880)])),
         permission: FormControl(),
     })

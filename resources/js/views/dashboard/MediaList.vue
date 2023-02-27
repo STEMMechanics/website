@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/media">
+    <SMPage permission="admin/media">
         <h1>Media</h1>
 
         <SMMessage
@@ -42,25 +42,25 @@
                 </div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
+import { openDialog } from "vue3-promise-dialog";
+import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import SMButton from "../../components/SMButton.vue";
+import SMFileLink from "../../components/SMFileLink.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
+import SMMessage from "../../components/SMMessage.vue";
+import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
-import { useRouter } from "vue-router";
-import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import { openDialog } from "vue3-promise-dialog";
-import SMToolbar from "../../components/SMToolbar.vue";
-import SMButton from "../../components/SMButton.vue";
 import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
-import SMMessage from "../../components/SMMessage.vue";
-import SMFileLink from "../../components/SMFileLink.vue";
 import { useUserStore } from "../../store/UserStore";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const search = ref("");

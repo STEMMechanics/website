@@ -1,10 +1,10 @@
 <template>
-    <div class="tab-group">
-        <ul class="tab-header">
+    <div class="sm-tab-group">
+        <ul class="sm-tab-header">
             <li
                 v-for="label in tabLabels"
                 :key="label"
-                :class="['tab-item', { selected: selectedLabel == label }]"
+                :class="['sm-tab-item', { selected: selectedLabel == label }]"
                 @click="selectedLabel = label">
                 {{ label }}
             </li>
@@ -14,7 +14,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, useSlots, provide } from "vue";
+import { provide, ref, useSlots } from "vue";
 
 const slots = useSlots();
 const tabLabels = ref(slots.default().map((tab) => tab.props.label));
@@ -24,17 +24,17 @@ provide("selectedLabel", selectedLabel);
 </script>
 
 <style lang="scss">
-.tab-group {
+.sm-tab-group {
     margin-bottom: map-get($spacer, 4);
 
-    .tab-header {
+    .sm-tab-header {
         // border-bottom: 1px solid $border-color;
         list-style-type: none;
         margin: 0;
         padding: 0;
     }
 
-    .tab-item {
+    .sm-tab-item {
         display: inline-block;
         padding: map-get($spacer, 2) map-get($spacer, 3);
         border: 1px solid transparent;

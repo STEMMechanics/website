@@ -124,24 +124,24 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { excerpt } from "../helpers/string";
-import { SMDate } from "../helpers/datetime";
-import SMInput from "../components/SMInput.vue";
+import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
 import SMCarouselSlide from "../components/SMCarouselSlide.vue";
-import SMForm from "../components/SMForm.vue";
 import SMDialog from "../components/SMDialog.vue";
-import SMPage from "../components/SMPage.vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
-import { FormObject, FormControl } from "../helpers/form";
-import { And, Email, Required } from "../helpers/validate";
+import SMForm from "../components/SMForm.vue";
+import SMInput from "../components/SMInput.vue";
+
 import { api } from "../helpers/api";
+import { SMDate } from "../helpers/datetime";
+import { Form, FormControl } from "../helpers/form";
+import { excerpt } from "../helpers/string";
+import { And, Email, Required } from "../helpers/validate";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const form = reactive(
-    FormObject({
+    Form({
         email: FormControl("", And([Required(), Email()])),
     })
 );

@@ -10,9 +10,7 @@
     </SMPage>
 </template>
 
-<script setup lang="ts">
-import SMPage from "../SMPage.vue";
-</script>
+<script setup lang="ts"></script>
 
 <style lang="scss">
 .page-error.not-found .image {

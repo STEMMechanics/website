@@ -25,12 +25,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, ref } from "vue";
 import { useRoute } from "vue-router";
+import { api } from "../helpers/api";
 import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
-import { api } from "../helpers/api";
-import SMPage from "../components/SMPage.vue";
+
 import SMAttachments from "../components/SMAttachments.vue";
 
 const applicationStore = useApplicationStore();

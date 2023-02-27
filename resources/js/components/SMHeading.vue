@@ -1,15 +1,12 @@
 <template>
-    <div class="heading">
-        <router-link
-            v-if="back != ''"
-            :to="{ name: back }"
-            class="heading-back">
+    <div class="sm-heading">
+        <router-link v-if="back != ''" :to="{ name: back }" class="sm-back">
             <ion-icon name="arrow-back-outline" />{{ backLabel }}
         </router-link>
-        <router-link v-if="close != ''" :to="{ name: close }" class="close">
+        <router-link v-if="close != ''" :to="{ name: close }" class="sm-close">
             <ion-icon name="close-outline" />
         </router-link>
-        <span v-if="closeBack" class="close" @click="handleBack">
+        <span v-if="closeBack" class="sm-close" @click="handleBack">
             <ion-icon name="close-outline" />
         </span>
         <h1>{{ heading }}</h1>
@@ -50,20 +47,16 @@ const handleBack = () => {
 </script>
 
 <style lang="scss">
-.heading {
+.sm-heading {
     position: relative;
 
-    .heading-back {
+    .sm-back {
         position: absolute;
         padding-top: 2rem;
         font-size: 80%;
-
-        svg {
-            margin-right: 0.5rem;
-        }
     }
 
-    .close {
+    .sm-close {
         right: -10px;
         top: -10px;
         position: absolute;
@@ -76,10 +69,8 @@ const handleBack = () => {
     }
 }
 
-// @media screen and (max-width: 768px) {
-
 @media only screen and (max-width: 640px) {
-    .heading .close {
+    .sm-heading .sm-close {
         right: 0;
         top: -20px;
     }

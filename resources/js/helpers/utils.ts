@@ -4,16 +4,16 @@
  * @param {object|string} objOrString The object or string.
  * @returns {boolean} If the object or string is empty.
  */
-export const isEmpty = (objOrString: object | string): boolean => {
-    if (objOrString) {
-        if (typeof objOrString === "string") {
-            return objOrString.length == 0;
-        } else if (
-            typeof objOrString == "object" &&
-            Object.keys(objOrString).length === 0
-        ) {
-            return true;
-        }
+export const isEmpty = (objOrString: unknown): boolean => {
+    if (objOrString == null) {
+        return true;
+    } else if (typeof objOrString === "string") {
+        return objOrString.length == 0;
+    } else if (
+        typeof objOrString == "object" &&
+        Object.keys(objOrString).length === 0
+    ) {
+        return true;
     }
 
     return false;

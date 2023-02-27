@@ -3,7 +3,7 @@
         <SMDialog
             :loading="dialogLoading"
             full
-            :loading_message="dialogLoadingMessage"
+            :loading-message="dialogLoadingMessage"
             class="sm-dialog-media">
             <h1>Insert Media</h1>
             <SMMessage
@@ -101,18 +101,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, ref, onMounted, onUnmounted, Ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, Ref, watch } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
-import SMButton from "../SMButton.vue";
-import SMFormFooter from "../SMFormFooter.vue";
-import SMDialog from "../SMDialog.vue";
-import SMMessage from "../SMMessage.vue";
-import SMModal from "../SMModal.vue";
 import { api } from "../../helpers/api";
+import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
 import { bytesReadable } from "../../helpers/types";
 import { getFilePreview } from "../../helpers/utils";
-import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
+import { useApplicationStore } from "../../store/ApplicationStore";
+import SMButton from "../SMButton.vue";
+import SMDialog from "../SMDialog.vue";
+import SMFormFooter from "../SMFormFooter.vue";
 import SMLoadingIcon from "../SMLoadingIcon.vue";
+import SMMessage from "../SMMessage.vue";
+import SMModal from "../SMModal.vue";
 
 const props = defineProps({
     mime: {
@@ -187,6 +188,8 @@ const selected = ref("");
  */
 const perPage = ref(12);
 
+const applicationStore = useApplicationStore();
+
 /**
  * Returns the pagination info
  */
@@ -247,7 +250,6 @@ const getMediaItem = (item_id: string): Media | null => {
     let found: Media | null = null;
 
     mediaItems.value.every((item) => {
-        console.log(item.id, item_id);
         if (item.id == item_id) {
             found = item;
             return false;
@@ -272,7 +274,6 @@ const handleClickCancel = () => {
 const handleClickInsert = () => {
     if (selected.value !== "") {
         const mediaItem = getMediaItem(selected.value);
-        console.log(mediaItem, selected.value);
         if (mediaItem != null) {
             closeDialog(mediaItem);
             return;
@@ -365,7 +366,6 @@ const handleClickUpload = () => {
  * Upload the file to the server.
  */
 const handleChangeUpload = async () => {
-    dialogLoading.value = true;
     formMessage.value = "";
 
     if (refUploadInput.value != null && refUploadInput.value.files != null) {
@@ -374,20 +374,24 @@ const handleChangeUpload = async () => {
             let submitFormData = new FormData();
             submitFormData.append("file", firstFile);
 
+            dialogLoading.value = true;
+            dialogLoadingMessage.value = "Uploading file...";
+
             api.post({
                 url: "/media",
                 body: submitFormData,
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
-                // progress: (progressData) =>
-                //     (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
-                //         (progressData.loaded / progressData.total) * 100
-                //     )}%`),
+                progress: (progressData) =>
+                    (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
+                        (progressData.loaded / progressData.total) * 100
+                    )}%`),
             })
                 .then((result) => {
                     if (result.data) {
                         const data = result.data as MediaResponse;
+
                         closeDialog(data.medium);
                     } else {
                         formMessage.value =
@@ -398,6 +402,9 @@ const handleChangeUpload = async () => {
                     formMessage.value =
                         error.response?.data?.message ||
                         "An unexpected error occurred";
+                })
+                .finally(() => {
+                    dialogLoading.value = false;
                 });
         } else {
             formMessage.value = "No file was selected to upload";
@@ -405,8 +412,6 @@ const handleChangeUpload = async () => {
     } else {
         formMessage.value = "No file was selected to upload";
     }
-
-    dialogLoading.value = false;
 };
 
 /**
@@ -440,26 +445,32 @@ const handleLoad = async () => {
 };
 
 /**
- * Handle the user pressing keyboard keys.
+ * Handle a keyboard event in this component.
  *
  * @param {KeyboardEvent} event The keyboard event.
+ * @returns {boolean} If the event was handled.
  */
-const eventKeyUp = (event: KeyboardEvent) => {
+const eventKeyUp = (event: KeyboardEvent): boolean => {
     if (event.key === "Escape") {
         handleClickCancel();
+        return true;
     } else if (event.key === "Enter") {
         if (selected.value.length > 0) {
             handleClickInsert();
         }
+
+        return true;
     }
+
+    return false;
 };
 
 onMounted(() => {
-    document.addEventListener("keyup", eventKeyUp);
+    applicationStore.addKeyUpListener(eventKeyUp);
 });
 
 onUnmounted(() => {
-    document.removeEventListener("keyup", eventKeyUp);
+    applicationStore.removeKeyUpListener(eventKeyUp);
 });
 
 watch(page, () => {

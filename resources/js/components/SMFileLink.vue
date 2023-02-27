@@ -1,11 +1,10 @@
 <template>
-    <a :href="computedHref" :target="props.target" rel="noopener"
+    <a :href="computedUrl" :target="props.target" rel="noopener"
         ><slot></slot
     ></a>
 </template>
 
 <script setup lang="ts">
-// import axios from 'axios'
 import { computed } from "vue";
 import { useUserStore } from "../store/UserStore";
 
@@ -16,43 +15,28 @@ const props = defineProps({
     },
     target: {
         type: String,
-        default: "",
+        default: "_self",
     },
 });
 
 const userStore = useUserStore();
 
-const computedHref = computed(() => {
+/**
+ * Return the URL with a token param attached if the user is logged in and its a api media download request.
+ */
+const computedUrl = computed(() => {
     const url = new URL(props.href);
-    if (url.pathname.startsWith("/api/") && userStore.token) {
-        return props.href + "?token=" + encodeURIComponent(userStore.token);
+    const path = url.pathname;
+    const mediumRegex = /^\/media\/[a-zA-Z0-9]+\/download$/;
+
+    if (mediumRegex.test(path) && userStore.token) {
+        if (url.search) {
+            return `${props.href}&token=${encodeURIComponent(userStore.token)}`;
+        } else {
+            return `${props.href}?token=${encodeURIComponent(userStore.token)}`;
+        }
     }
 
     return props.href;
 });
-
-// const handleClick = async (event) => {
-//     const url = new URL(props.href)
-//     if(url.pathname.startsWith('/api/')) {
-//         console.log('api')
-//         event.preventDefault()
-
-//         axios.get(props.href, {responseType: 'blob'})
-//             .then(response => {
-//                 const blob = new Blob([response.data], { type: response.data.type })
-//                 const href = URL.createObjectURL(blob)
-//                 const link = document.createElement('a')
-//                 link.setAttribute('href', href)
-//                 link.setAttribute('target', props.target)
-//                 document.body.appendChild(link)
-//                 link.click()
-//                 document.body.removeChild(link)
-//                 URL.revokeObjectURL(href)
-//             }).catch(e => {
-//                 console.log(e)
-//             })
-//     }
-
-//     console.log('finish')
-// }
 </script>

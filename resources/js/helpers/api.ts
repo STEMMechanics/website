@@ -1,5 +1,5 @@
-import { useUserStore } from "../store/UserStore";
 import { useProgressStore } from "../store/ProgressStore";
+import { useUserStore } from "../store/UserStore";
 interface ApiProgressData {
     loaded: number;
     total: number;
@@ -21,6 +21,7 @@ export interface ApiResponse {
     status: number;
     message: string;
     data: unknown;
+    json?: Record<string, unknown>;
 }
 
 const apiDefaultHeaders = {
@@ -87,81 +88,22 @@ export const api = {
                 signal: options.signal || null,
             };
 
-            let receivedData = false;
-
             const progressStore = useProgressStore();
             progressStore.start();
 
             fetch(url, fetchOptions)
-                .then((response) => {
-                    receivedData = true;
-
-                    if (options.progress) {
-                        if (!response.ok) {
-                            return response;
-                        }
-
-                        if (!response.body) {
-                            return response;
-                        }
-
-                        let contentLength =
-                            response.headers.get("content-length");
-                        if (!contentLength) {
-                            contentLength = -1;
-                        }
-
-                        // parse the integer into a base-10 number
-                        const total = parseInt(contentLength, 10);
-                        let loaded = 0;
-                        return new Response(
-                            // create and return a readable stream
-                            new ReadableStream({
-                                start(controller) {
-                                    const reader = response.body.getReader();
-                                    read();
-                                    /**
-                                     *
-                                     */
-                                    function read() {
-                                        reader
-                                            .read()
-                                            .then(({ done, value }) => {
-                                                if (done) {
-                                                    controller.close();
-                                                    return;
-                                                }
-                                                loaded += value.byteLength;
-                                                options.progress({
-                                                    loaded,
-                                                    total,
-                                                });
-                                                controller.enqueue(value);
-                                                read();
-                                            })
-                                            .catch((error) => {
-                                                controller.error(error);
-                                                reject({
-                                                    status: 0,
-                                                    message: "controller error",
-                                                    data: null,
-                                                });
-                                            });
-                                    }
-                                },
-                            })
-                        );
-                    }
-
-                    return response;
-                })
                 .then(async (response) => {
                     let data: string | object = "";
                     if (response.headers.get("content-type") == null) {
-                        data = response.text ? await response.text() : "";
+                        try {
+                            data = response.json ? await response.json() : {};
+                        } catch (error) {
+                            data = response.text ? await response.text() : "";
+                        }
                     } else {
                         data = response.json ? await response.json() : {};
                     }
+
                     const result = {
                         status: response.status,
                         statusText: response.statusText,

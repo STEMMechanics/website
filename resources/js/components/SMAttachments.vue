@@ -6,17 +6,17 @@
         <div
             v-for="file of props.attachments"
             :key="file.id"
-            class="attachment-row">
-            <div class="attachment-file-icon">
+            class="sm-attachment-row">
+            <div class="sm-attachment-file-icon">
                 <img
                     :src="getFileIconImagePath(file.title || file.name)"
                     height="48"
                     width="48" />
             </div>
-            <a :href="file.url" class="attachment-file-name">{{
+            <a :href="file.url" class="sm-attachment-file-name">{{
                 file.title || file.name
             }}</a>
-            <div class="attachment-file-size">
+            <div class="sm-attachment-file-size">
                 ({{ bytesReadable(file.size) }})
             </div>
         </div>
@@ -25,6 +25,7 @@
 
 <script setup lang="ts">
 import { bytesReadable } from "../helpers/types";
+import { getFileIconImagePath } from "../helpers/utils";
 import SMContainer from "./SMContainer.vue";
 
 const props = defineProps({
@@ -33,11 +34,6 @@ const props = defineProps({
         required: true,
     },
 });
-
-const getFileIconImagePath = (fileName: string): string => {
-    const ext = fileName.split(".").pop();
-    return `/img/fileicons/${ext}.png`;
-};
 </script>
 
 <style lang="scss">
@@ -46,7 +42,7 @@ const getFileIconImagePath = (fileName: string): string => {
         margin-top: map-get($spacer, 3);
     }
 
-    .attachment-row {
+    .sm-attachment-row {
         border-bottom: 1px solid $secondary-background-color;
         display: flex;
         align-items: center;
@@ -56,13 +52,13 @@ const getFileIconImagePath = (fileName: string): string => {
             border-bottom: 0;
         }
 
-        .attachment-file-icon {
+        .sm-attachment-file-icon {
             display: flex;
             width: 64px;
             justify-content: center;
         }
 
-        .attachment-file-size {
+        .sm-attachment-file-size {
             font-size: 75%;
             padding-left: 0.75rem;
             color: $secondary-color-dark;

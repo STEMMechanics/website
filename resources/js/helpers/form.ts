@@ -52,10 +52,10 @@ const defaultFormObject: FormObject = {
         });
 
         return valid;
-    }.bind(this),
+    },
     loading: function (state = true) {
         this._loading = state;
-    }.bind(this),
+    },
     message: function (message = "", type = "", icon = "") {
         this._message = message;
 
@@ -65,14 +65,14 @@ const defaultFormObject: FormObject = {
         if (icon.length > 0) {
             this._messageIcon = icon;
         }
-    }.bind(this),
+    },
     error: function (message = "") {
         if (message == "") {
             this.message("");
         } else {
             this.message(message, "error", "alert-circle-outline");
         }
-    }.bind(this),
+    },
     apiErrors: function (apiResponse: ApiResponse) {
         let foundKeys = false;
 
@@ -102,7 +102,7 @@ const defaultFormObject: FormObject = {
                     "An unknown server error occurred.\nPlease try again later."
             );
         }
-    }.bind(this),
+    },
     controls: {},
 
     _loading: false,

@@ -1,36 +1,26 @@
 <template>
-    <a
-        v-if="href.length > 0 || typeof to == 'string'"
-        :href="href"
-        :disabled="disabled"
-        :class="[
-            'button',
-            'prevent-select',
-            classType,
-            { 'button-block': block },
-        ]"
-        :type="buttonType">
-        {{ label }}
-        <ion-icon v-if="icon" :icon="icon" />
-    </a>
     <button
-        v-else-if="to == null"
+        v-if="isEmpty(to)"
         :disabled="disabled"
         :class="[
-            'button',
-            'prevent-select',
+            'sm-button',
             classType,
-            { 'button-block': block },
-            { 'dropdown-button': dropdown },
+            { 'sm-button-block': block },
+            { 'sm-dropdown-button': dropdown },
         ]"
         :type="buttonType"
         @click="handleClick">
+        <ion-icon
+            v-if="icon && dropdown == null && iconLocation == 'before'"
+            :icon="icon" />
         <span>{{ label }}</span>
-        <ion-icon v-if="icon && dropdown == null" :icon="icon" />
+        <ion-icon
+            v-if="icon && dropdown == null && iconLocation == 'after'"
+            :icon="icon" />
         <ion-icon
             v-if="dropdown != null"
             name="caret-down-outline"
-            @click.stop="handleToggleDropdown" />
+            @click.stop="handleClickToggleDropdown" />
         <ul
             v-if="dropdown != null"
             ref="dropdownMenu"
@@ -43,23 +33,29 @@
             </li>
         </ul>
     </button>
-    <router-link
-        v-else
-        :to="to"
+    <a
+        v-else-if="!isEmpty(to) && typeof to == 'string'"
+        :href="to"
         :disabled="disabled"
-        :class="[
-            'button',
-            'prevent-select',
-            classType,
-            { 'button-block': block },
-        ]">
+        :class="['sm-button', classType, { 'sm-button-block': block }]"
+        :type="buttonType">
         {{ label }}
         <ion-icon v-if="icon" :icon="icon" />
+    </a>
+    <router-link
+        v-else-if="!isEmpty(to) && typeof to == 'object'"
+        :to="to"
+        :disabled="disabled"
+        :class="['sm-button', classType, { 'sm-button-block': block }]">
+        <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
+        {{ label }}
+        <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
     </router-link>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { Ref, ref } from "vue";
+import { isEmpty } from "../helpers/utils";
 
 const props = defineProps({
     label: { type: String, default: "Button", required: false },
@@ -69,16 +65,19 @@ const props = defineProps({
         default: "",
         required: false,
     },
+    iconLocation: {
+        type: String,
+        default: "before",
+        required: false,
+        validator: (value: string) => {
+            return ["before", "after"].includes(value);
+        },
+    },
     to: {
         type: [String, Object],
         default: null,
         required: false,
         validator: (prop) => typeof prop === "object" || prop === null,
-    },
-    href: {
-        type: String,
-        default: "",
-        required: false,
     },
     disabled: {
         type: Boolean,
@@ -98,21 +97,26 @@ const props = defineProps({
     },
 });
 
-const buttonType = props.type == "submit" ? "submit" : "button";
+const buttonType: "submit" | "button" =
+    props.type == "submit" ? "submit" : "button";
 const classType = props.type == "submit" ? "primary" : props.type;
-const dropdownMenu = ref(null);
+const dropdownMenu: Ref<HTMLElement | null> = ref(null);
 
 const emits = defineEmits(["click"]);
 const handleClick = () => {
     emits("click", "");
 };
 
-const handleToggleDropdown = () => {
-    dropdownMenu.value.style.display = "block";
+const handleClickToggleDropdown = () => {
+    if (dropdownMenu.value) {
+        dropdownMenu.value.style.display = "block";
+    }
 };
 
 const handleMouseLeave = () => {
-    dropdownMenu.value.style.display = "none";
+    if (dropdownMenu.value) {
+        dropdownMenu.value.style.display = "none";
+    }
 };
 
 const handleClickItem = (item: string) => {
@@ -121,16 +125,40 @@ const handleClickItem = (item: string) => {
 </script>
 
 <style lang="scss">
-.button {
+a.sm-button,
+.sm-button {
     cursor: pointer;
     position: relative;
+    padding: map-get($spacer, 2) map-get($spacer, 4);
+    color: white;
+    font-weight: 800;
+    border-width: 2px;
+    border-style: solid;
+    border-radius: 24px;
+    transition: background-color 0.1s, color 0.1s;
+    background-color: $secondary-color;
+    border-color: $secondary-color;
+    min-width: 7rem;
+    text-align: center;
+    display: inline-block;
 
-    &.button-block {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    &.sm-button-block {
         display: block;
         width: 100%;
     }
 
-    &.dropdown-button {
+    &.sm-button-small {
+        font-size: 85%;
+        font-weight: normal;
+        padding: map-get($spacer, 1) map-get($spacer, 3);
+    }
+
+    &.sm-dropdown-button {
         padding: 0;
         white-space: nowrap;
         display: flex;
@@ -146,7 +174,6 @@ const handleClickItem = (item: string) => {
         span {
             flex: 1;
             border-right: 1px solid $primary-color;
-            padding: 0;
             padding-top: calc(#{map-get($spacer, 1)} / 1.5);
             padding-bottom: calc(#{map-get($spacer, 1)} / 1.5);
             padding-left: map-get($spacer, 3);
@@ -167,6 +194,91 @@ const handleClickItem = (item: string) => {
                 border-right: 1px solid $primary-color-light;
             }
         }
+    }
+
+    &:disabled {
+        cursor: not-allowed;
+        background-color: $secondary-color !important;
+        border-color: $secondary-color !important;
+        opacity: 0.5;
+    }
+
+    &:hover:not(:disabled) {
+        text-decoration: none;
+        color: $secondary-color;
+    }
+
+    &.primary {
+        background-color: $primary-color;
+        border-color: $primary-color;
+
+        &:hover:not(:disabled) {
+            color: $primary-color;
+        }
+    }
+
+    &.primary-outline {
+        background-color: transparent;
+        border-color: $primary-color;
+        color: $primary-color;
+
+        &:hover:not(:disabled) {
+            color: $primary-color;
+        }
+    }
+
+    &.secondary {
+        background-color: $secondary-color;
+        border-color: $secondary-color;
+
+        &:hover:not(:disabled) {
+            color: $secondary-color;
+        }
+    }
+
+    &.secondary-outline {
+        background-color: transparent;
+        border-color: $secondary-color;
+        color: $secondary-color;
+
+        &:hover:not(:disabled) {
+            color: $secondary-color;
+        }
+    }
+
+    &.danger {
+        background-color: $danger-color;
+        border-color: $danger-color;
+
+        &:hover:not(:disabled) {
+            color: $danger-color;
+        }
+    }
+
+    &.danger-outline {
+        background-color: transparent;
+        border-color: $danger-color;
+        color: $danger-color;
+
+        &:hover:not(:disabled) {
+            color: $danger-color;
+        }
+    }
+
+    &.outline {
+        background-color: transparent;
+        border-color: $outline-color;
+        color: $outline-color;
+
+        &:hover:not(:disabled) {
+            background-color: $outline-color;
+            border-color: $outline-color;
+            color: $outline-hover-color;
+        }
+    }
+
+    &:hover:not(:disabled) {
+        background-color: #fff;
     }
 
     ion-icon {
@@ -195,7 +307,7 @@ const handleClickItem = (item: string) => {
     li {
         padding: 12px 16px;
         cursor: pointer;
-        transition: background 0.1s ease-in-out;
+        transition: background-color 0.1s ease-in-out;
     }
 
     li:hover {

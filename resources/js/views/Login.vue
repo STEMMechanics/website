@@ -34,22 +34,22 @@
 
 <script setup lang="ts">
 import { reactive } from "vue";
-import { useUserStore } from "../store/UserStore";
 import { useRoute, useRouter } from "vue-router";
-import { api } from "../helpers/api";
-import { FormObject, FormControl } from "../helpers/form";
-import { And, Min, Required } from "../helpers/validate";
-import SMPage from "../components/SMPage.vue";
-import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
+import SMFormFooter from "../components/SMFormFooter.vue";
+import SMInput from "../components/SMInput.vue";
+
+import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
+import { And, Min, Required } from "../helpers/validate";
+import { useUserStore } from "../store/UserStore";
 
 const router = useRouter();
 const userStore = useUserStore();
 const form = reactive(
-    FormObject({
+    Form({
         username: FormControl("", And([Required(), Min(4)])),
         password: FormControl("", Required()),
     })

@@ -42,23 +42,23 @@
 </template>
 
 <script setup lang="ts">
-import { api } from "../helpers/api";
-import { FormObject, FormControl } from "../helpers/form";
-import { And, Required, Min, Max, Password } from "../helpers/validate";
-import { ref, reactive } from "vue";
-import { useRoute } from "vue-router";
+import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMDialog from "../components/SMDialog.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
-import SMPage from "../components/SMPage.vue";
+
+import { api } from "../helpers/api";
+import { Form, FormControl } from "../helpers/form";
+import { And, Max, Min, Password, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 const form = reactive(
-    FormObject({
+    Form({
         code: FormControl("", And([Required(), Min(6), Max(6)])),
         password: FormControl("", And([Required(), Password()])),
     })

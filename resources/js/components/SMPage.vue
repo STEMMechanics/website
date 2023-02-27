@@ -21,14 +21,14 @@
 </template>
 
 <script setup lang="ts">
-import { useUserStore } from "../store/UserStore";
 import { useSlots } from "vue";
-import SMLoader from "./SMLoader.vue";
+import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
+import { useUserStore } from "../store/UserStore";
 import SMErrorForbidden from "./errors/Forbidden.vue";
 import SMErrorInternal from "./errors/Internal.vue";
 import SMErrorNotFound from "./errors/NotFound.vue";
-import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
 import SMContainer from "./SMContainer.vue";
+import SMLoader from "./SMLoader.vue";
 
 const props = defineProps({
     pageError: {
@@ -66,7 +66,12 @@ if (props.background != "") {
     styleObject["backgroundImage"] = `url('${props.background}')`;
 }
 
-const hasPermission = () => {
+/**
+ * Return if the current user has the props.permission to view this page.
+ *
+ * @returns {boolean} If the user has the permission.
+ */
+const hasPermission = (): boolean => {
     return (
         props.permission.length == 0 ||
         userStore.permissions.includes(props.permission)
@@ -89,7 +94,6 @@ const hasPermission = () => {
         margin-bottom: 0;
 
         .sm-page {
-            // padding-top: calc(map-get($spacer, 5) * 2);
             padding-bottom: calc(map-get($spacer, 5) * 2);
         }
     }

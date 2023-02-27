@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/events">
+    <SMPage permission="admin/events">
         <SMHeading heading="Events" />
         <SMMessage
             v-if="formMessage.message"
@@ -38,23 +38,23 @@
                 <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, reactive } from "vue";
+import { reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
+import { openDialog } from "vue3-promise-dialog";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import SMButton from "../../components/SMButton.vue";
+import SMHeading from "../../components/SMHeading.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
+import SMMessage from "../../components/SMMessage.vue";
+import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
-import { useRouter } from "vue-router";
-import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import { openDialog } from "vue3-promise-dialog";
-import SMToolbar from "../../components/SMToolbar.vue";
-import SMButton from "../../components/SMButton.vue";
 import { debounce } from "../../helpers/debounce";
-import SMHeading from "../../components/SMHeading.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const search = ref("");

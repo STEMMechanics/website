@@ -30,26 +30,26 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from "vue";
-import { api } from "../../helpers/api";
-import { FormObject, FormControl } from "../../helpers/form";
-import { And, Required, Email, Phone } from "../../helpers/validate";
-import { useUserStore } from "../../store/UserStore";
+import { computed, reactive } from "vue";
 import { useRoute } from "vue-router";
 import { openDialog } from "vue3-promise-dialog";
-import SMInput from "../../components/SMInput.vue";
+import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
-import SMPage from "../../components/SMPage.vue";
-import SMHeading from "../../components/SMHeading.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
-import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
+import SMHeading from "../../components/SMHeading.vue";
+import SMInput from "../../components/SMInput.vue";
+
+import { api } from "../../helpers/api";
+import { Form, FormControl } from "../../helpers/form";
+import { And, Email, Phone, Required } from "../../helpers/validate";
+import { useUserStore } from "../../store/UserStore";
 
 const route = useRoute();
 const userStore = useUserStore();
 
 const form = reactive(
-    FormObject({
+    Form({
         first_name: FormControl("", And([Required()])),
         last_name: FormControl("", And([Required()])),
         email: FormControl("", And([Required(), Email()])),

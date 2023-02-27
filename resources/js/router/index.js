@@ -1,8 +1,8 @@
-import { createWebHistory, createRouter } from "vue-router";
 import { useUserStore } from "@/store/UserStore";
+import { createRouter, createWebHistory } from "vue-router";
+import { api } from "../helpers/api";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { useProgressStore } from "../store/ProgressStore";
-import { api } from "../helpers/api";
 
 export const routes = [
     {

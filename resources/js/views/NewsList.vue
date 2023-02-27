@@ -29,13 +29,13 @@
 
 <script setup lang="ts">
 import { Ref, ref } from "vue";
-import { api } from "../helpers/api";
 import SMMessage from "../components/SMMessage.vue";
-import SMPanelList from "../components/SMPanelList.vue";
 import SMPanel from "../components/SMPanel.vue";
-import SMPage from "../components/SMPage.vue";
+import SMPanelList from "../components/SMPanelList.vue";
+import { api } from "../helpers/api";
+
+import { Post, PostCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { PostCollection, Post } from "../helpers/api.types";
 
 const message = ref("");
 const loading = ref(true);

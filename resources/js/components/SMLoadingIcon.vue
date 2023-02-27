@@ -22,6 +22,7 @@
         border-radius: 50%;
         background: #000;
         animation-timing-function: cubic-bezier(0, 1, 1, 0);
+        box-shadow: 0 0 1px rgba(0, 0, 0, 1);
     }
     div:nth-child(1) {
         left: 8px;

@@ -1,5 +1,5 @@
 <template>
-    <SMContainer permission="admin/users">
+    <SMPage permission="admin/users">
         <SMHeading heading="Users" />
         <SMMessage
             v-if="formMessage.message"
@@ -22,20 +22,20 @@
                 <div class="action-wrapper"></div>
             </template>
         </EasyDataTable>
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, watch } from "vue";
+import { reactive, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
+import { openDialog } from "vue3-promise-dialog";
+import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import SMHeading from "../../components/SMHeading.vue";
+import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
+import SMMessage from "../../components/SMMessage.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
-import { useRouter } from "vue-router";
-import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import { openDialog } from "vue3-promise-dialog";
-import SMHeading from "../../components/SMHeading.vue";
-import SMMessage from "../../components/SMMessage.vue";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 
 const router = useRouter();
 const searchValue = ref("");

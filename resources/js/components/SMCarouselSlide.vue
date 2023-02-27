@@ -1,17 +1,21 @@
 <template>
     <div
-        class="carousel-slide"
+        class="sm-carousel-slide"
         :style="{ backgroundImage: `url('${imageUrl}')` }">
-        <div v-if="imageUrl.length == 0" class="carousel-slide-loading">
+        <div v-if="imageUrl.length == 0" class="sm-carousel-slide-loading">
             <SMLoadingIcon />
         </div>
-        <div v-else class="carousel-slide-body">
-            <div class="carousel-slide-content">
-                <div class="carousel-slide-content-inner">
+        <div v-else class="sm-carousel-slide-body">
+            <div class="sm-carousel-slide-content">
+                <div class="sm-carousel-slide-content-inner">
                     <h3>{{ title }}</h3>
                     <p v-if="content">{{ content }}</p>
-                    <div class="carousel-slide-body-buttons">
-                        <SMButton v-if="url" :to="url" :label="cta" />
+                    <div class="sm-carousel-slide-body-buttons">
+                        <SMButton
+                            v-if="url"
+                            :to="url"
+                            :label="cta"
+                            type="secondary-outline" />
                     </div>
                 </div>
             </div>
@@ -22,7 +26,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { api } from "../helpers/api";
-import { ApiMedia } from "../helpers/api.types";
+import { MediaResponse } from "../helpers/api.types";
 import { imageLoad } from "../helpers/image";
 import SMButton from "./SMButton.vue";
 import SMLoadingIcon from "./SMLoadingIcon.vue";
@@ -57,25 +61,32 @@ const props = defineProps({
 
 let imageUrl = ref("");
 
+/**
+ * Load the slider data.
+ */
 const handleLoad = () => {
     imageUrl.value = "";
 
-    api.get(`/media/${props.image}`).then((result) => {
-        const data = result.data as ApiMedia;
+    api.get({ url: "/media/{medium}", params: { medium: props.image } })
+        .then((result) => {
+            const data = result.data as MediaResponse;
 
-        if (data && data.medium) {
-            imageLoad(data.medium.url, (url) => {
-                imageUrl.value = url;
-            });
-        }
-    });
+            if (data && data.medium) {
+                imageLoad(data.medium.url, (url) => {
+                    imageUrl.value = url;
+                });
+            }
+        })
+        .catch(() => {
+            /* empty */
+        });
 };
 
 handleLoad();
 </script>
 
 <style lang="scss">
-.carousel-slide {
+.sm-carousel-slide {
     position: absolute;
     transition: all 0.5s;
     width: 100%;
@@ -85,19 +96,14 @@ handleLoad();
     background-size: cover;
     overflow: hidden;
 
-    .carousel-slide-loading {
+    .sm-carousel-slide-loading {
         display: flex;
         justify-content: center;
         align-items: center;
         height: 100%;
-
-        svg {
-            color: rgba(0, 0, 0, 0.1);
-            font-size: 300%;
-        }
     }
 
-    .carousel-slide-body {
+    .sm-carousel-slide-body {
         display: flex;
         align-items: center;
         height: 100%;
@@ -105,7 +111,7 @@ handleLoad();
         margin: 0 auto;
         padding: 1rem;
 
-        .carousel-slide-content {
+        .sm-carousel-slide-content {
             display: flex;
             justify-content: center;
             align-items: center;
@@ -136,17 +142,15 @@ handleLoad();
             text-align: left;
         }
 
-        .carousel-slide-body-buttons {
+        .sm-carousel-slide-body-buttons {
             margin-top: 2rem;
             text-align: right;
             max-width: 600px;
         }
 
-        .button {
-            display: inline-block;
-            box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
-            background: transparent;
+        .secondary-outline {
             border-color: #fff;
+            color: #fff;
 
             &:hover {
                 color: #333;

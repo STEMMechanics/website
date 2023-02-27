@@ -105,27 +105,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from "vue";
-import {
-    And,
-    Required,
-    Min,
-    DateTime,
-    Custom,
-    Email,
-    Url,
-} from "../../helpers/validate";
-import { FormObject, FormControl } from "../../helpers/form";
+import { computed, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { SMDate } from "../../helpers/datetime";
-import { api } from "../../helpers/api";
-import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
 import SMDatepicker from "../../components/SMDatePicker.vue";
+import SMDialog from "../../components/SMDialog.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
-import SMPage from "../../components/SMPage.vue";
+import SMInput from "../../components/SMInput.vue";
+import { api } from "../../helpers/api";
+import { SMDate } from "../../helpers/datetime";
+import { FormControl } from "../../helpers/form";
+import {
+    And,
+    Custom,
+    DateTime,
+    Email,
+    Min,
+    Required,
+    Url,
+} from "../../helpers/validate";
+
 import SMForm from "../../components/SMForm.vue";
 
 const route = useRoute();
@@ -169,7 +169,7 @@ const registration_data = computed(() => {
 });
 
 const form = reactive(
-    FormObject({
+    Form({
         title: FormControl("", And([Required(), Min(6)])),
         location: FormControl("online"),
         address: FormControl(

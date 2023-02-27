@@ -2,19 +2,19 @@
     <SMModal>
         <SMDialog>
             <h1>{{ props.title }}</h1>
-            <p v-html="sanitizedHtml"></p>
+            <p v-html="computedSanitizedText"></p>
             <SMFormFooter>
                 <template #left>
                     <SMButton
                         :type="props.cancel.type"
                         :label="props.cancel.label"
-                        @click="handleCancel()" />
+                        @click="handleClickCancel()" />
                 </template>
                 <template #right>
                     <SMButton
                         :type="props.confirm.type"
                         :label="props.confirm.label"
-                        @click="handleConfirm()" />
+                        @click="handleClickConfirm()" />
                 </template>
             </SMFormFooter>
         </SMDialog>
@@ -22,13 +22,14 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from "vue";
+import DOMPurify from "dompurify";
+import { computed, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
+import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
+import SMDialog from "../SMDialog.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMModal from "../SMModal.vue";
-import SMDialog from "../SMDialog.vue";
-// import sanitizeHtml from "sanitize-html";
 
 const props = defineProps({
     title: {
@@ -59,30 +60,52 @@ const props = defineProps({
     },
 });
 
-const handleCancel = () => {
+const applicationStore = useApplicationStore();
+
+/**
+ * Handle the user clicking the cancel button.
+ */
+const handleClickCancel = () => {
     closeDialog(false);
 };
 
-const handleConfirm = () => {
+/**
+ * Handle the user clicking the confirm button.
+ */
+const handleClickConfirm = () => {
     closeDialog(true);
 };
 
-const eventKeyUp = (event: KeyboardEvent) => {
+/**
+ * Sanitize the text property from XSS attacks.
+ */
+const computedSanitizedText = computed(() => {
+    return DOMPurify.sanitize(props.text);
+});
+
+/**
+ * Handle a keyboard event in this component.
+ *
+ * @param {KeyboardEvent} event The keyboard event.
+ * @returns {boolean} If the event was handled.
+ */
+const eventKeyUp = (event: KeyboardEvent): boolean => {
     if (event.key === "Escape") {
-        handleCancel();
+        handleClickCancel();
+        return true;
     } else if (event.key === "Enter") {
-        handleConfirm();
+        handleClickConfirm();
+        return true;
     }
+
+    return false;
 };
 
 onMounted(() => {
-    document.addEventListener("keyup", eventKeyUp);
+    applicationStore.addKeyUpListener(eventKeyUp);
 });
 
 onUnmounted(() => {
-    document.removeEventListener("keyup", eventKeyUp);
+    applicationStore.removeKeyUpListener(eventKeyUp);
 });
-
-// const sanitizedHtml = sanitizeHtml(props.text);
-const sanitizedHtml = props.text;
 </script>

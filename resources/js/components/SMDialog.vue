@@ -2,13 +2,13 @@
     <div
         :class="[
             'sm-dialog',
-            { 'dialog-narrow': narrow },
-            { 'dialog-full': full },
-            { 'dialog-noshadow': noShadow },
+            { 'sm-dialog-narrow': narrow },
+            { 'sm-dialog-full': full },
+            { 'sm-dialog-noshadow': noShadow },
         ]">
         <transition name="fade">
-            <div v-if="loading" class="dialog-loading-cover">
-                <div class="dialog-loading">
+            <div v-if="loading" class="sm-dialog-loading-cover">
+                <div class="sm-dialog-loading">
                     <SMLoadingIcon />
                     <span>{{ loadingMessage }}</span>
                 </div>
@@ -58,7 +58,7 @@ defineProps({
     min-width: map-get($spacer, 5) * 12;
     box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
 
-    &.dialog-noshadow {
+    &.sm-dialog-noshadow {
         box-shadow: none !important;
     }
 
@@ -70,16 +70,16 @@ defineProps({
         font-size: 90%;
     }
 
-    &.dialog-narrow {
+    &.sm-dialog-narrow {
         min-width: auto;
         max-width: map-get($spacer, 5) * 10;
     }
 
-    &.dialog-full {
+    &.sm-dialog-full {
         width: 100%;
     }
 
-    .dialog-loading-cover {
+    .sm-dialog-loading-cover {
         position: fixed;
         display: flex;
         justify-content: center;
@@ -93,10 +93,11 @@ defineProps({
         background-color: rgba(255, 255, 255, 0.5);
         z-index: 19000;
 
-        .dialog-loading {
+        .sm-dialog-loading {
             display: flex;
             flex-direction: column;
             padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
+            align-items: center;
 
             border: 1px solid transparent;
             border-radius: 24px;
@@ -119,7 +120,7 @@ defineProps({
             map-get($spacer, 4);
         min-width: auto;
 
-        .button {
+        .sm-button {
             display: block;
             width: 100%;
             text-align: center;

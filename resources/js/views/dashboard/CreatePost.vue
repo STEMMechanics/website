@@ -19,19 +19,19 @@
 </template>
 
 <script setup lang="ts">
-import { api } from "../../helpers/api";
-import { FormObject, FormControl } from "../../helpers/form";
-import { And, Required, Min } from "../../helpers/validate";
 import { reactive } from "vue";
 import { useRoute } from "vue-router";
-import SMInput from "../../components/SMInput.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMPage from "../../components/SMPage.vue";
 import SMForm from "../../components/SMForm.vue";
+import SMInput from "../../components/SMInput.vue";
+
+import { api } from "../../helpers/api";
+import { Form, FormControl } from "../../helpers/form";
+import { And, Min, Required } from "../../helpers/validate";
 
 const route = useRoute();
 const form = reactive(
-    FormObject({
+    Form({
         title: FormControl("", And([Required(), Min(2)])),
         content: FormControl("", Required()),
     })

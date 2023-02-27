@@ -55,7 +55,6 @@
 </template>
 
 <script setup lang="ts">
-import SMPage from "../../components/SMPage.vue";
 import { computed } from "vue";
 import { useUserStore } from "../../store/UserStore";
 

@@ -1,7 +1,6 @@
 <template>
     <div class="sm-editor">
         <Editor
-            id="tinymce"
             ref="tinyeditor"
             v-model="editorContent"
             model-events="change blur focus"
@@ -15,49 +14,44 @@
 </template>
 
 <script setup lang="ts">
-import "tinymce/tinymce";
 import Editor from "@tinymce/tinymce-vue";
 import "tinymce/themes/silver";
+import "tinymce/tinymce";
 
 import "tinymce/icons/default";
 import "tinymce/models/dom";
 
-import "tinymce/plugins/image";
-import "tinymce/plugins/media";
-import "tinymce/plugins/table";
-import "tinymce/plugins/lists";
 import "tinymce/plugins/advlist";
-import "tinymce/plugins/link";
-import "tinymce/plugins/autolink";
-import "tinymce/plugins/lists";
-import "tinymce/plugins/link";
-import "tinymce/plugins/image";
-import "tinymce/plugins/charmap";
-import "tinymce/plugins/searchreplace";
-import "tinymce/plugins/visualblocks";
-import "tinymce/plugins/code";
-import "tinymce/plugins/fullscreen";
-import "tinymce/plugins/preview";
 import "tinymce/plugins/anchor";
-import "tinymce/plugins/insertdatetime";
-import "tinymce/plugins/media";
-import "tinymce/plugins/help";
-import "tinymce/plugins/table";
-import "tinymce/plugins/importcss";
-import "tinymce/plugins/directionality";
-import "tinymce/plugins/visualchars";
-import "tinymce/plugins/template";
-import "tinymce/plugins/codesample";
-import "tinymce/plugins/pagebreak";
-import "tinymce/plugins/nonbreaking";
-import "tinymce/plugins/emoticons";
+import "tinymce/plugins/autolink";
 import "tinymce/plugins/autosave";
+import "tinymce/plugins/charmap";
+import "tinymce/plugins/code";
+import "tinymce/plugins/codesample";
+import "tinymce/plugins/directionality";
+import "tinymce/plugins/emoticons";
+import "tinymce/plugins/fullscreen";
+import "tinymce/plugins/help";
+import "tinymce/plugins/image";
+import "tinymce/plugins/importcss";
+import "tinymce/plugins/insertdatetime";
+import "tinymce/plugins/link";
+import "tinymce/plugins/lists";
+import "tinymce/plugins/media";
+import "tinymce/plugins/nonbreaking";
+import "tinymce/plugins/pagebreak";
+import "tinymce/plugins/preview";
+import "tinymce/plugins/searchreplace";
+import "tinymce/plugins/table";
+import "tinymce/plugins/template";
+import "tinymce/plugins/visualblocks";
+import "tinymce/plugins/visualchars";
 import "tinymce/plugins/wordcount";
 
-import { ref, watch, computed } from "vue";
-import { routes } from "../router";
+import { computed, ref, watch } from "vue";
 import { api } from "../helpers/api";
 import { MediaCollection, MediaResponse } from "../helpers/api.types";
+import { routes } from "../router";
 
 interface PageList {
     title: string;
@@ -173,11 +167,11 @@ const initialContent = computed(() => {
 
 watch(initialContent, handleInitialContentChange);
 
-const handleBlur = (event, editor) => {
+const handleBlur = (event) => {
     emits("blur", event);
 };
 
-const handleFocus = (event, editor) => {
+const handleFocus = (event) => {
     emits("focus", event);
 };
 

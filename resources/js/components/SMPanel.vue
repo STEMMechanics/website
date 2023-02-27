@@ -1,34 +1,36 @@
 <template>
-    <router-link :to="to" class="panel">
-        <div class="panel-image" :style="styleObject">
-            <div v-if="dateInImage && date" class="panel-image-date">
-                <div class="panel-image-date-day">
+    <router-link :to="to" class="sm-panel">
+        <div v-if="image" class="sm-panel-image" :style="styleObject">
+            <div v-if="dateInImage && date" class="sm-panel-image-date">
+                <div class="sm-panel-image-date-day">
                     {{ new SMDate(date, { format: "yMd" }).format("dd") }}
                 </div>
-                <div class="panel-image-date-month">
+                <div class="sm-panel-image-date-month">
                     {{ new SMDate(date, { format: "yMd" }).format("MMM") }}
                 </div>
             </div>
             <ion-icon
-                v-if="hideImageLoader == false"
-                class="panel-image-loader"
+                v-if="imageUrl.length == 0"
+                class="sm-panel-image-loader"
                 name="image-outline" />
         </div>
-        <div class="panel-body">
-            <h3 class="panel-title">{{ title }}</h3>
-            <div v-if="showDate && date" class="panel-date">
+        <div class="sm-panel-body">
+            <h3 class="sm-panel-title">{{ title }}</h3>
+            <div v-if="showDate && date" class="sm-panel-date">
                 <ion-icon
                     v-if="showTime == false && endDate.length == 0"
                     name="calendar-outline" />
                 <ion-icon v-else name="time-outline" />
-                <p>{{ panelDate }}</p>
+                <p>{{ computedDate }}</p>
             </div>
-            <div v-if="location" class="panel-location">
+            <div v-if="location" class="sm-panel-location">
                 <ion-icon name="location-outline" />
                 <p>{{ location }}</p>
             </div>
-            <div v-if="content" class="panel-content">{{ panelContent }}</div>
-            <div v-if="button.length > 0" class="panel-button">
+            <div v-if="content" class="sm-panel-content">
+                {{ computedContent }}
+            </div>
+            <div v-if="button.length > 0" class="sm-panel-button">
                 <SMButton :to="to" :type="buttonType" :label="button" />
             </div>
         </div>
@@ -36,13 +38,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed, ref, reactive, watch } from "vue";
-import { isUUID } from "../helpers/uuid";
-import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { api } from "../helpers/api";
-import { imageLoad } from "../helpers/image";
-import { ApiMedia } from "../helpers/api.types";
+import { MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { imageLoad } from "../helpers/image";
+import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
+import { isUUID } from "../helpers/uuid";
 import SMButton from "./SMButton.vue";
 
 const props = defineProps({
@@ -118,7 +120,10 @@ const props = defineProps({
 let styleObject = reactive({});
 let imageUrl = ref("");
 
-const panelDate = computed(() => {
+/**
+ * Return a human readable date based on props.date and props.endDate.
+ */
+const computedDate = computed(() => {
     let str = "";
 
     if (props.date.length > 0) {
@@ -149,29 +154,28 @@ const panelDate = computed(() => {
     return str;
 });
 
-const panelContent = computed(() => {
+/**
+ * Return the content string cleaned from HTML.
+ */
+const computedContent = computed(() => {
     return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 200);
-});
-
-const hideImageLoader = computed(() => {
-    return (
-        imageUrl.value &&
-        imageUrl.value.length > 0 &&
-        isUUID(imageUrl.value) == false
-    );
 });
 
 onMounted(async () => {
     if (props.image && props.image.length > 0 && isUUID(props.image)) {
-        api.get(`/media/${props.image}`).then((result) => {
-            const data = result.data as ApiMedia;
+        api.get({ url: "/media/{medium}", params: { medium: props.image } })
+            .then((result) => {
+                const data = result.data as MediaResponse;
 
-            if (data && data.medium) {
-                imageLoad(data.medium.url, (url) => {
-                    imageUrl.value = url;
-                });
-            }
-        });
+                if (data && data.medium) {
+                    imageLoad(data.medium.url, (url) => {
+                        imageUrl.value = url;
+                    });
+                }
+            })
+            .catch(() => {
+                /* empty */
+            });
     }
 });
 
@@ -184,7 +188,7 @@ watch(
 </script>
 
 <style lang="scss">
-.panel {
+.sm-panel {
     display: flex;
     flex-direction: column;
     border: 1px solid $border-color;
@@ -203,7 +207,7 @@ watch(
         box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
     }
 
-    .panel-image {
+    .sm-panel-image {
         position: relative;
         display: flex;
         justify-content: center;
@@ -216,12 +220,12 @@ watch(
         border-top-right-radius: 12px;
         background-color: #eee;
 
-        .panel-image-loader {
+        .sm-panel-image-loader {
             font-size: 5rem;
             color: $secondary-color;
         }
 
-        .panel-image-date {
+        .sm-panel-image-date {
             background-color: #fff;
             padding: 0.75rem 1rem;
             text-align: center;
@@ -232,19 +236,19 @@ watch(
             box-shadow: 4px 4px 15px rgba(0, 0, 0, 0.2);
             text-align: center;
 
-            .panel-image-date-day {
+            .sm-panel-image-date-day {
                 font-weight: bold;
                 font-size: 130%;
             }
 
-            .panel-image-date-month {
+            .sm-panel-image-date-month {
                 text-transform: uppercase;
                 font-size: 80%;
             }
         }
     }
 
-    .panel-body {
+    .sm-panel-body {
         display: flex;
         flex-direction: column;
         flex: 1;
@@ -252,12 +256,12 @@ watch(
         background-color: #fff;
     }
 
-    .panel-title {
+    .sm-panel-title {
         margin-bottom: 1rem;
     }
 
-    .panel-date,
-    .panel-location {
+    .sm-panel-date,
+    .sm-panel-location {
         display: flex;
         flex-direction: row;
         align-items: top;
@@ -279,17 +283,10 @@ watch(
         }
     }
 
-    .panel-content {
+    .sm-panel-content {
         margin-top: 1rem;
         line-height: 130%;
         flex: 1;
-    }
-
-    .panel-button {
-        .button {
-            display: block;
-            margin-top: 1.5rem;
-        }
     }
 }
 </style>

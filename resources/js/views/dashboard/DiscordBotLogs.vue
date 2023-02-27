@@ -1,5 +1,5 @@
 <template>
-    <SMContainer :loading="formLoading" permission="logs/discord">
+    <SMPage :loading="formLoading" permission="logs/discord">
         <h1>Discord Bot Logs</h1>
         <SMMessage
             v-if="message.message"
@@ -22,15 +22,15 @@
             v-if="!message.message"
             label="Reload Logs"
             @click="loadData" />
-    </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from "vue";
+import { reactive, ref } from "vue";
 import SMButton from "../../components/SMButton.vue";
-import SMTabGroup from "../../components/SMTabGroup.vue";
-import SMTab from "../../components/SMTab.vue";
 import SMMessage from "../../components/SMMessage.vue";
+import SMTab from "../../components/SMTab.vue";
+import SMTabGroup from "../../components/SMTabGroup.vue";
 import { api } from "../../helpers/api";
 
 let formLoading = ref(false);

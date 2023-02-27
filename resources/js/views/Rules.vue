@@ -75,9 +75,7 @@
     </SMPage>
 </template>
 
-<script setup lang="ts">
-import SMPage from "../components/SMPage.vue";
-</script>
+<script setup lang="ts"></script>
 
 <style lang="scss">
 .rules {
