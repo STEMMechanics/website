@@ -13,6 +13,46 @@
                             >hello@stemmechanics.com.au</a
                         >.
                     </p>
+                    <p>
+                        You can find us on various social media platforms, and
+                        if you join our
+                        <a href="https://discord.gg/yNzk4x7mpD">Discord</a>
+                        server, you'll have the opportunity to connect with our
+                        team, participants, and other individuals who share
+                        similar interests.
+                    </p>
+                    <ul class="sm-contact-socials">
+                        <li>
+                            <a href="https://facebook.com/stemmechanics"
+                                ><ion-icon name="logo-facebook"></ion-icon
+                            ></a>
+                        </li>
+                        <li>
+                            <a href="https://mastodon.au/@stemmechanics"
+                                ><ion-icon name="logo-mastodon"></ion-icon
+                            ></a>
+                        </li>
+                        <li>
+                            <a href="https://www.youtube.com/@stemmechanics"
+                                ><ion-icon name="logo-youtube"></ion-icon
+                            ></a>
+                        </li>
+                        <li>
+                            <a href="https://twitter.com/stemmechanics"
+                                ><ion-icon name="logo-twitter"></ion-icon
+                            ></a>
+                        </li>
+                        <li>
+                            <a href="https://github.com/stemmechanics"
+                                ><ion-icon name="logo-github"></ion-icon
+                            ></a>
+                        </li>
+                        <li>
+                            <a href="https://discord.gg/yNzk4x7mpD"
+                                ><ion-icon name="logo-discord"></ion-icon
+                            ></a>
+                        </li>
+                    </ul>
                     <h2>Wanting a workshop?</h2>
                     <p>
                         We provide both public and private workshops as well as
@@ -129,5 +169,27 @@ const handleSubmit = async () => {
 <style lang="scss">
 .sm-page-contact {
     background-color: #f8f8f8;
+
+    .sm-contact-socials {
+        list-style-type: none;
+        padding: 0;
+        display: flex;
+        font-size: 150%;
+        justify-content: center;
+
+        li {
+            margin: 0 map-get($spacer, 2);
+
+            a,
+            a:visited {
+                color: $font-color;
+                transition: color 0.1s ease-in-out;
+
+                &:hover {
+                    color: $primary-color;
+                }
+            }
+        }
+    }
 }
 </style>
