@@ -145,6 +145,7 @@ const handleClickItem = (item: string) => {
 
 <style lang="scss">
 a.sm-button,
+a:visited.sm-button,
 .sm-button {
     cursor: pointer;
     position: relative;
