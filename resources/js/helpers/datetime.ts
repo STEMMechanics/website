@@ -84,9 +84,22 @@ export class SMDate {
         const order = (options.format || "dmy").toLowerCase().split("");
         options.utc = options.utc || false;
 
-        // Split the date string into an array of components based on the length of each date component
-        const components = dateString.split(/[ /-]/);
+        let components = [];
         let time = "";
+
+        // Test if the dateString is in ISO 8601
+        if (
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,10})?Z$/i.test(
+                dateString
+            )
+        ) {
+            options.format = "YMd";
+            [dateString, time] = dateString.split("T");
+            time = time.slice(0, -8);
+        }
+
+        // Split the date string into an array of components based on the length of each date component
+        components = dateString.split(/[ /-]/);
 
         for (let i = 0; i < components.length; i++) {
             if (components[i].includes(":")) {
@@ -210,7 +223,7 @@ export class SMDate {
             checkDay = new Date(isoDate).getUTCDate();
             checkHours = parseInt(isoDate.substring(11, 13), 10);
             checkMinutes = parseInt(isoDate.substring(14, 16), 10);
-            checkSeconds = parseInt(isoDate.substring(17, 18), 10);
+            checkSeconds = parseInt(isoDate.substring(17, 19), 10);
         } else {
             checkYear = date.getFullYear();
             checkMonth = date.getMonth() + 1;
