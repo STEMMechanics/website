@@ -23,10 +23,7 @@
                     <div
                         v-if="
                             event.status == 'closed' ||
-                            (event.status == 'open' &&
-                                new SMDate(event.end_at, {
-                                    format: 'ymd',
-                                }).isBefore())
+                            (event.status == 'open' && expired)
                         "
                         class="sm-workshop-registration sm-workshop-registration-closed">
                         Registration for this event has closed.
@@ -43,10 +40,7 @@
                     </div>
                     <div
                         v-if="
-                            event.status == 'open' &&
-                            new SMDate(event.end_at, {
-                                format: 'ymd',
-                            }).isAfter() &&
+                            event.status == 'open' && expired == false &&
                             event.registration_type == 'none'
                         "
                         class="sm-workshop-registration sm-workshop-registration-none">
@@ -55,10 +49,7 @@
                     </div>
                     <div
                         v-if="
-                            event.status == 'open' &&
-                            new SMDate(event.end_at, {
-                                format: 'ymd',
-                            }).isAfter() &&
+                            event.status == 'open' && expired == false &&
                             event.registration_type != 'none'
                         "
                         class="sm-workshop-registration sm-workshop-registration-url">
@@ -180,6 +171,12 @@ const registerUrl = computed(() => {
 
     return href;
 });
+
+const expired = computer(()=>{
+return new SMDate(event.value?.end_at, {
+                                format: 'ymd',
+                            }).isBefore();
+                            });
 
 /**
  * Load the page data.
