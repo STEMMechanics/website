@@ -40,7 +40,8 @@
                     </div>
                     <div
                         v-if="
-                            event.status == 'open' && expired == false &&
+                            event.status == 'open' &&
+                            expired == false &&
                             event.registration_type == 'none'
                         "
                         class="sm-workshop-registration sm-workshop-registration-none">
@@ -49,7 +50,8 @@
                     </div>
                     <div
                         v-if="
-                            event.status == 'open' && expired == false &&
+                            event.status == 'open' &&
+                            expired == false &&
                             event.registration_type != 'none'
                         "
                         class="sm-workshop-registration sm-workshop-registration-url">
@@ -172,11 +174,11 @@ const registerUrl = computed(() => {
     return href;
 });
 
-const expired = computer(()=>{
-return new SMDate(event.value?.end_at, {
-                                format: 'ymd',
-                            }).isBefore();
-                            });
+const expired = computed(() => {
+    return new SMDate(event.value.end_at, {
+        format: "ymd",
+    }).isBefore();
+});
 
 /**
  * Load the page data.
