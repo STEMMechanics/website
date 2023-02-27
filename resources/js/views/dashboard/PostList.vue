@@ -2,11 +2,7 @@
     <SMPage permission="admin/posts" class="sm-page-post-list">
         <template #container>
             <SMHeading heading="Posts" />
-            <SMMessage
-                v-if="formMessage.message"
-                :icon="formMessage.icon"
-                :type="formMessage.type"
-                :message="formMessage.message" />
+            <SMMessage v-if="formMessage" type="error" :message="formMessage" />
             <SMToolbar>
                 <template #left>
                     <SMButton
@@ -59,7 +55,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
@@ -71,6 +67,7 @@ import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
+import { PostCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
 
@@ -86,11 +83,7 @@ const headers = [
 ];
 
 const items = ref([]);
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
+const formMessage = ref("");
 
 const formLoading = ref(false);
 const serverItemsLength = ref(0);
@@ -109,6 +102,9 @@ const handleClick = (item, extra: string): void => {
     }
 };
 
+/**
+ * Load the post data from the server.
+ */
 const loadFromServer = async () => {
     formLoading.value = true;
 
@@ -131,15 +127,18 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await api.get({
+        const result = await api.get({
             url: "/posts",
             params: params,
         });
-        if (!res.data.posts) {
+
+        const data = result.data as PostCollection;
+
+        if (!data || !data.posts) {
             throw new Error("The server is currently not available");
         }
 
-        items.value = res.data.posts;
+        items.value = data.posts;
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
@@ -162,16 +161,12 @@ const loadFromServer = async () => {
             }
         });
 
-        serverItemsLength.value = res.data.total;
-    } catch (err) {
-        console.log(err);
-        // formMessage.icon = ''
-        // formMessage.type = 'error'
-        // formMessage.message = ''
-        // restParseErrors(formData, [formMessage, 'message'], err)
+        serverItemsLength.value = data.total;
+    } catch (error) {
+        formMessage.value = error.data.message || "An unknown error occurred";
+    } finally {
+        formLoading.value = false;
     }
-
-    formLoading.value = false;
 };
 
 loadFromServer();
@@ -220,10 +215,10 @@ const handleDelete = async (item) => {
             await api.delete(`posts${item.id}`);
             loadFromServer();
 
-            formMessage.message = "Post deleted successfully";
-            formMessage.type = "success";
+            formMessage.value.message = "Post deleted successfully";
+            formMessage.value.type = "success";
         } catch (err) {
-            formMessage.message = err.response?.data?.message;
+            formMessage.value.message = err.response?.data?.message;
         }
     }
 };
