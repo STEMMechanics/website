@@ -115,6 +115,7 @@
         a {
             vertical-align: middle;
             color: #777777;
+            display: flex;
         }
     }
 
