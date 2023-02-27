@@ -84,3 +84,10 @@ export interface LoginResponse {
     user: User;
     token: string;
 }
+
+export interface LogsDiscordResponse {
+    log: {
+        output: string;
+        error: string;
+    };
+}
