@@ -90,126 +90,125 @@ let postsTotal = ref(0);
  * Load page data.
  */
 const handleLoad = async () => {
-    let query = {};
+    try {
+        let query = {};
 
-    if (filterKeywords.value && filterKeywords.value.length > 0) {
-        query["q"] = filterKeywords.value;
-    }
-    if (filterLocation.value && filterLocation.value.length > 0) {
-        query["qlocation"] = filterLocation.value;
-    }
-    if (filterDateRange.value && filterDateRange.value.length > 0) {
-        let error = false;
-        const filterDates = filterDateRange.value
-            .split(/ *- */)
-            .map((dateString) => {
-                const date = new SMDate(dateString).format("yyyy/MM/dd");
-
-                if (date.length == 0) {
-                    error = true;
-                }
-
-                return date;
-            });
-
-        if (!error) {
-            if (filterDates.length == 1) {
-                query["start_at"] = `>=${filterDates[0]}`;
-            } else if (filterDates.length >= 2) {
-                query["start_at"] = `${filterDates[0]}<>${filterDates[1]}`;
-            }
-
-            dateRangeError.value = "";
-        } else {
-            dateRangeError.value = "Invalid date range";
-            return;
+        if (filterKeywords.value && filterKeywords.value.length > 0) {
+            query["q"] = filterKeywords.value;
         }
-    } else {
-        dateRangeError.value = "";
-    }
+        if (filterLocation.value && filterLocation.value.length > 0) {
+            query["qlocation"] = filterLocation.value;
+        }
+        if (filterDateRange.value && filterDateRange.value.length > 0) {
+            let error = false;
+            const filterDates = filterDateRange.value
+                .split(/ *- */)
+                .map((dateString) => {
+                    const date = new SMDate(dateString).format("yyyy/MM/dd");
 
-    loading.value = true;
-    formMessage.value = "";
-    events = [];
-
-    if (Object.keys(query).length == 0) {
-        const now = new Date();
-        const startingDate = new Date(now.setDate(now.getDate() - 14));
-
-        query["end_at"] =
-            ">" +
-            new SMDate(startingDate).format("yyyy/MM/dd HH:mm:ss", {
-                utc: true,
-            });
-    }
-
-    query["limit"] = postsPerPage;
-    query["page"] = postsPage.value;
-
-    api.get({
-        url: "/events",
-        params: query,
-    })
-        .then((result) => {
-            const data = result.data as EventCollection;
-
-            postsTotal.value = data.total;
-
-            if (data && data.events) {
-                events = [];
-
-                data.events.forEach((item) => {
-                    let banner = "";
-                    let bannerType = "";
-
-                    const parsedStartAt = new SMDate(item.start_at, {
-                        format: "yyyy-MM-dd HH:mm:ss",
-                        utc: true,
-                    });
-
-                    const parsedEndAt = new SMDate(item.end_at, {
-                        format: "yyyy-MM-dd HH:mm:ss",
-                        utc: true,
-                    });
-
-                    item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
-                    item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
-
-                    if (
-                        parsedEndAt.isBefore(new SMDate("now")) ||
-                        item.status == "closed"
-                    ) {
-                        banner = "closed";
-                        bannerType = "expired";
-                    } else if (item.status == "open") {
-                        banner = "open";
-                        bannerType = "success";
-                    } else if (item.status == "cancelled") {
-                        banner = "cancelled";
-                        bannerType = "danger";
-                    } else if (item.status == "soon") {
-                        banner = "Open Soon";
-                        bannerType = "warning";
+                    if (date.length == 0) {
+                        error = true;
                     }
 
-                    events.push({
-                        event: item,
-                        banner: banner,
-                        bannerType: bannerType,
-                    });
+                    return date;
                 });
+
+            if (!error) {
+                if (filterDates.length == 1) {
+                    query["start_at"] = `>=${filterDates[0]}`;
+                } else if (filterDates.length >= 2) {
+                    query["start_at"] = `${filterDates[0]}<>${filterDates[1]}`;
+                }
+
+                dateRangeError.value = "";
+            } else {
+                dateRangeError.value = "Invalid date range";
+                return;
             }
-        })
-        .catch((error) => {
-            if (error.status != 404) {
-                formMessage.value =
-                    error.response?.data?.message ||
-                    "Could not load any events from the server.";
-            }
-        })
-        .finally(() => {
-            loading.value = false;
+        } else {
+            dateRangeError.value = "";
+        }
+
+        loading.value = true;
+        formMessage.value = "";
+        events = [];
+
+        if (Object.keys(query).length == 0) {
+            const now = new Date();
+            const startingDate = new Date(now.setDate(now.getDate() - 14));
+
+            query["end_at"] =
+                ">" +
+                new SMDate(startingDate).format("yyyy/MM/dd HH:mm:ss", {
+                    utc: true,
+                });
+        }
+
+        query["limit"] = postsPerPage;
+        query["page"] = postsPage.value;
+
+        let result = await api.get({
+            url: "/events",
+            params: query,
         });
+
+        const data = result.data as EventCollection;
+
+        postsTotal.value = data.total;
+
+        if (data && data.events) {
+            events = [];
+
+            data.events.forEach((item) => {
+                let banner = "";
+                let bannerType = "";
+
+                const parsedStartAt = new SMDate(item.start_at, {
+                    format: "yyyy-MM-dd HH:mm:ss",
+                    utc: true,
+                });
+
+                const parsedEndAt = new SMDate(item.end_at, {
+                    format: "yyyy-MM-dd HH:mm:ss",
+                    utc: true,
+                });
+
+                item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
+                item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
+
+                if (
+                    parsedEndAt.isBefore(new SMDate("now")) ||
+                    item.status == "closed"
+                ) {
+                    banner = "closed";
+                    bannerType = "expired";
+                } else if (item.status == "open") {
+                    banner = "open";
+                    bannerType = "success";
+                } else if (item.status == "cancelled") {
+                    banner = "cancelled";
+                    bannerType = "danger";
+                } else if (item.status == "soon") {
+                    banner = "Open Soon";
+                    bannerType = "warning";
+                }
+
+                events.push({
+                    event: item,
+                    banner: banner,
+                    bannerType: bannerType,
+                });
+            });
+        }
+    } catch (error) {
+        if (error.status != 404) {
+            formMessage.value =
+                error.response?.data?.message ||
+                "Could not load any events from the server.";
+        }
+    } finally {
+        loading.value = false;
+    }
 };
 
 const handleFilter = async () => {
