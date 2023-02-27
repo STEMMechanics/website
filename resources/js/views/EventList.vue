@@ -134,12 +134,12 @@ const handleLoad = async () => {
         events = [];
 
         if (Object.keys(query).length == 0) {
-            // const now = new Date();
-            // const startingDate = new Date(now.setDate(now.getDate() - 14));
+            const now = new Date();
+            const startingDate = new Date(now.setDate(now.getDate() - 14));
 
             query["end_at"] =
                 ">" +
-                new SMDate("now").format("yyyy/MM/dd HH:mm:ss", {
+                new SMDate(startingDate).format("yyyy/MM/dd HH:mm:ss", {
                     utc: true,
                 });
         }
@@ -163,42 +163,36 @@ const handleLoad = async () => {
                 let banner = "";
                 let bannerType = "";
 
-                // const parsedStartAt = new SMDate(item.start_at, {
-                //     format: "yyyy-MM-dd HH:mm:ss",
-                //     utc: true,
-                // });
+                const parsedStartAt = new SMDate(item.start_at, {
+                    format: "yyyy-MM-dd HH:mm:ss",
+                    utc: true,
+                });
 
-                // const parsedEndAt = new SMDate(item.end_at, {
-                //     format: "yyyy-MM-dd HH:mm:ss",
-                //     utc: true,
-                // });
+                const parsedEndAt = new SMDate(item.end_at, {
+                    format: "yyyy-MM-dd HH:mm:ss",
+                    utc: true,
+                });
 
-                // item.start_at = new SMDate(item.start_at, {
-                //     format: "yyyy-MM-dd HH:mm:ss",
-                //     utc: true,
-                // }).format("yyyy-MM-dd HH:mm:ss");
+                item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
 
-                // item.end_at = new SMDate(item.end_at, {
-                //     format: "yyyy-MM-dd HH:mm:ss",
-                //     utc: true,
-                // }).format("yyyy-MM-dd HH:mm:ss");
+                item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
 
-                // if (
-                //     parsedEndAt.isBefore(new SMDate("now")) ||
-                //     item.status == "closed"
-                // ) {
-                //     banner = "closed";
-                //     bannerType = "expired";
-                // } else if (item.status == "open") {
-                //     banner = "open";
-                //     bannerType = "success";
-                // } else if (item.status == "cancelled") {
-                //     banner = "cancelled";
-                //     bannerType = "danger";
-                // } else if (item.status == "soon") {
-                //     banner = "Open Soon";
-                //     bannerType = "warning";
-                // }
+                if (
+                    parsedEndAt.isBefore(new SMDate("now")) ||
+                    item.status == "closed"
+                ) {
+                    banner = "closed";
+                    bannerType = "expired";
+                } else if (item.status == "open") {
+                    banner = "open";
+                    bannerType = "success";
+                } else if (item.status == "cancelled") {
+                    banner = "cancelled";
+                    bannerType = "danger";
+                } else if (item.status == "soon") {
+                    banner = "Open Soon";
+                    bannerType = "warning";
+                }
 
                 events.push({
                     event: item,
