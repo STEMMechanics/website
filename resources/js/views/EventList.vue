@@ -163,18 +163,25 @@ const handleLoad = async () => {
                 let banner = "";
                 let bannerType = "";
 
-                const parsedStartAt = new SMDate(item.start_at, {
+                // const parsedStartAt = new SMDate(item.start_at, {
+                //     format: "yyyy-MM-dd HH:mm:ss",
+                //     utc: true,
+                // });
+
+                // const parsedEndAt = new SMDate(item.end_at, {
+                //     format: "yyyy-MM-dd HH:mm:ss",
+                //     utc: true,
+                // });
+
+                item.start_at = new SMDate(item.start_at, {
                     format: "yyyy-MM-dd HH:mm:ss",
                     utc: true,
-                });
+                }).format("yyyy-MM-dd HH:mm:ss");
 
-                const parsedEndAt = new SMDate(item.end_at, {
+                item.end_at = new SMDate(item.end_at, {
                     format: "yyyy-MM-dd HH:mm:ss",
                     utc: true,
-                });
-
-                item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
-                item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
+                }).format("yyyy-MM-dd HH:mm:ss");
 
                 // if (
                 //     parsedEndAt.isBefore(new SMDate("now")) ||
