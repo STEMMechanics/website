@@ -1,6 +1,6 @@
 <template>
     <SMPage class="sm-terms">
-        <template #inner>
+        <template #container>
             <h1>Terms and Conditions</h1>
             <p>
                 Please read these terms carefully. By accessing or using our
