@@ -115,10 +115,20 @@ defineProps({
 }
 
 @media only screen and (max-width: 640px) {
+    .sm-container .sm-dialog {
+        margin: 0 -1rem;
+
+        &.sm-dialog-full {
+            width: auto;
+        }
+    }
+
     .sm-dialog {
         padding: map-get($spacer, 5) map-get($spacer, 4) map-get($spacer, 4)
             map-get($spacer, 4);
         min-width: auto;
+        box-shadow: none;
+        border-radius: 0;
 
         .sm-button {
             display: block;
