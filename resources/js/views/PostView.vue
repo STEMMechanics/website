@@ -63,19 +63,20 @@ let styleObject = {};
  */
 let postUser: User | null = null;
 
-const loadData = () => {
+const loadData = async () => {
     let slug = useRoute().params.slug || "";
+    pageLoading.value = true;
 
-    if (slug.length > 0) {
-        pageLoading.value = true;
+    try {
+        if (slug.length > 0) {
+            let result = await api.get({
+                url: "/posts/",
+                params: {
+                    slug: `=${slug}`,
+                    limit: 1,
+                },
+            });
 
-        api.get({
-            url: "/posts/",
-            params: {
-                slug: `=${slug}`,
-                limit: 1,
-            },
-        }).then((result) => {
             const data = result.data as PostCollection;
 
             if (data && data.posts && data.total && data.total > 0) {
@@ -89,48 +90,52 @@ const loadData = () => {
                 applicationStore.setDynamicTitle(post.value.title);
 
                 // Get hero image
-                api.get({
-                    url: "/media/{medium}",
-                    params: {
-                        medium: post.value.hero,
-                    },
-                })
-                    .then((mediumResult) => {
-                        const mediumData = mediumResult.data as MediaResponse;
-
-                        if (mediumData && mediumData.medium) {
-                            styleObject[
-                                "backgroundImage"
-                            ] = `url('${mediumData.medium.url}')`;
-                        }
-                    })
-                    .catch(() => {
-                        /* empty */
+                try {
+                    let mediumResult = await api.get({
+                        url: "/media/{medium}",
+                        params: {
+                            medium: post.value.hero,
+                        },
                     });
+
+                    const mediumData = mediumResult.data as MediaResponse;
+
+                    if (mediumData && mediumData.medium) {
+                        styleObject[
+                            "backgroundImage"
+                        ] = `url('${mediumData.medium.url}')`;
+                    }
+                } catch {
+                    /* empty */
+                }
 
                 // Get user data
-                api.get({
-                    url: "/users/{id}",
-                    params: {
-                        id: post.value.user_id,
-                    },
-                })
-                    .then((userResult) => {
-                        const userData = userResult.data as UserResponse;
-
-                        if (userData && userData.user) {
-                            postUser = userData.user;
-                        }
-                    })
-                    .catch(() => {
-                        /* empty */
+                try {
+                    let userResult = await api.get({
+                        url: "/users/{id}",
+                        params: {
+                            id: post.value.user_id,
+                        },
                     });
+
+                    const userData = userResult.data as UserResponse;
+
+                    if (userData && userData.user) {
+                        postUser = userData.user;
+                    }
+                } catch {
+                    /* empty */
+                }
             } else {
                 pageError.value = 404;
             }
-        });
-    } else {
-        pageError.value = 404;
+        } else {
+            pageError.value = 404;
+        }
+    } catch (error) {
+        /* empty */
+    } finally {
+        pageLoading.value = false;
     }
 };
 
