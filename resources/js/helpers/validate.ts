@@ -1,8 +1,8 @@
-import { SMDate } from "./datetime";
 import { bytesReadable } from "../helpers/types";
+import { SMDate } from "./datetime";
 
 export interface ValidationObject {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 export interface ValidationResult {
@@ -42,7 +42,7 @@ interface ValidationMinOptions {
 }
 
 interface ValidationMinObject extends ValidationMinOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationMinOptions: ValidationMinOptions = {
@@ -81,8 +81,8 @@ export function Min(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid:
                     this.type == "String"
                         ? value.toString().length >= this.min
@@ -92,7 +92,7 @@ export function Min(
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -110,7 +110,7 @@ interface ValidationMaxOptions {
 }
 
 interface ValidationMaxObject extends ValidationMaxOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationMaxOptions: ValidationMaxOptions = {
@@ -149,8 +149,8 @@ export function Max(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid:
                     this.type == "String"
                         ? value.toString().length <= this.max
@@ -160,7 +160,7 @@ export function Max(
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -173,7 +173,7 @@ interface ValidationPasswordOptions {
 }
 
 interface ValidationPasswordObject extends ValidationPasswordOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationPasswordOptions: ValidationPasswordOptions = {
@@ -194,8 +194,8 @@ export function Password(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid: /(?=.*[A-Za-z])(?=.*\d)(?=.*[.@$!%*#?&])[A-Za-z\d.@$!%*#?&]{1,}$/.test(
                     value
                 ),
@@ -204,7 +204,7 @@ export function Password(
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -217,7 +217,7 @@ interface ValidationEmailOptions {
 }
 
 interface ValidationEmailObject extends ValidationEmailOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationEmailOptions: ValidationEmailOptions = {
@@ -235,8 +235,8 @@ export function Email(options?: ValidationEmailOptions): ValidationEmailObject {
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid:
                     value.length == 0 ||
                     /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(value),
@@ -245,7 +245,7 @@ export function Email(options?: ValidationEmailOptions): ValidationEmailObject {
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -258,7 +258,7 @@ interface ValidationPhoneOptions {
 }
 
 interface ValidationPhoneObject extends ValidationPhoneOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationPhoneOptions: ValidationPhoneOptions = {
@@ -276,8 +276,8 @@ export function Phone(options?: ValidationPhoneOptions): ValidationPhoneObject {
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid:
                     value.length == 0 ||
                     /^(\+|00)?[0-9][0-9 \-().]{7,32}$/.test(value),
@@ -286,7 +286,7 @@ export function Phone(options?: ValidationPhoneOptions): ValidationPhoneObject {
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -299,7 +299,7 @@ interface ValidationNumberOptions {
 }
 
 interface ValidationNumberObject extends ValidationNumberOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationNumberOptions: ValidationNumberOptions = {
@@ -319,15 +319,15 @@ export function Number(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid: value.length == 0 || /^0?\d+$/.test(value),
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -346,7 +346,7 @@ interface ValidationDateOptions {
 }
 
 interface ValidationDateObject extends ValidationDateOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationDateOptions: ValidationDateOptions = {
@@ -372,7 +372,7 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
+        validate: function (value: string): Promise<ValidationResult> {
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
@@ -409,14 +409,14 @@ export function Date(options?: ValidationDateOptions): ValidationDateObject {
                 valid = false;
             }
 
-            return {
+            return Promise.resolve({
                 valid: valid,
                 invalidMessages: [
                     typeof this[invalidMessageType] === "string"
                         ? this[invalidMessageType]
                         : this[invalidMessageType](this),
                 ],
-            };
+            });
         },
     };
 }
@@ -435,7 +435,7 @@ interface ValidationTimeOptions {
 }
 
 interface ValidationTimeObject extends ValidationTimeOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationTimeOptions: ValidationTimeOptions = {
@@ -461,7 +461,7 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
+        validate: function (value: string): Promise<ValidationResult> {
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
@@ -498,14 +498,14 @@ export function Time(options?: ValidationTimeOptions): ValidationTimeObject {
                 valid = false;
             }
 
-            return {
+            return Promise.resolve({
                 valid: valid,
                 invalidMessages: [
                     typeof this[invalidMessageType] === "string"
                         ? this[invalidMessageType]
                         : this[invalidMessageType](this),
                 ],
-            };
+            });
         },
     };
 }
@@ -526,7 +526,7 @@ interface ValidationDateTimeOptions {
 }
 
 interface ValidationDateTimeObject extends ValidationDateTimeOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationDateTimeOptions: ValidationDateTimeOptions = {
@@ -554,7 +554,7 @@ export function DateTime(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
+        validate: function (value: string): Promise<ValidationResult> {
             let valid = true;
             let invalidMessageType = "invalidMessage";
 
@@ -591,14 +591,14 @@ export function DateTime(
                 valid = false;
             }
 
-            return {
+            return Promise.resolve({
                 valid: valid,
                 invalidMessages: [
                     typeof this[invalidMessageType] === "string"
                         ? this[invalidMessageType]
                         : this[invalidMessageType](this),
                 ],
-            };
+            });
         },
     };
 }
@@ -606,7 +606,7 @@ export function DateTime(
 /**
  * CUSTOM
  */
-type ValidationCustomCallback = (value: string) => boolean | string;
+type ValidationCustomCallback = (value: string) => Promise<boolean | string>;
 
 interface ValidationCustomOptions {
     callback: ValidationCustomCallback;
@@ -618,7 +618,7 @@ interface ValidationCustomObject extends ValidationCustomOptions {
 }
 
 const defaultValidationCustomOptions: ValidationCustomOptions = {
-    callback: () => {
+    callback: async () => {
         return true;
     },
     invalidMessage: "This field is invalid.",
@@ -692,24 +692,24 @@ export function Custom(
 export const And = (list: Array<ValidationObject>) => {
     return {
         list: list,
-        validate: function (value: string) {
+        validate: async function (value: string) {
             const validationResult: ValidationResult = {
                 valid: true,
                 invalidMessages: [],
             };
 
-            this.list.every((item: ValidationObject) => {
-                const validationItemResult = item.validate(value);
-                if (validationItemResult.valid == false) {
-                    validationResult.valid = false;
-                    validationResult.invalidMessages =
-                        validationResult.invalidMessages.concat(
-                            validationItemResult.invalidMessages
-                        );
-                }
-
-                return true;
-            });
+            await Promise.all(
+                this.list.map(async (item: ValidationObject) => {
+                    const validationItemResult = await item.validate(value);
+                    if (validationItemResult.valid == false) {
+                        validationResult.valid = false;
+                        validationResult.invalidMessages =
+                            validationResult.invalidMessages.concat(
+                                validationItemResult.invalidMessages
+                            );
+                    }
+                })
+            );
 
             return validationResult;
         },
@@ -724,7 +724,7 @@ interface ValidationRequiredOptions {
 }
 
 interface ValidationRequiredObject extends ValidationRequiredOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationRequiredOptions: ValidationRequiredOptions = {
@@ -744,15 +744,15 @@ export function Required(
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid: value.length > 0,
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -765,7 +765,7 @@ interface ValidationUrlOptions {
 }
 
 interface ValidationUrlObject extends ValidationUrlOptions {
-    validate: (value: string) => ValidationResult;
+    validate: (value: string) => Promise<ValidationResult>;
 }
 
 const defaultValidationUrlOptions: ValidationUrlOptions = {
@@ -783,8 +783,8 @@ export function Url(options?: ValidationUrlOptions): ValidationUrlObject {
 
     return {
         ...options,
-        validate: function (value: string): ValidationResult {
-            return {
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid: /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*(:\d+)?([/?#][^\s]*)?$/.test(
                     value
                 ),
@@ -793,7 +793,7 @@ export function Url(options?: ValidationUrlOptions): ValidationUrlObject {
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }
@@ -807,7 +807,7 @@ interface ValidationFileSizeOptions {
 }
 
 interface ValidationFileSizeObject extends ValidationFileSizeOptions {
-    validate: (value: File) => ValidationResult;
+    validate: (value: File) => Promise<ValidationResult>;
 }
 
 const defaultValidationFileSizeOptions: ValidationFileSizeOptions = {
@@ -830,15 +830,15 @@ export function FileSize(
 
     return {
         ...options,
-        validate: function (value: File): ValidationResult {
-            return {
+        validate: function (value: File): Promise<ValidationResult> {
+            return Promise.resolve({
                 valid: value.size < options.size,
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
                         : this.invalidMessage(this),
                 ],
-            };
+            });
         },
     };
 }

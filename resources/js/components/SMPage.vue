@@ -92,10 +92,6 @@ const hasPermission = (): boolean => {
 
     &.sm-no-breadcrumbs {
         margin-bottom: 0;
-
-        .sm-page {
-            padding-bottom: calc(map-get($spacer, 5) * 2);
-        }
     }
 
     .sm-page {

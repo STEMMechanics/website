@@ -134,7 +134,7 @@ const bodyItemClassNameFunction = (column) => {
 };
 
 const handleEdit = (user) => {
-    router.push({ name: "user-edit", params: { id: user.id } });
+    router.push({ name: "dashboard-user-edit", params: { id: user.id } });
 };
 
 const handleDelete = async (user) => {

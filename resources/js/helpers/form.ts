@@ -132,7 +132,7 @@ interface FormControlValidation {
 
 const defaultFormControlValidation: FormControlValidation = {
     validator: {
-        validate: (): ValidationResult => {
+        validate: async (): Promise<ValidationResult> => {
             return defaultValidationResult;
         },
     },
@@ -148,7 +148,7 @@ type FormControlIsValid = () => boolean;
 
 export interface FormControlObject {
     value: string;
-    validate: () => ValidationResult;
+    validate: () => Promise<ValidationResult>;
     validation: FormControlValidation;
     clearValidations: FormControlClearValidations;
     setValidationResult: FormControlSetValidation;
@@ -179,11 +179,11 @@ export const FormControl = (
             this.validation.result = defaultValidationResult;
         },
         setValidationResult: createValidationResult,
-        validate: function () {
+        validate: async function () {
             if (this.validation.validator) {
-                this.validation.result = this.validation.validator.validate(
-                    this.value
-                );
+                this.validation.result =
+                    await this.validation.validator.validate(this.value);
+
                 return this.validation.result;
             }
 

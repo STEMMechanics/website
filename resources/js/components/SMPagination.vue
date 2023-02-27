@@ -41,7 +41,7 @@ const computedPaginationInfo = computed(() => {
     }
 
     const start = (props.modelValue - 1) * props.perPage + 1;
-    const end = start + props.perPage - 1;
+    const end = Math.min(start + props.perPage - 1, props.total);
 
     return `${start} - ${end} of ${props.total}`;
 });

@@ -178,11 +178,11 @@ watch(search, (value) => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "media-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "media-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {

@@ -37,6 +37,11 @@
                     :block="true"
                     :label="button" />
             </div>
+            <div
+                v-if="banner"
+                :class="['sm-panel-banner', `sm-panel-banner-${bannerType}`]">
+                {{ banner }}
+            </div>
         </div>
     </router-link>
 </template>
@@ -115,6 +120,16 @@ const props = defineProps({
         required: false,
     },
     buttonType: {
+        type: String,
+        default: "primary",
+        required: false,
+    },
+    banner: {
+        type: String,
+        default: "",
+        required: false,
+    },
+    bannerType: {
         type: String,
         default: "primary",
         required: false,
@@ -204,6 +219,8 @@ watch(
     color: $font-color !important;
     margin-bottom: map-get($spacer, 5);
     transition: box-shadow 0.2s ease-in-out;
+    position: relative;
+    overflow: hidden;
 
     &:hover {
         color: $font-color;
@@ -295,6 +312,43 @@ watch(
 
     .sm-panel-button {
         margin-top: map-get($spacer, 4);
+    }
+
+    .sm-panel-banner {
+        position: absolute;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 65px;
+        right: -10px;
+        height: 20px;
+        width: 120px;
+        font-size: 70%;
+        text-transform: uppercase;
+        font-weight: 800;
+        color: #fff;
+        background-color: $primary-color;
+        transform-origin: 100%;
+        transform: rotateZ(45deg);
+
+        &.sm-panel-banner-success {
+            background-color: $success-color;
+        }
+
+        &.sm-panel-banner-danger {
+            background-color: $danger-color;
+            font-size: 60%;
+        }
+
+        &.sm-panel-banner-warning {
+            background-color: $warning-color-darker;
+            color: $font-color;
+            font-size: 60%;
+        }
+
+        &.sm-panel-banner-expired {
+            background-color: purple;
+        }
     }
 }
 </style>

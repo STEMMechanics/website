@@ -166,6 +166,7 @@ code {
     flex-direction: row;
     flex: 1;
     margin-top: map-get($spacer, 5);
+    min-height: 50vh;
 
     .image {
         flex: 1;

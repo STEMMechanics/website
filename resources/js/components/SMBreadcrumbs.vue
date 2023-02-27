@@ -26,6 +26,9 @@
 import { computed, ComputedRef } from "vue";
 import { RouteRecordRaw, useRoute } from "vue-router";
 import { routes } from "../router";
+import { useApplicationStore } from "../store/ApplicationStore";
+
+const applicationStore = useApplicationStore();
 
 /**
  * Return a list of routes from the current page back to the root
@@ -76,6 +79,20 @@ const computedRouteCrumbs: ComputedRef<RouteRecordRaw[]> = computed(() => {
     };
 
     let itemList = findMatch(routes);
+    if (itemList) {
+        if (applicationStore.dynamicTitle.length > 0) {
+            let meta = {};
+
+            if ("meta" in itemList[itemList.length - 1]) {
+                meta = itemList[itemList.length - 1]["meta"];
+            }
+
+            meta["title"] = applicationStore.dynamicTitle;
+
+            itemList[itemList.length - 1]["meta"] = meta;
+        }
+    }
+
     return itemList || [];
 });
 </script>

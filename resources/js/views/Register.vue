@@ -35,7 +35,7 @@
                         </SMRow>
                         <SMFormFooter>
                             <template #left>
-                                <div>
+                                <div class="small">
                                     <span class="pr-1"
                                         >Already have an account?</span
                                     ><router-link to="/login"
@@ -92,42 +92,33 @@ import {
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 let abortController: AbortController | null = null;
 
-const checkUsername = (value: string): boolean | string => {
-    if (lastUsernameCheck.value != value) {
-        lastUsernameCheck.value = value;
+const checkUsername = async (value: string): Promise<boolean | string> => {
+    try {
+        if (lastUsernameCheck.value != value) {
+            lastUsernameCheck.value = value;
 
-        if (abortController != null) {
-            abortController.abort();
-            abortController = null;
+            if (abortController != null) {
+                abortController.abort();
+                abortController = null;
+            }
+
+            abortController = new AbortController();
+
+            await api.get({
+                url: "/users",
+                params: {
+                    username: `=${value}`,
+                },
+                signal: abortController.signal,
+            });
+
+            return "The username has already been taken.";
         }
 
-        abortController = new AbortController();
-
-        api.get({
-            url: "/users",
-            params: {
-                username: value,
-            },
-            signal: abortController.signal,
-        })
-            .then((response) => {
-                console.log("The username has already been taken.", response);
-                return "The username has already been taken.";
-            })
-            .catch((error) => {
-                console.log(error);
-                if (error.status != 404) {
-                    return (
-                        error.json?.message ||
-                        "An unexpected server error occurred."
-                    );
-                }
-
-                return true;
-            });
+        return true;
+    } catch (error) {
+        return true;
     }
-
-    return true;
 };
 
 const formDone = ref(false);

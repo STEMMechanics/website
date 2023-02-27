@@ -30,7 +30,10 @@
             </template>
             <template #item-title="item">
                 <router-link
-                    :to="{ name: 'event-edit', params: { id: item.id } }"
+                    :to="{
+                        name: 'dashboard-event-edit',
+                        params: { id: item.id },
+                    }"
                     >{{ item.title }}</router-link
                 >
             </template>
@@ -164,15 +167,15 @@ watch(search, () => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "event-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
 };
 
 const handleCreate = () => {
-    router.push({ name: "event-create" });
+    router.push({ name: "dashboard-event-create" });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "event-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {

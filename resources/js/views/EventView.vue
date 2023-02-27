@@ -187,37 +187,37 @@ const registerUrl = computed(() => {
 const handleLoad = async () => {
     formMessage.value = "";
 
-    api.get({
-        url: "/events/{event}",
-        params: {
-            event: route.params.id,
-        },
-    })
-        .then((result) => {
-            const eventData = result.data as EventResponse;
-
-            if (eventData && eventData.event) {
-                event.value = eventData.event;
-                event.value.start_at = new SMDate(event.value.start_at, {
-                    format: "ymd",
-                    utc: true,
-                }).format("yyyy/MM/dd HH:mm:ss");
-                event.value.end_at = new SMDate(event.value.end_at, {
-                    format: "ymd",
-                    utc: true,
-                }).format("yyyy/MM/dd HH:mm:ss");
-
-                applicationStore.setDynamicTitle(event.value.title);
-                handleLoadImage();
-            } else {
-                pageError = 404;
-            }
-        })
-        .catch((error) => {
-            formMessage.value =
-                error.data?.message ||
-                "Could not load event information from the server.";
+    try {
+        let result = await api.get({
+            url: "/events/{event}",
+            params: {
+                event: route.params.id,
+            },
         });
+
+        const eventData = result.data as EventResponse;
+
+        if (eventData && eventData.event) {
+            event.value = eventData.event;
+            event.value.start_at = new SMDate(event.value.start_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+            event.value.end_at = new SMDate(event.value.end_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm:ss");
+
+            applicationStore.setDynamicTitle(event.value.title);
+            handleLoadImage();
+        } else {
+            pageError = 404;
+        }
+    } catch (error) {
+        formMessage.value =
+            error.data?.message ||
+            "Could not load event information from the server.";
+    }
 };
 
 /**

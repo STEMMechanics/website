@@ -113,7 +113,8 @@ const handleClickIndicator = (index: number) => {
  */
 const handleCarouselUpdate = () => {
     if (slides.value != null) {
-        slideElements.value = slides.value.querySelectorAll(".carousel-slide");
+        slideElements.value =
+            slides.value.querySelectorAll(".sm-carousel-slide");
         maxSlide.value = slideElements.value.length - 1;
     }
 

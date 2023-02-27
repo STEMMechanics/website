@@ -29,29 +29,36 @@
                 :not-found="events.length == 0"
                 not-found-text="No workshops found">
                 <SMPanel
-                    v-for="event in events"
-                    :key="event.id"
-                    :to="{ name: 'event-view', params: { id: event.id } }"
-                    :title="event.title"
-                    :image="event.hero"
+                    v-for="item in events"
+                    :key="item.event.id"
+                    :to="{ name: 'event-view', params: { id: item.event.id } }"
+                    :title="item.event.title"
+                    :image="item.event.hero"
                     :show-time="true"
-                    :date="event.start_at"
-                    :end-date="event.end_at"
+                    :date="item.event.start_at"
+                    :end-date="item.event.end_at"
                     :date-in-image="true"
                     :location="
-                        event.location == 'online'
+                        item.event.location == 'online'
                             ? 'Online Event'
-                            : event.address
-                    "></SMPanel>
+                            : item.event.address
+                    "
+                    :banner="item.banner"
+                    :banner-type="item.bannerType"></SMPanel>
             </SMPanelList>
+            <SMPagination
+                v-model="postsPage"
+                :total="postsTotal"
+                :per-page="postsPerPage" />
         </template>
     </SMPage>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
 import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
+import SMPagination from "../components/SMPagination.vue";
 import SMPanel from "../components/SMPanel.vue";
 import SMPanelList from "../components/SMPanelList.vue";
 import SMToolbar from "../components/SMToolbar.vue";
@@ -59,8 +66,14 @@ import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 
+interface EventData {
+    event: Event;
+    banner: string;
+    bannerType: string;
+}
+
 const loading = ref(true);
-let events: Event[] = reactive([]);
+let events: EventData[] = reactive([]);
 const dateRangeError = ref("");
 
 const formMessage = ref("");
@@ -69,12 +82,15 @@ const filterKeywords = ref("");
 const filterLocation = ref("");
 const filterDateRange = ref("");
 
+const postsPerPage = 9;
+let postsPage = ref(1);
+let postsTotal = ref(0);
+
 /**
  * Load page data.
  */
 const handleLoad = async () => {
     let query = {};
-    query["limit"] = 10;
 
     if (filterKeywords.value && filterKeywords.value.length > 0) {
         query["q"] = filterKeywords.value;
@@ -116,11 +132,19 @@ const handleLoad = async () => {
     formMessage.value = "";
     events = [];
 
-    if (Object.keys(query).length == 1 && Object.keys(query)[0] == "limit") {
+    if (Object.keys(query).length == 0) {
+        const now = new Date();
+        const startingDate = new Date(now.setDate(now.getDate() - 14));
+
         query["end_at"] =
             ">" +
-            new SMDate("now").format("yyyy/MM/dd HH:mm:ss", { utc: true });
+            new SMDate(startingDate).format("yyyy/MM/dd HH:mm:ss", {
+                utc: true,
+            });
     }
+
+    query["limit"] = postsPerPage;
+    query["page"] = postsPage.value;
 
     api.get({
         url: "/events",
@@ -129,19 +153,50 @@ const handleLoad = async () => {
         .then((result) => {
             const data = result.data as EventCollection;
 
+            postsTotal.value = data.total;
+
             if (data && data.events) {
-                events = data.events;
+                events = [];
 
-                events.forEach((item) => {
-                    item.start_at = new SMDate(item.start_at, {
+                data.events.forEach((item) => {
+                    let banner = "";
+                    let bannerType = "";
+
+                    const parsedStartAt = new SMDate(item.start_at, {
                         format: "yyyy-MM-dd HH:mm:ss",
                         utc: true,
-                    }).format("yyyy-MM-dd HH:mm:ss");
+                    });
 
-                    item.end_at = new SMDate(item.end_at, {
+                    const parsedEndAt = new SMDate(item.end_at, {
                         format: "yyyy-MM-dd HH:mm:ss",
                         utc: true,
-                    }).format("yyyy-MM-dd HH:mm:ss");
+                    });
+
+                    item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
+                    item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
+
+                    if (
+                        parsedEndAt.isBefore(new SMDate("now")) ||
+                        item.status == "closed"
+                    ) {
+                        banner = "closed";
+                        bannerType = "expired";
+                    } else if (item.status == "open") {
+                        banner = "open";
+                        bannerType = "success";
+                    } else if (item.status == "cancelled") {
+                        banner = "cancelled";
+                        bannerType = "danger";
+                    } else if (item.status == "soon") {
+                        banner = "Open Soon";
+                        bannerType = "warning";
+                    }
+
+                    events.push({
+                        event: item,
+                        banner: banner,
+                        bannerType: bannerType,
+                    });
                 });
             }
         })
@@ -160,6 +215,13 @@ const handleLoad = async () => {
 const handleFilter = async () => {
     handleLoad();
 };
+
+watch(
+    () => postsPage.value,
+    () => {
+        handleLoad();
+    }
+);
 
 handleLoad();
 </script>

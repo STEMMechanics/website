@@ -13,14 +13,17 @@
         @click="handleClick">
         <ion-icon
             v-if="icon && dropdown == null && iconLocation == 'before'"
-            :icon="icon" />
+            :icon="icon"
+            class="sm-button-icon-before" />
         <span>{{ label }}</span>
         <ion-icon
             v-if="icon && dropdown == null && iconLocation == 'after'"
-            :icon="icon" />
+            :icon="icon"
+            class="sm-button-icon-after" />
         <ion-icon
             v-if="dropdown != null"
             name="caret-down-outline"
+            class="sm-button-icon-dropdown"
             @click.stop="handleClickToggleDropdown" />
         <ul
             v-if="dropdown != null"
@@ -189,17 +192,17 @@ a.sm-button,
 
         span {
             flex: 1;
-            border-right: 1px solid $primary-color;
+            border-right: 1px solid $primary-color-lighter;
             padding-top: calc(#{map-get($spacer, 1)} / 1.5);
             padding-bottom: calc(#{map-get($spacer, 1)} / 1.5);
             padding-left: map-get($spacer, 3);
             padding-right: map-get($spacer, 3);
         }
 
-        ion-icon {
+        .sm-button-icon-dropdown {
             height: 1rem;
             width: 1rem;
-            padding: 0 map-get($spacer, 1) 0 map-get($spacer, 1);
+            padding: 0 0.3rem 0 0.2rem;
         }
 
         &:hover {
@@ -316,19 +319,39 @@ a.sm-button,
         margin: 0;
         background-color: #f8f8f8;
         border: 1px solid $border-color;
+        border-radius: 8px;
         color: $primary-color;
-        box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 0 14px rgba(0, 0, 0, 0.5);
     }
 
     li {
-        padding: 12px 16px;
+        padding: map-get($spacer, 1);
+        font-size: 100%;
         cursor: pointer;
         transition: background-color 0.1s ease-in-out;
+
+        &:first-child {
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+
+        &:last-child {
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+        }
     }
 
     li:hover {
         background-color: $primary-color;
         color: #f8f8f8;
+    }
+
+    .sm-button-icon-before {
+        margin-right: map-get($spacer, 1);
+    }
+
+    .sm-button-icon-after {
+        margin-left: map-get($spacer, 1);
     }
 }
 </style>

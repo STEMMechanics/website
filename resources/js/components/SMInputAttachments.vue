@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { watch, ref, Ref } from "vue";
+import { ref, Ref, watch } from "vue";
 import { openDialog } from "vue3-promise-dialog";
 import { api } from "../helpers/api";
 import { Media, MediaResponse } from "../helpers/api.types";
@@ -125,10 +125,6 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-column > .sm-input-group {
-    margin-bottom: 0;
-}
-
 .sm-input-group.sm-input-attachments {
     display: block;
 

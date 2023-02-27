@@ -152,65 +152,66 @@ const handleLoad = async () => {
     let posts = [];
     let events = [];
 
-    api.get({
-        url: "/posts",
-        params: {
-            limit: 3,
-        },
-    })
-        .then((result) => {
-            const data = result.data as PostCollection;
-
-            if (data && data.posts) {
-                data.posts.forEach((post) => {
-                    posts.push({
-                        title: post.title,
-                        content: excerpt(post.content, 200),
-                        image: post.hero,
-                        url: { name: "post-view", params: { slug: post.slug } },
-                        cta: "Read More...",
-                    });
-                });
-            }
-        })
-        .catch(() => {
-            /* empty */
+    try {
+        const result = await api.get({
+            url: "/posts",
+            params: {
+                limit: 3,
+            },
         });
 
-    api.get({
-        url: "/events",
-        params: {
-            limit: 3,
-            end_at:
-                ">" +
-                new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
-                    utc: true,
-                }),
-        },
-    })
-        .then((result) => {
-            const data = result.data as EventCollection;
+        const data = result.data as PostCollection;
 
-            if (data && data.events) {
-                data.events.forEach((event) => {
-                    events.push({
-                        title: event.title,
-                        content: excerpt(event.content, 200),
-                        image: event.hero,
-                        url: { name: "event-view", params: { id: event.id } },
-                        cta: "View Workshop",
-                    });
+        if (data && data.posts) {
+            data.posts.forEach((post) => {
+                posts.push({
+                    title: post.title,
+                    content: excerpt(post.content, 200),
+                    image: post.hero,
+                    url: { name: "post-view", params: { slug: post.slug } },
+                    cta: "Read More...",
                 });
-            }
-        })
-        .catch(() => {
-            /* empty */
+            });
+        }
+    } catch {
+        /* empty */
+    }
+
+    try {
+        const result = await api.get({
+            url: "/events",
+            params: {
+                limit: 3,
+                end_at:
+                    ">" +
+                    new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
+                        utc: true,
+                    }),
+            },
         });
+
+        const data = result.data as EventCollection;
+
+        if (data && data.events) {
+            data.events.forEach((event) => {
+                events.push({
+                    title: event.title,
+                    content: excerpt(event.content, 200),
+                    image: event.hero,
+                    url: { name: "event-view", params: { id: event.id } },
+                    cta: "View Workshop",
+                });
+            });
+        }
+    } catch {
+        /* empty */
+    }
 
     for (let i = 1; i <= Math.max(posts.length, events.length); i++) {
         if (i <= posts.length) {
             slides.value.push(posts[i - 1]);
         }
+
         if (i <= events.length) {
             slides.value.push(events[i - 1]);
         }

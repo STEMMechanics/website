@@ -5,6 +5,7 @@
             {
                 'sm-input-active': inputActive,
                 'sm-feedback-invalid': feedbackInvalid,
+                'sm-input-small': small,
             },
             computedClassType,
         ]">
@@ -106,6 +107,11 @@ const props = defineProps({
     type: {
         type: String,
         default: "text",
+    },
+    small: {
+        type: Boolean,
+        default: false,
+        required: false,
     },
     feedbackInvalid: {
         type: String,
@@ -249,7 +255,7 @@ const handleFocus = (event: Event) => {
 
 const handleBlur = async (event: Event) => {
     if (objControl) {
-        objControl.validate();
+        await objControl.validate();
         objControl.isValid();
     }
 
@@ -276,10 +282,6 @@ const handleMediaSelect = async (event) => {
 </script>
 
 <style lang="scss">
-.sm-column > .sm-input-group {
-    margin-bottom: 0;
-}
-
 .sm-input-group {
     position: relative;
     display: flex;
@@ -287,6 +289,26 @@ const handleMediaSelect = async (event) => {
     margin-bottom: map-get($spacer, 4);
     flex: 1;
     width: 100%;
+
+    &.sm-input-small {
+        font-size: 80%;
+
+        &.sm-input-active {
+            label {
+                transform: translate(6px, -3px) scale(0.7);
+            }
+
+            input {
+                padding: calc(#{map-get($spacer, 1)} * 1.5) map-get($spacer, 2)
+                    calc(#{map-get($spacer, 1)} / 2) map-get($spacer, 2);
+            }
+        }
+
+        input,
+        label {
+            padding: map-get($spacer, 1) map-get($spacer, 2);
+        }
+    }
 
     &.sm-input-active {
         label {

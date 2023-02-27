@@ -12,10 +12,15 @@
                     <SMButton
                         type="primary"
                         label="Create Post"
+                        :small="true"
                         @click="handleCreate" />
                 </template>
                 <template #right>
-                    <input v-model="search" placeholder="Search" />
+                    <SMInput
+                        v-model="search"
+                        label="Search"
+                        :small="true"
+                        style="max-width: 250px" />
                 </template>
             </SMToolbar>
 
@@ -31,7 +36,10 @@
                 </template>
                 <template #item-title="item">
                     <router-link
-                        :to="{ name: 'post-edit', params: { id: item.id } }"
+                        :to="{
+                            name: 'dashboard-post-edit',
+                            params: { id: item.id },
+                        }"
                         >{{ item.title }}</router-link
                     >
                 </template>
@@ -58,6 +66,7 @@ import { openDialog } from "vue3-promise-dialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMHeading from "../../components/SMHeading.vue";
+import SMInput from "../../components/SMInput.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
@@ -181,15 +190,15 @@ watch(search, () => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
 };
 
 const handleCreate = () => {
-    router.push({ name: "post-create" });
+    router.push({ name: "dashboard-post-create" });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
 };
 
 const handleDelete = async (item) => {

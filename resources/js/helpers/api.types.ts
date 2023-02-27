@@ -18,6 +18,7 @@ export interface EventResponse {
 
 export interface EventCollection {
     events: Event[];
+    total: number;
 }
 
 export interface Media {
