@@ -145,30 +145,30 @@ let imageUrl = ref("");
 const computedDate = computed(() => {
     let str = "";
 
-    if (props.date.length > 0) {
-        if (
-            (props.endDate.length > 0 &&
-                props.date.substring(0, props.date.indexOf(" ")) !=
-                    props.endDate.substring(0, props.endDate.indexOf(" "))) ||
-            props.showTime == false
-        ) {
-            str = new SMDate(props.date, { format: "yMd" }).format(
-                "dd/MM/yyyy"
-            );
-            if (props.endDate.length > 0) {
-                str =
-                    str +
-                    " - " +
-                    new SMDate(props.endDate, { format: "yMd" }).format(
-                        "dd/MM/yyyy"
-                    );
-            }
-        } else {
-            str = new SMDate(props.endDate, { format: "yMd" }).format(
-                "dd/MM/yyyy @ h:mm aa"
-            );
-        }
-    }
+    // if (props.date.length > 0) {
+    //     if (
+    //         (props.endDate.length > 0 &&
+    //             props.date.substring(0, props.date.indexOf(" ")) !=
+    //                 props.endDate.substring(0, props.endDate.indexOf(" "))) ||
+    //         props.showTime == false
+    //     ) {
+    //         str = new SMDate(props.date, { format: "yMd" }).format(
+    //             "dd/MM/yyyy"
+    //         );
+    //         if (props.endDate.length > 0) {
+    //             str =
+    //                 str +
+    //                 " - " +
+    //                 new SMDate(props.endDate, { format: "yMd" }).format(
+    //                     "dd/MM/yyyy"
+    //                 );
+    //         }
+    //     } else {
+    //         str = new SMDate(props.endDate, { format: "yMd" }).format(
+    //             "dd/MM/yyyy @ h:mm aa"
+    //         );
+    //     }
+    // }
 
     return str;
 });
