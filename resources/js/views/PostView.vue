@@ -8,7 +8,7 @@
         <SMContainer>
             <div class="sm-heading-info">
                 <h1>{{ post.title }}</h1>
-                <div class="sm-date-author">
+                <div class="sm-date-author small">
                     <ion-icon name="calendar-outline" />
                     {{ formattedPublishAt(post.publish_at) }}, by
                     {{ postUser.username }}
@@ -158,6 +158,7 @@ loadData();
 
     .sm-heading-info {
         padding: 0 map-get($spacer, 3);
+        margin-bottom: map-get($spacer, 4);
 
         h1 {
             text-align: left;
@@ -174,6 +175,11 @@ loadData();
                 margin-right: 0.5rem;
             }
         }
+    }
+
+    .sm-content {
+        padding: 0 map-get($spacer, 3);
+        line-height: 1.5rem;
     }
 }
 
