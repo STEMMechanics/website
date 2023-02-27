@@ -61,33 +61,32 @@ const handleClickCancel = () => {
  * User clicks form submit button
  */
 const handleSubmit = async () => {
-    dialogLoading.value = true;
+    try {
+        dialogLoading.value = true;
 
-    api.put({
-        url: "/users/{id}",
-        params: {
-            id: userStore.id,
-        },
-        body: {
-            password: form.controls.password.value,
-        },
-    })
-        .then(() => {
-            const toastStore = useToastStore();
-
-            toastStore.addToast({
-                title: "Password Reset",
-                content: "Your password has been reset",
-                type: "success",
-            });
-            closeDialog(false);
-        })
-        .catch((error) => {
-            form.apiErrors(error);
-        })
-        .finally(() => {
-            dialogLoading.value = false;
+        await api.put({
+            url: "/users/{id}",
+            params: {
+                id: userStore.id,
+            },
+            body: {
+                password: form.controls.password.value,
+            },
         });
+
+        const toastStore = useToastStore();
+
+        toastStore.addToast({
+            title: "Password Reset",
+            content: "Your password has been reset",
+            type: "success",
+        });
+        closeDialog(false);
+    } catch (error) {
+        form.apiErrors(error);
+    } finally {
+        dialogLoading.value = false;
+    }
 };
 
 /**
