@@ -32,7 +32,7 @@ const computedContent = computed(() => {
     html = DOMPurify.sanitize(html);
 
     return {
-        template: `<div class="content">${html}</div>`,
+        template: `<div class="sm-content">${html}</div>`,
     };
 });
 </script>
