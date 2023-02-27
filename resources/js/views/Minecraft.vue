@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-minecraft">
+    <SMPage class="sm-page-minecraft">
         <template #container>
             <h1>Connecting to our Minecraft Server</h1>
             <ol>
@@ -39,7 +39,7 @@
 </template>
 
 <style lang="scss">
-.sm-minecraft {
+.sm-page-minecraft {
     h2 {
         margin-bottom: 0.5rem;
     }

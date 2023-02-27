@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-terms">
+    <SMPage class="sm-page-terms">
         <template #container>
             <h1>Terms and Conditions</h1>
             <p>

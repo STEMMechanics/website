@@ -1,5 +1,5 @@
 <template>
-    <SMPage full class="home">
+    <SMPage full class="sm-page-home">
         <SMCarousel>
             <SMCarouselSlide
                 v-for="(slide, index) in slides"
@@ -247,7 +247,7 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.home {
+.sm-page-home {
     margin-top: -3.25rem !important;
     background-color: #fff;
 
@@ -420,7 +420,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 1024px) {
-    .home {
+    .sm-page-home {
         .about {
             padding: 4rem;
         }
@@ -432,7 +432,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 896px) {
-    .home {
+    .sm-page-home {
         .support {
             .row {
                 flex-direction: column;
@@ -442,7 +442,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 768px) {
-    .home {
+    .sm-page-home {
         .about {
             margin-top: 2rem;
             margin-left: 0;
@@ -480,7 +480,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 640px) {
-    .home {
+    .sm-page-home {
         .about {
             padding: 2rem;
 

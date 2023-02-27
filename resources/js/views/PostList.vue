@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-post-list" :loading="pageLoading">
+    <SMPage class="sm-page-post-list" :loading="pageLoading">
         <template #container>
             <SMMessage
                 v-if="message"

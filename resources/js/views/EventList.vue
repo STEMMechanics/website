@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-workshop-list">
+    <SMPage class="sm-page-workshop-list">
         <template #container>
             <h1>Workshops</h1>
             <SMToolbar>
@@ -227,7 +227,7 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.workshop-list {
+.sm-page-workshop-list {
     background-color: #f8f8f8;
 
     .toolbar {
@@ -251,7 +251,7 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .sm-workshop-list .toolbar {
+    .sm-page-workshop-list .toolbar {
         flex-direction: column;
 
         & > * {

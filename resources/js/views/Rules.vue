@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-rules">
+    <SMPage class="sm-page-rules">
         <template #container>
             <h1>Rules</h1>
             <p>
@@ -81,7 +81,7 @@
 <script setup lang="ts"></script>
 
 <style lang="scss">
-.sm-rules {
+.sm-page-rules {
     h2 {
         margin-bottom: 0.5rem;
     }

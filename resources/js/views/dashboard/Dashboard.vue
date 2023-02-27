@@ -1,5 +1,5 @@
 <template>
-    <SMPage class="sm-dashboard">
+    <SMPage class="sm-page-dashboard">
         <template #container>
             <h1>Dashboard</h1>
             <div class="boxes">
@@ -70,7 +70,7 @@ const courseBoxTitle = computed(() => {
 </script>
 
 <style lang="scss">
-.sm-dashboard {
+.sm-page-dashboard {
     background-color: $secondary-background-color;
 
     .boxes {
