@@ -1,19 +1,28 @@
 <template>
     <SMPage no-breadcrumbs>
-        <div class="sm-page-error sm-error-forbidden">
-            <div class="image"></div>
-            <div class="content">
-                <h1>The cat says no!</h1>
-                <p>You do not have the needed access to see this page</p>
+        <div class="sm-page-error sm-error-not-found">
+            <div class="sm-error-number">
+                4<img src="/img/sad-monster.png" />3
+            </div>
+            <div class="sm-error-content">
+                <h2>Ooops!</h2>
+                <p>This page is not for you to view!</p>
+                <SMButton label="Go Back" @click="handleClick" />
             </div>
         </div>
     </SMPage>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import SMButton from "../SMButton.vue";
+import { useRouter } from "vue-router";
 
-<style lang="scss">
-.sm-page-error.sm-error-forbidden .image {
-    background-image: url("/img/403.jpg");
-}
-</style>
+const router = useRouter();
+
+/**
+ * Handle user clicking back/home button
+ */
+const handleClick = () => {
+    router.go(-1);
+};
+</script>

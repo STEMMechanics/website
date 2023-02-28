@@ -1,19 +1,28 @@
 <template>
     <SMPage no-breadcrumbs>
         <div class="sm-page-error sm-error-not-found">
-            <div class="image"></div>
-            <div class="content">
-                <h1>Opps</h1>
-                <p>The page you asked for was not found</p>
+            <div class="sm-error-number">
+                4<img src="/img/sad-monster.png" />4
+            </div>
+            <div class="sm-error-content">
+                <h2>Ooops!</h2>
+                <p>The page you are looking for does not exist!</p>
+                <SMButton label="Go Back" @click="handleClick" />
             </div>
         </div>
     </SMPage>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import SMButton from "../SMButton.vue";
+import { useRouter } from "vue-router";
 
-<style lang="scss">
-.sm-page-error.sm-error-not-found .image {
-    background-image: url("/img/404.jpg");
-}
-</style>
+const router = useRouter();
+
+/**
+ * Handle user clicking back/home button
+ */
+const handleClick = () => {
+    router.go(-1);
+};
+</script>

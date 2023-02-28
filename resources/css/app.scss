@@ -69,38 +69,29 @@ code {
 /* Page Errors */
 .sm-page-error {
     display: flex;
-    flex-direction: row;
-    flex: 1;
-    margin-top: map-get($spacer, 5);
-    min-height: 50vh;
+    flex-direction: column;
 
-    .image {
-        flex: 1;
-        height: 100%;
-        width: 100%;
-        background-position: center;
-        background-size: contain;
-        background-repeat: no-repeat;
-        margin-left: map-get($spacer, 2);
-        margin-right: map-get($spacer, 2);
+    .sm-error-number {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30vw;
+        font-weight: 600;
+        color: #295b7e;
+
+        img {
+            height: 25vw;
+            margin: 0 0.5rem 0 1rem;
+        }
     }
 
-    .content {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        justify-content: center;
-        margin-left: map-get($spacer, 2);
-        margin-right: map-get($spacer, 2);
-        margin-bottom: 0;
+    .sm-error-content {
+        text-align: center;
+        font-size: 120%;
 
-        h1 {
-            text-align: left;
-            margin-bottom: map-get($spacer, 1);
-        }
-
-        p {
-            margin: 0;
+        h2 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
         }
     }
 }
