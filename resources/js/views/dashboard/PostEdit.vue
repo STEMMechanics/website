@@ -208,8 +208,10 @@ const handleSubmit = async () => {
             type: "success",
         });
 
-        useRouter().push({ name: "dashboard-post-list" });
+        const router = useRouter();
+        router.push({ name: "dashboard-post-list" });
     } catch (error) {
+        console.log(error);
         form.apiErrors(error);
     }
 };
