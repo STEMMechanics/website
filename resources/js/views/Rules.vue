@@ -3,50 +3,56 @@
         <template #container>
             <h1>Rules</h1>
             <p>
-                Oh gosh, no body likes rules but to ensure that we have a fun,
-                engaging and safe space for all across all our platform and
-                services, we have a set of rules that everyone must follow.
+                We want to make sure everyone has fun and stays safe while using
+                our platforms and services. That's why we have some rules to
+                follow.
             </p>
             <p>
-                These are NOT a complete set of everything you can and can't do
-                with STEMMechanics staff and its helpers determining each
-                offense on a case-by-case basis.
-            </p>
-            <h2>Across all our services</h2>
-            <p>
-                Everywhere, whether physical or online, we don't tolerate the
-                following:
+                These are some of the things we <strong>DO NOT</strong> allow
+                anywhere:
             </p>
             <ul>
-                <li><strong>No Spamming / Excessive Swearing</strong></li>
+                <li><strong>Don't spam or use bad words too much.</strong></li>
                 <li>
-                    <strong>No Racism / Hate Speech</strong> - Is not accepted
-                    under any circumstance.
+                    <strong
+                        >Don't be mean to others or say hateful things.</strong
+                    >
                 </li>
                 <li>
-                    <strong>No NSFW content</strong> - Inappropriate, Adult,
-                    Violence and/or Offensive content.
+                    <strong
+                        >Don't share inappropriate, adult or violent
+                        stuff.</strong
+                    >
                 </li>
                 <li>
-                    <strong>No Doxxing</strong> - Do not share your real name or
-                    your address to others.
+                    <strong
+                        >Don't tell people where you live or give them your real
+                        name.</strong
+                    >
                 </li>
                 <li>
-                    <strong>No Advertising</strong> - Referencing or pointing
-                    out a service is ok.
+                    <strong
+                        >Don't advertise things, but it's okay to talk about
+                        them.</strong
+                    >
                 </li>
-                <li><strong>No sending malicious content</strong></li>
-                <li><strong>No Punishment evasion</strong></li>
-                <li><strong>No Trolling / Harrassment</strong></li>
-                <li><strong>No political or religious statements</strong></li>
+                <li>
+                    <strong
+                        >Don't send anything that could harm someone's computer
+                        or property.</strong
+                    >
+                </li>
+                <li>
+                    <strong
+                        >Don't try to get out of trouble by doing something
+                        sneaky.</strong
+                    >
+                </li>
+                <li><strong>Don't bully or be mean to others.</strong></li>
             </ul>
 
             <h2>Discord Server</h2>
             <ul>
-                <li>
-                    <strong>Nicknames / Profile Picture included</strong> - Your
-                    nickname/profile picture must also follow the rules.
-                </li>
                 <li>
                     Please follow Discord's
                     <a href="https://discord.com/terms">Terms of Service</a>.
@@ -55,23 +61,15 @@
 
             <h2>Minecraft</h2>
             <ul>
+                <li>Don't beg for things from others.</li>
+                <li>Use must use a Microsoft account to play on the server.</li>
                 <li>
-                    <strong>No Begging</strong> - We don't allow begging. It's
-                    annoying and no body likes it.
+                    Don't use hacks to cheat like Jesus, Camera, and Dupes (but
+                    mini-maps are okay).
                 </li>
                 <li>
-                    <strong>Use a Microsoft Account</strong> - The server is a
-                    ONLINE server and will authenticate you against Microsoft
-                    servers.
-                </li>
-                <li>
-                    <strong>No Hacking Mods</strong> - Jesus, Camera, Dupes are
-                    all included. Mini-maps are ok.
-                </li>
-                <li>
-                    <strong>No Griefing</strong> - Players are not permitted to
-                    grief other players builds outside of the Survival
-                    game-mode.
+                    Don't destroy other people's buildings, except in the
+                    Survival game mode.
                 </li>
             </ul>
         </template>
