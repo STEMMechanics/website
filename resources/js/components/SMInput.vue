@@ -37,15 +37,15 @@
             @focus="handleFocus"
             @blur="handleBlur"
             @keydown="handleKeydown"></textarea>
-        <div v-else-if="type == 'file'" class="input-file-group">
+        <div v-else-if="type == 'file'" class="sm-input-file-group">
             <input
                 id="file"
                 type="file"
-                class="file"
+                class="sm-file"
                 :accept="props.accept"
                 @change="handleChange" />
             <label class="sm-button" for="file">Select file</label>
-            <div class="file-name">
+            <div class="sm-file-name">
                 {{ modelValue?.name ? modelValue.name : modelValue }}
             </div>
         </div>
@@ -468,6 +468,47 @@ const handleMediaSelect = async (event) => {
         .sm-input-invalid {
             color: $danger-color;
             padding-right: map-get($spacer, 1);
+        }
+    }
+
+    .sm-input-file-group {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        border: 1px solid transparent;
+        border-radius: 12px;
+
+        input {
+            opacity: 0;
+            width: 0.1px;
+            height: 0.1px;
+            position: absolute;
+            margin-left: -9999px;
+        }
+
+        label.button {
+            margin-right: map-get($spacer, 4);
+            border-top-left-radius: 10px;
+            border-bottom-left-radius: 10px;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            margin: 0;
+            height: 3rem;
+            width: auto;
+        }
+
+        .sm-file-name {
+            display: block;
+            border: 1px solid $border-color;
+            border-top-right-radius: 12px;
+            border-bottom-right-radius: 12px;
+            flex: 1;
+            height: 3rem;
+            background-color: #fff;
+            line-height: 3rem;
+            padding: 0 1rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
     }
 }
