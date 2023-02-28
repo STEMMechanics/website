@@ -5,7 +5,10 @@
         permission="admin/posts">
         <template #container>
             <h1>{{ page_title }}</h1>
-            <SMForm :model-value="form" @submit="handleSubmit">
+            <SMForm
+                :model-value="form"
+                @submit="handleSubmit"
+                @failed-validation="handleFailValidation">
                 <SMRow>
                     <SMColumn
                         ><SMInput control="title" @blur="updateSlug()"
@@ -211,9 +214,17 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-post-list" });
     } catch (error) {
-        console.log(error);
         form.apiErrors(error);
     }
+};
+
+const handleFailValidation = () => {
+    useToastStore().addToast({
+        title: "Save Error",
+        content:
+            "There are some errors in the form. Fix these before continuing.",
+        type: "danger",
+    });
 };
 
 const createStorageKey = (file) => {

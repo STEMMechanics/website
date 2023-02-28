@@ -5,7 +5,10 @@
         class="sm-page-event-edit">
         <template #container>
             <h1>{{ page_title }}</h1>
-            <SMForm :model-value="form" @submit="handleSubmit">
+            <SMForm
+                :model-value="form"
+                @submit="handleSubmit"
+                @failed-validation="handleFailValidation">
                 <SMRow>
                     <SMColumn><SMInput control="title" /></SMColumn>
                 </SMRow>
@@ -342,13 +345,16 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-event-list" });
     } catch (error) {
-        form.apiError(error);
+        form.apiErrors(error);
     }
+};
 
-    window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: "smooth",
+const handleFailValidation = () => {
+    useToastStore().addToast({
+        title: "Save Error",
+        content:
+            "There are some errors in the form. Fix these before continuing.",
+        type: "danger",
     });
 };
 

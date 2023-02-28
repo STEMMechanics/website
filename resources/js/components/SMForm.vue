@@ -22,7 +22,7 @@ const props = defineProps({
         required: true,
     },
 });
-const emits = defineEmits(["submit"]);
+const emits = defineEmits(["submit", "failedValidation"]);
 
 /**
  * Handle the user submitting the form.
@@ -30,6 +30,8 @@ const emits = defineEmits(["submit"]);
 const handleSubmit = async function () {
     if (await props.modelValue.validate()) {
         emits("submit");
+    } else {
+        emits("failedValidation");
     }
 };
 
