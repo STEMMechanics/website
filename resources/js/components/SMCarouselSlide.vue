@@ -125,6 +125,7 @@ handleLoad();
             margin-bottom: 2rem;
             border-radius: 12px;
             margin-left: 3rem;
+            margin-right: 3rem;
         }
 
         h3 {
