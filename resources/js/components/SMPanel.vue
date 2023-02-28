@@ -164,7 +164,7 @@ const computedDate = computed(() => {
                     );
             }
         } else {
-            str = new SMDate(props.endDate, { format: "yMd" }).format(
+            str = new SMDate(props.date, { format: "yMd" }).format(
                 "dd/MM/yyyy @ h:mm aa"
             );
         }
