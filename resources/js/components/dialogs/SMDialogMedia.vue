@@ -399,6 +399,7 @@ const handleChangeUpload = async () => {
                         "An unexpected response was received from the server";
                 }
             } catch (error) {
+                console.log(error);
                 formMessage.value =
                     error.response?.data?.message ||
                     "An unexpected error occurred";
