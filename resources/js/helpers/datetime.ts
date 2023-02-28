@@ -350,29 +350,36 @@ export class SMDate {
      * @returns {string} A relative date string.
      */
     public relative(): string {
+        let prefix = "";
+        let postfix = " ago";
+
         if (this.date === null) {
             return "";
         }
 
         const now = new Date();
-        const dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
+        let dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
+
+        if (dif < 0) {
+            dif = Math.abs(dif);
+            prefix = "In ";
+            postfix = "";
+        }
 
         if (dif < 60) {
-            // let v = dif;
-            // return v + " sec" + (v != 1 ? "s" : "") + " ago";
             return "Just now";
         } else if (dif < 3600) {
             const v = Math.round(dif / 60);
-            return v + " min" + (v != 1 ? "s" : "") + " ago";
+            return prefix + v + " min" + (v != 1 ? "s" : "") + postfix;
         } else if (dif < 86400) {
             const v = Math.round(dif / 3600);
-            return v + " hour" + (v != 1 ? "s" : "") + " ago";
+            return prefix + v + " hour" + (v != 1 ? "s" : "") + postfix;
         } else if (dif < 604800) {
             const v = Math.round(dif / 86400);
-            return v + " day" + (v != 1 ? "s" : "") + " ago";
+            return prefix + v + " day" + (v != 1 ? "s" : "") + postfix;
         } else if (dif < 2419200) {
             const v = Math.round(dif / 604800);
-            return v + " week" + (v != 1 ? "s" : "") + " ago";
+            return prefix + v + " week" + (v != 1 ? "s" : "") + postfix;
         }
 
         return (
