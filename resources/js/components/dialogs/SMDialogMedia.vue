@@ -377,35 +377,34 @@ const handleChangeUpload = async () => {
             dialogLoading.value = true;
             dialogLoadingMessage.value = "Uploading file...";
 
-            api.post({
-                url: "/media",
-                body: submitFormData,
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                progress: (progressData) =>
-                    (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
-                        (progressData.loaded / progressData.total) * 100
-                    )}%`),
-            })
-                .then((result) => {
-                    if (result.data) {
-                        const data = result.data as MediaResponse;
-
-                        closeDialog(data.medium);
-                    } else {
-                        formMessage.value =
-                            "An unexpected response was received from the server";
-                    }
-                })
-                .catch((error) => {
-                    formMessage.value =
-                        error.response?.data?.message ||
-                        "An unexpected error occurred";
-                })
-                .finally(() => {
-                    dialogLoading.value = false;
+            try {
+                let result = await api.post({
+                    url: "/media",
+                    body: submitFormData,
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                    progress: (progressData) =>
+                        (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
+                            (progressData.loaded / progressData.total) * 100
+                        )}%`),
                 });
+
+                if (result.data) {
+                    const data = result.data as MediaResponse;
+
+                    closeDialog(data.medium);
+                } else {
+                    formMessage.value =
+                        "An unexpected response was received from the server";
+                }
+            } catch (error) {
+                formMessage.value =
+                    error.response?.data?.message ||
+                    "An unexpected error occurred";
+            } finally {
+                dialogLoading.value = false;
+            }
         } else {
             formMessage.value = "No file was selected to upload";
         }
