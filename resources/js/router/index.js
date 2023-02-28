@@ -267,7 +267,7 @@ export const routes = [
                 children: [
                     {
                         path: "",
-                        name: "dashboard-media",
+                        name: "dashboard-media-list",
                         meta: {
                             title: "Media",
                             middleware: "authenticated",
