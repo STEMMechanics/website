@@ -124,7 +124,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
@@ -144,8 +144,10 @@ import {
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import SMForm from "../../components/SMForm.vue";
 import { EventResponse } from "../../helpers/api.types";
+import { useToastStore } from "../../store/ToastStore";
 
 const route = useRoute();
+const router = useRouter();
 const page_title = route.params.id ? "Edit Event" : "Create New Event";
 const pageError = ref(200);
 const attachments = ref([]);
@@ -195,7 +197,7 @@ const form = reactive(
             Custom(async (value) => {
                 return address_data?.value.required && value.length == 0
                     ? "A venue address is required"
-                    : false;
+                    : true;
             })
         ),
         start_at: FormControl("", And([Required(), DateTime()])),
@@ -223,9 +225,9 @@ const form = reactive(
                     invalidMessages: [""],
                 };
 
-                if (registration_data.value.type == "email") {
+                if (form.controls.registration_type.value == "email") {
                     validationResult = await Email().validate(v);
-                } else if (registration_data.value.type == "url") {
+                } else if (form.controls.registration_type.value == "url") {
                     validationResult = await Url().validate(v);
                 }
 
@@ -265,16 +267,16 @@ const loadData = async () => {
             form.controls.start_at.value = new SMDate(data.event.start_at, {
                 format: "ymd",
                 utc: true,
-            }).format("yyyy/MM/dd HH:mm");
+            }).format("dd/MM/yyyy h:mm aa");
             form.controls.end_at.value = new SMDate(data.event.end_at, {
                 format: "ymd",
                 utc: true,
-            }).format("yyyy/MM/dd HH:mm");
+            }).format("dd/MM/yyyy h:mm aa");
             form.controls.status.value = data.event.status;
             form.controls.publish_at.value = new SMDate(data.event.publish_at, {
                 format: "ymd",
                 utc: true,
-            }).format("yyyy/MM/dd HH:mm");
+            }).format("dd/MM/yyyy h:mm aa");
             form.controls.registration_type.value =
                 data.event.registration_type;
             form.controls.registration_data.value =
@@ -330,7 +332,15 @@ const handleSubmit = async () => {
             });
         }
 
-        form.message("Your details have been updated", "success");
+        useToastStore().addToast({
+            title: route.params.id ? "Event Updated" : "Event Created",
+            content: route.params.id
+                ? "The event has been updated."
+                : "The event has been created.",
+            type: "success",
+        });
+
+        router.push({ name: "dashboard-event-list" });
     } catch (error) {
         form.apiError(error);
     }
