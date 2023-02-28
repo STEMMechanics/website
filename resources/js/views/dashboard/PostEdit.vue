@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMForm from "../../components/SMForm.vue";
@@ -76,14 +76,15 @@ import { PostResponse, UserCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { Form, FormControl } from "../../helpers/form";
 import { And, DateTime, Min, Required } from "../../helpers/validate";
+import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 
 const route = useRoute();
 const userStore = useUserStore();
 const page_title = route.params.id ? "Edit Post" : "Create New Post";
-const pageError = ref(200);
+let pageError = ref(200);
 const authors = ref({});
-const attachments = ref(["4687166e-7f9e-4394-abdf-2d254c8bb087"]);
+const attachments = ref([]);
 
 const form = reactive(
     Form({
@@ -134,14 +135,23 @@ const updateSlug = async () => {
     }
 };
 
+/**
+ * Load the page data.
+ */
 const loadData = async () => {
-    form.loading(true);
+    try {
+        form.loading(true);
+        if (route.params.id) {
+            let result = await api.get({
+                url: "/posts/{id}",
+                params: {
+                    id: route.params.id,
+                },
+            });
 
-    if (route.params.id) {
-        api.get("/posts/" + route.params.id)
-            .then((result) => {
-                const data = result.data as PostResponse;
+            const data = result.data as PostResponse;
 
+            if (data && data.post) {
                 form.controls.title.value = data.post.title;
                 form.controls.slug.value = data.post.slug;
                 form.controls.user_id.value = data.post.user_id;
@@ -154,14 +164,17 @@ const loadData = async () => {
                     : "";
                 form.controls.content.value = data.post.content;
                 form.controls.hero.value = data.post.hero;
-            })
-            .catch((error) => {
-                pageError.value =
-                    error.data.message || "An unknown error occurred";
-            });
+            } else {
+                pageError.value = 404;
+            }
+        } else {
+            pageError.value = 404;
+        }
+    } catch (error) {
+        pageError.value = error.status;
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
 const handleSubmit = async () => {
@@ -190,16 +203,18 @@ const handleSubmit = async () => {
             });
         }
 
-        form.message("Your details have been updated", "success");
-    } catch (err) {
-        form.apiError(err);
-    }
+        useToastStore().addToast({
+            title: route.params.id ? "Post Updated" : "Post Created",
+            content: route.params.id
+                ? "The post has been updated."
+                : "The post has been created.",
+            type: "success",
+        });
 
-    window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: "smooth",
-    });
+        useRouter().push({ name: "dashboard-post-list" });
+    } catch (error) {
+        form.apiErrors(error);
+    }
 };
 
 const createStorageKey = (file) => {
