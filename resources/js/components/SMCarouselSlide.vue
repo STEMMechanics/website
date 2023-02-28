@@ -194,6 +194,15 @@ handleLoad();
 
 @media only screen and (max-width: 640px) {
     .carousel-slide .carousel-slide-body {
+        padding: 0;
+
+        .carousel-slide-content {
+            margin: 0;
+            border-radius: 0;
+            padding: 2rem 4rem 1.5rem;
+            height: 100%;
+        }
+
         h3,
         p {
             text-align: center;
