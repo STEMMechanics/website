@@ -384,10 +384,10 @@ const handleChangeUpload = async () => {
                     headers: {
                         "Content-Type": "multipart/form-data",
                     },
-                    progress: (progressData) =>
-                        (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
-                            (progressData.loaded / progressData.total) * 100
-                        )}%`),
+                    // progress: (progressData) =>
+                    //     (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
+                    //         (progressData.loaded / progressData.total) * 100
+                    //     )}%`),
                 });
 
                 if (result.data) {
