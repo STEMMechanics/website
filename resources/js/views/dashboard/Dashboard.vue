@@ -30,7 +30,7 @@
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('admin/courses')"
-                    :to="{ name: 'dashboard-course-list' }"
+                    :to="{ name: 'dashboard-event-list' }"
                     class="box">
                     <ion-icon name="school-outline" />
                     <h2>{{ courseBoxTitle }}</h2>
@@ -41,6 +41,14 @@
                     class="box">
                     <ion-icon name="film-outline" />
                     <h2>Media</h2>
+                </router-link>
+                <router-link
+                    v-if="userStore.permissions.includes('admin/media')"
+                    :to="{ name: 'dashboard-media-list' }"
+                    class="box"
+                    style="background-image: url('/img/minecraft.png')">
+                    <img src="/img/minecraft-grass-block.png" />
+                    <h2>Minecraft</h2>
                 </router-link>
                 <router-link
                     v-if="userStore.permissions.includes('logs/discord')"
@@ -86,6 +94,9 @@ const courseBoxTitle = computed(() => {
             border-radius: 12px;
             border: 2px solid $primary-color-dark;
             background-color: #f8f8f8;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center;
             padding: map-get($spacer, 5) map-get($spacer, 4);
             margin: map-get($spacer, 3);
             font-size: map-get($spacer, 3);
@@ -102,6 +113,10 @@ const courseBoxTitle = computed(() => {
 
             ion-icon {
                 font-size: map-get($spacer, 5);
+            }
+
+            img {
+                height: map-get($spacer, 5);
             }
 
             &:hover {
