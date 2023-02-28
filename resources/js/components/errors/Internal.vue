@@ -1,6 +1,6 @@
 <template>
     <SMPage no-breadcrumbs>
-        <div class="page-error internal">
+        <div class="sm-page-error sm-error-internal">
             <div class="image"></div>
             <div class="content">
                 <h1>The cat has broken something</h1>
@@ -16,7 +16,7 @@
 <script setup lang="ts"></script>
 
 <style lang="scss">
-.page-error.internal .image {
+.sm-page-error.sm-error-internal .image {
     background-image: url("/img/500.jpg");
 }
 </style>
