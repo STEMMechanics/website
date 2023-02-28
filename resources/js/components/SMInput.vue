@@ -301,6 +301,11 @@ const handleMediaSelect = async (event) => {
     if (result) {
         mediaUrl.value = result.url;
         emits("update:modelValue", result.id);
+
+        if (objControl) {
+            objControl.value = result.id;
+            feedbackInvalid.value = "";
+        }
     }
 };
 </script>
