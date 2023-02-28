@@ -79,6 +79,7 @@ import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 
 const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 const page_title = route.params.id ? "Edit Post" : "Create New Post";
 let pageError = ref(200);
@@ -208,7 +209,6 @@ const handleSubmit = async () => {
             type: "success",
         });
 
-        const router = useRouter();
         router.push({ name: "dashboard-post-list" });
     } catch (error) {
         console.log(error);
@@ -279,7 +279,7 @@ const loadOptionsAuthors = async () => {
             }
         })
         .catch((error) => {
-            form.apiError(error);
+            form.apiErrors(error);
         });
 };
 
