@@ -1,9 +1,9 @@
 <template>
     <SMPage
         :full="true"
-        :loading="imageUrl.length == 0"
+        :loading="pageLoading"
         class="sm-workshop-view"
-        :error="pageError">
+        :page-error="pageError">
         <div
             class="sm-workshop-image"
             :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
@@ -119,6 +119,7 @@ const event: Ref<Event | null> = ref(null);
 const imageUrl = ref("");
 
 const route = useRoute();
+const pageLoading = ref(true);
 
 /**
  * Page message.
@@ -128,7 +129,7 @@ const formMessage = ref("");
 /**
  * Page error.
  */
-let pageError = 200;
+let pageError = ref(200);
 
 const workshopDate = computed(() => {
     let str: string[] = [];
@@ -234,12 +235,18 @@ const handleLoad = async () => {
             applicationStore.setDynamicTitle(event.value.title);
             handleLoadImage();
         } else {
-            pageError = 404;
+            pageError.value = 404;
         }
     } catch (error) {
-        formMessage.value =
-            error.data?.message ||
-            "Could not load event information from the server.";
+        if (error.status == 404) {
+            pageError.value = 404;
+        } else {
+            formMessage.value =
+                error.data?.message ||
+                "Could not load event information from the server.";
+        }
+    } finally {
+        pageLoading.value = false;
     }
 };
 
