@@ -139,8 +139,8 @@ const updateSlug = async () => {
  */
 const loadData = async () => {
     try {
-        form.loading(true);
         if (route.params.id) {
+            form.loading(true);
             let result = await api.get({
                 url: "/posts/{id}",
                 params: {
@@ -166,8 +166,6 @@ const loadData = async () => {
             } else {
                 pageError.value = 404;
             }
-        } else {
-            pageError.value = 404;
         }
     } catch (error) {
         pageError.value = error.status;
