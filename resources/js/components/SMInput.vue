@@ -455,6 +455,7 @@ const handleMediaSelect = async (event) => {
     .sm-input-help {
         font-size: 75%;
         margin: 0 map-get($spacer, 1);
+        color: $secondary-color-dark;
 
         .sm-input-invalid {
             color: $danger-color;
