@@ -1,46 +1,60 @@
 <template>
     <SMPage permission="admin/events">
-        <SMHeading heading="Events" />
-        <SMMessage
-            v-if="formMessage.message"
-            :icon="formMessage.icon"
-            :type="formMessage.type"
-            :message="formMessage.message" />
-        <SMToolbar>
-            <template #left>
-                <SMButton
-                    type="primary"
-                    label="Create Event"
-                    @click="handleCreate" />
-            </template>
-            <template #right>
-                <input v-model="search" placeholder="Search" />
-            </template>
-        </SMToolbar>
+        <template #container>
+            <SMHeading heading="Events" />
+            <SMMessage
+                v-if="formMessage.message"
+                :icon="formMessage.icon"
+                :type="formMessage.type"
+                :message="formMessage.message" />
+            <SMToolbar>
+                <template #left>
+                    <SMButton
+                        type="primary"
+                        label="Create Event"
+                        :small="true"
+                        @click="handleCreate" />
+                </template>
+                <template #right>
+                    <SMInput
+                        v-model="search"
+                        label="Search"
+                        :small="true"
+                        style="max-width: 250px" />
+                </template>
+            </SMToolbar>
 
-        <EasyDataTable
-            v-model:server-options="serverOptions"
-            :server-items-length="serverItemsLength"
-            :loading="formLoading"
-            :headers="headers"
-            :items="items"
-            :search-value="search">
-            <template #loading>
-                <SMLoadingIcon />
-            </template>
-            <template #item-title="item">
-                <router-link
-                    :to="{
-                        name: 'dashboard-event-edit',
-                        params: { id: item.id },
-                    }"
-                    >{{ item.title }}</router-link
-                >
-            </template>
-            <template #item-actions="item">
-                <div class="action-wrapper"></div>
-            </template>
-        </EasyDataTable>
+            <EasyDataTable
+                v-model:server-options="serverOptions"
+                :server-items-length="serverItemsLength"
+                :loading="formLoading"
+                :headers="headers"
+                :items="items"
+                :search-value="search">
+                <template #loading>
+                    <SMLoadingIcon />
+                </template>
+                <template #item-title="item">
+                    <router-link
+                        :to="{
+                            name: 'dashboard-event-edit',
+                            params: { id: item.id },
+                        }"
+                        >{{ item.title }}</router-link
+                    >
+                </template>
+                <template #item-actions="item">
+                    <div class="action-wrapper">
+                        <SMButton
+                            label="Edit"
+                            :dropdown="{
+                                delete: 'Delete',
+                            }"
+                            @click="handleClick(item, $event)"></SMButton>
+                    </div>
+                </template>
+            </EasyDataTable>
+        </template>
     </SMPage>
 </template>
 
@@ -55,6 +69,7 @@ import SMHeading from "../../components/SMHeading.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
+import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
@@ -85,6 +100,14 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const handleClick = (item, extra: string): void => {
+    if (extra.length == 0) {
+        handleEdit(item);
+    } else if (extra.toLowerCase() == "delete") {
+        handleDelete(item);
+    }
+};
 
 const loadFromServer = async () => {
     formMessage.icon = "";
@@ -130,7 +153,7 @@ const loadFromServer = async () => {
                 }).relative();
             }
             if (row.created_at !== "undefined") {
-                row.created_at = new SMDate(row.creative_at, {
+                row.created_at = new SMDate(row.created_at, {
                     format: "ymd",
                     utc: true,
                 }).relative();
