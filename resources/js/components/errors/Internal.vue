@@ -19,8 +19,12 @@
 <script setup lang="ts">
 import SMButton from "../SMButton.vue";
 import { useRouter } from "vue-router";
+import { useApplicationStore } from "../../store/ApplicationStore";
 
 const router = useRouter();
+const applicationStore = useApplicationStore();
+
+applicationStore.setDynamicTitle("Server Error");
 
 /**
  * Handle user clicking back/home button
