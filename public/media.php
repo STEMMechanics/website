@@ -7,7 +7,7 @@ if (isset($_GET['url'])) {
     $filepath = realpath($_GET['url']);
 }
 
-if ($filepath !== false && strlen($filepath) > 0 && strpos($filepath, 'uploads/') === 0 && is_file($filepath)) {
+if ($filepath !== false && strlen($filepath) > 0 && strpos($_GET['url'], 'uploads/') === 0 && is_file($filepath)) {
     $image = imagecreatefromstring(file_get_contents($filepath));
 
     $newWidth = (isset($_GET['w']) ? intval($_GET['w']) : -1);
