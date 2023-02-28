@@ -89,8 +89,11 @@
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch } from "vue";
 import { openDialog } from "vue3-promise-dialog";
+import { api } from "../helpers/api";
+import { MediaResponse } from "../helpers/api.types";
 import { toTitleCase } from "../helpers/string";
 import { isEmpty } from "../helpers/utils";
+import { isUUID } from "../helpers/uuid";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 
 const props = defineProps({
@@ -221,8 +224,29 @@ watch(
 
 watch(
     () => value.value,
-    (newValue) => {
+    async (newValue) => {
         inputActive.value = newValue.length > 0;
+
+        if (props.type == "media") {
+            if (isUUID(newValue)) {
+                try {
+                    const result = await api.get({
+                        url: "/media/{id}",
+                        params: {
+                            id: newValue,
+                        },
+                    });
+
+                    const data = result.data as MediaResponse;
+
+                    if (data && data.medium) {
+                        mediaUrl.value = data.medium.url;
+                    }
+                } catch (error) {
+                    /* empty */
+                }
+            }
+        }
     }
 );
 
