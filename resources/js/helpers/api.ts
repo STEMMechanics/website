@@ -87,7 +87,10 @@ export const api = {
                 signal: options.signal || null,
             };
 
-            if (typeof options.body == "string" && options.body.length > 0) {
+            if (
+                (typeof options.body == "string" && options.body.length > 0) ||
+                options.body instanceof FormData
+            ) {
                 fetchOptions.body = options.body;
             }
 
