@@ -38,6 +38,7 @@
                     :date="item.event.start_at"
                     :end-date="item.event.end_at"
                     :date-in-image="true"
+                    :price="item.event.price"
                     :location="
                         item.event.location == 'online'
                             ? 'Online Event'
