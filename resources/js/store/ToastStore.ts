@@ -42,7 +42,6 @@ export const useToastStore = defineStore({
             toast.type = toast.type || defaultToastItem.type;
 
             this.toasts.push(toast);
-            console.log(this.toasts[0].title);
         },
 
         clearToast(id: number) {
