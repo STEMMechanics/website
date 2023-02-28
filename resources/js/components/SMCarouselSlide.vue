@@ -132,7 +132,7 @@ handleLoad();
             color: #fff;
             font-size: 200%;
             max-width: 600px;
-            margin: 0;
+            margin: 0 0 0.5rem 0;
             text-shadow: 0 0 8px rgba(0, 0, 0, 1);
             text-align: left;
         }
@@ -163,11 +163,11 @@ handleLoad();
 }
 
 @media only screen and (max-width: 768px) {
-    .carousel-slide {
-        .carousel-slide-body {
+    .sm-carousel-slide {
+        .sm-carousel-slide-body {
             padding: 0;
 
-            .carousel-slide-content {
+            .sm-carousel-slide-content {
                 width: 100%;
                 max-width: 100%;
                 height: 100%;
@@ -176,7 +176,7 @@ handleLoad();
                 padding-right: 5rem;
                 border-radius: 0;
 
-                .carousel-slide-content-inner {
+                .sm-carousel-slide-content-inner {
                     overflow: hidden;
                 }
             }
@@ -185,7 +185,11 @@ handleLoad();
                 font-size: 120%;
             }
 
-            .carousel-slide-body-buttons {
+            p {
+                font-size: 90%;
+            }
+
+            .sm-carousel-slide-body-buttons {
                 text-align: center;
             }
         }
@@ -193,16 +197,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 640px) {
-    .carousel-slide .carousel-slide-body {
-        padding: 0;
-
-        .carousel-slide-content {
-            margin: 0;
-            border-radius: 0;
-            padding: 2rem 4rem 1.5rem;
-            height: 100%;
-        }
-
+    .sm-carousel-slide .sm-carousel-slide-body {
         h3,
         p {
             text-align: center;
@@ -211,8 +206,8 @@ handleLoad();
 }
 
 @media only screen and (max-width: 400px) {
-    .carousel-slide .carousel-slide-body {
-        .carousel-slide-content {
+    .sm-carousel-slide .sm-carousel-slide-body {
+        .sm-carousel-slide-content {
             padding-left: 3rem;
             padding-right: 3rem;
         }
