@@ -61,6 +61,11 @@
                 </SMRow>
                 <SMRow>
                     <SMColumn>
+                        <SMInput control="price"
+                            >Leave blank to hide from public.</SMInput
+                        >
+                    </SMColumn>
+                    <SMColumn>
                         <SMInput
                             type="select"
                             control="registration_type"
@@ -71,6 +76,8 @@
                                 link: 'Link',
                             }" />
                     </SMColumn>
+                </SMRow>
+                <SMRow>
                     <SMColumn>
                         <SMInput
                             v-if="registration_data?.visible"
@@ -136,6 +143,7 @@ import {
 } from "../../helpers/validate";
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import SMForm from "../../components/SMForm.vue";
+import { EventResponse } from "../../helpers/api.types";
 
 const route = useRoute();
 const page_title = route.params.id ? "Edit Event" : "Create New Event";
@@ -230,54 +238,58 @@ const form = reactive(
         ),
         hero: FormControl("", Required()),
         content: FormControl(),
+        price: FormControl(),
     })
 );
 
 const loadData = async () => {
-    form.loading(true);
-
     if (route.params.id) {
         try {
-            let res = await api.get("/events/" + route.params.id);
-            if (!res.data.event) {
+            form.loading(true);
+
+            const result = await api.get({
+                url: "/events/{id}",
+                params: { id: route.params.id },
+            });
+            const data = result.data as EventResponse;
+
+            if (!data || !data.event) {
                 throw new Error("The server is currently not available");
             }
 
-            form.controls.title.value = res.data.event.title;
-            form.controls.location.value = res.data.event.location;
-            form.controls.address.value = res.data.event.address
-                ? res.data.event.address
+            form.controls.title.value = data.event.title;
+            form.controls.location.value = data.event.location;
+            form.controls.address.value = data.event.address
+                ? data.event.address
                 : "";
-            form.controls.start_at.value = new SMDate(res.data.event.start_at, {
+            form.controls.start_at.value = new SMDate(data.event.start_at, {
                 format: "ymd",
                 utc: true,
-            }).format("yyyy/MM/dd HH:mm:ss");
-            form.controls.end_at.value = new SMDate(res.data.event.end_at, {
+            }).format("yyyy/MM/dd HH:mm");
+            form.controls.end_at.value = new SMDate(data.event.end_at, {
                 format: "ymd",
                 utc: true,
-            }).format("yyyy/MM/dd HH:mm:ss");
-            form.controls.status.value = res.data.event.status;
-            form.controls.publish_at.value = new SMDate(
-                res.data.event.publish_at,
-                {
-                    format: "ymd",
-                    utc: true,
-                }
-            ).format("yyyy/MM/dd HH:mm:ss");
+            }).format("yyyy/MM/dd HH:mm");
+            form.controls.status.value = data.event.status;
+            form.controls.publish_at.value = new SMDate(data.event.publish_at, {
+                format: "ymd",
+                utc: true,
+            }).format("yyyy/MM/dd HH:mm");
             form.controls.registration_type.value =
-                res.data.event.registration_type;
+                data.event.registration_type;
             form.controls.registration_data.value =
-                res.data.event.registration_data;
-            form.controls.content.value = res.data.event.content
-                ? res.data.event.content
+                data.event.registration_data;
+            form.controls.content.value = data.event.content
+                ? data.event.content
                 : "";
-            form.controls.hero.value = res.data.event.hero;
+            form.controls.hero.value = data.event.hero;
+            form.controls.price.value = data.event.price;
         } catch (err) {
             pageError.value = err.response.status;
+        } finally {
+            form.loading(false);
         }
     }
-
-    form.loading(false);
 };
 
 const handleSubmit = async () => {
@@ -303,6 +315,7 @@ const handleSubmit = async () => {
             registration_data: form.controls.registration_data.value,
             content: form.controls.content.value,
             hero: form.controls.hero.value,
+            price: form.controls.price.value,
         };
 
         if (route.params.id) {

@@ -79,3 +79,39 @@ export const replaceHtmlEntites = (txt: string): string => {
         return translate[entity];
     });
 };
+
+/**
+ * Convert a string to a number, ignoring items like dollar signs, etc.
+ *
+ * @param {string} str The string to convert to a number
+ * @returns {number} A number with the minimum amount of decimal places (or 0)
+ */
+export const stringToNumber = (str: string): number => {
+    str = str.replace(/[^\d.-]/g, "");
+    const num = Number.parseFloat(str);
+    return isNaN(num) ? 0 : parseFloat(num.toFixed(2));
+};
+
+/**
+ * Convert a number or string to a price (0 or 0.00).
+ *
+ * @param {number|string} numOrString The number of string to convert to a price.
+ * @returns {string} The converted result.
+ */
+export const toPrice = (numOrString: number | string): string => {
+    let num = 0;
+
+    if (typeof numOrString == "string") {
+        num = stringToNumber(numOrString);
+    } else {
+        num = numOrString;
+    }
+
+    if (num % 1 === 0) {
+        // Number has no decimal places
+        return num.toFixed(0);
+    } else {
+        // Number has decimal places
+        return num.toFixed(2);
+    }
+};

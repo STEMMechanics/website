@@ -5,11 +5,13 @@ export interface Event {
     content: string;
     start_at: string;
     end_at: string;
+    publish_at: string;
     location: string;
     address: string;
     status: string;
     registration_type: string;
     registration_data: string;
+    price: string;
 }
 
 export interface EventResponse {

@@ -19,13 +19,18 @@
             <div v-if="showDate && date" class="sm-panel-date">
                 <ion-icon
                     v-if="showTime == false && endDate.length == 0"
-                    name="calendar-outline" />
-                <ion-icon v-else name="time-outline" />
+                    name="calendar-outline"
+                    class="icon" />
+                <ion-icon v-else name="time-outline" class="icon" />
                 <p>{{ computedDate }}</p>
             </div>
             <div v-if="location" class="sm-panel-location">
-                <ion-icon name="location-outline" />
+                <ion-icon class="icon" name="location-outline" />
                 <p>{{ location }}</p>
+            </div>
+            <div v-if="price" class="sm-panel-price">
+                <span class="icon">$</span>
+                <p>{{ computedPrice }}</p>
             </div>
             <div v-if="content" class="sm-panel-content">
                 {{ computedContent }}
@@ -52,7 +57,12 @@ import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { imageLoad } from "../helpers/image";
-import { excerpt, replaceHtmlEntites, stripHtmlTags } from "../helpers/string";
+import {
+    excerpt,
+    replaceHtmlEntites,
+    stringToNumber,
+    stripHtmlTags,
+} from "../helpers/string";
 import { isUUID } from "../helpers/uuid";
 import SMButton from "./SMButton.vue";
 
@@ -134,6 +144,11 @@ const props = defineProps({
         default: "primary",
         required: false,
     },
+    price: {
+        type: String,
+        default: "",
+        required: false,
+    },
 });
 
 let styleObject = reactive({});
@@ -180,12 +195,30 @@ const computedContent = computed(() => {
     return excerpt(replaceHtmlEntites(stripHtmlTags(props.content)), 200);
 });
 
+/**
+ * Return a computed day number from props.date
+ */
 const computedDay = computed(() => {
     return new SMDate(props.date, { format: "yMd" }).format("dd");
 });
 
+/**
+ * Return a computed month name from props.date
+ */
 const computedMonth = computed(() => {
     return new SMDate(props.date, { format: "yMd" }).format("MMM");
+});
+
+/**
+ * Return a computed price amount, if a form of 0, return "Free"
+ */
+const computedPrice = computed(() => {
+    const parsedPrice = stringToNumber(props.price);
+    if (parsedPrice == 0) {
+        return "Free";
+    }
+
+    return props.price;
 });
 
 onMounted(async () => {
@@ -290,19 +323,21 @@ watch(
     }
 
     .sm-panel-date,
-    .sm-panel-location {
+    .sm-panel-location,
+    .sm-panel-price {
         display: flex;
         flex-direction: row;
         align-items: top;
         font-size: 80%;
         margin-bottom: 0.4rem;
 
-        ion-icon {
+        .icon {
             flex: 0 1 1rem;
             margin-right: map-get($spacer, 1);
             padding-top: 0.1rem;
             height: 1rem;
             padding: 0.25rem 0;
+            text-align: center;
         }
 
         p {

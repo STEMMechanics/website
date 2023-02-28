@@ -27,8 +27,10 @@ class Event extends Model
         'registration_type',
         'registration_data',
         'hero',
-        'content'
+        'content',
+        'price'
     ];
+
 
     /**
      * Get all of the post's attachments.

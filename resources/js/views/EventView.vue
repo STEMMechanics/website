@@ -61,7 +61,11 @@
                             label="Register for Event"></SMButton>
                     </div>
                     <div class="sm-workshop-date">
-                        <h4><ion-icon name="calendar-outline" />Date / Time</h4>
+                        <h4>
+                            <ion-icon
+                                class="icon"
+                                name="calendar-outline" />Date / Time
+                        </h4>
                         <p
                             v-for="(line, index) in workshopDate"
                             :key="index"
@@ -70,7 +74,11 @@
                         </p>
                     </div>
                     <div class="sm-workshop-location">
-                        <h4><ion-icon name="location-outline" />Location</h4>
+                        <h4>
+                            <ion-icon
+                                class="icon"
+                                name="location-outline" />Location
+                        </h4>
                         <p>
                             {{
                                 event.location == "online"
@@ -78,6 +86,9 @@
                                     : event.address
                             }}
                         </p>
+                    </div>
+                    <div v-if="event.price" class="sm-workshop-price">
+                        <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
                 </div>
             </SMContainer>
@@ -95,6 +106,7 @@ import { api } from "../helpers/api";
 import { Event, EventResponse, MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { imageLoad } from "../helpers/image";
+import { stringToNumber } from "../helpers/string";
 import { useApplicationStore } from "../store/ApplicationStore";
 
 const applicationStore = useApplicationStore();
@@ -160,6 +172,18 @@ const workshopDate = computed(() => {
     }
 
     return str;
+});
+
+/**
+ * Return a computed price amount, if a form of 0, return "Free"
+ */
+const computedPrice = computed(() => {
+    const parsedPrice = stringToNumber(event.value.price || "0");
+    if (parsedPrice == 0) {
+        return "Free";
+    }
+
+    return event.value.price;
 });
 
 const registerUrl = computed(() => {
@@ -290,10 +314,11 @@ handleLoad();
                 align-items: center;
                 height: 1rem;
 
-                ion-icon {
+                .icon {
                     display: inline-block;
                     width: 1rem;
                     margin-right: 0.5rem;
+                    text-align: center;
                 }
             }
 
@@ -329,7 +354,8 @@ handleLoad();
             }
 
             .sm-workshop-date,
-            .sm-workshop-location {
+            .sm-workshop-location,
+            .sm-workshop-price {
                 padding: 0 1rem;
             }
         }
