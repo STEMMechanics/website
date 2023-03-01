@@ -44,7 +44,7 @@ class EventRequest extends BaseRequest
             'end_at'            => 'date|after:start_date',
             'publish_at'        => 'date|nullable',
             'status' => [
-                Rule::in(['draft', 'open', 'closed', 'cancelled']),
+                Rule::in(['draft', 'soon', 'open', 'closed', 'cancelled']),
             ],
             'registration_type' => [
                 Rule::in(['none', 'email', 'link']),
