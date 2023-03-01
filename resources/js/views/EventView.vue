@@ -90,6 +90,13 @@
                     <div v-if="event.price" class="sm-workshop-price">
                         <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
+                    <div v-if="event.ages" class="sm-workshop-ages">
+                        <h4>
+                            <ion-icon class="icon" name="body-outline" />{{
+                                event.ages
+                            }}
+                        </h4>
+                    </div>
                 </div>
             </SMContainer>
         </SMContainer>

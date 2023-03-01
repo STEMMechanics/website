@@ -12,6 +12,7 @@ export interface Event {
     registration_type: string;
     registration_data: string;
     price: string;
+    ages: string;
 }
 
 export interface EventResponse {

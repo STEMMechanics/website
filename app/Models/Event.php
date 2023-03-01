@@ -28,7 +28,8 @@ class Event extends Model
         'registration_data',
         'hero',
         'content',
-        'price'
+        'price',
+        'ages',
     ];
 
 

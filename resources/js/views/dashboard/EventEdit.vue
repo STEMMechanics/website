@@ -69,6 +69,13 @@
                         >
                     </SMColumn>
                     <SMColumn>
+                        <SMInput control="ages"
+                            >Leave blank to hide from public.</SMInput
+                        >
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
+                    <SMColumn>
                         <SMInput
                             type="select"
                             control="registration_type"
@@ -79,8 +86,6 @@
                                 link: 'Link',
                             }" />
                     </SMColumn>
-                </SMRow>
-                <SMRow>
                     <SMColumn>
                         <SMInput
                             v-if="registration_data?.visible"
@@ -239,6 +244,7 @@ const form = reactive(
         hero: FormControl("", Required()),
         content: FormControl(),
         price: FormControl(),
+        ages: FormControl(),
     })
 );
 
@@ -284,6 +290,7 @@ const loadData = async () => {
                 : "";
             form.controls.hero.value = data.event.hero;
             form.controls.price.value = data.event.price;
+            form.controls.ages.value = data.event.ages;
         } catch (err) {
             pageError.value = err.response.status;
         } finally {
@@ -316,6 +323,7 @@ const handleSubmit = async () => {
             content: form.controls.content.value,
             hero: form.controls.hero.value,
             price: form.controls.price.value,
+            ages: form.controls.ages.value,
         };
 
         if (route.params.id) {
