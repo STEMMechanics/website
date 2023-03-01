@@ -45,7 +45,8 @@
                             : item.event.address
                     "
                     :banner="item.banner"
-                    :banner-type="item.bannerType"></SMPanel>
+                    :banner-type="item.bannerType"
+                    :ages="computedAges(item.event)"></SMPanel>
             </SMPanelList>
             <SMPagination
                 v-model="postsPage"
@@ -215,6 +216,22 @@ const handleLoad = async () => {
 
 const handleFilter = async () => {
     handleLoad();
+};
+
+/**
+ * Return a human readable Ages string.
+ *
+ * @param item
+ */
+const computedAges = (item: Event): string => {
+    const trimmed = item.ages.trim();
+    const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
+
+    if (regex.test(trimmed)) {
+        return `Ages ${trimmed}`;
+    }
+
+    return item.ages;
 };
 
 watch(

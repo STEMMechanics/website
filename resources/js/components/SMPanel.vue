@@ -28,6 +28,10 @@
                 <ion-icon class="icon" name="location-outline" />
                 <p>{{ location }}</p>
             </div>
+            <div v-if="ages" class="sm-panel-ages">
+                <ion-icon class="icon" name="body-outline" />
+                <p>{{ ages }}</p>
+            </div>
             <div v-if="price" class="sm-panel-price">
                 <span class="icon">$</span>
                 <p>{{ computedPrice }}</p>
@@ -145,6 +149,11 @@ const props = defineProps({
         required: false,
     },
     price: {
+        type: String,
+        default: "",
+        required: false,
+    },
+    ages: {
         type: String,
         default: "",
         required: false,
@@ -324,12 +333,13 @@ watch(
 
     .sm-panel-date,
     .sm-panel-location,
-    .sm-panel-price {
+    .sm-panel-price,
+    .sm-panel-ages {
         display: flex;
         flex-direction: row;
         align-items: top;
         font-size: 80%;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0rem;
 
         .icon {
             flex: 0 1 1rem;
