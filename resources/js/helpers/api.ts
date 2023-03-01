@@ -100,14 +100,26 @@ export const api = {
             fetch(url, fetchOptions)
                 .then(async (response) => {
                     let data: string | object = "";
-                    if (response.headers.get("content-type") == null) {
-                        try {
-                            data = response.json ? await response.json() : {};
-                        } catch (error) {
-                            data = response.text ? await response.text() : "";
+                    if (fetchOptions.method.toLowerCase() != "delete") {
+                        if (
+                            response &&
+                            response.headers.get("content-type") == null
+                        ) {
+                            try {
+                                data = response.json
+                                    ? await response.json()
+                                    : {};
+                            } catch (error) {
+                                data = response.text
+                                    ? await response.text()
+                                    : "";
+                            }
+                        } else {
+                            data =
+                                response && response.json
+                                    ? await response.json()
+                                    : {};
                         }
-                    } else {
-                        data = response.json ? await response.json() : {};
                     }
 
                     const result = {
@@ -125,6 +137,7 @@ export const api = {
                     resolve(result);
                 })
                 .catch((error) => {
+                    console.error("ie", error);
                     // Handle any errors thrown during the fetch process
                     const { response, ...rest } = error;
                     reject({
