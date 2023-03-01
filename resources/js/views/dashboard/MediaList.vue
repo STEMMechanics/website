@@ -1,47 +1,53 @@
 <template>
     <SMPage permission="admin/media">
-        <h1>Media</h1>
+        <template #container>
+            <h1>Media</h1>
 
-        <SMMessage
-            v-if="formMessage.message"
-            :type="formMessage.type"
-            :message="formMessage.message"
-            :icon="formMessage.icon" />
+            <SMMessage
+                v-if="formMessage.message"
+                :type="formMessage.type"
+                :message="formMessage.message"
+                :icon="formMessage.icon" />
 
-        <SMToolbar>
-            <template #left>
-                <SMButton
-                    :to="{ name: 'media-upload' }"
-                    type="primary"
-                    label="Upload Media" />
-            </template>
-            <template #right>
-                <input v-model="search" placeholder="Search" />
-            </template>
-        </SMToolbar>
+            <SMToolbar>
+                <template #left>
+                    <!-- <SMButton
+                        :to="{ name: 'media-upload' }"
+                        type="primary"
+                        label="Upload Media" /> -->
+                </template>
+                <template #right>
+                    <input v-model="search" placeholder="Search" />
+                </template>
+            </SMToolbar>
 
-        <!-- @click-row="handleClickRow" -->
-        <EasyDataTable
-            v-model:server-options="serverOptions"
-            :server-items-length="serverItemsLength"
-            :loading="formLoading"
-            :headers="headers"
-            :items="items"
-            :search-value="search">
-            <template #loading>
-                <SMLoadingIcon />
-            </template>
-            <template #item-size="item">
-                {{ bytesReadable(item.size) }}
-            </template>
-            <template #item-actions="item">
-                <div class="action-wrapper">
-                    <SMFileLink :href="item.url" target="_blank" @click.stop=""
-                        ><font-awesome-icon icon="cloud-download-outline"
-                    /></SMFileLink>
-                </div>
-            </template>
-        </EasyDataTable>
+            <!-- @click-row="handleClickRow" -->
+            <EasyDataTable
+                v-model:server-options="serverOptions"
+                :server-items-length="serverItemsLength"
+                :loading="formLoading"
+                :headers="headers"
+                :items="items"
+                :search-value="search">
+                <template #loading>
+                    <SMLoadingIcon />
+                </template>
+                <template #item-size="item">
+                    {{ bytesReadable(item.size) }}
+                </template>
+                <template #item-actions="item">
+                    <div class="action-wrapper">
+                        <SMButton
+                            label="Edit"
+                            :dropdown="{
+                                download: 'Download',
+                                delete: 'Delete',
+                            }"
+                            @click="handleClick(item, $event)"></SMButton>
+                    </div>
+                </template>
+            </EasyDataTable>
+        </template>
     </SMPage>
 </template>
 
@@ -57,6 +63,7 @@ import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
+import { UserResponse } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
@@ -69,10 +76,10 @@ const userStore = useUserStore();
 const headers = [
     { text: "Name", value: "title", sortable: true },
     { text: "Size", value: "size", sortable: true },
-    { text: "Permission", value: "permission", sortable: true },
+    // { text: "Permission", value: "permission", sortable: true },
     { text: "Uploaded By", value: "username", sortable: true },
     { text: "Created", value: "created_at", sortable: true },
-    { text: "Updated", value: "updated_at", sortable: true },
+    // { text: "Updated", value: "updated_at", sortable: true },
     { text: "Actions", value: "actions" },
 ];
 
@@ -91,6 +98,14 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const handleClick = (item, extra: string): void => {
+    if (extra.length == 0) {
+        handleEdit(item);
+    } else if (extra.toLowerCase() == "delete") {
+        handleDelete(item);
+    }
+};
 
 const loadFromServer = async () => {
     formLoading.value = true;
@@ -129,9 +144,18 @@ const loadFromServer = async () => {
 
         items.value.forEach(async (row) => {
             if (Object.keys(users).includes(row.user_id) === false) {
-                await api.get(`users/${row.user_id}`).then((res) => {
-                    users[row.user_id] = res.data.user.username;
-                });
+                try {
+                    const userResult = await api.get({
+                        url: "/users/{id}",
+                        params: {
+                            id: row.user_id,
+                        },
+                    });
+                    const data = userResult.data as UserResponse;
+                    users[row.user_id] = data.user.username;
+                } catch (error) {
+                    users[row.user_id] = "Unknown";
+                }
             }
 
             if (Object.keys(users).includes(row.user_id)) {
@@ -157,9 +181,9 @@ const loadFromServer = async () => {
         serverItemsLength.value = res.data.total;
     } catch (err) {
         // formMessage.message = parseErrorTyp(err);
+    } finally {
+        formLoading.value = false;
     }
-
-    formLoading.value = false;
 };
 
 loadFromServer();
@@ -216,3 +240,12 @@ const handleDownload = (item) => {
     window.open(item.url, "_blank");
 };
 </script>
+
+<style lang="scss">
+.vue3-easy-data-table {
+    th:nth-child(1),
+    td:nth-child(1) {
+        max-width: 30vw;
+    }
+}
+</style>
