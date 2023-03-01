@@ -183,7 +183,7 @@ if (objControl) {
         value.value = objControl.value;
     }
 
-    if (label.value.length == 0) {
+    if (label.value.length == 0 && typeof props.control == "string") {
         label.value = toTitleCase(props.control);
     }
 
