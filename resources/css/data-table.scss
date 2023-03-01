@@ -10,6 +10,12 @@
         background-color: transparent;
     }
 
+    .vue3-easy-data-table__body td {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     .vue3-easy-data-table__main {
         border-top-left-radius: 12px;
         border-top-right-radius: 12px;
@@ -31,16 +37,6 @@
     .action-wrapper {
         a {
             color: $font-color;
-        }
-
-        svg {
-            margin: 0 0.2rem;
-            transition: color 0.1s ease-in-out;
-
-            &:hover {
-                cursor: pointer;
-                color: $primary-color;
-            }
         }
     }
 }
