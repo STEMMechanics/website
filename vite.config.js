@@ -1,6 +1,7 @@
 import vue from "@vitejs/plugin-vue";
 import laravel from "laravel-vite-plugin";
 import analyzer from "rollup-plugin-analyzer";
+import { compression } from "vite-plugin-compression2";
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -22,6 +23,7 @@ export default defineConfig({
             refresh: true,
         }),
         analyzer({ summaryOnly: true }),
+        compression(),
     ],
     css: {
         preprocessorOptions: {
