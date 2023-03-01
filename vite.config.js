@@ -23,10 +23,10 @@ export default defineConfig({
             refresh: true,
         }),
         analyzer({ summaryOnly: true }),
-        // compression({
-        //     include: [/\.(js)$/, /\.(css)$/],
-        //     deleteOriginalAssets: true,
-        // }),
+        compression({
+            include: [/\.(js)$/, /\.(css)$/],
+            // deleteOriginalAssets: true,
+        }),
     ],
     css: {
         preprocessorOptions: {
