@@ -87,9 +87,6 @@
                             }}
                         </p>
                     </div>
-                    <div v-if="event.price" class="sm-workshop-price">
-                        <h4><span class="icon">$</span>{{ computedPrice }}</h4>
-                    </div>
                     <div v-if="event.ages" class="sm-workshop-ages">
                         <h4>
                             <ion-icon class="icon" name="body-outline" />{{
@@ -97,6 +94,9 @@
                             }}
                         </h4>
                         <p>{{ computedAgeNotice }}</p>
+                    </div>
+                    <div v-if="event.price" class="sm-workshop-price">
+                        <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
                 </div>
             </SMContainer>
@@ -214,7 +214,7 @@ const expired = computed(() => {
 });
 
 /**
- * Return a human readable Ages string
+ * Return a human readable Ages string.
  */
 const computedAges = computed(() => {
     const trimmed = event.value.ages.trim();
@@ -227,6 +227,9 @@ const computedAges = computed(() => {
     return event.value.ages;
 });
 
+/**
+ * Display a age notice if required.
+ */
 const computedAgeNotice = computed(() => {
     const trimmed = event.value.ages.trim();
     const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
@@ -404,7 +407,7 @@ handleLoad();
             }
 
             .sm-workshop-ages p {
-                margin-top: 1rem;
+                margin-top: 0.5rem;
                 margin-left: 1rem;
                 padding: 0 0 0 0.5rem;
                 font-size: 80%;
