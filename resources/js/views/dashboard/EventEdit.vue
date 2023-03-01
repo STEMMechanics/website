@@ -217,7 +217,10 @@ const form = reactive(
                 }),
             ])
         ),
-        publish_at: FormControl("", DateTime()),
+        publish_at: FormControl(
+            route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
+            DateTime()
+        ),
         status: FormControl(),
         registration_type: FormControl("none"),
         registration_data: FormControl(

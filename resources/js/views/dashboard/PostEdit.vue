@@ -93,7 +93,10 @@ const form = reactive(
     Form({
         title: FormControl("", And([Required(), Min(8)])),
         slug: FormControl("", And([Required(), Min(6)])),
-        publish_at: FormControl("", DateTime()),
+        publish_at: FormControl(
+            route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
+            DateTime()
+        ),
         hero: FormControl(),
         user_id: FormControl(userStore.id),
         content: FormControl(),
