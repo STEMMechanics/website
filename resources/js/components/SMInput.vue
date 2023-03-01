@@ -187,7 +187,7 @@ if (objControl) {
         label.value = toTitleCase(props.control);
     }
 
-    inputActive.value = value.value.length > 0;
+    inputActive.value = value.value.length > 0 || props.type == "select";
 
     watch(
         () => objControl.validation.result.valid,
