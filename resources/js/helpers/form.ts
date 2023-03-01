@@ -139,6 +139,17 @@ const defaultFormControlValidation: FormControlValidation = {
     result: defaultValidationResult,
 };
 
+const getDefaultFormControlValidation = (): FormControlValidation => {
+    return {
+        validator: {
+            validate: async (): Promise<ValidationResult> => {
+                return defaultValidationResult;
+            },
+        },
+        result: defaultValidationResult,
+    };
+};
+
 type FormControlClearValidations = () => void;
 type FormControlSetValidation = (
     valid: boolean,
@@ -170,7 +181,7 @@ export const FormControl = (
         value: value,
         validation:
             validator == null
-                ? defaultFormControlValidation
+                ? getDefaultFormControlValidation()
                 : {
                       validator: validator,
                       result: defaultValidationResult,
