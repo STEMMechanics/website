@@ -399,6 +399,12 @@ const handleMediaSelect = async (event) => {
         font-size: 120%;
     }
 
+    &.sm-input-select {
+        .sm-invalid-icon {
+            display: none;
+        }
+    }
+
     input,
     select,
     textarea {
