@@ -348,6 +348,7 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-event-list" });
     } catch (error) {
+        handleFailValidation();
         form.apiErrors(error);
     }
 };
