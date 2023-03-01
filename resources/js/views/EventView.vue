@@ -93,9 +93,10 @@
                     <div v-if="event.ages" class="sm-workshop-ages">
                         <h4>
                             <ion-icon class="icon" name="body-outline" />{{
-                                event.ages
+                                computedAges
                             }}
                         </h4>
+                        <p>{{ computedAgeNotice }}</p>
                     </div>
                 </div>
             </SMContainer>
@@ -210,6 +211,34 @@ const expired = computed(() => {
     return new SMDate(event.value.end_at, {
         format: "ymd",
     }).isBefore();
+});
+
+/**
+ * Return a human readable Ages string
+ */
+const computedAges = computed(() => {
+    const trimmed = event.value.ages.trim();
+    const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
+
+    if (regex.test(trimmed)) {
+        return `Ages ${trimmed}`;
+    }
+
+    return event.value.ages;
+});
+
+const computedAgeNotice = computed(() => {
+    const trimmed = event.value.ages.trim();
+    const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
+
+    if (regex.test(trimmed)) {
+        const age = parseInt(trimmed, 10);
+        if (age <= 8) {
+            return "Parental supervision may be required for children 8 years of age and under.";
+        }
+    }
+
+    return "";
 });
 
 /**
@@ -369,8 +398,18 @@ handleLoad();
 
             .sm-workshop-date,
             .sm-workshop-location,
-            .sm-workshop-price {
+            .sm-workshop-price,
+            .sm-workshop-ages {
                 padding: 0 1rem;
+            }
+
+            .sm-workshop-ages p {
+                margin-top: 1rem;
+                margin-left: 1rem;
+                padding: 0 0 0 0.5rem;
+                font-size: 80%;
+                border-left: 4px solid $warning-color;
+                line-height: 1.2rem;
             }
         }
     }
@@ -395,6 +434,11 @@ handleLoad();
             p {
                 padding-left: 0;
                 text-align: center;
+            }
+
+            .sm-workshop-ages p {
+                margin-left: 0;
+                border-left: 0;
             }
         }
     }
