@@ -100,12 +100,7 @@
                 <SMRow>
                     <SMColumn>
                         <SMEditor
-                            :model-value="form.controls.content.value"
-                            :mime-types="[
-                                'image/png',
-                                'image/jpeg',
-                                'image/gif',
-                            ]" />
+                            v-model:model-value="form.controls.content.value" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>
