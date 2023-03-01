@@ -17,7 +17,11 @@
                         label="Upload Media" /> -->
                 </template>
                 <template #right>
-                    <input v-model="search" placeholder="Search" />
+                    <SMInput
+                        v-model="search"
+                        label="Search"
+                        :small="true"
+                        style="max-width: 250px" />
                 </template>
             </SMToolbar>
 
@@ -56,22 +60,25 @@ import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "vue3-promise-dialog";
-import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMFileLink from "../../components/SMFileLink.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { UserResponse } from "../../helpers/api.types";
+import { Media, UserResponse } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
 import { useUserStore } from "../../store/UserStore";
+import { useToastStore } from "../../store/ToastStore";
+import SMInput from "../../components/SMInput.vue";
 
 const router = useRouter();
 const search = ref("");
 const userStore = useUserStore();
+const toastStore = useToastStore();
 
 const headers = [
     { text: "Name", value: "title", sortable: true },
@@ -209,8 +216,13 @@ const handleEdit = (item) => {
     router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
-const handleDelete = async (item) => {
-    let result = await openDialog(DialogConfirm, {
+/**
+ * Request to delete a media item from the server.
+ *
+ * @param {Media} item The media object to delete.
+ */
+const handleDelete = async (item: Media) => {
+    let result = await openDialog(SMDialogConfirm, {
         title: "Delete File?",
         text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
         cancel: {
@@ -225,13 +237,27 @@ const handleDelete = async (item) => {
 
     if (result) {
         try {
-            await api.delete(`media/${item.id}`);
+            let r = await api.delete({
+                url: "/media/{id}",
+                params: {
+                    id: item.id,
+                },
+            });
+
+            toastStore.addToast({
+                title: "File Deleted",
+                content: `The file ${item.title} has been deleted.`,
+                type: "success",
+            });
             loadFromServer();
-        } catch (err) {
-            alert(
-                err.response?.data?.message ||
-                    "An unexpected server error occurred"
-            );
+        } catch (error) {
+            toastStore.addToast({
+                title: "Error Deleting File",
+                content:
+                    error.data?.message ||
+                    "An unexpected server error occurred",
+                type: "danger",
+            });
         }
     }
 };
