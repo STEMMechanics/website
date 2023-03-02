@@ -56,7 +56,7 @@
                         "
                         class="sm-workshop-registration sm-workshop-registration-url">
                         <SMButton
-                            :href="registerUrl"
+                            :to="registerUrl"
                             :block="true"
                             label="Register for Event"></SMButton>
                     </div>
