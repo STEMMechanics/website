@@ -103,17 +103,46 @@ export const api = {
                 };
 
                 xhr.open(options.method, url);
+                for (const header in options.headers) {
+                    xhr.setRequestHeader(header, options.headers[header]);
+                }
                 xhr.send(options.body as XMLHttpRequestBodyInit);
 
-                return new Promise((resolve, reject) => {
-                    xhr.onload = function () {
-                        if (xhr.status === 200) {
-                            resolve(xhr.response);
-                        } else {
-                            reject(xhr.statusText);
-                        }
+                xhr.onload = function () {
+                    const result = {
+                        status: xhr.status,
+                        statusText: xhr.statusText,
+                        url: url,
+                        headers: {},
+                        data: "",
                     };
-                });
+
+                    const headersString = xhr.getAllResponseHeaders();
+                    const headersArray = headersString.trim().split("\n");
+                    headersArray.forEach((header) => {
+                        const [name, value] = header.trim().split(":");
+                        result.headers[name] = value.trim();
+                    });
+
+                    if (
+                        xhr.response &&
+                        result.headers["content-type"] == "application/json"
+                    ) {
+                        try {
+                            result.data = JSON.parse(xhr.response);
+                        } catch (error) {
+                            result.data = xhr.response;
+                        }
+                    } else {
+                        result.data = xhr.response;
+                    }
+
+                    if (xhr.status === 200) {
+                        resolve(result);
+                    } else {
+                        reject(result);
+                    }
+                };
             } else {
                 const fetchOptions: RequestInit = {
                     method: options.method.toUpperCase() || "GET",
@@ -172,7 +201,6 @@ export const api = {
                         resolve(result);
                     })
                     .catch((error) => {
-                        console.error("ie", error);
                         // Handle any errors thrown during the fetch process
                         const { response, ...rest } = error;
                         reject({
