@@ -12,7 +12,7 @@ interface ApiOptions {
     params?: object;
     method?: string;
     headers?: HeadersInit;
-    body?: string | object;
+    body?: string | object | FormData | ArrayBuffer | Blob;
     signal?: AbortSignal | null;
     progress?: ApiProgressCallback;
 }
@@ -76,78 +76,114 @@ export const api = {
                         // remove the "Content-Type" key from the headers object
                         delete options.headers["Content-Type"];
                     }
+                } else if (
+                    options.body instanceof Blob ||
+                    options.body instanceof ArrayBuffer
+                ) {
+                    // do nothing, let XHR handle these types of bodies without a Content-Type header
                 } else {
                     options.body = JSON.stringify(options.body);
+                    options.headers["Content-Type"] = "application/json";
                 }
             }
 
-            const fetchOptions: RequestInit = {
-                method: options.method || "GET",
-                headers: options.headers,
-                signal: options.signal || null,
-            };
-
             if (
-                (typeof options.body == "string" && options.body.length > 0) ||
-                options.body instanceof FormData
+                (options.method.toUpperCase() || "GET") == "POST" &&
+                options.progress
             ) {
-                fetchOptions.body = options.body;
-            }
+                const xhr = new XMLHttpRequest();
 
-            const progressStore = useProgressStore();
-            progressStore.start();
+                xhr.upload.onprogress = function (event) {
+                    if (event.lengthComputable) {
+                        options.progress({
+                            loaded: event.loaded,
+                            total: event.total,
+                        });
+                    }
+                };
 
-            fetch(url, fetchOptions)
-                .then(async (response) => {
-                    let data: string | object = "";
-                    if (fetchOptions.method.toLowerCase() != "delete") {
-                        if (
-                            response &&
-                            response.headers.get("content-type") == null
-                        ) {
-                            try {
-                                data = response.json
-                                    ? await response.json()
-                                    : {};
-                            } catch (error) {
-                                data = response.text
-                                    ? await response.text()
-                                    : "";
-                            }
+                xhr.open(options.method, url);
+                xhr.send(options.body as XMLHttpRequestBodyInit);
+
+                return new Promise((resolve, reject) => {
+                    xhr.onload = function () {
+                        if (xhr.status === 200) {
+                            resolve(xhr.response);
                         } else {
-                            data =
-                                response && response.json
-                                    ? await response.json()
-                                    : {};
+                            reject(xhr.statusText);
                         }
-                    }
-
-                    const result = {
-                        status: response.status,
-                        statusText: response.statusText,
-                        url: response.url,
-                        headers: response.headers,
-                        data: data,
                     };
-
-                    if (response.status >= 300) {
-                        reject(result);
-                    }
-
-                    resolve(result);
-                })
-                .catch((error) => {
-                    console.error("ie", error);
-                    // Handle any errors thrown during the fetch process
-                    const { response, ...rest } = error;
-                    reject({
-                        ...rest,
-                        response: response && response.json(),
-                    });
-                })
-                .finally(() => {
-                    progressStore.finish();
                 });
+            } else {
+                const fetchOptions: RequestInit = {
+                    method: options.method.toUpperCase() || "GET",
+                    headers: options.headers,
+                    signal: options.signal || null,
+                };
+
+                if (
+                    (typeof options.body == "string" &&
+                        options.body.length > 0) ||
+                    options.body instanceof FormData
+                ) {
+                    fetchOptions.body = options.body;
+                }
+
+                const progressStore = useProgressStore();
+                progressStore.start();
+
+                fetch(url, fetchOptions)
+                    .then(async (response) => {
+                        let data: string | object = "";
+                        if (fetchOptions.method.toLowerCase() != "delete") {
+                            if (
+                                response &&
+                                response.headers.get("content-type") == null
+                            ) {
+                                try {
+                                    data = response.json
+                                        ? await response.json()
+                                        : {};
+                                } catch (error) {
+                                    data = response.text
+                                        ? await response.text()
+                                        : "";
+                                }
+                            } else {
+                                data =
+                                    response && response.json
+                                        ? await response.json()
+                                        : {};
+                            }
+                        }
+
+                        const result = {
+                            status: response.status,
+                            statusText: response.statusText,
+                            url: response.url,
+                            headers: response.headers,
+                            data: data,
+                        };
+
+                        if (response.status >= 300) {
+                            reject(result);
+                        }
+
+                        resolve(result);
+                    })
+                    .catch((error) => {
+                        console.error("ie", error);
+                        // Handle any errors thrown during the fetch process
+                        const { response, ...rest } = error;
+                        reject({
+                            ...rest,
+                            response: response && response.json(),
+                        });
+                    })
+                    .finally(() => {
+                        progressStore.finish();
+                    });
+            }
         });
     },
 
