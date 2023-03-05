@@ -327,7 +327,6 @@ const imageBrowser = (callback, value, meta) => {
                         img.style.backgroundImage = `url('${medium.url}?w=200')`;
                         img.style.cursor = "pointer";
                         img.onclick = function () {
-                            console.log("click");
                             callback(medium.url);
                             dialog.close();
                         };
@@ -387,7 +386,6 @@ const imageBrowser = (callback, value, meta) => {
     const prevButton = document.createElement("button");
     prevButton.className = "prev";
     prevButton.addEventListener("click", () => {
-        console.log("prev");
         if (galleryPage > 1) {
             galleryPage--;
             updateGallery();
@@ -401,7 +399,6 @@ const imageBrowser = (callback, value, meta) => {
     const nextButton = document.createElement("button");
     nextButton.className = "next";
     nextButton.addEventListener("click", () => {
-        console.log("next");
         if (galleryPage < galleryMax) {
             galleryPage++;
             updateGallery();

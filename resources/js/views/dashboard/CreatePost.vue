@@ -107,11 +107,8 @@ const attachmentAdd = async (event) => {
                 url: res.data.url,
                 href: res.data.url,
             });
-
-            console.log(res);
         } catch (err) {
             event.preventDefault();
-            console.log(err);
         }
     }
 };
