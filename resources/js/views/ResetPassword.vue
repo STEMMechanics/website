@@ -30,11 +30,11 @@
                     <p class="text-center">
                         Hurrah, Your password has been changed!
                     </p>
-                    <SMRow class="pb-2">
-                        <SMColumn class="justify-content-center">
+                    <SMFormFooter>
+                        <template #right>
                             <SMButton :to="{ name: 'login' }" label="Login" />
-                        </SMColumn>
-                    </SMRow>
+                        </template>
+                    </SMFormFooter>
                 </template>
             </SMDialog>
         </SMRow>

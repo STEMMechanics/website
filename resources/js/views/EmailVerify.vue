@@ -4,16 +4,16 @@
             <SMDialog class="mt-5" narrow>
                 <template v-if="!formDone">
                     <h1>Email Verify</h1>
+                    <p>
+                        Enter your verification code below. If you have not yet
+                        received one,
+                        <router-link to="/resend-verify-email"
+                            >request a new code</router-link
+                        >.
+                    </p>
                     <SMForm v-model="form" @submit="handleSubmit">
                         <SMInput control="code" />
                         <SMFormFooter>
-                            <template #left>
-                                <div class="small">
-                                    <router-link to="/resend-verify-email"
-                                        >Resend Code</router-link
-                                    >
-                                </div>
-                            </template>
                             <template #right>
                                 <SMButton
                                     type="submit"
@@ -28,11 +28,11 @@
                     <p class="text-center">
                         Hurrah, Your email has been verified!
                     </p>
-                    <SMRow class="pb-2">
-                        <SMColumn class="justify-content-center">
+                    <SMFormFooter>
+                        <template #right>
                             <SMButton :to="{ name: 'login' }" label="Login" />
-                        </SMColumn>
-                    </SMRow>
+                        </template>
+                    </SMFormFooter>
                 </template>
             </SMDialog>
         </SMRow>

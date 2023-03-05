@@ -1,7 +1,7 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow>
+            <SMDialog class="mt-5" narrow>
                 <template v-if="!formDone">
                     <h1>Resend Verify Email</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
@@ -31,11 +31,11 @@
                         to verify your email, you will receive an email with a
                         new verify code.
                     </p>
-                    <SMRow class="pb-2">
-                        <SMColumn class="justify-content-center">
+                    <SMFormFooter>
+                        <template #right>
                             <SMButton :to="{ name: 'home' }" label="Home" />
-                        </SMColumn>
-                    </SMRow>
+                        </template>
+                    </SMFormFooter>
                 </template>
             </SMDialog>
         </SMRow>

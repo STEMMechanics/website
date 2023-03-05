@@ -58,11 +58,11 @@
                         An email has been sent to you to confirm your details
                         and to finish registering your account.
                     </p>
-                    <SMRow class="pb-2">
-                        <SMColumn class="justify-content-center">
+                    <SMFormFooter>
+                        <template #right>
                             <SMButton :to="{ name: 'home' }" label="Home" />
-                        </SMColumn>
-                    </SMRow>
+                        </template>
+                    </SMFormFooter>
                 </template>
             </SMDialog>
         </template>
