@@ -122,6 +122,11 @@ export const Form = (
     const form = defaultFormObject;
     form.controls = controls;
 
+    form._loading = false;
+    form._message = "";
+    form._messageType = "primary";
+    form._messageIcon = "";
+
     return form;
 };
 
