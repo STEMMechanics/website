@@ -164,7 +164,7 @@ export const api = {
                 fetch(url, fetchOptions)
                     .then(async (response) => {
                         let data: string | object = "";
-                        if (fetchOptions.method.toLowerCase() != "delete") {
+                        if (response.headers.get("content-length") !== "0") {
                             if (
                                 response &&
                                 response.headers.get("content-type") == null
@@ -174,9 +174,13 @@ export const api = {
                                         ? await response.json()
                                         : {};
                                 } catch (error) {
-                                    data = response.text
-                                        ? await response.text()
-                                        : "";
+                                    try {
+                                        data = response.text
+                                            ? await response.text()
+                                            : "";
+                                    } catch (error) {
+                                        data = "";
+                                    }
                                 }
                             } else {
                                 data =
