@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import { api } from "../helpers/api";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { useProgressStore } from "../store/ProgressStore";
+import { updateSEOTags } from "../helpers/seo";
 
 export const routes = [
     {
@@ -10,6 +11,8 @@ export const routes = [
         name: "home",
         meta: {
             title: "Home",
+            description:
+                "STEMMechanics, a family-run company based in Cairns, Queensland, creates fantastic STEM-focused programs and activities that are both entertaining and educational.",
         },
         component: () => import("@/views/Home.vue"),
     },
@@ -397,50 +400,76 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    // Document Title
-    const nearestWithTitle = to.matched
-        .slice()
-        .reverse()
-        .find((r) => r.meta && r.meta.title);
-    const previousNearestWithMeta = from.matched
-        .slice()
-        .reverse()
-        .find((r) => r.meta && r.meta.metaTags);
+    const getMetaValue = (tag, defaultValue = "") => {
+        const getMeta = (obj, tag) => {
+            const tagHierarchy = tag.split(".");
 
-    let title = "";
-    if (nearestWithTitle) {
-        title = nearestWithTitle.meta.title;
-    } else if (previousNearestWithMeta) {
-        title = previousNearestWithMeta.meta.title;
-    }
+            const nearestWithMeta = obj.matched
+                .slice()
+                .reverse()
+                .reduce(
+                    (acc, r) => acc || (r.meta && r.meta[tagHierarchy[0]]),
+                    null
+                );
+            if (nearestWithMeta) {
+                let result = nearestWithMeta;
+                for (let i = 1; i < tagHierarchy.length; i++) {
+                    result = result[tagHierarchy[i]];
+                    if (!result) break;
+                }
+                if (result !== undefined) return result;
+            }
 
-    if (title != "") {
-        document.title = "STEMMechanics | " + title;
-    }
+            return null;
+        };
+
+        const nearestMeta = getMeta(to, tag);
+        if (nearestMeta == null) {
+            const previousMeta = getMeta(from, tag);
+            if (previousMeta == null) {
+                return defaultValue;
+            }
+
+            return previousMeta;
+        }
+        return nearestMeta;
+    };
+
+    updateSEOTags({
+        title: getMetaValue("title"),
+        description: getMetaValue("description"),
+        keywords: getMetaValue("keywords", []),
+        robots: {
+            index: getMetaValue("robots.index", true),
+            follow: getMetaValue("robots.follow", true),
+        },
+        url: getMetaValue("url", to.path),
+        image: getMetaValue("image", ""),
+    });
 
     // Meta tags
-    const nearestWithMeta = to.matched
-        .slice()
-        .reverse()
-        .find((r) => r.meta && r.meta.metaTags);
-    Array.from(document.querySelectorAll("[data-vue-router-controlled]")).map(
-        (el) => el.parentNode.removeChild(el)
-    );
-    if (nearestWithMeta) {
-        nearestWithMeta.meta.metaTags
-            .map((tagDef) => {
-                const tag = document.createElement("meta");
+    // const nearestWithMeta = to.matched
+    //     .slice()
+    //     .reverse()
+    //     .find((r) => r.meta && r.meta.metaTags);
+    // Array.from(document.querySelectorAll("[data-vue-router-controlled]")).map(
+    //     (el) => el.parentNode.removeChild(el)
+    // );
+    // if (nearestWithMeta) {
+    //     nearestWithMeta.meta.metaTags
+    //         .map((tagDef) => {
+    //             const tag = document.createElement("meta");
 
-                Object.keys(tagDef).forEach((key) => {
-                    tag.setAttribute(key, tagDef[key]);
-                });
+    //             Object.keys(tagDef).forEach((key) => {
+    //                 tag.setAttribute(key, tagDef[key]);
+    //             });
 
-                tag.setAttribute("data-vue-router-controlled", "");
+    //             tag.setAttribute("data-vue-router-controlled", "");
 
-                return tag;
-            })
-            .forEach((tag) => document.head.appendChild(tag));
-    }
+    //             return tag;
+    //         })
+    //         .forEach((tag) => document.head.appendChild(tag));
+    // }
 
     if (to.meta.middleware == "authenticated" && !userStore.id) {
         progressStore.finish();
