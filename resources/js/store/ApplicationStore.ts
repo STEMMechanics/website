@@ -19,7 +19,7 @@ export const useApplicationStore = defineStore({
     actions: {
         async setDynamicTitle(title: string) {
             this.$state.dynamicTitle = title;
-            document.title = "STEMMechanics | " + title;
+            document.title = `STEMMechanics | ${title}`;
         },
 
         clearDynamicTitle() {
