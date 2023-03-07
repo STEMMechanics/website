@@ -66,25 +66,29 @@ const waitForElementRender = (elem: Ref): Promise<HTMLElement> => {
  * @returns {void}
  */
 export const transitionEnter = (elem: Ref, transition: string): void => {
-    waitForElementRender(elem).then((e: HTMLElement) => {
-        window.setTimeout(() => {
-            e.classList.replace(
-                transition + "-enter-from",
-                transition + "-enter-active"
-            );
-            const transitionName = transitionEndEventName();
-            e.addEventListener(
-                transitionName,
-                () => {
-                    e.classList.replace(
-                        transition + "-enter-active",
-                        transition + "-enter-to"
-                    );
-                },
-                false
-            );
-        }, 1);
-    });
+    waitForElementRender(elem)
+        .then((e: HTMLElement) => {
+            window.setTimeout(() => {
+                e.classList.replace(
+                    transition + "-enter-from",
+                    transition + "-enter-active"
+                );
+                const transitionName = transitionEndEventName();
+                e.addEventListener(
+                    transitionName,
+                    () => {
+                        e.classList.replace(
+                            transition + "-enter-active",
+                            transition + "-enter-to"
+                        );
+                    },
+                    false
+                );
+            }, 1);
+        })
+        .catch(() => {
+            /* empty */
+        });
 };
 
 /**
