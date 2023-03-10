@@ -41,9 +41,9 @@ Route::post('posts/{post}/attachments', [PostController::class, 'storeAttachment
 Route::delete('posts/{post}/attachments/{attachment}', [PostController::class, 'deleteAttachment']);
 
 Route::apiResource('events', EventController::class);
-Route::get('events/{event}/attachments', [PostController::class, 'getAttachments']);
-Route::post('events/{event}/attachments', [PostController::class, 'storeAttachment']);
-Route::delete('events/{event}/attachments/{attachment}', [PostController::class, 'deleteAttachment']);
+Route::get('events/{event}/attachments', [EventController::class, 'getAttachments']);
+Route::post('events/{event}/attachments', [EventController::class, 'storeAttachment']);
+Route::delete('events/{event}/attachments/{attachment}', [EventController::class, 'deleteAttachment']);
 
 Route::apiResource('subscriptions', SubscriptionController::class);
 Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']);
