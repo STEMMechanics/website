@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enum\HttpResponseCodes;
-use App\Filters\EventFilter;
 use App\Http\Requests\EventRequest;
 use App\Models\Event;
+use App\Conductors\EventConductor;
 use Illuminate\Http\Request;
 
 class EventController extends ApiController
@@ -22,56 +22,70 @@ class EventController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param  EventFilter $filter The event filter.
+     * @param  Request      $request The request.
      * @return \Illuminate\Http\Response
      */
-    public function index(EventFilter $filter)
+    public function index(Request $request)
     {
+        list($collection, $total) = EventConductor::request($request);
+
         return $this->respondAsResource(
-            $filter->filter(),
-            ['total' => $filter->foundTotal()]
+            $collection,
+            ['total' => $total]
         );
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  EventRequest $request The event store request.
+     * @param  Request      $request The request.
      * @return \Illuminate\Http\Response
      */
-    public function store(EventRequest $request)
+    public function store(Request $request)
     {
-        $event = Event::create($request->all());
-        return $this->respondAsResource(
-            (new EventFilter($request))->filter($event),
-            null,
-            HttpResponseCodes::HTTP_CREATED
-        );
+        if(EventConductor::creatable()) {
+            $event = Event::create($request->all());
+            return $this->respondAsResource(
+                EventConductor::model($request, $event),
+                null,
+                HttpResponseCodes::HTTP_CREATED
+            );
+        } else {
+            return $this->respondForbidden();
+        }
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  EventFilter       $filter The event filter.
+     * @param  Request      $request The request.
      * @param  \App\Models\Event $event  The specified event.
      * @return \Illuminate\Http\Response
      */
-    public function show(EventFilter $filter, Event $event)
+    public function show(Request $request, Event $event)
     {
-        return $this->respondAsResource($filter->filter($event));
+        if(EventConductor::viewable($event)) {
+            return $this->respondAsResource(EventConductor::model($request, $event));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  EventRequest      $request The event update request.
+     * @param  Request      $request The request.
      * @param  \App\Models\Event $event   The specified event.
      * @return \Illuminate\Http\Response
      */
-    public function update(EventRequest $request, Event $event)
+    public function update(Request $request, Event $event)
     {
-        $event->update($request->all());
-        return $this->respondAsResource((new EventFilter($request))->filter($event));
+        if(EventConductor::updatable($event)) {
+            $event->update($request->all());
+            return $this->respondAsResource(EventConductor::model($request, $event));
+        } else {
+            return $this->respondForbidden();
+        }
     }
 
     /**
@@ -82,7 +96,11 @@ class EventController extends ApiController
      */
     public function destroy(Event $event)
     {
-        $event->delete();
-        return $this->respondNoContent();
+        if(EventConductor::destroyable($event)) {
+            $event->delete();
+            return $this->respondNoContent();
+        } else {
+            return $this->respondForbidden();
+        }
     }
 }

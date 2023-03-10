@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\UserCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Conductors\UserConductor;
 
 class UserController extends ApiController
 {
@@ -48,32 +49,33 @@ class UserController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param \App\Filters\UserFilter $filter Filter object.
+     * @param  Request      $request The request.
      * @return \Illuminate\Http\Response
      */
-    public function index(UserFilter $filter)
+    public function index(Request $request)
     {
-        $collection = $filter->filter();
+        list($collection, $total) = UserConductor::request($request);
+
         return $this->respondAsResource(
             $collection,
-            ['total' => $filter->foundTotal()]
+            ['total' => $total]
         );
     }
 
     /**
      * Store a newly created user in the database.
      *
-     * @param  UserStoreRequest $request The user update request.
+     * @param  Request      $request The request.
      * @return \Illuminate\Http\Response
      */
-    public function store(UserStoreRequest $request)
+    public function store(Request $request)
     {
-        if ($request->user()->hasPermission('admin/user') !== true) {
+        if(UserConductor::creatable()) {
+            $user = User::create($request->all());
+            return $this->respondAsResource(UserConductor::model($request, $user), [], HttpResponseCodes::HTTP_CREATED);
+        } else {
             return $this->respondForbidden();
         }
-
-        $user = User::create($request->all());
-        return $this->respondAsResource((new UserFilter($request))->filter($user), [], HttpResponseCodes::HTTP_CREATED);
     }
 
 
@@ -84,9 +86,14 @@ class UserController extends ApiController
      * @param  User       $user   The user model.
      * @return \Illuminate\Http\Response
      */
-    public function show(UserFilter $filter, User $user)
+    // public function show(UserFilter $filter, User $user)
+    public function show(Request $request, User $user)
     {
-        return $this->respondAsResource($filter->filter($user));
+        if(UserConductor::viewable($user)) {
+            return $this->respondAsResource(UserConductor::model($request, $user));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
@@ -98,23 +105,23 @@ class UserController extends ApiController
      */
     public function update(UserUpdateRequest $request, User $user)
     {
-        $input = [];
-        $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
+        if(UserConductor::updatable($user)) {
+            $input = [];
+            $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
 
-        if ($request->user()->hasPermission('admin/user') === true) {
-            $updatable = array_merge($updatable, ['email_verified_at']);
-        } elseif ($request->user()->is($user) !== true) {
-            return $this->respondForbidden();
+            if ($request->user()->hasPermission('admin/user') === true) {
+                $updatable = array_merge($updatable, ['email_verified_at']);
+            }
+
+            $input = $request->only($updatable);
+            if (array_key_exists('password', $input) === true) {
+                $input['password'] = Hash::make($request->input('password'));
+            }
+
+            $user->update($input);
+
+            return $this->respondAsResource(UserConductor::model($request, $user));
         }
-
-        $input = $request->only($updatable);
-        if (array_key_exists('password', $input) === true) {
-            $input['password'] = Hash::make($request->input('password'));
-        }
-
-        $user->update($input);
-
-        return $this->respondAsResource((new UserFilter($request))->filter($user));
     }
 
 
@@ -126,12 +133,12 @@ class UserController extends ApiController
      */
     public function destroy(User $user)
     {
-        if ($user->hasPermission('admin/user') === false) {
-            return $this->respondForbidden();
+        if(UserConductor::destroyable($user)) {
+            $user->delete();
+            return $this->respondNoContent();
         }
 
-        $user->delete();
-        return $this->respondNoContent();
+        return $this->respondForbidden();
     }
 
     /**
