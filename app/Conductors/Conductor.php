@@ -20,6 +20,63 @@ class Conductor
     private $query = null;
 
 
+    private function splitString($string)
+    {
+        $parts = [];
+        $start = 0;
+        $len = strlen($string);
+
+        while ($start < $len) {
+            $commaPos = strpos($string, ',', $start);
+            $singlePos = strpos($string, '\'', $start);
+            $doublePos = strpos($string, '"', $start);
+
+            // Find the smallest position that is not false
+            $minPos = false;
+            if ($commaPos !== false) {
+                $minPos = $commaPos;
+            }
+            if ($singlePos !== false && ($minPos === false || $singlePos < $minPos)) {
+                $minPos = $singlePos;
+            }
+            if ($doublePos !== false && ($minPos === false || $doublePos < $minPos)) {
+                $minPos = $doublePos;
+            }
+
+            if ($minPos === false) {
+                // No more commas, single quotes, or double quotes found
+                $part = substr($string, $start);
+                $parts[] = trim($part);
+                break;
+            } else {
+                // Add the current part to the parts array
+                $part = substr($string, $start, ($minPos - $start));
+                $parts[] = trim($part);
+
+                // Update the start position to the next character after the comma, single quote, or double quote
+                if ($string[$minPos] === ',') {
+                    $start = ($minPos + 1);
+                } else {
+                    $quoteChar = $string[$minPos];
+                    $endPos = strpos($string, $quoteChar, ($minPos + 1));
+                    if ($endPos === false) {
+                        $part = substr($string, ($minPos + 1));
+                        $parts[] = trim($part);
+                        break;
+                    } else {
+                        $part = substr($string, ($minPos + 1), ($endPos - $minPos - 1));
+                        $parts[] = trim($part);
+                        $start = ($endPos + 1);
+                    }
+                }
+            }//end if
+        }//end while
+
+        return array_filter($parts, function ($value) {
+            return $value !== '';
+        });
+    }
+
     final public static function request(Request $request)
     {
         $conductor_class = get_called_class();
@@ -121,12 +178,11 @@ class Conductor
 
     final public function filterField(Builder $builder, string $field, mixed $value)
     {
+        $values = [];
+
         // Split by comma, but respect quotation marks
         if (is_string($value) === true) {
-            $values = preg_split('/(?<!\\\\),/', $value);
-            $values = array_map(function ($val) {
-                return str_replace('\,', ',', $val);
-            }, $values);
+            $values = $this->splitString($value);
         } elseif (is_array($value) === true) {
             $values = $value;
         } else {
@@ -139,7 +195,7 @@ class Conductor
                 $value = trim($value);
 
                 // Check if value has a prefix and remove it if it's a number
-                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches) !== false) {
+                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches) > 0) {
                     $prefix = $matches[1];
                     $value = $matches[2];
                 } else {
@@ -147,34 +203,35 @@ class Conductor
                 }
 
                 // If the value starts with '=', exact match
+
                 if (strpos($value, '=') === 0) {
-                    $query->where($field, '=', substr($value, 1));
+                    $query->orWhere($field, '=', substr($value, 1));
                 } elseif (strpos($value, '!=') === 0) {
-                    $query->where($field, '<>', substr($value, 2));
+                    $query->orWhere($field, '<>', substr($value, 2));
                 } elseif (strpos($value, '!') === 0) {
-                    $query->where($field, 'NOT LIKE', '%' . substr($value, 1) . '%');
+                    $query->orWhere($field, 'NOT LIKE', '%' . substr($value, 1) . '%');
                 } else {
-                    $query->where($field, 'LIKE', "%$value%");
+                    $query->orWhere($field, 'LIKE', "%$value%");
                 }
 
                 // Apply the prefix to the query if the value is a number
                 if (is_numeric($value) === true) {
                     switch ($prefix) {
                         case '>':
-                            $query->where($field, '>', $value);
+                            $query->orWhere($field, '>', $value);
                             break;
                         case '<':
-                            $query->where($field, '<', $value);
+                            $query->orWhere($field, '<', $value);
                             break;
                         case '>=':
-                            $query->where($field, '>=', $value);
+                            $query->orWhere($field, '>=', $value);
                             break;
                         case '<=':
-                            $query->where($field, '<=', $value);
+                            $query->orWhere($field, '<=', $value);
                             break;
                         case '!=':
                         case '<>':
-                            $query->where($field, '<>', $value);
+                            $query->orWhere($field, '<>', $value);
                             break;
                     }
                 }
