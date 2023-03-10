@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Conductors;
 
 use Illuminate\Database\Eloquent\Builder;
@@ -7,7 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class Conductor {
+class Conductor
+{
     protected $class = null;
     protected $sort = "id";
     protected $limit = 50;
@@ -17,9 +19,11 @@ class Conductor {
     private $collection = null;
     private $query = null;
 
-    final public static function request(Request $request) {
+
+    final public static function request(Request $request)
+    {
         $conductor_class = get_called_class();
-        $conductor = new $conductor_class;
+        $conductor = new $conductor_class();
 
         $total = 0;
 
@@ -28,13 +32,13 @@ class Conductor {
         } catch (\Throwable $e) {
             throw new \Exception('Failed to create query builder instance for ' . $conductor->class . '.', 0, $e);
         }
-        
+
         // Scope query
         $conductor->scope($conductor->query);
 
         // Filter request
-        $fields = $conductor->fields(new $conductor->class);
-        if(is_array($fields) == false) {
+        $fields = $conductor->fields(new $conductor->class());
+        if (is_array($fields) === false) {
             $fields = [];
         }
 
@@ -53,7 +57,7 @@ class Conductor {
 
         // Limit fields
         $limitFields = $request->input('fields');
-        if($limitFields == null) {
+        if ($limitFields === null) {
             $limitFields = $fields;
         } else {
             $limitFields = array_intersect($limitFields, $fields);
@@ -64,11 +68,11 @@ class Conductor {
 
         // Transform and Includes
         $includes = $conductor->includes;
-        if($request->has('includes')) {
+        if ($request->has('includes') === true) {
             $includes = explode(',', $request->input('includes'));
         }
-        
-        $conductor->collection = $conductor->collection->map(function ($model) use($conductor, $includes) {
+
+        $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes) {
             $conductor->includes($model, $includes);
             $model = $conductor->transform($model);
 
@@ -78,50 +82,52 @@ class Conductor {
         return [$conductor->collection, $total];
     }
 
-    final public static function model(Request $request, Model $model) {
+    final public static function model(Request $request, Model $model)
+    {
         $conductor_class = get_called_class();
-        $conductor = new $conductor_class;
-        
-        $fields = $conductor->fields(new $conductor->class);
+        $conductor = new $conductor_class();
+
+        $fields = $conductor->fields(new $conductor->class());
 
         // Limit fields
         $limitFields = $fields;
-        if($request != null && $request->has('fields')) {
+        if ($request !== null && $request->has('fields') === true) {
             $requestFields = $request->input('fields');
-            if($requestFields != null) {
+            if ($requestFields !== null) {
                 $limitFields = array_intersect(explode(',', $requestFields), $fields);
             }
         }
 
-        if(empty($limitFields) === false) {
-            $modelSubset = new $conductor->class;
-            foreach($limitFields as $field) {
+        if (empty($limitFields) === false) {
+            $modelSubset = new $conductor->class();
+            foreach ($limitFields as $field) {
                 $modelSubset->setAttribute($field, $model->$field);
             }
             $model = $modelSubset;
         }
-        
+
         // Includes
         $includes = $conductor->includes;
-        if($request != null && $request->has('includes')) {
+        if ($request !== null && $request->has('includes') === true) {
             $includes = explode(',', $request->input('includes', ''));
         }
         $conductor->includes($model, $includes);
 
         // Transform
         $model = $conductor->transform($model);
-        
+
         return $model;
     }
 
-    final public function filterField(Builder $builder, string $field, mixed $value) {
+    final public function filterField(Builder $builder, string $field, mixed $value)
+    {
         // Split by comma, but respect quotation marks
-        if (is_string($value)) {
+        if (is_string($value) === true) {
             $values = preg_split('/(?<!\\\\),/', $value);
             $values = array_map(function ($val) {
                 return str_replace('\,', ',', $val);
             }, $values);
-        } else if (is_array($value)) {
+        } elseif (is_array($value) === true) {
             $values = $value;
         } else {
             throw new \InvalidArgumentException('Expected string or array, got ' . gettype($value));
@@ -131,28 +137,28 @@ class Conductor {
         $this->query->where(function ($query) use ($field, $values) {
             foreach ($values as $value) {
                 $value = trim($value);
-                
+
                 // Check if value has a prefix and remove it if it's a number
-                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches)) {
+                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches) !== false) {
                     $prefix = $matches[1];
                     $value = $matches[2];
                 } else {
                     $prefix = '';
                 }
-                
+
                 // If the value starts with '=', exact match
                 if (strpos($value, '=') === 0) {
                     $query->where($field, '=', substr($value, 1));
-                } else if (strpos($value, '!=') === 0) {
+                } elseif (strpos($value, '!=') === 0) {
                     $query->where($field, '<>', substr($value, 2));
-                } else if (strpos($value, '!') === 0) {
-                    $query->where($field, 'NOT LIKE', '%'.substr($value, 1).'%');
+                } elseif (strpos($value, '!') === 0) {
+                    $query->where($field, 'NOT LIKE', '%' . substr($value, 1) . '%');
                 } else {
                     $query->where($field, 'LIKE', "%$value%");
                 }
-                
+
                 // Apply the prefix to the query if the value is a number
-                if (is_numeric($value)) {
+                if (is_numeric($value) === true) {
                     switch ($prefix) {
                         case '>':
                             $query->where($field, '>', $value);
@@ -172,41 +178,44 @@ class Conductor {
                             break;
                     }
                 }
-            }
+            }//end foreach
         });
     }
 
-    final public function collection(Collection $collection = null) {
-        if($collection != null) {
+    final public function collection(Collection $collection = null)
+    {
+        if ($collection !== null) {
             $this->collection = $collection;
         }
 
         return $this->collection;
     }
 
-    final public function count() {
-        if($this->query != null) {
+    final public function count()
+    {
+        if ($this->query !== null) {
             return $this->query->count();
         }
 
         return 0;
     }
-    
-    final public function sort(mixed $fields = null) {
-        if(is_string($fields)) {
+
+    final public function sort(mixed $fields = null)
+    {
+        if (is_string($fields) === true) {
             $fields = explode(',', $fields);
-        } else if($fields == null) {
+        } elseif ($fields === null) {
             $fields = $this->sort;
         }
 
-        if(is_array($fields)) {
+        if (is_array($fields) === true) {
             foreach ($fields as $orderByField) {
                 $direction = 'asc';
                 $directionChar = substr($orderByField, 0, 1);
-                
-                if(in_array($directionChar, ['-', '+'])) {
+
+                if (in_array($directionChar, ['-', '+']) === true) {
                     $orderByField = substr($orderByField, 1);
-                    if($directionChar == '-') {
+                    if ($directionChar === '-') {
                         $direction = 'desc';
                     }
                 }
@@ -217,16 +226,18 @@ class Conductor {
             throw new \InvalidArgumentException('Expected string or array, got ' . gettype($fields));
         }
     }
-    
-    final public function filter(array $filters) {
+
+    final public function filter(array $filters)
+    {
         foreach ($filters as $param => $value) {
             $this->filterField($this->query, $param, $value);
         }
     }
 
-    final public function paginate(int $page = 1, int $limit = -1) {
+    final public function paginate(int $page = 1, int $limit = -1)
+    {
         // Limit
-        if($limit < 1) {
+        if ($limit < 1) {
             $limit = $this->limit;
         } else {
             $limit = min($limit, $this->maxLimit);
@@ -234,39 +245,42 @@ class Conductor {
         $this->query->limit($limit);
 
         // Page
-        if($page < 1) {
+        if ($page < 1) {
             $page = 1;
         }
         $this->query->offset(($page - 1) * $limit);
     }
 
-    final public function includes(Model $model, array $includes) {
-        foreach($includes as $include) {
+    final public function includes(Model $model, array $includes)
+    {
+        foreach ($includes as $include) {
             $includeMethodName = 'include' . Str::studly($include);
-            if (method_exists($this, $includeMethodName)) {
+            if (method_exists($this, $includeMethodName) === true) {
                 $attributeName = Str::snake($include);
                 $attributeValue = $this->{$includeMethodName}($model);
-                if($attributeValue !== null) {
+                if ($attributeValue !== null) {
                     $model->$attributeName = $this->{$includeMethodName}($model);
                 }
             }
         }
     }
 
-    final public function limitFields(array $fields) {
-        if(empty($fields) !== true) {
+    final public function limitFields(array $fields)
+    {
+        if (empty($fields) !== true) {
             $this->query->select($fields);
         }
     }
 
     /** overrides */
-    public function scope(Builder $builder) {
-
+    public function scope(Builder $builder)
+    {
     }
 
-    public function fields(Model $model) {
+    public function fields(Model $model)
+    {
         $visibleFields = $model->getVisible();
-        if (empty($visibleFields)) {
+        if (empty($visibleFields) === true) {
             $tableColumns = $model->getConnection()
                 ->getSchemaBuilder()
                 ->getColumnListing($model->getTable());
@@ -276,23 +290,28 @@ class Conductor {
         return $visibleFields;
     }
 
-    public function transform(Model $model) {
+    public function transform(Model $model)
+    {
         return $model->toArray();
     }
 
-    public static function viewable(Model $model) {
+    public static function viewable(Model $model)
+    {
         return true;
     }
 
-    public static function creatable() {
-        return true;
-    }    
-
-    public static function updatable(Model $model) {
+    public static function creatable()
+    {
         return true;
     }
 
-    public static function destroyable(Model $model) {
+    public static function updatable(Model $model)
+    {
+        return true;
+    }
+
+    public static function destroyable(Model $model)
+    {
         return true;
     }
 }
