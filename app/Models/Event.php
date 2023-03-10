@@ -32,6 +32,13 @@ class Event extends Model
         'ages',
     ];
 
+    /**
+     * The attributes that are not mass assignable.
+     *
+     * @var array<string>
+     */
+    protected $guarded = ['id'];
+
 
     /**
      * Get all of the post's attachments.
