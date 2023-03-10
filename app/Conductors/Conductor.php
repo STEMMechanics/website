@@ -133,7 +133,7 @@ class Conductor {
                 $value = trim($value);
                 
                 // Check if value has a prefix and remove it if it's a number
-                if (preg_match('/^([<>]=?)(\d+\.?\d*)$/', $value, $matches)) {
+                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches)) {
                     $prefix = $matches[1];
                     $value = $matches[2];
                 } else {
@@ -143,8 +143,11 @@ class Conductor {
                 // If the value starts with '=', exact match
                 if (strpos($value, '=') === 0) {
                     $query->where($field, '=', substr($value, 1));
+                } else if (strpos($value, '!=') === 0) {
+                    $query->where($field, '<>', substr($value, 2));
+                } else if (strpos($value, '!') === 0) {
+                    $query->where($field, 'NOT LIKE', '%'.substr($value, 1).'%');
                 } else {
-                    // Otherwise, use LIKE with '%value%'
                     $query->where($field, 'LIKE', "%$value%");
                 }
                 
@@ -162,6 +165,10 @@ class Conductor {
                             break;
                         case '<=':
                             $query->where($field, '<=', $value);
+                            break;
+                        case '!=':
+                        case '<>':
+                            $query->where($field, '<>', $value);
                             break;
                     }
                 }
