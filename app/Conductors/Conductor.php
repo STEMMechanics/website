@@ -6,22 +6,67 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Conductor
 {
+    /**
+     * The Conductors Model class.
+     *
+     * @var string|null
+     */
     protected $class = null;
+
+    /**
+     * The default sorting fields of a collection. Can be an array. Supports - and + prefixes.
+     *
+     * @var string|array
+     */
     protected $sort = "id";
+
+    /**
+     * The default collection size limit per request.
+     *
+     * @var integer
+     */
     protected $limit = 50;
+
+    /**
+     * The maximum collection size limit per request.
+     *
+     * @var integer
+     */
     protected $maxLimit = 100;
+
+    /**
+     * The default includes to include in a request.
+     *
+     * @var array
+     */
     protected $includes = [];
 
+    /**
+     * The conductor collection.
+     *
+     * @var Collection
+     */
     private $collection = null;
+
+    /**
+     * The conductor query.
+     *
+     * @var Builder
+     */
     private $query = null;
 
 
-    private function splitString($string)
+    /**
+     * Split a string on commas, keeping quotes intact.
+     *
+     * @param string $string The string to split.
+     * @return array The split string.
+     */
+    private function splitString(string $string)
     {
         $parts = [];
         $start = 0;
@@ -78,6 +123,85 @@ class Conductor
         });
     }
 
+    /**
+     * Filter a field with a specific Builder object
+     *
+     * @param Builder $builder The builder object to append.
+     * @param string  $field   The field name.
+     * @param mixed   $value   The value or array of values to filter.
+     * @param string  $boolean The comparision boolean (AND or OR).
+     * @return void
+     */
+    private function filterFieldWithBuilder(Builder $builder, string $field, mixed $value, string $boolean = 'AND')
+    {
+        $values = [];
+
+        // Split by comma, but respect quotation marks
+        if (is_string($value) === true) {
+            $values = $this->splitString($value);
+        } elseif (is_array($value) === true) {
+            $values = $value;
+        } else {
+            throw new \InvalidArgumentException('Expected string or array, got ' . gettype($value));
+        }
+
+        // Add each AND check to the query
+        $builder->where(function ($query) use ($field, $values) {
+            foreach ($values as $value) {
+                $value = trim($value);
+                $prefix = '';
+
+                // Check if value has a prefix and remove it if it's a number
+                if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)$/', $value, $matches) > 0) {
+                    $prefix = $matches[1];
+                    $value = $matches[2];
+                }
+
+                // Apply the prefix to the query if the value is a number
+                switch ($prefix) {
+                    case '=':
+                        $query->orWhere($field, '=', $value);
+                        break;
+                    case '!':
+                        $query->orWhere($field, 'NOT LIKE', "%$value%");
+                        break;
+                    case '>':
+                        $query->orWhere($field, '>', $value);
+                        break;
+                    case '<':
+                        $query->orWhere($field, '<', $value);
+                        break;
+                    case '>=':
+                        $query->orWhere($field, '>=', $value);
+                        break;
+                    case '<=':
+                        $query->orWhere($field, '<=', $value);
+                        break;
+                    case '!=':
+                        $query->orWhere($field, '!=', $value);
+                        break;
+                    case '<>':
+                        $seperatorPos = strpos($value, '|');
+                        if ($seperatorPos !== false) {
+                            $query->orWhereBetween($field, [substr($value, 0, $seperatorPos), substr($value, ($seperatorPos + 1))]);
+                        } else {
+                            $query->orWhere($field, '!=', $value);
+                        }
+                        break;
+                    default:
+                        $query->orWhere($field, 'LIKE', "%$value%");
+                        break;
+                }//end switch
+            }//end foreach
+        }, null, null, $boolean);
+    }
+
+    /**
+     * Run the conductor on a Request to generate a collection and total.
+     *
+     * @param Request $request The request data.
+     * @return array The processed and transformed collection | the total rows found.
+     */
     final public static function request(Request $request)
     {
         $conductor_class = get_called_class();
@@ -143,6 +267,13 @@ class Conductor
         return [$conductor->collection, $total];
     }
 
+    /**
+     * Run the conductor on a Model with the data stored in a Request.
+     *
+     * @param Request $request The request data.
+     * @param Model   $model   The model.
+     * @return array The processed and transformed model data.
+     */
     final public static function model(Request $request, Model $model)
     {
         $conductor_class = get_called_class();
@@ -180,72 +311,25 @@ class Conductor
         return $model;
     }
 
-    private function filterFieldWithBuilder(Builder $builder, string $field, mixed $value, string $boolean = 'AND')
-    {
-        $values = [];
-
-        // Split by comma, but respect quotation marks
-        if (is_string($value) === true) {
-            $values = $this->splitString($value);
-        } elseif (is_array($value) === true) {
-            $values = $value;
-        } else {
-            throw new \InvalidArgumentException('Expected string or array, got ' . gettype($value));
-        }
-
-        // Add each AND check to the query
-        $builder->where(function ($query) use ($field, $values) {
-            foreach ($values as $value) {
-                $value = trim($value);
-                $prefix = '';
-
-                // Check if value has a prefix and remove it if it's a number
-                if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches) > 0) {
-                    $prefix = $matches[1];
-                    $value = $matches[2];
-                }
-
-                // Apply the prefix to the query if the value is a number
-                switch ($prefix) {
-                    case '=':
-                        $query->orWhere($field, '=', $value);
-                        break;
-                    case '!':
-                        $query->orWhere($field, 'NOT LIKE', "%$value%");
-                        break;
-                    case '>':
-                        $query->orWhere($field, '>', $value);
-                        break;
-                    case '<':
-                        $query->orWhere($field, '<', $value);
-                        break;
-                    case '>=':
-                        $query->orWhere($field, '>=', $value);
-                        break;
-                    case '<=':
-                        $query->orWhere($field, '<=', $value);
-                        break;
-                    case '!=':
-                    case '<>':
-                        $query->orWhere($field, '!=', $value);
-                        break;
-                    default:
-                        $betweenPos = strpos($value, '<>');
-                        if ($betweenPos !== false) {
-                            $query->orWhereBetween($field, [substr($value, 0, $betweenPos), substr($value, ($betweenPos + 2))]);
-                        } else {
-                            $query->orWhere($field, 'LIKE', "%$value%");
-                        }
-                }//end switch
-            }//end foreach
-        }, null, null, $boolean);
-    }
-
+    /**
+     * Filter a single field in the conductor collection.
+     *
+     * @param string $field   The field name.
+     * @param mixed  $value   The value or array of values to filter.
+     * @param string $boolean The comparision boolean (AND or OR).
+     * @return void
+     */
     final public function filterField(string $field, mixed $value, string $boolean = 'AND')
     {
         $this->filterFieldWithBuilder($this->query, $field, $value, $boolean);
     }
 
+    /**
+     * Get or Set the conductor collection.
+     *
+     * @param Collection $collection If not null, use the passed collection.
+     * @return Collection The current conductor collection.
+     */
     final public function collection(Collection $collection = null)
     {
         if ($collection !== null) {
@@ -255,6 +339,11 @@ class Conductor
         return $this->collection;
     }
 
+    /**
+     * Return the current conductor collection count.
+     *
+     * @return integer The current collection count.
+     */
     final public function count()
     {
         if ($this->query !== null) {
@@ -264,6 +353,12 @@ class Conductor
         return 0;
     }
 
+    /**
+     * Sort the conductor collection.
+     *
+     * @param mixed $fields A field name or array of field names to sort. Supports a prefix of + or - to change direction.
+     * @return void
+     */
     final public function sort(mixed $fields = null)
     {
         if (is_string($fields) === true) {
@@ -291,6 +386,12 @@ class Conductor
         }
     }
 
+    /**
+     * Filter the conductor collection based on an array of field => value.
+     *
+     * @param array $filters An array of field => value to filter.
+     * @return void
+     */
     final public function filter(array $filters)
     {
         foreach ($filters as $param => $value) {
@@ -298,6 +399,13 @@ class Conductor
         }
     }
 
+    /**
+     * Paginate the conductor collection.
+     *
+     * @param integer $page  The current page to return.
+     * @param integer $limit The limit of items to include or use default.
+     * @return void
+     */
     final public function paginate(int $page = 1, int $limit = -1)
     {
         // Limit
@@ -315,6 +423,13 @@ class Conductor
         $this->query->offset(($page - 1) * $limit);
     }
 
+    /**
+     * Append a list of includes to the model.
+     *
+     * @param Model $model    The model to append.
+     * @param array $includes The list of includes to include.
+     * @return void
+     */
     final public function includes(Model $model, array $includes)
     {
         foreach ($includes as $include) {
@@ -329,6 +444,12 @@ class Conductor
         }
     }
 
+    /**
+     * Limit the returned fields in the conductor collection.
+     *
+     * @param array $fields An array of field names.
+     * @return void
+     */
     final public function limitFields(array $fields)
     {
         if (empty($fields) !== true) {
@@ -336,50 +457,14 @@ class Conductor
         }
     }
 
-    /** overrides */
-    public function scope(Builder $builder)
-    {
-    }
-
-    public function fields(Model $model)
-    {
-        $visibleFields = $model->getVisible();
-        if (empty($visibleFields) === true) {
-            $tableColumns = $model->getConnection()
-                ->getSchemaBuilder()
-                ->getColumnListing($model->getTable());
-            return $tableColumns;
-        }
-
-        return $visibleFields;
-    }
-
-    public function transform(Model $model)
-    {
-        return $model->toArray();
-    }
-
-    public static function viewable(Model $model)
-    {
-        return true;
-    }
-
-    public static function creatable()
-    {
-        return true;
-    }
-
-    public static function updatable(Model $model)
-    {
-        return true;
-    }
-
-    public static function destroyable(Model $model)
-    {
-        return true;
-    }
-
-    public function filterRaw($filterString, $limitFields = null)
+    /**
+     * Filter the conductor collection using raw data.
+     *
+     * @param string     $filterString The raw filter string to parse.
+     * @param array|null $limitFields  The fields to ignore in the filter string.
+     * @return void
+     */
+    final public function filterRaw(string $filterString, array|null $limitFields = null)
     {
         if (is_array($limitFields) === false || empty($limitFields) === true) {
             $limitFields = null;
@@ -482,5 +567,88 @@ class Conductor
         };
 
         $parseTokens($tokens, 0, 0);
+    }
+
+    /**
+     * Run a scope query on the collection before anything else.
+     *
+     * @param Builder $builder The builder in use.
+     * @return void
+     */
+    public function scope(Builder $builder)
+    {
+    }
+
+    /**
+     * Return an array of model fields visible to the current user.
+     *
+     * @param Model $model The model in question.
+     * @return array The array of field names.
+     */
+    public function fields(Model $model)
+    {
+        $visibleFields = $model->getVisible();
+        if (empty($visibleFields) === true) {
+            $tableColumns = $model->getConnection()
+                ->getSchemaBuilder()
+                ->getColumnListing($model->getTable());
+            return $tableColumns;
+        }
+
+        return $visibleFields;
+    }
+
+    /**
+     * Transform the passed Model to an array
+     *
+     * @param Model $model The model to transform.
+     * @return array The transformed model.
+     */
+    public function transform(Model $model)
+    {
+        return $model->toArray();
+    }
+
+    /**
+     * Is the passed model viewable by the current user?
+     *
+     * @param Model $model The model in question.
+     * @return boolean Is the model viewable.
+     */
+    public static function viewable(Model $model)
+    {
+        return true;
+    }
+
+    /**
+     * Is the model creatable by the current user?
+     *
+     * @return boolean Is the model creatable.
+     */
+    public static function creatable()
+    {
+        return true;
+    }
+
+    /**
+     * Is the passed model updateable by the current user?
+     *
+     * @param Model $model The model in question.
+     * @return boolean Is the model updateable.
+     */
+    public static function updatable(Model $model)
+    {
+        return true;
+    }
+
+    /**
+     * Is the passed model destroyable by the current user?
+     *
+     * @param Model $model The model in question.
+     * @return boolean Is the model destroyable.
+     */
+    public static function destroyable(Model $model)
+    {
+        return true;
     }
 }
