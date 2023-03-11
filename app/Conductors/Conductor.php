@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class Conductor
@@ -102,6 +103,9 @@ class Conductor
         $params = $request->all();
         $filterFields = array_intersect_key($params, array_flip($fields));
         $conductor->filter($filterFields);
+        if ($request->has('filter') === true) {
+            $conductor->filterRaw($request->input('filter', ''), $fields);
+        }
 
         // Sort request
         $conductor->sort($request->input('sort', $conductor->sort));
@@ -176,7 +180,7 @@ class Conductor
         return $model;
     }
 
-    final public function filterField(Builder $builder, string $field, mixed $value)
+    private function filterFieldWithBuilder(Builder $builder, string $field, mixed $value, string $boolean = 'AND')
     {
         $values = [];
 
@@ -190,53 +194,56 @@ class Conductor
         }
 
         // Add each AND check to the query
-        $this->query->where(function ($query) use ($field, $values) {
+        $builder->where(function ($query) use ($field, $values) {
             foreach ($values as $value) {
                 $value = trim($value);
+                $prefix = '';
 
                 // Check if value has a prefix and remove it if it's a number
                 if (preg_match('/^([<>!=]=?)(\d+\.?\d*)$/', $value, $matches) > 0) {
                     $prefix = $matches[1];
                     $value = $matches[2];
-                } else {
-                    $prefix = '';
-                }
-
-                // If the value starts with '=', exact match
-
-                if (strpos($value, '=') === 0) {
-                    $query->orWhere($field, '=', substr($value, 1));
-                } elseif (strpos($value, '!=') === 0) {
-                    $query->orWhere($field, '<>', substr($value, 2));
-                } elseif (strpos($value, '!') === 0) {
-                    $query->orWhere($field, 'NOT LIKE', '%' . substr($value, 1) . '%');
-                } else {
-                    $query->orWhere($field, 'LIKE', "%$value%");
                 }
 
                 // Apply the prefix to the query if the value is a number
-                if (is_numeric($value) === true) {
-                    switch ($prefix) {
-                        case '>':
-                            $query->orWhere($field, '>', $value);
-                            break;
-                        case '<':
-                            $query->orWhere($field, '<', $value);
-                            break;
-                        case '>=':
-                            $query->orWhere($field, '>=', $value);
-                            break;
-                        case '<=':
-                            $query->orWhere($field, '<=', $value);
-                            break;
-                        case '!=':
-                        case '<>':
-                            $query->orWhere($field, '<>', $value);
-                            break;
-                    }
-                }
+                switch ($prefix) {
+                    case '=':
+                        $query->orWhere($field, '=', $value);
+                        break;
+                    case '!':
+                        $query->orWhere($field, 'NOT LIKE', "%$value%");
+                        break;
+                    case '>':
+                        $query->orWhere($field, '>', $value);
+                        break;
+                    case '<':
+                        $query->orWhere($field, '<', $value);
+                        break;
+                    case '>=':
+                        $query->orWhere($field, '>=', $value);
+                        break;
+                    case '<=':
+                        $query->orWhere($field, '<=', $value);
+                        break;
+                    case '!=':
+                    case '<>':
+                        $query->orWhere($field, '!=', $value);
+                        break;
+                    default:
+                        $betweenPos = strpos($value, '<>');
+                        if ($betweenPos !== false) {
+                            $query->orWhereBetween($field, [substr($value, 0, $betweenPos), substr($value, ($betweenPos + 2))]);
+                        } else {
+                            $query->orWhere($field, 'LIKE', "%$value%");
+                        }
+                }//end switch
             }//end foreach
-        });
+        }, null, null, $boolean);
+    }
+
+    final public function filterField(string $field, mixed $value, string $boolean = 'AND')
+    {
+        $this->filterFieldWithBuilder($this->query, $field, $value, $boolean);
     }
 
     final public function collection(Collection $collection = null)
@@ -287,7 +294,7 @@ class Conductor
     final public function filter(array $filters)
     {
         foreach ($filters as $param => $value) {
-            $this->filterField($this->query, $param, $value);
+            $this->filterField($param, $value);
         }
     }
 
@@ -370,5 +377,110 @@ class Conductor
     public static function destroyable(Model $model)
     {
         return true;
+    }
+
+    public function filterRaw($filterString, $limitFields = null)
+    {
+        if (is_array($limitFields) === false || empty($limitFields) === true) {
+            $limitFields = null;
+        } else {
+            $limitFields = array_map('strtolower', $limitFields);
+        }
+
+        $tokens = preg_split('/([()]|,OR,|,AND,|,)/', $filterString, -1, (PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE));
+
+        $parseTokens = function ($tokenList, $level, $index, $groupBoolean = null) use ($limitFields, &$parseTokens) {
+            $tokenGroup = [];
+            $firstToken = false;
+            $tokenGroupBoolean = 'AND';
+
+            if ($groupBoolean !== null) {
+                $firstToken = true;
+                $tokenGroupBoolean = $groupBoolean;
+            }
+
+            while ($index < count($tokenList)) {
+                $token = $tokenList[$index];
+
+                ++$index;
+                if ($token === '(') {
+                    // next group
+                    $nextGroupBoolean = null;
+                    if (count($tokenGroup) > 0 && strlen($tokenGroup[(count($tokenGroup) - 1)]['field']) === 0) {
+                        $nextGroupBoolean = $tokenGroup[(count($tokenGroup) - 1)]['boolean'];
+                        unset($tokenGroup[(count($tokenGroup) - 1)]);
+                    }
+
+                    $index = $parseTokens($tokenList, $level + 1, $index, $nextGroupBoolean);
+                } elseif ($token === ')') {
+                    // end group
+                    break;
+                } elseif (in_array(strtoupper($token), [',AND,', ',OR,']) === true) {
+                    // update boolean
+                    $boolean = trim(strtoupper($token), ',');
+
+                    if ($firstToken === false && $level > 0) {
+                        $tokenGroupBoolean = $boolean;
+                    } else {
+                        $firstToken = true;
+                        $tokenGroup[] = [
+                            'field' => '',
+                            'value' => '',
+                            'boolean' => $boolean
+                        ];
+                    }
+                } elseif (strpos($token, ':') !== false) {
+                    // set tokenGroup
+                    $firstToken = true;
+                    $field = substr($token, 0, strpos($token, ':'));
+                    $value = substr($token, (strpos($token, ':') + 1));
+                    $boolean = 'AND';
+
+                    if (count($tokenGroup) > 0 && strlen($tokenGroup[(count($tokenGroup) - 1)]['field']) === 0) {
+                        $tokenGroup[(count($tokenGroup) - 1)]['field'] = $field;
+                        $tokenGroup[(count($tokenGroup) - 1)]['value'] = $value;
+                        $boolean = $tokenGroup[(count($tokenGroup) - 1)]['boolean'];
+                    } else {
+                        $tokenGroup[] = [
+                            'field' => $field,
+                            'value' => $value,
+                            'boolean' => 'AND'
+                        ];
+                    }
+
+                    if ($limitFields === null || in_array(strtolower($field), $limitFields) !== true) {
+                        unset($tokenGroup[(count($tokenGroup) - 1)]);
+                    }
+
+                    if ($level === 0) {
+                        $this->filterFieldWithBuilder($this->query, $field, $value, $boolean);
+                    }
+                }//end if
+            }//end while
+
+            if ($level > 0) {
+                if ($tokenGroupBoolean === 'OR') {
+                    $this->query->orWhere(function ($query) use ($tokenGroup) {
+                        foreach ($tokenGroup as $tokenItem) {
+                            if (strlen($tokenItem['field']) > 0) {
+                                $this->filterFieldWithBuilder($query, $tokenItem['field'], $tokenItem['value'], $tokenItem['boolean']);
+                            }
+                        }
+                    });
+                } else {
+                    $this->query->where(function ($query) use ($tokenGroup) {
+                        foreach ($tokenGroup as $tokenItem) {
+                            if (strlen($tokenItem['field']) > 0) {
+                                $this->filterFieldWithBuilder($query, $tokenItem['field'], $tokenItem['value'], $tokenItem['boolean']);
+                            }
+                        }
+                    });
+                }
+            }//end if
+
+            return $index;
+        };
+
+        $parseTokens($tokens, 0, 0);
     }
 }
