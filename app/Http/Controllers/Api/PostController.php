@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Conductors\PostConductor;
 use App\Enum\HttpResponseCodes;
-use App\Filters\PostFilter;
-use App\Http\Requests\PostStoreRequest;
-use App\Http\Requests\PostUpdateRequest;
+use App\Http\Requests\PostRequest;
 use App\Models\Post;
 use Illuminate\Http\Request;
 
@@ -27,56 +26,70 @@ class PostController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param \App\Filters\PostFilter $filter Post filter request.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function index(PostFilter $filter)
+    public function index(Request $request)
     {
+        list($collection, $total) = PostConductor::request($request);
+
         return $this->respondAsResource(
-            $filter->filter(),
-            ['total' => $filter->foundTotal()]
+            $collection,
+            ['total' => $total]
         );
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  PostFilter       $filter The filter request.
-     * @param  \App\Models\Post $post   The post model.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\Post         $post    The post model.
      * @return \Illuminate\Http\Response
      */
-    public function show(PostFilter $filter, Post $post)
+    public function show(Request $request, Post $post)
     {
-        return $this->respondAsResource($filter->filter($post));
+        if (PostConductor::viewable($post) === true) {
+            return $this->respondAsResource(PostConductor::model($request, $post));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
      * Store a newly created resource in storage.
      *
-     * @param  PostStoreRequest $request The post store request.
+     * @param \App\Http\Requests\PostRequest $request The user request.
      * @return \Illuminate\Http\Response
      */
-    public function store(PostStoreRequest $request)
+    public function store(PostRequest $request)
     {
-        $post = Post::create($request->all());
-        return $this->respondAsResource(
-            (new PostFilter($request))->filter($post),
-            null,
-            HttpResponseCodes::HTTP_CREATED
-        );
+        if (PostConductor::creatable() === true) {
+            $post = Post::create($request->all());
+            return $this->respondAsResource(
+                PostConductor::model($request, $post),
+                null,
+                HttpResponseCodes::HTTP_CREATED
+            );
+        } else {
+            return $this->respondForbidden();
+        }
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  PostUpdateRequest $request The post update request.
-     * @param  \App\Models\Post  $post    The specified post.
+     * @param  \App\Http\Requests\PostRequest $request The post update request.
+     * @param  \App\Models\Post               $post    The specified post.
      * @return \Illuminate\Http\Response
      */
-    public function update(PostUpdateRequest $request, Post $post)
+    public function update(PostRequest $request, Post $post)
     {
-        $post->update($request->all());
-        return $this->respondAsResource((new PostFilter($request))->filter($post));
+        if (PostConductor::updatable($post) === true) {
+            $post->update($request->all());
+            return $this->respondAsResource(PostConductor::model($request, $post));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
@@ -87,7 +100,11 @@ class PostController extends ApiController
      */
     public function destroy(Post $post)
     {
-        $post->delete();
-        return $this->respondNoContent();
+        if (PostConductor::destroyable($post) === true) {
+            $post->delete();
+            return $this->respondNoContent();
+        } else {
+            return $this->respondForbidden();
+        }
     }
 }

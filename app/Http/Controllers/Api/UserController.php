@@ -49,7 +49,7 @@ class UserController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param  Request      $request The request.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
@@ -65,12 +65,12 @@ class UserController extends ApiController
     /**
      * Store a newly created user in the database.
      *
-     * @param  Request      $request The request.
+     * @param \App\Http\Requests\UserStoreRequest $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(UserStoreRequest $request)
     {
-        if(UserConductor::creatable()) {
+        if (UserConductor::creatable() === true) {
             $user = User::create($request->all());
             return $this->respondAsResource(UserConductor::model($request, $user), [], HttpResponseCodes::HTTP_CREATED);
         } else {
@@ -78,18 +78,16 @@ class UserController extends ApiController
         }
     }
 
-
     /**
      * Display the specified user.
      *
-     * @param  UserFilter $filter The user filter.
-     * @param  User       $user   The user model.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\User         $user    The user model.
      * @return \Illuminate\Http\Response
      */
-    // public function show(UserFilter $filter, User $user)
     public function show(Request $request, User $user)
     {
-        if(UserConductor::viewable($user)) {
+        if (UserConductor::viewable($user) === true) {
             return $this->respondAsResource(UserConductor::model($request, $user));
         }
 
@@ -99,13 +97,13 @@ class UserController extends ApiController
     /**
      * Update the specified resource in storage.
      *
-     * @param  UserUpdateRequest $request The user update request.
-     * @param  User              $user    The specified user.
+     * @param  \App\Http\Requests\UserUpdateRequest $request The user update request.
+     * @param  \App\Models\User                     $user    The specified user.
      * @return \Illuminate\Http\Response
      */
     public function update(UserUpdateRequest $request, User $user)
     {
-        if(UserConductor::updatable($user)) {
+        if (UserConductor::updatable($user) === true) {
             $input = [];
             $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
 
@@ -124,16 +122,15 @@ class UserController extends ApiController
         }
     }
 
-
     /**
      * Remove the user from the database.
      *
-     * @param  User $user The specified user.
+     * @param  \App\Models\User $user The specified user.
      * @return \Illuminate\Http\Response
      */
     public function destroy(User $user)
     {
-        if(UserConductor::destroyable($user)) {
+        if (UserConductor::destroyable($user) === true) {
             $user->delete();
             return $this->respondNoContent();
         }
@@ -144,7 +141,7 @@ class UserController extends ApiController
     /**
      * Register a new user
      *
-     * @param UserRegisterRequest $request The register user request.
+     * @param \App\Http\Requests\UserRegisterRequest $request The register user request.
      * @return \Illuminate\Http\Response
      */
     public function register(UserRegisterRequest $request)
@@ -178,7 +175,7 @@ class UserController extends ApiController
     /**
      * Sends an email with all the usernames registered at that address
      *
-     * @param UserForgotUsernameRequest $request The forgot username request.
+     * @param \App\Http\Requests\UserForgotUsernameRequest $request The forgot username request.
      * @return \Illuminate\Http\Response
      */
     public function forgotUsername(UserForgotUsernameRequest $request)
@@ -198,7 +195,7 @@ class UserController extends ApiController
     /**
      * Generates a new reset password code
      *
-     * @param UserForgotPasswordRequest $request The reset password request.
+     * @param \App\Http\Requests\UserForgotPasswordRequest $request The reset password request.
      * @return \Illuminate\Http\Response
      */
     public function forgotPassword(UserForgotPasswordRequest $request)
@@ -220,7 +217,7 @@ class UserController extends ApiController
     /**
      * Resets a user password
      *
-     * @param UserResetPasswordRequest $request The reset password request.
+     * @param \App\Http\Requests\UserResetPasswordRequest $request The reset password request.
      * @return \Illuminate\Http\Response
      */
     public function resetPassword(UserResetPasswordRequest $request)
@@ -254,7 +251,7 @@ class UserController extends ApiController
     /**
      * Verify an email code
      *
-     * @param UserVerifyEmailRequest $request The verify email request.
+     * @param \App\Http\Requests\UserVerifyEmailRequest $request The verify email request.
      * @return \Illuminate\Http\Response
      */
     public function verifyEmail(UserVerifyEmailRequest $request)
@@ -292,7 +289,7 @@ class UserController extends ApiController
     /**
      * Resend a new verify email
      *
-     * @param UserResendVerifyEmailRequest $request The resend verify email request.
+     * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend verify email request.
      * @return \Illuminate\Http\Response
      */
     public function resendVerifyEmail(UserResendVerifyEmailRequest $request)
@@ -319,7 +316,7 @@ class UserController extends ApiController
     /**
      * Resend verification email
      *
-     * @param UserResendVerifyEmailRequest $request The resend user request.
+     * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend user request.
      * @return \Illuminate\Http\Response
      */
     public function resendVerifyEmailCode(UserResendVerifyEmailRequest $request)

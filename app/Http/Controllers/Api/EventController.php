@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enum\HttpResponseCodes;
-use App\Http\Requests\EventRequest;
 use App\Models\Event;
 use App\Conductors\EventConductor;
+use App\Http\Requests\EventRequest;
 use Illuminate\Http\Request;
 
 class EventController extends ApiController
@@ -22,7 +22,7 @@ class EventController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param  Request      $request The request.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
@@ -36,14 +36,30 @@ class EventController extends ApiController
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Display the specified resource.
      *
-     * @param  Request      $request The request.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\Event        $event   The specified event.
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function show(Request $request, Event $event)
     {
-        if(EventConductor::creatable()) {
+        if (EventConductor::viewable($event) === true) {
+            return $this->respondAsResource(EventConductor::model($request, $event));
+        }
+
+        return $this->respondForbidden();
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \App\Http\Requests\EventRequest $request The request.
+     * @return \Illuminate\Http\Response
+     */
+    public function store(EventRequest $request)
+    {
+        if (EventConductor::creatable() === true) {
             $event = Event::create($request->all());
             return $this->respondAsResource(
                 EventConductor::model($request, $event),
@@ -56,36 +72,20 @@ class EventController extends ApiController
     }
 
     /**
-     * Display the specified resource.
+     * Update the specified resource in storage.
      *
-     * @param  Request      $request The request.
-     * @param  \App\Models\Event $event  The specified event.
+     * @param  \App\Http\Requests\EventRequest $request The endpoint request.
+     * @param  \App\Models\Event               $event   The specified event.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, Event $event)
+    public function update(EventRequest $request, Event $event)
     {
-        if(EventConductor::viewable($event)) {
+        if (EventConductor::updatable($event) === true) {
+            $event->update($request->all());
             return $this->respondAsResource(EventConductor::model($request, $event));
         }
 
         return $this->respondForbidden();
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  Request      $request The request.
-     * @param  \App\Models\Event $event   The specified event.
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, Event $event)
-    {
-        if(EventConductor::updatable($event)) {
-            $event->update($request->all());
-            return $this->respondAsResource(EventConductor::model($request, $event));
-        } else {
-            return $this->respondForbidden();
-        }
     }
 
     /**
@@ -96,7 +96,7 @@ class EventController extends ApiController
      */
     public function destroy(Event $event)
     {
-        if(EventConductor::destroyable($event)) {
+        if (EventConductor::destroyable($event) === true) {
             $event->delete();
             return $this->respondNoContent();
         } else {

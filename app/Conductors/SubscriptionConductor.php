@@ -2,6 +2,8 @@
 
 namespace App\Conductors;
 
+use Illuminate\Database\Eloquent\Model;
+
 class SubscriptionConductor extends Conductor
 {
     /**
@@ -9,4 +11,29 @@ class SubscriptionConductor extends Conductor
      * @var string
      */
     protected $class = '\App\Models\Subscription';
+
+
+    /**
+     * Return if the current model is updatable.
+     *
+     * @param Model $model The model.
+     * @return boolean Allow updating model.
+     */
+    public static function updatable(Model $model)
+    {
+        $user = auth()->user();
+        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->has_permission('admin/subscriptions') === true));
+    }
+
+    /**
+     * Return if the current model is deletable.
+     *
+     * @param Model $model The model.
+     * @return boolean Allow deleting model.
+     */
+    public static function deletable(Model $model)
+    {
+        $user = auth()->user();
+        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->has_permission('admin/subscriptions') === true));
+    }
 }

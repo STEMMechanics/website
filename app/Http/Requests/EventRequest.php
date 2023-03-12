@@ -5,28 +5,8 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class EventRequest extends BaseRequest
+class EventStoreRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
-     */
-    public function postAuthorize()
-    {
-        return $this->user()?->hasPermission('admin/events');
-    }
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
-     */
-    public function putAuthorize()
-    {
-        return $this->user()?->hasPermission('admin/events');
-    }
-
     /**
      * Apply the base rules to this request
      *
