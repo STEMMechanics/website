@@ -95,11 +95,21 @@ const handleLoad = async () => {
     try {
         let query = {};
 
+        /*
+        cats, dogs
+        (title:"cats, dogs",OR,content:"cats, dogs")
+
+        "cats, dogs", mice
+        (title:""cats, dogs", mice",OR,content:"\"cats, dogs\", mice")
+        */
+
         if (filterKeywords.value && filterKeywords.value.length > 0) {
-            query["q"] = filterKeywords.value;
+            let value = filterKeywords.value.replace(/"/g, '\\"');
+
+            query["filter"] = `(title:"${value}",OR,content:"${value}")`;
         }
         if (filterLocation.value && filterLocation.value.length > 0) {
-            query["qlocation"] = filterLocation.value;
+            query["location"] = filterLocation.value;
         }
         if (filterDateRange.value && filterDateRange.value.length > 0) {
             let error = false;
