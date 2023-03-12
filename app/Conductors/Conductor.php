@@ -473,6 +473,30 @@ class Conductor
         }
 
         $tokens = preg_split('/([()]|,OR,|,AND,|,)/', $filterString, -1, (PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE));
+        $glued = [];
+        $glueToken = '';
+        foreach ($tokens as $item) {
+            if ($glueToken === '') {
+                if (preg_match('/(?<!\\\\)[\'"]/', $item, $matches, PREG_OFFSET_CAPTURE) === 1) {
+                    $glueToken = $matches[0][0];
+                    $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
+                    $item = str_replace("\\$glueToken", $glueToken, $item);
+                }
+
+                $glued[] = $item;
+            } else {
+                // search for ending glue token
+                if (preg_match('/(?<!\\\\)' . $glueToken . '/', $item, $matches, PREG_OFFSET_CAPTURE) === 1) {
+                    $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
+                    $glueToken = '';
+                }
+
+                $item = str_replace("\\$glueToken", $glueToken, $item);
+
+                $glued[(count($glued) - 1)] .= $item;
+            }
+        }//end foreach
+        $tokens = $glued;
 
         $parseTokens = function ($tokenList, $level, $index, $groupBoolean = null) use ($limitFields, &$parseTokens) {
             $tokenGroup = [];
