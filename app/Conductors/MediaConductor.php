@@ -2,24 +2,41 @@
 
 namespace App\Conductors;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class EventConductor extends Conductor
+class MediaConductor extends Conductor
 {
     /**
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Event';
+    protected $class = '\App\Models\Media';
 
     /**
      * The default sorting field
      * @var string
      */
-    protected $sort = 'start_at';
+    protected $sort = 'created_at';
 
+
+    /**
+     * Return an array of model fields visible to the current user.
+     *
+     * @param Model $model The model in question.
+     * @return array The array of field names.
+     */
+    public function fields(Model $model)
+    {
+        $fields = parent::fields($model);
+
+        $user = auth()->user();
+        if ($user === null || $user->hasPermission('admin/media') === false) {
+            $fields = arrayRemoveItem($fields, 'permission');
+        }
+
+        return $fields;
+    }
 
     /**
      * Run a scope query on the collection before anything else.
@@ -30,10 +47,10 @@ class EventConductor extends Conductor
     public function scope(Builder $builder)
     {
         $user = auth()->user();
-        if ($user === null || $user->has_permission('admin/events') === false) {
-            $builder
-                ->where('status', '!=', 'draft')
-                ->where('publish_at', '<=', now());
+        if ($user === null) {
+            $builder->whereNull('permission');
+        } else {
+            $builder->whereNull('permission')->orWhereIn('permission', $user->permissions);
         }
     }
 
@@ -45,9 +62,9 @@ class EventConductor extends Conductor
      */
     public static function viewable(Model $model)
     {
-        if (strtolower($model->status) === 'draft' || Carbon::parse($model->publish_at)->isFuture() === true) {
+        if ($model->permission !== null) {
             $user = auth()->user();
-            if ($user === null || $user->has_permission('admin/events') === false) {
+            if ($user === null || $user->has_permission($model->permission) === false) {
                 return false;
             }
         }
@@ -63,7 +80,7 @@ class EventConductor extends Conductor
     public static function creatable()
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null);
     }
 
     /**
@@ -75,7 +92,7 @@ class EventConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 || $user->has_permission('admin/media') === true));
     }
 
     /**
@@ -87,6 +104,6 @@ class EventConductor extends Conductor
     public static function deletable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && ($model->user_id === $user->id || $user->has_permission('admin/media') === true));
     }
 }

@@ -6,19 +6,19 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
-class EventConductor extends Conductor
+class PostConductor extends Conductor
 {
     /**
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Event';
+    protected $class = '\App\Models\Post';
 
     /**
      * The default sorting field
      * @var string
      */
-    protected $sort = 'start_at';
+    protected $sort = '-publish_at';
 
 
     /**
@@ -30,9 +30,8 @@ class EventConductor extends Conductor
     public function scope(Builder $builder)
     {
         $user = auth()->user();
-        if ($user === null || $user->has_permission('admin/events') === false) {
+        if ($user === null || $user->has_permission('admin/posts') === false) {
             $builder
-                ->where('status', '!=', 'draft')
                 ->where('publish_at', '<=', now());
         }
     }
@@ -45,9 +44,9 @@ class EventConductor extends Conductor
      */
     public static function viewable(Model $model)
     {
-        if (strtolower($model->status) === 'draft' || Carbon::parse($model->publish_at)->isFuture() === true) {
+        if (Carbon::parse($model->publish_at)->isFuture() === true) {
             $user = auth()->user();
-            if ($user === null || $user->has_permission('admin/events') === false) {
+            if ($user === null || $user->has_permission('admin/posts') === false) {
                 return false;
             }
         }
@@ -63,7 +62,7 @@ class EventConductor extends Conductor
     public static function creatable()
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->has_permission('admin/posts') === true);
     }
 
     /**
@@ -75,7 +74,7 @@ class EventConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->has_permission('admin/posts') === true);
     }
 
     /**
@@ -87,6 +86,6 @@ class EventConductor extends Conductor
     public static function deletable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->has_permission('admin/posts') === true);
     }
 }
