@@ -34,7 +34,6 @@ const apiDefaultHeaders = {
 export const api = {
     timeout: 8000,
     baseUrl: (import.meta as ImportMetaExtras).env.APP_URL_API,
-    // baseUrl: "https://www.stemmechanics.com.au/api",
 
     send: function (options: ApiOptions) {
         return new Promise((resolve, reject) => {
