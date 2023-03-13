@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enum\HttpResponseCodes;
-use App\Filters\UserFilter;
-use App\Http\Requests\UserUpdateRequest;
-use App\Http\Requests\UserStoreRequest;
+use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserForgotPasswordRequest;
 use App\Http\Requests\UserForgotUsernameRequest;
 use App\Http\Requests\UserRegisterRequest;
@@ -65,10 +63,10 @@ class UserController extends ApiController
     /**
      * Store a newly created user in the database.
      *
-     * @param \App\Http\Requests\UserStoreRequest $request The endpoint request.
+     * @param \App\Http\Requests\UserRequest $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function store(UserStoreRequest $request)
+    public function store(UserRequest $request)
     {
         if (UserConductor::creatable() === true) {
             $user = User::create($request->all());
@@ -97,11 +95,11 @@ class UserController extends ApiController
     /**
      * Update the specified resource in storage.
      *
-     * @param  \App\Http\Requests\UserUpdateRequest $request The user update request.
+     * @param  \App\Http\Requests\UserRequest $request The user update request.
      * @param  \App\Models\User                     $user    The specified user.
      * @return \Illuminate\Http\Response
      */
-    public function update(UserUpdateRequest $request, User $user)
+    public function update(UserRequest $request, User $user)
     {
         if (UserConductor::updatable($user) === true) {
             $input = [];
