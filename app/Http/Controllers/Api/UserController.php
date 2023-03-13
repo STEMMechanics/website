@@ -120,6 +120,8 @@ class UserController extends ApiController
 
             return $this->respondAsResource(UserConductor::model($request, $user));
         }
+
+        return $this->respondForbidden();
     }
 
     /**
