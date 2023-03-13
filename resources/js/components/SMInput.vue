@@ -166,7 +166,7 @@ const inputActive = ref(value.value.length > 0 || props.type == "select");
  * Return the classname based on type
  */
 const computedClassType = computed(() => {
-    return `sm-input-${props.type}`;
+    return `sm-input-type-${props.type}`;
 });
 
 watch(
@@ -434,15 +434,28 @@ const handleMediaSelect = async (event) => {
         background-size: 24px 18px;
     }
 
-    &.sm-input-media {
+    &.sm-input-type-media {
         label {
             position: relative;
             transform: none;
+        }
+
+        .sm-input-help {
+            text-align: center;
+        }
+
+        &.sm-feedback-invalid .sm-input-media .sm-input-media-item ion-icon {
+            border: 2px solid $danger-color;
+        }
+
+        &.sm-feedback-invalid .sm-invalid-icon {
+            // position: relative;
         }
     }
 
     .sm-input-media {
         text-align: center;
+        margin-bottom: map-get($spacer, 2);
 
         .sm-input-media-item {
             display: block;
