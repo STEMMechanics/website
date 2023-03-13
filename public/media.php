@@ -26,6 +26,7 @@ if ($filepath !== false && strlen($filepath) > 0 && strpos($_GET['url'], 'upload
 
         // Output the original image to the browser
         header('Content-Type:  '. mime_content_type($filepath));
+        header('Content-Disposition: inline; filename=' . pathinfo($filepath, PATHINFO_FILENAME) . pathinfo($filepath, PATHINFO_EXTENSION));
         readfile($filepath);
     } else {
         $newWidth = (isset($_GET['w']) ? intval($_GET['w']) : -1);
@@ -71,6 +72,7 @@ if ($filepath !== false && strlen($filepath) > 0 && strpos($_GET['url'], 'upload
         } else {
             // Output the original image to the browser
             header('Content-Type:  '. mime_content_type($filepath));
+            header('Content-Disposition: inline; filename=' . pathinfo($filepath, PATHINFO_FILENAME) . pathinfo($filepath, PATHINFO_EXTENSION));
             readfile($filepath);
         }
     }
