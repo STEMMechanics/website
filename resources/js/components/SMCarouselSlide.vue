@@ -1,7 +1,5 @@
 <template>
-    <div
-        class="sm-carousel-slide"
-        :style="{ backgroundImage: `url('${imageUrl}')` }">
+    <div class="sm-carousel-slide" :style="styleObject">
         <div
             v-if="image.length > 0 && imageUrl.length == 0"
             class="sm-carousel-slide-loading">
@@ -26,10 +24,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
-import { imageLoad } from "../helpers/image";
+import { imageLoad, imageXXLarge } from "../helpers/image";
 import SMButton from "./SMButton.vue";
 import SMLoadingIcon from "./SMLoadingIcon.vue";
 
@@ -64,6 +62,11 @@ const props = defineProps({
 let imageUrl = ref("");
 
 /**
+ * Carousel slide styles.
+ */
+let styleObject = {};
+
+/**
  * Load the slider data.
  */
 const handleLoad = () => {
@@ -83,6 +86,14 @@ const handleLoad = () => {
             /* empty */
         });
 };
+
+watch(
+    () => imageUrl.value,
+    (value) => {
+        const url = imageXXLarge(value);
+        styleObject["backgroundImage"] = `url('${url}')`;
+    }
+);
 
 handleLoad();
 </script>

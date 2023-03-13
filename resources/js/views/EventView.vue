@@ -122,7 +122,7 @@ import SMMessage from "../components/SMMessage.vue";
 import { api } from "../helpers/api";
 import { Event, EventResponse, MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { imageLoad } from "../helpers/image";
+import { imageLoad, imageXXLarge } from "../helpers/image";
 import { stringToNumber } from "../helpers/string";
 import { useApplicationStore } from "../store/ApplicationStore";
 
@@ -312,7 +312,7 @@ const handleLoadImage = async () => {
             const data = result.data as MediaResponse;
 
             if (data && data.medium) {
-                imageLoad(data.medium.url, (url) => {
+                imageLoad(imageXXLarge(data.medium.url), (url) => {
                     imageUrl.value = url;
                 });
             }

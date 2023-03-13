@@ -4,7 +4,9 @@
         full
         class="sm-page-post-view"
         :page-error="pageError">
-        <div class="sm-heading-image" :style="styleObject"></div>
+        <div
+            class="sm-heading-image"
+            :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
         <SMContainer>
             <div class="sm-heading-info">
                 <h1>{{ post.title }}</h1>
@@ -34,6 +36,7 @@ import {
     UserResponse,
 } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { imageLoad, imageXXLarge } from "../helpers/image";
 import { useApplicationStore } from "../store/ApplicationStore";
 
 const applicationStore = useApplicationStore();
@@ -56,14 +59,41 @@ let pageLoading = ref(false);
 /**
  * Post styles.
  */
-let styleObject = {};
+const imageUrl = ref("");
 
 /**
  * Post user.
  */
 let postUser: User | null = null;
 
-const loadData = async () => {
+/**
+ * Load the hero image.
+ */
+const handleLoadImage = async () => {
+    api.get({
+        url: "/media/{medium}",
+        params: {
+            medium: post.value.hero,
+        },
+    })
+        .then((result) => {
+            const data = result.data as MediaResponse;
+
+            if (data && data.medium) {
+                imageLoad(imageXXLarge(data.medium.url), (url) => {
+                    imageUrl.value = url;
+                });
+            }
+        })
+        .catch(() => {
+            /* empty */
+        });
+};
+
+/**
+ * Load the page data.
+ */
+const handleLoad = async () => {
     let slug = useRoute().params.slug || "";
     pageLoading.value = true;
 
@@ -88,6 +118,7 @@ const loadData = async () => {
                 }).format("yyyy/MM/dd HH:mm:ss");
 
                 applicationStore.setDynamicTitle(post.value.title);
+                handleLoadImage();
 
                 // Get hero image
                 try {
@@ -101,9 +132,8 @@ const loadData = async () => {
                     const mediumData = mediumResult.data as MediaResponse;
 
                     if (mediumData && mediumData.medium) {
-                        styleObject[
-                            "backgroundImage"
-                        ] = `url('${mediumData.medium.url}')`;
+                        const url = imageXXLarge(mediumData.medium.url);
+                        styleObject["backgroundImage"] = `url('${url}')`;
                     }
                 } catch {
                     /* empty */
@@ -143,7 +173,7 @@ const formattedPublishAt = (dateStr) => {
     return new SMDate(dateStr, { format: "yMd" }).format("MMMM d, yyyy");
 };
 
-loadData();
+handleLoad();
 </script>
 
 <style lang="scss">
