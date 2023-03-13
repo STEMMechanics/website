@@ -52,7 +52,7 @@
                         v-if="
                             event.status == 'open' &&
                             expired == false &&
-                            event.registration_type != 'none'
+                            event.registration_type == 'url'
                         "
                         class="sm-workshop-registration sm-workshop-registration-url">
                         <SMButton
