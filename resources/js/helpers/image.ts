@@ -5,7 +5,7 @@ type ImageLoadCallback = (url: string) => void;
 export const imageLoad = (
     url: string,
     callback: ImageLoadCallback,
-    postfix = "h=50"
+    postfix = "size=thumb"
 ) => {
     callback(`${url}?${postfix}`);
     const tmp = new Image();
