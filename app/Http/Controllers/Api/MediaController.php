@@ -33,6 +33,7 @@ class MediaController extends ApiController
 
         return $this->respondAsResource(
             $collection,
+            true,
             ['total' => $total]
         );
     }
@@ -103,6 +104,7 @@ class MediaController extends ApiController
             $media = $request->user()->media()->create($request->all());
             return $this->respondAsResource(
                 MediaConductor::model($request, $media),
+                false,
                 null,
                 HttpResponseCodes::HTTP_CREATED
             );

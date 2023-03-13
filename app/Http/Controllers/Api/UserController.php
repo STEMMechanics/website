@@ -56,6 +56,7 @@ class UserController extends ApiController
 
         return $this->respondAsResource(
             $collection,
+            true,
             ['total' => $total]
         );
     }
@@ -70,7 +71,7 @@ class UserController extends ApiController
     {
         if (UserConductor::creatable() === true) {
             $user = User::create($request->all());
-            return $this->respondAsResource(UserConductor::model($request, $user), [], HttpResponseCodes::HTTP_CREATED);
+            return $this->respondAsResource(UserConductor::model($request, $user), false, [], HttpResponseCodes::HTTP_CREATED);
         } else {
             return $this->respondForbidden();
         }

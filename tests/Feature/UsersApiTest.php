@@ -4,7 +4,7 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 use App\Models\User;
 
-class UsersEndpointTest extends TestCase
+class UsersApiTest extends TestCase
 {
     use RefreshDatabase;
 

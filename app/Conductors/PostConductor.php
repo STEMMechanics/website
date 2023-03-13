@@ -30,7 +30,7 @@ class PostConductor extends Conductor
     public function scope(Builder $builder)
     {
         $user = auth()->user();
-        if ($user === null || $user->has_permission('admin/posts') === false) {
+        if ($user === null || $user->hasPermission('admin/posts') === false) {
             $builder
                 ->where('publish_at', '<=', now());
         }
@@ -46,7 +46,7 @@ class PostConductor extends Conductor
     {
         if (Carbon::parse($model->publish_at)->isFuture() === true) {
             $user = auth()->user();
-            if ($user === null || $user->has_permission('admin/posts') === false) {
+            if ($user === null || $user->hasPermission('admin/posts') === false) {
                 return false;
             }
         }
@@ -62,7 +62,7 @@ class PostConductor extends Conductor
     public static function creatable()
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/posts') === true);
     }
 
     /**
@@ -74,18 +74,18 @@ class PostConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/posts') === true);
     }
 
     /**
-     * Return if the current model is deletable.
+     * Return if the current model is destroyable.
      *
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function deletable(Model $model)
+    public static function destroyable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/posts') === true);
     }
 }

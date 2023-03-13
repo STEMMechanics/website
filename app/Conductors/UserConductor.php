@@ -65,7 +65,7 @@ class UserConductor extends Conductor
     }
 
     /**
-     * Return if the current model is deletable.
+     * Return if the current model is destroyable.
      *
      * @param Model $model The model.
      * @return boolean Allow deleting model.

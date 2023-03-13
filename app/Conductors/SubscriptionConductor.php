@@ -22,18 +22,18 @@ class SubscriptionConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->has_permission('admin/subscriptions') === true));
+        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
     }
 
     /**
-     * Return if the current model is deletable.
+     * Return if the current model is destroyable.
      *
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function deletable(Model $model)
+    public static function destroyable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->has_permission('admin/subscriptions') === true));
+        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
     }
 }

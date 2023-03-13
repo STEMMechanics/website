@@ -64,7 +64,7 @@ class MediaConductor extends Conductor
     {
         if ($model->permission !== null) {
             $user = auth()->user();
-            if ($user === null || $user->has_permission($model->permission) === false) {
+            if ($user === null || $user->hasPermission($model->permission) === false) {
                 return false;
             }
         }
@@ -92,18 +92,18 @@ class MediaConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 || $user->has_permission('admin/media') === true));
+        return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 || $user->hasPermission('admin/media') === true));
     }
 
     /**
-     * Return if the current model is deletable.
+     * Return if the current model is destroyable.
      *
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function deletable(Model $model)
+    public static function destroyable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && ($model->user_id === $user->id || $user->has_permission('admin/media') === true));
+        return ($user !== null && ($model->user_id === $user->id || $user->hasPermission('admin/media') === true));
     }
 }

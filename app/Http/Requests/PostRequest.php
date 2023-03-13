@@ -14,10 +14,12 @@ class PostRequest extends BaseRequest
     public function postRules()
     {
         return [
-            'slug' => 'string|min:6|unique:posts',
-            'title' => 'string|min:6|max:255',
-            'publish_at' => 'date',
-            'user_id' => 'uuid|exists:users,id',
+            'slug' => 'required|string|min:6|unique:posts',
+            'title' => 'required|string|min:6|max:255',
+            'publish_at' => 'required|date',
+            'user_id' => 'required|uuid|exists:users,id',
+            'content' => 'required|string|min:6',
+            'hero' => 'required|uuid|exists:media,id',
         ];
     }
 
@@ -37,6 +39,8 @@ class PostRequest extends BaseRequest
             'title' => 'string|min:6|max:255',
             'publish_at' => 'date',
             'user_id' => 'uuid|exists:users,id',
+            'content' => 'string|min:6',
+            'hero' => 'uuid|exists:media,id',
         ];
     }
 }

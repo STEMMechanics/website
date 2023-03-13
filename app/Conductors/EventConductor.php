@@ -30,7 +30,7 @@ class EventConductor extends Conductor
     public function scope(Builder $builder)
     {
         $user = auth()->user();
-        if ($user === null || $user->has_permission('admin/events') === false) {
+        if ($user === null || $user->hasPermission('admin/events') === false) {
             $builder
                 ->where('status', '!=', 'draft')
                 ->where('publish_at', '<=', now());
@@ -47,7 +47,7 @@ class EventConductor extends Conductor
     {
         if (strtolower($model->status) === 'draft' || Carbon::parse($model->publish_at)->isFuture() === true) {
             $user = auth()->user();
-            if ($user === null || $user->has_permission('admin/events') === false) {
+            if ($user === null || $user->hasPermission('admin/events') === false) {
                 return false;
             }
         }
@@ -63,7 +63,7 @@ class EventConductor extends Conductor
     public static function creatable()
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->hasPermission('admin/events') === true);
     }
 
     /**
@@ -75,18 +75,18 @@ class EventConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->hasPermission('admin/events') === true);
     }
 
     /**
-     * Return if the current model is deletable.
+     * Return if the current model is destroyable.
      *
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function deletable(Model $model)
+    public static function destroyable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->has_permission('admin/events') === true);
+        return ($user !== null && $user->hasPermission('admin/events') === true);
     }
 }

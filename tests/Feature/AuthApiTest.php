@@ -3,7 +3,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 
-class AuthEndpointTest extends TestCase
+class AuthApiTest extends TestCase
 {
     use RefreshDatabase;
 

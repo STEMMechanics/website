@@ -35,6 +35,7 @@ class PostController extends ApiController
 
         return $this->respondAsResource(
             $collection,
+            true,
             ['total' => $total]
         );
     }
@@ -67,6 +68,7 @@ class PostController extends ApiController
             $post = Post::create($request->all());
             return $this->respondAsResource(
                 PostConductor::model($request, $post),
+                false,
                 null,
                 HttpResponseCodes::HTTP_CREATED
             );
