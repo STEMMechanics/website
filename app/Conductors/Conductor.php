@@ -241,7 +241,7 @@ class Conductor
         $conductor->paginate($request->input('page', 1), $request->input('limit', -1));
 
         // Limit fields
-        $limitFields = $request->input('fields');
+        $limitFields = explode(',', $request->input('fields'));
         if ($limitFields === null) {
             $limitFields = $fields;
         } else {
