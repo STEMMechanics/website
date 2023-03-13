@@ -14,7 +14,7 @@ class SubscriptionRequest extends BaseRequest
     public function postRules()
     {
         return [
-            'email' => 'required|email',
+            'email' => 'required|email|unique:subscriptions',
             'captcha_token' => [new Recaptcha()],
         ];
     }
@@ -29,6 +29,18 @@ class SubscriptionRequest extends BaseRequest
         return [
             'email' => 'required|email',
             'captcha_token' => [new Recaptcha()],
+        ];
+    }
+
+    /**
+     * Get the custom error messages.
+     *
+     * @return array
+     */
+    public function messages()
+    {
+        return [
+            'email.unique' => 'This email address has already subscribed',
         ];
     }
 }

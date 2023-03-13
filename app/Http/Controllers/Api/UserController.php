@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Enum\HttpResponseCodes;
-use App\Filters\UserFilter;
-use App\Http\Requests\UserUpdateRequest;
-use App\Http\Requests\UserStoreRequest;
+use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserForgotPasswordRequest;
 use App\Http\Requests\UserForgotUsernameRequest;
 use App\Http\Requests\UserRegisterRequest;
@@ -23,6 +21,7 @@ use App\Models\User;
 use App\Models\UserCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use App\Conductors\UserConductor;
 
 class UserController extends ApiController
 {
@@ -48,96 +47,102 @@ class UserController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param \App\Filters\UserFilter $filter Filter object.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function index(UserFilter $filter)
+    public function index(Request $request)
     {
-        $collection = $filter->filter();
+        list($collection, $total) = UserConductor::request($request);
+
         return $this->respondAsResource(
             $collection,
-            ['total' => $filter->foundTotal()]
+            true,
+            ['total' => $total]
         );
     }
 
     /**
      * Store a newly created user in the database.
      *
-     * @param  UserStoreRequest $request The user update request.
+     * @param \App\Http\Requests\UserRequest $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function store(UserStoreRequest $request)
+    public function store(UserRequest $request)
     {
-        if ($request->user()->hasPermission('admin/user') !== true) {
+        if (UserConductor::creatable() === true) {
+            $user = User::create($request->all());
+            return $this->respondAsResource(UserConductor::model($request, $user), false, [], HttpResponseCodes::HTTP_CREATED);
+        } else {
             return $this->respondForbidden();
         }
-
-        $user = User::create($request->all());
-        return $this->respondAsResource((new UserFilter($request))->filter($user), [], HttpResponseCodes::HTTP_CREATED);
     }
-
 
     /**
      * Display the specified user.
      *
-     * @param  UserFilter $filter The user filter.
-     * @param  User       $user   The user model.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\User         $user    The user model.
      * @return \Illuminate\Http\Response
      */
-    public function show(UserFilter $filter, User $user)
+    public function show(Request $request, User $user)
     {
-        return $this->respondAsResource($filter->filter($user));
+        if (UserConductor::viewable($user) === true) {
+            return $this->respondAsResource(UserConductor::model($request, $user));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  UserUpdateRequest $request The user update request.
-     * @param  User              $user    The specified user.
+     * @param  \App\Http\Requests\UserRequest $request The user update request.
+     * @param  \App\Models\User                     $user    The specified user.
      * @return \Illuminate\Http\Response
      */
-    public function update(UserUpdateRequest $request, User $user)
+    public function update(UserRequest $request, User $user)
     {
-        $input = [];
-        $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
+        if (UserConductor::updatable($user) === true) {
+            $input = [];
+            $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
 
-        if ($request->user()->hasPermission('admin/user') === true) {
-            $updatable = array_merge($updatable, ['email_verified_at']);
-        } elseif ($request->user()->is($user) !== true) {
-            return $this->respondForbidden();
+            if ($request->user()->hasPermission('admin/user') === true) {
+                $updatable = array_merge($updatable, ['email_verified_at']);
+            }
+
+            $input = $request->only($updatable);
+            if (array_key_exists('password', $input) === true) {
+                $input['password'] = Hash::make($request->input('password'));
+            }
+
+            $user->update($input);
+
+            return $this->respondAsResource(UserConductor::model($request, $user));
         }
 
-        $input = $request->only($updatable);
-        if (array_key_exists('password', $input) === true) {
-            $input['password'] = Hash::make($request->input('password'));
-        }
-
-        $user->update($input);
-
-        return $this->respondAsResource((new UserFilter($request))->filter($user));
+        return $this->respondForbidden();
     }
-
 
     /**
      * Remove the user from the database.
      *
-     * @param  User $user The specified user.
+     * @param  \App\Models\User $user The specified user.
      * @return \Illuminate\Http\Response
      */
     public function destroy(User $user)
     {
-        if ($user->hasPermission('admin/user') === false) {
-            return $this->respondForbidden();
+        if (UserConductor::destroyable($user) === true) {
+            $user->delete();
+            return $this->respondNoContent();
         }
 
-        $user->delete();
-        return $this->respondNoContent();
+        return $this->respondForbidden();
     }
 
     /**
      * Register a new user
      *
-     * @param UserRegisterRequest $request The register user request.
+     * @param \App\Http\Requests\UserRegisterRequest $request The register user request.
      * @return \Illuminate\Http\Response
      */
     public function register(UserRegisterRequest $request)
@@ -171,7 +176,7 @@ class UserController extends ApiController
     /**
      * Sends an email with all the usernames registered at that address
      *
-     * @param UserForgotUsernameRequest $request The forgot username request.
+     * @param \App\Http\Requests\UserForgotUsernameRequest $request The forgot username request.
      * @return \Illuminate\Http\Response
      */
     public function forgotUsername(UserForgotUsernameRequest $request)
@@ -191,7 +196,7 @@ class UserController extends ApiController
     /**
      * Generates a new reset password code
      *
-     * @param UserForgotPasswordRequest $request The reset password request.
+     * @param \App\Http\Requests\UserForgotPasswordRequest $request The reset password request.
      * @return \Illuminate\Http\Response
      */
     public function forgotPassword(UserForgotPasswordRequest $request)
@@ -213,7 +218,7 @@ class UserController extends ApiController
     /**
      * Resets a user password
      *
-     * @param UserResetPasswordRequest $request The reset password request.
+     * @param \App\Http\Requests\UserResetPasswordRequest $request The reset password request.
      * @return \Illuminate\Http\Response
      */
     public function resetPassword(UserResetPasswordRequest $request)
@@ -247,7 +252,7 @@ class UserController extends ApiController
     /**
      * Verify an email code
      *
-     * @param UserVerifyEmailRequest $request The verify email request.
+     * @param \App\Http\Requests\UserVerifyEmailRequest $request The verify email request.
      * @return \Illuminate\Http\Response
      */
     public function verifyEmail(UserVerifyEmailRequest $request)
@@ -285,7 +290,7 @@ class UserController extends ApiController
     /**
      * Resend a new verify email
      *
-     * @param UserResendVerifyEmailRequest $request The resend verify email request.
+     * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend verify email request.
      * @return \Illuminate\Http\Response
      */
     public function resendVerifyEmail(UserResendVerifyEmailRequest $request)
@@ -312,7 +317,7 @@ class UserController extends ApiController
     /**
      * Resend verification email
      *
-     * @param UserResendVerifyEmailRequest $request The resend user request.
+     * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend user request.
      * @return \Illuminate\Http\Response
      */
     public function resendVerifyEmailCode(UserResendVerifyEmailRequest $request)

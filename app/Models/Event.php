@@ -32,7 +32,6 @@ class Event extends Model
         'ages',
     ];
 
-
     /**
      * Get all of the post's attachments.
      */

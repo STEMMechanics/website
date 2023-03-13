@@ -2,31 +2,10 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class EventRequest extends BaseRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
-     */
-    public function postAuthorize()
-    {
-        return $this->user()?->hasPermission('admin/events');
-    }
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
-     */
-    public function putAuthorize()
-    {
-        return $this->user()?->hasPermission('admin/events');
-    }
-
     /**
      * Apply the base rules to this request
      *
@@ -47,11 +26,12 @@ class EventRequest extends BaseRequest
                 Rule::in(['draft', 'soon', 'open', 'closed', 'cancelled']),
             ],
             'registration_type' => [
-                Rule::in(['none', 'email', 'link']),
+                Rule::in(['none', 'email', 'link', 'message']),
             ],
             'registration_data' => [
                 Rule::when(strcasecmp('email', $this->attributes->get('registration_type')) == 0, 'required|email'),
-                Rule::when(strcasecmp('link', $this->attributes->get('registration_type')) == 0, 'required|url')
+                Rule::when(strcasecmp('link', $this->attributes->get('registration_type')) == 0, 'required|url'),
+                Rule::when(strcasecmp('message', $this->attributes->get('registration_type')) == 0, 'required|message'),
             ],
             'hero'              => 'uuid|exists:media,id',
         ];

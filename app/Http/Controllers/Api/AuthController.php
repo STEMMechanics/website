@@ -73,6 +73,7 @@ class AuthController extends ApiController
 
             return $this->respondAsResource(
                 $user->makeVisible(['permissions']),
+                false,
                 ['token' => $token]
             );
         }//end if

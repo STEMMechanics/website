@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Conductors\SubscriptionConductor;
+use App\Enum\HttpResponseCodes;
 use App\Models\Subscription;
-use App\Filters\SubscriptionFilter;
 use App\Http\Requests\SubscriptionRequest;
 use App\Jobs\SendEmailJob;
 use App\Mail\SubscriptionConfirm;
 use App\Mail\SubscriptionUnsubscribed;
+use Illuminate\Http\Request;
 
 class SubscriptionController extends ApiController
 {
@@ -23,58 +25,71 @@ class SubscriptionController extends ApiController
     /**
      * Display a listing of subscribers.
      *
-     * @param \App\Filters\SubscriptionFilter $filter Filter object.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function index(SubscriptionFilter $filter)
+    public function index(Request $request)
     {
-        $collection = $filter->filter();
+        list($collection, $total) = SubscriptionConductor::request($request);
+
         return $this->respondAsResource(
             $collection,
-            ['total' => $filter->foundTotal()]
+            true,
+            ['total' => $total]
         );
+    }
+
+    /**
+     * Display the specified user.
+     *
+     * @param \Illuminate\Http\Request $request      The endpoint request.
+     * @param  \App\Models\Subscription $subscription The subscription model.
+     * @return \Illuminate\Http\Response
+     */
+    public function show(Request $request, Subscription $subscription)
+    {
+        if (SubscriptionConductor::viewable($subscription) === true) {
+            return $this->respondAsResource(SubscriptionConductor::model($request, $subscription));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
      * Store a subscriber email in the database.
      *
-     * @param  SubscriptionRequest $request The subscriber update request.
+     * @param  \App\Http\Requests\SubscriptionRequest $request The subscriber update request.
      * @return \Illuminate\Http\Response
      */
     public function store(SubscriptionRequest $request)
     {
-        if (Subscription::where('email', $request->email)->first() !== null) {
-            return $this->respondWithErrors(['email' => 'This email address has already subscribed']);
+        if (SubscriptionConductor::creatable() === true) {
+            Subscription::create($request->all());
+            dispatch((new SendEmailJob($request->email, new SubscriptionConfirm($request->email))))->onQueue('mail');
+
+            return $this->respondCreated();
+        } else {
+            return $this->respondForbidden();
         }
-
-        Subscription::create($request->all());
-        dispatch((new SendEmailJob($request->email, new SubscriptionConfirm($request->email))))->onQueue('mail');
-
-        return $this->respondCreated();
-    }
-
-
-    /**
-     * Display the specified user.
-     *
-     * @param  SubscriptionFilter $filter       The subscription filter.
-     * @param  Subscription       $subscription The subscription model.
-     * @return \Illuminate\Http\Response
-     */
-    public function show(SubscriptionFilter $filter, Subscription $subscription)
-    {
-        return $this->respondAsResource($filter->filter($subscription));
     }
 
     /**
      * Update the specified resource in storage.
      *
-     * @param  SubscriptionRequest $request      The subscription update request.
-     * @param  Subscription        $subscription The specified subscription.
+     * @param  \App\Http\Requests\SubscriptionRequest $request      The subscription update request.
+     * @param  \App\Models\Subscription               $subscription The specified subscription.
      * @return \Illuminate\Http\Response
      */
     public function update(SubscriptionRequest $request, Subscription $subscription)
     {
+        // if (EventConductor::updatable($event) === true) {
+        //     $event->update($request->all());
+        //     return $this->respondAsResource(EventConductor::model($request, $event));
+        // }
+
+        // return $this->respondForbidden();
+
+
         // $input = [];
         // $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
 
@@ -103,14 +118,12 @@ class SubscriptionController extends ApiController
      */
     public function destroy(Subscription $subscription)
     {
-        // if ($user->hasPermission('admin/user') === false) {
-        //     return $this->respondForbidden();
-        // }
-
-        $email = $subscription->email;
-
-        $subscription->delete();
-        return $this->respondNoContent();
+        if (SubscriptionConductor::destroyable($subscription) === true) {
+            $subscription->delete();
+            return $this->respondNoContent();
+        } else {
+            return $this->respondForbidden();
+        }
     }
 
     /**

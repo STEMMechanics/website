@@ -1,5 +1,7 @@
 import { useProgressStore } from "../store/ProgressStore";
 import { useUserStore } from "../store/UserStore";
+import { ImportMetaExtras } from "../../../import-meta";
+
 interface ApiProgressData {
     loaded: number;
     total: number;
@@ -31,7 +33,8 @@ const apiDefaultHeaders = {
 
 export const api = {
     timeout: 8000,
-    baseUrl: "https://www.stemmechanics.com.au/api",
+    baseUrl: (import.meta as ImportMetaExtras).env.APP_URL_API,
+    // baseUrl: "https://www.stemmechanics.com.au/api",
 
     send: function (options: ApiOptions) {
         return new Promise((resolve, reject) => {

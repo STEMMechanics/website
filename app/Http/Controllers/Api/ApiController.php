@@ -121,13 +121,15 @@ class ApiController extends Controller
     /**
      * Return resource data
      *
-     * @param array|Model|Collection $data        Resource data.
-     * @param array|null             $appendData  Data to append to response.
-     * @param integer                $respondCode Resource code.
+     * @param array|Model|Collection $data         Resource data.
+     * @param boolean                $isCollection If the data is a group of items.
+     * @param array|null             $appendData   Data to append to response.
+     * @param integer                $respondCode  Resource code.
      * @return \Illuminate\Http\JsonResponse
      */
     protected function respondAsResource(
         mixed $data,
+        bool $isCollection = false,
         mixed $appendData = null,
         int $respondCode = HttpResponseCodes::HTTP_OK
     ) {
@@ -144,8 +146,6 @@ class ApiController extends Controller
             $resourceName = strtolower($resourceName);
         }
 
-        $is_multiple = true;
-
         $dataArray = [];
         if ($data instanceof Collection) {
             $dataArray = $data->toArray();
@@ -157,7 +157,7 @@ class ApiController extends Controller
         }
 
         $resource = [];
-        if ($is_multiple === true) {
+        if ($isCollection === true) {
             $resource = [Str::plural($resourceName) => $dataArray];
         } else {
             $resource = [Str::singular($resourceName) => $dataArray];

@@ -14,10 +14,12 @@ class BaseRequest extends FormRequest
      */
     public function authorize()
     {
-        if (method_exists($this, 'postAuthorize') === true && request()->isMethod('post') === true) {
+        if (request()->isMethod('post') === true && method_exists($this, 'postAuthorize') === true) {
             return $this->postAuthorize();
-        } elseif (method_exists($this, 'putAuthorize') === true && request()->isMethod('put') === true) {
+        } elseif ((request()->isMethod('put') === true || request()->isMethod('patch') === true) && method_exists($this, 'putAuthorize') === true) {
             return $this->putAuthorize();
+        } elseif (request()->isMethod('delete') === true && method_exists($this, 'destroyAuthorize') === true) {
+            return $this->deleteAuthorize();
         }
 
         return true;
@@ -38,8 +40,8 @@ class BaseRequest extends FormRequest
 
         if (method_exists($this, 'postRules') === true && request()->isMethod('post') === true) {
             $rules = $this->mergeRules($rules, $this->postRules());
-        } elseif (method_exists($this, 'putRules') === true && request()->isMethod('put') === true) {
-            $rules = $this->mergeRules($rules, $this->postRules());
+        } elseif (method_exists($this, 'putRules') === true && (request()->isMethod('put') === true || request()->isMethod('patch') === true)) {
+            $rules = $this->mergeRules($rules, $this->putRules());
         } elseif (method_exists($this, 'destroyRules') === true && request()->isMethod('delete') === true) {
             $rules = $this->mergeRules($rules, $this->destroyRules());
         }

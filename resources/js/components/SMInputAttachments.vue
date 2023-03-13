@@ -65,14 +65,18 @@ const mediaItems: Ref<Media[]> = ref([]);
  * Handle the user adding a new media item.
  */
 const handleClickAdd = async () => {
-    openDialog(SMDialogMedia, { mime: "", accepts: "" }).then((result) => {
-        const media = result as Media;
+    openDialog(SMDialogMedia, { mime: "", accepts: "" })
+        .then((result) => {
+            const media = result as Media;
 
-        mediaItems.value.push(media);
-        value.value.push(media.id);
+            mediaItems.value.push(media);
+            value.value.push(media.id);
 
-        emits("update:modelValue", value);
-    });
+            emits("update:modelValue", value);
+        })
+        .catch(() => {
+            /* empty */
+        });
 };
 
 /**

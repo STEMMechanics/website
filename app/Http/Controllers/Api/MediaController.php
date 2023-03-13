@@ -2,14 +2,12 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Conductors\MediaConductor;
 use App\Enum\HttpResponseCodes;
-use App\Filters\MediaFilter;
-use App\Http\Requests\MediaStoreRequest;
-use App\Http\Requests\MediaUpdateRequest;
+use App\Http\Requests\MediaRequest;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MediaController extends ApiController
@@ -26,99 +24,68 @@ class MediaController extends ApiController
     /**
      * Display a listing of the resource.
      *
-     * @param \App\Filters\MediaFilter $filter Created filter object.
+     * @param \Illuminate\Http\Request $request The endpoint request.
      * @return \Illuminate\Http\Response
      */
-    public function index(MediaFilter $filter)
+    public function index(Request $request)
     {
+        list($collection, $total) = MediaConductor::request($request);
+
         return $this->respondAsResource(
-            $filter->filter(),
-            ['total' => $filter->foundTotal()]
+            $collection,
+            true,
+            ['total' => $total]
         );
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  MediaFilter $filter The request filter.
-     * @param  Media       $medium The request media.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\Media        $medium  The request media.
      * @return \Illuminate\Http\Response
      */
-    public function show(MediaFilter $filter, Media $medium)
+    public function show(Request $request, Media $medium)
     {
-        return $this->respondAsResource($filter->filter($medium));
+        if (MediaConductor::viewable($medium) === true) {
+            return $this->respondAsResource(MediaConductor::model($request, $medium));
+        }
+
+        return $this->respondForbidden();
     }
 
     /**
      * Store a new media resource
      *
-     * @param  MediaStoreRequest $request The uploaded media.
+     * @param  \App\Http\Requests\MediaRequest $request The uploaded media.
      * @return \Illuminate\Http\Response
      */
-    public function store(MediaStoreRequest $request)
+    public function store(MediaRequest $request)
     {
-        $file = $request->file('file');
-        if ($file === null) {
-            return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
-        }
-
-        if ($file->isValid() !== true) {
-            switch ($file->getError()) {
-                case UPLOAD_ERR_INI_SIZE:
-                case UPLOAD_ERR_FORM_SIZE:
-                    return $this->respondTooLarge();
-                case UPLOAD_ERR_PARTIAL:
-                    return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
-                default:
-                    return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
+        if (MediaConductor::creatable() === true) {
+            $file = $request->file('file');
+            if ($file === null) {
+                return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
             }
-        }
 
-        if ($file->getSize() > Media::maxUploadSize()) {
-            return $this->respondTooLarge();
-        }
+            if ($file->isValid() !== true) {
+                switch ($file->getError()) {
+                    case UPLOAD_ERR_INI_SIZE:
+                    case UPLOAD_ERR_FORM_SIZE:
+                        return $this->respondTooLarge();
+                    case UPLOAD_ERR_PARTIAL:
+                        return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
+                    default:
+                        return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
+                }
+            }
 
-        $title = $file->getClientOriginalName();
-        $mime = $file->getMimeType();
-        $fileInfo = Media::store($file, empty($request->input('permission')));
-        if ($fileInfo === null) {
-            return $this->respondWithErrors(
-                ['file' => 'The file could not be stored on the server'],
-                HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
-            );
-        }
-
-        $request->merge([
-            'title' => $title,
-            'mime' => $mime,
-            'name' => $fileInfo['name'],
-            'size' => filesize($fileInfo['path'])
-        ]);
-
-        $media = $request->user()->media()->create($request->all());
-        return $this->respondAsResource((new MediaFilter($request))->filter($media));
-    }
-
-    /**
-     * Update the media resource in storage.
-     *
-     * @param  MediaUpdateRequest $request The update request.
-     * @param  \App\Models\Media  $medium  The specified media.
-     * @return \Illuminate\Http\Response
-     */
-    public function update(MediaUpdateRequest $request, Media $medium)
-    {
-        if ((new MediaFilter($request))->filter($medium) === null) {
-            return $this->respondNotFound();
-        }
-
-        $file = $request->file('file');
-        if ($file !== null) {
             if ($file->getSize() > Media::maxUploadSize()) {
                 return $this->respondTooLarge();
             }
 
-            $oldPath = $medium->path();
+            $title = $file->getClientOriginalName();
+            $mime = $file->getMimeType();
             $fileInfo = Media::store($file, empty($request->input('permission')));
             if ($fileInfo === null) {
                 return $this->respondWithErrors(
@@ -127,34 +94,78 @@ class MediaController extends ApiController
                 );
             }
 
-            if (file_exists($oldPath) === true) {
-                unlink($oldPath);
-            }
-
             $request->merge([
-                'title' => $file->getClientOriginalName(),
-                'mime' => $file->getMimeType(),
+                'title' => $title,
+                'mime' => $mime,
                 'name' => $fileInfo['name'],
                 'size' => filesize($fileInfo['path'])
             ]);
+
+            $media = $request->user()->media()->create($request->all());
+            return $this->respondAsResource(
+                MediaConductor::model($request, $media),
+                false,
+                null,
+                HttpResponseCodes::HTTP_CREATED
+            );
         }//end if
 
-        $medium->update($request->all());
-        return $this->respondWithTransformer($file);
+        return $this->respondForbidden();
     }
 
+    /**
+     * Update the media resource in storage.
+     *
+     * @param  \App\Http\Requests\MediaRequest $request The update request.
+     * @param  \App\Models\Media               $medium  The specified media.
+     * @return \Illuminate\Http\Response
+     */
+    public function update(MediaRequest $request, Media $medium)
+    {
+        if (MediaConductor::updatable($medium) === true) {
+            $file = $request->file('file');
+            if ($file !== null) {
+                if ($file->getSize() > Media::maxUploadSize()) {
+                    return $this->respondTooLarge();
+                }
 
+                $oldPath = $medium->path();
+                $fileInfo = Media::store($file, empty($request->input('permission')));
+                if ($fileInfo === null) {
+                    return $this->respondWithErrors(
+                        ['file' => 'The file could not be stored on the server'],
+                        HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
+                    );
+                }
+
+                if (file_exists($oldPath) === true) {
+                    unlink($oldPath);
+                }
+
+                $request->merge([
+                    'title' => $file->getClientOriginalName(),
+                    'mime' => $file->getMimeType(),
+                    'name' => $fileInfo['name'],
+                    'size' => filesize($fileInfo['path'])
+                ]);
+            }//end if
+
+            $medium->update($request->all());
+            return $this->respondAsResource(MediaConductor::model($request, $medium));
+        }//end if
+
+        return $this->respondForbidden();
+    }
 
     /**
      * Remove the specified resource from storage.
      *
-     * @param Request           $request Request instance.
-     * @param  \App\Models\Media $medium  Specified media file.
+     * @param  \App\Models\Media $medium Specified media file.
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Request $request, Media $medium)
+    public function destroy(Media $medium)
     {
-        if ((new MediaFilter($request))->filter($medium) !== null) {
+        if (MediaConductor::destroyable($medium) === true) {
             if (file_exists($medium->path()) === true) {
                 unlink($medium->path());
             }
@@ -163,14 +174,14 @@ class MediaController extends ApiController
             return $this->respondNoContent();
         }
 
-        return $this->respondNotFound();
+        return $this->respondForbidden();
     }
 
     /**
      * Display the specified resource.
      *
-     * @param  Request           $request Request instance.
-     * @param  \App\Models\Media $medium  Specified media.
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @param  \App\Models\Media        $medium  Specified media.
      * @return \Illuminate\Http\Response
      */
     public function download(Request $request, Media $medium)
