@@ -3,12 +3,13 @@
 namespace App\Models;
 
 use App\Traits\Uuids;
-use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Facades\Image;
+use Spatie\ImageOptimizer\OptimizerChainFactory;
 
 class Media extends Model
 {
@@ -168,6 +169,31 @@ class Media extends Model
         }
 
         $path = Storage::disk($storage)->path($name);
+
+        // Generate additional image sizes
+        $sizes = [
+            'thumb' => [150, 150],
+            'medium' => [300, 300],
+            'large' => [1024, 1024],
+        ];
+        $images = ['full' => $path];
+        foreach ($sizes as $sizeName => $size) {
+            $image = Image::make($path);
+            $image->resize($size[0], $size[1], function ($constraint) {
+                $constraint->aspectRatio();
+                $constraint->upsize();
+            });
+            $newPath = pathinfo($path, PATHINFO_DIRNAME) . '/' . pathinfo($path, PATHINFO_FILENAME) . "-$sizeName." . pathinfo($path, PATHINFO_EXTENSION);
+            $image->save($newPath);
+            $images[$sizeName] = $newPath;
+        }
+
+        // Optimize all images
+        $optimizerChain = OptimizerChainFactory::create();
+        foreach ($images as $imagePath) {
+            $optimizerChain->optimize($imagePath);
+        }
+
         return [
             'name' => $name,
             'path' => $path
