@@ -9,7 +9,7 @@ if (isset($_GET['url'])) {
 
 if ($filepath !== false && strlen($filepath) > 0 && strpos($_GET['url'], 'uploads/') === 0 && is_file($filepath)) {
     if(isset($_GET['size'])) {
-        $availableSizes = ['thumb', 'medium', 'large']; // we ignore full as its the original file
+        $availableSizes = ['thumb', 'small', 'medium', 'large', 'xlarge']; // we ignore full as its the original file
         $requestedSize = strtolower($_GET['size']);
         $requestedSizeIndex = array_search($requestedSize, $availableSizes);
         

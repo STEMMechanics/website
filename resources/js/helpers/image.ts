@@ -16,7 +16,7 @@ export const imageLoad = (
 };
 
 export const imageSize = (size: string, url: string) => {
-    const availableSizes = ["thumb", "medium", "large"];
+    const availableSizes = ["thumb", "small", "medium", "large", "xlarge"];
     if (availableSizes.includes(size)) {
         if (
             url.startsWith((import.meta as ImportMetaExtras).env.APP_URL) ===
@@ -34,7 +34,12 @@ export const imageThumb = (url: string) => {
     return imageSize("thumb", url);
 };
 
-// Medium 300 x 300
+// Small 300 x 300
+export const imageSmall = (url: string) => {
+    return imageSize("small", url);
+};
+
+// Small 640 x 640
 export const imageMedium = (url: string) => {
     return imageSize("medium", url);
 };
@@ -42,6 +47,11 @@ export const imageMedium = (url: string) => {
 // Large 1024 x 1024
 export const imageLarge = (url: string) => {
     return imageSize("large", url);
+};
+
+// Large 1536 x 1536
+export const imageXLarge = (url: string) => {
+    return imageSize("xlarge", url);
 };
 
 // Full size

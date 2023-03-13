@@ -173,8 +173,10 @@ class Media extends Model
         // Generate additional image sizes
         $sizes = [
             'thumb' => [150, 150],
-            'medium' => [300, 300],
+            'small' => [300, 300],
+            'medium' => [640, 640],
             'large' => [1024, 1024],
+            'xlarge' => [1536, 1536],
         ];
         $images = ['full' => $path];
         foreach ($sizes as $sizeName => $size) {
