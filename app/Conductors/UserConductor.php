@@ -2,11 +2,7 @@
 
 namespace App\Conductors;
 
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 
 class UserConductor extends Conductor
 {
