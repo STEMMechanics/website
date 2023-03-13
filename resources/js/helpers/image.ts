@@ -29,18 +29,22 @@ export const imageSize = (size: string, url: string) => {
     return url;
 };
 
+// Thumb 150 x 150
 export const imageThumb = (url: string) => {
     return imageSize("thumb", url);
 };
 
+// Medium 300 x 300
 export const imageMedium = (url: string) => {
     return imageSize("medium", url);
 };
 
+// Large 1024 x 1024
 export const imageLarge = (url: string) => {
     return imageSize("large", url);
 };
 
+// Full size
 export const imageFull = (url: string) => {
     return imageSize("full", url);
 };
