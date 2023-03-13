@@ -34,7 +34,7 @@ function arrayRemoveItem(array $arr, string|array $item): array
  * @param string|array $keys The keys to keep.
  * @return array The filtered array.
  */
-function arrayOnlyItems(array $arr, array $keys): array
+function arrayLimitKeys(array $arr, array $keys): array
 {
     return array_intersect_key($arr, array_flip($keys));
 }
