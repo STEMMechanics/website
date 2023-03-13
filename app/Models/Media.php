@@ -177,6 +177,7 @@ class Media extends Model
             'medium' => [640, 640],
             'large' => [1024, 1024],
             'xlarge' => [1536, 1536],
+            'xxlarge' => [2560, 2560],
         ];
         $images = ['full' => $path];
         foreach ($sizes as $sizeName => $size) {
