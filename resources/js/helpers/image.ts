@@ -1,4 +1,5 @@
 import { ImportMetaExtras } from "../../../import-meta";
+import { urlStripAttributes } from "./url";
 
 type ImageLoadCallback = (url: string) => void;
 
@@ -7,16 +8,30 @@ export const imageLoad = (
     callback: ImageLoadCallback,
     postfix = "size=thumb"
 ) => {
-    callback(`${url}?${postfix}`);
-    const tmp = new Image();
-    tmp.onload = function () {
+    if (
+        url.startsWith((import.meta as ImportMetaExtras).env.APP_URL) === true
+    ) {
+        callback(urlStripAttributes(url) + "?" + postfix);
+        const tmp = new Image();
+        tmp.onload = function () {
+            callback(url);
+        };
+        tmp.src = url;
+    } else {
+        // Image is not one we control
         callback(url);
-    };
-    tmp.src = url;
+    }
 };
 
 export const imageSize = (size: string, url: string) => {
-    const availableSizes = ["thumb", "small", "medium", "large", "xlarge"];
+    const availableSizes = [
+        "thumb",
+        "small",
+        "medium",
+        "large",
+        "xlarge",
+        "xxlarge",
+    ];
     if (availableSizes.includes(size)) {
         if (
             url.startsWith((import.meta as ImportMetaExtras).env.APP_URL) ===
@@ -52,6 +67,11 @@ export const imageLarge = (url: string) => {
 // Large 1536 x 1536
 export const imageXLarge = (url: string) => {
     return imageSize("xlarge", url);
+};
+
+// Large 2560 x 2560
+export const imageXXLarge = (url: string) => {
+    return imageSize("xxlarge", url);
 };
 
 // Full size
