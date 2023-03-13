@@ -48,6 +48,7 @@
                         <SMButton
                             label="Edit"
                             :dropdown="{
+                                duplicate: 'Duplicate',
                                 delete: 'Delete',
                             }"
                             @click="handleClick(item, $event)"></SMButton>
@@ -73,6 +74,7 @@ import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
+import { Event, EventCollection, EventResponse } from "../../helpers/api.types";
 
 const router = useRouter();
 const search = ref("");
@@ -104,6 +106,8 @@ const serverOptions = ref({
 const handleClick = (item, extra: string): void => {
     if (extra.length == 0) {
         handleEdit(item);
+    } else if (extra.toLowerCase() == "duplicate") {
+        handleDuplicate(item);
     } else if (extra.toLowerCase() == "delete") {
         handleDelete(item);
     }
@@ -134,16 +138,18 @@ const loadFromServer = async () => {
             params["title"] = search.value;
         }
 
-        let res = await api.get({
+        let result = await api.get({
             url: "/events",
             params: params,
         });
 
-        if (!res.data.events) {
+        const data = result.data as EventCollection;
+
+        if (!data.events) {
             throw new Error("The server is currently not available");
         }
 
-        items.value = res.data.events;
+        items.value = data.events;
 
         items.value.forEach((row) => {
             if (row.start_at !== "undefined") {
@@ -166,7 +172,7 @@ const loadFromServer = async () => {
             }
         });
 
-        serverItemsLength.value = res.data.total;
+        serverItemsLength.value = data.total;
     } catch (err) {
         // restParseErrors(formData, [formMessage, "message"], err);
     }
@@ -199,6 +205,69 @@ const handleCreate = () => {
 
 const handleEdit = (item) => {
     router.push({ name: "dashboard-event-edit", params: { id: item.id } });
+};
+
+const handleDuplicate = async (item) => {
+    try {
+        let tries = 1;
+        let number = 2;
+
+        let originalSlug = item.slug;
+        let originalTitle = item.title;
+
+        const slugMatch = originalSlug.match(/-(\d+)$/);
+        if (slugMatch == true) {
+            number = parseInt(slugMatch[1], 10);
+
+            originalSlug = originalSlug.replace(new RegExp(`-${number}$`), "");
+            originalTitle = originalTitle.replace(
+                new RegExp(`[- ]${number}$`),
+                ""
+            );
+        }
+
+        delete item.id;
+        delete item.created_at;
+        delete item.updated_at;
+
+        while (tries < 25) {
+            const slug = `${originalSlug}-${number}`;
+            try {
+                await api.get({
+                    url: `/events/?slug=${slug}`,
+                });
+            } catch (err) {
+                if (err.status === 404) {
+                    item.slug = slug;
+                    item.title = `${originalTitle} ${number}`;
+                    break;
+                } else {
+                    formMessage.message = "The post could not be duplicated.";
+                    formMessage.type = "error";
+                    return;
+                }
+            }
+        }
+
+        const result = await api.post({
+            url: "/events",
+            body: item,
+        });
+
+        const data = result.data as EventResponse;
+
+        loadFromServer();
+
+        formMessage.message = "Post duplicated successfully";
+        formMessage.type = "success";
+
+        router.push({
+            name: "dashboard-event-edit",
+            params: { id: data.event.id },
+        });
+    } catch (err) {
+        formMessage.message = err.response?.data?.message;
+    }
 };
 
 const handleDelete = async (item) => {
