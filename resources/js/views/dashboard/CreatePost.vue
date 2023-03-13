@@ -30,7 +30,7 @@ import { Form, FormControl } from "../../helpers/form";
 import { And, Min, Required } from "../../helpers/validate";
 
 const route = useRoute();
-const form = reactive(
+let form = reactive(
     Form({
         title: FormControl("", And([Required(), Min(2)])),
         content: FormControl("", Required()),

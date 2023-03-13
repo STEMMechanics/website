@@ -60,7 +60,7 @@ import { And, Min, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
-const form = reactive(
+let form = reactive(
     Form({
         username: FormControl("", And([Required(), Min(4)])),
     })

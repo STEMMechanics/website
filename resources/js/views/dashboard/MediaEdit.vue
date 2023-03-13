@@ -81,7 +81,7 @@ const formLoadingMessage = ref("");
 const route = useRoute();
 const page_title = route.params.id ? "Edit Media" : "Upload Media";
 
-const form = reactive(
+let form = reactive(
     Form({
         file: FormControl("", And([Required(), FileSize(5242880)])),
         permission: FormControl(),

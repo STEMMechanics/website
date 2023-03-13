@@ -56,7 +56,7 @@ import { Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
-const form = reactive(
+let form = reactive(
     Form({
         username: FormControl("", Required()),
     })

@@ -48,7 +48,7 @@ import { useUserStore } from "../store/UserStore";
 
 const router = useRouter();
 const userStore = useUserStore();
-const form = reactive(
+let form = reactive(
     Form({
         username: FormControl("", And([Required(), Min(4)])),
         password: FormControl("", Required()),

@@ -123,7 +123,7 @@ const checkUsername = async (value: string): Promise<boolean | string> => {
 
 const formDone = ref(false);
 const lastUsernameCheck = ref("");
-const form = reactive(
+let form = reactive(
     Form({
         first_name: FormControl("", Required()),
         last_name: FormControl("", Required()),

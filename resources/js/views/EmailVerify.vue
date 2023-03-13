@@ -54,7 +54,7 @@ import { And, Max, Min, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
-const form = reactive(
+let form = reactive(
     Form({
         code: FormControl("", And([Required(), Min(6), Max(6)])),
     })

@@ -141,7 +141,7 @@ import { And, Email, Required } from "../helpers/validate";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const form = reactive(
+let form = reactive(
     Form({
         email: FormControl("", And([Required(), Email()])),
     })

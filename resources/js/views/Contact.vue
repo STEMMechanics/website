@@ -131,7 +131,7 @@ import { Form, FormControl } from "../helpers/form";
 import { And, Email, Min, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-const form = reactive(
+let form = reactive(
     Form({
         name: FormControl("", And([Required()])),
         email: FormControl("", And([Required(), Email()])),

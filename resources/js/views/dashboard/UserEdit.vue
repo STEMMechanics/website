@@ -48,7 +48,7 @@ import { useUserStore } from "../../store/UserStore";
 const route = useRoute();
 const userStore = useUserStore();
 
-const form = reactive(
+let form = reactive(
     Form({
         first_name: FormControl("", And([Required()])),
         last_name: FormControl("", And([Required()])),

@@ -49,7 +49,7 @@ import { And, Email, Required } from "../helpers/validate";
 
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
-const form = reactive(
+let form = reactive(
     Form({
         email: FormControl("", And([Required(), Email()])),
     })

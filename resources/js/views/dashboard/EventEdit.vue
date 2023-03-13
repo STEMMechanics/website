@@ -196,7 +196,7 @@ const registration_data = computed(() => {
     return data;
 });
 
-const form = reactive(
+let form = reactive(
     Form({
         title: FormControl("", And([Required(), Min(6)])),
         location: FormControl("online"),

@@ -89,7 +89,7 @@ let pageError = ref(200);
 const authors = ref({});
 const attachments = ref([]);
 
-const form = reactive(
+let form = reactive(
     Form({
         title: FormControl("", And([Required(), Min(8)])),
         slug: FormControl("", And([Required(), Min(6)])),
