@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UserUpdateRequest extends FormRequest
 {
@@ -13,8 +14,20 @@ class UserUpdateRequest extends FormRequest
      */
     public function rules()
     {
+        $user = $this->route('user');
+
         return [
-            'username' => 'string|max:255|min:6|unique:users',
+            'username' => [
+                'string',
+                'max:255',
+                'min:4',
+                Rule::unique('users')->ignore($user->id)->when(
+                    $this->username !== $user->username,
+                    function ($query) {
+                        return $query->where('username', $this->username);
+                    }
+                ),
+            ],
             'first_name' => 'string|max:255|min:2',
             'last_name' => 'string|max:255|min:2',
             'email' => 'string|email|max:255',
