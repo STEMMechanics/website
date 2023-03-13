@@ -190,7 +190,7 @@ const registration_data = computed(() => {
     } else if (form?.controls.registration_type.value === "message") {
         data.visible = true;
         data.title = "Registration message";
-        data.type = "test";
+        data.type = "text";
     }
 
     return data;
