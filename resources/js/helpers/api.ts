@@ -139,7 +139,7 @@ export const api = {
                         result.data = xhr.response;
                     }
 
-                    if (xhr.status === 200) {
+                    if (xhr.status < 300) {
                         resolve(result);
                     } else {
                         reject(result);
