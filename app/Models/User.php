@@ -119,8 +119,14 @@ class User extends Authenticatable implements Auditable
             return ['permission' => $permission];
         });
 
-        return $this->permissions()->firstOrCreateMany($permissions->toArray());
+        $existingPermissions = $this->permissions()->whereIn('permission', $permissions->pluck('permission'))->get();
+        $newPermissions = $permissions->reject(function ($permission) use ($existingPermissions) {
+            return $existingPermissions->contains('permission', $permission['permission']);
+        });
+
+        return $this->permissions()->createMany($newPermissions->toArray());
     }
+
 
     /**
      * Revoke permissions from the user
