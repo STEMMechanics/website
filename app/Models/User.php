@@ -104,6 +104,42 @@ class User extends Authenticatable implements Auditable
     }
 
     /**
+     * Give permissions to the user
+     *
+     * @param string|array $permissions The permission(s) to give.
+     * @return Collection
+     */
+    public function givePermission($permissions)
+    {
+        if (!is_array($permissions)) {
+            $permissions = [$permissions];
+        }
+
+        $permissions = collect($permissions)->map(function ($permission) {
+            return ['permission' => $permission];
+        });
+
+        return $this->permissions()->firstOrCreateMany($permissions->toArray());
+    }
+
+    /**
+     * Revoke permissions from the user
+     *
+     * @param string|array $permissions The permission(s) to revoke.
+     * @return int
+     */
+    public function revokePermission($permissions)
+    {
+        if (!is_array($permissions)) {
+            $permissions = [$permissions];
+        }
+
+        return $this->permissions()
+            ->whereIn('permission', $permissions)
+            ->delete();
+    }
+
+    /**
      * Get the list of files of the user
      *
      * @return HasMany
