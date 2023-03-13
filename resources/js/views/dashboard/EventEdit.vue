@@ -84,6 +84,7 @@
                                 none: 'None',
                                 email: 'Email',
                                 link: 'Link',
+                                message: 'Message',
                             }" />
                     </SMColumn>
                     <SMColumn>
@@ -186,6 +187,10 @@ const registration_data = computed(() => {
         data.visible = true;
         data.title = "Registration URL";
         data.type = "url";
+    } else if (form?.controls.registration_type.value === "message") {
+        data.visible = true;
+        data.title = "Registration message";
+        data.type = "test";
     }
 
     return data;

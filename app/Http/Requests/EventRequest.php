@@ -27,11 +27,12 @@ class EventStoreRequest extends BaseRequest
                 Rule::in(['draft', 'soon', 'open', 'closed', 'cancelled']),
             ],
             'registration_type' => [
-                Rule::in(['none', 'email', 'link']),
+                Rule::in(['none', 'email', 'link', 'message']),
             ],
             'registration_data' => [
                 Rule::when(strcasecmp('email', $this->attributes->get('registration_type')) == 0, 'required|email'),
-                Rule::when(strcasecmp('link', $this->attributes->get('registration_type')) == 0, 'required|url')
+                Rule::when(strcasecmp('link', $this->attributes->get('registration_type')) == 0, 'required|url'),
+                Rule::when(strcasecmp('message', $this->attributes->get('registration_type')) == 0, 'required|message'),
             ],
             'hero'              => 'uuid|exists:media,id',
         ];

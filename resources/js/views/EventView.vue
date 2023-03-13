@@ -60,6 +60,15 @@
                             :block="true"
                             label="Register for Event"></SMButton>
                     </div>
+                    <div
+                        v-if="
+                            event.status == 'open' &&
+                            expired == false &&
+                            event.registration_type == 'message'
+                        "
+                        class="sm-workshop-registration sm-workshop-registration-message">
+                        {{ event.registration_data }}
+                    </div>
                     <div class="sm-workshop-date">
                         <h4>
                             <ion-icon
@@ -380,7 +389,8 @@ handleLoad();
             }
 
             .sm-workshop-registration-none,
-            .sm-workshop-registration-soon {
+            .sm-workshop-registration-soon,
+            .sm-workshop-registration-message {
                 border: 1px solid #ffeeba;
                 background-color: #fff3cd;
                 color: #856404;
