@@ -2,10 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class EventStoreRequest extends BaseRequest
+class EventRequest extends BaseRequest
 {
     /**
      * Apply the base rules to this request
