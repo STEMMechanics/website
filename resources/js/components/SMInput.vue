@@ -91,6 +91,7 @@ import { computed, inject, ref, useSlots, watch } from "vue";
 import { openDialog } from "vue3-promise-dialog";
 import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
+import { imageMedium } from "../helpers/image";
 import { toTitleCase } from "../helpers/string";
 import { isEmpty } from "../helpers/utils";
 import { isUUID } from "../helpers/uuid";
@@ -240,7 +241,7 @@ watch(
                     const data = result.data as MediaResponse;
 
                     if (data && data.medium) {
-                        mediaUrl.value = data.medium.url;
+                        mediaUrl.value = imageMedium(data.medium.url);
                     }
                 } catch (error) {
                     /* empty */

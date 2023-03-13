@@ -60,7 +60,7 @@ import { computed, onMounted, reactive, ref, watch } from "vue";
 import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { imageLoad } from "../helpers/image";
+import { imageLoad, imageMedium } from "../helpers/image";
 import {
     excerpt,
     replaceHtmlEntites,
@@ -251,7 +251,8 @@ onMounted(async () => {
 watch(
     () => imageUrl.value,
     (value) => {
-        styleObject["backgroundImage"] = `url('${value}')`;
+        const url = imageMedium(value);
+        styleObject["backgroundImage"] = `url('${url}')`;
     }
 );
 </script>

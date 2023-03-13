@@ -21,14 +21,30 @@ const props = defineProps({
 const computedContent = computed(() => {
     let html = "";
 
-    const regex = new RegExp(
+    // Convert local links to router-links
+    const regexHref = new RegExp(
         `<a ([^>]*?)href="${
             (import.meta as ImportMetaExtras).env.APP_URL
         }(.*?>.*?)</a>`,
         "ig"
     );
+    html = props.html.replace(regexHref, '<router-link $1to="$2</router-link>');
 
-    html = props.html.replace(regex, '<router-link $1to="$2</router-link>');
+    // Update local images to use at most the large size
+    const regexImg = new RegExp(
+        `<img ([^>]*?)src="${
+            (import.meta as ImportMetaExtras).env.APP_URL
+        }/uploads/([^"]*?)"`,
+        "ig"
+    );
+    html = html.replace(
+        regexImg,
+        `<img $1src="${
+            (import.meta as ImportMetaExtras).env.APP_URL
+        }/uploads/$2?size=large"`
+    );
+
+    // Sanitize HTML
     html = DOMPurify.sanitize(html);
 
     return {
