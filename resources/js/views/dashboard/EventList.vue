@@ -74,16 +74,17 @@ import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
-import { Event, EventCollection, EventResponse } from "../../helpers/api.types";
+import { EventCollection, EventResponse } from "../../helpers/api.types";
+import { useToastStore } from "../../store/ToastStore";
 
 const router = useRouter();
 const search = ref("");
 
 const headers = [
     { text: "Title", value: "title", sortable: true },
-    { text: "Starts", value: "start_at", sortable: true },
-    { text: "Created", value: "created_at", sortable: true },
-    { text: "Updated", value: "updated_at", sortable: true },
+    { text: "Starts", value: "start_at_formatted", sortable: true },
+    { text: "Created", value: "created_at_formatted", sortable: true },
+    { text: "Updated", value: "updated_at_formatted", sortable: true },
     { text: "Actions", value: "actions" },
 ];
 
@@ -153,19 +154,19 @@ const loadFromServer = async () => {
 
         items.value.forEach((row) => {
             if (row.start_at !== "undefined") {
-                row.start_at = new SMDate(row.start_at, {
+                row.start_at_formatted = new SMDate(row.start_at, {
                     format: "ymd",
                     utc: true,
                 }).relative();
             }
             if (row.created_at !== "undefined") {
-                row.created_at = new SMDate(row.created_at, {
+                row.created_at_formatted = new SMDate(row.created_at, {
                     format: "ymd",
                     utc: true,
                 }).relative();
             }
             if (row.updated_at !== "undefined") {
-                row.updated_at = new SMDate(row.updated_at, {
+                row.updated_at_formatted = new SMDate(row.updated_at, {
                     format: "ymd",
                     utc: true,
                 }).relative();
@@ -195,10 +196,6 @@ watch(search, () => {
     debouncedFilter();
 });
 
-const handleClickRow = (item) => {
-    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
-};
-
 const handleCreate = () => {
     router.push({ name: "dashboard-event-create" });
 };
@@ -208,65 +205,78 @@ const handleEdit = (item) => {
 };
 
 const handleDuplicate = async (item) => {
+    const duplicateItem = { ...item };
+
     try {
         let tries = 1;
         let number = 2;
 
-        let originalSlug = item.slug;
-        let originalTitle = item.title;
+        let originalTitle = duplicateItem.title;
 
-        const slugMatch = originalSlug.match(/-(\d+)$/);
-        if (slugMatch == true) {
-            number = parseInt(slugMatch[1], 10);
+        const titleMatch = originalTitle.match(/[- ](\d+)$/);
+        if (titleMatch !== null) {
+            number = parseInt(titleMatch[1], 10);
 
-            originalSlug = originalSlug.replace(new RegExp(`-${number}$`), "");
             originalTitle = originalTitle.replace(
                 new RegExp(`[- ]${number}$`),
                 ""
             );
         }
 
-        delete item.id;
-        delete item.created_at;
-        delete item.updated_at;
+        delete duplicateItem.key;
+        delete duplicateItem.id;
+        delete duplicateItem.created_at;
+        delete duplicateItem.updated_at;
 
         while (tries < 25) {
-            const slug = `${originalSlug}-${number}`;
+            const title = `${originalTitle} ${number}`;
             try {
                 await api.get({
-                    url: `/events/?slug=${slug}`,
+                    url: `/events/?title==${title}`,
                 });
             } catch (err) {
                 if (err.status === 404) {
-                    item.slug = slug;
-                    item.title = `${originalTitle} ${number}`;
+                    duplicateItem.title = `${originalTitle} ${number}`;
                     break;
                 } else {
-                    formMessage.message = "The post could not be duplicated.";
-                    formMessage.type = "error";
+                    useToastStore().addToast({
+                        title: "Server error",
+                        content: "The event could not be duplicated.",
+                        type: "danger",
+                    });
                     return;
                 }
             }
+
+            ++tries;
+            ++number;
         }
 
         const result = await api.post({
             url: "/events",
-            body: item,
+            body: duplicateItem,
         });
 
         const data = result.data as EventResponse;
 
         loadFromServer();
 
-        formMessage.message = "Post duplicated successfully";
-        formMessage.type = "success";
+        useToastStore().addToast({
+            title: "Event duplicated",
+            content: "The event was duplicated successfully.",
+            type: "success",
+        });
 
         router.push({
             name: "dashboard-event-edit",
             params: { id: data.event.id },
         });
     } catch (err) {
-        formMessage.message = err.response?.data?.message;
+        useToastStore().addToast({
+            title: "Server error",
+            content: "The event could not be duplicated.",
+            type: "danger",
+        });
     }
 };
 
