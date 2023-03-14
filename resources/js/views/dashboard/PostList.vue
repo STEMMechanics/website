@@ -44,6 +44,7 @@
                         <SMButton
                             label="Edit"
                             :dropdown="{
+                                duplicate: 'Duplicate',
                                 delete: 'Delete',
                             }"
                             @click="handleClick(item, $event)"></SMButton>
@@ -67,9 +68,10 @@ import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { PostCollection } from "../../helpers/api.types";
+import { PostCollection, PostResponse } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
+import { useToastStore } from "../../store/ToastStore";
 
 const router = useRouter();
 const search = ref("");
@@ -97,6 +99,8 @@ const serverOptions = ref({
 const handleClick = (item, extra: string): void => {
     if (extra.length == 0) {
         handleEdit(item);
+    } else if (extra.toLowerCase() == "duplicate") {
+        handleDuplicate(item);
     } else if (extra.toLowerCase() == "delete") {
         handleDelete(item);
     }
@@ -194,6 +198,82 @@ const handleCreate = () => {
 
 const handleEdit = (item) => {
     router.push({ name: "dashboard-post-edit", params: { id: item.id } });
+};
+
+const handleDuplicate = async (item) => {
+    try {
+        let tries = 1;
+        let number = 2;
+
+        let originalSlug = item.slug;
+        let originalTitle = item.title;
+
+        const slugMatch = originalSlug.match(/-(\d+)$/);
+        if (slugMatch == true) {
+            number = parseInt(slugMatch[1], 10);
+
+            originalSlug = originalSlug.replace(new RegExp(`-${number}$`), "");
+            originalTitle = originalTitle.replace(
+                new RegExp(`[- ]${number}$`),
+                ""
+            );
+        }
+
+        delete item.id;
+        delete item.created_at;
+        delete item.updated_at;
+
+        while (tries < 25) {
+            const slug = `${originalSlug}-${number}`;
+            try {
+                await api.get({
+                    url: `/posts/?slug=${slug}`,
+                });
+            } catch (err) {
+                if (err.status === 404) {
+                    item.slug = slug;
+                    item.title = `${originalTitle} ${number}`;
+                    break;
+                } else {
+                    useToastStore().addToast({
+                        title: "Server error",
+                        content: "The post could not be duplicated.",
+                        type: "danger",
+                    });
+                    return;
+                }
+            }
+
+            ++tries;
+            ++number;
+        }
+
+        const result = await api.post({
+            url: "/posts",
+            body: item,
+        });
+
+        const data = result.data as PostResponse;
+
+        loadFromServer();
+
+        useToastStore().addToast({
+            title: "Post duplicated",
+            content: "The post was duplicated successfully.",
+            type: "success",
+        });
+
+        router.push({
+            name: "dashboard-post-edit",
+            params: { id: data.post.id },
+        });
+    } catch (err) {
+        useToastStore().addToast({
+            title: "Server error",
+            content: "The post could not be duplicated.",
+            type: "danger",
+        });
+    }
 };
 
 const handleDelete = async (item) => {
