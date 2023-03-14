@@ -167,7 +167,24 @@ export class SMDate {
                     parsedHours = parseInt(match[1]);
                     parsedMinutes = match[2] ? parseInt(match[2]) : 0;
                     parsedSeconds = match[3] ? parseInt(match[3]) : 0;
-                    if (match[4] && /pm/i.test(match[4])) {
+
+                    if (
+                        parsedHours < 0 ||
+                        parsedHours > 23 ||
+                        (match[4] &&
+                            (/(am|pm)/i.test(match[4]) == false ||
+                                parsedHours > 12)) ||
+                        parsedMinutes < 0 ||
+                        parsedMinutes > 59 ||
+                        parsedSeconds < 0 ||
+                        parsedSeconds > 59
+                    ) {
+                        // not valid
+                        this.date = null;
+                        return this;
+                    }
+
+                    if (match[4] && /pm/i.test(match[4]) && parsedHours < 12) {
                         parsedHours += 12;
                     }
                     if (
