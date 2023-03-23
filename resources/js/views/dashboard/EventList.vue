@@ -123,7 +123,10 @@ const loadFromServer = async () => {
     try {
         let params = {};
         if (serverOptions.value.sortBy) {
-            params["sort"] = serverOptions.value.sortBy;
+            params["sort"] = serverOptions.value.sortBy.replace(
+                "_formatted",
+                ""
+            );
             if (
                 serverOptions.value.sortType &&
                 serverOptions.value.sortType === "desc"
