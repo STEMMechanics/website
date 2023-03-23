@@ -275,3 +275,23 @@ export const api = {
         return await this.send(options);
     },
 };
+
+/**
+ * Get an api result data as type.
+ *
+ * @param result The api result object.
+ * @param defaultValue The default data to return if no result exists.
+ * @returns Data object.
+ */
+export function getApiResultData<T>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result: any,
+    defaultValue: T | null = null
+): T | null {
+    if (!result || !Object.prototype.hasOwnProperty.call(result, "data")) {
+        return defaultValue;
+    }
+
+    const data = result.data as T;
+    return data instanceof Object ? data : defaultValue;
+}
