@@ -132,12 +132,13 @@ import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
 
-import { api } from "../helpers/api";
+import { api, getApiResultData } from "../helpers/api";
 import { EventCollection, PostCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { Form, FormControl } from "../helpers/form";
 import { excerpt } from "../helpers/string";
 import { And, Email, Required } from "../helpers/validate";
+import { useToastStore } from "../store/ToastStore";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
@@ -151,19 +152,42 @@ const handleLoad = async () => {
     slides.value = [];
     let posts = [];
     let events = [];
+    let hasError = false;
 
     try {
-        const result = await api.get({
-            url: "/posts",
-            params: {
-                limit: 3,
-            },
-        });
+        const [postsResult, eventsResult] = await Promise.all([
+            api
+                .get({
+                    url: "/posts",
+                    params: {
+                        limit: 3,
+                    },
+                })
+                .catch(() => {
+                    hasError = true;
+                }),
+            api
+                .get({
+                    url: "/events",
+                    params: {
+                        limit: 3,
+                        end_at:
+                            ">" +
+                            new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
+                                utc: true,
+                            }),
+                    },
+                })
+                .catch(() => {
+                    hasError = true;
+                }),
+        ]);
 
-        const data = result.data as PostCollection;
+        const postsData = getApiResultData<PostCollection>(postsResult);
+        const eventData = getApiResultData<EventCollection>(eventsResult);
 
-        if (data && data.posts) {
-            data.posts.forEach((post) => {
+        if (postsData && postsData.posts) {
+            postsData.posts.forEach((post) => {
                 posts.push({
                     title: post.title,
                     content: excerpt(post.content, 200),
@@ -173,27 +197,9 @@ const handleLoad = async () => {
                 });
             });
         }
-    } catch {
-        /* empty */
-    }
 
-    try {
-        const result = await api.get({
-            url: "/events",
-            params: {
-                limit: 3,
-                end_at:
-                    ">" +
-                    new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
-                        utc: true,
-                    }),
-            },
-        });
-
-        const data = result.data as EventCollection;
-
-        if (data && data.events) {
-            data.events.forEach((event) => {
+        if (eventData && eventData.events) {
+            eventData.events.forEach((event) => {
                 events.push({
                     title: event.title,
                     content: excerpt(event.content, 200),
@@ -204,7 +210,7 @@ const handleLoad = async () => {
             });
         }
     } catch {
-        /* empty */
+        hasError = true;
     }
 
     for (let i = 1; i <= Math.max(posts.length, events.length); i++) {
@@ -215,6 +221,17 @@ const handleLoad = async () => {
         if (i <= events.length) {
             slides.value.push(events[i - 1]);
         }
+    }
+
+    if (hasError) {
+        const toastStore = useToastStore();
+
+        toastStore.addToast({
+            title: "Server Error",
+            content:
+                "A server error occurred. Some items cannot be viewed at this time.",
+            type: "danger",
+        });
     }
 };
 
