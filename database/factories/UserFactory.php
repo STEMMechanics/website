@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use Faker\Provider\CustomInternetProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -19,7 +18,7 @@ class UserFactory extends Factory
     public function definition()
     {
         $faker = \Faker\Factory::create();
-        $faker->addProvider(new CustomInternetProvider($faker));
+        $faker->addProvider(new \Faker\Provider\CustomInternetProvider($faker));
 
         return [
             'username' => $faker->unique()->userNameWithMinLength(6),
