@@ -30,32 +30,3 @@ jobs:
                   DB_CONNECTION: sqlite
                   DB_DATABASE: database/database.sqlite
               run: vendor/bin/phpunit
-
-    deploy:
-        needs: laravel-tests
-        runs-on: ubuntu-latest
-
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v3
-
-            - name: Deployment
-              uses: appleboy/ssh-action@v0.1.7
-              with:
-                  host: ${{ secrets.SSH_HOST }}
-                  port: ${{ secrets.SSH_PORT }}
-                  key: ${{ secrets.SSH_PRIVATE_KEY }}
-                  username: ${{ secrets.SSH_USERNAME }}
-
-                  script: |
-                      cd /var/www/stemmechanics.com.au
-                      (php artisan down) || true
-                      git fetch origin main
-                      git reset --hard origin/main
-                      composer install --no-interaction --prefer-dist --optimize-autoloader
-                      php artisan migrate --force
-                      npm install
-                      npm run build
-                      npm run prepare
-                      php artisan optimize
-                      php artisan up
