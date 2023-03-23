@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use Faker\Provider\CustomInternetProvider;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -17,13 +18,16 @@ class UserFactory extends Factory
      */
     public function definition()
     {
+        $faker = \Faker\Factory::create();
+        $faker->addProvider(new CustomInternetProvider($faker));
+
         return [
-            'username' => fake()->unique()->userName(),
-            'first_name' => fake()->firstName(),
-            'last_name' => fake()->lastName(),
-            'email' => fake()->safeEmail(),
+            'username' => $faker->unique()->userNameWithMinLength(6),
+            'first_name' => $faker->firstName(),
+            'last_name' => $faker->lastName(),
+            'email' => $faker->safeEmail(),
             'email_verified_at' => now(),
-            'phone' => fake()->phoneNumber(),
+            'phone' => $faker->phoneNumber(),
             'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
             'remember_token' => Str::random(10),
         ];
