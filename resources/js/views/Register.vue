@@ -1,7 +1,7 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
         <template #container>
-            <SMDialog full class="mt-5" :narrow="formDone">
+            <SMFormCard full class="mt-5" :narrow="formDone">
                 <template v-if="!formDone">
                     <h1>Register</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
@@ -64,7 +64,7 @@
                         </template>
                     </SMFormFooter>
                 </template>
-            </SMDialog>
+            </SMFormCard>
         </template>
     </SMPage>
 </template>
@@ -73,7 +73,7 @@
 import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";

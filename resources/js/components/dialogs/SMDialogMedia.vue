@@ -1,6 +1,6 @@
 <template>
     <SMModal>
-        <SMDialog
+        <SMFormCard
             :loading="dialogLoading"
             full
             :loading-message="dialogLoadingMessage"
@@ -96,7 +96,7 @@
                 style="display: none"
                 :accept="computedAccepts"
                 @change="handleChangeUpload" />
-        </SMDialog>
+        </SMFormCard>
     </SMModal>
 </template>
 
@@ -109,7 +109,7 @@ import { bytesReadable } from "../../helpers/types";
 import { getFilePreview } from "../../helpers/utils";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
-import SMDialog from "../SMDialog.vue";
+import SMFormCard from "../SMFormCard.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMLoadingIcon from "../SMLoadingIcon.vue";
 import SMMessage from "../SMMessage.vue";

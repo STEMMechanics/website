@@ -1,14 +1,14 @@
 <template>
     <div
         :class="[
-            'sm-dialog',
-            { 'sm-dialog-narrow': narrow },
-            { 'sm-dialog-full': full },
-            { 'sm-dialog-noshadow': noShadow },
+            'sm-form-card',
+            { 'sm-form-card-narrow': narrow },
+            { 'sm-form-card-full': full },
+            { 'sm-form-card-noshadow': noShadow },
         ]">
         <transition name="fade">
-            <div v-if="loading" class="sm-dialog-loading-cover">
-                <div class="sm-dialog-loading">
+            <div v-if="loading" class="sm-form-card-loading-cover">
+                <div class="sm-form-card-loading">
                     <SMLoadingIcon />
                     <span>{{ loadingMessage }}</span>
                 </div>
@@ -46,7 +46,7 @@ defineProps({
 </script>
 
 <style lang="scss">
-.sm-dialog {
+.sm-form-card {
     flex-direction: column;
     margin: 0 auto;
     background-color: #eee;
@@ -58,7 +58,7 @@ defineProps({
     min-width: map-get($spacer, 5) * 12;
     box-shadow: 4px 4px 20px rgba(0, 0, 0, 0.5);
 
-    &.sm-dialog-noshadow {
+    &.sm-form-card-noshadow {
         box-shadow: none !important;
     }
 
@@ -70,16 +70,16 @@ defineProps({
         font-size: 90%;
     }
 
-    &.sm-dialog-narrow {
+    &.sm-form-card-narrow {
         min-width: auto;
         max-width: map-get($spacer, 5) * 10;
     }
 
-    &.sm-dialog-full {
+    &.sm-form-card-full {
         width: 100%;
     }
 
-    .sm-dialog-loading-cover {
+    .sm-form-card-loading-cover {
         position: fixed;
         display: flex;
         justify-content: center;
@@ -93,7 +93,7 @@ defineProps({
         background-color: rgba(255, 255, 255, 0.5);
         z-index: 19000;
 
-        .sm-dialog-loading {
+        .sm-form-card-loading {
             display: flex;
             flex-direction: column;
             padding: map-get($spacer, 5) calc(map-get($spacer, 5) * 2);
@@ -115,15 +115,15 @@ defineProps({
 }
 
 @media only screen and (max-width: 640px) {
-    .sm-container .sm-dialog {
+    .sm-container .sm-form-card {
         margin: 0 -1rem;
 
-        &.sm-dialog-full {
+        &.sm-form-card-full {
             width: auto;
         }
     }
 
-    .sm-dialog {
+    .sm-form-card {
         padding: map-get($spacer, 5) map-get($spacer, 4) map-get($spacer, 4)
             map-get($spacer, 4);
         min-width: auto;

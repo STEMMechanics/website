@@ -110,14 +110,14 @@
                 Sign up for our mailing list to receive expert tips and tricks,
                 as well as updates on upcoming workshops.
             </p>
-            <SMDialog class="p-0" no-shadow>
+            <SMFormCard class="p-0" no-shadow>
                 <SMForm v-model="form" @submit="handleSubscribe">
                     <div class="form-row">
                         <SMInput control="email" />
                         <SMButton type="submit" label="Subscribe" />
                     </div>
                 </SMForm>
-            </SMDialog>
+            </SMFormCard>
         </SMContainer>
     </SMPage>
 </template>
@@ -128,7 +128,7 @@ import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMCarousel from "../components/SMCarousel.vue";
 import SMCarouselSlide from "../components/SMCarouselSlide.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
 

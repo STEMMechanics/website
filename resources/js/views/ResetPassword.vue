@@ -1,7 +1,7 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog narrow>
+            <SMFormCard narrow>
                 <template v-if="!formDone">
                     <h1>Reset Password</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
@@ -36,7 +36,7 @@
                         </template>
                     </SMFormFooter>
                 </template>
-            </SMDialog>
+            </SMFormCard>
         </SMRow>
     </SMPage>
 </template>
@@ -46,7 +46,7 @@ import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";

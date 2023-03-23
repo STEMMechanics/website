@@ -1,6 +1,6 @@
 <template>
     <SMModal>
-        <SMDialog :loading="dialogLoading">
+        <SMFormCard :loading="dialogLoading">
             <h1>Change Password</h1>
             <p class="text-center">Enter your new password below</p>
             <SMForm :model-value="form" @submit="handleSubmit">
@@ -20,7 +20,7 @@
                     </template>
                 </SMFormFooter>
             </SMForm>
-        </SMDialog>
+        </SMFormCard>
     </SMModal>
 </template>
 
@@ -34,7 +34,7 @@ import { useApplicationStore } from "../../store/ApplicationStore";
 import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMButton from "../SMButton.vue";
-import SMDialog from "../SMDialog.vue";
+import SMFormCard from "../SMFormCard.vue";
 import SMForm from "../SMForm.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";

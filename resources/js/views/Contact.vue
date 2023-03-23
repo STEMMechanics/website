@@ -85,7 +85,7 @@
                 </SMColumn>
                 <SMColumn>
                     <div>
-                        <SMDialog narrow>
+                        <SMFormCard narrow>
                             <template v-if="!formSubmitted">
                                 <SMForm v-model="form" @submit="handleSubmit">
                                     <SMInput control="name" />
@@ -111,7 +111,7 @@
                                     :to="{ name: 'home' }"
                                     label="Home" />
                             </template>
-                        </SMDialog>
+                        </SMFormCard>
                     </div>
                 </SMColumn>
             </SMRow>
@@ -123,7 +123,7 @@
 import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";

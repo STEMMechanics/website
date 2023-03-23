@@ -1,6 +1,6 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
-        <SMDialog class="mt-5">
+        <SMFormCard class="mt-5">
             <h1>Log in</h1>
             <SMForm v-model="form" @submit="handleSubmit">
                 <SMInput control="username">
@@ -28,7 +28,7 @@
                     </template>
                 </SMFormFooter>
             </SMForm>
-        </SMDialog>
+        </SMFormCard>
     </SMPage>
 </template>
 
@@ -36,7 +36,7 @@
 import { reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";

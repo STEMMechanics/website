@@ -1,6 +1,6 @@
 <template>
     <SMModal>
-        <SMDialog>
+        <SMFormCard>
             <h1>{{ props.title }}</h1>
             <p v-html="computedSanitizedText"></p>
             <SMFormFooter>
@@ -17,7 +17,7 @@
                         @click="handleClickConfirm()" />
                 </template>
             </SMFormFooter>
-        </SMDialog>
+        </SMFormCard>
     </SMModal>
 </template>
 
@@ -27,7 +27,7 @@ import { computed, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "vue3-promise-dialog";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
-import SMDialog from "../SMDialog.vue";
+import SMFormCard from "../SMFormCard.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMModal from "../SMModal.vue";
 

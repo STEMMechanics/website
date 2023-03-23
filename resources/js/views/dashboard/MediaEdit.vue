@@ -1,7 +1,7 @@
 <template>
     <SMPage :page-error="pageError" permission="admin/media">
         <SMRow>
-            <SMDialog>
+            <SMFormCard>
                 <h1>{{ page_title }}</h1>
                 <SMForm
                     :model-value="form"
@@ -56,7 +56,7 @@
                         </SMColumn>
                     </SMRow>
                 </SMForm>
-            </SMDialog>
+            </SMFormCard>
         </SMRow>
     </SMPage>
 </template>
@@ -65,7 +65,7 @@
 import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
-import SMDialog from "../../components/SMDialog.vue";
+import SMFormCard from "../../components/SMFormCard.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 

@@ -1,7 +1,7 @@
 <template>
     <SMPage no-breadcrumbs background="/img/background.jpg">
         <SMRow>
-            <SMDialog class="mt-5">
+            <SMFormCard class="mt-5">
                 <template v-if="!formDone">
                     <h1>Forgot Username</h1>
                     <p>
@@ -40,7 +40,7 @@
                         </SMColumn>
                     </SMRow>
                 </template>
-            </SMDialog>
+            </SMFormCard>
         </SMRow>
     </SMPage>
 </template>
@@ -49,7 +49,7 @@
 import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMDialog from "../components/SMDialog.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../components/SMInput.vue";
