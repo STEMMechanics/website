@@ -37,13 +37,13 @@
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/",
-            "Faker\\": "faker/"
+            "Faker\\Provider\\": "faker/provider/"
         }
     },
     "autoload-dev": {
         "psr-4": {
             "Tests\\": "tests/",
-            "Faker\\": "faker/"
+            "Faker\\Provider\\": "faker/provider/"
         }
     },
     "scripts": {
