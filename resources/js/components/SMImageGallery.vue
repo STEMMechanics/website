@@ -1,8 +1,8 @@
 <template>
-    <div class="sm-image-gallery">
+    <div class="sm-image-gallery" ref="gallery">
         <div
             class="sm-image-gallery-inner"
-            :style="{ transform: `translateX(-${slideIndex * slideWidth}px)` }">
+            :style="{ transform: `translateX(-${sliderOffset}px)` }">
             <div
                 class="sm-image-gallery-slide"
                 v-for="(image, index) in images"
@@ -14,15 +14,10 @@
             </div>
         </div>
         <div
+            v-if="!hidePrevArrow"
             class="sm-image-gallery-arrow sm-image-gallery-arrow-left"
-            @click="prevSlide"
-            :class="{ disabled: slideIndex === 0 }">
+            @click="prevSlide">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M19 12H5"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round" />
                 <path
                     d="M12 19L5 12L12 5"
                     stroke="currentColor"
@@ -31,15 +26,10 @@
             </svg>
         </div>
         <div
+            v-if="!hideNextArrow"
             class="sm-image-gallery-arrow sm-image-gallery-arrow-right"
-            @click="nextSlide"
-            :class="{ disabled: slideIndex === images.length - visibleSlides }">
+            @click="nextSlide">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path
-                    d="M5 12H19"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round" />
                 <path
                     d="M12 5L19 12L12 19"
                     stroke="currentColor"
@@ -48,11 +38,11 @@
             </svg>
         </div>
         <div
-            v-if="showModalFlag"
+            v-if="showModalImage !== null"
             class="sm-image-gallery-modal"
             @click="hideModal">
             <img
-                :src="images[slideIndex]"
+                :src="images[showModalImage]"
                 class="sm-image-gallery-modal-image" />
             <div class="sm-image-gallery-modal-close" @click="hideModal">
                 &times;
@@ -61,94 +51,145 @@
     </div>
 </template>
 
-<script>
-export default {
-    name: "SMImageGallery",
-    props: {
-        images: {
-            type: Array,
-            required: true,
-        },
-    },
-    data() {
-        return {
-            slideIndex: 0,
-            slideWidth: 0,
-            showModalFlag: false,
-            visibleSlides: 0,
-        };
-    },
-    mounted() {
-        this.slideWidth = this.$el.offsetWidth;
-        window.addEventListener("resize", this.handleResize);
-        document.addEventListener("keydown", this.handleKeyDown);
-    },
-    beforeUnmount() {
-        window.removeEventListener("resize", this.handleResize);
-        document.removeEventListener("keydown", this.handleKeyDown);
-    },
-    methods: {
-        nextSlide() {
-            if (this.slideIndex < this.images.length - this.visibleSlides) {
-                this.slideIndex++;
-            } else {
-                this.slideIndex = this.images.length - this.visibleSlides;
-            }
-        },
-        prevSlide() {
-            if (this.slideIndex > 0) {
-                this.slideIndex--;
-            } else {
-                this.slideIndex = 0;
-            }
-        },
-        showModal(index) {
-            this.slideIndex = index;
-            this.showModalFlag = true;
-            document.addEventListener("keydown", this.handleKeyDown);
-        },
-        hideModal() {
-            this.showModalFlag = false;
-            document.removeEventListener("keydown", this.handleKeyDown);
-        },
-        handleResize() {
-            this.slideWidth = this.$el.offsetWidth;
-            this.slideIndex = 0;
+<script setup lang="ts">
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 
-            this.visibleSlides = Math.floor(
-                this.$el.clientWidth / this.slideWidth
-            );
-            if (this.slideIndex >= this.images.length - this.visibleSlides) {
-                this.slideIndex = this.images.length - this.visibleSlides;
-            }
-        },
-        handleKeyDown(event) {
-            if (event.key === "ArrowLeft") {
-                if (this.showModalFlag) {
-                    if (this.slideIndex > 0) {
-                        this.slideIndex--;
-                    }
-                }
-            } else if (event.key === "ArrowRight") {
-                if (this.showModalFlag) {
-                    if (this.slideIndex < this.images.length - 1) {
-                        this.slideIndex++;
-                    }
-                }
-            } else if (event.key === "Escape") {
-                this.hideModal();
-            }
-        },
+const props = defineProps({
+    images: {
+        type: Array,
+        required: true,
     },
+});
+
+const gallery = ref(null);
+const showModalImage = ref(null);
+const visibleSlides = ref(0);
+const slideWidths = ref([]);
+const sliderWidth = ref(0);
+const sliderOffset = ref(0);
+
+const handleResize = () => {
+    const slides = gallery.value.querySelectorAll(
+        ".sm-image-gallery-slide"
+    ) as HTMLElement[];
+    slideWidths.value = Array.from(slides).map((slide) => {
+        const computedStyle = window.getComputedStyle(slide);
+        const marginLeft = parseFloat(computedStyle.marginLeft);
+        const marginRight = parseFloat(computedStyle.marginRight);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft);
+        const paddingRight = parseFloat(computedStyle.paddingRight);
+        return (
+            slide.offsetWidth +
+            marginLeft +
+            marginRight +
+            paddingLeft +
+            paddingRight
+        );
+    });
+    sliderWidth.value = gallery.value.querySelector(
+        ".sm-image-gallery-inner"
+    ).offsetWidth;
+
+    let visibleWidth = 0;
+    for (
+        visibleSlides.value = 0;
+        visibleSlides.value < slideWidths.value.length;
+        visibleSlides.value++
+    ) {
+        visibleWidth += slideWidths.value[visibleSlides.value];
+        if (visibleWidth > sliderWidth.value) {
+            break;
+        }
+    }
 };
+
+const nextSlide = () => {
+    const diff = Math.abs(visibleSlides.value - slideWidths.value.length);
+    if (visibleSlides.value < slideWidths.value.length && diff > 1) {
+        const width = sliderOffset.value + sliderWidth.value;
+        let sum = 0;
+        let index = 0;
+        for (; index < slideWidths.value.length; index++) {
+            if (sum > width) {
+                break;
+            }
+            sum += slideWidths.value[index];
+        }
+
+        sliderOffset.value = sum - sliderWidth.value;
+    }
+};
+
+const prevSlide = () => {
+    if (sliderOffset.value > 0) {
+        let sum = 0;
+        let index = 0;
+        for (; index < slideWidths.value.length; index++) {
+            if (sum + slideWidths.value[index] >= sliderOffset.value) {
+                break;
+            }
+            sum += slideWidths.value[index];
+        }
+
+        sliderOffset.value = sum;
+    }
+};
+
+const showModal = (index) => {
+    showModalImage.value = index;
+    document.addEventListener("keydown", handleKeyDown);
+};
+
+const hideModal = () => {
+    showModalImage.value = null;
+    document.removeEventListener("keydown", handleKeyDown);
+};
+
+const handleKeyDown = (event) => {
+    if (event.key === "ArrowLeft") {
+        if (showModalImage.value !== null) {
+            if (showModalImage.value > 0) {
+                showModalImage.value--;
+            }
+        }
+    } else if (event.key === "ArrowRight") {
+        if (showModalImage.value !== null) {
+            if (showModalImage.value < props.images.length - 1) {
+                showModalImage.value++;
+            }
+        }
+    } else if (event.key === "Escape") {
+        hideModal();
+    }
+};
+
+onMounted(() => {
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    document.addEventListener("keydown", handleKeyDown);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener("resize", handleResize);
+    document.removeEventListener("keydown", handleKeyDown);
+});
+
+const hidePrevArrow = computed(() => {
+    return sliderOffset.value <= 0;
+});
+
+const hideNextArrow = computed(() => {
+    const sum = slideWidths.value.reduce((acc, curr) => acc + curr, 0);
+    return sliderWidth.value + sliderOffset.value >= sum;
+});
 </script>
 
-<style scoped>
+<style lang="scss">
 .sm-image-gallery {
     position: relative;
     overflow: hidden;
     margin: 20px auto;
-    max-height: 100px;
+    max-height: 200px;
     display: flex;
     justify-content: center;
 }
@@ -164,8 +205,17 @@ export default {
     justify-content: center;
     align-items: center;
     height: 100%;
-    margin-right: 10px;
+    margin-left: 5px;
+    margin-right: 5px;
     flex-shrink: 0;
+
+    &:first-of-type {
+        margin-left: 0;
+    }
+
+    &:last-of-type {
+        margin-right: 0;
+    }
 }
 
 .sm-image-gallery-image {
@@ -180,31 +230,31 @@ export default {
     top: 50%;
     transform: translateY(-50%);
     width: 40px;
-    height: 40px;
-    background-color: rgba(0, 0, 0, 0.3);
-    border-radius: 50%;
+    height: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
     transition: background-color 0.3s ease-in-out;
+    color: #fff;
+    filter: drop-shadow(0px 0px 2px rgb(0, 0, 0));
+    transition: transform 0.2s ease-in-out;
 }
 
 .sm-image-gallery-arrow.disabled {
     pointer-events: none;
-    background-color: rgba(0, 0, 0, 0.1);
 }
 
 .sm-image-gallery-arrow:hover {
-    background-color: rgba(0, 0, 0, 0.5);
+    transform: translateY(-50%) scale(1.25);
 }
 
 .sm-image-gallery-arrow-left {
-    left: 10px;
+    left: 0;
 }
 
 .sm-image-gallery-arrow-right {
-    right: 10px;
+    right: 0;
 }
 
 .sm-image-gallery-arrow svg {
@@ -223,11 +273,18 @@ export default {
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: pointer;
+    pointer-events: none; /* Add this line */
+}
+
+.sm-image-gallery-modal * {
+    pointer-events: auto; /* Add this line */
 }
 
 .sm-image-gallery-modal-image {
@@ -242,7 +299,7 @@ export default {
     right: 10px;
     width: 30px;
     height: 30px;
-    display: flex;
+    display: block;
     justify-content: center;
     align-items: center;
     font-size: 30px;
