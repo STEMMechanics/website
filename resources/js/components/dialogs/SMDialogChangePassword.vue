@@ -1,32 +1,27 @@
 <template>
-    <SMModal>
-        <SMFormCard :loading="dialogLoading">
-            <h1>Change Password</h1>
-            <p class="text-center">Enter your new password below</p>
-            <SMForm :model-value="form" @submit="handleSubmit">
-                <SMInput
-                    control="password"
-                    type="password"
-                    label="New Password" />
-                <SMFormFooter>
-                    <template #left>
-                        <SMButton
-                            type="secondary"
-                            label="Cancel"
-                            @click="handleClickCancel" />
-                    </template>
-                    <template #right>
-                        <SMButton type="submit" label="Update" />
-                    </template>
-                </SMFormFooter>
-            </SMForm>
-        </SMFormCard>
-    </SMModal>
+    <SMFormCard :loading="dialogLoading">
+        <h1>Change Password</h1>
+        <p class="text-center">Enter your new password below</p>
+        <SMForm :model-value="form" @submit="handleSubmit">
+            <SMInput control="password" type="password" label="New Password" />
+            <SMFormFooter>
+                <template #left>
+                    <SMButton
+                        type="secondary"
+                        label="Cancel"
+                        @click="handleClickCancel" />
+                </template>
+                <template #right>
+                    <SMButton type="submit" label="Update" />
+                </template>
+            </SMFormFooter>
+        </SMForm>
+    </SMFormCard>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref } from "vue";
-import { closeDialog } from "vue3-promise-dialog";
+import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Form, FormControl, FormObject } from "../../helpers/form";
 import { And, Password, Required } from "../../helpers/validate";
@@ -38,7 +33,6 @@ import SMFormCard from "../SMFormCard.vue";
 import SMForm from "../SMForm.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
-import SMModal from "../SMModal.vue";
 
 const form: FormObject = reactive(
     Form({

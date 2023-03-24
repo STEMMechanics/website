@@ -59,7 +59,7 @@
 import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import EasyDataTable from "vue3-easy-data-table";
-import { openDialog } from "vue3-promise-dialog";
+import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMFileLink from "../../components/SMFileLink.vue";

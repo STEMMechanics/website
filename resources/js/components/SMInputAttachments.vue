@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 import { ref, Ref, watch } from "vue";
-import { openDialog } from "vue3-promise-dialog";
+import { openDialog } from "../components/SMDialog";
 import { api } from "../helpers/api";
 import { Media, MediaResponse } from "../helpers/api.types";
 import { bytesReadable } from "../helpers/types";

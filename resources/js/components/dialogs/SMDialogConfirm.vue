@@ -1,35 +1,32 @@
 <template>
-    <SMModal>
-        <SMFormCard>
-            <h1>{{ props.title }}</h1>
-            <p v-html="computedSanitizedText"></p>
-            <SMFormFooter>
-                <template #left>
-                    <SMButton
-                        :type="props.cancel.type"
-                        :label="props.cancel.label"
-                        @click="handleClickCancel()" />
-                </template>
-                <template #right>
-                    <SMButton
-                        :type="props.confirm.type"
-                        :label="props.confirm.label"
-                        @click="handleClickConfirm()" />
-                </template>
-            </SMFormFooter>
-        </SMFormCard>
-    </SMModal>
+    <SMFormCard>
+        <h1>{{ props.title }}</h1>
+        <p v-html="computedSanitizedText"></p>
+        <SMFormFooter>
+            <template #left>
+                <SMButton
+                    :type="props.cancel.type"
+                    :label="props.cancel.label"
+                    @click="handleClickCancel()" />
+            </template>
+            <template #right>
+                <SMButton
+                    :type="props.confirm.type"
+                    :label="props.confirm.label"
+                    @click="handleClickConfirm()" />
+            </template>
+        </SMFormFooter>
+    </SMFormCard>
 </template>
 
 <script setup lang="ts">
 import DOMPurify from "dompurify";
 import { computed, onMounted, onUnmounted } from "vue";
-import { closeDialog } from "vue3-promise-dialog";
+import { closeDialog } from "../SMDialog";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
 import SMFormFooter from "../SMFormFooter.vue";
-import SMModal from "../SMModal.vue";
 
 const props = defineProps({
     title: {

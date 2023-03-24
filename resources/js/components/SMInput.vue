@@ -88,7 +88,7 @@
 
 <script setup lang="ts">
 import { computed, inject, ref, useSlots, watch } from "vue";
-import { openDialog } from "vue3-promise-dialog";
+import { openDialog } from "./SMDialog";
 import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
 import { imageMedium } from "../helpers/image";

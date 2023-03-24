@@ -1,108 +1,106 @@
 <template>
-    <SMModal>
-        <SMFormCard
-            :loading="dialogLoading"
-            full
-            :loading-message="dialogLoadingMessage"
-            class="sm-dialog-media">
-            <h1>Insert Media</h1>
-            <SMMessage
-                v-if="formMessage"
-                icon="alert-circle-outline"
-                type="error"
-                :message="formMessage"
-                class="d-flex" />
-            <div class="media-browser" :class="mediaBrowserClasses">
-                <div class="media-browser-content">
-                    <SMLoadingIcon v-if="mediaLoading" />
-                    <div
-                        v-if="!mediaLoading && mediaItems.length == 0"
-                        class="media-none">
-                        <ion-icon name="sad-outline"></ion-icon>
-                        <p>No media found</p>
-                    </div>
-                    <ul v-if="!mediaLoading && mediaItems.length > 0">
-                        <li
-                            v-for="item in mediaItems"
-                            :key="item.id"
-                            :class="[{ selected: item.id == selected }]"
-                            @click="handleClickItem(item.id)"
-                            @dblclick="handleDblClickItem(item.id)">
-                            <div
-                                :style="{
-                                    backgroundImage: `url('${getFilePreview(
-                                        item.url
-                                    )}')`,
-                                }"
-                                class="media-image"></div>
-                            <span class="media-title">{{ item.title }}</span>
-                            <span class="media-size">{{
-                                bytesReadable(item.size)
-                            }}</span>
-                        </li>
-                    </ul>
+    <SMFormCard
+        :loading="dialogLoading"
+        full
+        :loading-message="dialogLoadingMessage"
+        class="sm-dialog-media">
+        <h1>Insert Media</h1>
+        <SMMessage
+            v-if="formMessage"
+            icon="alert-circle-outline"
+            type="error"
+            :message="formMessage"
+            class="d-flex" />
+        <div class="media-browser" :class="mediaBrowserClasses">
+            <div class="media-browser-content">
+                <SMLoadingIcon v-if="mediaLoading" />
+                <div
+                    v-if="!mediaLoading && mediaItems.length == 0"
+                    class="media-none">
+                    <ion-icon name="sad-outline"></ion-icon>
+                    <p>No media found</p>
                 </div>
-                <div class="media-browser-toolbar">
-                    <div class="layout-buttons">
-                        <ion-icon
-                            name="grid-outline"
-                            class="layout-button-grid"
-                            @click="handleClickGridLayout"></ion-icon>
-                        <ion-icon
-                            name="list-outline"
-                            class="layout-button-list"
-                            @click="handleClickListLayout"></ion-icon>
-                    </div>
-                    <div class="pagination-buttons">
-                        <ion-icon
-                            name="chevron-back-outline"
-                            :class="[{ disabled: computedDisablePrevButton }]"
-                            @click="handleClickPrev" />
-                        <span class="pagination-info">{{
-                            computedPaginationInfo
+                <ul v-if="!mediaLoading && mediaItems.length > 0">
+                    <li
+                        v-for="item in mediaItems"
+                        :key="item.id"
+                        :class="[{ selected: item.id == selected }]"
+                        @click="handleClickItem(item.id)"
+                        @dblclick="handleDblClickItem(item.id)">
+                        <div
+                            :style="{
+                                backgroundImage: `url('${getFilePreview(
+                                    item.url
+                                )}')`,
+                            }"
+                            class="media-image"></div>
+                        <span class="media-title">{{ item.title }}</span>
+                        <span class="media-size">{{
+                            bytesReadable(item.size)
                         }}</span>
-                        <ion-icon
-                            name="chevron-forward-outline"
-                            :class="[{ disabled: computedDisableNextButton }]"
-                            @click="handleClickNext" />
-                    </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="media-browser-toolbar">
+                <div class="layout-buttons">
+                    <ion-icon
+                        name="grid-outline"
+                        class="layout-button-grid"
+                        @click="handleClickGridLayout"></ion-icon>
+                    <ion-icon
+                        name="list-outline"
+                        class="layout-button-list"
+                        @click="handleClickListLayout"></ion-icon>
+                </div>
+                <div class="pagination-buttons">
+                    <ion-icon
+                        name="chevron-back-outline"
+                        :class="[{ disabled: computedDisablePrevButton }]"
+                        @click="handleClickPrev" />
+                    <span class="pagination-info">{{
+                        computedPaginationInfo
+                    }}</span>
+                    <ion-icon
+                        name="chevron-forward-outline"
+                        :class="[{ disabled: computedDisableNextButton }]"
+                        @click="handleClickNext" />
                 </div>
             </div>
-            <SMFormFooter>
-                <template #left>
-                    <SMButton
-                        type="button"
-                        label="Cancel"
-                        @click="handleClickCancel" />
-                </template>
-                <template #right>
-                    <SMButton
-                        v-if="props.allowUpload"
-                        type="button"
-                        label="Upload"
-                        @click="handleClickUpload" />
-                    <SMButton
-                        type="primary"
-                        label="Insert"
-                        :disabled="selected.length == 0"
-                        @click="handleClickInsert" />
-                </template>
-            </SMFormFooter>
-            <input
-                v-if="props.allowUpload"
-                id="file"
-                ref="refUploadInput"
-                type="file"
-                style="display: none"
-                :accept="computedAccepts"
-                @change="handleChangeUpload" />
-        </SMFormCard>
-    </SMModal>
+        </div>
+        <SMFormFooter>
+            <template #left>
+                <SMButton
+                    type="button"
+                    label="Cancel"
+                    @click="handleClickCancel" />
+            </template>
+            <template #right>
+                <SMButton
+                    v-if="props.allowUpload"
+                    type="button"
+                    label="Upload"
+                    @click="handleClickUpload" />
+                <SMButton
+                    type="primary"
+                    label="Insert"
+                    :disabled="selected.length == 0"
+                    @click="handleClickInsert" />
+            </template>
+        </SMFormFooter>
+        <input
+            v-if="props.allowUpload"
+            id="file"
+            ref="refUploadInput"
+            type="file"
+            style="display: none"
+            :accept="computedAccepts"
+            @change="handleChangeUpload" />
+    </SMFormCard>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, Ref, watch } from "vue";
-import { closeDialog } from "vue3-promise-dialog";
+import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
 import { bytesReadable } from "../../helpers/types";
@@ -113,7 +111,6 @@ import SMFormCard from "../SMFormCard.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMLoadingIcon from "../SMLoadingIcon.vue";
 import SMMessage from "../SMMessage.vue";
-import SMModal from "../SMModal.vue";
 
 const props = defineProps({
     mime: {
@@ -356,7 +353,7 @@ const handleClickNext = ($event: MouseEvent): void => {
 /**
  * When the user clicks the upload button
  */
-const handleClickUpload = () => {
+const handleClickUpload = async () => {
     if (refUploadInput.value != null) {
         refUploadInput.value.click();
     }

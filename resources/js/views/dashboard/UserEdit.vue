@@ -32,7 +32,7 @@
 <script setup lang="ts">
 import { computed, reactive } from "vue";
 import { useRoute } from "vue-router";
-import { openDialog } from "vue3-promise-dialog";
+import { openDialog } from "../../components/SMDialog";
 import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";

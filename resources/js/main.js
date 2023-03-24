@@ -4,7 +4,6 @@ import { createPinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp } from "vue";
 import { VueReCaptcha } from "vue-recaptcha-v3";
-import { PromiseDialog } from "vue3-promise-dialog";
 import "../css/app.scss";
 import "./bootstrap";
 import SMColumn from "./components/SMColumn.vue";
@@ -20,7 +19,6 @@ pinia.use(piniaPluginPersistedstate);
 createApp(App)
     .use(pinia)
     .use(Router)
-    .use(PromiseDialog)
     .use(VueReCaptcha, {
         siteKey: import.meta.env.GOOGLE_RECAPTCHA_SITE_KEY,
         loaderOptions: {
