@@ -10,7 +10,6 @@
     <SMFooter />
     <SMProgress />
     <SMToastList />
-    <DialogWrapper :transition-attrs="{ name: 'fade' }" />
     <SMDialogList />
 </template>
 
