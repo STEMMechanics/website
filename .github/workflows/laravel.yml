@@ -37,4 +37,6 @@ jobs:
             - name: Install dependencies
               run: npm ci
             - name: Run Vue tests
+              env:
+                  LARAVEL_BYPASS_ENV_CHECK: "1"
               run: npm run test
