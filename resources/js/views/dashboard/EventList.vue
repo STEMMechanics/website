@@ -100,8 +100,8 @@ const serverItemsLength = ref(0);
 const serverOptions = ref({
     page: 1,
     rowsPerPage: 25,
-    sortBy: null,
-    sortType: null,
+    sortBy: "start_at",
+    sortType: "desc",
 });
 
 const handleClick = (item, extra: string): void => {
