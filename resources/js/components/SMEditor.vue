@@ -74,6 +74,93 @@ const props = defineProps({
 const useDarkMode = false; // window.matchMedia("(prefers-color-scheme: dark)").matches;
 const tinyeditor = ref(null);
 
+tinymce.PluginManager.add("gallery", function (editor) {
+    // Register a command to open the dialog
+    editor.addCommand("image-gallery", function () {
+        var selected = [];
+        var node = editor.selection.getNode();
+
+        if (node) {
+            if (!editor.dom.hasClass(node, "tinymce-sm-gallery")) {
+                // Check if node is a descendant of a gallery node
+                var galleryNode = editor.dom.getParent(
+                    node,
+                    ".tinymce-sm-gallery"
+                );
+                if (!galleryNode) {
+                    node = null;
+                } else {
+                    node = galleryNode;
+                }
+            }
+        }
+
+        if (node) {
+            // Parse the gallery contents
+            const childEls = node.querySelectorAll("div");
+            const urls = Array.from(childEls).map((el) => {
+                const matches = (el as HTMLElement)
+                    .getAttribute("style")
+                    .match(/url\(['"]?(.*?)['"]?\)/);
+                return matches ? matches[1] : null;
+            });
+            selected = urls;
+        }
+        imageBrowser(
+            function (url) {
+                let galleryContent = "";
+                if (url.length > 0) {
+                    url.forEach((item) => {
+                        galleryContent += `<div style="background-image:url('${item}');"></div>`;
+                    });
+
+                    galleryContent = `<div contentEditable="false" class="tinymce-sm-gallery">${galleryContent}</div>`;
+                }
+
+                const selection = editor.selection;
+                if (selection) {
+                    selection.setContent(galleryContent);
+                } else {
+                    editor.insertContent(galleryContent);
+                }
+            },
+            selected,
+            null,
+            true
+        );
+    });
+
+    // Register a toggle button that triggers the command and displays the icon
+    editor.ui.registry.addToggleButton("gallery", {
+        icon: "gallery",
+        tooltip: "Image gallery",
+        onAction: function () {
+            editor.execCommand("image-gallery");
+        },
+        onSetup: function (api) {
+            var nodeChangeHandler = function () {
+                var node = editor.selection.getNode();
+
+                api.setActive(
+                    node &&
+                        (editor.dom.hasClass(node, "tinymce-sm-gallery") ||
+                            (node.parentNode &&
+                                editor.dom.hasClass(
+                                    node.parentNode,
+                                    "tinymce-sm-gallery"
+                                )))
+                );
+            };
+
+            editor.on("NodeChange", nodeChangeHandler);
+
+            return function () {
+                editor.off("NodeChange", nodeChangeHandler);
+            };
+        },
+    });
+});
+
 const init = {
     promotion: false,
     emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
@@ -110,9 +197,10 @@ const init = {
         "emoticons",
         "autosave",
         "searchreplace",
+        "gallery",
     ],
     toolbar:
-        "h1 h2 h3 blockquote | bold italic underline strikethrough | numlist bullist | image media link anchor codesample | alignleft aligncenter alignright alignjustify | forecolor backcolor removeformat | outdent indent | charmap emoticons | undo redo",
+        "gallery h1 h2 h3 blockquote | bold italic underline strikethrough | numlist bullist | image media link anchor codesample | alignleft aligncenter alignright alignjustify | forecolor backcolor removeformat | outdent indent | charmap emoticons | undo redo",
     branding: false,
     menubar: false,
     toolbar_mode: "sliding",
@@ -245,14 +333,12 @@ const fetchLinkList = () => {
     return pageList;
 };
 
-const imageBrowser = (callback, value, meta) => {
+const imageBrowser = (callback, value, meta, gallery = false) => {
     var libraryPage = 1;
     var libraryMax = 1;
     var selected = value;
     var title = "";
     var itemsFound = 0;
-
-    console.log(selected);
 
     // Open a dialog to select a file
     const input = document.createElement("input");
@@ -285,6 +371,23 @@ const imageBrowser = (callback, value, meta) => {
                             "An unexpected error occurred uploading the file to the server."
                     );
                 });
+        }
+    };
+
+    const updateFooter = () => {
+        let selectedText = "";
+
+        if (gallery == true) {
+            selectedText = ` (${selected.length} selected)`;
+        }
+
+        const itemCountElem = document.getElementById(
+            "image-library-item-count"
+        );
+        if (itemCountElem) {
+            itemCountElem.innerHTML = `${itemsFound.toString()} image${
+                itemsFound == 1 ? "" : "s"
+            } found${selectedText}`;
         }
     };
 
@@ -368,7 +471,7 @@ const imageBrowser = (callback, value, meta) => {
                     data.media.forEach((medium) => {
                         const item = document.createElement("div");
                         item.classList.add("image-library-content-item");
-                        if (urlMatches(medium.url, selected)) {
+                        if (urlMatches(medium.url, selected) !== false) {
                             item.classList.add(
                                 "image-library-content-item-selected"
                             );
@@ -379,16 +482,33 @@ const imageBrowser = (callback, value, meta) => {
                                 ".image-library-content-item"
                             );
 
-                            items.forEach((item) => {
-                                item.classList.remove(
+                            if (gallery == false) {
+                                items.forEach((item) => {
+                                    item.classList.remove(
+                                        "image-library-content-item-selected"
+                                    );
+                                });
+
+                                item.classList.add(
                                     "image-library-content-item-selected"
                                 );
-                            });
+                                selected = medium.url;
+                            } else {
+                                const match = urlMatches(medium.url, selected);
+                                if (match !== false) {
+                                    selected.splice(match, 1);
+                                    item.classList.remove(
+                                        "image-library-content-item-selected"
+                                    );
+                                } else {
+                                    selected.push(medium.url);
+                                    item.classList.add(
+                                        "image-library-content-item-selected"
+                                    );
+                                }
 
-                            item.classList.add(
-                                "image-library-content-item-selected"
-                            );
-                            selected = medium.url;
+                                updateFooter();
+                            }
                         };
 
                         const image = document.createElement("div");
@@ -412,45 +532,117 @@ const imageBrowser = (callback, value, meta) => {
                 .finally(() => {
                     loadingElem.remove();
 
-                    document.getElementById(
+                    const paginationMax = document.getElementById(
                         "image-library-pagination-max"
-                    ).innerHTML = libraryMax.toString();
-
-                    document.getElementById(
-                        "image-library-item-count"
-                    ).innerHTML = `${itemsFound.toString()} image${
-                        itemsFound == 1 ? "" : "s"
-                    } found`;
+                    );
+                    if (paginationMax) {
+                        paginationMax.innerHTML = libraryMax.toString();
+                    }
+                    updateFooter();
                 });
         }
     };
 
-    // Add the container and file input to the dialog
-    const dialog = tinymce.activeEditor.windowManager.open({
-        title: "Image Library",
-        size: "large",
-        body: {
-            type: "tabpanel",
-            tabs: [
+    const updateGallery = () => {
+        const galleryContainer = document.getElementById(
+            "image-gallery-content"
+        );
+        if (galleryContainer != null) {
+            // delete existing items
+            const divElements = galleryContainer.querySelectorAll("div");
+            divElements.forEach((div) => {
+                div.remove();
+            });
+
+            const loadingElem = document.createElement("div");
+            loadingElem.classList.add("image-gallery-content-loading");
+            galleryContainer.appendChild(loadingElem);
+
+            selected.forEach((url, index) => {
+                const item = document.createElement("div");
+                item.classList.add("image-gallery-content-item");
+
+                const image = document.createElement("div");
+                image.classList.add("image-gallery-content-item-image");
+                image.style.backgroundImage = `url('${url}?w=200')`;
+
+                const title = document.createElement("div");
+                title.classList.add("image-gallery-content-item-title");
+                title.innerHTML = "??";
+
+                const removeBtn = document.createElement("div");
+                removeBtn.classList.add("image-gallery-content-item-remove");
+                removeBtn.onclick = function () {
+                    selected.splice(index, 1);
+                    updateGallery();
+                };
+
+                const leftBtn = document.createElement("div");
+                leftBtn.classList.add("image-gallery-content-item-left");
+                leftBtn.onclick = function () {
+                    if (index > 0) {
+                        const temp = selected[index];
+                        selected[index] = selected[index - 1];
+                        selected[index - 1] = temp;
+
+                        updateGallery();
+                    }
+                };
+
+                const rightBtn = document.createElement("div");
+                rightBtn.classList.add("image-gallery-content-item-right");
+                rightBtn.onclick = function () {
+                    if (index < selected.length - 1) {
+                        const temp = selected[index];
+                        selected[index] = selected[index + 1];
+                        selected[index + 1] = temp;
+
+                        updateGallery();
+                    }
+                };
+
+                item.appendChild(image);
+                item.appendChild(title);
+                item.appendChild(removeBtn);
+                item.appendChild(leftBtn);
+                item.appendChild(rightBtn);
+
+                galleryContainer.appendChild(item);
+            });
+
+            const countElem = document.getElementById(
+                "image-gallery-item-count"
+            );
+            if (countElem) {
+                countElem.innerHTML = `${selected.length} item${
+                    selected.length == 1 ? "" : "s"
+                }`;
+            }
+
+            loadingElem.remove();
+        }
+    };
+
+    const tabs = [
+        {
+            name: "upload",
+            title: "Upload",
+            items: [
                 {
-                    name: "upload",
-                    title: "Upload",
-                    items: [
-                        {
-                            type: "dropzone",
-                            name: "dropzone",
-                            label: "Upload File",
-                            accept: "image/*",
-                        },
-                    ],
+                    type: "dropzone",
+                    name: "dropzone",
+                    label: "Upload File",
+                    accept: "image/*",
                 },
+            ],
+        },
+        {
+            name: "library",
+            title: "Library",
+            items: [
                 {
-                    name: "library",
-                    title: "Library",
-                    items: [
-                        {
-                            type: "htmlpanel",
-                            html: `<div class="image-library">
+                    type: "htmlpanel",
+                    html: `<div class="image-library">
                                 <div id="image-library-toolbar">
                                     <div class="image-library-search-group">
                                         <input type="text" id="image-library-search-input" placeholder="search" class="tox-textfield" />
@@ -462,15 +654,37 @@ const imageBrowser = (callback, value, meta) => {
                                         <button id="image-library-pagination-next"><svg width="24" height="24" focusable="false"><path d="M8.5 18.5l7-7-7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                                     </div>
                                 </div>
-                                <div id="image-library-content">
-                                    <div>loading...</div>
-                                </div>
-                                <div id="image-library-item-count">x</div>
+                                <div id="image-library-content"></div>
+                                <div id="image-library-item-count">...</div>
                             </div>`,
-                        },
-                    ],
                 },
             ],
+        },
+    ];
+
+    if (gallery == true) {
+        tabs.push({
+            name: "gallery",
+            title: "Gallery",
+            items: [
+                {
+                    type: "htmlpanel",
+                    html: `<div class="image-gallery">
+                                <div id="image-gallery-content"></div>
+                                <div id="image-gallery-item-count">...</div>
+                            </div>`,
+                },
+            ],
+        });
+    }
+
+    // Add the container and file input to the dialog
+    const dialog = tinymce.activeEditor.windowManager.open({
+        title: "Image Library",
+        size: "large",
+        body: {
+            type: "tabpanel",
+            tabs: tabs,
         },
         initialData: {},
         buttons: [
@@ -520,6 +734,8 @@ const imageBrowser = (callback, value, meta) => {
         onTabChange: function (dialogApi, details) {
             if (details.newTabName == "library") {
                 updateLibrary();
+            } else if (details.newTabName == "gallery") {
+                updateGallery();
             }
         },
     });
@@ -591,7 +807,8 @@ const imageBrowser = (callback, value, meta) => {
     }
 }
 
-#image-library-content {
+#image-library-content,
+#image-gallery-content {
     display: flex;
     flex-wrap: wrap;
     margin-top: 12px;
@@ -602,7 +819,9 @@ const imageBrowser = (callback, value, meta) => {
     padding: 0.5rem;
     height: 440px;
 
-    .image-library-content-item {
+    .image-library-content-item,
+    .image-gallery-content-item {
+        position: relative;
         width: 18vw;
         height: 18vh;
         min-width: 200px;
@@ -614,7 +833,6 @@ const imageBrowser = (callback, value, meta) => {
         &:hover,
         &.image-library-content-item-selected {
             border: 3px solid #0060ce;
-            position: relative;
             cursor: pointer;
         }
 
@@ -632,13 +850,91 @@ const imageBrowser = (callback, value, meta) => {
             justify-content: center;
             border-radius: 50%;
             color: #fff;
-            box-shadow: 0 0 2px 2px #fff;
+            box-shadow: 0 0 0 2px #fff;
             background-repeat: no-repeat;
             background-position: center;
             background-color: #0060ce;
         }
 
-        .image-library-content-item-image {
+        .image-gallery-content-item-remove {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+            box-shadow: 0 0 0 2px #fff;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 50%;
+            background-color: #ce0000;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" style="fill:white"><path d="M170.5 51.6L151.5 80h145l-19-28.4c-1.5-2.2-4-3.6-6.7-3.6H177.1c-2.7 0-5.2 1.3-6.7 3.6zm147-26.6L354.2 80H368h48 8c13.3 0 24 10.7 24 24s-10.7 24-24 24h-8V432c0 44.2-35.8 80-80 80H112c-44.2 0-80-35.8-80-80V128H24c-13.3 0-24-10.7-24-24S10.7 80 24 80h8H80 93.8l36.7-55.1C140.9 9.4 158.4 0 177.1 0h93.7c18.7 0 36.2 9.4 46.6 24.9zM80 128V432c0 17.7 14.3 32 32 32H336c17.7 0 32-14.3 32-32V128H80zm80 64V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16z" /></svg>');
+        }
+
+        .image-gallery-content-item-left {
+            position: absolute;
+            top: -10px;
+            right: 40px;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+            box-shadow: 0 0 0 2px #fff;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 50%;
+            background-color: #0060ce;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512" style="fill:white"><path d="M9.4 278.6c-12.5-12.5-12.5-32.8 0-45.3l128-128c9.2-9.2 22.9-11.9 34.9-6.9s19.8 16.6 19.8 29.6l0 256c0 12.9-7.8 24.6-19.8 29.6s-25.7 2.2-34.9-6.9l-128-128z"/></svg>');
+        }
+
+        .image-gallery-content-item-right {
+            position: absolute;
+            top: -10px;
+            right: 15px;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+            box-shadow: 0 0 0 2px #fff;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 50%;
+            background-color: #0060ce;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 512" style="fill:white"><path d="M246.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-9.2-9.2-22.9-11.9-34.9-6.9s-19.8 16.6-19.8 29.6l0 256c0 12.9 7.8 24.6 19.8 29.6s25.7 2.2 34.9-6.9l128-128z"/></svg>');
+        }
+
+        &:first-of-type .image-gallery-content-item-left {
+            display: none;
+        }
+
+        &:last-of-type {
+            .image-gallery-content-item-left {
+                right: 15px;
+            }
+
+            .image-gallery-content-item-right {
+                display: none;
+            }
+        }
+
+        .image-library-content-item-image,
+        .image-gallery-content-item-image {
             width: 100%;
             height: 14vh;
             min-height: 113px;
@@ -648,7 +944,8 @@ const imageBrowser = (callback, value, meta) => {
             background-clip: content-box;
         }
 
-        .image-library-content-item-title {
+        .image-library-content-item-title,
+        .image-gallery-content-item-title {
             margin-top: 8px;
             text-align: center;
             font-size: 90%;
@@ -659,14 +956,16 @@ const imageBrowser = (callback, value, meta) => {
     }
 }
 
-#image-library-item-count {
+#image-library-item-count,
+#image-gallery-item-count {
     font-size: 90%;
     margin-top: 8px;
     color: #999;
     text-align: right;
 }
 
-.image-library-content-loading {
+.image-library-content-loading,
+.image-gallery-content-loading {
     position: relative;
 
     &::after {
@@ -695,6 +994,10 @@ const imageBrowser = (callback, value, meta) => {
     #image-library-content {
         height: 408px;
     }
+
+    #image-gallery-content {
+        height: 408px;
+    }
 }
 
 @media only screen and (max-width: 450px) {
@@ -716,6 +1019,10 @@ const imageBrowser = (callback, value, meta) => {
 
     #image-library-content {
         height: 380px;
+    }
+
+    #image-gallery-content {
+        height: 400px;
     }
 }
 </style>
