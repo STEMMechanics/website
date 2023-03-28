@@ -52,6 +52,7 @@ import { computed, ref, watch } from "vue";
 import { api } from "../helpers/api";
 import { MediaCollection, MediaResponse } from "../helpers/api.types";
 import { routes } from "../router";
+import { urlMatches } from "../helpers/url";
 
 interface PageList {
     title: string;
@@ -245,8 +246,11 @@ const fetchLinkList = () => {
 };
 
 const imageBrowser = (callback, value, meta) => {
-    var galleryPage = 1;
-    var galleryMax = 1;
+    var libraryPage = 1;
+    var libraryMax = 1;
+    var selected = value;
+
+    console.log(selected);
 
     // Open a dialog to select a file
     const input = document.createElement("input");
@@ -282,40 +286,51 @@ const imageBrowser = (callback, value, meta) => {
         }
     };
 
-    // create the header element
-    const header = document.createElement("div");
-    header.id = "tinymce-gallery-header";
+    const updateLibrary = () => {
+        const limit = 24;
 
-    // create the gallery element
-    const gallery = document.createElement("div");
-    gallery.id = "tinymce-gallery";
+        document.getElementById("image-library-pagination-current").innerHTML =
+            libraryPage.toString();
 
-    const updateGallery = () => {
+        document.getElementById("image-library-pagination-prev").onclick =
+            function () {
+                if (libraryPage > 1) {
+                    libraryPage--;
+                    updateLibrary();
+                }
+            };
+
+        document.getElementById("image-library-pagination-next").onclick =
+            function () {
+                if (libraryPage < libraryMax) {
+                    libraryPage++;
+                    updateLibrary();
+                }
+            };
+
         api.get({
             url: "/media",
             params: {
-                limit: 12,
-                page: galleryPage,
+                limit: limit,
+                page: libraryPage,
                 mime: "image/",
             },
         })
             .then((result) => {
                 const data = result.data as MediaCollection;
-                galleryMax = Math.ceil(data.total / 12);
+                libraryMax = Math.ceil(data.total / limit);
 
-                const infoElement = document.querySelector(
-                    "#tinymce-gallery-header .info"
+                document.getElementById(
+                    "image-library-pagination-max"
+                ).innerHTML = libraryMax.toString();
+
+                const libraryContainer = document.getElementById(
+                    "image-library-content"
                 );
-                if (infoElement != null) {
-                    infoElement.innerHTML = `${galleryPage} / ${galleryMax}`;
-                }
-
-                const galleryContainer =
-                    document.getElementById("tinymce-gallery");
-                if (galleryContainer != null) {
+                if (libraryContainer != null) {
                     // delete existing items
                     const divElements =
-                        galleryContainer.querySelectorAll("div");
+                        libraryContainer.querySelectorAll("div");
                     divElements.forEach((div) => {
                         div.remove();
                     });
@@ -323,15 +338,34 @@ const imageBrowser = (callback, value, meta) => {
                     // add new items
                     data.media.forEach((medium) => {
                         const img = document.createElement("div");
-                        img.classList.add("gallery-image");
+                        img.classList.add("image-library-content-image");
+                        if (urlMatches(medium.url, selected)) {
+                            img.classList.add(
+                                "image-library-content-image-selected"
+                            );
+                        }
                         img.style.backgroundImage = `url('${medium.url}?w=200')`;
                         img.style.cursor = "pointer";
                         img.onclick = function () {
-                            callback(medium.url);
-                            dialog.close();
+                            // Remove the "image-library-content-image-selected" class from all the image elements
+                            const images = libraryContainer.querySelectorAll(
+                                ".image-library-content-image"
+                            );
+
+                            images.forEach((image) => {
+                                image.classList.remove(
+                                    "image-library-content-image-selected"
+                                );
+                            });
+
+                            // Add the "image-library-content-image-selected" class to the clicked image element
+                            img.classList.add(
+                                "image-library-content-image-selected"
+                            );
+                            selected = medium.url;
                         };
 
-                        galleryContainer.appendChild(img);
+                        libraryContainer.appendChild(img);
                     });
                 }
             })
@@ -342,82 +376,98 @@ const imageBrowser = (callback, value, meta) => {
 
     // Add the container and file input to the dialog
     const dialog = tinymce.activeEditor.windowManager.open({
-        title: "Insert image",
+        title: "Image Library",
         size: "large",
         body: {
-            type: "panel",
-            items: [
+            type: "tabpanel",
+            tabs: [
                 {
-                    type: "htmlpanel",
-                    html: header.outerHTML,
+                    name: "upload",
+                    title: "Upload",
+                    items: [
+                        {
+                            type: "dropzone",
+                            name: "dropzone",
+                            label: "Upload File",
+                            accept: "image/*",
+                        },
+                    ],
                 },
                 {
-                    type: "htmlpanel",
-                    html: gallery.outerHTML,
+                    name: "library",
+                    title: "Library",
+                    items: [
+                        {
+                            type: "htmlpanel",
+                            html: `<div class="image-library">
+                                <div id="image-library-toolbar">
+                                    <div class="image-library-search-group">
+                                        <input type="text" id="image-library-search-input" placeholder="search" class="tox-textfield" />
+                                        <button id="image-library-search-button"><svg width="24" height="24" focusable="false"><path d="M16 17.3a8 8 0 1 1 1.4-1.4l4.3 4.4a1 1 0 0 1-1.4 1.4l-4.4-4.3Zm-5-.3a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" fill-rule="nonzero"/></svg></button>
+                                    </div>
+                                    <div class="image-library-pagination">
+                                        <button id="image-library-pagination-prev"><svg width="24" height="24" focusable="false"><path d="M15.5 5.5l-7 7 7 7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                        <span class="image-library-pagination-status"><span id="image-library-pagination-current">1</span> of <span id="image-library-pagination-max">...</span></span>
+                                        <button id="image-library-pagination-next"><svg width="24" height="24" focusable="false"><path d="M8.5 18.5l7-7-7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+                                    </div>
+                                </div>
+                                <div id="image-library-content"><div>loading...</div></div>`,
+                        },
+                    ],
                 },
             ],
         },
+        initialData: {},
         buttons: [
             {
-                type: "custom",
-                text: "Upload",
-                name: "upload",
-            },
-            {
-                type: "cancel",
-                text: "Cancel",
+                type: "submit",
+                text: "Insert",
             },
         ],
-        onAction: function (_dialogApi, details) {
-            if (details.name === "upload") {
-                input.click();
+        onSubmit: function (dialogApi) {
+            callback(selected);
+            dialog.close();
+        },
+        onChange: function (dialogApi, details) {
+            if (details.name == "dropzone") {
+                const files = dialogApi.getData();
+                if (files && files.length > 0) {
+                    let formData = new FormData();
+                    formData.append("file", files[0]);
+
+                    api.post({
+                        url: "/media",
+                        body: formData,
+                    })
+                        .then((result) => {
+                            input.value = "";
+                            const data = result.data as MediaResponse;
+
+                            if (data.medium) {
+                                callback(data.medium.url);
+                                dialog.close();
+                            } else {
+                                alert(
+                                    "The server responded with an unknown error"
+                                );
+                            }
+                        })
+                        .catch((error) => {
+                            input.value = "";
+                            alert(
+                                error.data.message ||
+                                    "An unexpected error occurred uploading the file to the server."
+                            );
+                        });
+                }
+            }
+        },
+        onTabChange: function (dialogApi, details) {
+            if (details.newTabName == "library") {
+                updateLibrary();
             }
         },
     });
-
-    // create the child elements
-    const heading = document.createElement("div");
-    heading.className = "heading";
-    heading.textContent = "Select an image or upload a new one";
-
-    const pagination = document.createElement("div");
-    pagination.className = "pagination";
-
-    const prevButton = document.createElement("button");
-    prevButton.className = "prev";
-    prevButton.addEventListener("click", () => {
-        if (galleryPage > 1) {
-            galleryPage--;
-            updateGallery();
-        }
-    });
-
-    const infoDiv = document.createElement("div");
-    infoDiv.className = "info";
-    infoDiv.textContent = `${galleryPage} / ${galleryMax}`;
-
-    const nextButton = document.createElement("button");
-    nextButton.className = "next";
-    nextButton.addEventListener("click", () => {
-        if (galleryPage < galleryMax) {
-            galleryPage++;
-            updateGallery();
-        }
-        // handle click on the next button
-    });
-
-    // add the child elements to the parent element
-    pagination.appendChild(prevButton);
-    pagination.appendChild(infoDiv);
-    pagination.appendChild(nextButton);
-
-    const renderedHeader = document.getElementById("tinymce-gallery-header");
-    if (renderedHeader) {
-        renderedHeader.appendChild(heading);
-        renderedHeader.appendChild(pagination);
-    }
-
-    updateGallery();
 };
 </script>
 
@@ -427,68 +477,60 @@ const imageBrowser = (callback, value, meta) => {
     margin-bottom: 1rem;
 }
 
-#tinymce-gallery-header {
+#image-library-toolbar {
     display: flex;
+    margin-bottom: 4px;
 
-    div.heading {
-        flex: 1;
-    }
-
-    div.pagination {
+    .image-library-search-group {
         display: flex;
-        text-align: right;
-        justify-content: center;
+        align-content: center;
 
-        div.info {
-            display: inline-block;
+        #image-library-search-input {
+            width: auto;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        #image-library-search-button {
+            border-width: 1px 1px 1px 0;
+            border-style: solid;
+            border-color: #eee;
+            border-top-right-radius: 6px;
+            border-bottom-right-radius: 6px;
+            padding: 0 8px;
+            background-color: #eee;
+
+            &:hover {
+                background-color: #ddd;
+            }
         }
     }
 
-    button {
-        height: 24px;
-        width: 24px;
-        position: relative;
-        margin: 0 8px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background-color: #f0f0f0;
+    .image-library-pagination {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        justify-content: flex-end;
 
-        &:before {
-            content: "";
-            position: absolute;
-            height: 8px;
-            width: 8px;
+        .image-library-pagination-status {
+            margin: 0 12px;
         }
 
-        &:hover {
-            background-color: #e3e3e3;
-        }
-    }
+        button {
+            display: flex;
+            cursor: pointer;
+            background-color: #eee;
+            border-radius: 6px;
+            padding: 2px;
 
-    button.prev {
-        &:before {
-            content: "";
-            border-left: 2px solid #222f3e;
-            border-bottom: 2px solid #222f3e;
-            top: 7px;
-            left: 9px;
-            transform: rotate(45deg);
-        }
-    }
-
-    button.next {
-        &:before {
-            content: "";
-            border-right: 2px solid #222f3e;
-            border-bottom: 2px solid #222f3e;
-            top: 7px;
-            right: 9px;
-            transform: rotate(-45deg);
+            &:hover {
+                background-color: #ddd;
+            }
         }
     }
 }
 
-#tinymce-gallery {
+#image-library-content {
     display: flex;
     flex-wrap: wrap;
     margin-top: 12px;
@@ -497,9 +539,9 @@ const imageBrowser = (callback, value, meta) => {
     gap: 1rem;
     overflow-y: auto;
     padding: 0.5rem;
-    max-height: 468px;
+    max-height: 460px;
 
-    .gallery-image {
+    .image-library-content-image {
         width: 18vw;
         height: 14vh;
         min-height: 113px;
@@ -511,20 +553,42 @@ const imageBrowser = (callback, value, meta) => {
         padding: 2px;
         background-clip: content-box;
 
-        &:hover {
+        &:hover,
+        &.image-library-content-image-selected {
             border: 3px solid #0060ce;
+            position: relative;
+        }
+
+        &.image-library-content-image-selected::before {
+            content: "\2713";
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            color: #fff;
+            box-shadow: 0 0 2px 2px #fff;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-color: #0060ce;
         }
     }
 }
 
 @media only screen and (max-height: 600px) {
-    #tinymce-gallery {
+    #tinymce-library {
         max-height: 428px;
     }
 }
 
 @media only screen and (max-height: 570px) {
-    #tinymce-gallery {
+    #tinymce-library {
         height: 60vh;
     }
 }
