@@ -1,5 +1,6 @@
 <template>
     <div class="sm-image-gallery" ref="gallery">
+        {{ sliderWidth }} - {{ slideWidths }}
         <div
             class="sm-image-gallery-inner"
             :style="{ transform: `translateX(-${sliderOffset}px)` }">
@@ -67,6 +68,38 @@ const visibleSlides = ref(0);
 const slideWidths = ref([]);
 const sliderWidth = ref(0);
 const sliderOffset = ref(0);
+const touchStartX = ref(null);
+const swipeDistance = ref(0);
+
+const handleTouchStart = (event) => {
+    touchStartX.value = event.touches[0].clientX;
+    swipeDistance.value = 0;
+};
+
+const handleTouchMove = (event) => {
+    if (touchStartX.value === null) {
+        return;
+    }
+
+    const touchX = event.touches[0].clientX;
+    swipeDistance.value = touchX - touchStartX.value;
+    const sliderOffsetMax =
+        slideWidths.value.reduce((acc, curr) => acc + curr, 0) -
+        sliderWidth.value;
+
+    if (sliderOffset.value + swipeDistance.value < 0) {
+        sliderOffset.value = 0;
+    } else if (sliderOffset.value + swipeDistance.value > sliderOffsetMax) {
+        sliderOffset.value = sliderOffsetMax;
+    } else {
+        sliderOffset.value += swipeDistance.value;
+    }
+};
+
+const handleTouchEnd = () => {
+    touchStartX.value = null;
+    swipeDistance.value = 0;
+};
 
 const handleResize = () => {
     const slides = gallery.value.querySelectorAll(
@@ -169,9 +202,15 @@ onMounted(() => {
     handleResize();
     window.addEventListener("resize", handleResize);
     document.addEventListener("keydown", handleKeyDown);
+    gallery.value.addEventListener("touchstart", handleTouchStart);
+    gallery.value.addEventListener("touchmove", handleTouchMove);
+    gallery.value.addEventListener("touchend", handleTouchEnd);
 });
 
 onBeforeUnmount(() => {
+    gallery.value.removeEventListener("touchstart", handleTouchStart);
+    gallery.value.removeEventListener("touchmove", handleTouchMove);
+    gallery.value.removeEventListener("touchend", handleTouchEnd);
     window.removeEventListener("resize", handleResize);
     document.removeEventListener("keydown", handleKeyDown);
 });
