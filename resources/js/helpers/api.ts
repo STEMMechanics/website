@@ -45,9 +45,14 @@ export const api = {
                 for (const [key, value] of Object.entries(options.params)) {
                     const placeholder = `{${key}}`;
                     if (url.includes(placeholder)) {
-                        url = url.replace(placeholder, value);
+                        url = url.replace(
+                            placeholder,
+                            encodeURIComponent(value)
+                        );
                     } else {
-                        params += `&${key}=${value}`;
+                        params += `&${encodeURIComponent(
+                            key
+                        )}=${encodeURIComponent(value)}`;
                     }
                 }
 
@@ -163,6 +168,7 @@ export const api = {
                 const progressStore = useProgressStore();
                 progressStore.start();
 
+                console.log("URL", url);
                 fetch(url, fetchOptions)
                     .then(async (response) => {
                         let data: string | object = "";
