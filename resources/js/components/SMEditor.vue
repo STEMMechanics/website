@@ -250,7 +250,7 @@ const init = {
         "gallery",
     ],
     toolbar:
-        "gallery h1 h2 h3 blockquote | bold italic underline strikethrough | numlist bullist | image media link anchor codesample | alignleft aligncenter alignright alignjustify | forecolor backcolor removeformat | outdent indent | charmap emoticons | undo redo",
+        "h1 h2 h3 blockquote | bold italic underline strikethrough | numlist bullist | image media gallery link anchor codesample | alignleft aligncenter alignright alignjustify | forecolor backcolor removeformat | outdent indent | charmap emoticons | undo redo",
     branding: false,
     menubar: false,
     toolbar_mode: "sliding",
