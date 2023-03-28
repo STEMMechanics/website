@@ -1,3 +1,13 @@
 // @import "../../public/skins/ui/oxide/skin.min.css";
 // @import "../../public/skins/ui/oxide/content.min.css";
 // @import "../../public/skins/content/default/content.min.css";
+
+.tox .tox-dialog.tox-dialog--width-lg {
+    height: 650px;
+    max-height: 650px;
+
+    .tox-dialog__body-content {
+        height: auto !important;
+        flex-basis: auto !important;
+    }
+}
