@@ -104,6 +104,8 @@ const handleResize = () => {
 };
 
 const nextSlide = () => {
+    handleResize();
+
     const diff = Math.abs(visibleSlides.value - slideWidths.value.length);
     if (visibleSlides.value < slideWidths.value.length && diff > 1) {
         const width = sliderOffset.value + sliderWidth.value;
@@ -179,8 +181,10 @@ const hidePrevArrow = computed(() => {
 });
 
 const hideNextArrow = computed(() => {
-    const sum = slideWidths.value.reduce((acc, curr) => acc + curr, 0);
-    return sliderWidth.value + sliderOffset.value >= sum;
+    return false;
+    // const sum = slideWidths.value.reduce((acc, curr) => acc + curr, 0);
+    // console.log(sum, sliderWidth.value, sliderOffset.value);
+    // return sliderWidth.value + sliderOffset.value >= sum;
 });
 </script>
 
@@ -197,13 +201,13 @@ const hideNextArrow = computed(() => {
 .sm-image-gallery-inner {
     display: flex;
     transition: transform 0.3s ease-in-out;
-    height: 100%;
+    // height: 100%;
 }
 
 .sm-image-gallery-slide {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    // display: flex;
+    // justify-content: center;
+    // align-items: center;
     height: 100%;
     margin-left: 5px;
     margin-right: 5px;
@@ -281,6 +285,7 @@ const hideNextArrow = computed(() => {
     align-items: center;
     cursor: pointer;
     pointer-events: none; /* Add this line */
+    z-index: 1000;
 }
 
 .sm-image-gallery-modal * {
