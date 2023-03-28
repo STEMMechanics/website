@@ -249,6 +249,8 @@ const imageBrowser = (callback, value, meta) => {
     var libraryPage = 1;
     var libraryMax = 1;
     var selected = value;
+    var title = "";
+    var itemsFound = 0;
 
     console.log(selected);
 
@@ -289,6 +291,17 @@ const imageBrowser = (callback, value, meta) => {
     const updateLibrary = () => {
         const limit = 24;
 
+        const searchFunc = function () {
+            title = (
+                document.getElementById(
+                    "image-library-search-input"
+                ) as HTMLInputElement
+            ).value;
+
+            updateLibrary();
+            console.log("here");
+        };
+
         document.getElementById("image-library-pagination-current").innerHTML =
             libraryPage.toString();
 
@@ -308,21 +321,39 @@ const imageBrowser = (callback, value, meta) => {
                 }
             };
 
+        document.getElementById("image-library-search-button").onclick =
+            searchFunc;
+        document.getElementById("image-library-search-input").onkeydown =
+            function (event) {
+                if (event.key === "Enter") {
+                    searchFunc();
+                }
+            };
+
+        console.log(title);
         api.get({
             url: "/media",
             params: {
                 limit: limit,
                 page: libraryPage,
                 mime: "image/",
+                title: title,
             },
         })
             .then((result) => {
                 const data = result.data as MediaCollection;
                 libraryMax = Math.ceil(data.total / limit);
+                itemsFound = data.total;
 
                 document.getElementById(
                     "image-library-pagination-max"
                 ).innerHTML = libraryMax.toString();
+
+                document.getElementById(
+                    "image-library-item-count"
+                ).innerHTML = `${itemsFound.toString()} image${
+                    itemsFound == 1 ? "" : "s"
+                } found`;
 
                 const libraryContainer = document.getElementById(
                     "image-library-content"
@@ -337,35 +368,43 @@ const imageBrowser = (callback, value, meta) => {
 
                     // add new items
                     data.media.forEach((medium) => {
-                        const img = document.createElement("div");
-                        img.classList.add("image-library-content-image");
+                        const item = document.createElement("div");
+                        item.classList.add("image-library-content-item");
                         if (urlMatches(medium.url, selected)) {
-                            img.classList.add(
-                                "image-library-content-image-selected"
+                            item.classList.add(
+                                "image-library-content-item-selected"
                             );
                         }
-                        img.style.backgroundImage = `url('${medium.url}?w=200')`;
-                        img.style.cursor = "pointer";
-                        img.onclick = function () {
-                            // Remove the "image-library-content-image-selected" class from all the image elements
-                            const images = libraryContainer.querySelectorAll(
-                                ".image-library-content-image"
+
+                        item.onclick = function () {
+                            const items = libraryContainer.querySelectorAll(
+                                ".image-library-content-item"
                             );
 
-                            images.forEach((image) => {
-                                image.classList.remove(
-                                    "image-library-content-image-selected"
+                            items.forEach((item) => {
+                                item.classList.remove(
+                                    "image-library-content-item-selected"
                                 );
                             });
 
-                            // Add the "image-library-content-image-selected" class to the clicked image element
-                            img.classList.add(
-                                "image-library-content-image-selected"
+                            item.classList.add(
+                                "image-library-content-item-selected"
                             );
                             selected = medium.url;
                         };
 
-                        libraryContainer.appendChild(img);
+                        const image = document.createElement("div");
+                        image.classList.add("image-library-content-item-image");
+                        image.style.backgroundImage = `url('${medium.url}?w=200')`;
+
+                        const title = document.createElement("div");
+                        title.classList.add("image-library-content-item-title");
+                        title.innerHTML = medium.title;
+
+                        item.appendChild(image);
+                        item.appendChild(title);
+
+                        libraryContainer.appendChild(item);
                     });
                 }
             })
@@ -403,7 +442,7 @@ const imageBrowser = (callback, value, meta) => {
                                 <div id="image-library-toolbar">
                                     <div class="image-library-search-group">
                                         <input type="text" id="image-library-search-input" placeholder="search" class="tox-textfield" />
-                                        <button id="image-library-search-button"><svg width="24" height="24" focusable="false"><path d="M16 17.3a8 8 0 1 1 1.4-1.4l4.3 4.4a1 1 0 0 1-1.4 1.4l-4.4-4.3Zm-5-.3a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" fill-rule="nonzero"/></svg></button>
+                                        <button id="image-library-search-button"><svg width="20" height="20" focusable="false"><path d="M14 15.7a6 6 0 1 1 1.06-1.06l3.54 3.54a1 1 0 0 1-1.06 1.06l-3.54-3.54Zm-4-.4a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" fill-rule="nonzero"/></svg></button>
                                     </div>
                                     <div class="image-library-pagination">
                                         <button id="image-library-pagination-prev"><svg width="24" height="24" focusable="false"><path d="M15.5 5.5l-7 7 7 7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -411,7 +450,11 @@ const imageBrowser = (callback, value, meta) => {
                                         <button id="image-library-pagination-next"><svg width="24" height="24" focusable="false"><path d="M8.5 18.5l7-7-7-7" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
                                     </div>
                                 </div>
-                                <div id="image-library-content"><div>loading...</div></div>`,
+                                <div id="image-library-content">
+                                    <div>loading...</div>
+                                </div>
+                                <div id="image-library-item-count">x</div>
+                            </div>`,
                         },
                     ],
                 },
@@ -483,12 +526,19 @@ const imageBrowser = (callback, value, meta) => {
 
     .image-library-search-group {
         display: flex;
+        flex: 1;
         align-content: center;
+        justify-content: flex-end;
+        margin-right: 12px;
 
         #image-library-search-input {
             width: auto;
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
+            padding: 4px 8px;
+            font-size: 90%;
+            min-height: auto;
+            line-height: normal;
         }
 
         #image-library-search-button {
@@ -508,7 +558,6 @@ const imageBrowser = (callback, value, meta) => {
 
     .image-library-pagination {
         display: flex;
-        flex: 1;
         align-items: center;
         justify-content: flex-end;
 
@@ -539,27 +588,25 @@ const imageBrowser = (callback, value, meta) => {
     gap: 1rem;
     overflow-y: auto;
     padding: 0.5rem;
-    max-height: 460px;
+    height: 440px;
 
-    .image-library-content-image {
+    .image-library-content-item {
         width: 18vw;
-        height: 14vh;
-        min-height: 113px;
+        height: 18vh;
         min-width: 200px;
-        background-repeat: no-repeat;
-        background-size: cover;
-        background-position: center;
+        min-height: 150px;
         border: 3px solid #fff;
         padding: 2px;
         background-clip: content-box;
 
         &:hover,
-        &.image-library-content-image-selected {
+        &.image-library-content-item-selected {
             border: 3px solid #0060ce;
             position: relative;
+            cursor: pointer;
         }
 
-        &.image-library-content-image-selected::before {
+        &.image-library-content-item-selected::before {
             content: "\2713";
             position: absolute;
             top: -10px;
@@ -578,18 +625,60 @@ const imageBrowser = (callback, value, meta) => {
             background-position: center;
             background-color: #0060ce;
         }
+
+        .image-library-content-item-image {
+            width: 100%;
+            height: 14vh;
+            min-height: 113px;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: center;
+            background-clip: content-box;
+        }
+
+        .image-library-content-item-title {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 90%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 }
 
-@media only screen and (max-height: 600px) {
-    #tinymce-library {
-        max-height: 428px;
+#image-library-item-count {
+    font-size: 90%;
+    margin-top: 8px;
+    color: #999;
+    text-align: right;
+}
+
+@media only screen and (max-width: 767px) {
+    #image-library-content {
+        height: 408px;
     }
 }
 
-@media only screen and (max-height: 570px) {
-    #tinymce-library {
-        height: 60vh;
+@media only screen and (max-width: 450px) {
+    #image-library-toolbar {
+        flex-direction: column;
+
+        .image-library-search-group {
+            margin-bottom: 8px;
+
+            #image-library-search-input {
+                width: 100%;
+            }
+        }
+
+        .image-library-pagination {
+            justify-content: center;
+        }
+    }
+
+    #image-library-content {
+        height: 380px;
     }
 }
 </style>
