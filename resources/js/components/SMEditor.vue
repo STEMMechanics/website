@@ -292,6 +292,8 @@ const imageBrowser = (callback, value, meta) => {
         const limit = 24;
 
         const searchFunc = function () {
+            libraryPage = 1;
+
             title = (
                 document.getElementById(
                     "image-library-search-input"
@@ -299,7 +301,6 @@ const imageBrowser = (callback, value, meta) => {
             ).value;
 
             updateLibrary();
-            console.log("here");
         };
 
         document.getElementById("image-library-pagination-current").innerHTML =
@@ -330,41 +331,38 @@ const imageBrowser = (callback, value, meta) => {
                 }
             };
 
-        console.log(title);
-        api.get({
-            url: "/media",
-            params: {
-                limit: limit,
-                page: libraryPage,
-                mime: "image/",
-                title: title,
-            },
-        })
-            .then((result) => {
-                const data = result.data as MediaCollection;
-                libraryMax = Math.ceil(data.total / limit);
-                itemsFound = data.total;
+        const libraryContainer = document.getElementById(
+            "image-library-content"
+        );
+        if (libraryContainer != null) {
+            // delete existing items
+            const divElements = libraryContainer.querySelectorAll("div");
+            divElements.forEach((div) => {
+                div.remove();
+            });
 
-                document.getElementById(
-                    "image-library-pagination-max"
-                ).innerHTML = libraryMax.toString();
+            const loadingElem = document.createElement("div");
+            loadingElem.classList.add("image-library-content-loading");
+            libraryContainer.appendChild(loadingElem);
 
-                document.getElementById(
-                    "image-library-item-count"
-                ).innerHTML = `${itemsFound.toString()} image${
-                    itemsFound == 1 ? "" : "s"
-                } found`;
+            api.get({
+                url: "/media",
+                params: {
+                    limit: limit,
+                    page: libraryPage,
+                    mime: "image/",
+                    title: title,
+                },
+            })
+                .then((result) => {
+                    const data = result.data as MediaCollection;
 
-                const libraryContainer = document.getElementById(
-                    "image-library-content"
-                );
-                if (libraryContainer != null) {
-                    // delete existing items
-                    const divElements =
-                        libraryContainer.querySelectorAll("div");
-                    divElements.forEach((div) => {
-                        div.remove();
-                    });
+                    libraryMax = Math.ceil(data.total / limit);
+                    itemsFound = data.total;
+
+                    const libraryContainer = document.getElementById(
+                        "image-library-content"
+                    );
 
                     // add new items
                     data.media.forEach((medium) => {
@@ -406,11 +404,25 @@ const imageBrowser = (callback, value, meta) => {
 
                         libraryContainer.appendChild(item);
                     });
-                }
-            })
-            .catch(() => {
-                /* empty */
-            });
+                })
+                .catch(() => {
+                    libraryMax = 1;
+                    itemsFound = 0;
+                })
+                .finally(() => {
+                    loadingElem.remove();
+
+                    document.getElementById(
+                        "image-library-pagination-max"
+                    ).innerHTML = libraryMax.toString();
+
+                    document.getElementById(
+                        "image-library-item-count"
+                    ).innerHTML = `${itemsFound.toString()} image${
+                        itemsFound == 1 ? "" : "s"
+                    } found`;
+                });
+        }
     };
 
     // Add the container and file input to the dialog
@@ -652,6 +664,31 @@ const imageBrowser = (callback, value, meta) => {
     margin-top: 8px;
     color: #999;
     text-align: right;
+}
+
+.image-library-content-loading {
+    position: relative;
+
+    &::after {
+        content: "";
+        display: block;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 40px;
+        height: 40px;
+        margin: -20px 0 0 -20px;
+        border-radius: 50%;
+        border: 4px solid #ccc;
+        border-top-color: #333;
+        animation: spin 1s ease-in-out infinite;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @media only screen and (max-width: 767px) {
