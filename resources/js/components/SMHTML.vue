@@ -22,6 +22,9 @@ const props = defineProps({
 const computedContent = computed(() => {
     let html = "";
 
+    // Sanitize HTML
+    html = DOMPurify.sanitize(html);
+
     // Convert local links to router-links
     const regexHref = new RegExp(
         `<a ([^>]*?)href="${
@@ -33,13 +36,19 @@ const computedContent = computed(() => {
 
     // Convert image galleries to SMImageGallery component
     const regexGallery =
-        /<ul class="tinymce-sm-gallery">((?:\s*<li><img src="[^"]*" \/><\/li>)+)\s*<\/ul>/gi;
-    html = html.replace(regexGallery, (match, p1) => {
-        const imageSrcs = p1
-            .match(/<img src="([^"]*)" \/><\/li>/gi)
-            .map((m) => m.match(/<img src="([^"]*)" \/><\/li>/i)[1]);
-        return `<SMImageGallery :images="${JSON.stringify(imageSrcs)}" />`;
-    });
+        /<div.*?class="tinymce-sm-gallery".*?>\s*((?:<div class="tinymce-sm-gallery-item" style="background-image: url\('.*?'\);">.*?<\/div>\s*)*)<\/div>/gi;
+
+    const matches = [...html.matchAll(regexGallery)];
+    for (const match of matches) {
+        const images = match[1]; // Extract the captured group from the match
+        const imageSrcs = images
+            .match(/style="background-image: url\('(.*?)'\)/gi)
+            .map((m) => m.match(/background-image: url\('(.*?)'\)/i)[1]);
+        const smImageGallery = `<SMImageGallery :images='${JSON.stringify(
+            imageSrcs
+        )}' />`;
+        html = html.replace(images, smImageGallery);
+    }
 
     // Update local images to use at most the large size
     const regexImg = new RegExp(
@@ -54,9 +63,6 @@ const computedContent = computed(() => {
             (import.meta as ImportMetaExtras).env.APP_URL
         }/uploads/$2?size=large"`
     );
-
-    // Sanitize HTML
-    html = DOMPurify.sanitize(html);
 
     return {
         template: `<div class="sm-content">${html}</div>`,
