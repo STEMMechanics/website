@@ -75,6 +75,56 @@ const useDarkMode = false; // window.matchMedia("(prefers-color-scheme: dark)").
 const tinyeditor = ref(null);
 
 tinymce.PluginManager.add("gallery", function (editor) {
+    // Add styling
+    editor.on("PreInit", function () {
+        var contentStyle = editor.options.get("content_style") || "";
+        contentStyle += `
+          .tinymce-sm-gallery {
+            position: relative;
+            overflow: hidden;
+            margin: 20px auto;
+            height: 200px;
+            width: 100%;
+            display: block;
+            white-space: nowrap;
+        }
+
+        .tinymce-sm-gallery::before {
+            position: absolute;
+            content: "";
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .tinymce-sm-gallery::after {
+            position: absolute;
+            content: "Image Gallery";
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: black;
+            padding: .25rem 1.5rem;
+            border-radius: 12px;
+        }
+
+        .tinymce-sm-gallery-item {
+            display: inline-block;
+            width: 355px;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+        }`;
+        editor.options.set("content_style", contentStyle);
+    });
+
     // Register a command to open the dialog
     editor.addCommand("image-gallery", function () {
         var selected = [];
@@ -111,7 +161,7 @@ tinymce.PluginManager.add("gallery", function (editor) {
                 let galleryContent = "";
                 if (url.length > 0) {
                     url.forEach((item) => {
-                        galleryContent += `<div style="background-image:url('${item}');"></div>`;
+                        galleryContent += `<div class="tinymce-sm-gallery-item" style="background-image:url('${item}');"></div>`;
                     });
 
                     galleryContent = `<div contentEditable="false" class="tinymce-sm-gallery">${galleryContent}</div>`;
