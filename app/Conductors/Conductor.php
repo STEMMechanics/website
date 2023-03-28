@@ -215,9 +215,6 @@ class Conductor
             throw new \Exception('Failed to create query builder instance for ' . $conductor->class . '.', 0, $e);
         }
 
-        // Scope query
-        $conductor->scope($conductor->query);
-
         // Filter request
         $fields = $conductor->fields(new $conductor->class());
         if (is_array($fields) === false) {
@@ -230,6 +227,11 @@ class Conductor
         if ($request->has('filter') === true) {
             $conductor->filterRaw($request->input('filter', ''), $fields);
         }
+
+        // After Scope query
+        $conductor->query->where(function ($query) use ($conductor) {
+            $conductor->scope($query);
+        });
 
         // Sort request
         $conductor->sort($request->input('sort', $conductor->sort));
@@ -250,6 +252,7 @@ class Conductor
         $conductor->limitFields($limitFields);
 
         $conductor->collection = $conductor->query->get();
+
 
         // Transform and Includes
         $includes = $conductor->includes;
