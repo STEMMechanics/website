@@ -168,7 +168,6 @@ export const api = {
                 const progressStore = useProgressStore();
                 progressStore.start();
 
-                console.log("URL", url);
                 fetch(url, fetchOptions)
                     .then(async (response) => {
                         let data: string | object = "";
