@@ -106,21 +106,23 @@ const handleClickRemove = (media_id: string) => {
 const handleLoad = () => {
     mediaItems.value = [];
 
-    value.value.forEach((item) => {
-        api.get({
-            url: `/media/${item}`,
-        })
-            .then((result) => {
-                if (result.data) {
-                    const data = result.data as MediaResponse;
-
-                    mediaItems.value.push(data.medium);
-                }
+    if (value.value && typeof value.value.forEach === "function") {
+        value.value.forEach((item) => {
+            api.get({
+                url: `/media/${item}`,
             })
-            .catch(() => {
-                /* empty */
-            });
-    });
+                .then((result) => {
+                    if (result.data) {
+                        const data = result.data as MediaResponse;
+
+                        mediaItems.value.push(data.medium);
+                    }
+                })
+                .catch(() => {
+                    /* empty */
+                });
+        });
+    }
 };
 
 watch(
