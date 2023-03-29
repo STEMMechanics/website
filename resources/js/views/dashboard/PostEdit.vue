@@ -49,7 +49,7 @@
                 </SMRow>
                 <SMRow>
                     <SMColumn>
-                        <SMInputAttachments :model-value="attachments" />
+                        <SMInputAttachments v-model:model-value="attachments" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>
@@ -170,6 +170,13 @@ const loadData = async () => {
                     : "";
                 form.controls.content.value = data.post.content;
                 form.controls.hero.value = data.post.hero;
+
+                attachments.value = (data.post.attachments || []).map(function (
+                    attachment
+                ) {
+                    return attachment.id.toString();
+                });
+                console.log(attachments.value);
             } else {
                 pageError.value = 404;
             }
@@ -195,17 +202,32 @@ const handleSubmit = async () => {
             hero: form.controls.hero.value,
         };
 
+        let post_id = "";
+
         if (route.params.id) {
+            post_id = route.params.id as string;
             await api.put({
                 url: `/posts/${route.params.id}`,
                 body: data,
             });
         } else {
-            await api.post({
+            let result = await api.post({
                 url: "/posts",
                 body: data,
             });
+
+            if (result.data) {
+                const data = result.data as PostResponse;
+                post_id = data.post.id;
+            }
         }
+
+        await api.put({
+            url: `/posts/${post_id}/attachments`,
+            body: {
+                attachments: attachments.value,
+            },
+        });
 
         useToastStore().addToast({
             title: route.params.id ? "Post Updated" : "Post Created",
