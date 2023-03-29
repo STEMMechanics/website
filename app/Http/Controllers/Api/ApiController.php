@@ -124,6 +124,7 @@ class ApiController extends Controller
      * @param array|Model|Collection $data         Resource data.
      * @param boolean                $isCollection If the data is a group of items.
      * @param array|null             $appendData   Data to append to response.
+     * @param string|null            $resourceName The resource name to group the result.
      * @param integer                $respondCode  Resource code.
      * @return \Illuminate\Http\JsonResponse
      */
@@ -131,15 +132,18 @@ class ApiController extends Controller
         mixed $data,
         bool $isCollection = false,
         mixed $appendData = null,
+        string $resourceName = null,
         int $respondCode = HttpResponseCodes::HTTP_OK
     ) {
         if ($data === null || ($data instanceof Collection && $data->count() === 0)) {
             return $this->respondNotFound();
         }
 
-        $resourceName = $this->resourceName;
+        if(is_null($resourceName) === true || empty($resourceName) === true) {
+            $resourceName = $this->resourceName;
+        }
 
-        if ($this->resourceName === '') {
+        if(is_null($resourceName) === true || empty($resourceName) === true) {
             $resourceName = get_class($this);
             $resourceName = substr($resourceName, (strrpos($resourceName, '\\') + 1));
             $resourceName = substr($resourceName, 0, strpos($resourceName, 'Controller'));
