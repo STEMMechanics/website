@@ -25,4 +25,13 @@ class Attachment extends Model
     public function attachable()
     {
         return $this->morphTo();
-    }}
+    }
+
+    /**
+     * Get the media for this attachment.
+     */
+    public function media()
+    {
+        return $this->belongsTo(Media::class);
+    }
+}
