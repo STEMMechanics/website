@@ -5,6 +5,7 @@ namespace App\Conductors;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 
 class PostConductor extends Conductor
 {
@@ -87,5 +88,15 @@ class PostConductor extends Conductor
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/posts') === true);
+    }
+
+    public function transform(Model $model)
+    {
+        $result = $model->toArray();
+        $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
+            return MediaConductor::model(request(), $attachment->media);
+        });
+        
+        return $result;
     }
 }
