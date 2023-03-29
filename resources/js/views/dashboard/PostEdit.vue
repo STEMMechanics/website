@@ -221,6 +221,7 @@ const handleSubmit = async () => {
             }
         }
 
+        console.log(attachments.value);
         await api.put({
             url: `/posts/${post_id}/attachments`,
             body: {
