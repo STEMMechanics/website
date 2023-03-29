@@ -299,11 +299,19 @@ const handleDelete = async (item) => {
 
     if (result == true) {
         try {
-            await api.delete(`events${item.id}`);
+            await api.delete({
+                url: `/events/{id}`,
+                params: {
+                    id: item.id,
+                },
+            });
             loadFromServer();
 
-            formMessage.message = "Post deleted successfully";
-            formMessage.type = "success";
+            useToastStore().addToast({
+                title: "Post deleted",
+                content: "The post has been deleted successfully.",
+                type: "success",
+            });
         } catch (err) {
             formMessage.message = err.response?.data?.message;
         }
