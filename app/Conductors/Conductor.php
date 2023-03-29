@@ -271,6 +271,29 @@ class Conductor
     }
 
     /**
+     * Run the conductor on a collection with the data stored in a Request.
+     *
+     * @param Request    $request    The request data.
+     * @param Collection $collection The collection.
+     * @return array The processed and transformed model data.
+     */
+    final public static function collection(Request $request, Collection $collection)
+    {
+        $conductor_class = get_called_class();
+        $conductor = new $conductor_class();
+
+        $transformedCollection = collect();
+
+        foreach ($collection as $item) {
+            if ($conductor->viewable($item)) {
+                $transformedCollection->push($conductor->transform($item));
+            }
+        }
+
+        return $transformedCollection;
+    }
+
+    /**
      * Run the conductor on a Model with the data stored in a Request.
      *
      * @param Request $request The request data.
@@ -333,14 +356,14 @@ class Conductor
      * @param Collection $collection If not null, use the passed collection.
      * @return Collection The current conductor collection.
      */
-    final public function collection(Collection $collection = null)
-    {
-        if ($collection !== null) {
-            $this->collection = $collection;
-        }
+    // final public function collection(Collection $collection = null)
+    // {
+    //     if ($collection !== null) {
+    //         $this->collection = $collection;
+    //     }
 
-        return $this->collection;
-    }
+    //     return $this->collection;
+    // }
 
     /**
      * Return the current conductor collection count.
@@ -616,10 +639,14 @@ class Conductor
     {
         $visibleFields = $model->getVisible();
         if (empty($visibleFields) === true) {
-            $tableColumns = $model->getConnection()
+            $visibleFields = $model->getConnection()
                 ->getSchemaBuilder()
                 ->getColumnListing($model->getTable());
-            return $tableColumns;
+        }
+
+        $appends = $model->getAppends();
+        if(is_array($appends) === true) {
+            $visibleFields = array_merge($visibleFields, $appends);
         }
 
         return $visibleFields;
@@ -633,7 +660,14 @@ class Conductor
      */
     public function transform(Model $model)
     {
-        return $model->toArray();
+        $result = $model->toArray();
+
+        $fields = $this->fields($model);
+        if(is_array($fields) === true) {
+            $result = array_intersect_key($result, array_flip($fields));
+        }
+
+        return $result;
     }
 
     /**
