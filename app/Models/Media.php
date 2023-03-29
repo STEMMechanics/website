@@ -169,33 +169,34 @@ class Media extends Model
         }
 
         $path = Storage::disk($storage)->path($name);
-
+        if (in_array($file->getClientOriginalExtension(), ['jpg', 'jpeg', 'png', 'gif']) === true) {
         // Generate additional image sizes
-        $sizes = [
-            'thumb' => [150, 150],
-            'small' => [300, 300],
-            'medium' => [640, 640],
-            'large' => [1024, 1024],
-            'xlarge' => [1536, 1536],
-            'xxlarge' => [2560, 2560],
-        ];
-        $images = ['full' => $path];
-        foreach ($sizes as $sizeName => $size) {
-            $image = Image::make($path);
-            $image->resize($size[0], $size[1], function ($constraint) {
-                $constraint->aspectRatio();
-                $constraint->upsize();
-            });
-            $newPath = pathinfo($path, PATHINFO_DIRNAME) . '/' . pathinfo($path, PATHINFO_FILENAME) . "-$sizeName." . pathinfo($path, PATHINFO_EXTENSION);
-            $image->save($newPath);
-            $images[$sizeName] = $newPath;
-        }
+            $sizes = [
+                'thumb' => [150, 150],
+                'small' => [300, 300],
+                'medium' => [640, 640],
+                'large' => [1024, 1024],
+                'xlarge' => [1536, 1536],
+                'xxlarge' => [2560, 2560],
+            ];
+            $images = ['full' => $path];
+            foreach ($sizes as $sizeName => $size) {
+                $image = Image::make($path);
+                $image->resize($size[0], $size[1], function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                });
+                $newPath = pathinfo($path, PATHINFO_DIRNAME) . '/' . pathinfo($path, PATHINFO_FILENAME) . "-$sizeName." . pathinfo($path, PATHINFO_EXTENSION);
+                $image->save($newPath);
+                $images[$sizeName] = $newPath;
+            }
 
         // Optimize all images
-        $optimizerChain = OptimizerChainFactory::create();
-        foreach ($images as $imagePath) {
-            $optimizerChain->optimize($imagePath);
-        }
+            $optimizerChain = OptimizerChainFactory::create();
+            foreach ($images as $imagePath) {
+                $optimizerChain->optimize($imagePath);
+            }
+        }//end if
 
         return [
             'name' => $name,
