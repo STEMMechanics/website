@@ -28,7 +28,7 @@ class EventsApiTest extends TestCase
 
         // Create a future event
         $futureEvent = Event::factory()->create([
-            'publish_at' => Carbon::parse($this->faker->dateTimeBetween('+1 month', '+2 months')),
+            'publish_at' => Carbon::parse($this->faker->dateTimeBetween('+1 day', '+1 month')),
         ]);
 
         // Send GET request to the /api/events endpoint
