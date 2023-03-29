@@ -13,9 +13,12 @@
                     height="48"
                     width="48" />
             </div>
-            <a :href="file.url" class="sm-attachment-file-name">{{
-                file.title || file.name
-            }}</a>
+            <a
+                :href="file.url"
+                target="_blank"
+                class="sm-attachment-file-name"
+                >{{ file.title || file.name }}</a
+            >
             <div class="sm-attachment-file-size">
                 ({{ bytesReadable(file.size) }})
             </div>
@@ -39,7 +42,8 @@ const props = defineProps({
 <style lang="scss">
 .sm-attachments {
     h3 {
-        margin-top: map-get($spacer, 3);
+        margin-top: map-get($spacer, 4);
+        margin-bottom: 0;
     }
 
     .sm-attachment-row {
