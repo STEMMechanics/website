@@ -1,6 +1,5 @@
 <template>
     <div class="sm-image-gallery" ref="gallery">
-        {{ sliderWidth }} - {{ slideWidths }}
         <div
             class="sm-image-gallery-inner"
             :style="{ transform: `translateX(-${sliderOffset}px)` }">
