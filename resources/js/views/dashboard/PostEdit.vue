@@ -145,7 +145,6 @@ const updateSlug = async () => {
  * Load the page data.
  */
 const loadData = async () => {
-    console.log("load data");
     try {
         if (route.params.id) {
             form.loading(true);
@@ -177,8 +176,6 @@ const loadData = async () => {
                 ) {
                     return attachment.id.toString();
                 });
-                console.log(data.post);
-                console.log(attachments.value);
             } else {
                 pageError.value = 404;
             }
