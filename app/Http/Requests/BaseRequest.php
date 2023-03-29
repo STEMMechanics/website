@@ -75,8 +75,8 @@ class BaseRequest extends FormRequest
 
                     if (is_array($collection2[$key]) === true) {
                         $key_ruleset = array_merge($key_ruleset, $collection2[$key]);
-                    } elseif (is_string($collection1[$key]) === true) {
-                        $key_ruleset = array_merge($key_ruleset, explode('|', $collection1[$key]));
+                    } elseif (is_string($collection2[$key]) === true) {
+                        $key_ruleset = array_merge($key_ruleset, explode('|', $collection2[$key]));
                     }
 
                     if (count($key_ruleset) > 0) {
