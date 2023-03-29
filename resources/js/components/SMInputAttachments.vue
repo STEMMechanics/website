@@ -72,7 +72,7 @@ const handleClickAdd = async () => {
             mediaItems.value.push(media);
             value.value.push(media.id);
 
-            emits("update:modelValue", value);
+            emits("update:modelValue", value.value);
         })
         .catch(() => {
             /* empty */
@@ -97,7 +97,7 @@ const handleClickRemove = (media_id: string) => {
         mediaItems.value.splice(mediaIndex, 1);
     }
 
-    emits("update:modelValue", value);
+    emits("update:modelValue", value.value);
 };
 
 /**
