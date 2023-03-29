@@ -71,7 +71,7 @@ class UserController extends ApiController
     {
         if (UserConductor::creatable() === true) {
             $user = User::create($request->all());
-            return $this->respondAsResource(UserConductor::model($request, $user), false, [], HttpResponseCodes::HTTP_CREATED);
+            return $this->respondAsResource(UserConductor::model($request, $user), false, [], null, HttpResponseCodes::HTTP_CREATED);
         } else {
             return $this->respondForbidden();
         }
