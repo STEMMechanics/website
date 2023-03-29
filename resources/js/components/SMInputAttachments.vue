@@ -127,6 +127,7 @@ watch(
     () => props.modelValue,
     (newValue) => {
         value.value = newValue;
+        handleLoad();
     }
 );
 
