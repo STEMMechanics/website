@@ -750,7 +750,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
         onChange: function (dialogApi, details) {
             if (details.name == "dropzone") {
                 const files = dialogApi.getData().dropzone || [];
-                console.log(files);
                 if (files && files.length > 0) {
                     let formData = new FormData();
                     formData.append("file", files[0]);
@@ -762,8 +761,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                         .then((result) => {
                             input.value = "";
                             const data = result.data as MediaResponse;
-
-                            console.log(data.medium);
 
                             if (data.medium) {
                                 if (gallery == false) {
@@ -780,7 +777,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                             }
                         })
                         .catch((error) => {
-                            console.log(error);
                             input.value = "";
                             alert(
                                 error.data.message ||
