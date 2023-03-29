@@ -176,6 +176,7 @@ const loadData = async () => {
                 ) {
                     return attachment.id.toString();
                 });
+                console.log(data.post);
                 console.log(attachments.value);
             } else {
                 pageError.value = 404;
