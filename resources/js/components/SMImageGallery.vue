@@ -322,12 +322,16 @@ const hideNextArrow = computed(() => {
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    pointer-events: none; /* Add this line */
+    pointer-events: none;
     z-index: 1000;
 }
 
 .sm-image-gallery-modal * {
-    pointer-events: auto; /* Add this line */
+    pointer-events: auto;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .sm-image-gallery-modal-image {
