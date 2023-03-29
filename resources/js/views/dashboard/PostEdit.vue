@@ -238,6 +238,7 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-post-list" });
     } catch (error) {
+        console.log(error);
         form.apiErrors(error);
     }
 };
