@@ -122,19 +122,18 @@ class ApiController extends Controller
      * Return resource data
      *
      * @param array|Model|Collection $data         Resource data.
-     * @param boolean                $isCollection If the data is a group of items.
-     * @param array|null             $appendData   Data to append to response.
-     * @param string|null            $resourceName The resource name to group the result.
-     * @param integer                $respondCode  Resource code.
+     * @param array                  $options      Respond options.
      * @return \Illuminate\Http\JsonResponse
      */
     protected function respondAsResource(
         mixed $data,
-        bool $isCollection = false,
-        mixed $appendData = null,
-        string $resourceName = null,
-        int $respondCode = HttpResponseCodes::HTTP_OK
+        array $options = [],
     ) {
+        $isCollection = $options['isCollection'] ?? false;
+        $appendData = $options['appendData'] ?? null;
+        $resourceName = $options['resourceName'] ?? null;
+        $respondCode = $options['respondCode'] ?? HttpResponseCodes::HTTP_OK;
+
         if ($data === null || ($data instanceof Collection && $data->count() === 0)) {
             return $this->respondNotFound();
         }

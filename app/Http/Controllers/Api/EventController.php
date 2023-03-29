@@ -31,8 +31,8 @@ class EventController extends ApiController
 
         return $this->respondAsResource(
             $collection,
-            true,
-            ['total' => $total]
+            ['isCollection' => true,
+            'appendData' => ['total' => $total]]
         );
     }
 
@@ -64,9 +64,7 @@ class EventController extends ApiController
             $event = Event::create($request->all());
             return $this->respondAsResource(
                 EventConductor::model($request, $event),
-                false,
-                null,
-                HttpResponseCodes::HTTP_CREATED
+                ['respondCode' => HttpResponseCodes::HTTP_CREATED]
             );
         } else {
             return $this->respondForbidden();

@@ -42,8 +42,8 @@ class PostController extends ApiController
 
         return $this->respondAsResource(
             $collection,
-            true,
-            ['total' => $total]
+            ['isCollection' => true,
+            'appendData' => ['total' => $total]]
         );
     }
 
@@ -75,9 +75,7 @@ class PostController extends ApiController
             $post = Post::create($request->all());
             return $this->respondAsResource(
                 PostConductor::model($request, $post),
-                false,
-                null,
-                HttpResponseCodes::HTTP_CREATED
+                ['respondCode' => HttpResponseCodes::HTTP_CREATED]
             );
         } else {
             return $this->respondForbidden();
@@ -134,7 +132,7 @@ class PostController extends ApiController
                 return $attachment->media;
             });
 
-            return $this->respondAsResource(MediaConductor::collection($request, $medium), true, null, 'attachment');
+            return $this->respondAsResource(MediaConductor::collection($request, $medium), ['isCollection' => true, 'resourceName' => 'attachment']);
         }
 
         return $this->respondForbidden();
