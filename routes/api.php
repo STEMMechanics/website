@@ -44,6 +44,7 @@ Route::delete('posts/{post}/attachments/{medium}', [PostController::class, 'dele
 Route::apiResource('events', EventController::class);
 Route::get('events/{event}/attachments', [EventController::class, 'getAttachments']);
 Route::post('events/{event}/attachments', [EventController::class, 'storeAttachment']);
+Route::match(['put', 'patch'], 'events/{event}/attachments', [EventController::class, 'updateAttachments']);
 Route::delete('events/{event}/attachments/{medium}', [EventController::class, 'deleteAttachment']);
 
 Route::apiResource('subscriptions', SubscriptionController::class);
