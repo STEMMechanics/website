@@ -206,7 +206,10 @@ const handleSubmit = async () => {
         if (route.params.id) {
             post_id = route.params.id as string;
             await api.put({
-                url: `/posts/${route.params.id}`,
+                url: `/posts/{id}`,
+                params: {
+                    id: route.params.id,
+                },
                 body: data,
             });
         } else {
