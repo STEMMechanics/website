@@ -18,6 +18,7 @@
                 <div class="sm-workshop-body">
                     <h2 class="sm-workshop-title">{{ event.title }}</h2>
                     <SMHTML :html="event.content" class="sm-workshop-content" />
+                    <SMAttachments :attachments="event.attachments || []" />
                 </div>
                 <div class="sm-workshop-info">
                     <div
@@ -119,6 +120,7 @@ import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
+import SMAttachments from "../components/SMAttachments.vue";
 import { api } from "../helpers/api";
 import { Event, EventResponse, MediaResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";

@@ -32,11 +32,12 @@ class Event extends Model
         'ages',
     ];
 
+
     /**
      * Get all of the post's attachments.
      */
     public function attachments()
     {
-        return $this->morphMany('App\Attachment', 'attachable');
+        return $this->morphMany('App\Models\Attachment', 'attachable');
     }
 }

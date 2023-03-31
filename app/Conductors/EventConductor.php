@@ -4,6 +4,7 @@ namespace App\Conductors;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\Model;
 
 class EventConductor extends Conductor
@@ -88,5 +89,22 @@ class EventConductor extends Conductor
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/events') === true);
+    }
+
+    /**
+     * Transform the model
+     *
+     * @param Model $model The model to transform.
+     * @return array The transformed model.
+     * @throws InvalidCastException Cannot cast item to model.
+     */
+    public function transform(Model $model)
+    {
+        $result = $model->toArray();
+        $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
+            return MediaConductor::model(request(), $attachment->media);
+        });
+
+        return $result;
     }
 }

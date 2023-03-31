@@ -299,6 +299,12 @@ const loadData = async () => {
             form.controls.hero.value = data.event.hero;
             form.controls.price.value = data.event.price;
             form.controls.ages.value = data.event.ages;
+
+            attachments.value = (data.event.attachments || []).map(function (
+                attachment
+            ) {
+                return attachment.id.toString();
+            });
         } catch (err) {
             pageError.value = err.response.status;
         } finally {
@@ -334,7 +340,10 @@ const handleSubmit = async () => {
             ages: form.controls.ages.value,
         };
 
+        let event_id = "";
+
         if (route.params.id) {
+            event_id = route.params.id as string;
             await api.put({
                 url: "/events/{id}",
                 params: {
@@ -343,11 +352,23 @@ const handleSubmit = async () => {
                 body: data,
             });
         } else {
-            await api.post({
+            let result = await api.post({
                 url: "/events",
                 body: data,
             });
+
+            if (result.data) {
+                const data = result.data as EventResponse;
+                event_id = data.event.id;
+            }
         }
+
+        await api.put({
+            url: `/events/${event_id}/attachments`,
+            body: {
+                attachments: attachments.value,
+            },
+        });
 
         useToastStore().addToast({
             title: route.params.id ? "Event Updated" : "Event Created",
