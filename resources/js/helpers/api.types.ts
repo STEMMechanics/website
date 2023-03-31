@@ -13,6 +13,7 @@ export interface Event {
     registration_data: string;
     price: string;
     ages: string;
+    attachments: Array<Media>;
 }
 
 export interface EventResponse {
