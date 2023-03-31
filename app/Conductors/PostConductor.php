@@ -90,13 +90,20 @@ class PostConductor extends Conductor
         return ($user !== null && $user->hasPermission('admin/posts') === true);
     }
 
+    /**
+     * Transform the model
+     *
+     * @param Model $model The model to transform.
+     * @return array The transformed model.
+     * @throws InvalidCastException Cannot cast item to model.
+     */
     public function transform(Model $model)
     {
         $result = $model->toArray();
         $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
             return MediaConductor::model(request(), $attachment->media);
         });
-        
+
         return $result;
     }
 }
