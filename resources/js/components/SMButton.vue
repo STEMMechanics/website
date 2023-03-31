@@ -15,7 +15,7 @@
             v-if="icon && dropdown == null && iconLocation == 'before'"
             :icon="icon"
             class="sm-button-icon-before" />
-        <span>{{ label }}</span>
+        <span class="sm-button-label">{{ label }}</span>
         <ion-icon
             v-if="icon && dropdown == null && iconLocation == 'after'"
             :icon="icon"
@@ -48,7 +48,7 @@
             { 'sm-button-block': block },
         ]"
         :type="buttonType">
-        {{ label }}
+        <span class="sm-button-label">{{ label }}</span>
         <ion-icon v-if="icon" :icon="icon" />
     </a>
     <router-link
@@ -160,7 +160,8 @@ a:visited.sm-button,
     border-color: $secondary-color;
     min-width: 7rem;
     text-align: center;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
 
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -168,7 +169,7 @@ a:visited.sm-button,
     user-select: none;
 
     &.sm-button-block {
-        display: block;
+        display: flex;
         width: 100%;
     }
 
