@@ -8,7 +8,7 @@
                 v-for="(image, index) in images"
                 :key="index">
                 <img
-                    :src="image"
+                    :src="imageSize('small', image as string)"
                     class="sm-image-gallery-image"
                     @click="showModal(index)" />
             </div>
@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { imageSize } from "../helpers/image";
 
 const props = defineProps({
     images: {
