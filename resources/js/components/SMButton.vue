@@ -162,6 +162,7 @@ a:visited.sm-button,
     text-align: center;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
 
     -webkit-user-select: none;
     -moz-user-select: none;
