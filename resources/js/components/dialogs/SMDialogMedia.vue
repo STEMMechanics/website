@@ -396,9 +396,14 @@ const handleChangeUpload = async () => {
                         "An unexpected response was received from the server";
                 }
             } catch (error) {
-                formMessage.value =
-                    error.response?.data?.message ||
-                    "An unexpected error occurred";
+                if (error.status === 413) {
+                    formMessage.value =
+                        "The selected file is larger than the maximum size limit";
+                } else {
+                    formMessage.value =
+                        error.response?.data?.message ||
+                        "An unexpected error occurred";
+                }
             } finally {
                 dialogLoading.value = false;
             }
