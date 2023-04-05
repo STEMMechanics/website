@@ -1,8 +1,6 @@
 <template>
     <SMContainer class="sm-attachments">
-        <h3 v-if="props.attachments && props.attachments.length > 0">
-            Attachments
-        </h3>
+        <h3 v-if="props.attachments && props.attachments.length > 0">Files</h3>
         <div
             v-for="file of props.attachments"
             :key="file.id"
