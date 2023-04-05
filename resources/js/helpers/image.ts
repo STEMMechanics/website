@@ -35,7 +35,8 @@ export const imageSize = (size: string, url: string) => {
     if (availableSizes.includes(size)) {
         if (
             url.startsWith((import.meta as ImportMetaExtras).env.APP_URL) ===
-            true
+                true ||
+            url.startsWith("/") === true
         ) {
             return `${url}?size=${size}`;
         }
