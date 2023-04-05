@@ -40,7 +40,7 @@ export const getFilePreview = (url: string): string => {
     const ext = url.split(".").pop();
     if (ext) {
         if (/(gif|jpe?g|png)/i.test(ext)) {
-            return `${url}?w=200`;
+            return `${url}?size=thumb`;
         }
 
         return `/img/fileicons/${ext}.png`;
