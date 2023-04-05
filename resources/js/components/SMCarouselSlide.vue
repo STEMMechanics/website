@@ -27,7 +27,7 @@
 import { ref, watch } from "vue";
 import { api } from "../helpers/api";
 import { MediaResponse } from "../helpers/api.types";
-import { imageLoad, imageXXLarge } from "../helpers/image";
+import { imageLoad, imageXLarge } from "../helpers/image";
 import SMButton from "./SMButton.vue";
 import SMLoadingIcon from "./SMLoadingIcon.vue";
 
@@ -90,7 +90,7 @@ const handleLoad = () => {
 watch(
     () => imageUrl.value,
     (value) => {
-        const url = imageXXLarge(value);
+        const url = imageXLarge(value);
         styleObject["backgroundImage"] = `url('${url}')`;
     }
 );
