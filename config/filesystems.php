@@ -29,31 +29,44 @@ return [
     */
 
     'disks' => [
-
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/uploads'),
             'throw' => false,
             'url' => env('STORAGE_LOCAL_URL'),
+            'public' => true,
         ],
 
-        'public' => [
-            'driver' => 'local',
-            'root' => public_path('uploads'),
-            'throw' => false,
-            'url' => env('STORAGE_PUBLIC_URL'),
-        ],
-
-        's3' => [
+        'cdn' => [
             'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'key' => env('AWS_CDN_ACCESS_KEY_ID'),
+            'secret' => env('AWS_CDN_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_CDN_DEFAULT_REGION'),
+            'bucket' => env('AWS_CDN_BUCKET'),
+            'url' => env('AWS_CDN_URL'),
+            'endpoint' => env('AWS_CDN_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_CDN_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
+            'public' => true,
+            'options' => [
+                'ACL' => '',
+            ]
+        ],
+
+        'private' => [
+            'driver' => 's3',
+            'key' => env('AWS_PRIVATE_ACCESS_KEY_ID'),
+            'secret' => env('AWS_PRIVATE_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_PRIVATE_DEFAULT_REGION'),
+            'bucket' => env('AWS_PRIVATE_BUCKET'),
+            'url' => env('AWS_PRIVATE_URL'),
+            'endpoint' => env('AWS_PRIVATE_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_PRIVATE_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
+            'public' => false,
+            'options' => [
+                'ACL' => '',
+            ]
         ],
 
     ],
