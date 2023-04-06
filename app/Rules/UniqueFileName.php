@@ -2,9 +2,8 @@
 
 namespace App\Rules;
 
+use App\Models\Media;
 use Illuminate\Contracts\Validation\Rule;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Storage;
 
 class UniqueFileName implements Rule
 {
@@ -27,16 +26,7 @@ class UniqueFileName implements Rule
      */
     public function passes($attribute, $value)
     {
-        // Get the list of storage disks from the filesystems configuration file
-        $disks = array_keys(Config::get('filesystems.disks'));
-
-        foreach ($disks as $disk) {
-            if (Storage::disk($disk)->exists($value) === true) {
-                return false;
-            }
-        }
-
-        return true;
+        return (Media::fileExists($value) === false);
     }
 
     /**
