@@ -7,6 +7,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 
 class RouteServiceProvider extends ServiceProvider
 {
@@ -37,6 +38,22 @@ class RouteServiceProvider extends ServiceProvider
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
         });
+
+        Route::macro('apiAttachmentResource', function ($uri, $controller) {
+            $singularUri = Str::singular($uri);
+
+            Route::get("$uri/{$singularUri}/attachments", [$controller, 'getAttachments'])
+            ->name("$singularUri.attachments.index");
+
+            Route::post("$uri/{$singularUri}/attachments", [$controller, 'storeAttachment'])
+            ->name("$singularUri.attachments.store");
+
+            Route::match(['put', 'patch'], "$uri/{$singularUri}/attachments", [$controller, 'updateAttachments'])
+            ->name("$singularUri.attachments.update");
+
+            Route::delete("$uri/{$singularUri}/attachments/{medium}", [$controller, 'deleteAttachment'])
+            ->name("$singularUri.attachments.destroy");
+        });
     }
 
     /**
@@ -52,14 +69,14 @@ class RouteServiceProvider extends ServiceProvider
 
         $rateLimitEnabled = true;
         $user = auth()->user();
-        
+
         if (app()->environment('testing')) {
             $rateLimitEnabled = false;
         } elseif ($user !== null && $user->hasPermission('admin/ratelimit') === true) {
             // Admin users with the "admin/ratelimit" permission are not rate limited
             $rateLimitEnabled = false;
         }
-        
+
         if ($rateLimitEnabled === true) {
             RateLimiter::for('api', function (Request $request) {
                 return Limit::perMinute(180)->by($request->user()?->id ?: $request->ip());
