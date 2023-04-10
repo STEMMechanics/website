@@ -154,6 +154,7 @@ const handleClickNavBar = () => {
         }
         #sm-nav-toggle {
             padding: 23px;
+            filter: invert(100%) saturate(0%) brightness(120%);
 
             &:hover {
                 background-color: rgba(255, 255, 255, 0.25);
