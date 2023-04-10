@@ -143,7 +143,6 @@ const handleClickNavBar = () => {
         align-items: center;
         width: 100%;
         max-width: 1200px;
-        padding: 0 16px 0 16px;
 
         #sm-logo-link {
             padding-left: 23px;
