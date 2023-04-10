@@ -31,22 +31,7 @@ class EventServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        Queue::after(function (JobProcessed $event) {
-            // Log::info($event->connectionName);
-            // Log::info('ID: ' . $event->job->getJobId());
-            // Log::info('Attempts: ' . $event->job->attempts());
-            // Log::info('Name: ' . $event->job->getName());
-            // Log::info('ResolveNAme: ' . $event->job->resolveName());
-            // Log::info('Queue: ' . $event->job->getQueue());
-            // Log::info('Body: ' . $event->job->getRawBody());
-            // Log::info(print_r($event->job->payload(), true));
-
-            // $payload = $event->job->payload();
-            // $data = unserialize($payload['data']['command']);
-
-            // Log::info('MAIL: ' . $data->to);
-            // Log::info('MAIL: ' . get_class($data->mailable));
-        });
+        //
     }
 
     /**
