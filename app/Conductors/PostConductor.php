@@ -2,6 +2,8 @@
 
 namespace App\Conductors;
 
+use App\Models\Media;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -103,6 +105,9 @@ class PostConductor extends Conductor
         $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
             return MediaConductor::model(request(), $attachment->media);
         });
+        $result['hero'] = MediaConductor::model(request(), Media::find($model['hero']));
+        $result['user'] = UserConductor::model(request(), User::find($model['user_id']));
+        unset($result['user_id']);
 
         return $result;
     }
