@@ -13,7 +13,7 @@
                 <SMPanel
                     v-for="post in posts"
                     :key="post.id"
-                    :image="post.hero"
+                    :image="mediaGetVariantUrl(post.hero, 'medium')"
                     :to="{ name: 'post-view', params: { slug: post.slug } }"
                     :title="post.title"
                     :date="post.publish_at"
@@ -39,6 +39,7 @@ import SMPanelList from "../components/SMPanelList.vue";
 import { api } from "../helpers/api";
 import { Post, PostCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const message = ref("");
 const pageLoading = ref(true);

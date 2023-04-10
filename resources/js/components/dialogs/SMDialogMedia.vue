@@ -29,8 +29,9 @@
                         @dblclick="handleDblClickItem(item.id)">
                         <div
                             :style="{
-                                backgroundImage: `url('${getFilePreview(
-                                    item.url
+                                backgroundImage: `url('${mediaGetVariantUrl(
+                                    item,
+                                    'small'
                                 )}')`,
                             }"
                             class="media-image"></div>
@@ -104,13 +105,14 @@ import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
 import { bytesReadable } from "../../helpers/types";
-import { getFilePreview } from "../../helpers/utils";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
 import SMFormFooter from "../SMFormFooter.vue";
 import SMLoadingIcon from "../SMLoadingIcon.vue";
 import SMMessage from "../SMMessage.vue";
+import { mediaGetVariantUrl } from "../../helpers/media";
+import { toTitleCase } from "../../helpers/string";
 
 const props = defineProps({
     mime: {
@@ -389,6 +391,53 @@ const handleChangeUpload = async () => {
 
                 if (result.data) {
                     const data = result.data as MediaResponse;
+
+                    if (
+                        data.medium.status != "" &&
+                        data.medium.status.startsWith("Failed") == false
+                    ) {
+                        dialogLoadingMessage.value = `${data.medium.status}...`;
+
+                        let mediaProcessed = false;
+
+                        while (mediaProcessed == false) {
+                            await new Promise((resolve) =>
+                                setTimeout(resolve, 500)
+                            );
+
+                            try {
+                                let updateResult = await api.get({
+                                    url: "/media/{id}",
+                                    params: {
+                                        id: data.medium.id,
+                                    },
+                                });
+
+                                if (updateResult.data) {
+                                    const updateData =
+                                        updateResult.data as MediaResponse;
+                                    if (
+                                        updateData.medium.status == "" &&
+                                        data.medium.status.startsWith(
+                                            "Failed"
+                                        ) == false
+                                    ) {
+                                        mediaProcessed = true;
+                                    } else {
+                                        dialogLoadingMessage.value = `${updateData.medium.status}...`;
+                                    }
+                                } else {
+                                    throw "error";
+                                }
+                            } catch {
+                                mediaProcessed = true;
+                                formMessage.value =
+                                    "An server error occurred processing the file";
+                            }
+                        }
+
+                        dialogLoadingMessage.value;
+                    }
 
                     closeDialog(data.medium);
                 } else {

@@ -6,14 +6,16 @@
         :page-error="pageError">
         <div
             class="sm-heading-image"
-            :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
+            :style="{
+                backgroundImage: `url('${mediaGetVariantUrl(post.hero)}')`,
+            }"></div>
         <SMContainer>
             <div class="sm-heading-info">
                 <h1>{{ post.title }}</h1>
                 <div class="sm-date-author small">
                     <ion-icon name="calendar-outline" />
                     {{ formattedPublishAt(post.publish_at) }}, by
-                    {{ postUser.username }}
+                    {{ post.user.username }}
                 </div>
             </div>
             <SMHTML :html="post.content" />
@@ -28,16 +30,10 @@ import { useRoute } from "vue-router";
 import SMAttachments from "../components/SMAttachments.vue";
 import SMHTML from "../components/SMHTML.vue";
 import { api } from "../helpers/api";
-import {
-    MediaResponse,
-    Post,
-    PostCollection,
-    User,
-    UserResponse,
-} from "../helpers/api.types";
+import { Post, PostCollection, User } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { imageLoad, imageXXLarge } from "../helpers/image";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const applicationStore = useApplicationStore();
 
@@ -57,38 +53,9 @@ let pageError = ref(200);
 let pageLoading = ref(false);
 
 /**
- * Post styles.
- */
-const imageUrl = ref("");
-
-/**
  * Post user.
  */
 let postUser: User | null = null;
-
-/**
- * Load the hero image.
- */
-const handleLoadImage = async () => {
-    api.get({
-        url: "/media/{medium}",
-        params: {
-            medium: post.value.hero,
-        },
-    })
-        .then((result) => {
-            const data = result.data as MediaResponse;
-
-            if (data && data.medium) {
-                imageLoad(imageXXLarge(data.medium.url), (url) => {
-                    imageUrl.value = url;
-                });
-            }
-        })
-        .catch(() => {
-            /* empty */
-        });
-};
 
 /**
  * Load the page data.
@@ -118,44 +85,6 @@ const handleLoad = async () => {
                 }).format("yyyy/MM/dd HH:mm:ss");
 
                 applicationStore.setDynamicTitle(post.value.title);
-                handleLoadImage();
-
-                // Get hero image
-                try {
-                    let mediumResult = await api.get({
-                        url: "/media/{medium}",
-                        params: {
-                            medium: post.value.hero,
-                        },
-                    });
-
-                    const mediumData = mediumResult.data as MediaResponse;
-
-                    if (mediumData && mediumData.medium) {
-                        const url = imageXXLarge(mediumData.medium.url);
-                        styleObject["backgroundImage"] = `url('${url}')`;
-                    }
-                } catch {
-                    /* empty */
-                }
-
-                // Get user data
-                try {
-                    let userResult = await api.get({
-                        url: "/users/{id}",
-                        params: {
-                            id: post.value.user_id,
-                        },
-                    });
-
-                    const userData = userResult.data as UserResponse;
-
-                    if (userData && userData.user) {
-                        postUser = userData.user;
-                    }
-                } catch {
-                    /* empty */
-                }
             } else {
                 pageError.value = 404;
             }

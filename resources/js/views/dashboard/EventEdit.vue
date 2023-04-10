@@ -296,7 +296,7 @@ const loadData = async () => {
             form.controls.content.value = data.event.content
                 ? data.event.content
                 : "";
-            form.controls.hero.value = data.event.hero;
+            form.controls.hero.value = data.event.hero.id;
             form.controls.price.value = data.event.price;
             form.controls.ages.value = data.event.ages;
 

@@ -9,10 +9,6 @@
                     {{ computedMonth }}
                 </div>
             </div>
-            <ion-icon
-                v-if="imageUrl.length == 0"
-                class="sm-panel-image-loader"
-                name="image-outline" />
         </div>
         <div class="sm-panel-body">
             <h3 class="sm-panel-title">{{ title }}</h3>
@@ -56,18 +52,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { api } from "../helpers/api";
-import { MediaResponse } from "../helpers/api.types";
+import { computed } from "vue";
 import { SMDate } from "../helpers/datetime";
-import { imageLoad, imageMedium } from "../helpers/image";
 import {
     excerpt,
     replaceHtmlEntites,
     stringToNumber,
     stripHtmlTags,
 } from "../helpers/string";
-import { isUUID } from "../helpers/uuid";
 import SMButton from "./SMButton.vue";
 
 const props = defineProps({
@@ -160,8 +152,9 @@ const props = defineProps({
     },
 });
 
-let styleObject = reactive({});
-let imageUrl = ref("");
+let styleObject = {
+    backgroundImage: `url('${props.image}')`,
+};
 
 /**
  * Return a human readable date based on props.date and props.endDate.
@@ -229,32 +222,6 @@ const computedPrice = computed(() => {
 
     return props.price;
 });
-
-onMounted(async () => {
-    if (props.image && props.image.length > 0 && isUUID(props.image)) {
-        api.get({ url: "/media/{medium}", params: { medium: props.image } })
-            .then((result) => {
-                const data = result.data as MediaResponse;
-
-                if (data && data.medium) {
-                    imageLoad(data.medium.url, (url) => {
-                        imageUrl.value = url;
-                    });
-                }
-            })
-            .catch(() => {
-                /* empty */
-            });
-    }
-});
-
-watch(
-    () => imageUrl.value,
-    (value) => {
-        const url = imageMedium(value);
-        styleObject["backgroundImage"] = `url('${url}')`;
-    }
-);
 </script>
 
 <style lang="scss">

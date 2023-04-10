@@ -33,7 +33,7 @@
                     :key="item.event.id"
                     :to="{ name: 'event-view', params: { id: item.event.id } }"
                     :title="item.event.title"
-                    :image="item.event.hero"
+                    :image="mediaGetVariantUrl(item.event.hero, 'medium')"
                     :show-time="true"
                     :date="item.event.start_at"
                     :end-date="item.event.end_at"
@@ -67,6 +67,7 @@ import SMToolbar from "../components/SMToolbar.vue";
 import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 interface EventData {
     event: Event;

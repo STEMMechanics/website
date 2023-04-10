@@ -6,7 +6,9 @@
         :page-error="pageError">
         <div
             class="sm-workshop-image"
-            :style="{ backgroundImage: `url('${imageUrl}')` }"></div>
+            :style="{
+                backgroundImage: `url('${mediaGetVariantUrl(event.hero)}')`,
+            }"></div>
         <SMContainer>
             <SMMessage
                 v-if="formMessage"
@@ -122,11 +124,11 @@ import SMHTML from "../components/SMHTML.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMAttachments from "../components/SMAttachments.vue";
 import { api } from "../helpers/api";
-import { Event, EventResponse, MediaResponse } from "../helpers/api.types";
+import { Event, EventResponse } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { imageLoad, imageXXLarge } from "../helpers/image";
 import { stringToNumber } from "../helpers/string";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const applicationStore = useApplicationStore();
 
@@ -134,8 +136,6 @@ const applicationStore = useApplicationStore();
  * Event data
  */
 const event: Ref<Event | null> = ref(null);
-
-const imageUrl = ref("");
 
 const route = useRoute();
 const pageLoading = ref(true);
@@ -283,7 +283,6 @@ const handleLoad = async () => {
             }).format("yyyy/MM/dd HH:mm:ss");
 
             applicationStore.setDynamicTitle(event.value.title);
-            handleLoadImage();
         } else {
             pageError.value = 404;
         }
@@ -298,30 +297,6 @@ const handleLoad = async () => {
     } finally {
         pageLoading.value = false;
     }
-};
-
-/**
- * Load the hero image.
- */
-const handleLoadImage = async () => {
-    api.get({
-        url: "/media/{medium}",
-        params: {
-            medium: event.value.hero,
-        },
-    })
-        .then((result) => {
-            const data = result.data as MediaResponse;
-
-            if (data && data.medium) {
-                imageLoad(imageXXLarge(data.medium.url), (url) => {
-                    imageUrl.value = url;
-                });
-            }
-        })
-        .catch(() => {
-            /* empty */
-        });
 };
 
 handleLoad();

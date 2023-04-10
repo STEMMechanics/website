@@ -160,7 +160,7 @@ const loadData = async () => {
             if (data && data.post) {
                 form.controls.title.value = data.post.title;
                 form.controls.slug.value = data.post.slug;
-                form.controls.user_id.value = data.post.user_id;
+                form.controls.user_id.value = data.post.user.id;
                 form.controls.content.value = data.post.content;
                 form.controls.publish_at.value = data.post.publish_at
                     ? new SMDate(data.post.publish_at, {
@@ -169,7 +169,7 @@ const loadData = async () => {
                       }).format("dd/MM/yyyy HH:mm")
                     : "";
                 form.controls.content.value = data.post.content;
-                form.controls.hero.value = data.post.hero;
+                form.controls.hero.value = data.post.hero.id;
 
                 attachments.value = (data.post.attachments || []).map(function (
                     attachment

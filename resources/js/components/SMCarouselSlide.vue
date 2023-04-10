@@ -1,11 +1,6 @@
 <template>
     <div class="sm-carousel-slide" :style="styleObject">
-        <div
-            v-if="image.length > 0 && imageUrl.length == 0"
-            class="sm-carousel-slide-loading">
-            <SMLoadingIcon />
-        </div>
-        <div v-else class="sm-carousel-slide-body">
+        <div class="sm-carousel-slide-body">
             <div class="sm-carousel-slide-content">
                 <div class="sm-carousel-slide-content-inner">
                     <h3>{{ title }}</h3>
@@ -24,12 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
-import { api } from "../helpers/api";
-import { MediaResponse } from "../helpers/api.types";
-import { imageLoad, imageXLarge } from "../helpers/image";
 import SMButton from "./SMButton.vue";
-import SMLoadingIcon from "./SMLoadingIcon.vue";
 
 const props = defineProps({
     title: {
@@ -59,43 +49,12 @@ const props = defineProps({
     },
 });
 
-let imageUrl = ref("");
-
 /**
  * Carousel slide styles.
  */
-let styleObject = {};
-
-/**
- * Load the slider data.
- */
-const handleLoad = () => {
-    imageUrl.value = "";
-
-    api.get({ url: "/media/{medium}", params: { medium: props.image } })
-        .then((result) => {
-            const data = result.data as MediaResponse;
-
-            if (data && data.medium) {
-                imageLoad(data.medium.url, (url) => {
-                    imageUrl.value = url;
-                });
-            }
-        })
-        .catch(() => {
-            /* empty */
-        });
+let styleObject = {
+    backgroundImage: `url('${props.image}')`,
 };
-
-watch(
-    () => imageUrl.value,
-    (value) => {
-        const url = imageXLarge(value);
-        styleObject["backgroundImage"] = `url('${url}')`;
-    }
-);
-
-handleLoad();
 </script>
 
 <style lang="scss">

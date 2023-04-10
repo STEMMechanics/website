@@ -96,6 +96,7 @@ import { toTitleCase } from "../helpers/string";
 import { isEmpty } from "../helpers/utils";
 import { isUUID } from "../helpers/uuid";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const props = defineProps({
     modelValue: {
@@ -226,25 +227,30 @@ watch(
 watch(
     () => value.value,
     async (newValue) => {
-        inputActive.value = newValue.length > 0;
+        if (newValue) {
+            inputActive.value = newValue.length > 0;
 
-        if (props.type == "media") {
-            if (isUUID(newValue)) {
-                try {
-                    const result = await api.get({
-                        url: "/media/{id}",
-                        params: {
-                            id: newValue,
-                        },
-                    });
+            if (props.type == "media") {
+                if (isUUID(newValue)) {
+                    try {
+                        const result = await api.get({
+                            url: "/media/{id}",
+                            params: {
+                                id: newValue,
+                            },
+                        });
 
-                    const data = result.data as MediaResponse;
+                        const data = result.data as MediaResponse;
 
-                    if (data && data.medium) {
-                        mediaUrl.value = imageMedium(data.medium.url);
+                        if (data && data.medium) {
+                            mediaUrl.value = mediaGetVariantUrl(
+                                data.medium,
+                                "small"
+                            );
+                        }
+                    } catch (error) {
+                        /* empty */
                     }
-                } catch (error) {
-                    /* empty */
                 }
             }
         }

@@ -139,6 +139,7 @@ import { Form, FormControl } from "../helpers/form";
 import { excerpt } from "../helpers/string";
 import { And, Email, Required } from "../helpers/validate";
 import { useToastStore } from "../store/ToastStore";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
@@ -163,8 +164,10 @@ const handleLoad = async () => {
                         limit: 3,
                     },
                 })
-                .catch(() => {
-                    hasError = true;
+                .catch((e) => {
+                    if (e.status != 404) {
+                        hasError = true;
+                    }
                 }),
             api
                 .get({
@@ -178,8 +181,10 @@ const handleLoad = async () => {
                             }),
                     },
                 })
-                .catch(() => {
-                    hasError = true;
+                .catch((e) => {
+                    if (e.status != 404) {
+                        hasError = true;
+                    }
                 }),
         ]);
 
@@ -191,7 +196,7 @@ const handleLoad = async () => {
                 posts.push({
                     title: post.title,
                     content: excerpt(post.content, 200),
-                    image: post.hero,
+                    image: mediaGetVariantUrl(post.hero),
                     url: { name: "post-view", params: { slug: post.slug } },
                     cta: "Read More...",
                 });
@@ -203,13 +208,14 @@ const handleLoad = async () => {
                 events.push({
                     title: event.title,
                     content: excerpt(event.content, 200),
-                    image: event.hero,
+                    image: mediaGetVariantUrl(event.hero),
                     url: { name: "event-view", params: { id: event.id } },
                     cta: "View Workshop",
                 });
             });
         }
-    } catch {
+    } catch (e) {
+        console.log(e);
         hasError = true;
     }
 

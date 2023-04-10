@@ -53,6 +53,7 @@ import { api } from "../helpers/api";
 import { MediaCollection, MediaResponse } from "../helpers/api.types";
 import { routes } from "../router";
 import { urlMatches } from "../helpers/url";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 interface PageList {
     title: string;
@@ -390,40 +391,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
     var title = "";
     var itemsFound = 0;
 
-    // Open a dialog to select a file
-    const input = document.createElement("input");
-    input.setAttribute("type", "file");
-    input.setAttribute("accept", "image/*");
-    input.onchange = function () {
-        if (input.files) {
-            let formData = new FormData();
-            formData.append("file", input.files[0]);
-
-            api.post({
-                url: "/media",
-                body: formData,
-            })
-                .then((result) => {
-                    input.value = "";
-                    const data = result.data as MediaResponse;
-
-                    if (data.medium) {
-                        callback(data.medium.url);
-                        dialog.close();
-                    } else {
-                        alert("The server responded with an unknown error");
-                    }
-                })
-                .catch((error) => {
-                    input.value = "";
-                    alert(
-                        error.data.message ||
-                            "An unexpected error occurred uploading the file to the server."
-                    );
-                });
-        }
-    };
-
     const updateFooter = () => {
         let selectedText = "";
 
@@ -563,7 +530,10 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
 
                         const image = document.createElement("div");
                         image.classList.add("image-library-content-item-image");
-                        image.style.backgroundImage = `url('${medium.url}?w=200')`;
+                        image.style.backgroundImage = `url('${mediaGetVariantUrl(
+                            medium,
+                            "small"
+                        )}')`;
 
                         const title = document.createElement("div");
                         title.classList.add("image-library-content-item-title");
@@ -614,7 +584,7 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
 
                 const image = document.createElement("div");
                 image.classList.add("image-gallery-content-item-image");
-                image.style.backgroundImage = `url('${url}?w=200')`;
+                image.style.backgroundImage = `url('${url}')`;
 
                 const title = document.createElement("div");
                 title.classList.add("image-gallery-content-item-title");
@@ -638,6 +608,8 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                         updateGallery();
                     }
                 };
+
+                console.log(selected);
 
                 const rightBtn = document.createElement("div");
                 rightBtn.classList.add("image-gallery-content-item-right");
@@ -747,42 +719,128 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             callback(selected);
             dialog.close();
         },
-        onChange: function (dialogApi, details) {
+        onChange: async function (dialogApi, details) {
             if (details.name == "dropzone") {
                 const files = dialogApi.getData().dropzone || [];
                 if (files && files.length > 0) {
-                    let formData = new FormData();
-                    formData.append("file", files[0]);
+                    const uploadElem = document.createElement("div");
+                    uploadElem.classList.add("image-gallery-content-upload");
+                    document
+                        .getElementsByTagName("body")[0]
+                        .appendChild(uploadElem);
 
-                    api.post({
-                        url: "/media",
-                        body: formData,
-                    })
-                        .then((result) => {
-                            input.value = "";
-                            const data = result.data as MediaResponse;
+                    for (let i = 0; i < files.length; i++) {
+                        let formData = new FormData();
+                        formData.append("file", files[0]);
 
-                            if (data.medium) {
-                                if (gallery == false) {
-                                    callback(data.medium.url);
-                                    dialog.close();
-                                } else {
-                                    selected.push(data.medium.url);
-                                    dialogApi.showTab("gallery");
+                        try {
+                            let progressText = [
+                                `Uploading File ${i + 1}/${files.length}`,
+                                "",
+                            ];
+
+                            let result = await api.post({
+                                url: "/media",
+                                body: formData,
+                                headers: {
+                                    "Content-Type": "multipart/form-data",
+                                },
+                                progress: (progressData) => {
+                                    progressText[1] = `${Math.floor(
+                                        (progressData.loaded /
+                                            progressData.total) *
+                                            100
+                                    )}%`;
+                                    uploadElem.innerHTML =
+                                        progressText.join("<br />");
+                                },
+                            });
+
+                            if (result.data) {
+                                const data = result.data as MediaResponse;
+
+                                if (
+                                    data.medium.status != "" &&
+                                    data.medium.status.startsWith("Failed") ==
+                                        false
+                                ) {
+                                    progressText[1] = `${data.medium.status}...`;
+                                    uploadElem.innerHTML =
+                                        progressText.join("<br />");
+
+                                    let mediaProcessed = false;
+
+                                    while (mediaProcessed == false) {
+                                        await new Promise((resolve) =>
+                                            setTimeout(resolve, 500)
+                                        );
+
+                                        try {
+                                            let updateResult = await api.get({
+                                                url: "/media/{id}",
+                                                params: {
+                                                    id: data.medium.id,
+                                                },
+                                            });
+
+                                            if (updateResult.data) {
+                                                const updateData =
+                                                    updateResult.data as MediaResponse;
+                                                if (
+                                                    updateData.medium.status ==
+                                                        "" &&
+                                                    data.medium.status.startsWith(
+                                                        "Failed"
+                                                    ) == false
+                                                ) {
+                                                    mediaProcessed = true;
+
+                                                    if (gallery == false) {
+                                                        callback(
+                                                            mediaGetVariantUrl(
+                                                                updateData.medium
+                                                            )
+                                                        );
+                                                        dialog.close();
+                                                    } else {
+                                                        selected.push(
+                                                            mediaGetVariantUrl(
+                                                                updateData.medium
+                                                            )
+                                                        );
+                                                        dialogApi.showTab(
+                                                            "gallery"
+                                                        );
+                                                    }
+                                                } else {
+                                                    progressText[1] = `${updateData.medium.status}...`;
+                                                    uploadElem.innerHTML =
+                                                        progressText.join(
+                                                            "<br />"
+                                                        );
+                                                }
+                                            } else {
+                                                throw "error";
+                                            }
+                                        } catch {
+                                            mediaProcessed = true;
+                                            alert(
+                                                "An server error occurred processing the file"
+                                            );
+                                        }
+                                    }
                                 }
-                            } else {
-                                alert(
-                                    "The server responded with an unknown error"
-                                );
                             }
-                        })
-                        .catch((error) => {
+                        } catch (error) {
                             input.value = "";
                             alert(
                                 error.data.message ||
                                     "An unexpected error occurred uploading the file to the server."
                             );
-                        });
+                        }
+                    }
+
+                    uploadElem.parentNode.removeChild(uploadElem);
                 }
             }
         },
@@ -1037,6 +1095,22 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
         border-top-color: #333;
         animation: spin 1s ease-in-out infinite;
     }
+}
+
+.image-gallery-content-upload {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #ffffffe8;
+    color: #000000;
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    line-height: 2rem;
 }
 
 @keyframes spin {
