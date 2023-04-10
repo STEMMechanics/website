@@ -19,6 +19,7 @@ body {
     font-size: $font-size;
     color: $font-color;
     min-height: 100vh;
+    background-color: $background-color;
 }
 
 // Who knows why ion-icon randomally sets this to hidden.....
