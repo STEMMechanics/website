@@ -82,6 +82,15 @@ class ApiController extends Controller
     }
 
     /**
+     * Return accepted
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function respondAccepted()
+    {
+        return response()->json([], HttpResponseCodes::HTTP_ACCEPTED);
+    }
+
+    /**
      * Return single error message
      *
      * @param string  $message      Error message.
@@ -121,8 +130,8 @@ class ApiController extends Controller
     /**
      * Return resource data
      *
-     * @param array|Model|Collection $data         Resource data.
-     * @param array                  $options      Respond options.
+     * @param array|Model|Collection $data    Resource data.
+     * @param array                  $options Respond options.
      * @return \Illuminate\Http\JsonResponse
      */
     protected function respondAsResource(
@@ -132,17 +141,17 @@ class ApiController extends Controller
         $isCollection = $options['isCollection'] ?? false;
         $appendData = $options['appendData'] ?? null;
         $resourceName = $options['resourceName'] ?? null;
-        $respondCode = $options['respondCode'] ?? HttpResponseCodes::HTTP_OK;
+        $respondCode = ($options['respondCode'] ?? HttpResponseCodes::HTTP_OK);
 
         if ($data === null || ($data instanceof Collection && $data->count() === 0)) {
             return $this->respondNotFound();
         }
 
-        if(is_null($resourceName) === true || empty($resourceName) === true) {
+        if (is_null($resourceName) === true || empty($resourceName) === true) {
             $resourceName = $this->resourceName;
         }
 
-        if(is_null($resourceName) === true || empty($resourceName) === true) {
+        if (is_null($resourceName) === true || empty($resourceName) === true) {
             $resourceName = get_class($this);
             $resourceName = substr($resourceName, (strrpos($resourceName, '\\') + 1));
             $resourceName = substr($resourceName, 0, strpos($resourceName, 'Controller'));
