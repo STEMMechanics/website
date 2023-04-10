@@ -15,6 +15,7 @@
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.0",
         "laravel/tinker": "^2.7",
+        "league/flysystem-aws-s3-v3": "^3.12",
         "owen-it/laravel-auditing": "^13.0",
         "php-ffmpeg/php-ffmpeg": "^1.1",
         "spatie/image-optimizer": "^1.6",
