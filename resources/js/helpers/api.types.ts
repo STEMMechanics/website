@@ -1,7 +1,7 @@
 export interface Event {
     id: string;
     title: string;
-    hero: string;
+    hero: Media;
     content: string;
     start_at: string;
     end_at: string;
@@ -33,7 +33,10 @@ export interface Media {
     mime: string;
     permission: Array<string>;
     size: number;
+    status: string;
     url: string;
+    description: string;
+    variants: { [key: string]: string };
     created_at: string;
     updated_at: string;
 }
@@ -52,9 +55,10 @@ export interface Post {
     title: string;
     slug: string;
     user_id: string;
+    user: User;
     content: string;
     publish_at: string;
-    hero: string;
+    hero: Media;
     attachments: Array<Media>;
 }
 
