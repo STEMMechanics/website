@@ -1,15 +1,7 @@
 <template>
-    <SMPage
-        :loading="pageLoading"
-        full
-        class="sm-page-post-view"
-        :page-error="pageError">
-        <div
-            class="sm-heading-image"
-            :style="{
-                backgroundImage: `url('${mediaGetVariantUrl(post.hero)}')`,
-            }"></div>
+    <SMPage class="sm-page-post-view" :page-error="pageError">
         <SMContainer>
+            <div class="sm-post-hero" :style="backgroundStyle"></div>
             <div class="sm-heading-info">
                 <h1>{{ post.title }}</h1>
                 <div class="sm-date-author small">
@@ -40,7 +32,10 @@ const applicationStore = useApplicationStore();
 /**
  * The post data.
  */
-let post: Ref<Post> = ref(null);
+let post: Ref<Post> = ref({
+    title: "",
+    user: { username: "" },
+});
 
 /**
  * The current page error.
@@ -56,6 +51,8 @@ let pageLoading = ref(false);
  * Post user.
  */
 let postUser: User | null = null;
+
+let backgroundStyle = {};
 
 /**
  * Load the page data.
@@ -84,6 +81,12 @@ const handleLoad = async () => {
                     utc: true,
                 }).format("yyyy/MM/dd HH:mm:ss");
 
+                backgroundStyle = {
+                    backgroundImage: `url('${mediaGetVariantUrl(
+                        post.value.hero
+                    )}')`,
+                };
+
                 applicationStore.setDynamicTitle(post.value.title);
             } else {
                 pageError.value = 404;
@@ -107,12 +110,19 @@ handleLoad();
 
 <style lang="scss">
 .sm-page-post-view {
-    .sm-heading-image {
-        background-color: #eee;
+    .sm-container {
+        width: 70%;
+        padding: 64px 0;
+    }
+
+    .sm-post-hero {
+        display: block;
+        width: 100%;
+        height: 480px;
+        border-radius: 6px;
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
-        height: 15rem;
     }
 
     .sm-heading-info {
