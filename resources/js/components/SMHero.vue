@@ -1,0 +1,157 @@
+<template>
+    <section class="sm-hero" v-if="loaded">
+        <div class="sm-hero-background" :style="heroStyles"></div>
+        <div class="sm-hero-content">
+            <h1>{{ heroTitle }}</h1>
+            <p>{{ heroExcerpt }}</p>
+            <div class="sm-hero-buttons">
+                <SMButton
+                    :to="{ name: 'post-view', params: { slug: heroSlug } }"
+                    label="Read More" />
+            </div>
+        </div>
+        <div class="sm-hero-caption">
+            <router-link
+                :to="{ name: 'post-view', params: { slug: heroSlug } }"
+                >{{ heroImageTitle }}</router-link
+            >
+        </div>
+    </section>
+</template>
+
+<script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { api, getApiResultData } from "../helpers/api";
+import { PostCollection } from "../helpers/api.types";
+import { mediaGetVariantUrl } from "../helpers/media";
+import { excerpt } from "../helpers/string";
+import SMButton from "./SMButton.vue";
+
+const loaded = ref(false);
+let heroTitle = "";
+let heroExcerpt = "";
+let heroImageUrl = "";
+let heroImageTitle = "";
+let heroSlug = "";
+const translateY = ref(0);
+const heroStyles = ref({
+    backgroundImage: "none",
+    transform: "translateY(0px)",
+});
+
+const handleScroll = () => {
+    const scrollTop = window.scrollY;
+    translateY.value = scrollTop / 2.5;
+};
+
+watch(translateY, () => {
+    heroStyles.value.transform = `translateY(${translateY.value}px)`;
+});
+
+onMounted(() => {
+    window.addEventListener("scroll", handleScroll);
+});
+
+onBeforeUnmount(() => {
+    window.removeEventListener("scroll", handleScroll);
+});
+
+const handleLoad = async () => {
+    try {
+        let postsResult = await api.get({
+            url: "/posts",
+            params: {
+                limit: 3,
+            },
+        });
+
+        const postsData = getApiResultData<PostCollection>(postsResult);
+
+        if (postsData && postsData.posts) {
+            const randomIndex = Math.floor(
+                Math.random() * postsData.posts.length
+            );
+            heroTitle = postsData.posts[randomIndex].title;
+            heroExcerpt = excerpt(postsData.posts[randomIndex].content, 200);
+            heroImageUrl = mediaGetVariantUrl(
+                postsData.posts[randomIndex].hero
+            );
+            heroImageTitle = postsData.posts[randomIndex].hero.title;
+            heroSlug = postsData.posts[randomIndex].slug;
+
+            heroStyles.value.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.5),rgba(0, 0, 0, 0.5)),url('${heroImageUrl}')`;
+
+            loaded.value = true;
+        }
+    } catch {
+        // empty
+    }
+};
+
+handleLoad();
+</script>
+
+<style lang="scss">
+.sm-hero {
+    position: relative;
+    overflow: hidden;
+
+    .sm-hero-background {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: cover;
+    }
+
+    .sm-hero-content {
+        position: relative;
+        padding: 150px 32px 120px;
+        max-width: 1200px;
+        margin: 0 auto;
+
+        h1 {
+            font-size: 300%;
+            margin-bottom: 20px;
+            max-width: 550px;
+            color: #fff;
+            text-align: left;
+            text-shadow: 0 0 8px #000;
+        }
+
+        p {
+            max-width: 550px;
+            color: #fff;
+            text-align: left;
+            text-shadow: 0 0 8px #000;
+        }
+    }
+
+    .sm-hero-caption {
+        position: absolute;
+        bottom: 14px;
+        right: 30px;
+        color: #999;
+        font-size: 80%;
+        padding: 2px 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+
+        a {
+            color: inherit;
+            transition: color 0.1s ease-in-out;
+
+            &:hover {
+                text-decoration: none;
+                color: #ccc;
+            }
+        }
+    }
+
+    .sm-hero-buttons {
+        padding-top: 48px;
+    }
+}
+</style>
