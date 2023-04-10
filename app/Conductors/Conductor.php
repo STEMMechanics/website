@@ -296,12 +296,16 @@ class Conductor
     /**
      * Run the conductor on a Model with the data stored in a Request.
      *
-     * @param Request $request The request data.
-     * @param Model   $model   The model.
+     * @param Request    $request The request data.
+     * @param Model|null $model   The model.
      * @return array The processed and transformed model data.
      */
-    final public static function model(Request $request, Model $model)
+    final public static function model(Request $request, mixed $model)
     {
+        if ($model === null) {
+            return null;
+        }
+
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
 
@@ -364,6 +368,7 @@ class Conductor
 
     //     return $this->collection;
     // }
+
 
     /**
      * Return the current conductor collection count.
@@ -645,7 +650,7 @@ class Conductor
         }
 
         $appends = $model->getAppends();
-        if(is_array($appends) === true) {
+        if (is_array($appends) === true) {
             $visibleFields = array_merge($visibleFields, $appends);
         }
 
@@ -663,7 +668,7 @@ class Conductor
         $result = $model->toArray();
 
         $fields = $this->fields($model);
-        if(is_array($fields) === true) {
+        if (is_array($fields) === true) {
             $result = array_intersect_key($result, array_flip($fields));
         }
 
