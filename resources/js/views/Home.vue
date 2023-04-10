@@ -1,15 +1,6 @@
 <template>
     <SMPage full class="sm-page-home">
-        <SMCarousel>
-            <SMCarouselSlide
-                v-for="(slide, index) in slides"
-                :key="index"
-                :title="slide.title"
-                :content="slide.content"
-                :image="slide.image"
-                :url="slide.url"
-                :cta="slide.cta"></SMCarouselSlide>
-        </SMCarousel>
+        <SMHero />
         <SMContainer class="about">
             <h2>Join the Fun!</h2>
             <p></p>
@@ -123,123 +114,24 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { reactive } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMCarousel from "../components/SMCarousel.vue";
-import SMCarouselSlide from "../components/SMCarouselSlide.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
+import SMHero from "../components/SMHero.vue";
 
-import { api, getApiResultData } from "../helpers/api";
-import { EventCollection, PostCollection } from "../helpers/api.types";
-import { SMDate } from "../helpers/datetime";
+import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
-import { excerpt } from "../helpers/string";
 import { And, Email, Required } from "../helpers/validate";
-import { useToastStore } from "../store/ToastStore";
-import { mediaGetVariantUrl } from "../helpers/media";
 
-const slides = ref([]);
 const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 let form = reactive(
     Form({
         email: FormControl("", And([Required(), Email()])),
     })
 );
-
-const handleLoad = async () => {
-    slides.value = [];
-    let posts = [];
-    let events = [];
-    let hasError = false;
-
-    try {
-        const [postsResult, eventsResult] = await Promise.all([
-            api
-                .get({
-                    url: "/posts",
-                    params: {
-                        limit: 3,
-                    },
-                })
-                .catch((e) => {
-                    if (e.status != 404) {
-                        hasError = true;
-                    }
-                }),
-            api
-                .get({
-                    url: "/events",
-                    params: {
-                        limit: 3,
-                        end_at:
-                            ">" +
-                            new SMDate("now").format("yyyy-MM-dd HH:mm:ss", {
-                                utc: true,
-                            }),
-                    },
-                })
-                .catch((e) => {
-                    if (e.status != 404) {
-                        hasError = true;
-                    }
-                }),
-        ]);
-
-        const postsData = getApiResultData<PostCollection>(postsResult);
-        const eventData = getApiResultData<EventCollection>(eventsResult);
-
-        if (postsData && postsData.posts) {
-            postsData.posts.forEach((post) => {
-                posts.push({
-                    title: post.title,
-                    content: excerpt(post.content, 200),
-                    image: mediaGetVariantUrl(post.hero),
-                    url: { name: "post-view", params: { slug: post.slug } },
-                    cta: "Read More...",
-                });
-            });
-        }
-
-        if (eventData && eventData.events) {
-            eventData.events.forEach((event) => {
-                events.push({
-                    title: event.title,
-                    content: excerpt(event.content, 200),
-                    image: mediaGetVariantUrl(event.hero),
-                    url: { name: "event-view", params: { id: event.id } },
-                    cta: "View Workshop",
-                });
-            });
-        }
-    } catch (e) {
-        console.log(e);
-        hasError = true;
-    }
-
-    for (let i = 1; i <= Math.max(posts.length, events.length); i++) {
-        if (i <= posts.length) {
-            slides.value.push(posts[i - 1]);
-        }
-
-        if (i <= events.length) {
-            slides.value.push(events[i - 1]);
-        }
-    }
-
-    if (hasError) {
-        const toastStore = useToastStore();
-
-        toastStore.addToast({
-            title: "Server Error",
-            content:
-                "A server error occurred. Some items cannot be viewed at this time.",
-            type: "danger",
-        });
-    }
-};
 
 const handleSubscribe = async () => {
     form.loading(true);
@@ -265,8 +157,6 @@ const handleSubscribe = async () => {
 
     form.loading(false);
 };
-
-handleLoad();
 </script>
 
 <style lang="scss">
