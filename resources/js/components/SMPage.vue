@@ -2,7 +2,6 @@
     <div
         :class="['sm-page-outer', { 'sm-no-breadcrumbs': noBreadcrumbs }]"
         :style="styleObject">
-        <SMBreadcrumbs v-if="!noBreadcrumbs" />
         <SMLoader :loading="loading">
             <SMErrorForbidden
                 v-if="pageError == 403 || !hasPermission()"></SMErrorForbidden>
@@ -22,7 +21,6 @@
 
 <script setup lang="ts">
 import { useSlots } from "vue";
-import SMBreadcrumbs from "../components/SMBreadcrumbs.vue";
 import { useUserStore } from "../store/UserStore";
 import SMErrorForbidden from "./errors/Forbidden.vue";
 import SMErrorInternal from "./errors/Internal.vue";
