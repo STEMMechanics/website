@@ -32,7 +32,7 @@ class MediaConductor extends Conductor
 
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/media') === false) {
-            $fields = arrayRemoveItem($fields, 'permission');
+            $fields = arrayRemoveItem($fields, ['permission', 'storage']);
         }
 
         return $fields;
@@ -48,9 +48,9 @@ class MediaConductor extends Conductor
     {
         $user = auth()->user();
         if ($user === null) {
-            $builder->whereNull('permission');
+            $builder->where('permission', '');
         } else {
-            $builder->whereNull('permission')->orWhereIn('permission', $user->permissions);
+            $builder->where('permission', '')->orWhereIn('permission', $user->permissions);
         }
     }
 
@@ -62,7 +62,7 @@ class MediaConductor extends Conductor
      */
     public static function viewable(Model $model)
     {
-        if ($model->permission !== null) {
+        if ($model->permission !== '') {
             $user = auth()->user();
             if ($user === null || $user->hasPermission($model->permission) === false) {
                 return false;
