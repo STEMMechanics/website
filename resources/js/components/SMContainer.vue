@@ -23,20 +23,15 @@ const slots = useSlots();
 <style lang="scss">
 .sm-container {
     display: flex;
-    flex-direction: column;
-    flex: 1;
-    padding-left: 1rem;
-    padding-right: 1rem;
     width: 100%;
+    align-items: center;
+    flex-direction: column;
+    padding: 0 16px 0 16px;
+    margin: auto;
     max-width: 1200px;
-    margin: 0 auto;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
 
     &.full {
-        padding-left: 0;
-        padding-right: 0;
+        padding: 0;
         max-width: 100%;
 
         .sm-container-inner {

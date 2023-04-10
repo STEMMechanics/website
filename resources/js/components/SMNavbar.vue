@@ -1,20 +1,31 @@
 <template>
     <SMContainer
         :full="true"
-        :class="['sm-navbar', { 'sm-show-dropdown': showToggle }]"
-        @click="handleClickHideMenu">
-        <template #inner>
-            <div class="sm-navbar-container">
-                <router-link
-                    :to="{ name: 'home' }"
-                    class="sm-brand"></router-link>
-                <ul class="sm-navmenu flex-fill">
+        :class="['sm-navbar', { 'sm-show-nav': showToggle }]"
+        @click="handleClickNavBar">
+        <template #default>
+            <div id="sm-nav-head">
+                <router-link :to="{ name: 'home' }" id="sm-logo-link">
+                    <img
+                        class="sm-nav-logo"
+                        src="/assets/logo.png"
+                        width="270"
+                        height="40"
+                        alt="STEMMechanics" />
+                </router-link>
+                <label id="sm-nav-toggle" @click.stop="handleClickToggleMenu"
+                    ><img
+                        src="/assets/hamburger.svg"
+                        width="24"
+                        height="24"
+                        alt="Navbar Toggle"
+                /></label>
+            </div>
+            <div id="sm-nav">
+                <ul class="left">
                     <template v-for="item in menuItems">
                         <li
-                            v-if="
-                                item.inNav &&
-                                (item.show == undefined || item.show())
-                            "
+                            v-if="item.show == undefined || item.show()"
                             :key="item.name">
                             <router-link :to="item.to">{{
                                 item.label
@@ -22,47 +33,15 @@
                         </li>
                     </template>
                 </ul>
-                <SMButton
-                    :to="{ name: 'event-list' }"
-                    class="sm-navbar-cta"
-                    label="Find a workshop"
-                    icon="arrow-forward-outline" />
-                <div
-                    class="sm-navbar-toggle-menu"
-                    @click.stop="handleClickToggleMenu">
-                    <span>Menu</span
-                    ><ion-icon name="reorder-three-outline"></ion-icon>
-                </div>
+                <ul class="right"></ul>
             </div>
         </template>
-        <div class="sm-navbar-dropdown-cover"></div>
-        <ul class="sm-navbar-dropdown">
-            <li class="ml-auto">
-                <div
-                    class="sm-navbar-close-menu"
-                    @click.stop="handleClickToggleMenu">
-                    <ion-icon name="close-outline"></ion-icon>
-                </div>
-            </li>
-            <template v-for="item in menuItems">
-                <li
-                    v-if="item.show == undefined || item.show()"
-                    :key="item.name">
-                    <router-link :to="item.to"
-                        ><ion-icon :name="item.icon" />{{
-                            item.label
-                        }}</router-link
-                    >
-                </li>
-            </template>
-        </ul>
     </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import { useUserStore } from "../store/UserStore";
-import SMButton from "./SMButton.vue";
 
 const userStore = useUserStore();
 const showToggle = ref(false);
@@ -126,17 +105,17 @@ const menuItems = [
 ];
 
 /**
- * Hanfle the user clicking an element to toggle the dropdown menu.
+ * Handle the user clicking an element to toggle the dropdown menu.
  */
 const handleClickToggleMenu = () => {
     showToggle.value = !showToggle.value;
 };
 
 /**
- * Handle the user clicking an element to hide the dropdown menu.
+ * Handle the user clicking an element to toggle the dropdown menu.
  */
-const handleClickHideMenu = () => {
-    if (showToggle.value) {
+const handleClickNavBar = () => {
+    if (showToggle.value == true) {
         showToggle.value = false;
     }
 };
@@ -144,239 +123,67 @@ const handleClickHideMenu = () => {
 
 <style lang="scss">
 .sm-navbar {
-    height: 4.5rem;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
     position: relative;
-    flex: 0 0 auto !important;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
     z-index: 1000;
+    background-color: rgb(134 144 154 / 15%);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
 
-    &.sm-show-dropdown {
-        .sm-navbar-dropdown-cover {
-            visibility: visible;
-            opacity: 1;
-            transition: visibility 0.3s linear, opacity 0.3s linear;
-        }
+    &.sm-show-nav {
+        background-color: #333639;
 
-        .sm-navbar-dropdown {
-            margin-top: 0;
-            transition: margin 0.5s ease-in-out;
+        #sm-nav {
+            display: flex;
         }
     }
 
-    .sm-navbar-dropdown-cover {
-        position: fixed;
-        visibility: hidden;
-        z-index: 2000;
-        opacity: 0;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.25);
-        overflow: hidden;
-    }
-
-    .sm-navbar-dropdown {
-        position: fixed;
-        z-index: 2001;
-        top: 0;
-        left: 0;
-        right: 0;
-
+    #sm-nav-head {
         display: flex;
-        flex-direction: column;
-        padding: 0 2rem 1rem 2rem;
-        background-color: #fff;
-        justify-content: center;
+        justify-content: space-between;
         align-items: center;
-        box-shadow: 0 4px 4px rgba(0, 0, 0, 0.25);
-        list-style-type: none;
-        margin: -500px 0 0 0;
+        width: 100%;
+        max-width: 1200px;
+        padding: 0 16px 0 16px;
 
-        li {
-            padding-top: 0.75rem;
-            padding-bottom: 0.75rem;
+        #sm-logo-link {
+            padding-left: 23px;
 
-            a {
-                display: inline-block;
-                width: map-get($spacer, 5) * 3;
-
-                ion-icon {
-                    padding-right: map-get($spacer, 1);
-                    font-size: map-get($spacer, 4);
-                    vertical-align: middle;
-                }
+            img {
+                display: block;
             }
         }
-    }
-
-    .sm-navmenu,
-    .sm-navbar-dropdown {
-        padding-top: map-get($spacer, 4);
-
-        li {
-            margin: 0 0.75rem;
-
-            a {
-                color: rgba(0, 0, 0, 0.8);
-                text-decoration: none;
-                font-size: 1rem;
-                transition: color 0.1s;
-
-                &:hover {
-                    color: #409eff;
-                }
-            }
-        }
-
-        .sm-navbar-close-menu ion-icon {
-            cursor: pointer;
-            font-size: map-get($spacer, 4);
-            padding-left: map-get($spacer, 1);
+        #sm-nav-toggle {
+            padding: 23px;
 
             &:hover {
-                color: $danger-color;
+                background-color: rgba(255, 255, 255, 0.25);
+            }
+
+            img {
+                display: block;
             }
         }
     }
 
-    .sm-navbar-container {
-        display: flex;
-        flex: 1;
-        align-items: center;
+    #sm-nav {
+        display: none;
+        padding: 10px 24px;
+        flex-direction: column;
+        width: 100%;
+        font-weight: 800;
 
-        .sm-brand {
-            display: inline-block;
-            background-image: url("/img/logo.png");
-            background-position: left top;
-            background-repeat: no-repeat;
-            background-size: contain;
-            width: 13.5rem;
-            height: 2rem;
-        }
-
-        .sm-navmenu {
-            flex: 1;
-            display: flex;
-            justify-content: end;
+        ul {
+            display: block;
+            width: 100%;
             list-style-type: none;
-            padding: 0 1rem;
-        }
+            margin: 0;
+            padding: 0;
 
-        .sm-navbar-toggle-menu {
-            cursor: pointer;
-            align-items: center;
-            font-size: 0.9rem;
-            margin-left: 2rem;
-            margin-right: 1rem;
-
-            span {
-                display: none;
-            }
-
-            ion-icon {
-                margin-left: 0.5rem;
-                font-size: map-get($spacer, 4);
+            li a {
+                display: block;
+                padding: 8px 0 8px 0;
             }
         }
-    }
-
-    .sm-navbar-cta {
-        font-size: 0.9rem;
-        padding: 0.6rem 1.1rem;
-    }
-}
-
-@media only screen and (max-width: 1200px) {
-    .sm-navbar .navbar-container {
-        .sm-navmenu li {
-            display: none;
-        }
-
-        .sm-navbar-toggle-menu {
-            display: flex;
-        }
-    }
-}
-
-@media only screen and (max-width: 992px) {
-    .sm-navbar {
-        height: 4.5rem;
-
-        .navbar-dropdown-cover {
-            margin-top: 4.5rem;
-        }
-
-        .navbar-container {
-            .sm-brand {
-                width: 13.5rem;
-                height: 2rem;
-                margin-bottom: 0;
-            }
-
-            .sm-navbar-cta {
-                font-size: 0.9rem;
-                padding: 0.5rem 0.75rem;
-            }
-        }
-    }
-}
-
-@media only screen and (max-width: 640px) {
-    .sm-navbar {
-        height: 4.5rem;
-
-        .sm-navbar-dropdown-cover {
-            margin-top: 4.5rem;
-        }
-
-        .sm-navbar-container {
-            .sm-brand {
-                background-image: url("/img/logo-small.png");
-                width: 3rem;
-                height: 3rem;
-            }
-
-            .sm-navbar-cta {
-                font-size: 0.9rem;
-                padding: 0.5rem 0.75rem;
-
-                ion-icon {
-                    display: none;
-                }
-            }
-
-            .sm-menuButton {
-                margin-left: 1rem;
-
-                span {
-                    display: none;
-                }
-            }
-        }
-    }
-}
-
-@keyframes fadeIn {
-    0% {
-        visibility: hidden;
-    }
-
-    100% {
-        visibility: visible;
-    }
-}
-
-@keyframes fadeOut {
-    0% {
-        visibility: visible;
-    }
-
-    100% {
-        visibility: hidden;
     }
 }
 </style>

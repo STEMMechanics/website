@@ -271,7 +271,7 @@ handleLoad();
 
 <style lang="scss">
 .sm-page-home {
-    margin-top: -3.25rem !important;
+    margin-top: -127px !important;
     background-color: #fff;
 
     h2 {
