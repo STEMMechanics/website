@@ -34,7 +34,8 @@ class MediaController extends ApiController
         return $this->respondAsResource(
             $collection,
             ['isCollection' => true,
-            'appendData' => ['total' => $total]]
+                'appendData' => ['total' => $total]
+            ]
         );
     }
 
@@ -80,31 +81,23 @@ class MediaController extends ApiController
                 }
             }
 
-            if ($file->getSize() > Media::maxUploadSize()) {
+            if ($file->getSize() > Media::getMaxUploadSize()) {
                 return $this->respondTooLarge();
             }
 
-            $title = $file->getClientOriginalName();
-            $mime = $file->getMimeType();
-            $fileInfo = Media::store($file, empty($request->input('permission')));
-            if ($fileInfo === null) {
-                return $this->respondWithErrors(
-                    ['file' => 'The file could not be stored on the server'],
-                    HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
-                );
+            try {
+                $media = Media::createFromUploadedFile($request, $file);
+            } catch (\Exception $e) {
+                if ($e->getCode() === Media::FILE_SIZE_EXCEEDED_ERROR) {
+                    return $this->respondTooLarge();
+                } else {
+                    return $this->respondWithErrors(['file' => $e->getMessage()]);
+                }
             }
 
-            $request->merge([
-                'title' => $title,
-                'mime' => $mime,
-                'name' => $fileInfo['name'],
-                'size' => filesize($fileInfo['path'])
-            ]);
-
-            $media = $request->user()->media()->create($request->all());
             return $this->respondAsResource(
                 MediaConductor::model($request, $media),
-                ['respondCode' => HttpResponseCodes::HTTP_CREATED]
+                ['respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
             );
         }//end if
 
@@ -127,25 +120,12 @@ class MediaController extends ApiController
                     return $this->respondTooLarge();
                 }
 
-                $oldPath = $medium->path();
-                $fileInfo = Media::store($file, empty($request->input('permission')));
-                if ($fileInfo === null) {
+                if ($medium->updateFile($file) === false) {
                     return $this->respondWithErrors(
                         ['file' => 'The file could not be stored on the server'],
                         HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
                     );
                 }
-
-                if (file_exists($oldPath) === true) {
-                    unlink($oldPath);
-                }
-
-                $request->merge([
-                    'title' => $file->getClientOriginalName(),
-                    'mime' => $file->getMimeType(),
-                    'name' => $fileInfo['name'],
-                    'size' => filesize($fileInfo['path'])
-                ]);
             }//end if
 
             $medium->update($request->all());
