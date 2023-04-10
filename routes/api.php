@@ -36,16 +36,10 @@ Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
 Route::apiResource('posts', PostController::class);
-Route::get('posts/{post}/attachments', [PostController::class, 'getAttachments']);
-Route::post('posts/{post}/attachments', [PostController::class, 'storeAttachment']);
-Route::match(['put', 'patch'], 'posts/{post}/attachments', [PostController::class, 'updateAttachments']);
-Route::delete('posts/{post}/attachments/{medium}', [PostController::class, 'deleteAttachment']);
+Route::apiAttachmentResource('posts', PostController::class);
 
 Route::apiResource('events', EventController::class);
-Route::get('events/{event}/attachments', [EventController::class, 'getAttachments']);
-Route::post('events/{event}/attachments', [EventController::class, 'storeAttachment']);
-Route::match(['put', 'patch'], 'events/{event}/attachments', [EventController::class, 'updateAttachments']);
-Route::delete('events/{event}/attachments/{medium}', [EventController::class, 'deleteAttachment']);
+Route::apiAttachmentResource('events', EventController::class);
 
 Route::apiResource('subscriptions', SubscriptionController::class);
 Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']);
