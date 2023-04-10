@@ -1,5 +1,7 @@
 <template>
-    <SMNavbar />
+    <header>
+        <SMNavbar />
+    </header>
     <main>
         <router-view v-slot="{ Component }">
             <transition name="fade" mode="out-in">
@@ -7,7 +9,9 @@
             </transition>
         </router-view>
     </main>
-    <SMFooter />
+    <footer>
+        <SMFooter />
+    </footer>
     <SMProgress />
     <SMToastList />
     <SMDialogList />
