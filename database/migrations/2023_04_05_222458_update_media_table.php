@@ -15,23 +15,24 @@ return new class extends Migration
     public function up()
     {
         Schema::table('media', function (Blueprint $table) {
-            // Update null 'mime' values to empty strings
-            DB::table('media')->whereNull('mime')->update(['mime' => '']);
-
-            // Update null 'permission' values to empty strings
-            DB::table('media')->whereNull('permission')->update(['permission' => '']);
-
-            $table->string('mime')->default("")->nullable(false)->change();
-            $table->renameColumn('mime', 'mime_type');
-
-            $table->bigInteger('size')->default(0)->change();
-            $table->string('permission')->default("")->nullable(false)->change();
-
             $table->string('storage')->default("cdn");
             $table->string('description')->default("");
             $table->string('status')->default("");
             $table->string('dimensions')->default("");
             $table->text('variants');
+
+            // Update null 'mime' values to empty strings
+            DB::table('media')->whereNull('mime')->update(['mime' => '']);
+
+            // // Update null 'permission' values to empty strings
+            DB::table('media')->whereNull('permission')->update(['permission' => '']);
+
+            $table->bigInteger('size')->default(0)->change();
+            $table->string('permission')->default("")->nullable(false)->change();
+
+            $table->string('mime')->default("")->nullable(false)->change();
+            // $table->renameColumn('mime', 'mime_type');
+            $table->string('mime_type');
         });
     }
 
