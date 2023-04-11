@@ -21,7 +21,6 @@ class Permission extends Model
         'user',
     ];
 
-
     /**
      * Get the User associated with this model
      *
