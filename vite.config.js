@@ -3,6 +3,18 @@ import laravel from "laravel-vite-plugin";
 import analyzer from "rollup-plugin-analyzer";
 import { compression } from "vite-plugin-compression2";
 import { defineConfig } from "vite";
+import { FontaineTransform } from "fontaine";
+
+const options = {
+    fallbacks: [
+        "BlinkMacSystemFont",
+        "Segoe UI",
+        "Helvetica Neue",
+        "Arial",
+        "Noto Sans",
+    ],
+    resolvePath: (id) => "file:///./public/fonts" + id,
+};
 
 export default defineConfig({
     plugins: [
@@ -27,6 +39,7 @@ export default defineConfig({
             include: [/\.(js)$/, /\.(css)$/],
             // deleteOriginalAssets: true,
         }),
+        FontaineTransform.vite(options),
     ],
     css: {
         preprocessorOptions: {
