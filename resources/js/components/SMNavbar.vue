@@ -167,10 +167,10 @@ const handleClickNavBar = () => {
 
     #sm-nav {
         display: none;
-        padding: 10px 24px;
         flex-direction: column;
         width: 100%;
         font-weight: 800;
+        padding-bottom: 12px;
 
         ul {
             display: block;
@@ -180,8 +180,15 @@ const handleClickNavBar = () => {
             padding: 0;
 
             li a {
+                color: #ddd;
                 display: block;
-                padding: 8px 0 8px 0;
+                padding: 12px 24px;
+                margin: 0;
+
+                &:hover {
+                    text-decoration: none;
+                    background-color: hsla(0, 0%, 50%, 0.1);
+                }
             }
         }
     }
