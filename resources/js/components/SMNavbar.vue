@@ -124,16 +124,17 @@ const handleClickNavBar = () => {
 <style lang="scss">
 .sm-navbar {
     position: relative;
-    z-index: 1000;
-    background-color: rgb(134 144 154 / 15%);
+    z-index: 100;
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 
     &.sm-show-nav {
-        background-color: #333639;
-
         #sm-nav {
             display: flex;
+        }
+
+        #sm-nav-toggle {
+            background-color: hsla(0, 0%, 50%, 0.1);
         }
     }
 
@@ -151,12 +152,12 @@ const handleClickNavBar = () => {
                 display: block;
             }
         }
+
         #sm-nav-toggle {
             padding: 23px;
-            filter: invert(100%) saturate(0%) brightness(120%);
 
             &:hover {
-                background-color: rgba(255, 255, 255, 0.25);
+                background-color: hsla(0, 0%, 50%, 0.1);
             }
 
             img {
@@ -180,7 +181,7 @@ const handleClickNavBar = () => {
             padding: 0;
 
             li a {
-                color: #ddd;
+                color: var(--base-colour-text);
                 display: block;
                 padding: 12px 24px;
                 margin: 0;
@@ -191,6 +192,12 @@ const handleClickNavBar = () => {
                 }
             }
         }
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    .sm-navbar #sm-nav-head #sm-nav-toggle {
+        filter: invert(100%) saturate(0%) brightness(120%);
     }
 }
 </style>
