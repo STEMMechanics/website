@@ -1,7 +1,27 @@
 @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;1000&display=swap");
 
-$font-family: "Nunito", "Nunito override", "Arial", "Helvetica", sans-serif;
-$font-size: 1.1rem;
+:root {
+    --base-colour: #efefef;
+    --base-colour-text: #333;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --base-colour: #333;
+        --base-colour-text: #efefef;
+    }
+}
+
+$default-font-family: "Nunito", "Nunito override", "Arial", "Helvetica",
+    sans-serif;
+$default-font-size: 18px;
+
+$base-colour: #efefef;
+
+/* interim */
+$font-size: $default-font-size;
+
+/* old variables */
 
 $font-color: rgba(255, 255, 255, 1);
 $background-color: rgba(40, 44, 48, 1);

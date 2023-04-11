@@ -15,11 +15,14 @@ html {
 
 html,
 body {
-    font-family: $font-family;
-    font-size: $font-size;
-    color: $font-color;
+    font-family: $default-font-family;
+    font-size: $default-font-size;
+    background-color: var(--base-colour);
+    color: var(--base-colour-text);
+    width: 100vw;
     min-height: 100vh;
-    background-color: $background-color;
+    min-width: 100vw;
+    overflow-x: hidden;
 }
 
 // Who knows why ion-icon randomally sets this to hidden.....
