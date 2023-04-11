@@ -24,14 +24,17 @@ return new class extends Migration
             $table->renameColumn('mime', 'mime_type');
 
             $table->bigInteger('size')->default(0)->change();
-            $table->string('mime_type')->default("")->nullable(false)->change();
             $table->string('permission')->default("")->nullable(false)->change();
 
             $table->string('storage')->default("cdn");
             $table->string('description')->default("");
             $table->string('status')->default("");
             $table->string('dimensions')->default("");
-            $table->text('variants')->default("");
+            $table->text('variants');
+        });
+        
+        Schema::table('media', function (Blueprint $table) {
+            $table->string('mime_type')->default("")->nullable(false)->change();
         });
     }
 
