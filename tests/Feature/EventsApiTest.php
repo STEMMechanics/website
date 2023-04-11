@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
@@ -13,22 +14,25 @@ class EventsApiTest extends TestCase
 
     protected $faker;
 
+
     public function setUp(): void
     {
         parent::setUp();
         $this->faker = FakerFactory::create();
     }
-    
+
     public function testAnyUserCanViewEvent()
     {
         // Create an event
         $event = Event::factory()->create([
             'publish_at' => Carbon::parse($this->faker->dateTimeBetween('-2 months', '-1 month')),
+            'status' => 'open',
         ]);
 
         // Create a future event
         $futureEvent = Event::factory()->create([
             'publish_at' => Carbon::parse($this->faker->dateTimeBetween('+1 day', '+1 month')),
+            'status' => 'open',
         ]);
 
         // Send GET request to the /api/events endpoint
@@ -48,12 +52,45 @@ class EventsApiTest extends TestCase
         ]);
     }
 
+    public function testAnyUserCannotSeeDraftEvent()
+    {
+        // Create a draft event
+        $draftEvent = Event::factory()->create([
+            'publish_at' => Carbon::parse($this->faker->dateTimeBetween('-2 months', '-1 month')),
+            'status' => 'draft',
+        ]);
+
+        // Create a open event
+        $openEvent = Event::factory()->create([
+            'publish_at' => Carbon::parse($this->faker->dateTimeBetween('-2 months', '-1 month')),
+            'status' => 'open',
+        ]);
+
+        // Create a closed event
+        $closedEvent = Event::factory()->create([
+            'publish_at' => Carbon::parse($this->faker->dateTimeBetween('-2 months', '-1 month')),
+            'status' => 'closed',
+        ]);
+
+        // Send GET request to the /api/events endpoint
+        $response = $this->getJson('/api/events');
+        $response->assertStatus(200);
+
+        // Assert that the event is in the response data
+        $response->assertJsonCount(2, 'events');
+
+        $response->assertJsonMissing([
+            'id' => $draftEvent->id,
+            'title' => $draftEvent->title,
+        ]);
+    }
+
     public function testAdminCanCreateUpdateDeleteEvent()
     {
         // Create a user with the admin/events permission
         $adminUser = User::factory()->create();
         $adminUser->givePermission('admin/events');
-    
+
         // Create media data
         $media = Media::factory()->create(['user_id' => $adminUser->id]);
 
@@ -71,21 +108,21 @@ class EventsApiTest extends TestCase
             'title' => $eventData['title'],
             'content' => $eventData['content'],
         ]);
-    
+
         // Test viewing event
         $event = Event::where('title', $eventData['title'])->first();
         $response = $this->get("/api/events/$event->id");
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'event' => [
-            'id',
-            'title',
-            'content',
-            'start_at',
-            'end_at',
+                'id',
+                'title',
+                'content',
+                'start_at',
+                'end_at',
             ]
         ]);
-    
+
         // Test updating event
         $eventData['title'] = 'Updated Event';
         $response = $this->actingAs($adminUser)->putJson("/api/events/$event->id", $eventData);
@@ -93,7 +130,7 @@ class EventsApiTest extends TestCase
         $this->assertDatabaseHas('events', [
             'title' => 'Updated Event',
         ]);
-    
+
         // Test deleting event
         $response = $this->actingAs($adminUser)->delete("/api/events/$event->id");
         $response->assertStatus(204);
