@@ -12,7 +12,6 @@
     <footer>
         <SMFooter />
     </footer>
-    <SMProgress />
     <SMToastList />
     <SMDialogList />
 </template>
@@ -20,7 +19,6 @@
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
 import SMFooter from "../components/SMFooter.vue";
-import SMProgress from "../components/SMProgress.vue";
 import SMToastList from "../components/SMToastList.vue";
 import SMDialogList from "../components/SMDialog";
 </script>

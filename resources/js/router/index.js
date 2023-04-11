@@ -2,7 +2,6 @@ import { useUserStore } from "@/store/UserStore";
 import { createRouter, createWebHistory } from "vue-router";
 import { api } from "../helpers/api";
 import { useApplicationStore } from "../store/ApplicationStore";
-import { useProgressStore } from "../store/ProgressStore";
 import { updateSEOTags } from "../helpers/seo";
 
 export const routes = [
@@ -370,9 +369,6 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const applicationStore = useApplicationStore();
-    const progressStore = useProgressStore();
-
-    progressStore.start();
 
     applicationStore.clearDynamicTitle();
 
@@ -472,7 +468,6 @@ router.beforeEach(async (to, from, next) => {
     // }
 
     if (to.meta.middleware == "authenticated" && !userStore.id) {
-        progressStore.finish();
         next({ name: "login", query: { redirect: to.fullPath } });
     } else {
         next();
@@ -480,8 +475,7 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    const progressStore = useProgressStore();
-    progressStore.finish();
+    // empty
 });
 
 export default router;

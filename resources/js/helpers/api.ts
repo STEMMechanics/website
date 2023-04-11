@@ -1,4 +1,3 @@
-import { useProgressStore } from "../store/ProgressStore";
 import { useUserStore } from "../store/UserStore";
 import { ImportMetaExtras } from "../../../import-meta";
 
@@ -165,9 +164,6 @@ export const api = {
                     fetchOptions.body = options.body;
                 }
 
-                const progressStore = useProgressStore();
-                progressStore.start();
-
                 fetch(url, fetchOptions)
                     .then(async (response) => {
                         let data: string | object = "";
@@ -218,9 +214,6 @@ export const api = {
                             ...rest,
                             response: response && response.json(),
                         });
-                    })
-                    .finally(() => {
-                        progressStore.finish();
                     });
             }
         });
