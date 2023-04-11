@@ -71,6 +71,7 @@ class Media extends Model
         'variants' => '[]',
         'description' => '',
         'dimensions' => '',
+        'permission' => '',
     ];
 
     /**
