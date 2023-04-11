@@ -21,6 +21,7 @@ return new class extends Migration
             // Update null 'permission' values to empty strings
             DB::table('media')->whereNull('permission')->update(['permission' => '']);
 
+            $table->string('mime')->default("")->nullable(false)->change();
             $table->renameColumn('mime', 'mime_type');
 
             $table->bigInteger('size')->default(0)->change();
@@ -31,10 +32,6 @@ return new class extends Migration
             $table->string('status')->default("");
             $table->string('dimensions')->default("");
             $table->text('variants');
-        });
-        
-        Schema::table('media', function (Blueprint $table) {
-            $table->string('mime_type')->default("")->nullable(false)->change();
         });
     }
 
