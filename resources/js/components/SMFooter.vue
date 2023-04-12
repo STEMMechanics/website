@@ -40,7 +40,13 @@
             <SMColumn
                 width="350px"
                 class="align-items-center justify-content-center align-items-center">
-                <router-link to="/" class="sm-brand"></router-link>
+                <router-link to="/" class="sm-logo-link">
+                    <img
+                        src="/assets/logo-dark.png"
+                        width="270"
+                        height="40"
+                        alt="STEMMechanics" />
+                </router-link>
             </SMColumn>
             <SMColumn class="sm-footer-text">
                 <p>
@@ -100,42 +106,38 @@
     flex: 0;
     align-items: center;
     font-size: 80%;
-    background-color: #f8f8f8;
-    padding: 0 0 map-get($spacer, 5) 0;
+    background-color: var(--footer-color);
+    color: var(--footer-color-text);
+    padding: 0 0 24px 0;
+    margin-top: 48px;
+
+    a,
+    a:visited {
+        color: var(--footer-color-text);
+        text-decoration-color: var(--footer-color-text);
+
+        &:hover {
+            color: var(--footer-color-text);
+            filter: brightness(115%);
+        }
+    }
 
     .sm-social {
         font-size: 200%;
         max-width: 100%;
-        border-top: 1px solid #ddd;
-        border-bottom: 1px solid #ddd;
-        background-color: #efefef;
-        padding: map-get($spacer, 2) 0 !important;
-        margin-bottom: map-get($spacer, 5);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 8px 0 !important;
+        margin-bottom: 24px;
 
         a {
             vertical-align: middle;
-            color: #777777;
             display: flex;
         }
     }
 
-    .sm-brand {
-        display: inline-block;
-        background-image: url("/img/logo.png");
-        background-position: left top;
-        background-repeat: no-repeat;
-        background-size: contain;
-        width: 16.5rem;
-        height: 3rem;
-    }
-
-    a,
-    a:visited {
-        color: $primary-color-dark;
-
-        &:hover {
-            color: $primary-color-darker;
-        }
+    .sm-logo-link:hover {
+        filter: none;
     }
 
     ul {
