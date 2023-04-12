@@ -1,5 +1,5 @@
 <template>
-    <SMPage no-breadcrumbs background="/img/background.jpg">
+    <SMPage>
         <template #container>
             <SMFormCard full class="mt-5" :narrow="formDone">
                 <template v-if="!formDone">
