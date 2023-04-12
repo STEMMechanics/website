@@ -149,25 +149,32 @@ a:visited.sm-button,
 .sm-button {
     cursor: pointer;
     position: relative;
-    padding: map-get($spacer, 2) map-get($spacer, 4);
-    color: white;
+    font-family: var(--header-font-family);
     font-weight: 800;
-    border-width: 2px;
-    border-style: solid;
-    // border-radius: 24px;
-    // transition: background-color 0.1s, color 0.1s;
-    // background-color: $secondary-color;
-    // border-color: $secondary-color;
-    min-width: 7rem;
-    text-align: center;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    margin: 16px 32px 16px 32px;
+    padding: 16px 32px 16px 32px;
+    border: 0;
+    background-color: var(--base-color-light);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    color: var(--link-color);
 
-    background-color: rgba(255, 255, 255, 0.2);
-    border-color: transparent;
-    box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.1s ease-in-out;
+    // position: relative;
+    // padding: map-get($spacer, 2) map-get($spacer, 4);
+    // color: white;
+    // font-weight: 800;
+    // border-width: 2px;
+    // border-style: solid;
+    // min-width: 7rem;
+    // text-align: center;
+    // display: inline-flex;
+    // align-items: center;
+    // justify-content: center;
+
+    // background-color: rgba(255, 255, 255, 0.2);
+    // border-color: transparent;
+    // box-shadow: 0 0 8px 8px rgba(0, 0, 0, 0.1);
+    // transition: all 0.1s ease-in-out;
 
     -webkit-user-select: none;
     -moz-user-select: none;
