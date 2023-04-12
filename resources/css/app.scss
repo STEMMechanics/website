@@ -15,108 +15,201 @@ html {
 
 html,
 body {
-    font-family: $default-font-family;
-    font-size: $default-font-size;
-    background-color: var(--base-colour);
-    color: var(--base-colour-text);
+    font-family: var(--default-font-family);
+    font-size: var(--default-font-size);
+    background-color: var(--base-color);
+    color: var(--base-color-text);
     width: 100vw;
     min-height: 100vh;
     min-width: 100vw;
     overflow-x: hidden;
 }
 
-// Who knows why ion-icon randomally sets this to hidden.....
-ion-icon {
-    visibility: visible;
+header {
+    box-shadow: var(--base-shadow);
 }
 
-#app {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--header-font-family);
+}
+
+h2 {
+    font-size: 36px;
+    margin-bottom: 0;
 }
 
 a,
 a:visited {
-    color: $primary-color;
-    text-decoration: none;
-    transition: color 0.1s, underline 0.1s;
+    color: var(--primary-color);
+    text-decoration-thickness: 0.1em;
+    text-decoration-color: var(--primary-color-light);
 
     &:hover {
-        color: $primary-color-dark;
-        text-decoration: underline;
+        filter: brightness(115%);
     }
-}
-
-h1 {
-    text-align: left;
-    font-weight: 800;
 }
 
 p {
-    line-height: 1.5rem;
-    margin-top: 0;
+    margin: 1rem 0;
 }
 
-code {
-    display: block;
-    font-size: 0.8rem;
-    background-color: #eee;
-    padding: 1rem;
-    border: 1px solid #ddd;
-    white-space: pre-wrap;
-    overflow-x: auto;
-    max-height: 30rem;
-    margin-bottom: 1rem;
+small,
+.small {
+    font-size: 70%;
 }
 
-/* Page Errors */
-.sm-page-error {
-    display: flex;
-    flex-direction: column;
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
 
-    .sm-error-number {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 30vw;
-        font-weight: 600;
-        color: #295b7e;
+.card {
+    background-color: var(--card-color);
+    border-radius: 10px;
+    box-shadow: 0 11px 10px -10px rgba(0, 0, 0, 0.2);
+    margin: 48px auto 48px auto;
 
-        img {
-            height: 25vw;
-            margin: 0 0.5rem 0 1rem;
-        }
-    }
-
-    .sm-error-content {
+    .card-header {
         text-align: center;
-        font-size: 120%;
+        padding: 24px 48px 0;
 
-        h2 {
-            margin-top: 0;
-            margin-bottom: 0.5rem;
+        p {
+            opacity: 0.6;
         }
+    }
+
+    .card-body {
+        padding: 0 48px;
+    }
+
+    .card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 48px 24px 48px;
+    }
+
+    .btn {
+        background-color: var(--base-color-dark);
     }
 }
 
-/* SM Dialog */
-.sm-dialog-outer {
-    position: fixed;
-    display: flex;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    right: 0;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 1rem;
+.btn {
+    cursor: pointer;
+    position: relative;
+    font-family: var(--header-font-family);
+    font-weight: 800;
+    padding: 16px 32px 16px 32px;
+    border: 0;
+    background-color: var(--base-color-light);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    color: var(--link-color);
+
+    &:hover {
+        filter: brightness(85%);
+    }
 }
 
-.sm-dialog-outer:last-of-type {
-    background-color: rgba(0, 0, 0, 0.4);
-    backdrop-filter: blur(2px);
-    -webkit-backdrop-filter: blur(2px);
-}
+// Who knows why ion-icon randomally sets this to hidden.....
+// ion-icon {
+//     visibility: visible;
+// }
+
+// #app {
+//     display: flex;
+//     flex-direction: column;
+//     min-height: 100vh;
+// }
+
+// a,
+// a:visited {
+//     color: $primary-color;
+//     text-decoration: none;
+//     transition: color 0.1s, underline 0.1s;
+
+//     &:hover {
+//         color: $primary-color-dark;
+//         text-decoration: underline;
+//     }
+// }
+
+// h1 {
+//     text-align: left;
+//     font-weight: 800;
+// }
+
+// p {
+//     line-height: 1.5rem;
+//     margin-top: 0;
+// }
+
+// code {
+//     display: block;
+//     font-size: 0.8rem;
+//     background-color: #eee;
+//     padding: 1rem;
+//     border: 1px solid #ddd;
+//     white-space: pre-wrap;
+//     overflow-x: auto;
+//     max-height: 30rem;
+//     margin-bottom: 1rem;
+// }
+
+// /* Page Errors */
+// .sm-page-error {
+//     display: flex;
+//     flex-direction: column;
+
+//     .sm-error-number {
+//         display: flex;
+//         justify-content: center;
+//         align-items: center;
+//         font-size: 30vw;
+//         font-weight: 600;
+//         color: #295b7e;
+
+//         img {
+//             height: 25vw;
+//             margin: 0 0.5rem 0 1rem;
+//         }
+//     }
+
+//     .sm-error-content {
+//         text-align: center;
+//         font-size: 120%;
+
+//         h2 {
+//             margin-top: 0;
+//             margin-bottom: 0.5rem;
+//         }
+//     }
+// }
+
+// /* SM Dialog */
+// .sm-dialog-outer {
+//     position: fixed;
+//     display: flex;
+//     top: 0;
+//     left: 0;
+//     bottom: 0;
+//     right: 0;
+//     flex-direction: column;
+//     align-items: center;
+//     justify-content: center;
+//     z-index: 1000;
+//     padding: 1rem;
+// }
+
+// .sm-dialog-outer:last-of-type {
+//     background-color: rgba(0, 0, 0, 0.4);
+//     backdrop-filter: blur(2px);
+//     -webkit-backdrop-filter: blur(2px);
+// }

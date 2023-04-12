@@ -1,25 +1,55 @@
-@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;1000&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&family=Nunito:wght@400;700;800;1000&display=swap");
 
 :root {
-    --base-colour: #efefef;
-    --base-colour-text: #333;
+    --base-color: #eee;
+    --base-color-text: rgba(0, 0, 0, 0.8);
+    --base-color-light: #fff;
+    --base-color-dark: #ddd;
+    --base-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+
+    --default-font-size: 18px;
+    --default-font-family: "Nunito", "Nunito override", "Arial", "Helvetica",
+        sans-serif;
+
+    --link-color: var(--primary-color);
+
+    --primary-color-lighter: #cce8fb;
+    --primary-color-light: #67bbf4;
+    --primary-color: #35a5f1;
+    --primary-color-dark: #0e80ce;
+    --primary-color-darker: #095589;
+
+    --header-font-family: "Montserrat", "Montserrat override", "Arial",
+        "Helvetica", sans-serif;
+
+    --navbar-color: var(--base-color-light);
+
+    --card-color: var(--base-color-light);
+
+    --footer-color: #666;
+    --footer-color-text: #ccc;
 }
 
 @media (prefers-color-scheme: dark) {
     :root {
-        --base-colour: #333;
-        --base-colour-text: #efefef;
+        --base-color: #222;
+        --base-color-text: rgba(255, 255, 255, 0.9);
+        --base-color-light: #333;
+        --base-color-dark: #444;
+
+        --footer-color: #333;
+        --footer-color-text: #999;
+
+        --primary-color-lighter: #095589;
+        --primary-color-light: #0e80ce;
+        --primary-color: #35a5f1;
+        --primary-color-dark: #67bbf4;
+        --primary-color-darker: #cce8fb;
     }
 }
 
-$default-font-family: "Nunito", "Nunito override", "Arial", "Helvetica",
-    sans-serif;
-$default-font-size: 18px;
-
-$base-colour: #efefef;
-
 /* interim */
-$font-size: $default-font-size;
+$font-size: var(--default-font-size);
 
 /* old variables */
 
