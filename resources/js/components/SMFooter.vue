@@ -42,6 +42,13 @@
                 class="align-items-center justify-content-center align-items-center">
                 <router-link to="/" class="sm-logo-link">
                     <img
+                        class="dark:d-none"
+                        src="/assets/logo.png"
+                        width="270"
+                        height="40"
+                        alt="STEMMechanics" />
+                    <img
+                        class="light:d-none"
                         src="/assets/logo-dark.png"
                         width="270"
                         height="40"
@@ -125,8 +132,8 @@
     .sm-social {
         font-size: 200%;
         max-width: 100%;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid var(--footer-color-border);
+        border-bottom: 1px solid var(--footer-color-border);
         padding: 8px 0 !important;
         margin-bottom: 24px;
 
