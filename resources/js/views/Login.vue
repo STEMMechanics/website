@@ -1,35 +1,33 @@
 <template>
-    <SMPage no-breadcrumbs background="/img/background.jpg">
-        <SMFormCard class="mt-5">
-            <h1>Log in</h1>
+    <div class="container">
+        <section class="card max-w-sm">
+            <div class="card-header">
+                <h2>Log in</h2>
+                <p>Enter your website login details to view your account.</p>
+            </div>
             <SMForm v-model="form" @submit="handleSubmit">
-                <SMInput control="username">
-                    <router-link to="/forgot-username"
-                        >Forgot username?</router-link
-                    >
-                </SMInput>
-                <SMInput control="password" type="password">
-                    <router-link to="/forgot-password"
-                        >Forgot password?</router-link
-                    >
-                </SMInput>
-                <SMFormFooter>
-                    <template #left>
-                        <div class="small">
-                            <span class="pr-1">Need an account?</span
-                            ><router-link to="/register">Register</router-link>
-                        </div>
-                    </template>
-                    <template #right>
-                        <SMButton
-                            type="submit"
-                            label="Log in"
-                            icon="arrow-forward-outline" />
-                    </template>
-                </SMFormFooter>
+                <div class="card-body">
+                    <SMInput control="username">
+                        <router-link to="/forgot-username"
+                            >Forgot username?</router-link
+                        >
+                    </SMInput>
+                    <SMInput control="password" type="password">
+                        <router-link to="/forgot-password"
+                            >Forgot password?</router-link
+                        >
+                    </SMInput>
+                </div>
+                <div class="card-footer">
+                    <small>
+                        <span class="pr-1">Need an account?</span
+                        ><router-link to="/register">Register</router-link>
+                    </small>
+                    <input type="submit" class="btn" title="Log in" />
+                </div>
             </SMForm>
-        </SMFormCard>
-    </SMPage>
+        </section>
+    </div>
 </template>
 
 <script setup lang="ts">
