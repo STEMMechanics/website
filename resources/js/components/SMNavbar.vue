@@ -7,8 +7,14 @@
             <div id="sm-nav-head">
                 <router-link :to="{ name: 'home' }" id="sm-logo-link">
                     <img
-                        class="sm-nav-logo"
+                        class="sm-nav-logo dark:d-none"
                         src="/assets/logo.png"
+                        width="270"
+                        height="40"
+                        alt="STEMMechanics" />
+                    <img
+                        class="sm-nav-logo light:d-none"
+                        src="/assets/logo-dark.png"
                         width="270"
                         height="40"
                         alt="STEMMechanics" />
