@@ -418,11 +418,12 @@ const handleMediaSelect = async (event) => {
         box-sizing: border-box;
         display: block;
         width: 100%;
-        border: 1px solid $border-color;
+        border: 1px solid var(--base-color-darker);
         border-radius: 12px;
-        padding: map-get($spacer, 2) map-get($spacer, 3);
-        color: $font-color;
-        margin-bottom: map-get($spacer, 1);
+        padding: 14px 18px;
+        color: var(--base-color-text);
+        margin-bottom: 8px;
+        background-color: var(--base-color-light);
 
         -webkit-appearance: none;
         -moz-appearance: none;
