@@ -137,6 +137,8 @@ const handleClickNavBar = () => {
     box-shadow: var(--base-shadow);
 
     &.sm-show-nav {
+        background-color: var(--navbar-color-dropdown);
+
         #sm-nav {
             display: flex;
         }
@@ -155,6 +157,14 @@ const handleClickNavBar = () => {
 
         #sm-logo-link {
             padding-left: 23px;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+
+            &:hover {
+                filter: none;
+            }
 
             img {
                 display: block;
