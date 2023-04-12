@@ -5,7 +5,6 @@
     --base-color-text: rgba(0, 0, 0, 0.8);
     --base-color-light: #fff;
     --base-color-dark: #ddd;
-    --base-color-darker: #ccc;
     --base-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 
     --default-font-size: 18px;
@@ -23,12 +22,14 @@
     --header-font-family: "Montserrat", "Montserrat override", "Arial",
         "Helvetica", sans-serif;
 
-    --navbar-color: var(--base-color-light);
+    --navbar-color: rgba(255, 255, 255, 0.1);
+    --navbar-color-dropdown: var(--base-color-light);
 
     --card-color: var(--base-color-light);
 
-    --footer-color: #666;
-    --footer-color-text: #ccc;
+    --footer-color: var(--base-color);
+    --footer-color-text: #888;
+    --footer-color-border: rgba(0, 0, 0, 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -39,8 +40,8 @@
         --base-color-dark: #444;
         --base-color-darker: #555;
 
-        --footer-color: #333;
         --footer-color-text: #999;
+        --footer-color-border: rgba(255, 255, 255, 0.1);
 
         --primary-color-lighter: #095589;
         --primary-color-light: #0e80ce;
