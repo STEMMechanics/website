@@ -133,6 +133,8 @@ const handleClickNavBar = () => {
     z-index: 100;
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
+    background-color: var(--navbar-color);
+    box-shadow: var(--base-shadow);
 
     &.sm-show-nav {
         #sm-nav {
@@ -161,6 +163,10 @@ const handleClickNavBar = () => {
 
         #sm-nav-toggle {
             padding: 23px;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
 
             &:hover {
                 background-color: hsla(0, 0%, 50%, 0.1);
@@ -187,10 +193,11 @@ const handleClickNavBar = () => {
             padding: 0;
 
             li a {
-                color: var(--base-colour-text);
+                color: var(--base-color-text);
                 display: block;
                 padding: 12px 24px;
                 margin: 0;
+                text-decoration: none;
 
                 &:hover {
                     text-decoration: none;
