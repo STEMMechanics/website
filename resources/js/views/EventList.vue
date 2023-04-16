@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import SMInput from "../components/SMInput.vue";
+import SMInput from "../depreciated/SMInput-old.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMPagination from "../components/SMPagination.vue";
 import SMPanel from "../components/SMPanel.vue";

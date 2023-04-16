@@ -5,6 +5,7 @@
     --base-color-text: rgba(0, 0, 0, 0.8);
     --base-color-light: #fff;
     --base-color-dark: #ddd;
+    --base-color-darker: #999;
     --base-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 
     --default-font-size: 18px;
@@ -19,10 +20,16 @@
     --primary-color-dark: #0e80ce;
     --primary-color-darker: #095589;
 
+    --danger-color-lighter: #f3c8c8;
+    --danger-color-light: #db5c5a;
+    --danger-color: #c82e2b;
+    --danger-color-dark: #952220;
+    --danger-color-darker: #641715;
+
     --header-font-family: "Montserrat", "Montserrat override", "Arial",
         "Helvetica", sans-serif;
 
-    --navbar-color: rgba(255, 255, 255, 0.1);
+    --navbar-color: var(--base-color-light);
     --navbar-color-dropdown: var(--base-color-light);
 
     --card-color: var(--base-color-light);
@@ -38,7 +45,7 @@
         --base-color-text: rgba(255, 255, 255, 0.9);
         --base-color-light: #333;
         --base-color-dark: #444;
-        --base-color-darker: #555;
+        --base-color-darker: #999;
 
         --footer-color-text: #999;
         --footer-color-border: rgba(255, 255, 255, 0.1);
@@ -48,6 +55,12 @@
         --primary-color: #35a5f1;
         --primary-color-dark: #67bbf4;
         --primary-color-darker: #cce8fb;
+
+        --danger-color-lighter: #f3c8c8;
+        --danger-color-light: #db5c5a;
+        --danger-color: #db5c5a;
+        --danger-color-dark: #952220;
+        --danger-color-darker: #641715;
     }
 }
 

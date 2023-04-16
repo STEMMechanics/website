@@ -4,9 +4,7 @@
     </header>
     <main>
         <router-view v-slot="{ Component }">
-            <transition>
-                <component :is="Component" />
-            </transition>
+            <component :is="Component" />
         </router-view>
     </main>
     <footer>
@@ -26,6 +24,7 @@ import SMDialogList from "../components/SMDialog";
 <style lang="scss">
 main {
     display: flex;
+    flex-direction: column;
     flex: 1;
 }
 

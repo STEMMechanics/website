@@ -70,7 +70,7 @@ import SMHeading from "../../components/SMHeading.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
-import SMInput from "../../components/SMInput.vue";
+import SMInput from "../../depreciated/SMInput-old.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";

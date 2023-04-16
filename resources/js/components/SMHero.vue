@@ -1,18 +1,22 @@
 <template>
-    <section class="sm-hero" v-if="loaded">
+    <section class="sm-hero">
         <div class="sm-hero-background" :style="heroStyles"></div>
-        <div class="sm-hero-content">
-            <h1>{{ heroTitle }}</h1>
-            <p>{{ heroExcerpt }}</p>
-            <div class="sm-hero-buttons">
-                <SMButton
-                    :to="{ name: 'post-view', params: { slug: heroSlug } }"
-                    label="Read More" />
+        <SMContainer>
+            <div class="sm-hero-content">
+                <h1>{{ heroTitle }}</h1>
+                <p>{{ heroExcerpt }}</p>
+                <div class="sm-hero-buttons">
+                    <SMButton
+                        v-if="loaded"
+                        :to="{ name: 'article', params: { slug: heroSlug } }"
+                        label="Read More" />
+                </div>
             </div>
-        </div>
+        </SMContainer>
         <div class="sm-hero-caption">
             <router-link
-                :to="{ name: 'post-view', params: { slug: heroSlug } }"
+                v-if="loaded"
+                :to="{ name: 'article', params: { slug: heroSlug } }"
                 >{{ heroImageTitle }}</router-link
             >
         </div>
@@ -28,11 +32,11 @@ import { excerpt } from "../helpers/string";
 import SMButton from "./SMButton.vue";
 
 const loaded = ref(false);
-let heroTitle = "";
-let heroExcerpt = "";
-let heroImageUrl = "";
+let heroTitle = ref("");
+let heroExcerpt = ref("");
+let heroImageUrl = ref("");
 let heroImageTitle = "";
-let heroSlug = "";
+let heroSlug = ref("");
 const translateY = ref(0);
 const heroStyles = ref({
     backgroundImage: "none",
@@ -71,15 +75,18 @@ const handleLoad = async () => {
             const randomIndex = Math.floor(
                 Math.random() * postsData.posts.length
             );
-            heroTitle = postsData.posts[randomIndex].title;
-            heroExcerpt = excerpt(postsData.posts[randomIndex].content, 200);
-            heroImageUrl = mediaGetVariantUrl(
+            heroTitle.value = postsData.posts[randomIndex].title;
+            heroExcerpt.value = excerpt(
+                postsData.posts[randomIndex].content,
+                200
+            );
+            heroImageUrl.value = mediaGetVariantUrl(
                 postsData.posts[randomIndex].hero
             );
             heroImageTitle = postsData.posts[randomIndex].hero.title;
-            heroSlug = postsData.posts[randomIndex].slug;
+            heroSlug.value = postsData.posts[randomIndex].slug;
 
-            heroStyles.value.backgroundImage = `linear-gradient(rgba(0, 0, 0, 0.5),rgba(0, 0, 0, 0.5)),url('${heroImageUrl}')`;
+            heroStyles.value.backgroundImage = `linear-gradient(to right, rgba(0, 0, 0, 0.7),rgba(0, 0, 0, 0.2)),url('${heroImageUrl.value}')`;
 
             loaded.value = true;
         }
@@ -109,9 +116,8 @@ handleLoad();
 
     .sm-hero-content {
         position: relative;
-        padding: 150px 32px 120px;
-        max-width: 1200px;
-        margin: 0 auto;
+        margin: 150px 32px 120px;
+        max-width: 640px;
 
         h1 {
             font-size: 300%;
@@ -134,18 +140,19 @@ handleLoad();
         position: absolute;
         bottom: 14px;
         right: 30px;
-        color: #999;
+        color: #ccc;
         font-size: 80%;
-        padding: 2px 10px;
+        padding: 6px 12px;
         background-color: rgba(0, 0, 0, 0.5);
 
         a {
             color: inherit;
             transition: color 0.1s ease-in-out;
+            text-decoration: none;
 
             &:hover {
                 text-decoration: none;
-                color: #ccc;
+                color: #eee;
             }
         }
     }

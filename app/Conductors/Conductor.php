@@ -435,9 +435,10 @@ class Conductor
      *
      * @param integer $page  The current page to return.
      * @param integer $limit The limit of items to include or use default.
+     * @param integer $after Start the page count after this count of rows.
      * @return void
      */
-    final public function paginate(int $page = 1, int $limit = -1)
+    final public function paginate(int $page = 1, int $limit = -1, int $after = 0)
     {
         // Limit
         if ($limit < 1) {
@@ -451,7 +452,13 @@ class Conductor
         if ($page < 1) {
             $page = 1;
         }
-        $this->query->offset(($page - 1) * $limit);
+
+        // After
+        if ($after < 0) {
+            $after = 0;
+        }
+
+        $this->query->offset((($page - 1) * $limit) + $after);
     }
 
     /**

@@ -1,5 +1,5 @@
 <template>
-    <form @submit.prevent="handleSubmit">
+    <form class="SMForm" @submit.prevent="handleSubmit">
         <SMLoader :loading="props.modelValue._loading"></SMLoader>
         <SMMessage
             v-if="props.modelValue._message.length > 0"
@@ -37,3 +37,9 @@ const handleSubmit = async function () {
 
 provide("form", props.modelValue);
 </script>
+
+<style lang="scss">
+.SMForm {
+    width: 100%;
+}
+</style>

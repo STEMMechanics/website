@@ -50,6 +50,18 @@ export interface MediaCollection {
     total: number;
 }
 
+export interface Article {
+    id: string;
+    title: string;
+    slug: string;
+    user_id: string;
+    user: User;
+    content: string;
+    publish_at: string;
+    hero: Media;
+    attachments: Array<Media>;
+}
+
 export interface Post {
     id: string;
     title: string;

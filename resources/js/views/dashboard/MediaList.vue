@@ -73,7 +73,7 @@ import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
 import { useUserStore } from "../../store/UserStore";
 import { useToastStore } from "../../store/ToastStore";
-import SMInput from "../../components/SMInput.vue";
+import SMInput from "../../depreciated/SMInput-old.vue";
 
 const router = useRouter();
 const search = ref("");

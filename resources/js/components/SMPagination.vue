@@ -1,14 +1,30 @@
 <template>
-    <div class="sm-pagination">
-        <ion-icon
-            name="chevron-back-outline"
-            :class="[{ disabled: computedDisablePrevButton }]"
-            @click="handleClickPrev" />
-        <span class="sm-pagination-info">{{ computedPaginationInfo }}</span>
-        <ion-icon
-            name="chevron-forward-outline"
-            :class="[{ disabled: computedDisableNextButton }]"
-            @click="handleClickNext" />
+    <div class="pagination">
+        <div
+            v-if="props.modelValue > 1"
+            :class="[
+                'item',
+                'previous',
+                { disabled: computedDisablePrevButton },
+            ]"
+            @click="handleClickPrev">
+            <ion-icon name="chevron-back-outline" />
+            Previous
+        </div>
+        <div
+            :class="['item', { active: page == props.modelValue }]"
+            v-for="(page, idx) of computedPages"
+            :key="idx"
+            @click="handleClickPage(page)">
+            {{ page }}
+        </div>
+        <div
+            v-if="(props.modelValue + 3) * props.perPage <= props.total"
+            :class="['item', 'next', { disabled: computedDisableNextButton }]"
+            @click="handleClickNext">
+            Next
+            <ion-icon name="chevron-forward-outline" />
+        </div>
     </div>
 </template>
 
@@ -35,15 +51,28 @@ const emits = defineEmits(["update:modelValue"]);
 /**
  * Returns the pagination info
  */
-const computedPaginationInfo = computed(() => {
-    if (props.total == 0) {
-        return "0 - 0 of 0";
+const computedPages = computed(() => {
+    let pages = [];
+
+    if (props.modelValue - 2 > 0) {
+        pages.push(props.modelValue - 2);
     }
 
-    const start = (props.modelValue - 1) * props.perPage + 1;
-    const end = Math.min(start + props.perPage - 1, props.total);
+    if (props.modelValue - 1 > 0) {
+        pages.push(props.modelValue - 1);
+    }
 
-    return `${start} - ${end} of ${props.total}`;
+    pages.push(props.modelValue);
+
+    if (props.perPage * (props.modelValue + 1) <= props.total) {
+        pages.push(props.modelValue + 1);
+    }
+
+    if (props.perPage * (props.modelValue + 2) <= props.total) {
+        pages.push(props.modelValue + 2);
+    }
+
+    return pages;
 });
 
 /**
@@ -69,67 +98,76 @@ const computedDisableNextButton = computed(() => {
 
 /**
  * Handle click on previous button
- *
- * @param {MouseEvent} $event The mouse event.
  */
-const handleClickPrev = ($event: MouseEvent): void => {
-    if (
-        $event.target &&
-        ($event.target as HTMLElement).classList.contains("disabled") ==
-            false &&
-        props.modelValue > 1
-    ) {
-        emits("update:modelValue", props.modelValue - 1);
-    }
+const handleClickPrev = (): void => {
+    emits("update:modelValue", props.modelValue - 1);
 };
 
 /**
  * Handle click on next button
- *
- * @param {MouseEvent} $event The mouse event.
  */
-const handleClickNext = ($event: MouseEvent): void => {
-    if (
-        $event.target &&
-        ($event.target as HTMLElement).classList.contains("disabled") ==
-            false &&
-        props.modelValue < computedTotalPages.value
-    ) {
-        emits("update:modelValue", props.modelValue + 1);
-    }
+const handleClickNext = (): void => {
+    emits("update:modelValue", props.modelValue + 1);
+};
+
+/**
+ * Handle click on page button
+ *
+ * @param {number} page The page number to display.
+ */
+const handleClickPage = (page: number): void => {
+    emits("update:modelValue", page);
 };
 </script>
 
 <style lang="scss">
-.sm-pagination {
+.pagination {
     display: flex;
     justify-content: center;
     align-items: center;
+    font-family: var(--header-font-family);
+    font-size: 90%;
+    font-weight: 700;
+    margin-bottom: 24px;
 
-    ion-icon {
-        border: 1px solid $secondary-color;
-        border-radius: 4px;
-        padding: 0.25rem;
-
+    .item {
+        display: flex;
         cursor: pointer;
-        transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
-        color: $font-color;
+        background-color: var(--base-color-light);
+        padding: 12px 16px;
+        border-right: 1px solid rgba(0, 0, 0, 0.2);
+        border-left: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: var(--base-shadow);
 
-        &.disabled {
-            cursor: not-allowed;
-            color: $secondary-color;
+        &.active {
+            background-color: var(--primary-color);
         }
 
-        &:not(.disabled) {
-            &:hover {
-                background-color: $secondary-color;
-                color: #eee;
-            }
+        &:first-of-type {
+            border-left-width: 0;
+        }
+
+        &:last-of-type {
+            border-right-width: 0;
+        }
+
+        &.previous ion-icon {
+            padding-right: 12px;
+        }
+
+        &.next ion-icon {
+            padding-left: 12px;
+        }
+
+        &:hover {
+            filter: brightness(115%);
         }
     }
+}
 
-    .sm-pagination-info {
-        margin: 0 map-get($spacer, 3);
+@media (prefers-color-scheme: dark) {
+    .pagination .item.active {
+        background-color: var(--primary-color-light);
     }
 }
 </style>

@@ -10,13 +10,14 @@
 <script setup lang="ts">
 import { useSlots } from "vue";
 
-defineProps({
+const props = defineProps({
     full: {
         type: Boolean,
         default: false,
         required: false,
     },
 });
+
 const slots = useSlots();
 </script>
 
@@ -24,7 +25,7 @@ const slots = useSlots();
 .sm-container {
     display: flex;
     width: 100%;
-    align-items: center;
+    // align-items: center;
     flex-direction: column;
     padding: 0 16px 0 16px;
     margin: auto;

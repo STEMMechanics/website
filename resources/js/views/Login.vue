@@ -1,12 +1,14 @@
 <template>
-    <div class="container">
-        <section class="card max-w-sm">
-            <div class="card-header">
-                <h2>Log in</h2>
-                <p>Enter your website login details to view your account.</p>
-            </div>
-            <SMForm v-model="form" @submit="handleSubmit">
-                <div class="card-body">
+    <SMContainer>
+        <SMForm v-model="form" @submit="handleSubmit">
+            <SMFormCard>
+                <template #header>
+                    <h2>Log in</h2>
+                    <p>
+                        Enter your website login details to view your account.
+                    </p>
+                </template>
+                <template #body>
                     <SMInput control="username">
                         <router-link to="/forgot-username"
                             >Forgot username?</router-link
@@ -17,26 +19,26 @@
                             >Forgot password?</router-link
                         >
                     </SMInput>
-                </div>
-                <div class="card-footer">
+                </template>
+                <template #footer>
                     <small>
                         <span class="pr-1">Need an account?</span
                         ><router-link to="/register">Register</router-link>
                     </small>
-                    <input type="submit" class="btn" title="Log in" />
-                </div>
-            </SMForm>
-        </section>
-    </div>
+                    <SMButton :form="form" type="submit" label="Log in" />
+                </template>
+            </SMFormCard>
+        </SMForm>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import SMButton from "../components/SMButton.vue";
-import SMFormCard from "../components/SMFormCard.vue";
+import SMContainer from "../components/SMContainer.vue";
 import SMForm from "../components/SMForm.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
+import SMFormCard from "../components/SMFormCard.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { LoginResponse } from "../helpers/api.types";
@@ -44,8 +46,9 @@ import { Form, FormControl } from "../helpers/form";
 import { And, Min, Required } from "../helpers/validate";
 import { useUserStore } from "../store/UserStore";
 
-const router = useRouter();
 const userStore = useUserStore();
+
+const router = useRouter();
 let form = reactive(
     Form({
         username: FormControl("", And([Required(), Min(4)])),

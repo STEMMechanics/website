@@ -1,82 +1,75 @@
 <template>
-    <SMPage>
-        <template #container>
-            <SMFormCard full class="mt-5" :narrow="formDone">
-                <template v-if="!formDone">
-                    <h1>Register</h1>
-                    <SMForm v-model="form" @submit="handleSubmit">
-                        <SMRow>
-                            <SMColumn>
-                                <SMInput control="username" />
-                            </SMColumn>
-                            <SMColumn>
-                                <SMInput
-                                    control="password"
-                                    type="password"></SMInput>
-                            </SMColumn>
-                        </SMRow>
-                        <SMRow>
-                            <SMColumn>
-                                <SMInput control="first_name" />
-                            </SMColumn>
-                            <SMColumn>
-                                <SMInput control="last_name" />
-                            </SMColumn>
-                        </SMRow>
-                        <SMRow>
-                            <SMColumn>
-                                <SMInput control="email" />
-                            </SMColumn>
-                            <SMColumn>
-                                <SMInput control="phone">
-                                    This field is optional.
-                                </SMInput>
-                            </SMColumn>
-                        </SMRow>
-                        <SMFormFooter>
-                            <template #left>
-                                <div class="small">
-                                    <span class="pr-1"
-                                        >Already have an account?</span
-                                    ><router-link to="/login"
-                                        >Log in</router-link
-                                    >
-                                </div>
-                            </template>
-                            <template #right>
-                                <SMButton
-                                    type="submit"
-                                    label="Register"
-                                    icon="arrow-forward-outline" />
-                            </template>
-                        </SMFormFooter>
-                    </SMForm>
+    <SMContainer>
+        <SMForm v-model="form" @submit="handleSubmit">
+            <SMCard class="form-wide">
+                <template #header>
+                    <h2>Register</h2>
                 </template>
-                <template v-else>
-                    <h1>Email Sent!</h1>
-                    <p class="text-center">
-                        An email has been sent to you to confirm your details
-                        and to finish registering your account.
-                    </p>
-                    <SMFormFooter>
-                        <template #right>
-                            <SMButton :to="{ name: 'home' }" label="Home" />
-                        </template>
-                    </SMFormFooter>
+                <template #body>
+                    <SMRow>
+                        <SMColumn>
+                            <SMInput control="username" />
+                        </SMColumn>
+                        <SMColumn>
+                            <SMInput
+                                control="password"
+                                type="password"></SMInput>
+                        </SMColumn>
+                    </SMRow>
+                    <SMRow>
+                        <SMColumn>
+                            <SMInput control="first_name" />
+                        </SMColumn>
+                        <SMColumn>
+                            <SMInput control="last_name" />
+                        </SMColumn>
+                    </SMRow>
+                    <SMRow>
+                        <SMColumn>
+                            <SMInput control="email" />
+                        </SMColumn>
+                        <SMColumn>
+                            <SMInput control="phone">
+                                This field is optional.
+                            </SMInput>
+                        </SMColumn>
+                    </SMRow>
                 </template>
-            </SMFormCard>
+                <template #footer>
+                    <div class="small">
+                        <span class="pr-1">Already have an account?</span
+                        ><router-link to="/login">Log in</router-link>
+                    </div>
+                    <SMButton type="submit" label="Register" />
+                </template>
+            </SMCard>
+        </SMForm>
+        <!-- </template>
+        <template v-else>
+            <h1>Email Sent!</h1>
+            <p class="text-center">
+                An email has been sent to you to confirm your details and to
+                finish registering your account.
+            </p>
+            <SMFormFooter>
+                <template #right>
+                    <SMButton :to="{ name: 'home' }" label="Home" />
+                </template>
+            </SMFormFooter>
         </template>
-    </SMPage>
+    </SMCard> -->
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
+import SMCard from "../components/SMCard.vue";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
-import SMInput from "../components/SMInput.vue";
+import SMInput from "../depreciated/SMInput-old.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import {

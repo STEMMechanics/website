@@ -63,7 +63,7 @@ import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMHeading from "../../components/SMHeading.vue";
-import SMInput from "../../components/SMInput.vue";
+import SMInput from "../../depreciated/SMInput-old.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";

@@ -54,8 +54,12 @@ const defaultFormObject: FormObject = {
 
         return valid;
     },
-    loading: function (state = true) {
-        this._loading = state;
+    loading: function (state = undefined) {
+        if (state !== undefined) {
+            this._loading = state;
+        }
+
+        return this._loading;
     },
     message: function (message = "", type = "", icon = "") {
         this._message = message;

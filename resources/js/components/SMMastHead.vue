@@ -20,6 +20,8 @@
 
 <script setup lang="ts">
 import { useRoute } from "vue-router";
+import SMButton from "./SMButton.vue";
+import SMInput from "./SMInput.vue";
 
 defineProps({
     title: {
@@ -54,6 +56,7 @@ const tabs = () => {
 .masthead {
     background-color: var(--primary-color);
     width: 100%;
+    margin-bottom: 32px;
 
     .main {
         width: 100%;

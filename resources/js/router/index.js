@@ -16,6 +16,25 @@ export const routes = [
         component: () => import("@/views/Home.vue"),
     },
     {
+        path: "/blog",
+        name: "blog",
+        meta: {
+            title: "Blog",
+        },
+        component: () => import("@/views/Blog.vue"),
+    },
+    {
+        path: "/article",
+        redirect: "/blog",
+        children: [
+            {
+                path: ":slug",
+                name: "article",
+                component: () => import("@/views/Article.vue"),
+            },
+        ],
+    },
+    {
         path: "/verify-email",
         name: "verify-email",
         meta: {
@@ -129,24 +148,6 @@ export const routes = [
             title: "Register",
         },
         component: () => import("@/views/Register.vue"),
-    },
-    {
-        path: "/news",
-        children: [
-            {
-                path: "",
-                name: "post-list",
-                meta: {
-                    title: "News",
-                },
-                component: () => import("@/views/PostList.vue"),
-            },
-            {
-                path: ":slug",
-                name: "post-view",
-                component: () => import("@/views/PostView.vue"),
-            },
-        ],
     },
     {
         path: "/dashboard",
@@ -475,7 +476,8 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    // empty
+    const routeName = `page-${to.name}`;
+    document.body.dataset.routeName = routeName;
 });
 
 export default router;

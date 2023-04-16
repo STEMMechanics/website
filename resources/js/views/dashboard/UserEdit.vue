@@ -38,7 +38,7 @@ import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
 import SMHeading from "../../components/SMHeading.vue";
-import SMInput from "../../components/SMInput.vue";
+import SMInput from "../../depreciated/SMInput-old.vue";
 import { api } from "../../helpers/api";
 import { UserResponse } from "../../helpers/api.types";
 import { Form, FormControl } from "../../helpers/form";

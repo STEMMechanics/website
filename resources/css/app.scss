@@ -36,11 +36,16 @@ h4,
 h5,
 h6 {
     font-family: var(--header-font-family);
+    font-weight: 800;
+    margin-bottom: 0;
+}
+
+h1 {
+    font-size: 42px;
 }
 
 h2 {
     font-size: 36px;
-    margin-bottom: 0;
 }
 
 a,
@@ -68,37 +73,6 @@ small,
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 16px;
-}
-
-.card {
-    background-color: var(--card-color);
-    border-radius: 10px;
-    box-shadow: 0 11px 10px -10px rgba(0, 0, 0, 0.2);
-    margin: 48px auto 48px auto;
-
-    .card-header {
-        text-align: center;
-        padding: 24px 48px 0;
-
-        p {
-            opacity: 0.6;
-        }
-    }
-
-    .card-body {
-        padding: 0 48px;
-    }
-
-    .card-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 48px 24px 48px;
-    }
-
-    .btn {
-        background-color: var(--base-color-dark);
-    }
 }
 
 .btn {

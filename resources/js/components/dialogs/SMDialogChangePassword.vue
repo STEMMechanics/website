@@ -32,7 +32,7 @@ import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
 import SMForm from "../SMForm.vue";
 import SMFormFooter from "../SMFormFooter.vue";
-import SMInput from "../SMInput.vue";
+import SMInput from "../../depreciated/SMInput-old.vue";
 
 const form: FormObject = reactive(
     Form({
