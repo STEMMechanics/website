@@ -62,9 +62,7 @@
             <p>
                 We do not have a physical address as our workshops are delivered
                 across Queensland. Visit the
-                <router-link :to="{ name: 'event-list' }"
-                    >workshops</router-link
-                >
+                <router-link :to="{ name: 'workshops' }">workshops</router-link>
                 page for each specific location.
             </p>
             <p>Official mail can be sent to the following postal address:</p>

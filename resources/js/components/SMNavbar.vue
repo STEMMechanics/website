@@ -24,7 +24,7 @@
                         <SMButton
                             type="primary"
                             size="medium"
-                            :to="{ name: 'event-list' }"
+                            :to="{ name: 'workshops' }"
                             label="Find Workshops" />
                         <label
                             id="sm-nav-toggle"
@@ -66,7 +66,7 @@ const menuItems = [
     {
         name: "workshops",
         label: "Workshops",
-        to: { name: "event-list" },
+        to: { name: "workshops" },
     },
     {
         name: "blog",

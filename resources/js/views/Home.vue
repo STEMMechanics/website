@@ -30,7 +30,7 @@
                     can use throughout their lives.
                 </p>
                 <SMButton
-                    :to="{ name: 'event-list' }"
+                    :to="{ name: 'workshops' }"
                     label="Explore Workshops" />
             </SMColumn>
             <SMColumn
