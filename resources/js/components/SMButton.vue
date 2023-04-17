@@ -32,7 +32,9 @@
                 {{ label }}
                 <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
             </span>
-            <span v-else-if="icon.length > 0" class="button-label">
+            <span
+                v-else-if="icon.length > 0"
+                class="button-label button-label-icon">
                 <ion-icon :icon="icon" />
             </span>
             <span v-else class="button-label">
@@ -197,6 +199,10 @@ const handleClickItem = (item: string) => {
             width: 28px;
             height: 28px;
             margin: -8px 0;
+        }
+
+        &.button-label-icon {
+            margin: 0 -32px;
         }
     }
 
