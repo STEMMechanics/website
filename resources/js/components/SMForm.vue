@@ -1,6 +1,5 @@
 <template>
     <form class="SMForm" @submit.prevent="handleSubmit">
-        <SMLoader :loading="props.modelValue._loading"></SMLoader>
         <SMMessage
             v-if="props.modelValue._message.length > 0"
             :message="props.modelValue._message"
@@ -13,7 +12,6 @@
 
 <script setup lang="ts">
 import { provide } from "vue";
-import SMLoader from "../components/SMLoader.vue";
 import SMMessage from "./SMMessage.vue";
 
 const props = defineProps({
