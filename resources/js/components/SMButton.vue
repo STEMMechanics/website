@@ -76,7 +76,10 @@ const props = defineProps({
         type: [String, Object],
         default: null,
         required: false,
-        validator: (prop) => typeof prop === "object" || prop === null,
+        validator: (prop) =>
+            typeof prop === "object" ||
+            prop === null ||
+            typeof prop === "string",
     },
     disabled: {
         type: Boolean,
@@ -179,11 +182,13 @@ const handleClickItem = (item: string) => {
     &.medium {
         padding: 12px 24px;
         font-size: 80%;
+        font-weight: 600;
     }
 
     &.small {
         padding: 8px 16px;
         font-size: 75%;
+        font-weight: 600;
     }
 
     &.light {
