@@ -25,7 +25,6 @@ const slots = useSlots();
 .sm-container {
     display: flex;
     width: 100%;
-    // align-items: center;
     flex-direction: column;
     padding: 0 16px 0 16px;
     margin: auto;
