@@ -258,7 +258,10 @@ class Conductor
         $conductor->collection = $conductor->query->get();
 
         // Transform and Includes
-        $includes = array_intersect($limitFields, $conductor->includes);
+        $includes = $conductor->includes;
+        if(count($limitFields) > 0) {
+            $includes = array_intersect($limitFields, $conductor->includes);
+        }
 
         $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes, $limitFields) {
             $conductor->applyIncludes($model, $includes);
@@ -266,7 +269,7 @@ class Conductor
             if(count($limitFields) > 0) {
                 $model->setAppends(array_intersect($model->getAppends(), $limitFields));
             }
-            
+
             $model = $conductor->transformModel($model);
 
             return $model;
@@ -710,6 +713,8 @@ class Conductor
                 $result[$key] = $this->$transformFunction($value);
             }
         }
+        
+        $result = $this->transformFinal($result);
         return $result;
     }
 
@@ -730,6 +735,17 @@ class Conductor
         }
 
         return $result;
+    }
+
+    /**
+     * Final Transform of the model array
+     *
+     * @param array $data The model array to transform.
+     * @return array The transformed model.
+     */
+    public function transformFinal(array $data)
+    {
+        return $data;
     }
 
     /**
