@@ -3,6 +3,13 @@
         <SMContainer class="flex-column">
             <div class="main">
                 <h1 class="title">{{ title }}</h1>
+                <router-link
+                    class="back"
+                    v-if="props.backLink !== null"
+                    :to="props.backLink"
+                    ><ion-icon name="chevron-back-outline"></ion-icon>
+                    {{ props.backTitle }}</router-link
+                >
             </div>
             <div v-if="tabs().length > 0" class="tabs">
                 <router-link
@@ -20,13 +27,23 @@
 
 <script setup lang="ts">
 import { useRoute } from "vue-router";
-import SMButton from "./SMButton.vue";
-import SMInput from "./SMInput.vue";
 
-defineProps({
+const props = defineProps({
     title: {
         type: String,
         required: true,
+    },
+    backLink: {
+        type: Object,
+        default: () => {
+            return null;
+        },
+        required: false,
+    },
+    backTitle: {
+        type: String,
+        default: "Back",
+        required: false,
     },
 });
 
@@ -66,6 +83,24 @@ const tabs = () => {
             text-align: left;
             margin-top: 32px;
             margin-bottom: 32px;
+        }
+
+        .back,
+        .back:visited {
+            display: flex;
+            color: rgb(255, 255, 255, 0.75);
+            margin-top: -24px;
+            margin-bottom: 32px;
+            font-size: 80%;
+            text-decoration: none;
+
+            &:hover {
+                color: rgb(255, 255, 255, 1);
+            }
+
+            ion-icon {
+                margin-right: 4px;
+            }
         }
     }
 
