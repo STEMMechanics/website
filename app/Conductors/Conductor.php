@@ -240,7 +240,7 @@ class Conductor
         $total = $conductor->count();
 
         // Paginate
-        $conductor->paginate($request->input('page', 1), $request->input('limit', -1));
+        $conductor->paginate($request->input('page', 1), $request->input('limit', -1), $request->input('offset', 0));
 
         // Limit fields
         $limitFields = array_map(function ($field) {
@@ -478,10 +478,10 @@ class Conductor
      *
      * @param integer $page  The current page to return.
      * @param integer $limit The limit of items to include or use default.
-     * @param integer $after Start the page count after this count of rows.
+     * @param integer $offset Offset the page count after this count of rows.
      * @return void
      */
-    final public function paginate(int $page = 1, int $limit = -1, int $after = 0)
+    final public function paginate(int $page = 1, int $limit = -1, int $offset = 0)
     {
         // Limit
         if ($limit < 1) {
@@ -497,11 +497,11 @@ class Conductor
         }
 
         // After
-        if ($after < 0) {
-            $after = 0;
+        if ($offset < 0) {
+            $offset = 0;
         }
 
-        $this->query->offset((($page - 1) * $limit) + $after);
+        $this->query->offset((($page - 1) * $limit) + $offset);
     }
 
     /**
