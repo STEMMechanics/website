@@ -310,6 +310,34 @@ class Conductor
      */
     final public static function includeModel(Request $request, string $key, mixed $model)
     {
+        $fields = [];
+
+        if ($request !== null && $request->has('fields') === true) {
+            $requestFields = $request->input('fields');
+            if ($requestFields !== null) {
+                $requestFields = explode(',', $requestFields);
+                if(in_array($key, $requestFields) === false) {
+                    foreach($requestFields as $field) {
+                        if(strpos($field, $key . '.') === 0) {
+                            $fields[] = substr($field, strlen($key) + 1);
+                        }
+                    }
+                }
+            }
+        }
+
+        return static::model($fields, $model);
+    }
+
+    /**
+     * Run the conductor on a Model with the data stored in a Request.
+     *
+     * @param mixed    $fields The fields to show.
+     * @param Model|null $model   The model.
+     * @return array The processed and transformed model data.
+     */
+    final public static function model(mixed $fields, mixed $model)
+    {
         if ($model === null) {
             return null;
         }
@@ -317,36 +345,25 @@ class Conductor
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
 
-        $fields = $conductor->fields(new $conductor->class());
+        $modelFields = $conductor->fields(new $conductor->class());
 
         // Limit fields
-        $limitFields = $fields;
-        if ($request !== null && $request->has('fields') === true) {
-            $requestFields = $request->input('fields');
-            if ($requestFields !== null) {
-                $requestFields = explode(',', $requestFields);
-                if(in_array($key, $requestFields) === false) {
-                    $filterFields = [];
-                    
-                    foreach($requestFields as $field) {
-                        if(strpos($field, $key . '.') === 0) {
-                            $filterFields[] = substr($field, strlen($key) + 1);
-                        }
-                    }
-
-                    if(count($filterFields) > 0) {
-                        $limitFields = array_intersect($filterFields, $fields);
-                    }
+        $limitFields = $modelFields;
+        if($fields instanceof Request) {
+            if ($fields !== null && $fields->has('fields') === true) {
+                $requestFields = $fields->input('fields');
+                if ($requestFields !== null) {
+                    $limitFields = array_intersect(explode(',', $requestFields), $modelFields);
                 }
             }
+        } else if(is_array($fields) && count($fields) > 0) {
+            $limitFields = array_intersect($fields, $modelFields);
         }
-
-        $includes = array_intersect($limitFields, $conductor->includes);
 
         if (empty($limitFields) === false) {
             $modelAppends = $model->getAppends();
 
-            foreach(array_diff($fields, $limitFields) as $attribute) {
+            foreach(array_diff($modelFields, $limitFields) as $attribute) {
                 $key = array_search($attribute, $modelAppends);
                 if ($key !== false) {
                     unset($modelAppends[$key]);
@@ -358,10 +375,7 @@ class Conductor
         }
 
         // Includes
-        $includes = $conductor->includes;
-        if ($request !== null && $request->has('includes') === true) {
-            $includes = explode(',', $request->input('includes', ''));
-        }
+        $includes = array_intersect($limitFields, $conductor->includes);
         $conductor->applyIncludes($model, $includes);
 
         // Transform
