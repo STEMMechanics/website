@@ -22,6 +22,13 @@ class EventConductor extends Conductor
      */
     protected $sort = 'start_at';
 
+    /**
+     * The included fields
+     * 
+     * @var string[]
+     */
+    protected $includes = ['attachments'];
+
 
     /**
      * Run a scope query on the collection before anything else.
@@ -93,20 +100,26 @@ class EventConductor extends Conductor
     }
 
     /**
-     * Transform the model
-     *
-     * @param Model $model The model to transform.
-     * @return array The transformed model.
-     * @throws InvalidCastException Cannot cast item to model.
+     * Include Attachments Field.
+     * 
+     * @param Model $model Them model.
+     * @return mixed The model result.
      */
-    public function transform(Model $model)
+    public function includeAttachments(Model $model)
     {
-        $result = $model->toArray();
-        $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
-            return MediaConductor::model(request(), $attachment->media);
+        return $model->attachments()->get()->map(function ($attachment) {
+            return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
         });
-        $result['hero'] = MediaConductor::model(request(), Media::find($model['hero']));
+    }
 
-        return $result;
+    /**
+     * Transform the Hero field.
+     * 
+     * @param mixed $value The current value.
+     * @return array The new value.
+     */
+    public function transformHero(mixed $value)
+    {
+        return MediaConductor::includeModel(request(), 'hero', Media::find($value));
     }
 }

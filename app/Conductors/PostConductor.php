@@ -5,9 +5,13 @@ namespace App\Conductors;
 use App\Models\Media;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\InvalidCastException;
+use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use LogicException;
 
 class PostConductor extends Conductor
 {
@@ -23,6 +27,12 @@ class PostConductor extends Conductor
      */
     protected $sort = '-publish_at';
 
+    /**
+     * The included fields
+     * 
+     * @var string[]
+     */
+    protected $includes = ['attachments', 'user'];
 
     /**
      * Run a scope query on the collection before anything else.
@@ -93,22 +103,49 @@ class PostConductor extends Conductor
     }
 
     /**
-     * Transform the model
+     * Transform the final model data
      *
-     * @param Model $model The model to transform.
+     * @param Array $data The model data to transform.
      * @return array The transformed model.
-     * @throws InvalidCastException Cannot cast item to model.
      */
-    public function transform(Model $model)
+    public function transformFinal(array $data)
     {
-        $result = $model->toArray();
-        $result['attachments'] = $model->attachments()->get()->map(function ($attachment) {
-            return MediaConductor::model(request(), $attachment->media);
-        });
-        $result['hero'] = MediaConductor::model(request(), Media::find($model['hero']));
-        $result['user'] = UserConductor::model(request(), User::find($model['user_id']));
-        unset($result['user_id']);
+        unset($data['user_id']);
+        return $data;
+    }
 
-        return $result;
+    /**
+     * Include Attachments Field.
+     * 
+     * @param Model $model Them model.
+     * @return mixed The model result.
+     */
+    public function includeAttachments(Model $model)
+    {
+        return $model->attachments()->get()->map(function ($attachment) {
+            return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
+        });
+    }
+
+    /**
+     * Include User Field.
+     * 
+     * @param Model $model Them model.
+     * @return mixed The model result.
+     */
+    public function includeUser(Model $model)
+    {
+        return UserConductor::includeModel(request(), 'user', User::find($model['user_id']));
+    }
+
+    /**
+     * Transform the Hero field.
+     * 
+     * @param mixed $value The current value.
+     * @return array The new value.
+     */
+    public function transformHero(mixed $value)
+    {
+        return MediaConductor::includeModel(request(), 'hero', Media::find($value));
     }
 }
