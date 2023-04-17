@@ -20,15 +20,22 @@
                             height="40"
                             alt="STEMMechanics" />
                     </router-link>
-                    <label
-                        id="sm-nav-toggle"
-                        @click.stop="handleClickToggleMenu"
-                        ><img
-                            src="/assets/hamburger.svg"
-                            width="24"
-                            height="24"
-                            alt="Navbar Toggle"
-                    /></label>
+                    <div class="sm-nav-right">
+                        <SMButton
+                            type="primary"
+                            size="medium"
+                            :to="{ name: 'event-list' }"
+                            label="Find Workshops" />
+                        <label
+                            id="sm-nav-toggle"
+                            @click.stop="handleClickToggleMenu"
+                            ><img
+                                src="/assets/hamburger.svg"
+                                width="24"
+                                height="24"
+                                alt="Navbar Toggle"
+                        /></label>
+                    </div>
                 </div>
                 <div id="sm-nav">
                     <ul>
@@ -51,6 +58,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useUserStore } from "../store/UserStore";
+import SMButton from "../components/SMButton.vue";
 
 const userStore = useUserStore();
 const showToggle = ref(false);
@@ -187,6 +195,12 @@ body[data-route-name="page-home"] {
             img {
                 display: block;
             }
+        }
+
+        .sm-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
 
         #sm-nav-toggle {
