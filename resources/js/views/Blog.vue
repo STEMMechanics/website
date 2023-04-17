@@ -1,7 +1,14 @@
 <template>
     <SMMastHead title="Blog" />
     <SMContainer>
-        <SMInput type="text" label="Search articles" v-model="searchInput" />
+        <SMInput type="text" label="Search articles" v-model="searchInput">
+            <template #append
+                ><SMButton
+                    type="primary"
+                    label="Search"
+                    @click="handleClickSearch"
+            /></template>
+        </SMInput>
         <SMPagination
             v-model="postsPage"
             :total="postsTotal"
