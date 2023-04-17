@@ -29,11 +29,20 @@
         <template #item-size="item">
             {{ bytesReadable(item.size) }}
         </template>
-        <template #item-actions="item">THE ACTIONS</template>
+        <template #item-actions="item">
+            <SMButton
+                label="Edit"
+                :dropdown="{
+                    download: 'Download',
+                    delete: 'Delete',
+                }"
+                size="medium"
+                @click="handleClick(item, $event)"></SMButton>
+        </template>
     </SMTable>
 
     <!-- @click-row="handleClickRow" -->
-    <EasyDataTable
+    <!-- <EasyDataTable
         v-model:server-options="serverOptions"
         :server-items-length="serverItemsLength"
         :loading="formLoading"
@@ -58,7 +67,7 @@
                     @click="handleClick(item, $event)"></SMButton>
             </div>
         </template>
-    </EasyDataTable>
+    </EasyDataTable> -->
 </template>
 
 <script setup lang="ts">
@@ -159,9 +168,9 @@ const loadFromServer = async () => {
             throw new Error("The server is currently not available");
         }
 
-        items.value = res.data.media;
+        items.value = [];
 
-        items.value.forEach(async (row) => {
+        res.data.media.forEach(async (row) => {
             if (Object.keys(users).includes(row.user_id) === false) {
                 try {
                     const userResult = await api.get({
@@ -195,6 +204,8 @@ const loadFromServer = async () => {
                     utc: true,
                 }).relative();
             }
+
+            items.value.push(row);
         });
 
         serverItemsLength.value = res.data.total;
