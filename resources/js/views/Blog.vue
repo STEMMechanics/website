@@ -6,6 +6,7 @@
                 ><SMButton
                     type="primary"
                     label="Search"
+                    icon="search-outline"
                     @click="handleClickSearch"
             /></template>
         </SMInput>
