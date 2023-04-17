@@ -1,7 +1,7 @@
 <template>
     <SMContainer
         :full="true"
-        :class="['sm-navbar-container', { 'sm-show-nav': showToggle }]"
+        :class="['sm-navbar-container', { 'sm-nav-active': showToggle }]"
         @click="handleClickNavBar">
         <template #inner>
             <nav class="sm-navbar">
@@ -145,17 +145,19 @@ body[data-route-name="page-home"] {
     .sm-navbar-container {
         background-color: rgba(255, 255, 255, 0.1);
 
-        .sm-nav-logo.dark\:d-none {
-            display: none !important;
-        }
+        &:not(.sm-nav-active) {
+            .sm-nav-logo.dark\:d-none {
+                display: none !important;
+            }
 
-        .sm-nav-logo.light\:d-none {
-            display: block !important;
-        }
-    }
+            .sm-nav-logo.light\:d-none {
+                display: block !important;
+            }
 
-    .sm-navbar #sm-nav-head #sm-nav-toggle {
-        filter: invert(100%) saturate(0%) brightness(120%);
+            .sm-navbar #sm-nav-head #sm-nav-toggle {
+                filter: invert(100%) saturate(0%) brightness(120%);
+            }
+        }
     }
 }
 
@@ -167,7 +169,7 @@ body[data-route-name="page-home"] {
     background-color: var(--navbar-color);
     box-shadow: var(--base-shadow);
 
-    &.sm-show-nav {
+    &.sm-nav-active {
         background-color: var(--navbar-color) !important;
 
         #sm-nav {
@@ -264,21 +266,11 @@ body[data-route-name="page-home"] {
     }
 }
 
-@media screen and (max-width: 768px) {
-    // #sm-nav-toggle {
-    //     padding: 23px;
-    //     -webkit-user-select: none;
-    //     -moz-user-select: none;
-    //     -ms-user-select: none;
-    //     user-select: none;
-
-    //     &:hover {
-    //         background-color: hsla(0, 0%, 50%, 0.1);
-    //     }
-
-    //     img {
-    //         display: block;
-    //     }
-    // }
+@media screen and (max-width: 650px) {
+    .sm-nav-right {
+        .button {
+            display: none;
+        }
+    }
 }
 </style>
