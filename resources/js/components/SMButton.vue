@@ -246,6 +246,12 @@ const handleClickItem = (item: string) => {
         cursor: not-allowed;
     }
 
+    &:disabled,
+    &.primary:disabled {
+        background-color: var(--base-color-dark);
+        box-shadow: none;
+    }
+
     &.medium {
         padding: 12px 24px;
         font-size: 80%;
