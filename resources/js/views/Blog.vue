@@ -1,13 +1,7 @@
 <template>
     <SMMastHead title="Blog" />
     <SMContainer>
-        <SMInputGroup>
-            <SMInput
-                type="text"
-                label="Search articles"
-                v-model="searchInput" />
-            <SMButton type="submit" label="Search" @click="handeClickSearch" />
-        </SMInputGroup>
+        <SMInput type="text" label="Search articles" v-model="searchInput" />
         <SMPagination
             v-model="postsPage"
             :total="postsTotal"
@@ -47,6 +41,7 @@ import SMMastHead from "../components/SMMastHead.vue";
 import SMInput from "../components/SMInput.vue";
 import SMInputGroup from "../components/SMInputGroup.vue";
 import SMForm from "../components/SMForm.vue";
+import SMButton from "../components/SMButton.vue";
 
 const message = ref("");
 const pageLoading = ref(true);
@@ -58,7 +53,7 @@ let postsTotal = ref(0);
 
 let searchInput = ref("");
 
-const handeClickSearch = () => {
+const handleClickSearch = () => {
     alert(searchInput.value);
 };
 
