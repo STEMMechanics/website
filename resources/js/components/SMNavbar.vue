@@ -144,6 +144,18 @@ const handleClickNavBar = () => {
 body[data-route-name="page-home"] {
     .sm-navbar-container {
         background-color: rgba(255, 255, 255, 0.1);
+
+        .sm-nav-logo.dark\:d-none {
+            display: none !important;
+        }
+
+        .sm-nav-logo.light\:d-none {
+            display: block !important;
+        }
+    }
+
+    .sm-navbar #sm-nav-head #sm-nav-toggle {
+        filter: invert(100%) saturate(0%) brightness(120%);
     }
 }
 
