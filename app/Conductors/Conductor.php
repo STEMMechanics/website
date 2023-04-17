@@ -243,26 +243,31 @@ class Conductor
         $conductor->paginate($request->input('page', 1), $request->input('limit', -1));
 
         // Limit fields
-        $limitFields = explode(',', $request->input('fields'));
+        $limitFields = array_map(function ($field) {
+            if (strpos($field, '.') !== false) {
+                return substr($field, 0, strpos($field, '.'));
+            }
+            return $field;
+        }, explode(',', $request->input('fields')));
         if ($limitFields === null) {
             $limitFields = $fields;
         } else {
             $limitFields = array_intersect($limitFields, $fields);
         }
         $conductor->limitFields($limitFields);
-
         $conductor->collection = $conductor->query->get();
 
-
         // Transform and Includes
-        $includes = $conductor->includes;
-        if ($request->has('includes') === true) {
-            $includes = explode(',', $request->input('includes'));
-        }
+        $includes = array_intersect($limitFields, $conductor->includes);
 
-        $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes) {
-            $conductor->includes($model, $includes);
-            $model = $conductor->transform($model);
+        $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes, $limitFields) {
+            $conductor->applyIncludes($model, $includes);
+
+            if(count($limitFields) > 0) {
+                $model->setAppends(array_intersect($model->getAppends(), $limitFields));
+            }
+            
+            $model = $conductor->transformModel($model);
 
             return $model;
         });
@@ -286,7 +291,7 @@ class Conductor
 
         foreach ($collection as $item) {
             if ($conductor->viewable($item)) {
-                $transformedCollection->push($conductor->transform($item));
+                $transformedCollection->push($conductor->transformModel($item));
             }
         }
 
@@ -300,7 +305,7 @@ class Conductor
      * @param Model|null $model   The model.
      * @return array The processed and transformed model data.
      */
-    final public static function model(Request $request, mixed $model)
+    final public static function includeModel(Request $request, string $key, mixed $model)
     {
         if ($model === null) {
             return null;
@@ -316,16 +321,37 @@ class Conductor
         if ($request !== null && $request->has('fields') === true) {
             $requestFields = $request->input('fields');
             if ($requestFields !== null) {
-                $limitFields = array_intersect(explode(',', $requestFields), $fields);
+                $requestFields = explode(',', $requestFields);
+                if(in_array($key, $requestFields) === false) {
+                    $filterFields = [];
+                    
+                    foreach($requestFields as $field) {
+                        if(strpos($field, $key . '.') === 0) {
+                            $filterFields[] = substr($field, strlen($key) + 1);
+                        }
+                    }
+
+                    if(count($filterFields) > 0) {
+                        $limitFields = array_intersect($filterFields, $fields);
+                    }
+                }
             }
         }
 
+        $includes = array_intersect($limitFields, $conductor->includes);
+
         if (empty($limitFields) === false) {
-            $modelSubset = new $conductor->class();
-            foreach ($limitFields as $field) {
-                $modelSubset->setAttribute($field, $model->$field);
+            $modelAppends = $model->getAppends();
+
+            foreach(array_diff($fields, $limitFields) as $attribute) {
+                $key = array_search($attribute, $modelAppends);
+                if ($key !== false) {
+                    unset($modelAppends[$key]);
+                } else {
+                    unset($model[$attribute]);
+                }
             }
-            $model = $modelSubset;
+            $model->setAppends($modelAppends);
         }
 
         // Includes
@@ -333,10 +359,10 @@ class Conductor
         if ($request !== null && $request->has('includes') === true) {
             $includes = explode(',', $request->input('includes', ''));
         }
-        $conductor->includes($model, $includes);
+        $conductor->applyIncludes($model, $includes);
 
         // Transform
-        $model = $conductor->transform($model);
+        $model = $conductor->transformModel($model);
 
         return $model;
     }
@@ -462,13 +488,13 @@ class Conductor
     }
 
     /**
-     * Append a list of includes to the model.
+     * Apply a list of includes to the model.
      *
      * @param Model $model    The model to append.
      * @param array $includes The list of includes to include.
      * @return void
      */
-    final public function includes(Model $model, array $includes)
+    final public function applyIncludes(Model $model, array $includes)
     {
         foreach ($includes as $include) {
             $includeMethodName = 'include' . Str::studly($include);
@@ -491,7 +517,7 @@ class Conductor
     final public function limitFields(array $fields)
     {
         if (empty($fields) !== true) {
-            $this->query->select($fields);
+            $this->query->select(array_diff($fields, $this->includes));
         }
     }
 
@@ -645,6 +671,7 @@ class Conductor
      * Return an array of model fields visible to the current user.
      *
      * @param Model $model The model in question.
+     * @param bool $includes Include the includes in the result.
      * @return array The array of field names.
      */
     public function fields(Model $model)
@@ -661,7 +688,29 @@ class Conductor
             $visibleFields = array_merge($visibleFields, $appends);
         }
 
+        if (is_array($this->includes) === true) {
+            $visibleFields = array_merge($visibleFields, $this->includes);
+        }
+
         return $visibleFields;
+    }
+
+    /**
+     * Transform the passed Model to an array
+     *
+     * @param Model $model The model to transform.
+     * @return array The transformed model.
+     */
+    protected function transformModel(Model $model)
+    {
+        $result = $this->transform($model);
+        foreach ($result as $key => $value) {
+            $transformFunction = 'transform' . Str::studly($key);
+            if (method_exists($this, $transformFunction)) {
+                $result[$key] = $this->$transformFunction($value);
+            }
+        }
+        return $result;
     }
 
     /**
@@ -675,6 +724,7 @@ class Conductor
         $result = $model->toArray();
 
         $fields = $this->fields($model);
+        
         if (is_array($fields) === true) {
             $result = array_intersect_key($result, array_flip($fields));
         }
