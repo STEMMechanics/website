@@ -46,7 +46,6 @@ import { SMDate } from "../helpers/datetime";
 import { mediaGetVariantUrl } from "../helpers/media";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMInput from "../components/SMInput.vue";
-import SMInputGroup from "../components/SMInputGroup.vue";
 import SMForm from "../components/SMForm.vue";
 import SMButton from "../components/SMButton.vue";
 
