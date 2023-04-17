@@ -203,6 +203,10 @@ body[data-route-name="page-home"] {
             gap: 20px;
         }
 
+        .button {
+            color: #fff;
+        }
+
         #sm-nav-toggle {
             padding: 24px;
         }
