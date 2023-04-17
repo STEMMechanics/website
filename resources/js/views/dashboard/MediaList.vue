@@ -1,58 +1,64 @@
 <template>
-    <SMPage permission="admin/media">
-        <template #container>
-            <h1>Media</h1>
+    <SMMastHead
+        title="Media"
+        :back-link="{ name: 'dashboard' }"
+        back-title="Return to Dashboard" />
+    <SMMessage
+        v-if="formMessage.message"
+        :type="formMessage.type"
+        :message="formMessage.message"
+        :icon="formMessage.icon" />
 
-            <SMMessage
-                v-if="formMessage.message"
-                :type="formMessage.type"
-                :message="formMessage.message"
-                :icon="formMessage.icon" />
-
-            <SMToolbar>
-                <template #left>
-                    <!-- <SMButton
-                        :to="{ name: 'media-upload' }"
-                        type="primary"
-                        label="Upload Media" /> -->
-                </template>
-                <template #right>
-                    <SMInput
-                        v-model="search"
-                        label="Search"
-                        :small="true"
-                        style="max-width: 250px" />
-                </template>
-            </SMToolbar>
-
-            <!-- @click-row="handleClickRow" -->
-            <EasyDataTable
-                v-model:server-options="serverOptions"
-                :server-items-length="serverItemsLength"
-                :loading="formLoading"
-                :headers="headers"
-                :items="items"
-                :search-value="search">
-                <template #loading>
-                    <SMLoadingIcon />
-                </template>
-                <template #item-size="item">
-                    {{ bytesReadable(item.size) }}
-                </template>
-                <template #item-actions="item">
-                    <div class="action-wrapper">
-                        <SMButton
-                            label="Edit"
-                            :dropdown="{
-                                download: 'Download',
-                                delete: 'Delete',
-                            }"
-                            @click="handleClick(item, $event)"></SMButton>
-                    </div>
-                </template>
-            </EasyDataTable>
+    <SMToolbar>
+        <template #left>
+            <!-- <SMButton
+                :to="{ name: 'media-upload' }"
+                type="primary"
+                label="Upload Media" /> -->
         </template>
-    </SMPage>
+        <template #right>
+            <SMInput
+                v-model="search"
+                label="Search"
+                :small="true"
+                style="max-width: 250px" />
+        </template>
+    </SMToolbar>
+
+    <SMTable :headers="headers" :items="items" @row-click="handleRowClick">
+        <template #item-size="item">
+            {{ bytesReadable(item.size) }}
+        </template>
+        <template #item-actions="item">THE ACTIONS</template>
+    </SMTable>
+
+    <!-- @click-row="handleClickRow" -->
+    <EasyDataTable
+        v-model:server-options="serverOptions"
+        :server-items-length="serverItemsLength"
+        :loading="formLoading"
+        :headers="headers"
+        :items="items"
+        :search-value="search">
+        <template #loading>
+            <SMLoadingIcon />
+        </template>
+        <template #item-size="item">
+            {{ bytesReadable(item.size) }}
+        </template>
+        <template #item-actions="item">
+            <div class="action-wrapper">
+                <SMButton
+                    label="Edit"
+                    :dropdown="{
+                        download: 'Download',
+                        delete: 'Delete',
+                    }"
+                    size="medium"
+                    @click="handleClick(item, $event)"></SMButton>
+            </div>
+        </template>
+    </EasyDataTable>
 </template>
 
 <script setup lang="ts">
@@ -74,6 +80,8 @@ import { bytesReadable } from "../../helpers/types";
 import { useUserStore } from "../../store/UserStore";
 import { useToastStore } from "../../store/ToastStore";
 import SMInput from "../../depreciated/SMInput-old.vue";
+import SMMastHead from "../../components/SMMastHead.vue";
+import SMTable from "../../components/SMTable.vue";
 
 const router = useRouter();
 const search = ref("");
@@ -105,6 +113,10 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const handleRowClick = (item) => {
+    alert(JSON.stringify(item));
+};
 
 const handleClick = (item, extra: string): void => {
     if (extra.length == 0) {
