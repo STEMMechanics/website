@@ -127,7 +127,7 @@ const handleClickPage = (page: number): void => {
     align-items: center;
     font-family: var(--header-font-family);
     font-size: 90%;
-    font-weight: 700;
+    font-weight: 600;
     margin-bottom: 24px;
 
     .item {
