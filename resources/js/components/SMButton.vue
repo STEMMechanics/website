@@ -12,7 +12,7 @@
         ref="buttonRef"
         :style="{ minWidth: minWidth }"
         :type="buttonType"
-        @click="handleClick">
+        @click.stop="handleClick">
         <ul
             v-if="dropdown != null"
             ref="dropdownMenu"
@@ -179,7 +179,6 @@ const handleClickItem = (item: string) => {
 
 <style lang="scss">
 .button {
-    position: relative;
     display: inline-block;
     font-family: var(--header-font-family);
     font-weight: 800;
@@ -220,25 +219,28 @@ const handleClickItem = (item: string) => {
             position: absolute;
             list-style-type: none;
             display: none;
-            z-index: 10;
-            top: 50%;
+            z-index: 100;
+            top: 25%;
             right: 0;
             margin: 0;
             padding: 0;
             background-color: inherit;
             border-color: #999;
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
 
             li {
                 margin: 0;
-                padding: 24px;
+                padding: 16px 24px;
+                background-color: #fff;
+
+                &:hover {
+                    background-color: rgba(0, 0, 255, 0.5);
+                }
             }
         }
     }
 
     &:hover:not(:disabled) {
-        box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-        filter: brightness(115%);
         cursor: pointer;
     }
 
