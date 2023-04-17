@@ -35,6 +35,25 @@ export const routes = [
         ],
     },
     {
+        path: "/workshops",
+        name: "workshops",
+        meta: {
+            title: "Workshops",
+        },
+        component: () => import("@/views/Workshops.vue"),
+    },
+    {
+        path: "/event",
+        redirect: "/workshops",
+        children: [
+            {
+                path: ":id",
+                name: "event",
+                component: () => import("@/views/Event.vue"),
+            },
+        ],
+    },
+    {
         path: "/verify-email",
         name: "verify-email",
         meta: {
@@ -97,24 +116,6 @@ export const routes = [
             title: "Minecraft",
         },
         component: () => import("@/views/Minecraft.vue"),
-    },
-    {
-        path: "/workshops",
-        children: [
-            {
-                path: "",
-                name: "event-list",
-                meta: {
-                    title: "Workshops",
-                },
-                component: () => import("@/views/EventList.vue"),
-            },
-            {
-                path: ":id",
-                name: "event-view",
-                component: () => import("@/views/EventView.vue"),
-            },
-        ],
     },
     {
         path: "/login",
