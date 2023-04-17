@@ -40,7 +40,7 @@
             </span>
             <ion-icon
                 v-if="dropdown != null"
-                name="caret-down-outline"
+                name="chevron-down-outline"
                 class="button-icon-dropdown"
                 @click.stop="handleClickToggleDropdown" />
         </template>
@@ -212,7 +212,7 @@ const handleClickItem = (item: string) => {
         &.medium .button-icon-dropdown {
             height: 16px;
             width: 16px;
-            margin: -4px -18px -3px 8px;
+            margin: -4px -18px -4px 8px;
         }
 
         ul {
