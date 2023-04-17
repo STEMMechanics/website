@@ -86,7 +86,7 @@ import SMMastHead from "../components/SMMastHead.vue";
     margin: 0 auto;
     line-height: 1.4em;
 
-    h3:not(:first-of-type) {
+    h3 {
         margin-top: 60px;
     }
 }
