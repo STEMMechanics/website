@@ -206,8 +206,12 @@ class Media extends Model
      */
     public function getUrlAttribute()
     {
-        $url = config("filesystems.disks.$this->storage.url");
-        return "$url/$this->name";
+        if(isset($this->attributes['name'])) {
+            $url = config("filesystems.disks.$this->storage.url");
+            return "$url/$this->name";
+        }
+
+        return '';
     }
 
     /**
