@@ -1,20 +1,34 @@
 <template>
     <div
         :class="[
-            'input-control-item',
+            'input-control-group',
             { 'input-active': active, 'input-invalid': feedbackInvalid },
         ]">
-        <label class="input-label" v-bind="{ for: id }">{{ label }}</label>
-        <ion-icon class="invalid-icon" name="alert-circle-outline"></ion-icon>
-        <input
-            :type="props.type"
-            class="input-control"
-            :disabled="disabled"
-            v-bind="{ id: id }"
-            v-model="value"
-            @focus="handleFocus"
-            @blur="handleBlur"
-            @input="handleInput" />
+        <div class="input-control-row">
+            <div v-if="slots.prepend" class="input-control-prepend">
+                <slot name="prepend"></slot>
+            </div>
+            <div class="input-control-item">
+                <label class="input-label" v-bind="{ for: id }">{{
+                    label
+                }}</label>
+                <ion-icon
+                    class="invalid-icon"
+                    name="alert-circle-outline"></ion-icon>
+                <input
+                    :type="props.type"
+                    class="input-control"
+                    :disabled="disabled"
+                    v-bind="{ id: id }"
+                    v-model="value"
+                    @focus="handleFocus"
+                    @blur="handleBlur"
+                    @input="handleInput" />
+            </div>
+            <div v-if="slots.append" class="input-control-append">
+                <slot name="append"></slot>
+            </div>
+        </div>
         <div v-if="slots.default || feedbackInvalid" class="input-help">
             <span v-if="feedbackInvalid" class="input-invalid">
                 {{ feedbackInvalid }}
@@ -63,6 +77,11 @@ const props = defineProps({
     disabled: {
         type: Boolean,
         default: false,
+        required: false,
+    },
+    button: {
+        type: String,
+        default: "",
         required: false,
     },
 });
@@ -165,38 +184,98 @@ const handleInput = (event: Event) => {
 </script>
 
 <style lang="scss">
-.input-control-item {
+.input-control-group {
     margin-bottom: 16px;
-    position: relative;
 
-    .input-label {
-        position: absolute;
-        display: block;
-        transform-origin: top left;
-        transform: translate(16px, 16px) scale(1);
-        transition: all 0.1s ease-in-out;
-        color: var(--base-color-darker);
-        pointer-events: none;
-    }
-
-    .invalid-icon {
-        position: absolute;
-        display: none;
-        right: 10px;
-        top: 14px;
-        color: var(--danger-color);
-        font-size: 28px;
-    }
-
-    .input-control {
-        display: block;
-        width: 100%;
+    .input-control-row {
+        display: flex;
+        align-items: center;
         margin-bottom: 8px;
-        padding: 20px 16px 8px 16px;
-        border: 1px solid var(--base-color-darker);
-        border-radius: 8px;
-        background-color: var(--base-color-light);
-        color: var(--base-color-text);
+
+        .input-control-prepend {
+            p {
+                display: block;
+                color: var(--base-color-text);
+                background-color: var(--base-color-dark);
+                border-width: 1px 0 1px 1px;
+                border-style: solid;
+                border-color: var(--base-color-darker);
+                border-radius: 8px 0 0 8px;
+                padding: 16px 16px 16px 16px;
+            }
+
+            .button {
+                border-width: 1px 0 1px 1px;
+                border-style: solid;
+                border-color: var(--base-color-darker);
+                border-radius: 8px 0 0 8px;
+            }
+
+            & + .input-control-item .input-control {
+                border-top-left-radius: 0;
+                border-bottom-left-radius: 0;
+            }
+        }
+
+        .input-control-append {
+            p {
+                display: block;
+                color: var(--base-color-text);
+                background-color: var(--base-color-dark);
+                border-width: 1px 1px 1px 0;
+                border-style: solid;
+                border-color: var(--base-color-darker);
+                border-radius: 0 8px 8px 0;
+                padding: 16px 16px 16px 16px;
+            }
+
+            .button {
+                border-width: 1px 1px 1px 0;
+                border-style: solid;
+                border-color: var(--base-color-darker);
+                border-radius: 0 8px 8px 0;
+            }
+        }
+
+        &:has(.input-control-item + .input-control-append)
+            > .input-control-item
+            .input-control {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .input-control-item {
+            flex: 1;
+
+            .input-label {
+                position: absolute;
+                display: block;
+                transform-origin: top left;
+                transform: translate(16px, 16px) scale(1);
+                transition: all 0.1s ease-in-out;
+                color: var(--base-color-darker);
+                pointer-events: none;
+            }
+
+            .invalid-icon {
+                position: absolute;
+                display: none;
+                right: 10px;
+                top: 14px;
+                color: var(--danger-color);
+                font-size: 28px;
+            }
+
+            .input-control {
+                display: block;
+                width: 100%;
+                padding: 20px 16px 8px 16px;
+                border: 1px solid var(--base-color-darker);
+                border-radius: 8px;
+                background-color: var(--base-color-light);
+                color: var(--base-color-text);
+            }
+        }
     }
 
     .input-help {
@@ -215,7 +294,7 @@ const handleInput = (event: Event) => {
     }
 
     &.input-active {
-        .input-label {
+        .input-control-item .input-label {
             transform: translate(16px, 6px) scale(0.8);
         }
     }
