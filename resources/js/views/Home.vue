@@ -1,49 +1,5 @@
 <template>
-    <SMHero />
-
-    <section class="container">
-        <h2>Latest Articles</h2>
-        <div class="d-flex" style="gap: 30px">
-            <SMArticleCard
-                :image="articles[0].hero.url"
-                :title="articles[0].title"
-                :excerpt="excerpt(articles[0].content)"
-                :to="{
-                    name: 'article',
-                    params: { slug: articles[0].slug },
-                }"
-                class="flex-fill"></SMArticleCard>
-            <div class="article-list">
-                <SMArticleCard
-                    :image="articles[1].hero.url"
-                    :title="articles[1].title"
-                    :excerpt="excerpt(articles[1].content)"
-                    type="row"
-                    :to="{
-                        name: 'article',
-                        params: { slug: articles[1].slug },
-                    }"></SMArticleCard>
-                <SMArticleCard
-                    :image="articles[2].hero.url"
-                    :title="articles[2].title"
-                    :excerpt="excerpt(articles[2].content)"
-                    type="row"
-                    :to="{
-                        name: 'article',
-                        params: { slug: articles[2].slug },
-                    }"></SMArticleCard>
-                <SMArticleCard
-                    :image="articles[3].hero.url"
-                    :title="articles[3].title"
-                    :excerpt="excerpt(articles[3].content)"
-                    type="row"
-                    :to="{
-                        name: 'article',
-                        params: { slug: articles[3].slug },
-                    }"></SMArticleCard>
-            </div>
-        </div>
-    </section>
+    <SMHero class="hero-offset" />
 
     <SMContainer class="about">
         <h2>Join the Fun!</h2>
@@ -97,10 +53,10 @@
                     undertake at home. We are always happy to help.
                 </p>
                 <div class="button-row">
-                    <a href="https://discord.gg/yNzk4x7mpD">Join Discord</a>
-                    <router-link :to="{ name: 'contact' }"
-                        >Contact Us</router-link
-                    >
+                    <SMButton
+                        to="https://discord.gg/yNzk4x7mpD"
+                        label="Join Discord" />
+                    <SMButton :to="{ name: 'contact' }" label="Contact Us" />
                 </div>
             </SMColumn>
         </SMRow>
@@ -135,63 +91,18 @@
             </p>
         </SMContainer>
     </SMContainer>
-    <SMContainer class="subscribe">
-        <h2>Be the first to know</h2>
-        <p>
-            Sign up for our mailing list to receive expert tips and tricks, as
-            well as updates on upcoming workshops.
-        </p>
-    </SMContainer>
 </template>
 
 <script setup lang="ts">
-import { Ref, reactive, ref } from "vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
-import SMFormCard from "../components/SMFormCard.vue";
-import SMForm from "../components/SMForm.vue";
-import SMInput from "../depreciated/SMInput-old.vue";
 import SMHero from "../components/SMHero.vue";
-
-import { excerpt } from "../helpers/string";
-import { api } from "../helpers/api";
-import { Form, FormControl } from "../helpers/form";
-import { And, Email, Required } from "../helpers/validate";
-import { Article } from "../helpers/api.types";
-import SMArticleCard from "../components/SMArticleCard.vue";
-
-const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
-let form = reactive(
-    Form({
-        email: FormControl("", And([Required(), Email()])),
-    })
-);
-
-const articles: Ref<Article[]> = ref([]);
-
-const handleLoad = async () => {
-    const result = await api.get({
-        url: "/posts",
-        params: {
-            limit: 4,
-            after: 1, // is this working???
-            // order: "-date",
-        },
-    });
-
-    articles.value = result.data.posts;
-};
-
-handleLoad();
 </script>
 
 <style lang="scss">
-.article-list {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+.hero-offset {
+    margin-top: -80px;
 }
+
 // .sm-page-home {
 //     margin-top: -127px !important;
 //     background-color: #fff;
@@ -202,139 +113,139 @@ handleLoad();
 //         margin: 0;
 //     }
 
-//     .about {
-//         margin-top: 5rem;
-//         margin-left: 2rem;
-//         margin-right: 2rem;
-//         background-color: #3d4e5d;
-//         color: rgb(230, 245, 235);
-//         border-radius: 24px;
-//         padding: 4rem 8rem;
-//         width: auto;
-//         align-self: center;
+.about {
+    margin-top: 5rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    background-color: #3d4e5d;
+    color: rgb(230, 245, 235);
+    border-radius: 24px;
+    padding: 4rem 8rem;
+    width: auto;
+    align-self: center;
 
-//         h2 {
-//             font-size: 400%;
-//         }
+    h2 {
+        font-size: 400%;
+    }
 
-//         p {
-//             font-size: 125%;
-//             line-height: 150%;
-//         }
-//     }
+    p {
+        font-size: 125%;
+        line-height: 150%;
+    }
+}
 
-//     .workshops {
-//         margin: 8rem auto;
-//         align-self: center;
+.workshops {
+    margin: 8rem auto;
+    align-self: center;
 
-//         h2 {
-//             font-size: 300%;
-//         }
+    h2 {
+        font-size: 300%;
+    }
 
-//         p {
-//             font-size: 125%;
-//             line-height: 150%;
-//             max-width: 32rem;
-//             text-align: center;
-//             margin: 1rem auto 2rem auto;
-//         }
+    p {
+        font-size: 125%;
+        line-height: 150%;
+        max-width: 32rem;
+        text-align: center;
+        margin: 1rem auto 2rem auto;
+    }
 
-//         img {
-//             border-radius: 50rem;
-//             height: 20rem;
-//             width: 20rem;
-//         }
-//     }
+    img {
+        border-radius: 50rem;
+        height: 20rem;
+        width: 20rem;
+    }
+}
 
-//     .support {
-//         background-color: #e6f5eb;
-//         color: rgb(56, 79, 95);
-//         border-radius: 24px;
-//         padding: 4rem 5rem;
-//         margin-left: 2rem;
-//         margin-right: 2rem;
-//         width: auto;
-//         align-self: center;
+.support {
+    background-color: #e6f5eb;
+    color: rgb(56, 79, 95);
+    border-radius: 24px;
+    padding: 4rem 5rem;
+    margin-left: 2rem;
+    margin-right: 2rem;
+    width: auto;
+    align-self: center;
 
-//         img {
-//             border-radius: 24px;
-//             height: 80%;
-//             width: 80%;
-//             transform: rotateZ(-10deg);
-//         }
+    img {
+        border-radius: 24px;
+        height: 80%;
+        width: 80%;
+        transform: rotateZ(-10deg);
+    }
 
-//         h2 {
-//             font-size: 300%;
-//             text-align: left;
-//             text-align: center;
-//             margin-bottom: 1rem;
-//         }
+    h2 {
+        font-size: 300%;
+        text-align: left;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
 
-//         p {
-//             font-size: 125%;
-//             line-height: 150%;
-//         }
+    p {
+        font-size: 125%;
+        line-height: 150%;
+    }
 
-//         .button-row {
-//             display: flex;
-//             justify-content: space-between;
-//             width: 100%;
-//             margin-top: 1rem;
+    .button-row {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        margin-top: 1rem;
 
-//             a {
-//                 font-weight: bold;
-//                 color: inherit;
-//                 border: 2px solid rgb(56, 79, 95);
-//                 border-radius: 24px;
-//                 padding: 0.5rem 1.5rem;
-//                 transition: color 0.2s ease-in-out, border 0.2s ease-in-out,
-//                     background 0.2s ease-in-out;
+        a {
+            font-weight: bold;
+            color: inherit;
+            border: 2px solid rgb(56, 79, 95);
+            border-radius: 24px;
+            padding: 0.5rem 1.5rem;
+            transition: color 0.2s ease-in-out, border 0.2s ease-in-out,
+                background 0.2s ease-in-out;
 
-//                 &:hover {
-//                     text-decoration: none;
-//                     background-color: rgb(56, 79, 95);
-//                     color: #e6f5eb;
-//                 }
-//             }
-//         }
-//     }
+            &:hover {
+                text-decoration: none;
+                background-color: rgb(56, 79, 95);
+                color: #e6f5eb;
+            }
+        }
+    }
+}
 
-//     .minecraft {
-//         margin-top: 4rem;
-//         background-image: url("/img/minecraft.png");
-//         background-repeat: no-repeat;
-//         background-position: center;
-//         background-size: cover;
-//         padding: 4rem;
-//         color: #fff;
+.minecraft {
+    margin-top: 4rem;
+    background-image: url("/img/minecraft.png");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
+    padding: 4rem;
+    color: #fff;
 
-//         h2 {
-//             font-size: 300%;
-//         }
+    h2 {
+        font-size: 300%;
+    }
 
-//         p {
-//             font-size: 125%;
-//             line-height: 150%;
-//             text-align: center;
-//             max-width: 44rem;
-//             margin: 1rem auto;
-//         }
+    p {
+        font-size: 125%;
+        line-height: 150%;
+        text-align: center;
+        max-width: 44rem;
+        margin: 1rem auto;
+    }
 
-//         .minecraft-education {
-//             text-align: left;
+    .minecraft-education {
+        text-align: left;
 
-//             .minecraft-image {
-//                 float: left;
-//                 margin-top: 1rem;
-//                 margin-right: 2rem;
-//             }
-//         }
+        .minecraft-image {
+            float: left;
+            margin-top: 1rem;
+            margin-right: 2rem;
+        }
+    }
 
-//         .minecraft-address {
-//             width: 100%;
-//             height: 100%;
-//         }
-//     }
+    .minecraft-address {
+        width: 100%;
+        height: 100%;
+    }
+}
 
 //     .subscribe {
 //         margin: 6rem auto 0 auto;
