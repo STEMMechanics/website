@@ -1,59 +1,58 @@
 <template>
-    <SMPage class="sm-page-workshop-list">
-        <template #container>
-            <h1>Workshops</h1>
-            <SMToolbar>
-                <SMInput
-                    v-model="filterKeywords"
-                    label="Keywords"
-                    @change="handleFilter" />
-                <SMInput
-                    v-model="filterLocation"
-                    label="Location"
-                    @change="handleFilter" />
-                <SMInput
-                    v-model="filterDateRange"
-                    type="daterange"
-                    label="Date Range"
-                    :feedback-invalid="dateRangeError"
-                    @change="handleFilter" />
-            </SMToolbar>
-            <SMMessage
-                v-if="formMessage"
-                icon="alert-circle-outline"
-                type="error"
-                :message="formMessage"
-                class="mt-5" />
-            <SMPanelList
-                :loading="loading"
-                :not-found="events.length == 0"
-                not-found-text="No workshops found">
-                <SMPanel
-                    v-for="item in events"
-                    :key="item.event.id"
-                    :to="{ name: 'event-view', params: { id: item.event.id } }"
-                    :title="item.event.title"
-                    :image="mediaGetVariantUrl(item.event.hero, 'medium')"
-                    :show-time="true"
-                    :date="item.event.start_at"
-                    :end-date="item.event.end_at"
-                    :date-in-image="true"
-                    :price="item.event.price"
-                    :location="
-                        item.event.location == 'online'
-                            ? 'Online Event'
-                            : item.event.address
-                    "
-                    :banner="item.banner"
-                    :banner-type="item.bannerType"
-                    :ages="computedAges(item.event)"></SMPanel>
-            </SMPanelList>
-            <SMPagination
-                v-model="postsPage"
-                :total="postsTotal"
-                :per-page="postsPerPage" />
-        </template>
-    </SMPage>
+    <SMMastHead title="Workshops" />
+    <SMContainer>
+        <SMToolbar>
+            <SMInput
+                v-model="filterKeywords"
+                label="Keywords"
+                @change="handleFilter" />
+            <SMInput
+                v-model="filterLocation"
+                label="Location"
+                @change="handleFilter" />
+            <SMInput
+                v-model="filterDateRange"
+                type="daterange"
+                label="Date Range"
+                :feedback-invalid="dateRangeError"
+                @change="handleFilter" />
+        </SMToolbar>
+        <SMPagination
+            v-if="postsTotal > 0"
+            v-model="postsPage"
+            :total="postsTotal"
+            :per-page="postsPerPage" />
+        <SMMessage
+            v-if="formMessage"
+            icon="alert-circle-outline"
+            type="error"
+            :message="formMessage"
+            class="mt-5" />
+        <SMPanelList
+            :loading="loading"
+            :not-found="events.length == 0"
+            not-found-text="No workshops found">
+            <SMPanel
+                v-for="item in events"
+                :key="item.event.id"
+                :to="{ name: 'event-view', params: { id: item.event.id } }"
+                :title="item.event.title"
+                :image="mediaGetVariantUrl(item.event.hero, 'medium')"
+                :show-time="true"
+                :date="item.event.start_at"
+                :end-date="item.event.end_at"
+                :date-in-image="true"
+                :price="item.event.price"
+                :location="
+                    item.event.location == 'online'
+                        ? 'Online Event'
+                        : item.event.address
+                "
+                :banner="item.banner"
+                :banner-type="item.bannerType"
+                :ages="computedAges(item.event)"></SMPanel>
+        </SMPanelList>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
@@ -68,6 +67,8 @@ import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { mediaGetVariantUrl } from "../helpers/media";
+import SMMastHead from "../components/SMMastHead.vue";
+import SMContainer from "../components/SMContainer.vue";
 
 interface EventData {
     event: Event;
