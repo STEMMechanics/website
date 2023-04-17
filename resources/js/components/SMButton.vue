@@ -7,17 +7,12 @@
             classType,
             props.size,
             { 'button-block': block },
-            { 'dropdown-button': dropdown },
+            { 'button-dropdown': dropdown },
         ]"
         ref="buttonRef"
         :style="{ minWidth: minWidth }"
         :type="buttonType"
         @click="handleClick">
-        <ion-icon
-            v-if="dropdown != null"
-            name="caret-down-outline"
-            class="button-icon-dropdown"
-            @click.stop="handleClickToggleDropdown" />
         <ul
             v-if="dropdown != null"
             ref="dropdownMenu"
@@ -29,7 +24,26 @@
                 {{ dropdownLabel }}
             </li>
         </ul>
-        <span v-if="!loading">{{ props.label }}</span>
+        <template v-if="!loading">
+            <span v-if="iconLocation.length > 0" class="button-label">
+                <ion-icon
+                    v-if="icon && iconLocation == 'before'"
+                    :icon="icon" />
+                {{ label }}
+                <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
+            </span>
+            <span v-else-if="icon.length > 0" class="button-label">
+                <ion-icon :icon="icon" />
+            </span>
+            <span v-else class="button-label">
+                {{ label }}
+            </span>
+            <ion-icon
+                v-if="dropdown != null"
+                name="caret-down-outline"
+                class="button-icon-dropdown"
+                @click.stop="handleClickToggleDropdown" />
+        </template>
         <SMLoadingIcon v-else class="button-icon-loading" />
     </button>
     <a
@@ -38,16 +52,22 @@
         :disabled="disabled"
         :class="['button', classType, props.size, { 'button-block': block }]"
         :type="buttonType">
-        <span class="button-label">{{ label }}</span>
+        <span class="button-label">
+            <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
+            {{ label }}
+            <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
+        </span>
     </a>
     <router-link
         v-else-if="!isEmpty(to) && typeof to == 'object'"
         :to="to"
         :disabled="disabled"
         :class="['button', classType, props.size, { 'button-block': block }]">
-        <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
-        {{ label }}
-        <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
+        <span class="button-label">
+            <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
+            {{ label }}
+            <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
+        </span>
     </router-link>
 </template>
 
@@ -66,10 +86,10 @@ const props = defineProps({
     },
     iconLocation: {
         type: String,
-        default: "after",
+        default: "",
         required: false,
         validator: (value: string) => {
-            return ["before", "after"].includes(value);
+            return ["before", "after", ""].includes(value);
         },
     },
     to: {
@@ -168,6 +188,53 @@ const handleClickItem = (item: string) => {
     background-color: var(--base-color-light);
     text-decoration: none;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+
+    .button-label {
+        ion-icon {
+            width: 28px;
+            height: 28px;
+            margin: -8px 0;
+        }
+    }
+
+    &.button-dropdown {
+        position: relative;
+
+        .button-icon-dropdown {
+            height: 18px;
+            width: 18px;
+            margin: -2px -18px -2px 8px;
+        }
+
+        &.medium .button-icon-dropdown {
+            height: 16px;
+            width: 16px;
+            margin: -4px -18px -3px 8px;
+        }
+
+        ul {
+            position: absolute;
+            list-style-type: none;
+            display: none;
+            z-index: 10;
+            top: 50%;
+            right: 0;
+            margin: 0;
+            padding: 0;
+            background-color: inherit;
+            border-color: #999;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+
+            li {
+                margin: 0;
+                padding: 24px;
+            }
+        }
+    }
 
     &:hover:not(:disabled) {
         box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
