@@ -32,7 +32,7 @@ defineProps({
 
 const tabGroups = [
     [
-        { title: "Contact", to: "/page" },
+        { title: "Contact", to: "/contact" },
         { title: "Code of Conduct", to: "/page" },
         { title: "Privacy", to: "/page" },
         { title: "Governance", to: "/page" },
@@ -88,7 +88,7 @@ const tabs = () => {
             }
 
             &.active {
-                background-color: var(--base-color-light);
+                background-color: var(--base-color);
                 color: var(--primary-color);
             }
         }
