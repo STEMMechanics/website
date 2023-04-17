@@ -109,7 +109,7 @@ watch(value, (newValue) => {
     active.value = newValue.value != "";
 });
 
-if (typeof control === "object") {
+if (typeof control === "object" && control !== null) {
     watch(
         () => control.validation.result.valid,
         (newValue) => {
@@ -130,6 +130,7 @@ if (typeof control === "object") {
 }
 
 if (form) {
+    console.log("here form");
     watch(
         () => form.loading(),
         (newValue) => {
