@@ -15,6 +15,13 @@
                 <ion-icon
                     class="invalid-icon"
                     name="alert-circle-outline"></ion-icon>
+                <ion-icon
+                    v-if="
+                        props.showClear && value.length > 0 && !feedbackInvalid
+                    "
+                    class="clear-icon"
+                    name="close-outline"
+                    @click.stop="handleClear"></ion-icon>
                 <input
                     :type="props.type"
                     class="input-control"
@@ -82,6 +89,11 @@ const props = defineProps({
     button: {
         type: String,
         default: "",
+        required: false,
+    },
+    showClear: {
+        type: Boolean,
+        default: false,
         required: false,
     },
 });
@@ -181,6 +193,10 @@ const handleInput = (event: Event) => {
         feedbackInvalid.value = "";
     }
 };
+
+const handleClear = () => {
+    value.value = "";
+};
 </script>
 
 <style lang="scss">
@@ -246,6 +262,7 @@ const handleInput = (event: Event) => {
 
         .input-control-item {
             flex: 1;
+            position: relative;
 
             .input-label {
                 position: absolute;
@@ -264,6 +281,20 @@ const handleInput = (event: Event) => {
                 top: 14px;
                 color: var(--danger-color);
                 font-size: 28px;
+            }
+
+            .clear-icon {
+                position: absolute;
+                right: 12px;
+                top: 18px;
+                background-color: #ccc;
+                border-radius: 50%;
+                font-size: 80%;
+                padding: 1px;
+
+                &:hover {
+                    color: #fff;
+                }
             }
 
             .input-control {
