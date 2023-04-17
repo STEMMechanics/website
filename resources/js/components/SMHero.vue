@@ -8,6 +8,7 @@
                 <div class="sm-hero-buttons">
                     <SMButton
                         v-if="loaded"
+                        type="primary"
                         :to="{ name: 'article', params: { slug: heroSlug } }"
                         label="Read More" />
                 </div>
@@ -159,6 +160,10 @@ handleLoad();
 
     .sm-hero-buttons {
         padding-top: 48px;
+
+        .primary {
+            background-color: var(--primary-color-dark);
+        }
     }
 }
 </style>
