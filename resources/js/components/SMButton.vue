@@ -5,7 +5,7 @@
         :class="[
             'button',
             classType,
-            { 'button-small': small },
+            props.size,
             { 'button-block': block },
             { 'dropdown-button': dropdown },
         ]"
@@ -36,12 +36,7 @@
         v-else-if="!isEmpty(to) && typeof to == 'string'"
         :href="to"
         :disabled="disabled"
-        :class="[
-            'button',
-            classType,
-            { 'button-small': small },
-            { 'button-block': block },
-        ]"
+        :class="['button', classType, props.size, { 'button-block': block }]"
         :type="buttonType">
         <span class="button-label">{{ label }}</span>
     </a>
@@ -49,12 +44,7 @@
         v-else-if="!isEmpty(to) && typeof to == 'object'"
         :to="to"
         :disabled="disabled"
-        :class="[
-            'button',
-            classType,
-            { 'button-small': small },
-            { 'button-block': block },
-        ]">
+        :class="['button', classType, props.size, { 'button-block': block }]">
         <ion-icon v-if="icon && iconLocation == 'before'" :icon="icon" />
         {{ label }}
         <ion-icon v-if="icon && iconLocation == 'after'" :icon="icon" />
@@ -98,9 +88,9 @@ const props = defineProps({
         default: false,
         required: false,
     },
-    small: {
-        type: Boolean,
-        default: false,
+    size: {
+        type: String,
+        default: "",
         required: false,
     },
     dropdown: {
@@ -184,6 +174,16 @@ const handleClickItem = (item: string) => {
 
     &:hover:disabled {
         cursor: not-allowed;
+    }
+
+    &.medium {
+        padding: 12px 24px;
+        font-size: 80%;
+    }
+
+    &.small {
+        padding: 8px 16px;
+        font-size: 75%;
     }
 
     &.light {
