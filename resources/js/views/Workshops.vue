@@ -5,6 +5,7 @@
             <SMInput
                 v-model="filterKeywords"
                 label="Keywords"
+                :show-clear="true"
                 @change="handleFilter" />
             <SMInput
                 v-model="filterLocation"
@@ -35,7 +36,7 @@
             <SMPanel
                 v-for="item in events"
                 :key="item.event.id"
-                :to="{ name: 'event-view', params: { id: item.event.id } }"
+                :to="{ name: 'event', params: { id: item.event.id } }"
                 :title="item.event.title"
                 :image="mediaGetVariantUrl(item.event.hero, 'medium')"
                 :show-time="true"
@@ -57,7 +58,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import SMInput from "../depreciated/SMInput-old.vue";
+import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMPagination from "../components/SMPagination.vue";
 import SMPanel from "../components/SMPanel.vue";
