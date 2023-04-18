@@ -42,6 +42,7 @@ const slots = useSlots();
     flex-direction: column;
     padding: 0 16px 0 16px;
     max-width: 1200px;
+    align-items: center;
 
     &.full {
         padding: 0;
