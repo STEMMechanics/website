@@ -56,9 +56,11 @@
     --footer-color-text: #888;
     --footer-color-border: rgba(0, 0, 0, 0.1);
 
+    // yes
     --accent-1-color: #3d4e5d;
     --accent-1-color-text: #e6f5eb;
 
+    // yes
     --accent-2-color: #cce8fb;
     --accent-2-color-text: #063954;
 }
@@ -93,6 +95,10 @@
         --danger-color: #db5c5a;
         --danger-color-dark: #952220;
         --danger-color-darker: #641715;
+
+        // yes
+        --accent-2-color: #063954;
+        --accent-2-color-text: #cce8fb;
     }
 }
 
