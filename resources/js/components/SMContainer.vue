@@ -1,7 +1,11 @@
 <template>
-    <div :class="['sm-container', { full: full, 'my-auto': center }]">
+    <div
+        :class="[
+            'container',
+            { full: full, narrow: narrow, 'my-auto': center },
+        ]">
         <slot v-if="slots.default"></slot>
-        <div v-if="slots.inner" class="sm-container-inner">
+        <div v-if="slots.inner" class="container-inner">
             <slot name="inner"></slot>
         </div>
     </div>
@@ -10,8 +14,13 @@
 <script setup lang="ts">
 import { useSlots } from "vue";
 
-const props = defineProps({
+defineProps({
     full: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
+    narrow: {
         type: Boolean,
         default: false,
         required: false,
@@ -27,7 +36,7 @@ const slots = useSlots();
 </script>
 
 <style lang="scss">
-.sm-container {
+.container {
     display: flex;
     width: 100%;
     flex-direction: column;
@@ -38,13 +47,17 @@ const slots = useSlots();
         padding: 0;
         max-width: 100%;
 
-        .sm-container-inner {
+        .container-inner {
             padding-left: 1rem;
             padding-right: 1rem;
             width: 100%;
             max-width: 1200px;
             margin: 0 auto;
         }
+    }
+
+    &.narrow {
+        max-width: 800px;
     }
 }
 </style>
