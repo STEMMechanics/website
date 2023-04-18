@@ -83,6 +83,10 @@
 }
 
 /* Flex Align */
+.align-items-start {
+    align-items: flex-start;
+}
+
 .align-items-center {
     align-items: center;
 }
@@ -198,6 +202,19 @@
 
 .mr-auto {
     margin-right: auto !important;
+}
+
+.my-auto {
+    margin-top: auto !important;
+    margin-bottom: auto !important;
+}
+
+.mt-auto {
+    margin-top: auto !important;
+}
+
+.mb-auto {
+    margin-bottom: auto !important;
 }
 
 /* Text Align */
