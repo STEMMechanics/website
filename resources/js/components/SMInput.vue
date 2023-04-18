@@ -50,7 +50,7 @@ import { inject, watch, ref, useSlots } from "vue";
 import { isEmpty } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 
-const emits = defineEmits(["update:modelValue"]);
+const emits = defineEmits(["update:modelValue", "change"]);
 const props = defineProps({
     form: {
         type: Object,
@@ -133,12 +133,15 @@ const id = ref(
         : ""
 );
 const feedbackInvalid = ref("");
-const active = ref(value.value != "");
+const active = ref(value.value.length > 0);
 const disabled = ref(props.disabled);
 
-watch(value, (newValue) => {
-    active.value = newValue.value != "";
-});
+watch(
+    () => value.value,
+    (newValue) => {
+        active.value = newValue.length > 0;
+    }
+);
 
 if (typeof control === "object" && control !== null) {
     watch(
@@ -161,7 +164,6 @@ if (typeof control === "object" && control !== null) {
 }
 
 if (form) {
-    console.log("here form");
     watch(
         () => form.loading(),
         (newValue) => {
@@ -196,6 +198,8 @@ const handleInput = (event: Event) => {
 
 const handleClear = () => {
     value.value = "";
+    emits("update:modelValue", "");
+    emits("change");
 };
 </script>
 
