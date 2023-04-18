@@ -1,9 +1,9 @@
 <template>
-    <div ref="toast" :class="['sm-toast', type]" :style="styles">
-        <div class="sm-toast-inner">
-            <h3 v-if="title && title.length > 0">
+    <div ref="toast" :class="['toast', type]" :style="styles">
+        <div class="toast-inner">
+            <h5 class="title" v-if="title && title.length > 0">
                 {{ title }}
-            </h3>
+            </h5>
             <p>{{ content }}</p>
             <ion-icon name="close-outline" @click="handleClickClose" />
         </div>
@@ -64,12 +64,12 @@ const removeToast = () => {
 onMounted(() => {
     window.setTimeout(() => {
         styles.value.opacity = 1;
-        styles.value.marginTop = 0;
+        styles.value.marginTop = "0";
 
         if (toast.value != null) {
             const styles = window.getComputedStyle(toast.value);
             const marginBottom = parseFloat(styles.marginBottom);
-            height = toast.value.offsetHeight + parseFloat(marginBottom) || 0;
+            height = toast.value.offsetHeight + marginBottom || 0;
         }
 
         hideTimeoutID = window.setTimeout(() => {
@@ -81,26 +81,24 @@ onMounted(() => {
 </script>
 
 <style lang="scss">
-.sm-toast {
+.toast {
     position: relative;
-    font-size: 70%;
-    background-color: #fff;
-    padding: map-get($spacer, 2) map-get($spacer, 2) map-get($spacer, 2)
-        map-get($spacer, 2);
+    font-size: 80%;
+    background-color: var(--base-color-light);
+    padding: 16px;
     border-radius: 12px;
-    border: 1px solid $border-color;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-    margin-bottom: 1rem;
+    border: 1px solid var(--base-color-border);
+    box-shadow: var(--base-shadow);
+    margin-bottom: 32px;
     transition: opacity 0.2s ease-in, margin 0.2s ease-in;
 
-    .sm-toast-inner {
-        border-left: 6px solid $primary-color;
-        padding: map-get($spacer, 1) map-get($spacer, 4) map-get($spacer, 1)
-            map-get($spacer, 2);
+    .toast-inner {
+        border-left: 6px solid var(--primary-color);
+        padding: 8px 32px 8px 16px;
         max-width: 250px;
     }
 
-    h3 {
+    .title {
         margin-top: 0;
     }
 
@@ -111,25 +109,25 @@ onMounted(() => {
     }
 
     ion-icon {
-        font-size: 1.25rem;
+        font-size: 150%;
         position: absolute;
         top: 15px;
         right: 15px;
-        color: $font-color;
+        color: var(--base-color-text);
         cursor: pointer;
-        transition: color 0.2s ease-in-out;
+        transition: color 0.1s linear;
 
         &:hover {
-            color: $danger-color;
+            color: var(--danger-color);
         }
     }
 
     &.success .sm-toast-inner {
-        border-left-color: $success-color;
+        border-left-color: var(--success-color);
     }
 
     &.danger .sm-toast-inner {
-        border-left-color: $danger-color;
+        border-left-color: var(--danger-color);
     }
 }
 </style>
