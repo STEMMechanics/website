@@ -173,7 +173,7 @@ body[data-route-name="page-home"] {
         background-color: var(--navbar-color) !important;
 
         #sm-nav {
-            display: flex;
+            max-height: 100vh;
         }
 
         #sm-nav-toggle {
@@ -223,22 +223,26 @@ body[data-route-name="page-home"] {
 
         #sm-nav-toggle {
             padding: 24px;
+            cursor: pointer;
         }
     }
 
     #sm-nav {
-        display: none;
+        display: flex;
         flex-direction: column;
         width: 100%;
         font-weight: 800;
-        padding-bottom: 12px;
+        transition: max-height 0.5s ease-in-out;
+        height: auto;
+        max-height: 0;
+        overflow: hidden;
 
         ul {
             display: block;
             width: 100%;
             list-style-type: none;
             margin: 0;
-            padding: 0;
+            padding: 0 0 12px 0;
 
             li a {
                 color: var(--base-color-text);

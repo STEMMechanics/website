@@ -93,13 +93,20 @@ const tabs = () => {
             margin-bottom: 32px;
             font-size: 80%;
             text-decoration: none;
+            transition: color 0.1s linear;
 
             &:hover {
                 color: rgb(255, 255, 255, 1);
+
+                ion-icon {
+                    margin-left: -4px;
+                    margin-right: 8px;
+                }
             }
 
             ion-icon {
                 margin-right: 4px;
+                transition: margin 0.1s linear;
             }
         }
     }
