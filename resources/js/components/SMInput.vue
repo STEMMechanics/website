@@ -206,6 +206,7 @@ const handleClear = () => {
 <style lang="scss">
 .input-control-group {
     margin-bottom: 16px;
+    width: 100%;
 
     .input-control-row {
         display: flex;
