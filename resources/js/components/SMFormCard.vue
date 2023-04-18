@@ -10,6 +10,11 @@
         <div v-if="slots.footer" class="footer">
             <slot name="footer"></slot>
         </div>
+        <div
+            v-if="slots['footer-space-between']"
+            class="footer justify-content-space-between">
+            <slot name="footer-space-between"></slot>
+        </div>
     </div>
 </template>
 
@@ -44,9 +49,10 @@ const slots = useSlots();
     }
 
     .footer {
+        margin-top: 32px;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
     }
 
     h1,

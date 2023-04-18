@@ -20,7 +20,7 @@
                         >
                     </SMInput>
                 </template>
-                <template #footer>
+                <template #footer-space-between>
                     <small>
                         <span class="pr-1">Need an account?</span
                         ><router-link to="/register">Register</router-link>

@@ -1,9 +1,13 @@
 <template>
-    <SMContainer>
-        <SMForm v-model="form" @submit="handleSubmit">
-            <SMCard class="form-wide">
+    <SMContainer :center="true">
+        <SMForm v-if="!userRegistered" v-model="form" @submit="handleSubmit">
+            <SMFormCard full>
                 <template #header>
                     <h2>Register</h2>
+                    <p>
+                        Create an account to access STEMMechanics courses and
+                        features.
+                    </p>
                 </template>
                 <template #body>
                     <SMRow>
@@ -35,40 +39,38 @@
                         </SMColumn>
                     </SMRow>
                 </template>
-                <template #footer>
+                <template #footer-space-between>
                     <div class="small">
                         <span class="pr-1">Already have an account?</span
                         ><router-link to="/login">Log in</router-link>
                     </div>
                     <SMButton type="submit" label="Register" />
                 </template>
-            </SMCard>
+            </SMFormCard>
         </SMForm>
-        <!-- </template>
-        <template v-else>
-            <h1>Email Sent!</h1>
-            <p class="text-center">
-                An email has been sent to you to confirm your details and to
-                finish registering your account.
-            </p>
-            <SMFormFooter>
-                <template #right>
-                    <SMButton :to="{ name: 'home' }" label="Home" />
-                </template>
-            </SMFormFooter>
-        </template>
-    </SMCard> -->
+        <SMFormCard v-else>
+            <template #header>
+                <h2>Email Sent!</h2>
+            </template>
+            <template #body>
+                <p>
+                    An email has been sent to you to confirm your details and to
+                    finish registering your account.
+                </p>
+            </template>
+            <template #footer>
+                <SMButton type="primary" :to="{ name: 'home' }" label="Home" />
+            </template>
+        </SMFormCard>
     </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useReCaptcha } from "vue-recaptcha-v3";
-import SMCard from "../components/SMCard.vue";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
 import SMInput from "../depreciated/SMInput-old.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
@@ -114,7 +116,7 @@ const checkUsername = async (value: string): Promise<boolean | string> => {
     }
 };
 
-const formDone = ref(false);
+const userRegistered = ref(false);
 const lastUsernameCheck = ref("");
 let form = reactive(
     Form({
@@ -147,7 +149,7 @@ const handleSubmit = async () => {
             },
         });
 
-        formDone.value = true;
+        userRegistered.value = true;
     } catch (error) {
         form.apiErrors(error);
     } finally {
