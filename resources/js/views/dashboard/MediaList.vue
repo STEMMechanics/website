@@ -8,38 +8,52 @@
         :type="formMessage.type"
         :message="formMessage.message"
         :icon="formMessage.icon" />
+    <SMContainer>
+        <SMToolbar>
+            <template #left>
+                <SMButton
+                    :to="{ name: 'workshops' }"
+                    type="primary"
+                    label="Upload Media" />
+            </template>
+            <template #right>
+                <SMInput
+                    v-model="search"
+                    label="Search"
+                    :small="true"
+                    style="max-width: 350px"
+                    :show-clear="true">
+                    <template #append>
+                        <SMButton
+                            type="primary"
+                            label="Search"
+                            icon="search-outline"
+                            @click="handleClickSearch" />
+                    </template>
+                </SMInput>
+            </template>
+        </SMToolbar>
 
-    <SMToolbar>
-        <template #left>
-            <!-- <SMButton
-                :to="{ name: 'media-upload' }"
-                type="primary"
-                label="Upload Media" /> -->
-        </template>
-        <template #right>
-            <SMInput
-                v-model="search"
-                label="Search"
-                :small="true"
-                style="max-width: 250px" />
-        </template>
-    </SMToolbar>
-
-    <SMTable :headers="headers" :items="items" @row-click="handleRowClick">
-        <template #item-size="item">
-            {{ bytesReadable(item.size) }}
-        </template>
-        <template #item-actions="item">
-            <SMButton
-                label="Edit"
-                :dropdown="{
-                    download: 'Download',
-                    delete: 'Delete',
-                }"
-                size="medium"
-                @click="handleClick(item, $event)"></SMButton>
-        </template>
-    </SMTable>
+        <SMPagination
+            :model-value="pageValue"
+            :total="total"
+            :per-page="perPage" />
+        <SMTable :headers="headers" :items="items" @row-click="handleRowClick">
+            <template #item-size="item">
+                {{ bytesReadable(item.size) }}
+            </template>
+            <template #item-actions="item">
+                <SMButton
+                    label="Edit"
+                    :dropdown="{
+                        download: 'Download',
+                        delete: 'Delete',
+                    }"
+                    size="medium"
+                    @click="handleClick(item, $event)"></SMButton>
+            </template>
+        </SMTable>
+    </SMContainer>
 
     <!-- @click-row="handleClickRow" -->
     <!-- <EasyDataTable
@@ -88,9 +102,10 @@ import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
 import { useUserStore } from "../../store/UserStore";
 import { useToastStore } from "../../store/ToastStore";
-import SMInput from "../../depreciated/SMInput-old.vue";
+import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMTable from "../../components/SMTable.vue";
+import SMPagination from "../../components/SMPagination.vue";
 
 const router = useRouter();
 const search = ref("");
@@ -122,6 +137,10 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const total = 108;
+const perPage = 25;
+const pageValue = ref(1);
 
 const handleRowClick = (item) => {
     alert(JSON.stringify(item));
@@ -291,10 +310,14 @@ const handleDownload = (item) => {
 </script>
 
 <style lang="scss">
-.vue3-easy-data-table {
-    th:nth-child(1),
-    td:nth-child(1) {
-        max-width: 30vw;
+body[data-route-name="page-dashboard-media-list"] {
+    .table tr td:last-of-type {
+        padding-left: 0;
+        text-align: center;
+
+        &:before {
+            display: none;
+        }
     }
 }
 </style>
