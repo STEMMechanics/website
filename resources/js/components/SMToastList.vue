@@ -1,5 +1,5 @@
 <template>
-    <div class="sm-toast-container">
+    <div class="toast-container">
         <SMToast
             v-for="toast of toastStore.toasts"
             :id="toast.id"
@@ -18,7 +18,7 @@ const toastStore = useToastStore();
 </script>
 
 <style lang="scss">
-.sm-toast-container {
+.toast-container {
     position: fixed;
     top: 3.5rem;
     right: 0.75rem;
