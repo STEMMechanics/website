@@ -1,30 +1,48 @@
 @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;800&family=Nunito:wght@400;700;800;1000&display=swap");
 
 :root {
-    --base-color: #eee;
-    --base-color-text: rgba(0, 0, 0, 0.8);
-    --base-color-light: #fff;
-    --base-color-dark: #ddd;
-    --base-color-darker: #999;
-    --base-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
-
+    // yes
     --default-font-size: 18px;
     --default-font-family: "Nunito", "Nunito override", "Arial", "Helvetica",
         sans-serif;
+
+    // yes
+    --base-color: #eee;
+    --base-color-text: rgba(0, 0, 0, 0.8);
+    --base-color-border: #999;
+    --base-color-light: #fff;
+
+    --base-color-dark: #ddd;
+    --base-color-darker: #999;
+
+    // yes
+    --base-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 
     --link-color: var(--primary-color);
 
     --primary-color-lighter: #cce8fb;
     --primary-color-light: #67bbf4;
+
+    // yes
     --primary-color: #35a5f1;
+
     --primary-color-dark: #0e80ce;
     --primary-color-darker: #095589;
 
     --danger-color-lighter: #f3c8c8;
     --danger-color-light: #db5c5a;
+
+    // yes
     --danger-color: #c82e2b;
+
     --danger-color-dark: #952220;
     --danger-color-darker: #641715;
+
+    // yes
+    --success-color: #198754;
+
+    // yes
+    --warning-color: #fff3cd;
 
     --header-font-family: "Montserrat", "Montserrat override", "Arial",
         "Helvetica", sans-serif;
@@ -41,9 +59,13 @@
 
 @media (prefers-color-scheme: dark) {
     :root {
+        // yes
         --base-color: #222;
         --base-color-text: rgba(255, 255, 255, 0.9);
+        --base-color-border: #000;
         --base-color-light: #333;
+
+        // no
         --base-color-dark: #444;
         --base-color-darker: #999;
 
@@ -52,12 +74,16 @@
 
         --primary-color-lighter: #095589;
         --primary-color-light: #0e80ce;
+
+        // yes
         --primary-color: #35a5f1;
+
         --primary-color-dark: #67bbf4;
         --primary-color-darker: #cce8fb;
 
         --danger-color-lighter: #f3c8c8;
         --danger-color-light: #db5c5a;
+
         --danger-color: #db5c5a;
         --danger-color-dark: #952220;
         --danger-color-darker: #641715;
