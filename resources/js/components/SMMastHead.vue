@@ -50,7 +50,7 @@ const props = defineProps({
 const tabGroups = [
     [
         { title: "Contact", to: "/contact" },
-        { title: "Code of Conduct", to: "/page" },
+        { title: "Code of Conduct", to: "/code-of-conduct" },
         { title: "Privacy", to: "/page" },
         { title: "Governance", to: "/page" },
         { title: "Teams", to: "/login" },
