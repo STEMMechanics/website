@@ -79,7 +79,7 @@ const handleRowClick = (item) => {
         tr {
             &:hover {
                 td {
-                    background-color: rgba(0, 0, 255, 0.1);
+                    background-color: rgba(0, 0, 255, 0.1) !important;
                     cursor: pointer;
                 }
             }
@@ -112,24 +112,38 @@ const handleRowClick = (item) => {
         left: -9999px;
     }
 
-    .table td {
-        border: none;
-        border-bottom: 1px solid #eee;
-        position: relative;
-        padding-left: 50%;
-        white-space: normal;
-        text-align: left;
+    .table tbody tr {
+        border-bottom: 1px solid #ccc;
 
-        &:before {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            width: 45%;
-            padding-right: 10px;
-            white-space: nowrap;
+        td {
+            border: none;
+            border-bottom: 1px solid #eee;
+            position: relative;
+            padding: 8px 12px 8px 50%;
+            white-space: normal;
             text-align: left;
-            font-weight: 600;
-            content: attr(data-title);
+
+            &:before {
+                position: absolute;
+                padding: 8px 12px;
+                top: 0;
+                left: 0;
+                width: 45%;
+                white-space: nowrap;
+                text-align: left;
+                font-weight: 600;
+                content: attr(data-title);
+            }
+        }
+
+        &:hover {
+            td {
+                border-bottom-color: transparent;
+            }
+        }
+
+        &:nth-child(even) td {
+            background-color: #f8f8f8;
         }
     }
 }
