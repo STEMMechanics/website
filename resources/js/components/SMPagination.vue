@@ -128,16 +128,15 @@ const handleClickPage = (page: number): void => {
     font-family: var(--header-font-family);
     font-size: 90%;
     font-weight: 600;
-    margin-bottom: 24px;
+    margin: 24px auto;
+    box-shadow: var(--base-shadow);
 
     .item {
         display: flex;
         cursor: pointer;
         background-color: var(--base-color-light);
         padding: 12px 16px;
-        border-right: 1px solid rgba(0, 0, 0, 0.2);
-        border-left: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: var(--base-shadow);
+        border-right: 1px solid rgba(0, 0, 0, 0.1);
 
         &.active {
             background-color: var(--primary-color);
@@ -159,8 +158,8 @@ const handleClickPage = (page: number): void => {
             padding-left: 12px;
         }
 
-        &:hover {
-            filter: brightness(115%);
+        &:hover:not(.active) {
+            background-color: var(--primary-color-hover);
         }
     }
 }

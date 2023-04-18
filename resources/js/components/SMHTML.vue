@@ -65,7 +65,7 @@ const computedContent = computed(() => {
     );
 
     return {
-        template: `<div class="sm-content">${html}</div>`,
+        template: `<div class="html">${html}</div>`,
         components: {
             SMImageGallery,
         },

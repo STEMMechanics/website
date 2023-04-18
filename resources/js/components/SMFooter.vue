@@ -90,7 +90,12 @@
                         >
                     </li>
                     <li>
-                        <router-link :to="{ name: 'terms' }"
+                        <router-link :to="{ name: 'code-of-conduct' }"
+                            >Code of Conduct</router-link
+                        >
+                    </li>
+                    <li>
+                        <router-link :to="{ name: 'terms-and-conditions' }"
                             >Terms &amp; Conditions</router-link
                         >
                     </li>
@@ -98,9 +103,6 @@
                         <router-link :to="{ name: 'privacy' }"
                             >Privacy Policy</router-link
                         >
-                    </li>
-                    <li>
-                        <router-link :to="{ name: 'rules' }">Rules</router-link>
                     </li>
                 </ul>
             </SMColumn>

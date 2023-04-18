@@ -1,7 +1,7 @@
 <template>
     <SMMastHead title="Workshops" />
     <SMContainer>
-        <SMToolbar>
+        <SMToolbar class="align-items-start">
             <SMInput
                 v-model="filterKeywords"
                 label="Keywords"
@@ -10,12 +10,14 @@
             <SMInput
                 v-model="filterLocation"
                 label="Location"
+                :show-clear="true"
                 @change="handleFilter" />
             <SMInput
                 v-model="filterDateRange"
                 type="daterange"
                 label="Date Range"
                 :feedback-invalid="dateRangeError"
+                :show-clear="true"
                 @change="handleFilter" />
         </SMToolbar>
         <SMPagination
@@ -30,9 +32,9 @@
             :message="formMessage"
             class="mt-5" />
 
-        <div class="events-list">
+        <div v-if="postsTotal > 0" class="events">
             <router-link
-                class="event"
+                class="event-card"
                 v-for="event in events"
                 :key="event.id"
                 :to="{ name: 'event', params: { id: event.id } }">
@@ -62,6 +64,7 @@
                 </div>
             </router-link>
         </div>
+        <SMNoItems v-else />
     </SMContainer>
 </template>
 
@@ -76,6 +79,7 @@ import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMContainer from "../components/SMContainer.vue";
+import SMNoItems from "../components/SMNoItems.vue";
 
 interface EventData {
     event: Event;
@@ -87,7 +91,7 @@ const loading = ref(true);
 let events: Event[] = reactive([]);
 const dateRangeError = ref("");
 
-const formMessage = ref("");
+const formMessage = ref("123");
 
 const filterKeywords = ref("");
 const filterLocation = ref("");
@@ -330,13 +334,13 @@ handleLoad();
 
 <style lang="scss">
 .page-workshops {
-    .events-list {
+    .events {
         display: grid;
         grid-template-columns: 1fr;
         gap: 30px;
         width: 100%;
 
-        .event {
+        .event-card {
             background-color: var(--base-color-light);
             box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.25);
             border-radius: 8px;
@@ -359,6 +363,7 @@ handleLoad();
             .title {
                 margin: 0 0 16px 0;
                 font-size: 100%;
+                word-break: break-all;
             }
 
             .row {
@@ -387,7 +392,7 @@ handleLoad();
 
 @media (min-width: 768px) {
     .page-workshops {
-        .events-list {
+        .events {
             grid-template-columns: 1fr 1fr;
         }
     }
@@ -395,43 +400,9 @@ handleLoad();
 
 @media (min-width: 1024px) {
     .page-workshops {
-        .events-list {
+        .events {
             grid-template-columns: 1fr 1fr 1fr;
         }
     }
 }
-
-// .sm-page-workshop-list {
-//     background-color: #f8f8f8;
-
-//     .toolbar {
-//         display: flex;
-//         flex-direction: row;
-//         flex: 1;
-
-//         & > * {
-//             padding-left: map-get($spacer, 1);
-//             padding-right: map-get($spacer, 1);
-
-//             &:first-child {
-//                 padding-left: 0;
-//             }
-
-//             &:last-child {
-//                 padding-right: 0;
-//             }
-//         }
-//     }
-// }
-
-// @media screen and (max-width: 768px) {
-//     .sm-page-workshop-list .toolbar {
-//         flex-direction: column;
-
-//         & > * {
-//             padding-left: 0;
-//             padding-right: 0;
-//         }
-//     }
-// }
 </style>

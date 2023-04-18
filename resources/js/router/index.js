@@ -102,14 +102,6 @@ export const routes = [
         component: () => import("@/views/Unsubscribe.vue"),
     },
     {
-        path: "/terms",
-        name: "terms",
-        meta: {
-            title: "Terms and Conditions",
-        },
-        component: () => import("@/views/Terms.vue"),
-    },
-    {
         path: "/minecraft",
         name: "minecraft",
         meta: {
@@ -143,12 +135,28 @@ export const routes = [
         component: () => import("@/views/Contact.vue"),
     },
     {
+        path: "/conduct",
+        redirect: { name: "code-of-conduct" },
+    },
+    {
         path: "/code-of-conduct",
         name: "code-of-conduct",
         meta: {
             title: "Code of Conduct",
         },
         component: () => import("@/views/CodeOfConduct.vue"),
+    },
+    {
+        path: "/terms",
+        redirect: { name: "terms-and-conditions" },
+    },
+    {
+        path: "/terms-and-conditions",
+        name: "terms-and-conditions",
+        meta: {
+            title: "Terms and Conditions",
+        },
+        component: () => import("@/views/TermsAndConditions.vue"),
     },
     {
         path: "/register",

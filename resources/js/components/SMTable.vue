@@ -80,7 +80,7 @@ const handleRowClick = (item) => {
         tr {
             &:hover {
                 td {
-                    background-color: rgba(0, 0, 255, 0.1) !important;
+                    background-color: var(--primary-color-hover);
                     cursor: pointer;
                 }
             }

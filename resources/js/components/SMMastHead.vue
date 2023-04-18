@@ -51,10 +51,8 @@ const tabGroups = [
     [
         { title: "Contact", to: "/contact" },
         { title: "Code of Conduct", to: "/code-of-conduct" },
-        { title: "Privacy", to: "/page" },
-        { title: "Governance", to: "/page" },
-        { title: "Teams", to: "/login" },
-        { title: "License", to: "/page" },
+        { title: "Terms and Conditions", to: "/terms-and-conditions" },
+        { title: "Privacy", to: "/privacy" },
     ],
 ];
 
@@ -115,16 +113,19 @@ const tabs = () => {
         display: flex;
         justify-content: flex-end;
         width: 100%;
+        white-space: nowrap;
 
         .tab-item {
+            display: inline-block;
             color: rgba(255, 255, 255, 0.8);
             font-family: var(--header-font-family);
             font-weight: 800;
             font-size: 18px;
             text-decoration: none;
             padding: 16px 24px;
+            white-space: nowrap;
 
-            &:hover {
+            &:hover:not(.active) {
                 color: rgba(255, 255, 255);
                 background-color: hsla(0, 0%, 100%, 0.1);
             }
@@ -132,8 +133,21 @@ const tabs = () => {
             &.active {
                 background-color: var(--base-color);
                 color: var(--primary-color);
+
+                &:hover {
+                    filter: none;
+                }
             }
         }
+    }
+}
+
+@media (max-width: 900px) {
+    .masthead .tabs {
+        display: block;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        scrollbar-width: none;
     }
 }
 

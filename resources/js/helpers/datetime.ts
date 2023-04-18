@@ -136,7 +136,7 @@ export class SMDate {
             parsedMonth: number = 0,
             parsedYear: number = 0;
 
-        if (year.length == 3 || year.length >= 5) {
+        if (year == undefined || year.length == 3 || year.length >= 5) {
             return this;
         }
 

@@ -1,6 +1,6 @@
 <template>
     <div
-        :class="['sm-column', { 'flex-fill': fill && width == '' }]"
+        :class="['column', { 'flex-fill': fill && width == '' }]"
         :style="styles">
         <slot></slot>
     </div>
@@ -28,13 +28,13 @@ if (props.width != "") {
 </script>
 
 <style lang="scss">
-.sm-column {
+.column {
     display: flex;
-    margin: map-get($spacer, 2);
+    margin: 0 12px;
     flex-direction: column;
 }
 
-.sm-row .sm-row .sm-column {
+.row .row .column {
     &:first-of-type {
         margin-left: 0;
     }

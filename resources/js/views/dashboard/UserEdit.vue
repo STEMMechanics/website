@@ -1,55 +1,66 @@
 <template>
-    <SMPage class="sm-page-user-edit">
-        <template #container>
-            <SMHeading :heading="pageHeading" />
-            <SMForm :model-value="form" @submit="handleSubmit">
-                <SMRow>
-                    <SMColumn><SMInput control="first_name" /></SMColumn>
-                    <SMColumn><SMInput control="last_name" /></SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn><SMInput control="email" /></SMColumn>
-                    <SMColumn><SMInput control="phone" /></SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMFormFooter>
-                            <template #right>
-                                <SMButton
-                                    type="secondary"
-                                    label="Change Password"
-                                    @click="handleChangePassword" />
-                                <SMButton type="submit" label="Update" />
-                            </template>
-                        </SMFormFooter>
-                    </SMColumn>
-                </SMRow>
-            </SMForm>
-        </template>
-    </SMPage>
+    <SMMastHead
+        :title="pageHeading"
+        :back-link="{ name: 'dashboard' }"
+        back-title="Back to Dashboard" />
+    <SMContainer>
+        <SMForm :model-value="form" @submit="handleSubmit">
+            <SMRow>
+                <SMColumn><SMInput control="username" disabled /></SMColumn>
+                <SMColumn><SMInput control="display_name" /></SMColumn>
+            </SMRow>
+            <SMRow>
+                <SMColumn><SMInput control="first_name" /></SMColumn>
+                <SMColumn><SMInput control="last_name" /></SMColumn>
+            </SMRow>
+            <SMRow>
+                <SMColumn><SMInput control="email" /></SMColumn>
+                <SMColumn
+                    ><SMInput control="phone">This field is optional</SMInput>
+                </SMColumn>
+            </SMRow>
+            <SMRow>
+                <SMColumn>
+                    <SMFormFooter>
+                        <template #right>
+                            <SMButton
+                                type="secondary"
+                                label="Change Password"
+                                @click="handleChangePassword" />
+                            <SMButton type="submit" label="Update" />
+                        </template>
+                    </SMFormFooter>
+                </SMColumn>
+            </SMRow>
+        </SMForm>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMFormFooter from "../../components/SMFormFooter.vue";
-import SMHeading from "../../components/SMHeading.vue";
-import SMInput from "../../depreciated/SMInput-old.vue";
+import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { UserResponse } from "../../helpers/api.types";
 import { Form, FormControl } from "../../helpers/form";
 import { And, Email, Phone, Required } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
+import SMMastHead from "../../components/SMMastHead.vue";
+import { useToastStore } from "../../store/ToastStore";
 
 const route = useRoute();
+const router = useRouter();
 const userStore = useUserStore();
 
 let form = reactive(
     Form({
+        username: FormControl("", And([Required()])),
+        display_name: FormControl("", And([Required()])),
         first_name: FormControl("", And([Required()])),
         last_name: FormControl("", And([Required()])),
         email: FormControl("", And([Required(), Email()])),
@@ -65,7 +76,7 @@ const loadData = async () => {
         try {
             form.loading(true);
             const result = await api.get({
-                url: "users/{id}",
+                url: "/users/{id}",
                 params: {
                     id: route.params.id,
                 },
@@ -85,6 +96,7 @@ const loadData = async () => {
             form.loading(false);
         }
     } else {
+        form.controls.username.value = userStore.username;
         form.controls.first_name.value = userStore.firstName;
         form.controls.last_name.value = userStore.lastName;
         form.controls.phone.value = userStore.phone;
@@ -99,7 +111,7 @@ const handleSubmit = async () => {
     try {
         form.loading(true);
         const result = await api.put({
-            url: "users/{id}",
+            url: "/users/{id}",
             params: {
                 id: userStore.id,
             },
@@ -117,7 +129,15 @@ const handleSubmit = async () => {
             userStore.setUserDetails(data.user);
         }
 
-        form.message("Your details have been updated", "success");
+        useToastStore().addToast({
+            title: route.params.id ? "Details Updated" : "User Created",
+            content: route.params.id
+                ? "The user has been updated."
+                : "The user has been created.",
+            type: "success",
+        });
+
+        router.push({ name: "dashboard" });
     } catch (err) {
         form.apiErrors(err);
     } finally {

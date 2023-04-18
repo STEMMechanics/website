@@ -184,7 +184,7 @@ const handleClickItem = (item: string) => {
     display: inline-block;
     font-family: var(--header-font-family);
     font-weight: 800;
-    padding: 16px 32px 16px 32px;
+    padding: 12px 32px 12px 32px;
     border: 0;
     background-color: var(--base-color-light);
     text-decoration: none;
@@ -195,7 +195,11 @@ const handleClickItem = (item: string) => {
     user-select: none;
 
     .button-label {
+        display: inline-block;
+        padding: 2px 0 3px 0;
+
         ion-icon {
+            display: inline-block;
             width: 28px;
             height: 28px;
             margin: -8px 0;
@@ -240,7 +244,7 @@ const handleClickItem = (item: string) => {
                 background-color: #fff;
 
                 &:hover {
-                    background-color: rgba(0, 0, 255, 0.5);
+                    background-color: var(--primary-color-hover);
                 }
             }
         }

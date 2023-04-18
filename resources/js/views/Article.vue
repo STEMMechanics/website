@@ -1,19 +1,14 @@
 <template>
-    <SMPage class="sm-page-post-view" :page-error="pageError">
-        <SMContainer>
-            <div class="sm-post-hero" :style="backgroundStyle"></div>
-            <div class="sm-heading-info">
-                <h1>{{ post.title }}</h1>
-                <div class="sm-date-author small">
-                    <ion-icon name="calendar-outline" />
-                    {{ formattedPublishAt(post.publish_at) }}, by
-                    {{ post.user.username }}
-                </div>
-            </div>
-            <SMHTML :html="post.content" />
-            <SMAttachments :attachments="post.attachments || []" />
-        </SMContainer>
-    </SMPage>
+    <div
+        class="thumbnail"
+        :style="{ backgroundImage: `url('${backgroundImageUrl}')` }"></div>
+    <SMContainer narrow>
+        <h1 class="title">{{ post.title }}</h1>
+        <div class="author">By {{ post.user.username }}</div>
+        <div class="date">{{ formattedDate(post.publish_at) }}</div>
+        <SMHTML :html="post.content" class="content" />
+        <SMAttachments :attachments="post.attachments || []" />
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
@@ -52,7 +47,10 @@ let pageLoading = ref(false);
  */
 let postUser: User | null = null;
 
-let backgroundStyle = {};
+/**
+ * Thumbnail image URL.
+ */
+let backgroundImageUrl = ref("");
 
 /**
  * Load the page data.
@@ -81,12 +79,7 @@ const handleLoad = async () => {
                     utc: true,
                 }).format("yyyy/MM/dd HH:mm:ss");
 
-                backgroundStyle = {
-                    backgroundImage: `url('${mediaGetVariantUrl(
-                        post.value.hero
-                    )}')`,
-                };
-
+                backgroundImageUrl.value = mediaGetVariantUrl(post.value.hero);
                 applicationStore.setDynamicTitle(post.value.title);
             } else {
                 pageError.value = 404;
@@ -101,7 +94,13 @@ const handleLoad = async () => {
     }
 };
 
-const formattedPublishAt = (dateStr) => {
+/**
+ * Format Date
+ *
+ * @param dateStr Date string.
+ * @returns Formatted date.
+ */
+const formattedDate = (dateStr) => {
     return new SMDate(dateStr, { format: "yMd" }).format("MMMM d, yyyy");
 };
 
@@ -109,46 +108,34 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-page-post-view {
-    .sm-container {
-        width: 70%;
-        padding: 64px 0;
-    }
-
-    .sm-post-hero {
-        display: block;
-        width: 100%;
-        height: 480px;
-        border-radius: 6px;
+.page-article {
+    .thumbnail {
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
+        aspect-ratio: 16 / 9;
+        max-height: 640px;
+        width: 100%;
     }
 
-    .sm-heading-info {
-        padding: 0 map-get($spacer, 3);
-        margin-bottom: map-get($spacer, 4);
-
-        h1 {
-            text-align: left;
-            margin-bottom: 0.5rem;
-            text-overflow: ellipsis;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .date-author {
-            font-size: 80%;
-
-            svg {
-                margin-right: 0.5rem;
-            }
-        }
+    .title {
+        margin-top: 64px;
+        text-align: left;
     }
 
-    .sm-content {
-        padding: 0 map-get($spacer, 3);
-        line-height: 1.5rem;
+    .author {
+        margin-top: 16px;
+        font-weight: 700;
+    }
+
+    .date {
+        margin-top: 16px;
+        font-weight: 700;
+        filter: brightness(175%);
+    }
+
+    .content {
+        margin-top: 24px;
     }
 }
 

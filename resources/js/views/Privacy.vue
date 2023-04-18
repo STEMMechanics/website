@@ -1,7 +1,7 @@
 <template>
-    <SMContainer class="sm-privacy">
-        <template #container>
-            <h1>Privacy Policy</h1>
+    <SMMastHead title="Privacy Policy" />
+    <SMContainer narrow>
+        <template #inner>
             <h3>We take our customers' privacy & security seriously.</h3>
             <p>
                 At STEMMechanics, we take our customers' privacy and security
@@ -23,8 +23,8 @@
             <p>
                 By using the Website and our online services, you agree to
                 accept the Privacy Policy and the Site's Terms and Conditions
-                <router-link :to="{ name: 'terms' }"
-                    >https://www.stemmechanics.com.au/terms</router-link
+                <router-link :to="{ name: 'terms-and-conditions' }"
+                    >https://www.stemmechanics.com.au/terms-and-conditions</router-link
                 >
                 (Terms and Conditions). Where the Privacy Policy uses a word
                 starting with a capital letter, that term will be defined in the
@@ -336,14 +336,18 @@
     </SMContainer>
 </template>
 
+<script setup lang="ts">
+import SMMastHead from "../components/SMMastHead.vue";
+</script>
+
 <style lang="scss">
-.sm-privacy {
-    h4 {
-        margin-bottom: 0.5rem;
+.page-privacy {
+    h3 {
+        margin-top: 60px;
     }
 
-    ul li {
-        margin-bottom: 0.5rem;
+    h4 {
+        margin-top: 30px;
     }
 }
 </style>

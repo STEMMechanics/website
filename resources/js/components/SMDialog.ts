@@ -19,8 +19,8 @@ const dialogRefs = shallowReactive<DialogInstance[]>([]);
 export default defineComponent({
     name: "SMDialogList",
     template: `
-    <div class="sm-dialog-list">
-        <div v-for="(dialogRef, index) in dialogRefList" :key="index" class="sm-dialog-outer">
+    <div class="dialog-list">
+        <div v-for="(dialogRef, index) in dialogRefList" :key="index" class="dialog-outer">
                 <component
                     :is="dialogRef.dialog"
                     v-if="dialogRef && dialogRef.wrapper === name"

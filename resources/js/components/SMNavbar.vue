@@ -266,20 +266,24 @@ onUnmounted(() => {
             margin: 0;
             padding: 0 0 12px 0;
 
-            li a {
-                color: var(--base-color-text);
-                display: block;
-                padding: 12px 0;
-                margin: 0;
-                text-decoration: none;
+            li {
+                margin-bottom: 0;
 
-                &:hover {
+                a {
+                    color: var(--base-color-text);
+                    display: block;
+                    padding: 12px 0;
+                    margin: 0;
                     text-decoration: none;
-                    background-color: hsla(0, 0%, 50%, 0.1);
-                }
 
-                span {
-                    padding-left: 12px;
+                    &:hover {
+                        text-decoration: none;
+                        background-color: hsla(0, 0%, 50%, 0.1);
+                    }
+
+                    span {
+                        padding-left: 12px;
+                    }
                 }
             }
         }

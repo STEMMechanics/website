@@ -79,6 +79,13 @@ a:visited {
     }
 }
 
+p,
+li,
+.html {
+    text-rendering: optimizeLegibility;
+    line-height: 1.5;
+}
+
 p {
     margin: 1rem 0;
 }
@@ -88,30 +95,6 @@ li {
 
     & + ul {
         margin-top: -16px;
-    }
-}
-
-.container {
-    width: 100%;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 16px;
-}
-
-.btn {
-    cursor: pointer;
-    position: relative;
-    font-family: var(--header-font-family);
-    font-weight: 800;
-    padding: 16px 32px 16px 32px;
-    border: 0;
-    background-color: var(--base-color-light);
-    -webkit-backdrop-filter: blur(4px);
-    backdrop-filter: blur(4px);
-    color: var(--link-color);
-
-    &:hover {
-        filter: brightness(85%);
     }
 }
 
@@ -190,23 +173,23 @@ li {
 //     }
 // }
 
-// /* SM Dialog */
-// .sm-dialog-outer {
-//     position: fixed;
-//     display: flex;
-//     top: 0;
-//     left: 0;
-//     bottom: 0;
-//     right: 0;
-//     flex-direction: column;
-//     align-items: center;
-//     justify-content: center;
-//     z-index: 1000;
-//     padding: 1rem;
-// }
+/* SM Dialog */
+.dialog-outer {
+    position: fixed;
+    display: flex;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
 
-// .sm-dialog-outer:last-of-type {
-//     background-color: rgba(0, 0, 0, 0.4);
-//     backdrop-filter: blur(2px);
-//     -webkit-backdrop-filter: blur(2px);
-// }
+.dialog-outer:last-of-type {
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}

@@ -17,7 +17,7 @@
                     name="alert-circle-outline"></ion-icon>
                 <ion-icon
                     v-if="
-                        props.showClear && value.length > 0 && !feedbackInvalid
+                        props.showClear && value?.length > 0 && !feedbackInvalid
                     "
                     class="clear-icon"
                     name="close-outline"
@@ -96,6 +96,11 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    feedbackInvalid: {
+        type: String,
+        default: "",
+        required: false,
+    },
 });
 
 const slots = useSlots();
@@ -132,14 +137,22 @@ const id = ref(
         ? props.control
         : ""
 );
-const feedbackInvalid = ref("");
-const active = ref(value.value.length > 0);
+const feedbackInvalid = ref(props.feedbackInvalid);
+const active = ref(value.value?.length ?? 0 > 0);
+const focused = ref(false);
 const disabled = ref(props.disabled);
 
 watch(
     () => value.value,
     (newValue) => {
-        active.value = newValue.length > 0;
+        active.value = newValue.length > 0 || focused.value == true;
+    }
+);
+
+watch(
+    () => props.feedbackInvalid,
+    (newValue) => {
+        feedbackInvalid.value = newValue;
     }
 );
 
@@ -174,10 +187,13 @@ if (form) {
 
 const handleFocus = () => {
     active.value = true;
+    focused.value = true;
 };
 
 const handleBlur = async () => {
-    active.value = value.value != "";
+    active.value = value.value?.length ?? 0 > 0;
+    focused.value = false;
+    emits("change");
 
     if (control) {
         await control.validate();
@@ -295,7 +311,7 @@ const handleClear = () => {
                 background-color: #ccc;
                 border-radius: 50%;
                 font-size: 80%;
-                padding: 1px;
+                padding: 1px 1px 1px 0px;
 
                 &:hover {
                     color: #fff;
@@ -310,13 +326,18 @@ const handleClear = () => {
                 border-radius: 8px;
                 background-color: var(--base-color-light);
                 color: var(--base-color-text);
+
+                &:disabled {
+                    background-color: hsl(0, 0%, 92%);
+                    cursor: not-allowed;
+                }
             }
         }
     }
 
     .input-help {
         display: block;
-        font-size: 85%;
+        font-size: 70%;
         margin-bottom: 8px;
 
         .input-invalid {

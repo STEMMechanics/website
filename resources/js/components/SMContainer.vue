@@ -40,9 +40,10 @@ const slots = useSlots();
     display: flex;
     width: 100%;
     flex-direction: column;
-    padding: 0 16px 0 16px;
+    padding: 0 16px;
     max-width: 1200px;
-    align-items: center;
+    // align-items: center;
+    margin: 0 auto;
 
     &.full {
         padding: 0;
