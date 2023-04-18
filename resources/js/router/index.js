@@ -477,8 +477,10 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
-    const routeName = `page-${to.name}`;
-    document.body.dataset.routeName = routeName;
+    if (from.name !== undefined) {
+        document.body.classList.remove(`page-${from.name}`);
+    }
+    document.body.classList.add(`page-${to.name}`);
 });
 
 export default router;
