@@ -336,12 +336,14 @@ const handleClear = () => {
     }
 
     &.input-invalid {
-        .invalid-icon {
-            display: block;
-        }
+        .input-control-row .input-control-item {
+            .invalid-icon {
+                display: block;
+            }
 
-        .input-control {
-            border: 2px solid var(--danger-color);
+            .input-control {
+                border: 2px solid var(--danger-color);
+            }
         }
     }
 }
