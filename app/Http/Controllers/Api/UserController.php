@@ -153,8 +153,9 @@ class UserController extends ApiController
                 'last_name' => $request->input('last_name'),
                 'username' => $request->input('username'),
                 'email' => $request->input('email'),
-                'phone' => $request->input('phone'),
-                'password' => Hash::make($request->input('password'))
+                'phone' => $request->input('phone', ''),
+                'password' => Hash::make($request->input('password')),
+                'display_name' => $request->input('display_name', $request->input('username')),
             ]);
 
             $code = $user->codes()->create([

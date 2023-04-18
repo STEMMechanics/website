@@ -31,6 +31,7 @@ class User extends Authenticatable implements Auditable
         'email',
         'phone',
         'password',
+        'display_name',
     ];
 
     /**
@@ -64,6 +65,15 @@ class User extends Authenticatable implements Auditable
      */
     protected $appends = [
         'permissions'
+    ];
+
+    /**
+     * The default attributes.
+     *
+     * @var string[]
+     */
+    protected $attributes = [
+        'phone' => '',
     ];
 
 

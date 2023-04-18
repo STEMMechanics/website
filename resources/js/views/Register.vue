@@ -71,7 +71,7 @@ import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMInput from "../depreciated/SMInput-old.vue";
+import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import {
@@ -145,6 +145,7 @@ const handleSubmit = async () => {
                 phone: form.controls.phone.value,
                 username: form.controls.username.value,
                 password: form.controls.password.value,
+                display_name: form.controls.username.value,
                 captcha_token: captcha,
             },
         });

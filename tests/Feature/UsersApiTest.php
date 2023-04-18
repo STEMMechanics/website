@@ -92,6 +92,7 @@ class UsersApiTest extends TestCase
             'first_name' => 'John',
             'last_name' => 'Doe',
             'username' => 'johndoe',
+            'display_name' => 'jackdoe',
             'email' => 'johndoe@example.com',
             'password' => 'password',
         ];
@@ -110,6 +111,7 @@ class UsersApiTest extends TestCase
             'first_name' => 'Jack',
             'last_name' => 'Doe',
             'username' => 'jackdoe',
+            'display_name' => 'jackdoe',
             'email' => 'jackdoe@example.com',
             'password' => 'password',
         ];
