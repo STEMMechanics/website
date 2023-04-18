@@ -143,6 +143,14 @@ export const routes = [
         component: () => import("@/views/Contact.vue"),
     },
     {
+        path: "/code-of-conduct",
+        name: "code-of-conduct",
+        meta: {
+            title: "Code of Conduct",
+        },
+        component: () => import("@/views/CodeOfConduct.vue"),
+    },
+    {
         path: "/register",
         name: "register",
         meta: {
