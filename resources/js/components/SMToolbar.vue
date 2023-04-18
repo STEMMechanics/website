@@ -25,6 +25,7 @@ const slots = useSlots();
     display: flex;
     justify-content: space-between;
     margin-bottom: map-get($spacer, 2);
+    width: 100%;
 
     .sm-toolbar-column {
         display: flex;
