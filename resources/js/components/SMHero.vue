@@ -1,7 +1,7 @@
 <template>
     <section class="sm-hero">
         <div class="sm-hero-background" :style="heroStyles"></div>
-        <SMContainer>
+        <SMContainer class="align-items-start">
             <div class="sm-hero-content">
                 <h1>{{ heroTitle }}</h1>
                 <p>{{ heroExcerpt }}</p>
