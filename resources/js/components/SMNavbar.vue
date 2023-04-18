@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useUserStore } from "../store/UserStore";
 import SMButton from "../components/SMButton.vue";
 
@@ -134,10 +134,32 @@ const handleClickToggleMenu = () => {
  * Handle the user clicking an element to toggle the dropdown menu.
  */
 const handleClickNavBar = () => {
+    console.log("handleClickNavBar");
     if (showToggle.value == true) {
         showToggle.value = false;
     }
 };
+
+const handleClickBody = (event: MouseEvent) => {
+    const header = document.querySelector("header");
+    const navbarContainer = document.querySelector(".sm-navbar-container");
+    if (
+        !header?.contains(event.target as Node) &&
+        !navbarContainer?.contains(event.target as Node)
+    ) {
+        if (showToggle.value == true) {
+            handleClickToggleMenu();
+        }
+    }
+};
+
+onMounted(() => {
+    document.body.addEventListener("click", handleClickBody);
+});
+
+onUnmounted(() => {
+    document.body.removeEventListener("click", handleClickBody);
+});
 </script>
 
 <style lang="scss">
@@ -232,7 +254,7 @@ body[data-route-name="page-home"] {
         flex-direction: column;
         width: 100%;
         font-weight: 800;
-        transition: max-height 0.5s ease-in-out;
+        transition: max-height 0.4s linear;
         height: auto;
         max-height: 0;
         overflow: hidden;
