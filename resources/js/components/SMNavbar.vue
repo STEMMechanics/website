@@ -163,7 +163,7 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss">
-body[data-route-name="page-home"] {
+.page-home {
     .sm-navbar-container {
         background-color: rgba(255, 255, 255, 0.1);
 
