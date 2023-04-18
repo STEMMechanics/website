@@ -1,5 +1,5 @@
 <template>
-    <SMContainer>
+    <SMContainer :center="true">
         <SMForm v-model="form" @submit="handleSubmit">
             <SMFormCard>
                 <template #header>
