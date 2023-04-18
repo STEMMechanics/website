@@ -21,10 +21,10 @@
                     </SMInput>
                 </template>
                 <template #footer-space-between>
-                    <small>
+                    <div class="small">
                         <span class="pr-1">Need an account?</span
                         ><router-link to="/register">Register</router-link>
-                    </small>
+                    </div>
                     <SMButton :form="form" type="submit" label="Log in" />
                 </template>
             </SMFormCard>
