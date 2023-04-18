@@ -83,9 +83,12 @@ p {
     margin: 1rem 0;
 }
 
-small,
-.small {
-    font-size: 70%;
+li {
+    margin-bottom: 16px;
+
+    & + ul {
+        margin-top: -16px;
+    }
 }
 
 .container {
