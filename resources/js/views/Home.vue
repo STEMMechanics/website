@@ -39,28 +39,6 @@
             </SMColumn>
         </SMRow>
     </SMContainer>
-    <SMContainer class="support">
-        <h2>And the support doesn't stop!</h2>
-        <SMRow>
-            <SMColumn
-                class="align-items-center justify-content-center flex-basis-45">
-                <img src="/img/discord.jpg" />
-            </SMColumn>
-            <SMColumn class="align-items-center flex-basis-55">
-                <p>
-                    Though the workshop has come to a close, we remain available
-                    to assist you via email and Discord with any projects you
-                    undertake at home. We are always happy to help.
-                </p>
-                <div class="button-row">
-                    <SMButton
-                        to="https://discord.gg/yNzk4x7mpD"
-                        label="Join Discord" />
-                    <SMButton :to="{ name: 'contact' }" label="Contact Us" />
-                </div>
-            </SMColumn>
-        </SMRow>
-    </SMContainer>
     <SMContainer full class="minecraft">
         <SMContainer>
             <h2>Play Minecraft with us</h2>
@@ -91,6 +69,29 @@
             </p>
         </SMContainer>
     </SMContainer>
+    <SMContainer class="support">
+        <h2>And the support doesn't stop!</h2>
+        <SMRow>
+            <SMColumn
+                class="align-items-center justify-content-center flex-basis-45">
+                <img src="/img/discord.jpg" />
+            </SMColumn>
+            <SMColumn class="align-items-center flex-basis-55">
+                <p>
+                    Though the workshop has come to a close, we remain available
+                    to assist you via email and Discord with any projects you
+                    undertake at home. We are always happy to help.
+                </p>
+                <div class="button-row">
+                    <SMButton
+                        type="primary"
+                        to="https://discord.gg/yNzk4x7mpD"
+                        label="Join Discord" />
+                    <SMButton :to="{ name: 'contact' }" label="Contact Us" />
+                </div>
+            </SMColumn>
+        </SMRow>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
@@ -99,271 +100,211 @@ import SMHero from "../components/SMHero.vue";
 </script>
 
 <style lang="scss">
-.hero-offset {
-    margin-top: -80px;
-}
-
-// .sm-page-home {
-//     margin-top: -127px !important;
-//     background-color: #fff;
-
-//     h2 {
-//         font-weight: 1000;
-//         text-align: center;
-//         margin: 0;
-//     }
-
-.about {
-    margin-top: 5rem;
-    margin-left: 2rem;
-    margin-right: 2rem;
-    background-color: #3d4e5d;
-    color: rgb(230, 245, 235);
-    border-radius: 24px;
-    padding: 4rem 8rem;
-    width: auto;
-    align-self: center;
-
-    h2 {
-        font-size: 400%;
+.page-home {
+    .hero-offset {
+        margin-top: -80px;
     }
 
-    p {
-        font-size: 125%;
-        line-height: 150%;
-    }
-}
-
-.workshops {
-    margin: 8rem auto;
-    align-self: center;
-
-    h2 {
-        font-size: 300%;
-    }
-
-    p {
-        font-size: 125%;
-        line-height: 150%;
-        max-width: 32rem;
-        text-align: center;
-        margin: 1rem auto 2rem auto;
-    }
-
-    img {
-        border-radius: 50rem;
-        height: 20rem;
-        width: 20rem;
-    }
-}
-
-.support {
-    background-color: #e6f5eb;
-    color: rgb(56, 79, 95);
-    border-radius: 24px;
-    padding: 4rem 5rem;
-    margin-left: 2rem;
-    margin-right: 2rem;
-    width: auto;
-    align-self: center;
-
-    img {
+    .about {
+        margin: 64px 32px 32px;
+        padding: 0 90px 64px 90px;
+        background-color: var(--accent-1-color);
+        color: var(--accent-1-color-text);
         border-radius: 24px;
-        height: 80%;
-        width: 80%;
-        transform: rotateZ(-10deg);
+        width: auto;
+
+        h2 {
+            font-size: 400%;
+            text-align: center;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+        }
     }
 
-    h2 {
-        font-size: 300%;
-        text-align: left;
-        text-align: center;
-        margin-bottom: 1rem;
+    .workshops {
+        margin: 64px 24px;
+        width: auto;
+
+        h2 {
+            font-size: 300%;
+            text-align: center;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+            max-width: 32rem;
+            margin: 16px auto 32px auto;
+        }
+
+        img {
+            border-radius: 50rem;
+            height: 360px;
+            width: 360px;
+        }
+
+        .button {
+            background-color: var(--accent-1-color);
+            color: var(--accent-1-color-text);
+        }
     }
 
-    p {
-        font-size: 125%;
-        line-height: 150%;
+    .minecraft {
+        margin-top: 64px;
+        background-image: url("/img/minecraft.png");
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: cover;
+        padding: 48px;
+        color: var(--base-color-light);
+
+        h2 {
+            font-size: 300%;
+            text-align: center;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 150%;
+            text-align: center;
+            margin: 24px auto;
+        }
+
+        .minecraft-education {
+            text-align: left;
+
+            .minecraft-image {
+                float: left;
+                margin-top: 24px;
+                margin-right: 48px;
+            }
+        }
+
+        .minecraft-address {
+            width: 100%;
+            height: 100%;
+        }
     }
 
-    .button-row {
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-        margin-top: 1rem;
+    .support {
+        margin: 64px 32px 32px;
+        padding: 0 90px 64px 90px;
+        color: var(--accent-2-color-text);
+        background-color: var(--accent-2-color);
+        border-radius: 24px;
+        width: auto;
 
-        a {
-            font-weight: bold;
-            color: inherit;
-            border: 2px solid rgb(56, 79, 95);
+        img {
             border-radius: 24px;
-            padding: 0.5rem 1.5rem;
-            transition: color 0.2s ease-in-out, border 0.2s ease-in-out,
-                background 0.2s ease-in-out;
+            width: 80%;
+            transform: rotateZ(-10deg);
+        }
 
-            &:hover {
-                text-decoration: none;
-                background-color: rgb(56, 79, 95);
-                color: #e6f5eb;
+        h2 {
+            font-size: 300%;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        p {
+            font-size: 125%;
+            line-height: 1.5em;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 16px;
+        }
+    }
+}
+
+@media only screen and (max-width: 896px) {
+    .page-home {
+        .support {
+            img {
+                min-width: 256px;
+                margin-left: -90px;
+            }
+            .button-row {
+                flex-direction: column;
+                gap: 20px;
+
+                .button {
+                    text-align: center;
+                }
             }
         }
     }
 }
 
-.minecraft {
-    margin-top: 4rem;
-    background-image: url("/img/minecraft.png");
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: cover;
-    padding: 4rem;
-    color: #fff;
-
-    h2 {
-        font-size: 300%;
-    }
-
-    p {
-        font-size: 125%;
-        line-height: 150%;
-        text-align: center;
-        max-width: 44rem;
-        margin: 1rem auto;
-    }
-
-    .minecraft-education {
-        text-align: left;
-
-        .minecraft-image {
-            float: left;
-            margin-top: 1rem;
-            margin-right: 2rem;
+@media only screen and (max-width: 768px) {
+    .page-home {
+        .about {
+            margin: 0;
+            border-radius: 0;
         }
-    }
 
-    .minecraft-address {
-        width: 100%;
-        height: 100%;
+        .workshops {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .minecraft {
+            margin: 0;
+            padding: 32px;
+
+            .minecraft-education {
+                text-align: center;
+
+                .minecraft-image {
+                    float: none;
+                    display: block;
+                    margin: 0 auto 1rem auto;
+                }
+            }
+        }
+
+        .support {
+            margin: 0;
+            border-radius: 0;
+        }
     }
 }
 
-//     .subscribe {
-//         margin: 6rem auto 0 auto;
-//         align-self: center;
+@media only screen and (max-width: 640px) {
+    .page-home {
+        .about {
+            padding: 0 32px 32px 32px;
 
-//         h2 {
-//             font-size: 200%;
-//         }
+            h2 {
+                font-size: 300%;
+            }
 
-//         p {
-//             text-align: center;
-//             font-size: 120%;
-//             line-height: 140%;
-//             margin: 1rem auto;
-//         }
+            p {
+                font-size: 100%;
+                line-height: 1.5em;
+            }
+        }
 
-//         .form-row {
-//             background-color: #eee;
-//             border-radius: 24px;
-//             padding: 2rem;
-//             display: flex;
-//             flex-direction: column;
-//             width: 100%;
-//             max-width: 600px;
-//             margin: 1rem auto;
-//         }
-//     }
-// }
+        .workshops,
+        .support,
+        .minecraft,
+        .subscribe {
+            padding: 32px 32px 32px 32px;
 
-// @media only screen and (max-width: 1024px) {
-//     .sm-page-home {
-//         .about {
-//             padding: 4rem;
-//         }
+            h2 {
+                font-size: 200%;
+            }
 
-//         .support {
-//             padding: 4rem;
-//         }
-//     }
-// }
-
-// @media only screen and (max-width: 896px) {
-//     .sm-page-home {
-//         .support {
-//             .row {
-//                 flex-direction: column;
-//             }
-//         }
-//     }
-// }
-
-// @media only screen and (max-width: 768px) {
-//     .sm-page-home {
-//         .about {
-//             margin-top: 2rem;
-//             margin-left: 0;
-//             margin-right: 0;
-//             border-radius: 0;
-//         }
-
-//         .workshops {
-//             margin-top: 4rem;
-//             margin-bottom: 4rem;
-//         }
-
-//         .support {
-//             margin-left: 0;
-//             margin-right: 0;
-//             border-radius: 0;
-//         }
-
-//         .minecraft {
-//             margin-top: 0;
-//             padding-left: 1rem;
-//             padding-right: 1rem;
-
-//             .minecraft-education {
-//                 text-align: center;
-
-//                 .minecraft-image {
-//                     float: none;
-//                     display: block;
-//                     margin: 0 auto 1rem auto;
-//                 }
-//             }
-//         }
-//     }
-// }
-
-// @media only screen and (max-width: 640px) {
-//     .sm-page-home {
-//         .about {
-//             padding: 2rem;
-
-//             h2 {
-//                 font-size: 300%;
-//             }
-
-//             p {
-//                 font-size: 100%;
-//                 line-height: 150%;
-//             }
-//         }
-
-//         .workshops,
-//         .support,
-//         .minecraft,
-//         .subscribe {
-//             padding: 2rem;
-
-//             h2 {
-//                 font-size: 200%;
-//             }
-
-//             p {
-//                 font-size: 100%;
-//             }
-//         }
-//     }
-// }
+            p {
+                font-size: 100%;
+            }
+        }
+    }
+}
 </style>
