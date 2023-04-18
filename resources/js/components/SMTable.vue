@@ -58,6 +58,7 @@ const handleRowClick = (item) => {
     border: 1px solid #ccc;
     border-collapse: collapse;
     margin-bottom: 32px;
+    width: 100%;
 
     td,
     th {
