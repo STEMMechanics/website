@@ -19,7 +19,7 @@
                 @change="handleFilter" />
         </SMToolbar>
         <SMPagination
-            v-if="postsTotal > 0"
+            v-if="postsTotal > postsPerPage"
             v-model="postsPage"
             :total="postsTotal"
             :per-page="postsPerPage" />
@@ -29,30 +29,39 @@
             type="error"
             :message="formMessage"
             class="mt-5" />
-        <SMPanelList
-            :loading="loading"
-            :not-found="events.length == 0"
-            not-found-text="No workshops found">
-            <SMPanel
-                v-for="item in events"
-                :key="item.event.id"
-                :to="{ name: 'event', params: { id: item.event.id } }"
-                :title="item.event.title"
-                :image="mediaGetVariantUrl(item.event.hero, 'medium')"
-                :show-time="true"
-                :date="item.event.start_at"
-                :end-date="item.event.end_at"
-                :date-in-image="true"
-                :price="item.event.price"
-                :location="
-                    item.event.location == 'online'
-                        ? 'Online Event'
-                        : item.event.address
-                "
-                :banner="item.banner"
-                :banner-type="item.bannerType"
-                :ages="computedAges(item.event)"></SMPanel>
-        </SMPanelList>
+
+        <div class="events-list">
+            <router-link
+                class="event"
+                v-for="event in events"
+                :key="event.id"
+                :to="{ name: 'event', params: { id: event.id } }">
+                <div
+                    class="image"
+                    :style="{
+                        backgroundImage: `url('${event.hero.url}')`,
+                    }"></div>
+                <div class="content">
+                    <h3 class="title">{{ event.title }}</h3>
+                    <div class="row date">
+                        <ion-icon name="calendar-outline" class="icon" />
+                        <div class="text">{{ computedDate(event) }}</div>
+                    </div>
+                    <div class="row location">
+                        <ion-icon name="location-outline" class="icon" />
+                        <div class="text">{{ computedLocation(event) }}</div>
+                    </div>
+                    <div class="row ages">
+                        <ion-icon name="body-outline" class="icon" />
+                        <div class="text">{{ computedAges(event.ages) }}</div>
+                    </div>
+                    <div class="row price">
+                        <div class="icon">$</div>
+                        <div class="text">{{ computedPrice(event.price) }}</div>
+                    </div>
+                </div>
+            </router-link>
+        </div>
     </SMContainer>
 </template>
 
@@ -61,13 +70,10 @@ import { reactive, ref, watch } from "vue";
 import SMInput from "../components/SMInput.vue";
 import SMMessage from "../components/SMMessage.vue";
 import SMPagination from "../components/SMPagination.vue";
-import SMPanel from "../components/SMPanel.vue";
-import SMPanelList from "../components/SMPanelList.vue";
 import SMToolbar from "../components/SMToolbar.vue";
 import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { mediaGetVariantUrl } from "../helpers/media";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMContainer from "../components/SMContainer.vue";
 
@@ -78,7 +84,7 @@ interface EventData {
 }
 
 const loading = ref(true);
-let events: EventData[] = reactive([]);
+let events: Event[] = reactive([]);
 const dateRangeError = ref("");
 
 const formMessage = ref("");
@@ -87,7 +93,7 @@ const filterKeywords = ref("");
 const filterLocation = ref("");
 const filterDateRange = ref("");
 
-const postsPerPage = 9;
+const postsPerPage = 24;
 let postsPage = ref(1);
 let postsTotal = ref(0);
 
@@ -209,11 +215,10 @@ const handleLoad = async () => {
                     bannerType = "warning";
                 }
 
-                events.push({
-                    event: item,
-                    banner: banner,
-                    bannerType: bannerType,
-                });
+                item["banner"] = banner;
+                item["bannerType"] = bannerType;
+
+                events.push(item);
             });
         }
     } catch (error) {
@@ -232,19 +237,85 @@ const handleFilter = async () => {
 };
 
 /**
+ * Return a human readable Date string.
+ *
+ * @param {Event} event The event to convert.
+ * @returns The converted string.
+ */
+const computedDate = (event: Event) => {
+    let str = "";
+
+    if (event.start_at.length > 0) {
+        if (
+            event.end_at.length > 0 &&
+            event.start_at.substring(0, event.start_at.indexOf(" ")) !=
+                event.end_at.substring(0, event.end_at.indexOf(" "))
+        ) {
+            str = new SMDate(event.start_at, { format: "yMd" }).format(
+                "dd/MM/yyyy"
+            );
+            if (event.end_at.length > 0) {
+                str =
+                    str +
+                    " - " +
+                    new SMDate(event.end_at, { format: "yMd" }).format(
+                        "dd/MM/yyyy"
+                    );
+            }
+        } else {
+            str = new SMDate(event.start_at, { format: "yMd" }).format(
+                "dd/MM/yyyy @ h:mm aa"
+            );
+        }
+    }
+
+    return str;
+};
+
+/**
+ * Return a human readable Location string.
+ *
+ * @param {Event} event The event to convert.
+ * @returns The converted string.
+ */
+const computedLocation = (event: Event): string => {
+    if (event.location == "online") {
+        return "Online";
+    }
+
+    return event.address;
+};
+
+/**
  * Return a human readable Ages string.
  *
- * @param item
+ * @param {string} ages The string to convert.
+ * @returns The converted string.
  */
-const computedAges = (item: Event): string => {
-    const trimmed = item.ages.trim();
+const computedAges = (ages: string): string => {
+    const trimmed = ages.trim();
     const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
 
     if (regex.test(trimmed)) {
         return `Ages ${trimmed}`;
     }
 
-    return item.ages;
+    return ages;
+};
+
+/**
+ * Return a human readable Price string.
+ *
+ * @param {string} price The string to convert.
+ * @returns The converted string.
+ */
+const computedPrice = (price: string): string => {
+    const trimmed = parseInt(price.trim());
+    if (trimmed == 0) {
+        return "Free";
+    }
+
+    return trimmed.toString();
 };
 
 watch(
@@ -258,37 +329,109 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-page-workshop-list {
-    background-color: #f8f8f8;
+.page-workshops {
+    .events-list {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 30px;
+        width: 100%;
 
-    .toolbar {
-        display: flex;
-        flex-direction: row;
-        flex: 1;
+        .event {
+            background-color: var(--base-color-light);
+            box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.25);
+            border-radius: 8px;
+            text-decoration: none;
+            color: var(--base-color-text);
 
-        & > * {
-            padding-left: map-get($spacer, 1);
-            padding-right: map-get($spacer, 1);
-
-            &:first-child {
-                padding-left: 0;
+            .image {
+                width: 100%;
+                aspect-ratio: 16 / 9;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-size: cover;
+                border-radius: 8px 8px 0 0;
             }
 
-            &:last-child {
-                padding-right: 0;
+            .content {
+                padding: 16px;
+            }
+
+            .title {
+                margin: 0 0 16px 0;
+                font-size: 100%;
+            }
+
+            .row {
+                display: flex;
+                margin-bottom: 8px;
+                font-size: 80%;
+
+                .icon {
+                    width: 20px;
+                    text-align: center;
+                    margin-right: 8px;
+                }
+            }
+
+            &:hover {
+                cursor: pointer;
+                filter: none;
+
+                .image {
+                    filter: brightness(115%);
+                }
             }
         }
     }
 }
 
-@media screen and (max-width: 768px) {
-    .sm-page-workshop-list .toolbar {
-        flex-direction: column;
-
-        & > * {
-            padding-left: 0;
-            padding-right: 0;
+@media (min-width: 768px) {
+    .page-workshops {
+        .events-list {
+            grid-template-columns: 1fr 1fr;
         }
     }
 }
+
+@media (min-width: 1024px) {
+    .page-workshops {
+        .events-list {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+    }
+}
+
+// .sm-page-workshop-list {
+//     background-color: #f8f8f8;
+
+//     .toolbar {
+//         display: flex;
+//         flex-direction: row;
+//         flex: 1;
+
+//         & > * {
+//             padding-left: map-get($spacer, 1);
+//             padding-right: map-get($spacer, 1);
+
+//             &:first-child {
+//                 padding-left: 0;
+//             }
+
+//             &:last-child {
+//                 padding-right: 0;
+//             }
+//         }
+//     }
+// }
+
+// @media screen and (max-width: 768px) {
+//     .sm-page-workshop-list .toolbar {
+//         flex-direction: column;
+
+//         & > * {
+//             padding-left: 0;
+//             padding-right: 0;
+//         }
+//     }
+// }
 </style>
