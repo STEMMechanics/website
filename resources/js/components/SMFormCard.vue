@@ -1,13 +1,13 @@
 <template>
-    <div :class="['form-card', { 'form-card-full': full }]">
-        <div v-if="slots.header" class="form-card-header">
+    <div :class="['form-card', { full: full }]">
+        <div v-if="slots.header" class="header">
             <slot name="header"></slot>
         </div>
-        <div v-if="slots.body || slots.default``" class="form-card-body">
+        <div v-if="slots.body || slots.default" class="body">
             <slot name="body"></slot>
             <slot></slot>
         </div>
-        <div v-if="slots.footer" class="form-card-footer">
+        <div v-if="slots.footer" class="footer">
             <slot name="footer"></slot>
         </div>
     </div>
@@ -39,7 +39,11 @@ const slots = useSlots();
     border-radius: 16px;
     box-shadow: var(--base-shadow);
 
-    .form-card-footer {
+    &.full {
+        max-width: 960px;
+    }
+
+    .footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
