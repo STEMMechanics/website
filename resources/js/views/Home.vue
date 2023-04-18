@@ -2,42 +2,48 @@
     <SMHero class="hero-offset" />
 
     <SMContainer class="about">
-        <h2>Join the Fun!</h2>
-        <p></p>
-        <p>
-            To meet the demands of a constantly evolving world, it is essential
-            to nurture a new generation of scientists, engineers, and leaders
-            who are skilled in problem-solving. Science and technology offer
-            endless possibilities for innovation and progress, and it is through
-            STEM education that we can equip the next generation with the tools
-            they need to tackle these challenges.
-        </p>
-        <p>
-            STEMMechanics is a family-run business that is committed to
-            providing accessible and inclusive STEM education to all. We offer a
-            wide range of STEM courses, after-school clubs, and themed workshops
-            across Queensland, both to the general public and to private groups.
-        </p>
+        <template #inner>
+            <h2>Join the Fun!</h2>
+            <p></p>
+            <p>
+                To meet the demands of a constantly evolving world, it is
+                essential to nurture a new generation of scientists, engineers,
+                and leaders who are skilled in problem-solving. Science and
+                technology offer endless possibilities for innovation and
+                progress, and it is through STEM education that we can equip the
+                next generation with the tools they need to tackle these
+                challenges.
+            </p>
+            <p>
+                STEMMechanics is a family-run business that is committed to
+                providing accessible and inclusive STEM education to all. We
+                offer a wide range of STEM courses, after-school clubs, and
+                themed workshops across Queensland, both to the general public
+                and to private groups.
+            </p>
+        </template>
     </SMContainer>
     <SMContainer class="workshops">
-        <SMRow>
-            <SMColumn class="align-items-center flex-basis-55">
-                <h2>Build skills while having a great time</h2>
-                <p>
-                    Our online and in-person workshops are filled with engaging
-                    and exciting activities that kids will love. They will have
-                    fun, make new friends, and gain valuable skills that they
-                    can use throughout their lives.
-                </p>
-                <SMButton
-                    :to="{ name: 'workshops' }"
-                    label="Explore Workshops" />
-            </SMColumn>
-            <SMColumn
-                class="align-items-center justify-content-center flex-basis-45">
-                <img src="/img/green-screen.jpg" />
-            </SMColumn>
-        </SMRow>
+        <template #inner>
+            <SMRow>
+                <SMColumn class="align-items-center flex-basis-55">
+                    <h2>Build skills while having a great time</h2>
+                    <p>
+                        Our online and in-person workshops are filled with
+                        engaging and exciting activities that kids will love.
+                        They will have fun, make new friends, and gain valuable
+                        skills that they can use throughout their lives.
+                    </p>
+                    <SMButton
+                        :to="{ name: 'workshops' }"
+                        label="Explore Workshops" />
+                </SMColumn>
+                <SMColumn
+                    class="align-items-center justify-content-center flex-basis-45">
+                    <img src="/img/green-screen.jpg" />
+                </SMColumn>
+            </SMRow>
+        </template>
     </SMContainer>
     <SMContainer full class="minecraft">
         <SMContainer>
@@ -70,27 +76,32 @@
         </SMContainer>
     </SMContainer>
     <SMContainer class="support">
-        <h2>And the support doesn't stop!</h2>
-        <SMRow>
-            <SMColumn
-                class="align-items-center justify-content-center flex-basis-45">
-                <img src="/img/discord.jpg" />
-            </SMColumn>
-            <SMColumn class="align-items-center flex-basis-55">
-                <p>
-                    Though the workshop has come to a close, we remain available
-                    to assist you via email and Discord with any projects you
-                    undertake at home. We are always happy to help.
-                </p>
-                <div class="button-row">
-                    <SMButton
-                        type="primary"
-                        to="https://discord.gg/yNzk4x7mpD"
-                        label="Join Discord" />
-                    <SMButton :to="{ name: 'contact' }" label="Contact Us" />
-                </div>
-            </SMColumn>
-        </SMRow>
+        <template #inner>
+            <h2>And the support doesn't stop!</h2>
+            <SMRow>
+                <SMColumn
+                    class="align-items-center justify-content-center flex-basis-45">
+                    <img src="/img/discord.jpg" />
+                </SMColumn>
+                <SMColumn class="align-items-center flex-basis-55">
+                    <p>
+                        Though the workshop has come to a close, we remain
+                        available to assist you via email and Discord with any
+                        projects you undertake at home. We are always happy to
+                        help.
+                    </p>
+                    <div class="button-row">
+                        <SMButton
+                            type="primary"
+                            to="https://discord.gg/yNzk4x7mpD"
+                            label="Join Discord" />
+                        <SMButton
+                            :to="{ name: 'contact' }"
+                            label="Contact Us" />
+                    </div>
+                </SMColumn>
+            </SMRow>
+        </template>
     </SMContainer>
 </template>
 
@@ -105,13 +116,13 @@ import SMHero from "../components/SMHero.vue";
         margin-top: -80px;
     }
 
-    .about {
+    .about .container-inner {
         margin: 64px 32px 32px;
         padding: 0 90px 64px 90px;
         background-color: var(--accent-1-color);
         color: var(--accent-1-color-text);
         border-radius: 24px;
-        width: auto;
+        max-width: 960px;
 
         h2 {
             font-size: 400%;
@@ -124,9 +135,9 @@ import SMHero from "../components/SMHero.vue";
         }
     }
 
-    .workshops {
+    .workshops .container-inner {
         margin: 64px 24px;
-        width: auto;
+        max-width: 960px;
 
         h2 {
             font-size: 300%;
@@ -189,13 +200,13 @@ import SMHero from "../components/SMHero.vue";
         }
     }
 
-    .support {
+    .support .container-inner {
         margin: 64px 32px 32px;
         padding: 0 90px 64px 90px;
         color: var(--accent-2-color-text);
         background-color: var(--accent-2-color);
         border-radius: 24px;
-        width: auto;
+        max-width: 960px;
 
         img {
             border-radius: 24px;
