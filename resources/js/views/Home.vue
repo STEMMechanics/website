@@ -159,7 +159,7 @@ import SMHero from "../components/SMHero.vue";
         background-position: center;
         background-size: cover;
         padding: 48px;
-        color: var(--base-color-light);
+        color: #f8f8f8;
 
         h2 {
             font-size: 300%;
