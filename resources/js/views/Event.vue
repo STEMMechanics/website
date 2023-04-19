@@ -1,5 +1,5 @@
 <template>
-    <SMPage :page-error="pageError">
+    <SMPage :page-error="pageError" :loading="pageLoading">
         <div
             class="sm-workshop-image"
             :style="{
@@ -332,6 +332,11 @@ handleLoad();
         text-align: left;
     }
 
+    .sm-workshop-title {
+        line-height: 1.15em;
+        margin-bottom: 32px;
+    }
+
     .sm-workshop-info {
         width: 18rem;
         margin-left: 2rem;
@@ -401,7 +406,7 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .sm-workshop-view .sm-workshop-page {
+    .sm-workshop-page {
         flex-direction: column;
 
         .sm-workshop-body {
