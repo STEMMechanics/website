@@ -1,9 +1,5 @@
 <template>
-    <SMPage
-        :full="true"
-        :loading="pageLoading"
-        class="sm-workshop-view"
-        :page-error="pageError">
+    <SMPage :page-error="pageError" permission="admin/userss">
         <div
             class="sm-workshop-image"
             :style="{
@@ -129,6 +125,7 @@ import { SMDate } from "../helpers/datetime";
 import { stringToNumber } from "../helpers/string";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../helpers/media";
+import SMPage from "../components/SMPage.vue";
 
 const applicationStore = useApplicationStore();
 
@@ -303,104 +300,102 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-workshop-view {
-    .sm-workshop-image {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        min-height: map-get($spacer, 5) * 4;
-        height: 20vw;
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
-        background-color: #eee;
-        transition: background-image 0.2s;
+.sm-workshop-image {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: map-get($spacer, 5) * 4;
+    height: 20vw;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-color: #eee;
+    transition: background-image 0.2s;
 
-        .sm-workshop-image-loader {
-            font-size: 5rem;
-            color: $secondary-color;
-        }
+    .sm-workshop-image-loader {
+        font-size: 5rem;
+        color: $secondary-color;
+    }
+}
+
+.sm-workshop-page {
+    display: flex;
+    flex-direction: row;
+
+    .sm-workshop-body,
+    .sm-workshop-info {
+        line-height: 1.5rem;
     }
 
-    .sm-workshop-page {
-        display: flex;
-        flex-direction: row;
+    .sm-workshop-body {
+        flex: 1;
+        text-align: left;
+    }
 
-        .sm-workshop-body,
-        .sm-workshop-info {
-            line-height: 1.5rem;
+    .sm-workshop-info {
+        width: 18rem;
+        margin-left: 2rem;
+
+        h4 {
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            height: 1rem;
+
+            .icon {
+                display: inline-block;
+                width: 1rem;
+                margin-right: 0.5rem;
+                text-align: center;
+            }
         }
 
-        .sm-workshop-body {
-            flex: 1;
-            text-align: left;
+        p {
+            margin: 0;
+            padding-left: 1.5rem;
+            font-size: 90%;
         }
 
-        .sm-workshop-info {
-            width: 18rem;
-            margin-left: 2rem;
+        .sm-workshop-registration {
+            margin-top: 1.5rem;
+            line-height: 1.25rem;
+        }
 
-            h4 {
-                margin-bottom: 0.25rem;
-                display: flex;
-                align-items: center;
-                height: 1rem;
+        .sm-workshop-registration-none,
+        .sm-workshop-registration-soon,
+        .sm-workshop-registration-message {
+            border: 1px solid #ffeeba;
+            background-color: #fff3cd;
+            color: #856404;
+            text-align: center;
+            font-size: 80%;
+            padding: 0.5rem;
+        }
 
-                .icon {
-                    display: inline-block;
-                    width: 1rem;
-                    margin-right: 0.5rem;
-                    text-align: center;
-                }
-            }
+        .sm-workshop-registration-closed,
+        .sm-workshop-registration-cancelled {
+            border: 1px solid #f5c2c7;
+            background-color: #f8d7da;
+            color: #842029;
+            text-align: center;
+            font-size: 80%;
+            padding: 0.5rem;
+        }
 
-            p {
-                margin: 0;
-                padding-left: 1.5rem;
-                font-size: 90%;
-            }
+        .sm-workshop-date,
+        .sm-workshop-location,
+        .sm-workshop-price,
+        .sm-workshop-ages {
+            padding: 0 1rem;
+        }
 
-            .sm-workshop-registration {
-                margin-top: 1.5rem;
-                line-height: 1.25rem;
-            }
-
-            .sm-workshop-registration-none,
-            .sm-workshop-registration-soon,
-            .sm-workshop-registration-message {
-                border: 1px solid #ffeeba;
-                background-color: #fff3cd;
-                color: #856404;
-                text-align: center;
-                font-size: 80%;
-                padding: 0.5rem;
-            }
-
-            .sm-workshop-registration-closed,
-            .sm-workshop-registration-cancelled {
-                border: 1px solid #f5c2c7;
-                background-color: #f8d7da;
-                color: #842029;
-                text-align: center;
-                font-size: 80%;
-                padding: 0.5rem;
-            }
-
-            .sm-workshop-date,
-            .sm-workshop-location,
-            .sm-workshop-price,
-            .sm-workshop-ages {
-                padding: 0 1rem;
-            }
-
-            .sm-workshop-ages p {
-                margin-top: 0.5rem;
-                margin-left: 1rem;
-                padding: 0 0 0 0.5rem;
-                font-size: 80%;
-                border-left: 4px solid $warning-color;
-                line-height: 1.2rem;
-            }
+        .sm-workshop-ages p {
+            margin-top: 0.5rem;
+            margin-left: 1rem;
+            padding: 0 0 0 0.5rem;
+            font-size: 80%;
+            border-left: 4px solid $warning-color;
+            line-height: 1.2rem;
         }
     }
 }

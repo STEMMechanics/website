@@ -1,32 +1,35 @@
 <template>
-    <div
-        :class="['sm-page-outer', { 'sm-no-breadcrumbs': noBreadcrumbs }]"
-        :style="styleObject">
-        <SMLoader :loading="loading">
-            <SMErrorForbidden
-                v-if="pageError == 403 || !hasPermission()"></SMErrorForbidden>
-            <SMErrorInternal
-                v-if="pageError >= 500 && hasPermission()"></SMErrorInternal>
-            <SMErrorNotFound
-                v-if="pageError == 404 && hasPermission()"></SMErrorNotFound>
-            <div v-if="pageError < 300 && hasPermission()" class="sm-page">
-                <slot></slot>
-                <SMContainer v-if="slots.container"
-                    ><slot name="container"></slot
-                ></SMContainer>
+    <template v-if="pageError < 300">
+        <slot></slot>
+    </template>
+    <template v-else>
+        <SMContainer class="page-error">
+            <div class="error-number" v-html="modifiedPageError"></div>
+            <div class="error-content">
+                <h2>Ooops!</h2>
+                <p v-if="pageError == 403">This page is not for you to view!</p>
+                <p v-else-if="pageError == 404">
+                    The page you are looking for does not exist!
+                </p>
+                <p v-else>
+                    We are working to fix that what was broken. Please try again
+                    later!
+                </p>
+                <SMButton label="Go Back" @click="handleClick" />
             </div>
-        </SMLoader>
-    </div>
+        </SMContainer>
+    </template>
 </template>
 
 <script setup lang="ts">
-import { useSlots } from "vue";
+import { useRouter } from "vue-router";
+import { useApplicationStore } from "../store/ApplicationStore";
 import { useUserStore } from "../store/UserStore";
-import SMErrorForbidden from "./errors/Forbidden.vue";
-import SMErrorInternal from "./errors/Internal.vue";
-import SMErrorNotFound from "./errors/NotFound.vue";
-import SMContainer from "./SMContainer.vue";
-import SMLoader from "./SMLoader.vue";
+import SMButton from "../components/SMButton.vue";
+import { computed, watch, ref } from "vue";
+
+const router = useRouter();
+const applicationStore = useApplicationStore();
 
 const props = defineProps({
     pageError: {
@@ -44,58 +47,79 @@ const props = defineProps({
         default: false,
         required: false,
     },
-    background: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    noBreadcrumbs: {
-        type: Boolean,
-        default: false,
-        required: false,
-    },
 });
 
-const slots = useSlots();
-const userStore = useUserStore();
-let styleObject = {};
+const pageError = ref(props.pageError);
 
-if (props.background != "") {
-    styleObject["backgroundImage"] = `url('${props.background}')`;
-}
+watch(
+    () => props.pageError,
+    (newValue) => {
+        pageError.value = newValue;
+    }
+);
 
 /**
- * Return if the current user has the props.permission to view this page.
- *
- * @returns {boolean} If the user has the permission.
+ * Handle user clicking back/home button
  */
-const hasPermission = (): boolean => {
-    return (
-        props.permission.length == 0 ||
-        userStore.permissions.includes(props.permission)
-    );
+const handleClick = () => {
+    router.go(-1);
 };
+
+const modifiedPageError = computed(() => {
+    const errorNumber = pageError.value.toString(); // Convert to string
+    const middleDigit = errorNumber.charAt(1); // Get the middle digit
+
+    if (pageError.value >= 300) {
+        applicationStore.setDynamicTitle("Server Error");
+    }
+
+    if (middleDigit === "0") {
+        return errorNumber.replace(
+            middleDigit,
+            '<img src="/img/sad-monster.png" />'
+        ); // Replace with image
+    } else {
+        return errorNumber; // Use the entire number
+    }
+});
+
+const userStore = useUserStore();
+if (
+    props.permission.length !== 0 &&
+    userStore.permissions.includes(props.permission) == false &&
+    pageError.value < 300
+) {
+    pageError.value = 403;
+}
 </script>
 
 <style lang="scss">
-.sm-page-outer {
+.page-error {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    width: 100%;
-    padding-bottom: calc(map-get($spacer, 5) * 2);
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
 
-    &.sm-no-breadcrumbs {
-        margin-bottom: 0;
+    .error-number {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 30vw;
+        font-weight: 600;
+        color: #295b7e;
+
+        img {
+            height: 25vw;
+            margin: 0 0.5rem 0 1rem;
+        }
     }
 
-    .sm-page {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
+    .error-content {
+        text-align: center;
+        font-size: 120%;
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+        }
     }
 }
 </style>
