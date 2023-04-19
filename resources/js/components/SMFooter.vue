@@ -1,6 +1,6 @@
 <template>
-    <SMContainer :full="true" class="sm-footer">
-        <SMRow class="sm-social">
+    <SMContainer :full="true" class="footer">
+        <SMRow class="social">
             <SMColumn class="align-items-center">
                 <ul>
                     <li>
@@ -40,7 +40,7 @@
             <SMColumn
                 width="350px"
                 class="align-items-center justify-content-center align-items-center">
-                <router-link to="/" class="sm-logo-link">
+                <router-link to="/" class="logo-link">
                     <img
                         class="dark:d-none"
                         src="/assets/logo.png"
@@ -55,7 +55,7 @@
                         alt="STEMMechanics" />
                 </router-link>
             </SMColumn>
-            <SMColumn class="sm-footer-text">
+            <SMColumn class="footer-text">
                 <p>
                     STEMMechanics Australia acknowledges the Traditional Owners
                     of Country throughout Australia and the continuing
@@ -82,7 +82,7 @@
                 class="justify-content-center align-items-center copyright"
                 >Made with ❤️ - Copyright &copy; 2023</SMColumn
             >
-            <SMColumn class="justify-content-center sm-footer-links">
+            <SMColumn class="justify-content-center footer-links">
                 <ul>
                     <li>
                         <router-link :to="{ name: 'contact' }"
@@ -111,7 +111,7 @@
 </template>
 
 <style lang="scss" scoped>
-.sm-footer {
+.footer {
     flex: 0;
     align-items: center;
     font-size: 80%;
@@ -131,7 +131,7 @@
         }
     }
 
-    .sm-social {
+    .social {
         font-size: 200%;
         max-width: 100%;
         border-top: 1px solid var(--footer-color-border);
@@ -145,14 +145,13 @@
         }
     }
 
-    .sm-logo-link:hover {
+    .logo-link:hover {
         filter: none;
     }
 
     ul {
         display: flex;
         flex-direction: row;
-        margin: 0 -1rem;
         padding: 0;
         list-style-type: none;
 
@@ -165,7 +164,7 @@
         }
     }
 
-    .sm-footer-text {
+    .footer-text {
         p {
             padding: 0;
             margin: 0 0 0.5rem 0;
@@ -178,17 +177,17 @@
 }
 
 @media only screen and (max-width: 768px) {
-    .sm-footer {
+    .footer {
         .row:first-of-type {
             padding-bottom: 0;
         }
 
-        .sm-footer-text {
+        .footer-text {
             align-items: center;
             text-align: center;
         }
 
-        .sm-footer-links {
+        .footer-links {
             align-items: center;
             justify-content: center;
         }
@@ -196,11 +195,11 @@
 }
 
 @media only screen and (max-width: 864px) {
-    .sm-footer {
-        .sm-footer-text {
+    .footer {
+        .footer-text {
             padding: 0 1rem;
         }
-        .sm-footer-links ul {
+        .footer-links ul {
             flex-direction: column;
 
             li {
@@ -212,7 +211,7 @@
 }
 
 @media only screen and (max-width: 400px) {
-    .sm-footer ul li {
+    .footer ul li {
         margin-left: 0.5rem;
         margin-right: 0.5rem;
     }
