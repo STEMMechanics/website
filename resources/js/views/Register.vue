@@ -12,7 +12,7 @@
                 <template #body>
                     <SMRow>
                         <SMColumn>
-                            <SMInput control="username" />
+                            <SMInput control="username" autofocus />
                         </SMColumn>
                         <SMColumn>
                             <SMInput

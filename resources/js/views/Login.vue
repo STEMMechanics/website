@@ -9,7 +9,7 @@
                     </p>
                 </template>
                 <template #body>
-                    <SMInput control="username">
+                    <SMInput control="username" autofocus>
                         <router-link to="/forgot-username"
                             >Forgot username?</router-link
                         >

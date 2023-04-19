@@ -497,6 +497,13 @@ router.afterEach((to, from) => {
         document.body.classList.remove(`page-${from.name}`);
     }
     document.body.classList.add(`page-${to.name}`);
+
+    window.setTimeout(() => {
+        const autofocusElement = document.querySelector("[autofocus]");
+        if (autofocusElement) {
+            autofocusElement.focus();
+        }
+    }, 10);
 });
 
 export default router;

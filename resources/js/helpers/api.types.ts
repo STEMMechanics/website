@@ -90,6 +90,7 @@ export interface User {
     first_name: string;
     last_name: string;
     phone: string;
+    display_name: string;
 }
 
 export interface UserResponse {

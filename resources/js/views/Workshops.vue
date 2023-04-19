@@ -1,6 +1,6 @@
 <template>
     <SMMastHead title="Workshops" />
-    <SMContainer>
+    <SMContainer class="flex-grow-1">
         <SMToolbar class="align-items-start">
             <SMInput
                 v-model="filterKeywords"
@@ -32,7 +32,11 @@
             :message="formMessage"
             class="mt-5" />
 
-        <div v-if="postsTotal > 0" class="events">
+        <template v-if="pageLoading">
+            <SMLoading large />
+        </template>
+        <SMNoItems v-else-if="postsTotal == 0" />
+        <div v-else class="events">
             <router-link
                 class="event-card"
                 v-for="event in events"
@@ -76,7 +80,6 @@
                 </div>
             </router-link>
         </div>
-        <SMNoItems v-else />
     </SMContainer>
 </template>
 
@@ -92,6 +95,7 @@ import { SMDate } from "../helpers/datetime";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMContainer from "../components/SMContainer.vue";
 import SMNoItems from "../components/SMNoItems.vue";
+import SMLoading from "../components/SMLoading.vue";
 
 interface EventData {
     event: Event;
@@ -99,7 +103,7 @@ interface EventData {
     bannerType: string;
 }
 
-const loading = ref(true);
+const pageLoading = ref(true);
 let events: Event[] = reactive([]);
 const dateRangeError = ref("");
 
@@ -166,7 +170,7 @@ const handleLoad = async () => {
             dateRangeError.value = "";
         }
 
-        loading.value = true;
+        pageLoading.value = true;
         formMessage.value = "";
         events = [];
 
@@ -244,7 +248,7 @@ const handleLoad = async () => {
                 "Could not load any events from the server.";
         }
     } finally {
-        loading.value = false;
+        pageLoading.value = false;
     }
 };
 

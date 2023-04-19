@@ -26,7 +26,7 @@
                     :type="props.type"
                     class="input-control"
                     :disabled="disabled"
-                    v-bind="{ id: id }"
+                    v-bind="{ id: id, autofocus: props.autofocus }"
                     v-model="value"
                     @focus="handleFocus"
                     @blur="handleBlur"
@@ -99,6 +99,11 @@ const props = defineProps({
     feedbackInvalid: {
         type: String,
         default: "",
+        required: false,
+    },
+    autofocus: {
+        type: Boolean,
+        default: false,
         required: false,
     },
 });

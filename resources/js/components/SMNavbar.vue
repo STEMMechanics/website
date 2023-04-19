@@ -1,33 +1,33 @@
 <template>
     <SMContainer
         :full="true"
-        :class="['sm-navbar-container', { 'sm-nav-active': showToggle }]"
+        :class="['navbar-container', { 'nav-active': showToggle }]"
         @click="handleClickNavBar">
         <template #inner>
-            <nav class="sm-navbar">
-                <div id="sm-nav-head">
-                    <router-link :to="{ name: 'home' }" id="sm-logo-link">
+            <nav class="navbar">
+                <div id="nav-head">
+                    <router-link :to="{ name: 'home' }" id="logo-link">
                         <img
-                            class="sm-nav-logo dark:d-none"
+                            class="nav-logo dark:d-none"
                             src="/assets/logo.png"
                             width="270"
                             height="40"
                             alt="STEMMechanics" />
                         <img
-                            class="sm-nav-logo light:d-none"
+                            class="nav-logo light:d-none"
                             src="/assets/logo-dark.png"
                             width="270"
                             height="40"
                             alt="STEMMechanics" />
                     </router-link>
-                    <div class="sm-nav-right">
+                    <div class="nav-right">
                         <SMButton
                             type="primary"
                             size="medium"
                             :to="{ name: 'workshops' }"
                             label="Find Workshops" />
                         <label
-                            id="sm-nav-toggle"
+                            id="nav-toggle"
                             @click.stop="handleClickToggleMenu"
                             ><img
                                 src="/assets/hamburger.svg"
@@ -37,7 +37,7 @@
                         /></label>
                     </div>
                 </div>
-                <div id="sm-nav">
+                <div id="nav">
                     <ul>
                         <template v-for="item in menuItems">
                             <li
@@ -64,31 +64,20 @@ const userStore = useUserStore();
 const showToggle = ref(false);
 const menuItems = [
     {
-        name: "workshops",
-        label: "Workshops",
-        to: { name: "workshops" },
-    },
-    {
         name: "blog",
         label: "Blog",
         to: { name: "blog" },
+    },
+    {
+        name: "workshops",
+        label: "Workshops",
+        to: { name: "workshops" },
     },
     {
         name: "community",
         label: "Community",
         to: { name: "blog" },
     },
-    {
-        name: "about",
-        label: "About",
-        to: { name: "blog" },
-    },
-    // {
-    //     name: "courses",
-    //     label: "Courses",
-    //     to: "/courses",
-    //     icon: "briefcase-outline",
-    // },
     {
         name: "contact",
         label: "Contact",
@@ -141,7 +130,7 @@ const handleClickNavBar = () => {
 
 const handleClickBody = (event: MouseEvent) => {
     const header = document.querySelector("header");
-    const navbarContainer = document.querySelector(".sm-navbar-container");
+    const navbarContainer = document.querySelector(".navbar-container");
     if (
         !header?.contains(event.target as Node) &&
         !navbarContainer?.contains(event.target as Node)
@@ -163,26 +152,26 @@ onUnmounted(() => {
 
 <style lang="scss">
 .page-home {
-    .sm-navbar-container {
+    .navbar-container {
         background-color: rgba(255, 255, 255, 0.1);
 
-        &:not(.sm-nav-active) {
-            .sm-nav-logo.dark\:d-none {
+        &:not(.nav-active) {
+            .nav-logo.dark\:d-none {
                 display: none !important;
             }
 
-            .sm-nav-logo.light\:d-none {
+            .nav-logo.light\:d-none {
                 display: block !important;
             }
 
-            .sm-navbar #sm-nav-head #sm-nav-toggle {
+            .navbar #nav-head #nav-toggle {
                 filter: invert(100%) saturate(0%) brightness(120%);
             }
         }
     }
 }
 
-.sm-navbar-container {
+.navbar-container {
     position: relative;
     z-index: 100;
     -webkit-backdrop-filter: blur(4px);
@@ -190,32 +179,33 @@ onUnmounted(() => {
     background-color: var(--navbar-color);
     box-shadow: var(--base-shadow);
 
-    &.sm-nav-active {
+    &.nav-active {
         background-color: var(--navbar-color) !important;
 
-        #sm-nav {
+        #nav {
             max-height: 100vh;
+            transition: max-height 0.4s linear;
         }
 
-        #sm-nav-toggle {
+        #nav-toggle {
             background-color: hsla(0, 0%, 50%, 0.1);
         }
     }
 
-    .sm-navbar {
+    .navbar {
         display: flex;
         flex-direction: column;
         align-items: center;
         width: 100%;
     }
 
-    #sm-nav-head {
+    #nav-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
         width: 100%;
 
-        #sm-logo-link {
+        #logo-link {
             padding-right: 18px;
             margin-top: -10px;
             -webkit-user-select: none;
@@ -232,7 +222,7 @@ onUnmounted(() => {
             }
         }
 
-        .sm-nav-right {
+        .nav-right {
             display: flex;
             align-items: center;
             gap: 20px;
@@ -242,18 +232,18 @@ onUnmounted(() => {
             color: #fff;
         }
 
-        #sm-nav-toggle {
+        #nav-toggle {
             padding: 24px;
             cursor: pointer;
         }
     }
 
-    #sm-nav {
+    #nav {
         display: flex;
         flex-direction: column;
         width: 100%;
         font-weight: 800;
-        transition: max-height 0.4s linear;
+        transition: max-height 0;
         height: auto;
         max-height: 0;
         overflow: hidden;
@@ -290,13 +280,13 @@ onUnmounted(() => {
 }
 
 @media (prefers-color-scheme: dark) {
-    .sm-navbar #sm-nav-head #sm-nav-toggle {
+    .navbar #nav-head #nav-toggle {
         filter: invert(100%) saturate(0%) brightness(120%);
     }
 }
 
 @media screen and (max-width: 650px) {
-    .sm-nav-right {
+    .nav-right {
         .button {
             display: none;
         }

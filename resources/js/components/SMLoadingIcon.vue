@@ -21,7 +21,7 @@ const props = defineProps({
 .loading-icon-balls {
     display: inline-block;
     position: relative;
-    width: 3em;
+    width: 2.5em;
     height: 0.5em;
 
     div {
@@ -34,39 +34,20 @@ const props = defineProps({
         animation-timing-function: cubic-bezier(0, 1, 1, 0);
     }
     div:nth-child(1) {
-        left: 0.3em;
+        left: 0em;
         animation: sm-loading-icon1 0.6s infinite;
     }
     div:nth-child(2) {
-        left: 0.3em;
+        left: 0em;
         animation: sm-loading-icon2 0.6s infinite;
     }
     div:nth-child(3) {
-        left: 1.2em;
+        left: 1em;
         animation: sm-loading-icon2 0.6s infinite;
     }
     div:nth-child(4) {
-        left: 2.1em;
+        left: 2em;
         animation: sm-loading-icon3 0.6s infinite;
-    }
-
-    &.large {
-        div {
-            width: 1.5em;
-            height: 1.5em;
-        }
-        div:nth-child(1) {
-            left: 0em;
-        }
-        div:nth-child(2) {
-            left: 0em;
-        }
-        div:nth-child(3) {
-            left: 3em;
-        }
-        div:nth-child(4) {
-            left: 6em;
-        }
     }
 
     @keyframes sm-loading-icon1 {
@@ -90,7 +71,37 @@ const props = defineProps({
             transform: translate(0, 0);
         }
         100% {
-            transform: translate(3em, 0);
+            transform: translate(1em, 0);
+        }
+    }
+
+    &.large {
+        width: 7.5em;
+        height: 1.5em;
+
+        div {
+            width: 1.5em;
+            height: 1.5em;
+        }
+
+        div:nth-child(2) {
+            animation: sm-loading-large-icon2 0.6s infinite;
+        }
+        div:nth-child(3) {
+            left: 3em;
+            animation: sm-loading-large-icon2 0.6s infinite;
+        }
+        div:nth-child(4) {
+            left: 6em;
+        }
+
+        @keyframes sm-loading-large-icon2 {
+            0% {
+                transform: translate(0, 0);
+            }
+            100% {
+                transform: translate(3em, 0);
+            }
         }
     }
 }

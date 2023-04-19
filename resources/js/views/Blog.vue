@@ -1,6 +1,6 @@
 <template>
     <SMMastHead title="Blog" />
-    <SMContainer>
+    <SMContainer class="flex-grow-1">
         <SMInput
             type="text"
             label="Search articles"
@@ -14,35 +14,40 @@
                     @click="handleClickSearch"
             /></template>
         </SMInput>
-        <SMPagination
-            v-if="postsTotal > postsPerPage"
-            v-model="postsPage"
-            :total="postsTotal"
-            :per-page="postsPerPage" />
-        <div class="posts">
-            <router-link
-                :to="{ name: 'article', params: { slug: post.slug } }"
-                class="article-card"
-                v-for="(post, idx) in posts"
-                :key="idx">
-                <div
-                    class="thumbnail"
-                    :style="{
-                        backgroundImage: `url(${mediaGetVariantUrl(
-                            post.hero,
-                            'medium'
-                        )})`,
-                    }"></div>
-                <div class="info">
-                    {{ post.user.username }} -
-                    {{ computedDate(post.publish_at) }}
-                </div>
-                <h3 class="title">{{ post.title }}</h3>
-                <p class="content">
-                    {{ excerpt(post.content) }}
-                </p>
-            </router-link>
-        </div>
+        <template v-if="pageLoading">
+            <SMLoading large />
+        </template>
+        <template v-else>
+            <SMPagination
+                v-if="postsTotal > postsPerPage"
+                v-model="postsPage"
+                :total="postsTotal"
+                :per-page="postsPerPage" />
+            <div class="posts">
+                <router-link
+                    :to="{ name: 'article', params: { slug: post.slug } }"
+                    class="article-card"
+                    v-for="(post, idx) in posts"
+                    :key="idx">
+                    <div
+                        class="thumbnail"
+                        :style="{
+                            backgroundImage: `url(${mediaGetVariantUrl(
+                                post.hero,
+                                'medium'
+                            )})`,
+                        }"></div>
+                    <div class="info">
+                        {{ post.user.display_name }} -
+                        {{ computedDate(post.publish_at) }}
+                    </div>
+                    <h3 class="title">{{ post.title }}</h3>
+                    <p class="content">
+                        {{ excerpt(post.content) }}
+                    </p>
+                </router-link>
+            </div>
+        </template>
     </SMContainer>
 </template>
 
@@ -57,6 +62,7 @@ import SMMastHead from "../components/SMMastHead.vue";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import { excerpt } from "../helpers/string";
+import SMLoading from "../components/SMLoading.vue";
 
 const message = ref("");
 const pageLoading = ref(true);
@@ -159,7 +165,7 @@ handleLoad();
 
             .title {
                 margin: 16px 0;
-                word-break: break-all;
+                word-break: break-word;
             }
 
             .content {
