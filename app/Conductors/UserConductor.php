@@ -43,6 +43,8 @@ class UserConductor extends Conductor
         if ($user === null || ($user->hasPermission('admin/users') === false && strcasecmp($user->id, $model->id) !== 0)) {
             $fields = ['id', 'username', 'display_name'];
             $data = arrayLimitKeys($data, $fields);
+        } else {
+            $data['permissions'] = $user->permissions;
         }
 
         return $data;

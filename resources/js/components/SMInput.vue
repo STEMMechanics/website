@@ -30,7 +30,8 @@
                     v-model="value"
                     @focus="handleFocus"
                     @blur="handleBlur"
-                    @input="handleInput" />
+                    @input="handleInput"
+                    @keyup="handleKeyup" />
             </div>
             <div v-if="slots.append" class="input-control-append">
                 <slot name="append"></slot>
@@ -50,7 +51,7 @@ import { inject, watch, ref, useSlots } from "vue";
 import { isEmpty } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 
-const emits = defineEmits(["update:modelValue", "change"]);
+const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
     form: {
         type: Object,
@@ -198,7 +199,7 @@ const handleFocus = () => {
 const handleBlur = async () => {
     active.value = value.value?.length ?? 0 > 0;
     focused.value = false;
-    emits("change");
+    emits("blur");
 
     if (control) {
         await control.validate();
@@ -215,6 +216,10 @@ const handleInput = (event: Event) => {
         control.value = target.value;
         feedbackInvalid.value = "";
     }
+};
+
+const handleKeyup = (event: Event) => {
+    emits("keyup", event);
 };
 
 const handleClear = () => {
@@ -357,7 +362,7 @@ const handleClear = () => {
 
     &.input-active {
         .input-control-item .input-label {
-            transform: translate(16px, 6px) scale(0.8);
+            transform: translate(16px, 6px) scale(0.7);
         }
     }
 

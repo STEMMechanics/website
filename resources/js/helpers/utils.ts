@@ -20,14 +20,32 @@ export const isEmpty = (objOrString: unknown): boolean => {
 };
 
 /**
+ * Returns the file extension
+ *
+ * @param {string} fileName The filename with extension.
+ * @returns {string} The file extension.
+ */
+export const getFileExtension = (fileName: string): string => {
+    if (fileName.includes(".")) {
+        return fileName.split(".").pop();
+    }
+
+    return "";
+};
+
+/**
  * Returns a url to a file type icon based on file name.
  *
  * @param {string} fileName The filename with extension.
  * @returns {string} The url to the file type icon.
  */
 export const getFileIconImagePath = (fileName: string): string => {
-    const ext = fileName.split(".").pop();
-    return `/img/fileicons/${ext}.png`;
+    const ext = getFileExtension(fileName);
+    if (ext.length > 0) {
+        return `/img/fileicons/${ext}.png`;
+    }
+
+    return "/img/fileicons/unknown.png";
 };
 
 /**
@@ -37,8 +55,8 @@ export const getFileIconImagePath = (fileName: string): string => {
  * @returns {string} The url to the file preview icon.
  */
 export const getFilePreview = (url: string): string => {
-    const ext = url.split(".").pop();
-    if (ext) {
+    const ext = getFileExtension(fileName);
+    if (ext.length > 0) {
         if (/(gif|jpe?g|png)/i.test(ext)) {
             return `${url}?size=thumb`;
         }

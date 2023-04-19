@@ -5,20 +5,17 @@
             <SMInput
                 v-model="filterKeywords"
                 label="Keywords"
-                :show-clear="true"
-                @change="handleFilter" />
+                @blur="handleFilter" />
             <SMInput
                 v-model="filterLocation"
                 label="Location"
-                :show-clear="true"
-                @change="handleFilter" />
+                @blur="handleFilter" />
             <SMInput
                 v-model="filterDateRange"
                 type="daterange"
                 label="Date Range"
                 :feedback-invalid="dateRangeError"
-                :show-clear="true"
-                @change="handleFilter" />
+                @blur="handleFilter" />
         </SMToolbar>
         <SMPagination
             v-if="postsTotal > postsPerPage"
@@ -32,10 +29,8 @@
             :message="formMessage"
             class="mt-5" />
 
-        <template v-if="pageLoading">
-            <SMLoading large />
-        </template>
-        <SMNoItems v-else-if="postsTotal == 0" />
+        <SMLoading v-if="pageLoading" large />
+        <SMNoItems v-else-if="events.length == 0" text="No Workshops Found" />
         <div v-else class="events">
             <router-link
                 class="event-card"
@@ -96,12 +91,6 @@ import SMMastHead from "../components/SMMastHead.vue";
 import SMContainer from "../components/SMContainer.vue";
 import SMNoItems from "../components/SMNoItems.vue";
 import SMLoading from "../components/SMLoading.vue";
-
-interface EventData {
-    event: Event;
-    banner: string;
-    bannerType: string;
-}
 
 const pageLoading = ref(true);
 let events: Event[] = reactive([]);
@@ -253,6 +242,7 @@ const handleLoad = async () => {
 };
 
 const handleFilter = async () => {
+    postsPage.value = 1;
     handleLoad();
 };
 

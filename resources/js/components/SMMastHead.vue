@@ -10,6 +10,7 @@
                     ><ion-icon name="chevron-back-outline"></ion-icon>
                     {{ props.backTitle }}</router-link
                 >
+                <p class="info" v-if="slots.default"><slot></slot></p>
             </div>
             <div v-if="tabs().length > 0" class="tabs">
                 <router-link
@@ -26,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSlots } from "vue";
 import { useRoute } from "vue-router";
 
 const props = defineProps({
@@ -46,6 +48,8 @@ const props = defineProps({
         required: false,
     },
 });
+
+const slots = useSlots();
 
 const tabGroups = [
     [
@@ -105,6 +109,17 @@ const tabs = () => {
             ion-icon {
                 margin-right: 4px;
                 transition: margin 0.1s linear;
+            }
+        }
+
+        .info {
+            margin-top: -24px;
+            color: rgb(255, 255, 255, 0.74);
+            max-width: 500px;
+
+            a {
+                color: rgb(255, 255, 255);
+                text-decoration: none;
             }
         }
     }

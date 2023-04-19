@@ -53,7 +53,7 @@ import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
 import SMFormFooter from "../components/SMFormFooter.vue";
-import SMInput from "../depreciated/SMInput-old.vue";
+import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Min, Required } from "../helpers/validate";

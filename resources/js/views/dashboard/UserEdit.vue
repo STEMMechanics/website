@@ -85,8 +85,10 @@ const loadData = async () => {
             const data = result.data as UserResponse;
 
             if (data && data.user) {
+                form.controls.username.value = data.user.username;
                 form.controls.first_name.value = data.user.first_name;
                 form.controls.last_name.value = data.user.last_name;
+                form.controls.display_name.value = data.user.display_name;
                 form.controls.phone.value = data.user.phone;
                 form.controls.email.value = data.user.email;
             }
@@ -99,6 +101,7 @@ const loadData = async () => {
         form.controls.username.value = userStore.username;
         form.controls.first_name.value = userStore.firstName;
         form.controls.last_name.value = userStore.lastName;
+        form.controls.display_name.value = userStore.displayName;
         form.controls.phone.value = userStore.phone;
         form.controls.email.value = userStore.email;
     }
@@ -118,6 +121,7 @@ const handleSubmit = async () => {
             body: {
                 first_name: form.controls.first_name.value,
                 last_name: form.controls.last_name.value,
+                display_name: form.controls.display_name.value,
                 email: form.controls.email.value,
                 phone: form.controls.phone.value,
             },

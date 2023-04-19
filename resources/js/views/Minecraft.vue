@@ -1,61 +1,102 @@
 <template>
-    <SMPage class="sm-page-minecraft">
-        <template #container>
-            <h1>Connecting to our Minecraft Server</h1>
-            <ol>
-                <li>
-                    Open up your Minecraft on your computer and make sure you
-                    are using version 1.19.3
-                </li>
-                <li>Click Multiplayer</li>
-                <li>Click Add Server</li>
-                <li>Enter Server Name STEMMechanics</li>
-                <li>Enter Server Address mc.stemmech.com.au</li>
-                <li>
-                    We have a custom resourcepack which you can enable before
-                    joining
-                </li>
-                <li>Click Done</li>
-                <li>Join the Server!</li>
-            </ol>
-            <h2>Java or Bedrock</h2>
-            <p>
-                Regrettably, our support is exclusively for the Java edition of
-                Minecraft. The reason for this is that we rely on the features
-                unique to the Java edition, such as Resource Packs, Custom
-                Items, and Modelling, which are not available in Bedrock
-                (Tablet) edition.
-            </p>
-            <p>
-                It's worth noting that if you have the Bedrock version, you may
-                be eligible to acquire the Java version for free from
-                <a href="https://minecraft.net">Minecraft.net</a>. However,
-                please keep in mind that the Java version is solely compatible
-                with Windows or Mac operating systems.
-            </p>
-            <h2>Goodbye Drustcraft</h2>
-            <p>
-                STEMMechanics launched the Drustcraft server three years ago and
-                since then, players have had countless enjoyable experiences.
-                Cities were built, bosses defeated, and most importantly, a
-                tight-knit community formed.
-            </p>
-            <p>
-                Maintaining the server design became overwhelming and took away
-                the fun of playing Minecraft. Hence, in January, the decision
-                was made to shut down Drustcraft and offer a more
-                straightforward Minecraft server, retaining the beloved elements
-                of Drustcraft like mini-games, bosses, and survival. Join us on
-                the new STEMMechanics Minecraft server, where the Drustcraft
-                community awaits.
-            </p>
-        </template>
-    </SMPage>
+    <SMMastHead title="Minecraft Server" />
+    <SMContainer narrow>
+        <h3>Connecting to our Minecraft Server</h3>
+        <ol>
+            <li>
+                Open up your Minecraft on your computer and make sure you are
+                using version 1.19.3
+            </li>
+            <li>Click Multiplayer</li>
+            <li>Click Add Server</li>
+            <li>Enter Server Name STEMMechanics</li>
+            <li>Enter Server Address mc.stemmech.com.au</li>
+            <li>
+                We have a custom resourcepack which you can enable before
+                joining
+            </li>
+            <li>Click Done</li>
+            <li>Join the Server!</li>
+        </ol>
+        <h3>Java or Bedrock</h3>
+        <p>
+            Regrettably, our support is exclusively for the Java edition of
+            Minecraft. The reason for this is that we rely on the features
+            unique to the Java edition, such as Resource Packs, Custom Items,
+            and Modelling, which are not available in Bedrock (Tablet) edition.
+        </p>
+        <p>
+            It's worth noting that if you have the Bedrock version, you may be
+            eligible to acquire the Java version for free from
+            <a href="https://minecraft.net">Minecraft.net</a>. However, please
+            keep in mind that the Java version is solely compatible with Windows
+            or Mac operating systems.
+        </p>
+        <h3>Goodbye Drustcraft</h3>
+        <p>
+            STEMMechanics launched the Drustcraft server three years ago and
+            since then, players have had countless enjoyable experiences. Cities
+            were built, bosses defeated, and most importantly, a tight-knit
+            community formed.
+        </p>
+        <p>
+            Maintaining the server design became overwhelming and took away the
+            fun of playing Minecraft. Hence, in January, the decision was made
+            to shut down Drustcraft and offer a more straightforward Minecraft
+            server, retaining the beloved elements of Drustcraft like
+            mini-games, bosses, and survival. Join us on the new STEMMechanics
+            Minecraft server, where the Drustcraft community awaits.
+        </p>
+        <h3>So long Cairns Minecraft</h3>
+        <p>
+            After seven incredible years of operation, the Cairns Minecraft
+            server officially closed its virtual doors in May 2022. This
+            close-knit online community, which brought together gamers from
+            around the region, renowned for its fantastic builds, lively
+            competitions, and unique events. Throughout its existence, players
+            forged genuine friendships, collaborated on awe-inspiring projects,
+            and pushed the boundaries of creativity in the world of Minecraft.
+            Although the server's closure marked the end of an era, the
+            cherished memories and invaluable experiences shared by its members
+            will forever remain etched in the hearts of the Cairns Minecraft
+            community.
+        </p>
+        <SMAttachments :attachments="downloads" />
+    </SMContainer>
 </template>
+
+<script setup lang="ts">
+import SMAttachments from "../components/SMAttachments.vue";
+import SMMastHead from "../components/SMMastHead.vue";
+
+const downloads = [
+    {
+        id: "1",
+        title: "Cairns Minecraft - Survival",
+        name: "2103-cm-survival.zip",
+        url: "https://cdn.stemmechanics.com.au/2103-cm-survival.zip",
+        size: 6098565968,
+    },
+    {
+        id: "2",
+        title: "Cairns Minecraft - Creative",
+        name: "2205-cm-creative-complete.zip",
+        url: "https://cdn.stemmechanics.com.au/2205-cm-creative-complete.zip",
+        size: 6712439230,
+    },
+    {
+        id: "3",
+        title: "Cairns Minecraft - Creative (Worlds Only)",
+        name: "2205-cm-creative.zip",
+        url: "https://cdn.stemmechanics.com.au/2205-cm-creative.zip",
+        size: 3585899092,
+    },
+];
+</script>
 
 <style lang="scss">
 .sm-page-minecraft {
-    h2 {
+    h3 {
         margin-bottom: 0.5rem;
     }
     li {

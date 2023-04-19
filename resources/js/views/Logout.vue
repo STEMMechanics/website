@@ -1,12 +1,10 @@
 <template>
-    <SMPage>
-        <SMLoader :loading="true" />
-    </SMPage>
+    <SMLoading large />
 </template>
 
 <script setup lang="ts">
 import { useRouter } from "vue-router";
-import SMLoader from "../components/SMLoader.vue";
+import SMLoading from "../components/SMLoading.vue";
 import { api } from "../helpers/api";
 import { useToastStore } from "../store/ToastStore";
 import { useUserStore } from "../store/UserStore";

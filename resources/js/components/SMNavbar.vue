@@ -76,7 +76,7 @@ const menuItems = [
     {
         name: "community",
         label: "Community",
-        to: { name: "blog" },
+        to: { name: "community" },
     },
     {
         name: "contact",
@@ -87,7 +87,6 @@ const menuItems = [
         name: "register",
         label: "Register",
         to: { name: "register" },
-        icon: "person-add-outline",
         show: () => !userStore.id,
     },
     {
@@ -100,14 +99,12 @@ const menuItems = [
         name: "dashboard",
         label: "Dashboard",
         to: { name: "dashboard" },
-        icon: "grid-outline",
         show: () => userStore.id,
     },
     {
         name: "logout",
         label: "Log out",
         to: { name: "logout" },
-        icon: "log-out-outline",
         show: () => userStore.id,
     },
 ];

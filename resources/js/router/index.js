@@ -94,12 +94,12 @@ export const routes = [
         component: () => import("@/views/Rules.vue"),
     },
     {
-        path: "/unsubscribe",
-        name: "unsubscribe",
+        path: "/community",
+        name: "community",
         meta: {
-            title: "Unsubscribe",
+            title: "Community",
         },
-        component: () => import("@/views/Unsubscribe.vue"),
+        component: () => import("@/views/Community.vue"),
     },
     {
         path: "/minecraft",
@@ -345,31 +345,13 @@ export const routes = [
         component: () => import("@/views/ForgotPassword.vue"),
     },
     {
-        path: "/error/internal",
-        name: "error-internal",
-        meta: {
-            title: "Server error",
-            hideInEditor: true,
-        },
-        component: () => import("@/components/errors/Internal.vue"),
-    },
-    {
-        path: "/error/forbidden",
-        name: "forbidden",
-        meta: {
-            title: "Forbidden",
-            hideInEditor: true,
-        },
-        component: () => import("@/components/errors/Forbidden.vue"),
-    },
-    {
         path: "/:catchAll(.*)",
         name: "not-found",
         meta: {
             title: "Page not found",
             hideInEditor: true,
         },
-        component: () => import("@/components/errors/NotFound.vue"),
+        component: () => import("@/views/404.vue"),
     },
 ];
 
@@ -392,25 +374,13 @@ router.beforeEach(async (to, from, next) => {
 
     // Check Token
     if (userStore.id) {
-        let redirect = false;
-
         try {
             let res = await api.get("/me");
             userStore.setUserDetails(res.json.user);
         } catch (err) {
             if (err.status == 401) {
                 userStore.clearUser();
-                redirect = true;
             }
-        }
-
-        if (
-            redirect &&
-            to.path.startsWith("/error/") === false &&
-            to.path.startsWith("/login") === false
-        ) {
-            next({ name: "login", query: { redirect: to.fullPath } });
-            return;
         }
     }
 

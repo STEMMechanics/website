@@ -5,6 +5,7 @@ export interface UserDetails {
     username: string;
     first_name: string;
     last_name: string;
+    display_name: string;
     email: string;
     phone: string;
     permissions: string[];
@@ -16,6 +17,7 @@ export interface UserState {
     username: string;
     firstName: string;
     lastName: string;
+    displayName: string;
     email: string;
     phone: string;
     permissions: string[];
@@ -29,6 +31,7 @@ export const useUserStore = defineStore({
         username: "",
         firstName: "",
         lastName: "",
+        displayName: "",
         email: "",
         phone: "",
         permissions: [],
@@ -40,6 +43,7 @@ export const useUserStore = defineStore({
             this.$state.username = user.username;
             this.$state.firstName = user.first_name;
             this.$state.lastName = user.last_name;
+            this.$state.displayName = user.display_name;
             this.$state.email = user.email;
             this.$state.phone = user.phone;
             this.$state.permissions = user.permissions || [];
@@ -55,9 +59,13 @@ export const useUserStore = defineStore({
             this.$state.username = null;
             this.$state.firstName = null;
             this.$state.lastName = null;
+            this.$state.displayName = null;
             this.$state.email = null;
             this.$state.phone = null;
             this.$state.permissions = [];
+
+            this.$reset();
+            localStorage.removeItem(this.$id);
         },
     },
 

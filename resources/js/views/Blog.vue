@@ -5,7 +5,8 @@
             type="text"
             label="Search articles"
             v-model="searchInput"
-            show-clear>
+            @keyup.enter="handleClickSearch"
+            @blur="handleClickSearch">
             <template #append
                 ><SMButton
                     type="primary"
@@ -14,9 +15,8 @@
                     @click="handleClickSearch"
             /></template>
         </SMInput>
-        <template v-if="pageLoading">
-            <SMLoading large />
-        </template>
+        <SMLoading v-if="pageLoading" large />
+        <SMNoItems v-else-if="posts.length == 0" text="No Articles Found" />
         <template v-else>
             <SMPagination
                 v-if="postsTotal > postsPerPage"
@@ -63,6 +63,7 @@ import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
 import { excerpt } from "../helpers/string";
 import SMLoading from "../components/SMLoading.vue";
+import SMNoItems from "../components/SMNoItems.vue";
 
 const message = ref("");
 const pageLoading = ref(true);
@@ -75,7 +76,8 @@ let postsTotal = ref(0);
 let searchInput = ref("");
 
 const handleClickSearch = () => {
-    alert(searchInput.value);
+    postsPage.value = 1;
+    handleLoad();
 };
 
 /**
@@ -84,13 +86,22 @@ const handleClickSearch = () => {
 const handleLoad = () => {
     message.value = "";
     pageLoading.value = true;
+    posts.value = [];
+
+    let params = {
+        limit: postsPerPage,
+        page: postsPage.value,
+    };
+
+    if (searchInput.value.length > 0) {
+        params[
+            "filter"
+        ] = `(title:${searchInput.value},OR,content:${searchInput.value})`;
+    }
 
     api.get({
         url: "/posts",
-        params: {
-            limit: postsPerPage,
-            page: postsPage.value,
-        },
+        params: params,
     })
         .then((result) => {
             const data = result.data as PostCollection;

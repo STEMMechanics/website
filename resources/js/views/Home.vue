@@ -1,7 +1,7 @@
 <template>
     <SMHero class="hero-offset" />
 
-    <SMContainer class="about">
+    <SMContainer class="about align-items-center">
         <template #inner>
             <h2>Join the Fun!</h2>
             <p></p>
@@ -23,7 +23,7 @@
             </p>
         </template>
     </SMContainer>
-    <SMContainer class="workshops">
+    <SMContainer class="workshops align-items-center">
         <template #inner>
             <SMRow>
                 <SMColumn class="align-items-center flex-basis-55">
@@ -49,9 +49,11 @@
         <SMContainer>
             <h2>Play Minecraft with us</h2>
             <p>
-                We invite you to join us on our Minecraft servers, supporting
-                both Bedrock and Java clients, where you can participate in
-                weekly challenges and mini-games.
+                We invite you to join us on our
+                <router-link :to="{ name: 'minecraft' }"
+                    >Minecraft server</router-link
+                >
+                where you can participate in weekly challenges and mini-games.
             </p>
             <p class="minecraft-education">
                 <img
@@ -75,7 +77,7 @@
             </p>
         </SMContainer>
     </SMContainer>
-    <SMContainer class="support">
+    <SMContainer class="support align-items-center">
         <template #inner>
             <h2>And the support doesn't stop!</h2>
             <SMRow>
