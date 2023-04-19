@@ -1,5 +1,5 @@
 <template>
-    <SMPage :page-error="pageError" permission="admin/userss">
+    <SMPage :page-error="pageError">
         <div
             class="sm-workshop-image"
             :style="{
