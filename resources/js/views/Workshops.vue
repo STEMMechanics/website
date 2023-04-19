@@ -39,10 +39,22 @@
                 :key="event.id"
                 :to="{ name: 'event', params: { id: event.id } }">
                 <div
-                    class="image"
+                    class="thumbnail"
                     :style="{
                         backgroundImage: `url('${event.hero.url}')`,
-                    }"></div>
+                    }">
+                    <div :class="['banner', event['bannerType']]">
+                        {{ event["banner"] }}
+                    </div>
+                    <div class="date">
+                        <div class="day">
+                            {{ formatDateDay(event.start_at) }}
+                        </div>
+                        <div class="month">
+                            {{ formatDateMonth(event.start_at) }}
+                        </div>
+                    </div>
+                </div>
                 <div class="content">
                     <h3 class="title">{{ event.title }}</h3>
                     <div class="row date">
@@ -277,6 +289,26 @@ const computedDate = (event: Event) => {
 };
 
 /**
+ * Return a the event starting month day number.
+ *
+ * @param {string} date The date to format.
+ * @returns The converted string.
+ */
+const formatDateDay = (date: string) => {
+    return new SMDate(date, { format: "yMd" }).format("dd");
+};
+
+/**
+ * Return a the event starting month name.
+ *
+ * @param {string} date The date to format.
+ * @returns The converted string.
+ */
+const formatDateMonth = (date: string) => {
+    return new SMDate(date, { format: "yMd" }).format("MMM");
+};
+
+/**
  * Return a human readable Location string.
  *
  * @param {Event} event The event to convert.
@@ -346,14 +378,65 @@ handleLoad();
             border-radius: 8px;
             text-decoration: none;
             color: var(--base-color-text);
+            position: relative;
+            overflow: hidden;
 
-            .image {
+            .thumbnail {
                 width: 100%;
                 aspect-ratio: 16 / 9;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-size: cover;
                 border-radius: 8px 8px 0 0;
+
+                .banner {
+                    position: absolute;
+                    background-color: var(--banner-green-color);
+                    font-size: 70%;
+                    font-weight: 700;
+                    color: var(--banner-green-color-text);
+                    padding: 6px 18px;
+                    text-align: center;
+                    top: 10px;
+                    right: 10px;
+                    text-transform: uppercase;
+
+                    &.expired {
+                        background-color: var(--banner-purple-color);
+                        color: var(--banner-purple-color-text);
+                    }
+
+                    &.danger {
+                        background-color: var(--banner-red-color);
+                        color: var(--banner-red-color-text);
+                    }
+
+                    &.warning {
+                        background-color: var(--banner-yellow-color);
+                        color: var(--banner-yellow-color-text);
+                    }
+                }
+
+                .date {
+                    position: absolute;
+                    top: 10px;
+                    left: 10px;
+                    background-color: var(--base-color);
+                    box-shadow: var(--base-shadow);
+                    padding: 8px 12px;
+                    text-align: center;
+                    border-radius: 2px;
+
+                    .day {
+                        font-weight: 700;
+                        padding: 1px;
+                    }
+
+                    .month {
+                        font-size: 65%;
+                        text-transform: uppercase;
+                    }
+                }
             }
 
             .content {
