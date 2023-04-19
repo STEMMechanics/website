@@ -134,7 +134,6 @@ const handleClickToggleMenu = () => {
  * Handle the user clicking an element to toggle the dropdown menu.
  */
 const handleClickNavBar = () => {
-    console.log("handleClickNavBar");
     if (showToggle.value == true) {
         showToggle.value = false;
     }
