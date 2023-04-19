@@ -1,5 +1,10 @@
 <template>
-    <template v-if="pageError < 300">
+    <template v-if="loading">
+        <div class="page-loading">
+            <SMLoadingIcon large />
+        </div>
+    </template>
+    <template v-else-if="pageError < 300">
         <slot></slot>
     </template>
     <template v-else>
@@ -22,11 +27,12 @@
 </template>
 
 <script setup lang="ts">
+import { computed, watch, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { useUserStore } from "../store/UserStore";
 import SMButton from "../components/SMButton.vue";
-import { computed, watch, ref } from "vue";
+import SMLoadingIcon from "./SMLoadingIcon.vue";
 
 const router = useRouter();
 const applicationStore = useApplicationStore();
@@ -94,6 +100,13 @@ if (
 </script>
 
 <style lang="scss">
+.page-loading {
+    display: flex;
+    flex-grow: 1;
+    justify-content: center;
+    align-items: center;
+}
+
 .page-error {
     display: flex;
     flex-direction: column;
