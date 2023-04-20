@@ -27,7 +27,10 @@ return new class extends Migration
             $table->bigInteger('size')->default(0)->change();
             $table->string('permission')->default("")->nullable(false)->change();
 
-            $table->string('mime')->default("")->nullable(false)->change();
+            $table->string('mime')->default("")->nullable(false)->change();            
+        });
+
+        Schema::table('media', function(Blueprint $table) {
             $table->renameColumn('mime', 'mime_type');
         });
     }
