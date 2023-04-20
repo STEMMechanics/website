@@ -80,7 +80,7 @@ import SMLoadingIcon from "./SMLoadingIcon.vue";
 
 const props = defineProps({
     label: { type: String, default: "Button", required: false },
-    type: { type: String, default: "secondary", required: false },
+    type: { type: String, default: "", required: false },
     icon: {
         type: String,
         default: "",
@@ -193,6 +193,7 @@ const handleClickItem = (item: string) => {
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+    white-space: nowrap;
 
     .button-label {
         display: inline-block;
@@ -254,6 +255,10 @@ const handleClickItem = (item: string) => {
         cursor: pointer;
     }
 
+    &:hover:not(:disabled):not(.button-dropdown) {
+        filter: brightness(115%);
+    }
+
     &:hover:disabled {
         cursor: not-allowed;
     }
@@ -284,6 +289,10 @@ const handleClickItem = (item: string) => {
     &.primary {
         background-color: var(--primary-color);
         color: var(--base-color);
+    }
+
+    &.secondary {
+        background-color: #ccc;
     }
 }
 </style>

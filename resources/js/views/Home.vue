@@ -236,7 +236,7 @@ import SMHero from "../components/SMHero.vue";
     }
 }
 
-@media only screen and (max-width: 896px) {
+@media only screen and (max-width: 1000px) {
     .page-home {
         .support {
             img {
@@ -245,7 +245,7 @@ import SMHero from "../components/SMHero.vue";
             }
             .button-row {
                 flex-direction: column;
-                gap: 20px;
+                gap: 15px;
 
                 .button {
                     text-align: center;

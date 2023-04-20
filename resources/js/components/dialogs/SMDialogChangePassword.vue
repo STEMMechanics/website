@@ -1,22 +1,23 @@
 <template>
-    <SMFormCard :loading="dialogLoading">
-        <h1>Change Password</h1>
-        <p class="text-center">Enter your new password below</p>
-        <SMForm :model-value="form" @submit="handleSubmit">
-            <SMInput control="password" type="password" label="New Password" />
-            <SMFormFooter>
-                <template #left>
-                    <SMButton
-                        type="secondary"
-                        label="Cancel"
-                        @click="handleClickCancel" />
-                </template>
-                <template #right>
-                    <SMButton type="submit" label="Update" />
-                </template>
-            </SMFormFooter>
-        </SMForm>
-    </SMFormCard>
+    <SMForm :model-value="form" @submit="handleSubmit">
+        <SMFormCard :loading="dialogLoading">
+            <template #header>
+                <h3>Change Password</h3>
+                <p>Enter your new password below</p>
+            </template>
+            <template #body>
+                <SMInput
+                    control="password"
+                    type="password"
+                    label="New Password"
+                    autofocus />
+            </template>
+            <template #footer-space-between>
+                <SMButton label="Cancel" @click="handleClickCancel" />
+                <SMButton type="submit" label="Update" />
+            </template>
+        </SMFormCard>
+    </SMForm>
 </template>
 
 <script setup lang="ts">

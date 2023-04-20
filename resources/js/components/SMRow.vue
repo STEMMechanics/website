@@ -24,7 +24,7 @@ defineProps({
 .row {
     display: flex;
     flex-direction: row;
-    margin: 0 auto;
+    margin: 8px auto;
     align-items: top;
     width: 100%;
     max-width: 1200px;

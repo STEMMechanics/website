@@ -22,7 +22,13 @@
                             v-bind="item as any">
                         </slot>
                     </template>
-                    <template v-else>{{ item[header["value"]] }}</template>
+                    <template v-else>
+                        {{
+                            header["value"]
+                                .split(".")
+                                .reduce((item, key) => item[key], item)
+                        }}
+                    </template>
                 </td>
             </tr>
         </tbody>
@@ -69,6 +75,7 @@ const handleRowClick = (item) => {
 
     th {
         font-size: 90%;
+        white-space: nowrap;
     }
 
     td {

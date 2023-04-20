@@ -25,17 +25,19 @@ export interface UserState {
 
 export const useUserStore = defineStore({
     id: "user",
-    state: (): UserState => ({
-        id: "",
-        token: "",
-        username: "",
-        firstName: "",
-        lastName: "",
-        displayName: "",
-        email: "",
-        phone: "",
-        permissions: [],
-    }),
+    state: (): UserState => {
+        return {
+            id: "",
+            token: "",
+            username: "",
+            firstName: "",
+            lastName: "",
+            displayName: "",
+            email: "",
+            phone: "",
+            permissions: [],
+        };
+    },
 
     actions: {
         async setUserDetails(user: UserDetails) {
@@ -63,9 +65,6 @@ export const useUserStore = defineStore({
             this.$state.email = null;
             this.$state.phone = null;
             this.$state.permissions = [];
-
-            this.$reset();
-            localStorage.removeItem(this.$id);
         },
     },
 

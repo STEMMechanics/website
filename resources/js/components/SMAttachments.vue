@@ -9,8 +9,8 @@
                 <td class="attachment-file-icon">
                     <img
                         :src="getFileIconImagePath(file.name || file.title)"
-                        height="48"
-                        width="48" />
+                        height="40"
+                        width="40" />
                 </td>
                 <td class="attachment-file-name">
                     <a :href="file.url">{{ file.title || file.name }}</a>
@@ -57,15 +57,16 @@ const props = defineProps({
 
 <style lang="scss">
 .attachment-list {
+    border: 1px solid $secondary-color;
     border-collapse: collapse;
     table-layout: fixed;
     width: 100%;
-    max-width: 580px;
+    // max-width: 580px;
     margin-top: 12px;
+    background-color: var(--base-color-light);
 
     .attachment-row {
         td {
-            border-bottom: 1px solid $secondary-background-color;
             padding: 8px 0;
         }
 
@@ -74,7 +75,8 @@ const props = defineProps({
         }
 
         .attachment-file-icon {
-            width: 64px;
+            width: 56px;
+            padding-left: 8px;
 
             img {
                 display: block;
@@ -82,9 +84,18 @@ const props = defineProps({
         }
 
         .attachment-file-name {
+            font-size: 80%;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+
+            a {
+                text-decoration: none;
+
+                &:hover {
+                    text-decoration: underline;
+                }
+            }
         }
 
         .attachment-download {
@@ -109,11 +120,12 @@ const props = defineProps({
         }
 
         .attachment-file-size {
-            width: 64px;
+            width: 80px;
             font-size: 75%;
             color: $secondary-color-dark;
             white-space: nowrap;
             text-align: right;
+            padding-right: 8px;
         }
     }
 }

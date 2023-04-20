@@ -1,41 +1,44 @@
 <template>
     <SMPage permission="admin/users">
-        <SMHeading heading="Users" />
+        <SMMastHead
+            title="Users"
+            :back-link="{ name: 'dashboard' }"
+            back-title="Return to Dashboard" />
         <SMMessage
             v-if="formMessage.message"
             :icon="formMessage.icon"
             :type="formMessage.type"
             :message="formMessage.message" />
-        <EasyDataTable
-            v-model:server-options="serverOptions"
-            :server-items-length="serverItemsLength"
-            :loading="formLoading"
-            :headers="headers"
-            :items="items"
-            :search-value="searchValue"
-            :header-item-class-name="headerItemClassNameFunction"
-            :body-item-class-name="bodyItemClassNameFunction">
-            <template #loading>
-                <SMLoadingIcon />
-            </template>
-            <template #item-actions="item">
-                <div class="action-wrapper"></div>
-            </template>
-        </EasyDataTable>
+
+        <SMContainer>
+            <SMTable
+                :headers="headers"
+                :items="items"
+                @row-click="handleRowClick">
+                <template #item-actions="item">
+                    <SMButton
+                        label="Edit"
+                        :dropdown="{
+                            download: 'Download',
+                            delete: 'Delete',
+                        }"
+                        size="medium" />
+                </template>
+            </SMTable>
+        </SMContainer>
     </SMPage>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import SMHeading from "../../components/SMHeading.vue";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
+import SMTable from "../../components/SMTable.vue";
+import SMMastHead from "../../components/SMMastHead.vue";
 
 const router = useRouter();
 const searchValue = ref("");
@@ -66,6 +69,10 @@ const serverOptions = ref({
     sortBy: null,
     sortType: null,
 });
+
+const handleRowClick = (item) => {
+    router.push({ name: "dashboard-user-edit", params: { id: item.id } });
+};
 
 const loadFromServer = async () => {
     formLoading.value = true;

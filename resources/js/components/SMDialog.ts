@@ -110,5 +110,12 @@ export function openDialog<C extends Component>(
             wrapper,
             resolve,
         });
+
+        window.setTimeout(() => {
+            const autofocusElement = document.querySelector("[autofocus]");
+            if (autofocusElement) {
+                autofocusElement.focus();
+            }
+        }, 10);
     });
 }

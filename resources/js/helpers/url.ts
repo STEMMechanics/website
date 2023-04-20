@@ -1,3 +1,5 @@
+import { Router } from "vue-router";
+
 export const urlStripAttributes = (url: string): string => {
     const urlObject = new URL(url);
     urlObject.search = "";
@@ -72,4 +74,24 @@ export const urlMatches = (
             return urlWithoutDomain === pathWithoutDomain;
         }
     }
+};
+
+interface Params {
+    [key: string]: string;
+}
+
+export const updateRouterParams = (router: Router, params: Params): void => {
+    const query = { ...router.currentRoute.value.query };
+
+    Object.entries(params).forEach(([key, value]) => {
+        if (value === "") {
+            if (key in params) {
+                delete query[key];
+            }
+        } else {
+            query[key] = value;
+        }
+    });
+
+    router.push({ query });
 };

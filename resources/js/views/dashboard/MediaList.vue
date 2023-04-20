@@ -3,180 +3,137 @@
         title="Media"
         :back-link="{ name: 'dashboard' }"
         back-title="Return to Dashboard" />
-    <SMMessage
-        v-if="formMessage.message"
-        :type="formMessage.type"
-        :message="formMessage.message"
-        :icon="formMessage.icon" />
-    <SMContainer>
+    <SMContainer class="flex-grow-1">
         <SMToolbar>
-            <template #left>
-                <SMButton
-                    :to="{ name: 'workshops' }"
-                    type="primary"
-                    label="Upload Media" />
-            </template>
-            <template #right>
-                <SMInput
-                    v-model="search"
-                    label="Search"
-                    :small="true"
-                    style="max-width: 350px"
-                    :show-clear="true">
-                    <template #append>
-                        <SMButton
-                            type="primary"
-                            label="Search"
-                            icon="search-outline"
-                            @click="handleClickSearch" />
-                    </template>
-                </SMInput>
-            </template>
+            <SMButton
+                :to="{ name: 'workshops' }"
+                type="primary"
+                label="Upload Media" />
+            <SMInput
+                v-model="search"
+                label="Search"
+                style="max-width: 350px"
+                @keyup.enter="handleClickSearch">
+                <template #append>
+                    <SMButton
+                        type="primary"
+                        label="Search"
+                        icon="search-outline"
+                        @click="handleClickSearch" />
+                </template>
+            </SMInput>
         </SMToolbar>
-
-        <SMPagination
-            :model-value="pageValue"
-            :total="total"
-            :per-page="perPage" />
-        <SMTable :headers="headers" :items="items" @row-click="handleRowClick">
-            <template #item-size="item">
-                {{ bytesReadable(item.size) }}
-            </template>
-            <template #item-actions="item">
-                <SMButton
-                    label="Edit"
-                    :dropdown="{
-                        download: 'Download',
-                        delete: 'Delete',
-                    }"
-                    size="medium"
-                    @click="handleClick(item, $event)"></SMButton>
-            </template>
-        </SMTable>
+        <SMLoading large v-if="pageLoading" />
+        <template v-else>
+            <SMPagination
+                v-if="items.length < totalFound"
+                v-model="page"
+                :total="totalFound"
+                :per-page="perPage" />
+            <SMNoItems v-if="items.length == 0" text="No Media Found" />
+            <SMTable
+                v-else
+                :headers="headers"
+                :items="items"
+                @row-click="handleEdit">
+                <template #item-size="item">
+                    {{ bytesReadable(item.size) }}
+                </template>
+                <template #item-actions="item">
+                    <SMButton
+                        label="Edit"
+                        :dropdown="{
+                            download: 'Download',
+                            delete: 'Delete',
+                        }"
+                        size="medium"
+                        @click="handleClick(item, $event)"></SMButton>
+                </template>
+            </SMTable>
+        </template>
     </SMContainer>
-
-    <!-- @click-row="handleClickRow" -->
-    <!-- <EasyDataTable
-        v-model:server-options="serverOptions"
-        :server-items-length="serverItemsLength"
-        :loading="formLoading"
-        :headers="headers"
-        :items="items"
-        :search-value="search">
-        <template #loading>
-            <SMLoadingIcon />
-        </template>
-        <template #item-size="item">
-            {{ bytesReadable(item.size) }}
-        </template>
-        <template #item-actions="item">
-            <div class="action-wrapper">
-                <SMButton
-                    label="Edit"
-                    :dropdown="{
-                        download: 'Download',
-                        delete: 'Delete',
-                    }"
-                    size="medium"
-                    @click="handleClick(item, $event)"></SMButton>
-            </div>
-        </template>
-    </EasyDataTable> -->
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import EasyDataTable from "vue3-easy-data-table";
+import { ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMFileLink from "../../components/SMFileLink.vue";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
-import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { Media, UserResponse } from "../../helpers/api.types";
+import { Media } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
-import { debounce } from "../../helpers/debounce";
 import { bytesReadable } from "../../helpers/types";
-import { useUserStore } from "../../store/UserStore";
 import { useToastStore } from "../../store/ToastStore";
 import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMTable from "../../components/SMTable.vue";
 import SMPagination from "../../components/SMPagination.vue";
+import SMNoItems from "../../components/SMNoItems.vue";
+import SMLoading from "../../components/SMLoading.vue";
+import { updateRouterParams } from "../../helpers/url";
 
+const route = useRoute();
 const router = useRouter();
-const search = ref("");
-const userStore = useUserStore();
 const toastStore = useToastStore();
+const pageLoading = ref(true);
+const search = ref(route.query.search || "");
+const items = ref([]);
+const totalFound = ref(0);
+const perPage = 25;
+const page = ref(parseInt((route.query.page as string) || "1"));
 
 const headers = [
     { text: "Name", value: "title", sortable: true },
     { text: "Size", value: "size", sortable: true },
-    // { text: "Permission", value: "permission", sortable: true },
-    { text: "Uploaded By", value: "username", sortable: true },
-    { text: "Created", value: "created_at", sortable: true },
-    // { text: "Updated", value: "updated_at", sortable: true },
+    { text: "Uploaded By", value: "user.display_name", sortable: true },
     { text: "Actions", value: "actions" },
 ];
 
-const items = ref([]);
-let users = {};
-const formLoading = ref(false);
-const formMessage = reactive({
-    message: "",
-    type: "error",
-    icon: "",
-});
-const serverItemsLength = ref(0);
-const serverOptions = ref({
-    page: 1,
-    rowsPerPage: 25,
-    sortBy: null,
-    sortType: null,
-});
-
-const total = 108;
-const perPage = 25;
-const pageValue = ref(1);
-
-const handleRowClick = (item) => {
-    alert(JSON.stringify(item));
+const handleClickSearch = () => {
+    page.value = 1;
+    handleLoad();
 };
 
 const handleClick = (item, extra: string): void => {
     if (extra.length == 0) {
         handleEdit(item);
+    } else if (extra.toLowerCase() == "download") {
+        handleDownload(item);
     } else if (extra.toLowerCase() == "delete") {
         handleDelete(item);
     }
 };
 
-const loadFromServer = async () => {
-    formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
+/**
+ * Watch if page number changes.
+ */
+watch(page, () => {
+    handleLoad();
+});
+
+const handleLoad = async () => {
+    pageLoading.value = true;
+    items.value = [];
+    totalFound.value = 0;
+
+    let routerParams = {
+        search: search.value as string,
+        page: page.value == 1 ? "" : page.value.toString(),
+    };
+    updateRouterParams(router, routerParams);
 
     try {
-        let params = {};
-        if (serverOptions.value.sortBy) {
-            params["sort"] = serverOptions.value.sortBy;
-            if (
-                serverOptions.value.sortType &&
-                serverOptions.value.sortType === "desc"
-            ) {
-                params["sort"] = "-" + params["sort"];
-            }
-        }
-
-        params["page"] = serverOptions.value.page;
-        params["limit"] = serverOptions.value.rowsPerPage;
+        let params = {
+            page: page.value,
+            limit: perPage,
+        };
 
         if (search.value.length > 0) {
-            params["title"] = search.value;
+            params[
+                "filter"
+            ] = `title:${search.value},OR,name:${search.value},OR,description:${search.value}`;
         }
 
         let res = await api.get({
@@ -190,27 +147,6 @@ const loadFromServer = async () => {
         items.value = [];
 
         res.data.media.forEach(async (row) => {
-            if (Object.keys(users).includes(row.user_id) === false) {
-                try {
-                    const userResult = await api.get({
-                        url: "/users/{id}",
-                        params: {
-                            id: row.user_id,
-                        },
-                    });
-                    const data = userResult.data as UserResponse;
-                    users[row.user_id] = data.user.username;
-                } catch (error) {
-                    users[row.user_id] = "Unknown";
-                }
-            }
-
-            if (Object.keys(users).includes(row.user_id)) {
-                row["username"] = users[row.user_id];
-            } else {
-                row["username"] = "--";
-            }
-
             if (row.created_at !== "undefined") {
                 row.created_at = new SMDate(row.created_at, {
                     format: "ymd",
@@ -227,32 +163,22 @@ const loadFromServer = async () => {
             items.value.push(row);
         });
 
-        serverItemsLength.value = res.data.total;
-    } catch (err) {
-        // formMessage.message = parseErrorTyp(err);
+        totalFound.value = res.data.total;
+    } catch (error) {
+        if (error.status != 404) {
+            toastStore.addToast({
+                title: "Server Error",
+                content: error.message,
+                //"An error occurred retrieving the list from the server.",
+                type: "danger",
+            });
+        }
     } finally {
-        formLoading.value = false;
+        pageLoading.value = false;
     }
 };
 
-loadFromServer();
-
-watch(
-    serverOptions,
-    (value) => {
-        loadFromServer();
-    },
-    { deep: true }
-);
-
-const debouncedFilter = debounce(loadFromServer, 1000);
-watch(search, (value) => {
-    debouncedFilter();
-});
-
-const handleClickRow = (item) => {
-    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
-};
+handleLoad();
 
 const handleEdit = (item) => {
     router.push({ name: "dashboard-media-edit", params: { id: item.id } });
@@ -291,7 +217,7 @@ const handleDelete = async (item: Media) => {
                 content: `The file ${item.title} has been deleted.`,
                 type: "success",
             });
-            loadFromServer();
+            handleLoad();
         } catch (error) {
             toastStore.addToast({
                 title: "Error Deleting File",
@@ -305,18 +231,19 @@ const handleDelete = async (item: Media) => {
 };
 
 const handleDownload = (item) => {
-    window.open(item.url, "_blank");
+    window.open(`${item.url}?download=1`, "_blank");
 };
 </script>
 
 <style lang="scss">
-body[data-route-name="page-dashboard-media-list"] {
-    .table tr td:last-of-type {
-        padding-left: 0;
-        text-align: center;
+.page-dashboard-media-list {
+    .table tr {
+        td:first-of-type {
+            word-break: break-all;
+        }
 
-        &:before {
-            display: none;
+        td:not(:first-of-type) {
+            white-space: nowrap;
         }
     }
 }

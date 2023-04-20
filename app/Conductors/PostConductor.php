@@ -29,10 +29,11 @@ class PostConductor extends Conductor
 
     /**
      * The included fields
-     * 
+     *
      * @var string[]
      */
     protected $includes = ['attachments', 'user'];
+
 
     /**
      * Run a scope query on the collection before anything else.
@@ -105,7 +106,7 @@ class PostConductor extends Conductor
     /**
      * Transform the final model data
      *
-     * @param Array $data The model data to transform.
+     * @param array $data The model data to transform.
      * @return array The transformed model.
      */
     public function transformFinal(array $data)
@@ -116,7 +117,7 @@ class PostConductor extends Conductor
 
     /**
      * Include Attachments Field.
-     * 
+     *
      * @param Model $model Them model.
      * @return mixed The model result.
      */
@@ -129,7 +130,7 @@ class PostConductor extends Conductor
 
     /**
      * Include User Field.
-     * 
+     *
      * @param Model $model Them model.
      * @return mixed The model result.
      */
@@ -140,7 +141,7 @@ class PostConductor extends Conductor
 
     /**
      * Transform the Hero field.
-     * 
+     *
      * @param mixed $value The current value.
      * @return array The new value.
      */

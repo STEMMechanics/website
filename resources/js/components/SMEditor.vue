@@ -609,8 +609,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                     }
                 };
 
-                console.log(selected);
-
                 const rightBtn = document.createElement("div");
                 rightBtn.classList.add("image-gallery-content-item-right");
                 rightBtn.onclick = function () {

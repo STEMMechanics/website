@@ -1,8 +1,12 @@
 <template>
     <SMMastHead
         :title="pageHeading"
-        :back-link="{ name: 'dashboard' }"
-        back-title="Back to Dashboard" />
+        :back-link="
+            route.params.id
+                ? { name: 'dashboard-user-list' }
+                : { name: 'dashboard' }
+        "
+        :back-title="route.params.id ? 'Back to Users' : 'Back to Dashboard'" />
     <SMContainer>
         <SMForm :model-value="form" @submit="handleSubmit">
             <SMRow>
@@ -16,9 +20,35 @@
             <SMRow>
                 <SMColumn><SMInput control="email" /></SMColumn>
                 <SMColumn
-                    ><SMInput control="phone">This field is optional</SMInput>
+                    ><SMInput control="phone"
+                        ><template #help
+                            >This field is optional</template
+                        ></SMInput
+                    >
                 </SMColumn>
             </SMRow>
+            <template v-if="userStore.permissions.includes('admin/users')">
+                <SMRow
+                    ><SMColumn><h3>Permissions</h3></SMColumn></SMRow
+                >
+                <SMRow>
+                    <SMColumn
+                        ><SMCheckbox
+                            label="Edit Users"
+                            v-model="permissions.users"
+                    /></SMColumn>
+                    <SMColumn
+                        ><SMCheckbox
+                            label="Edit Posts"
+                            v-model="permissions.users"
+                    /></SMColumn>
+                    <SMColumn
+                        ><SMCheckbox
+                            label="Edit Events"
+                            v-model="permissions.users"
+                    /></SMColumn>
+                </SMRow>
+            </template>
             <SMRow>
                 <SMColumn>
                     <SMFormFooter>
@@ -37,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
@@ -52,6 +82,7 @@ import { And, Email, Phone, Required } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
+import SMCheckbox from "../../components/SMCheckbox.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -67,6 +98,10 @@ let form = reactive(
         phone: FormControl("", Phone()),
     })
 );
+
+const permissions = ref({
+    users: false,
+});
 
 /**
  * Load the page data.
@@ -163,7 +198,10 @@ loadData();
 </script>
 
 <style lang="scss">
-.sm-page-user-edit {
-    background-color: #f8f8f8;
+.page-dashboard-account-details {
+    h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
 }
 </style>

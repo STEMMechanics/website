@@ -456,7 +456,10 @@ router.beforeEach(async (to, from, next) => {
     // }
 
     if (to.meta.middleware == "authenticated" && !userStore.id) {
-        next({ name: "login", query: { redirect: to.fullPath } });
+        next({
+            name: "login",
+            query: { redirect: encodeURIComponent(to.fullPath) },
+        });
     } else {
         next();
     }

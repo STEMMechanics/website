@@ -48,6 +48,10 @@ const slots = useSlots();
         max-width: 960px;
     }
 
+    .body .row {
+        margin: 0 auto;
+    }
+
     .footer {
         margin-top: 32px;
         display: flex;

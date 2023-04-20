@@ -137,6 +137,7 @@ class ApiController extends Controller
     protected function respondAsResource(
         mixed $data,
         array $options = [],
+        $validationFn = null
     ) {
         $isCollection = $options['isCollection'] ?? false;
         $appendData = $options['appendData'] ?? null;
@@ -144,7 +145,14 @@ class ApiController extends Controller
         $respondCode = ($options['respondCode'] ?? HttpResponseCodes::HTTP_OK);
 
         if ($data === null || ($data instanceof Collection && $data->count() === 0)) {
-            return $this->respondNotFound();
+            $validationData = [];
+            if (array_key_exists('appendData', $options) === true) {
+                $validationData = $options['appendData'];
+            }
+
+            if ($validationFn === null || $validationFn($validationData) === true) {
+                return $this->respondNotFound();
+            }
         }
 
         if (is_null($resourceName) === true || empty($resourceName) === true) {

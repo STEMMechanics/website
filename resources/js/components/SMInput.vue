@@ -1,55 +1,45 @@
 <template>
-    <div
-        :class="[
-            'input-control-group',
-            { 'input-active': active, 'input-invalid': feedbackInvalid },
-        ]">
-        <div class="input-control-row">
-            <div v-if="slots.prepend" class="input-control-prepend">
-                <slot name="prepend"></slot>
-            </div>
-            <div class="input-control-item">
-                <label class="input-label" v-bind="{ for: id }">{{
-                    label
-                }}</label>
-                <ion-icon
-                    class="invalid-icon"
-                    name="alert-circle-outline"></ion-icon>
-                <ion-icon
-                    v-if="
-                        props.showClear && value?.length > 0 && !feedbackInvalid
-                    "
-                    class="clear-icon"
-                    name="close-outline"
-                    @click.stop="handleClear"></ion-icon>
-                <input
-                    :type="props.type"
-                    class="input-control"
-                    :disabled="disabled"
-                    v-bind="{ id: id, autofocus: props.autofocus }"
-                    v-model="value"
-                    @focus="handleFocus"
-                    @blur="handleBlur"
-                    @input="handleInput"
-                    @keyup="handleKeyup" />
-            </div>
-            <div v-if="slots.append" class="input-control-append">
-                <slot name="append"></slot>
-            </div>
+    <SMControl
+        :class="['control-type-input', { 'input-active': active }]"
+        :invalid="feedbackInvalid">
+        <div v-if="slots.prepend" class="input-control-prepend">
+            <slot name="prepend"></slot>
         </div>
-        <div v-if="slots.default || feedbackInvalid" class="input-help">
-            <span v-if="feedbackInvalid" class="input-invalid">
-                {{ feedbackInvalid }}
-            </span>
-            <span v-if="slots.default"><slot></slot></span>
+        <div class="control-item">
+            <label class="control-label" v-bind="{ for: id }">{{
+                label
+            }}</label>
+            <ion-icon
+                class="invalid-icon"
+                name="alert-circle-outline"></ion-icon>
+            <ion-icon
+                v-if="props.showClear && value?.length > 0 && !feedbackInvalid"
+                class="clear-icon"
+                name="close-outline"
+                @click.stop="handleClear"></ion-icon>
+            <input
+                :type="props.type"
+                class="input-control"
+                :disabled="disabled"
+                v-bind="{ id: id, autofocus: props.autofocus }"
+                v-model="value"
+                @focus="handleFocus"
+                @blur="handleBlur"
+                @input="handleInput"
+                @keyup="handleKeyup" />
         </div>
-    </div>
+        <div v-if="slots.append" class="input-control-append">
+            <slot name="append"></slot>
+        </div>
+        <template v-if="slots.help" #help><slot name="help"></slot></template>
+    </SMControl>
 </template>
 
 <script setup lang="ts">
 import { inject, watch, ref, useSlots } from "vue";
 import { isEmpty } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
+import SMControl from "./SMControl.vue";
 
 const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
@@ -225,19 +215,16 @@ const handleKeyup = (event: Event) => {
 const handleClear = () => {
     value.value = "";
     emits("update:modelValue", "");
-    emits("change");
+    // emits("change");
 };
 </script>
 
 <style lang="scss">
-.input-control-group {
-    margin-bottom: 16px;
-    width: 100%;
-
-    .input-control-row {
-        display: flex;
-        align-items: center;
-        margin-bottom: 8px;
+.control-group.control-type-input {
+    .control-row {
+        .control-item {
+            align-items: start;
+        }
 
         .input-control-prepend {
             p {
@@ -258,7 +245,7 @@ const handleClear = () => {
                 border-radius: 8px 0 0 8px;
             }
 
-            & + .input-control-item .input-control {
+            & + .control-item .input-control {
                 border-top-left-radius: 0;
                 border-bottom-left-radius: 0;
             }
@@ -284,18 +271,15 @@ const handleClear = () => {
             }
         }
 
-        &:has(.input-control-item + .input-control-append)
-            > .input-control-item
+        &:has(.control-item + .input-control-append)
+            > .control-item
             .input-control {
             border-top-right-radius: 0;
             border-bottom-right-radius: 0;
         }
 
-        .input-control-item {
-            flex: 1;
-            position: relative;
-
-            .input-label {
+        .control-item {
+            .control-label {
                 position: absolute;
                 display: block;
                 transform-origin: top left;
@@ -345,29 +329,14 @@ const handleClear = () => {
         }
     }
 
-    .input-help {
-        display: block;
-        font-size: 70%;
-        margin-bottom: 8px;
-
-        .input-invalid {
-            color: var(--danger-color);
-        }
-
-        span + span:before {
-            content: "-";
-            margin: 0 6px;
-        }
-    }
-
     &.input-active {
-        .input-control-item .input-label {
+        .control-item .control-label {
             transform: translate(16px, 6px) scale(0.7);
         }
     }
 
-    &.input-invalid {
-        .input-control-row .input-control-item {
+    &.control-invalid {
+        .control-row .control-item {
             .invalid-icon {
                 display: block;
             }

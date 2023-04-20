@@ -4,6 +4,7 @@ namespace App\Conductors;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User;
 
 class MediaConductor extends Conductor
 {
@@ -18,6 +19,13 @@ class MediaConductor extends Conductor
      * @var string
      */
     protected $sort = 'created_at';
+
+    /**
+     * The included fields
+     *
+     * @var string[]
+     */
+    protected $includes = ['user'];
 
 
     /**
@@ -105,5 +113,28 @@ class MediaConductor extends Conductor
     {
         $user = auth()->user();
         return ($user !== null && ($model->user_id === $user->id || $user->hasPermission('admin/media') === true));
+    }
+
+    /**
+     * Transform the final model data
+     *
+     * @param array $data The model data to transform.
+     * @return array The transformed model.
+     */
+    public function transformFinal(array $data)
+    {
+        unset($data['user_id']);
+        return $data;
+    }
+
+    /**
+     * Include User Field.
+     *
+     * @param Model $model Them model.
+     * @return mixed The model result.
+     */
+    public function includeUser(Model $model)
+    {
+        return UserConductor::includeModel(request(), 'user', User::find($model['user_id']));
     }
 }

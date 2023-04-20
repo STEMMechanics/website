@@ -1,0 +1,80 @@
+<template>
+    <div :class="['control-group', { 'control-invalid': invalid.length > 0 }]">
+        <div class="control-row">
+            <slot></slot>
+        </div>
+        <div v-if="slots.help || invalid" class="control-help">
+            <span v-if="invalid" class="control-feedback">
+                {{ invalid }}
+            </span>
+            <span v-if="slots.help"><slot name="help"></slot></span>
+        </div>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { watch, ref, useSlots } from "vue";
+
+const props = defineProps({
+    invalid: {
+        type: String,
+        default: "",
+        required: false,
+    },
+});
+
+const slots = useSlots();
+const invalid = ref(props.invalid);
+
+watch(
+    () => props.invalid,
+    (newValue) => {
+        invalid.value = newValue;
+    }
+);
+</script>
+
+<style lang="scss">
+.control-group {
+    margin-bottom: 16px;
+    width: 100%;
+
+    .control-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+
+        .control-item {
+            display: flex;
+            flex: 1;
+            position: relative;
+            align-items: center;
+
+            .control-label {
+                // position: absolute;
+                // display: block;
+                // transform-origin: top left;
+                // transform: translate(16px, 16px) scale(1);
+                // transition: all 0.1s ease-in-out;
+                // color: var(--base-color-darker);
+                // pointer-events: none;
+            }
+        }
+    }
+
+    .control-help {
+        display: block;
+        font-size: 70%;
+        margin-bottom: 8px;
+
+        .control-feedback {
+            color: var(--danger-color);
+        }
+
+        span + span:before {
+            content: "-";
+            margin: 0 6px;
+        }
+    }
+}
+</style>

@@ -259,14 +259,14 @@ class Conductor
 
         // Transform and Includes
         $includes = $conductor->includes;
-        if(count($limitFields) > 0) {
+        if (count($limitFields) > 0) {
             $includes = array_intersect($limitFields, $conductor->includes);
         }
 
         $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes, $limitFields) {
             $conductor->applyIncludes($model, $includes);
 
-            if(count($limitFields) > 0) {
+            if (count($limitFields) > 0) {
                 $model->setAppends(array_intersect($model->getAppends(), $limitFields));
             }
 
@@ -316,10 +316,10 @@ class Conductor
             $requestFields = $request->input('fields');
             if ($requestFields !== null) {
                 $requestFields = explode(',', $requestFields);
-                if(in_array($key, $requestFields) === false) {
-                    foreach($requestFields as $field) {
-                        if(strpos($field, $key . '.') === 0) {
-                            $fields[] = substr($field, strlen($key) + 1);
+                if (in_array($key, $requestFields) === false) {
+                    foreach ($requestFields as $field) {
+                        if (strpos($field, $key . '.') === 0) {
+                            $fields[] = substr($field, (strlen($key) + 1));
                         }
                     }
                 }
@@ -332,8 +332,8 @@ class Conductor
     /**
      * Run the conductor on a Model with the data stored in a Request.
      *
-     * @param mixed    $fields The fields to show.
-     * @param Model|null $model   The model.
+     * @param mixed      $fields The fields to show.
+     * @param Model|null $model  The model.
      * @return array The processed and transformed model data.
      */
     final public static function model(mixed $fields, mixed $model)
@@ -349,21 +349,21 @@ class Conductor
 
         // Limit fields
         $limitFields = $modelFields;
-        if($fields instanceof Request) {
+        if ($fields instanceof Request) {
             if ($fields !== null && $fields->has('fields') === true) {
                 $requestFields = $fields->input('fields');
                 if ($requestFields !== null) {
                     $limitFields = array_intersect(explode(',', $requestFields), $modelFields);
                 }
             }
-        } else if(is_array($fields) && count($fields) > 0) {
+        } elseif (is_array($fields) && count($fields) > 0) {
             $limitFields = array_intersect($fields, $modelFields);
         }
 
         if (empty($limitFields) === false) {
             $modelAppends = $model->getAppends();
 
-            foreach(array_diff($modelFields, $limitFields) as $attribute) {
+            foreach (array_diff($modelFields, $limitFields) as $attribute) {
                 $key = array_search($attribute, $modelAppends);
                 if ($key !== false) {
                     unset($modelAppends[$key]);
@@ -476,8 +476,8 @@ class Conductor
     /**
      * Paginate the conductor collection.
      *
-     * @param integer $page  The current page to return.
-     * @param integer $limit The limit of items to include or use default.
+     * @param integer $page   The current page to return.
+     * @param integer $limit  The limit of items to include or use default.
      * @param integer $offset Offset the page count after this count of rows.
      * @return void
      */
@@ -687,8 +687,8 @@ class Conductor
     /**
      * Return an array of model fields visible to the current user.
      *
-     * @param Model $model The model in question.
-     * @param bool $includes Include the includes in the result.
+     * @param Model   $model    The model in question.
+     * @param boolean $includes Include the includes in the result.
      * @return array The array of field names.
      */
     public function fields(Model $model)
@@ -727,7 +727,7 @@ class Conductor
                 $result[$key] = $this->$transformFunction($value);
             }
         }
-        
+
         $result = $this->transformFinal($result);
         return $result;
     }
@@ -743,7 +743,7 @@ class Conductor
         $result = $model->toArray();
 
         $fields = $this->fields($model);
-        
+
         if (is_array($fields) === true) {
             $result = array_intersect_key($result, array_flip($fields));
         }

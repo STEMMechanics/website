@@ -1,7 +1,6 @@
 <template>
     <div class="pagination">
         <div
-            v-if="props.modelValue > 1"
             :class="[
                 'item',
                 'previous',
@@ -9,17 +8,16 @@
             ]"
             @click="handleClickPrev">
             <ion-icon name="chevron-back-outline" />
-            Previous
+            Prev
         </div>
         <div
-            :class="['item', { active: page == props.modelValue }]"
+            :class="['item', 'page', { active: page == props.modelValue }]"
             v-for="(page, idx) of computedPages"
             :key="idx"
             @click="handleClickPage(page)">
             {{ page }}
         </div>
         <div
-            v-if="(props.modelValue + 3) * props.perPage <= props.total"
             :class="['item', 'next', { disabled: computedDisableNextButton }]"
             @click="handleClickNext">
             Next
@@ -29,6 +27,7 @@
 </template>
 
 <script setup lang="ts">
+import { unwatchFile } from "fs";
 import { computed } from "vue";
 
 const props = defineProps({
@@ -54,22 +53,27 @@ const emits = defineEmits(["update:modelValue"]);
 const computedPages = computed(() => {
     let pages = [];
 
-    if (props.modelValue - 2 > 0) {
-        pages.push(props.modelValue - 2);
+    let pagesRemaining =
+        Math.ceil(props.total / props.perPage) - props.modelValue;
+    let pagesBefore = Math.max(0, props.modelValue - 1);
+
+    if (pagesRemaining + pagesBefore > 4) {
+        if (pagesRemaining < 2) {
+            pagesBefore = Math.min(pagesBefore, 4 - pagesRemaining);
+        } else if (pagesBefore < 2) {
+            pagesRemaining = Math.min(pagesRemaining, 4 - pagesBefore);
+        } else {
+            pagesRemaining = 2;
+            pagesBefore = 2;
+        }
     }
 
-    if (props.modelValue - 1 > 0) {
-        pages.push(props.modelValue - 1);
+    for (; pagesBefore > 0; pagesBefore--) {
+        pages.push(props.modelValue - pagesBefore);
     }
-
     pages.push(props.modelValue);
-
-    if (props.perPage * (props.modelValue + 1) <= props.total) {
-        pages.push(props.modelValue + 1);
-    }
-
-    if (props.perPage * (props.modelValue + 2) <= props.total) {
-        pages.push(props.modelValue + 2);
+    for (let i = 1; i <= pagesRemaining; i++) {
+        pages.push(props.modelValue + i);
     }
 
     return pages;
@@ -100,14 +104,18 @@ const computedDisableNextButton = computed(() => {
  * Handle click on previous button
  */
 const handleClickPrev = (): void => {
-    emits("update:modelValue", props.modelValue - 1);
+    if (computedDisablePrevButton.value == false) {
+        emits("update:modelValue", props.modelValue - 1);
+    }
 };
 
 /**
  * Handle click on next button
  */
 const handleClickNext = (): void => {
-    emits("update:modelValue", props.modelValue + 1);
+    if (computedDisableNextButton.value == false) {
+        emits("update:modelValue", props.modelValue + 1);
+    }
 };
 
 /**
@@ -118,6 +126,15 @@ const handleClickNext = (): void => {
 const handleClickPage = (page: number): void => {
     emits("update:modelValue", page);
 };
+
+if (props.modelValue < 1) {
+    emits("update:modelValue", 1);
+} else {
+    const totalPages = computedTotalPages.value;
+    if (totalPages < props.modelValue) {
+        emits("update:modelValue", totalPages);
+    }
+}
 </script>
 
 <style lang="scss">
@@ -137,6 +154,11 @@ const handleClickPage = (page: number): void => {
         background-color: var(--base-color-light);
         padding: 12px 16px;
         border-right: 1px solid rgba(0, 0, 0, 0.1);
+
+        &.page {
+            width: 44px;
+            justify-content: center;
+        }
 
         &.active {
             background-color: var(--primary-color);
@@ -158,8 +180,14 @@ const handleClickPage = (page: number): void => {
             padding-left: 12px;
         }
 
-        &:hover:not(.active) {
+        &:hover:not(.active):not(.disabled) {
             background-color: var(--primary-color-hover);
+        }
+
+        &.disabled {
+            cursor: not-allowed;
+            color: var(--base-color-darker);
+            background-color: var(--base-color);
         }
     }
 }

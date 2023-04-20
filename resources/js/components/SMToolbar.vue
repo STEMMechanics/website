@@ -9,7 +9,7 @@
     display: flex;
     width: 100%;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     gap: 20px;
 }
 </style>

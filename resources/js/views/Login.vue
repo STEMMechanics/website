@@ -83,7 +83,7 @@ const handleSubmit = async () => {
                 ? redirectQuery[0]
                 : redirectQuery;
 
-            router.push({ path: redirect });
+            router.push(decodeURIComponent(redirect));
         } else {
             router.push({ name: "dashboard" });
         }

@@ -11,7 +11,7 @@
                 :to="{ name: 'dashboard-post-list' }"
                 class="admin-card posts">
                 <ion-icon name="newspaper-outline" />
-                <h3>Posts</h3>
+                <h3>Articles</h3>
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/users')"

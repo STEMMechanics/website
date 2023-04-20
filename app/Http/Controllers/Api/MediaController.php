@@ -35,7 +35,10 @@ class MediaController extends ApiController
             $collection,
             ['isCollection' => true,
                 'appendData' => ['total' => $total]
-            ]
+            ],
+            function ($options) {
+                return $options['total'] === 0;
+            }
         );
     }
 
