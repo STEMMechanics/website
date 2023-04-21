@@ -10,26 +10,26 @@
                 type="primary"
                 label="Upload Media" />
             <SMInput
-                v-model="search"
+                v-model="itemSearch"
                 label="Search"
                 style="max-width: 350px"
-                @keyup.enter="handleClickSearch">
+                @keyup.enter="handleSearch">
                 <template #append>
                     <SMButton
                         type="primary"
                         label="Search"
                         icon="search-outline"
-                        @click="handleClickSearch" />
+                        @click="handleSearch" />
                 </template>
             </SMInput>
         </SMToolbar>
-        <SMLoading large v-if="pageLoading" />
+        <SMLoading large v-if="itemsLoading" />
         <template v-else>
             <SMPagination
-                v-if="items.length < totalFound"
-                v-model="page"
-                :total="totalFound"
-                :per-page="perPage" />
+                v-if="items.length < itemsTotal"
+                v-model="itemsPage"
+                :total="itemsTotal"
+                :per-page="itemsPerPage" />
             <SMNoItems v-if="items.length == 0" text="No Media Found" />
             <SMTable
                 v-else
@@ -47,7 +47,7 @@
                             delete: 'Delete',
                         }"
                         size="medium"
-                        @click="handleClick(item, $event)"></SMButton>
+                        @click="handleActionButton(item, $event)"></SMButton>
                 </template>
             </SMTable>
         </template>
@@ -62,7 +62,7 @@ import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { Media } from "../../helpers/api.types";
+import { Media, MediaCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { bytesReadable } from "../../helpers/types";
 import { useToastStore } from "../../store/ToastStore";
@@ -77,12 +77,13 @@ import { updateRouterParams } from "../../helpers/url";
 const route = useRoute();
 const router = useRouter();
 const toastStore = useToastStore();
-const pageLoading = ref(true);
-const search = ref(route.query.search || "");
+
 const items = ref([]);
-const totalFound = ref(0);
-const perPage = 25;
-const page = ref(parseInt((route.query.page as string) || "1"));
+const itemsLoading = ref(true);
+const itemSearch = ref((route.query.search as string) || "");
+const itemsTotal = ref(0);
+const itemsPerPage = 25;
+const itemsPage = ref(parseInt((route.query.page as string) || "1"));
 
 const headers = [
     { text: "Name", value: "title", sortable: true },
@@ -91,62 +92,70 @@ const headers = [
     { text: "Actions", value: "actions" },
 ];
 
-const handleClickSearch = () => {
-    page.value = 1;
+/**
+ * Watch if page number changes.
+ */
+watch(itemsPage, () => {
+    handleLoad();
+});
+
+/**
+ * Handle searching for item.
+ */
+const handleSearch = () => {
+    itemsPage.value = 1;
     handleLoad();
 };
 
-const handleClick = (item, extra: string): void => {
-    if (extra.length == 0) {
+/**
+ * Handle user selecting option in action button.
+ *
+ * @param {Media} item The media item.
+ * @param {string} extra The option selected.
+ * @param option
+ */
+const handleActionButton = (item: Media, option: string): void => {
+    if (option.length == 0) {
         handleEdit(item);
-    } else if (extra.toLowerCase() == "download") {
+    } else if (option.toLowerCase() == "download") {
         handleDownload(item);
-    } else if (extra.toLowerCase() == "delete") {
+    } else if (option.toLowerCase() == "delete") {
         handleDelete(item);
     }
 };
 
 /**
- * Watch if page number changes.
+ * Handle loading the page and list
  */
-watch(page, () => {
-    handleLoad();
-});
-
 const handleLoad = async () => {
-    pageLoading.value = true;
+    itemsLoading.value = true;
     items.value = [];
-    totalFound.value = 0;
+    itemsTotal.value = 0;
 
-    let routerParams = {
-        search: search.value as string,
-        page: page.value == 1 ? "" : page.value.toString(),
-    };
-    updateRouterParams(router, routerParams);
+    updateRouterParams(router, {
+        search: itemSearch.value,
+        page: itemsPage.value == 1 ? "" : itemsPage.value.toString(),
+    });
 
     try {
         let params = {
-            page: page.value,
-            limit: perPage,
+            page: itemsPage.value,
+            limit: itemsPerPage,
         };
 
-        if (search.value.length > 0) {
+        if (itemSearch.value.length > 0) {
             params[
                 "filter"
-            ] = `title:${search.value},OR,name:${search.value},OR,description:${search.value}`;
+            ] = `title:${itemSearch.value},OR,name:${itemSearch.value},OR,description:${itemSearch.value}`;
         }
 
-        let res = await api.get({
+        let result = await api.get({
             url: "/media",
             params: params,
         });
-        if (!res.data.media) {
-            throw new Error("The server is currently not available");
-        }
 
-        items.value = [];
-
-        res.data.media.forEach(async (row) => {
+        const data = result.data as MediaCollection;
+        data.media.forEach(async (row) => {
             if (row.created_at !== "undefined") {
                 row.created_at = new SMDate(row.created_at, {
                     format: "ymd",
@@ -163,24 +172,27 @@ const handleLoad = async () => {
             items.value.push(row);
         });
 
-        totalFound.value = res.data.total;
+        itemsTotal.value = data.total;
     } catch (error) {
         if (error.status != 404) {
             toastStore.addToast({
                 title: "Server Error",
-                content: error.message,
-                //"An error occurred retrieving the list from the server.",
+                content:
+                    "An error occurred retrieving the list from the server.",
                 type: "danger",
             });
         }
     } finally {
-        pageLoading.value = false;
+        itemsLoading.value = false;
     }
 };
 
-handleLoad();
-
-const handleEdit = (item) => {
+/**
+ * User requests to edit the item
+ *
+ * @param {Media} item The media item.
+ */
+const handleEdit = (item: Media) => {
     router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
@@ -203,9 +215,9 @@ const handleDelete = async (item: Media) => {
         },
     });
 
-    if (result) {
+    if (result == true) {
         try {
-            let r = await api.delete({
+            await api.delete({
                 url: "/media/{id}",
                 params: {
                     id: item.id,
@@ -230,9 +242,16 @@ const handleDelete = async (item: Media) => {
     }
 };
 
-const handleDownload = (item) => {
+/**
+ * Handle the user requesting to download the item.
+ *
+ * @param {Media} item The media item.
+ */
+const handleDownload = (item: Media) => {
     window.open(`${item.url}?download=1`, "_blank");
 };
+
+handleLoad();
 </script>
 
 <style lang="scss">

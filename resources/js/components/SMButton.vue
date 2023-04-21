@@ -183,7 +183,7 @@ const handleClickItem = (item: string) => {
 .button {
     display: inline-block;
     font-family: var(--header-font-family);
-    font-weight: 800;
+    font-weight: 600;
     padding: 12px 32px 12px 32px;
     border: 0;
     background-color: var(--base-color-light);
@@ -283,7 +283,8 @@ const handleClickItem = (item: string) => {
 
     &.light {
         background-color: #eee;
-        color: #095589;
+        // color: #095589;
+        color: #333;
     }
 
     &.primary {
@@ -293,6 +294,11 @@ const handleClickItem = (item: string) => {
 
     &.secondary {
         background-color: #ccc;
+    }
+
+    &.danger {
+        background-color: var(--danger-color-light);
+        color: var(--base-color);
     }
 }
 </style>
