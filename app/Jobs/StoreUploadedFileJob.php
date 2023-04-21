@@ -37,18 +37,26 @@ class StoreUploadedFileJob implements ShouldQueue
      */
     protected $uploadedFilePath;
 
+    /**
+     * Replace existing files
+     *
+     * @var string
+     */
+    protected $replaceExisting;
 
     /**
      * Create a new job instance.
      *
      * @param Media  $media    The media model.
      * @param string $filePath The uploaded file.
+     * @param boolean $replaceExisting Replace existing files.
      * @return void
      */
-    public function __construct(Media $media, string $filePath)
+    public function __construct(Media $media, string $filePath, bool $replaceExisting = true)
     {
         $this->media = $media;
         $this->uploadedFilePath = $filePath;
+        $this->replaceExisting = $replaceExisting;
     }
 
     /**
@@ -64,8 +72,13 @@ class StoreUploadedFileJob implements ShouldQueue
         try {
             $this->media->status = "Uploading to CDN";
             $this->media->save();
-            Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($this->uploadedFilePath), $fileName);
-            Log::info("uploading file {$storageDisk} / {$fileName} / {$this->uploadedFilePath}");
+
+            if (Storage::disk($storageDisk)->exists($fileName) == false || $this->replaceExisting == true) {
+                Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($this->uploadedFilePath), $fileName);
+                Log::info("uploading file {$storageDisk} / {$fileName} / {$this->uploadedFilePath}");
+            } else {
+                Log::info("file {$fileName} already exists in {$storageDisk} / {$this->uploadedFilePath}");
+            }
 
             if (strpos($this->media->mime_type, 'image/') === 0) {
                 $this->media->status = "Optimizing image";
@@ -98,32 +111,36 @@ class StoreUploadedFileJob implements ShouldQueue
 
                     $newFilename = pathinfo($this->media->name, PATHINFO_FILENAME) . "-$postfix." . pathinfo($this->media->name, PATHINFO_EXTENSION);
 
-                    // Get the largest available variant
-                    if ($dimensions[0] >= $size[0] && $dimensions[1] >= $size[1]) {
-                        // $largestVariant = $newFilename;
+                    // Store the variant in the variants array
+                    $variants[$variantName] = $newFilename;
 
-                        // Resize the image to the variant size if its dimensions are greater than the specified size
-                        $image = clone $originalImage;
+                    if (Storage::disk($storageDisk)->exists($newFilename) == false || $this->replaceExisting == true) {
+                        // Get the largest available variant
+                        if ($dimensions[0] >= $size[0] && $dimensions[1] >= $size[1]) {
+                            // $largestVariant = $newFilename;
 
-                        $imageSize = $image->getSize();
-                        if ($imageSize->getWidth() > $size[0] || $imageSize->getHeight() > $size[1]) {
-                            $image->resize($size[0], $size[1], function ($constraint) {
-                                $constraint->aspectRatio();
-                                $constraint->upsize();
-                            });
-                            $image->resizeCanvas($size[0], $size[1], 'center', false, '#FFFFFF');
-                        }
+                            // Resize the image to the variant size if its dimensions are greater than the specified size
+                            $image = clone $originalImage;
 
-                        // Store the variant in the variants array
-                        $variants[$variantName] = $newFilename;
+                            $imageSize = $image->getSize();
+                            if ($imageSize->getWidth() > $size[0] || $imageSize->getHeight() > $size[1]) {
+                                $image->resize($size[0], $size[1], function ($constraint) {
+                                    $constraint->aspectRatio();
+                                    $constraint->upsize();
+                                });
+                                $image->resizeCanvas($size[0], $size[1], 'center', false, '#FFFFFF');
+                            }
 
-                        // Optimize and store image
-                        $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
-                        $image->save($tempImagePath);
-                        $optimizerChain->optimize($tempImagePath);
-                        Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
-                        unlink($tempImagePath);
-                    }//end if
+                            // Optimize and store image
+                            $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
+                            $image->save($tempImagePath);
+                            $optimizerChain->optimize($tempImagePath);
+                            Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
+                            unlink($tempImagePath);
+                        }//end if
+                    } else {
+                        Log::info("variant {$variantName} already exists for file {$fileName}");
+                    }
                 }//end foreach
 
                 // Set missing variants to the largest available variant
