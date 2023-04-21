@@ -2,7 +2,7 @@ import { bytesReadable } from "../helpers/types";
 import { SMDate } from "./datetime";
 
 export interface ValidationObject {
-    validate: (value: string) => Promise<ValidationResult>;
+    validate: (value: any) => Promise<ValidationResult>;
 }
 
 export interface ValidationResult {
@@ -818,7 +818,7 @@ const defaultValidationFileSizeOptions: ValidationFileSizeOptions = {
 };
 
 /**
- * Validate field is in a valid Email format
+ * Validate file is equal or less than size.
  *
  * @param options options data
  * @returns ValidationEmailObject

@@ -95,3 +95,12 @@ export const updateRouterParams = (router: Router, params: Params): void => {
 
     router.push({ query });
 };
+
+export const extractFileNameFromUrl = (url: string): string => {
+    const matches = url.match(/\/([^/]+\.[^/]+)$/);
+    if (!matches) {
+        return "";
+    }
+    const fileName = matches[1];
+    return fileName;
+};

@@ -30,12 +30,14 @@ export interface Media {
     user_id: string;
     title: string;
     name: string;
-    mime: string;
-    permission: Array<string>;
+    mime_type: string;
+    permission: string;
     size: number;
     status: string;
+    storage: string;
     url: string;
     description: string;
+    dimensions: string;
     variants: { [key: string]: string };
     created_at: string;
     updated_at: string;

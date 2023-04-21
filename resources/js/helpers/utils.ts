@@ -1,3 +1,5 @@
+import { extractFileNameFromUrl } from "./url";
+
 /**
  * Tests if an object or string is empty.
  *
@@ -55,7 +57,7 @@ export const getFileIconImagePath = (fileName: string): string => {
  * @returns {string} The url to the file preview icon.
  */
 export const getFilePreview = (url: string): string => {
-    const ext = getFileExtension(fileName);
+    const ext = getFileExtension(extractFileNameFromUrl(url));
     if (ext.length > 0) {
         if (/(gif|jpe?g|png)/i.test(ext)) {
             return `${url}?size=thumb`;
@@ -79,4 +81,20 @@ export const clamp = (n: number, min: number, max: number): number => {
     if (n < min) return min;
     if (n > max) return max;
     return n;
+};
+
+/**
+ * Generate a random element ID.
+ *
+ * @param {string} prefix Any prefix to add to the ID.
+ * @returns {string} A random string non-existent in the document.
+ */
+export const generateRandomElementId = (prefix: string = ""): string => {
+    let randomId = "";
+
+    do {
+        randomId = prefix + Math.random().toString(36).substring(2, 9);
+    } while (document.getElementById(randomId));
+
+    return randomId;
 };

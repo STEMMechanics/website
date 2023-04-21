@@ -9,24 +9,66 @@
             <label class="control-label" v-bind="{ for: id }">{{
                 label
             }}</label>
-            <ion-icon
-                class="invalid-icon"
-                name="alert-circle-outline"></ion-icon>
-            <ion-icon
-                v-if="props.showClear && value?.length > 0 && !feedbackInvalid"
-                class="clear-icon"
-                name="close-outline"
-                @click.stop="handleClear"></ion-icon>
-            <input
-                :type="props.type"
-                class="input-control"
-                :disabled="disabled"
-                v-bind="{ id: id, autofocus: props.autofocus }"
-                v-model="value"
-                @focus="handleFocus"
-                @blur="handleBlur"
-                @input="handleInput"
-                @keyup="handleKeyup" />
+            <template v-if="props.type == 'static'">
+                <div class="static-input-control" v-bind="{ id: id }">
+                    {{ value }}
+                </div>
+            </template>
+            <template v-else-if="props.type == 'file'">
+                <input
+                    :id="id"
+                    type="file"
+                    class="file-input-control"
+                    :accept="props.accept"
+                    @change="handleChange" />
+                <div class="file-input-control-value">
+                    {{ value?.name ? value.name : value }}
+                </div>
+                <label
+                    class="button primary file-input-control-button"
+                    :for="id"
+                    >Select file</label
+                >
+            </template>
+            <template v-else-if="props.type == 'textarea'">
+                <ion-icon
+                    class="invalid-icon"
+                    name="alert-circle-outline"></ion-icon>
+                <textarea
+                    :type="props.type"
+                    class="input-control"
+                    :disabled="disabled"
+                    v-bind="{ id: id, autofocus: props.autofocus }"
+                    v-model="value"
+                    rows="5"
+                    @focus="handleFocus"
+                    @blur="handleBlur"
+                    @input="handleInput"
+                    @keyup="handleKeyup"></textarea>
+            </template>
+            <template v-else>
+                <ion-icon
+                    class="invalid-icon"
+                    name="alert-circle-outline"></ion-icon>
+                <ion-icon
+                    v-if="
+                        props.showClear && value?.length > 0 && !feedbackInvalid
+                    "
+                    class="clear-icon"
+                    name="close-outline"
+                    @click.stop="handleClear"></ion-icon>
+
+                <input
+                    :type="props.type"
+                    class="input-control"
+                    :disabled="disabled"
+                    v-bind="{ id: id, autofocus: props.autofocus }"
+                    v-model="value"
+                    @focus="handleFocus"
+                    @blur="handleBlur"
+                    @input="handleInput"
+                    @keyup="handleKeyup" />
+            </template>
         </div>
         <div v-if="slots.append" class="input-control-append">
             <slot name="append"></slot>
@@ -37,7 +79,7 @@
 
 <script setup lang="ts">
 import { inject, watch, ref, useSlots } from "vue";
-import { isEmpty } from "../helpers/utils";
+import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 import SMControl from "./SMControl.vue";
 
@@ -97,6 +139,11 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    accept: {
+        type: String,
+        default: "",
+        required: false,
+    },
 });
 
 const slots = useSlots();
@@ -131,7 +178,7 @@ const id = ref(
         ? props.id
         : typeof props.control == "string"
         ? props.control
-        : ""
+        : generateRandomElementId()
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.length ?? 0 > 0);
@@ -141,9 +188,21 @@ const disabled = ref(props.disabled);
 watch(
     () => value.value,
     (newValue) => {
-        active.value = newValue.length > 0 || focused.value == true;
+        active.value =
+            newValue.length > 0 ||
+            newValue instanceof File ||
+            focused.value == true;
     }
 );
+
+if (props.modelValue != undefined) {
+    watch(
+        () => props.modelValue,
+        (newValue) => {
+            value.value = newValue;
+        }
+    );
+}
 
 watch(
     () => props.feedbackInvalid,
@@ -215,7 +274,13 @@ const handleKeyup = (event: Event) => {
 const handleClear = () => {
     value.value = "";
     emits("update:modelValue", "");
-    // emits("change");
+};
+
+const handleChange = (event) => {
+    if (control) {
+        control.value = event.target.files[0];
+        feedbackInvalid.value = "";
+    }
 };
 </script>
 
@@ -325,6 +390,40 @@ const handleClear = () => {
                     background-color: hsl(0, 0%, 92%);
                     cursor: not-allowed;
                 }
+            }
+
+            .static-input-control {
+                width: 100%;
+                padding: 22px 16px 8px 16px;
+                border: 1px solid var(--base-color-darker);
+                border-radius: 8px;
+                background-color: var(--base-color);
+                height: 52px;
+            }
+
+            .file-input-control {
+                opacity: 0;
+                width: 0.1px;
+                height: 0.1px;
+                position: absolute;
+                margin-left: -9999px;
+            }
+
+            .file-input-control-value {
+                width: 100%;
+                padding: 22px 16px 8px 16px;
+                border: 1px solid var(--base-color-darker);
+                border-radius: 8px 0 0 8px;
+                background-color: var(--base-color);
+                height: 52px;
+            }
+
+            .file-input-control-button {
+                border-width: 1px 1px 1px 0;
+                border-style: solid;
+                border-color: var(--base-color-darker);
+                border-radius: 0 8px 8px 0;
+                padding: 15px 30px;
             }
         }
     }
