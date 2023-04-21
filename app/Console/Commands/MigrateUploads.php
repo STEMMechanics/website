@@ -31,17 +31,18 @@ class MigrateUploads extends Command
      */
     public function handle()
     {
+        $replace = $this->option('replace');
+
         $files = File::allFiles(public_path('uploads'));
 
         foreach ($files as $file) {
             $filename = pathinfo($file, PATHINFO_BASENAME);
 
-            // echo $filename . "\n";
             $medium = Media::where('name', $filename)->first();
 
             if ($medium !== null) {
                 $medium->update(['status' => 'Processing media']);
-                StoreUploadedFileJob::dispatch($medium, $file)->onQueue('media');
+                StoreUploadedFileJob::dispatch($medium, $file, $replace)->onQueue('media');
             } else {
                 unlink($file);
             }
