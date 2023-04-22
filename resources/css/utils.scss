@@ -15,17 +15,17 @@
     display: none;
 }
 
-@media (prefers-color-scheme: dark) {
-    .dark\:d-none {
-        display: none !important;
-    }
-}
+// @media (prefers-color-scheme: dark) {
+//     .dark\:d-none {
+//         display: none !important;
+//     }
+// }
 
-@media (prefers-color-scheme: light) {
-    .light\:d-none {
-        display: none !important;
-    }
-}
+// @media (prefers-color-scheme: light) {
+//     .light\:d-none {
+//         display: none !important;
+//     }
+// }
 
 /* Width */
 .w-100 {

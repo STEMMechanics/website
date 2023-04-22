@@ -276,11 +276,11 @@ onUnmounted(() => {
     }
 }
 
-@media (prefers-color-scheme: dark) {
-    .navbar #nav-head #nav-toggle {
-        filter: invert(100%) saturate(0%) brightness(120%);
-    }
-}
+// @media (prefers-color-scheme: dark) {
+//     .navbar #nav-head #nav-toggle {
+//         filter: invert(100%) saturate(0%) brightness(120%);
+//     }
+// }
 
 @media screen and (max-width: 650px) {
     .nav-right {

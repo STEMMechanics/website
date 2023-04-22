@@ -166,13 +166,13 @@ const tabs = () => {
     }
 }
 
-@media (prefers-color-scheme: dark) {
-    .masthead {
-        background-color: var(--primary-color-light);
+// @media (prefers-color-scheme: dark) {
+//     .masthead {
+//         background-color: var(--primary-color-light);
 
-        .tabs .tab-item.active {
-            color: var(--primary-color-light);
-        }
-    }
-}
+//         .tabs .tab-item.active {
+//             color: var(--primary-color-light);
+//         }
+//     }
+// }
 </style>

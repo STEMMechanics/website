@@ -192,9 +192,9 @@ if (props.modelValue < 1) {
     }
 }
 
-@media (prefers-color-scheme: dark) {
-    .pagination .item.active {
-        background-color: var(--primary-color-light);
-    }
-}
+// @media (prefers-color-scheme: dark) {
+//     .pagination .item.active {
+//         background-color: var(--primary-color-light);
+//     }
+// }
 </style>

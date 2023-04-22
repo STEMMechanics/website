@@ -78,42 +78,42 @@
     --banner-purple-color-text: #fff;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        // yes
-        --base-color: #222;
-        --base-color-text: rgba(255, 255, 255, 0.9);
-        --base-color-border: #000;
-        --base-color-light: #333;
+// @media (prefers-color-scheme: dark) {
+//     :root {
+//         // yes
+//         --base-color: #222;
+//         --base-color-text: rgba(255, 255, 255, 0.9);
+//         --base-color-border: #000;
+//         --base-color-light: #333;
 
-        // no
-        --base-color-dark: #444;
-        --base-color-darker: #999;
+//         // no
+//         --base-color-dark: #444;
+//         --base-color-darker: #999;
 
-        --footer-color-text: #999;
-        --footer-color-border: rgba(255, 255, 255, 0.1);
+//         --footer-color-text: #999;
+//         --footer-color-border: rgba(255, 255, 255, 0.1);
 
-        --primary-color-lighter: #095589;
-        --primary-color-light: #0e80ce;
+//         --primary-color-lighter: #095589;
+//         --primary-color-light: #0e80ce;
 
-        // yes
-        --primary-color: #35a5f1;
+//         // yes
+//         --primary-color: #35a5f1;
 
-        --primary-color-dark: #67bbf4;
-        --primary-color-darker: #cce8fb;
+//         --primary-color-dark: #67bbf4;
+//         --primary-color-darker: #cce8fb;
 
-        --danger-color-lighter: #f3c8c8;
-        --danger-color-light: #db5c5a;
+//         --danger-color-lighter: #f3c8c8;
+//         --danger-color-light: #db5c5a;
 
-        --danger-color: #db5c5a;
-        --danger-color-dark: #952220;
-        --danger-color-darker: #641715;
+//         --danger-color: #db5c5a;
+//         --danger-color-dark: #952220;
+//         --danger-color-darker: #641715;
 
-        // yes
-        --accent-2-color: #063954;
-        --accent-2-color-text: #cce8fb;
-    }
-}
+//         // yes
+//         --accent-2-color: #063954;
+//         --accent-2-color-text: #cce8fb;
+//     }
+// }
 
 /* interim */
 $font-size: var(--default-font-size);
