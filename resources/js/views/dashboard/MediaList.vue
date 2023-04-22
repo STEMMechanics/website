@@ -39,6 +39,11 @@
                 <template #item-size="item">
                     {{ bytesReadable(item.size) }}
                 </template>
+                <template #item-title="item"
+                    >{{ item.title }}<br /><span class="small"
+                        >({{ item.name }})</span
+                    ></template
+                >
                 <template #item-actions="item">
                     <SMButton
                         label="Edit"
@@ -86,7 +91,7 @@ const itemsPerPage = 25;
 const itemsPage = ref(parseInt((route.query.page as string) || "1"));
 
 const headers = [
-    { text: "Name", value: "title", sortable: true },
+    { text: "Title (Name)", value: "title", sortable: true },
     { text: "Size", value: "size", sortable: true },
     { text: "Uploaded By", value: "user.display_name", sortable: true },
     { text: "Actions", value: "actions" },
@@ -257,7 +262,8 @@ handleLoad();
 <style lang="scss">
 .page-dashboard-media-list {
     .table tr {
-        td:first-of-type {
+        td:first-of-type,
+        td:nth-of-type(2) {
             word-break: break-all;
         }
 

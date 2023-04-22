@@ -44,11 +44,12 @@ class StoreUploadedFileJob implements ShouldQueue
      */
     protected $replaceExisting;
 
+
     /**
      * Create a new job instance.
      *
-     * @param Media  $media    The media model.
-     * @param string $filePath The uploaded file.
+     * @param Media   $media           The media model.
+     * @param string  $filePath        The uploaded file.
      * @param boolean $replaceExisting Replace existing files.
      * @return void
      */
@@ -74,31 +75,30 @@ class StoreUploadedFileJob implements ShouldQueue
             $this->media->save();
 
             if (strlen($this->uploadedFilePath) > 0) {
-                if (Storage::disk($storageDisk)->exists($fileName) == false || $this->replaceExisting == true) {
+                if (Storage::disk($storageDisk)->exists($fileName) === false || $this->replaceExisting === true) {
                     Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($this->uploadedFilePath), $fileName);
                     Log::info("uploading file {$storageDisk} / {$fileName} / {$this->uploadedFilePath}");
                 } else {
                     Log::info("file {$fileName} already exists in {$storageDisk} / {$this->uploadedFilePath}. Not replacing file and using local {$fileName} for variants.");
                 }
             } else {
-                if (Storage::disk($storageDisk)->exists($fileName) == true) {
+                if (Storage::disk($storageDisk)->exists($fileName) === true) {
                     Log::info("file {$fileName} already exists in {$storageDisk} / {$this->uploadedFilePath}. No local {$fileName} for variants, downloading from CDN.");
                     $readStream = Storage::disk($storageDisk)->readStream($fileName);
                     $tempFilePath = tempnam(sys_get_temp_dir(), 'download-');
                     $writeStream = fopen($tempFilePath, 'w');
-                    while (!feof($readStream)) {
+                    while (feof($readStream) !== true) {
                         fwrite($writeStream, fread($readStream, 8192));
                     }
                     fclose($readStream);
                     fclose($writeStream);
                     $this->uploadedFilePath = $tempFilePath;
-
                 } else {
                     $errorStr = "cannot upload file {$storageDisk} / {$fileName} / {$this->uploadedFilePath} as temp file is empty";
                     Log::info($errorStr);
                     throw new \Exception($errorStr);
                 }
-            }
+            }//end if
 
             if (strpos($this->media->mime_type, 'image/') === 0) {
                 $this->media->status = "Optimizing image";
@@ -160,7 +160,7 @@ class StoreUploadedFileJob implements ShouldQueue
                         }//end if
                     } else {
                         Log::info("variant {$variantName} already exists for file {$fileName}");
-                    }
+                    }//end if
                 }//end foreach
 
                 // Set missing variants to the largest available variant

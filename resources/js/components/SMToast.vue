@@ -122,11 +122,11 @@ onMounted(() => {
         }
     }
 
-    &.success .sm-toast-inner {
+    &.success .toast-inner {
         border-left-color: var(--success-color);
     }
 
-    &.danger .sm-toast-inner {
+    &.danger .toast-inner {
         border-left-color: var(--danger-color);
     }
 }

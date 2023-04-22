@@ -8,6 +8,7 @@ use App\Http\Requests\MediaRequest;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MediaController extends ApiController
@@ -119,19 +120,36 @@ class MediaController extends ApiController
         if (MediaConductor::updatable($medium) === true) {
             $file = $request->file('file');
             if ($file !== null) {
-                if ($file->getSize() > Media::maxUploadSize()) {
-                    return $this->respondTooLarge();
+                if ($file->isValid() !== true) {
+                    switch ($file->getError()) {
+                        case UPLOAD_ERR_INI_SIZE:
+                        case UPLOAD_ERR_FORM_SIZE:
+                            return $this->respondTooLarge();
+                        case UPLOAD_ERR_PARTIAL:
+                            return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
+                        default:
+                            return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
+                    }
                 }
 
-                if ($medium->updateFile($file) === false) {
+                if ($file->getSize() > Media::getMaxUploadSize()) {
+                    return $this->respondTooLarge();
+                }
+            }
+
+            $medium->update($request->all());
+
+            if ($file !== null) {
+                try {
+                    $medium->updateWithUploadedFile($file);
+                } catch (\Exception $e) {
                     return $this->respondWithErrors(
-                        ['file' => 'The file could not be stored on the server'],
+                        ['file' => $e->getMessage()],
                         HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
                     );
                 }
-            }//end if
+            }
 
-            $medium->update($request->all());
             return $this->respondAsResource(MediaConductor::model($request, $medium));
         }//end if
 

@@ -3,19 +3,23 @@ import { extractFileNameFromUrl } from "./url";
 /**
  * Tests if an object or string is empty.
  *
- * @param {object|string} objOrString The object or string.
+ * @param {unknown} value The object or string.
  * @returns {boolean} If the object or string is empty.
  */
-export const isEmpty = (objOrString: unknown): boolean => {
-    if (objOrString == null) {
-        return true;
-    } else if (typeof objOrString === "string") {
-        return objOrString.length == 0;
+export const isEmpty = (value: unknown): boolean => {
+    if (typeof value === "string") {
+        return value.trim().length === 0;
     } else if (
-        typeof objOrString == "object" &&
-        Object.keys(objOrString).length === 0
+        value instanceof File ||
+        value instanceof Blob ||
+        value instanceof Map ||
+        value instanceof Set
     ) {
-        return true;
+        return value.size === 0;
+    } else if (value instanceof FormData) {
+        return [...value.entries()].length === 0;
+    } else if (typeof value === "object") {
+        return !value || Object.keys(value).length === 0;
     }
 
     return false;

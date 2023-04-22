@@ -167,7 +167,7 @@ type FormControlSetValidation = (
 type FormControlIsValid = () => boolean;
 
 export interface FormControlObject {
-    value: string;
+    value: unknown;
     validate: () => Promise<ValidationResult>;
     validation: FormControlValidation;
     clearValidations: FormControlClearValidations;

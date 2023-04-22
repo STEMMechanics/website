@@ -8,6 +8,13 @@
             <SMLoading v-if="pageLoading" large />
             <SMForm v-else :model-value="form" @submit="handleSubmit">
                 <SMRow>
+                    <SMColumn class="media-container">
+                        <!-- <div class="media-container"> -->
+                        <SMImage :src="imageUrl" />
+                        <!-- </div> -->
+                    </SMColumn>
+                </SMRow>
+                <SMRow>
                     <SMColumn>
                         <SMInput control="file" type="file" />
                     </SMColumn>
@@ -61,12 +68,15 @@
                         <SMInput type="textarea" control="description" />
                     </SMColumn>
                 </SMRow>
-                <SMRow class="px-2 justify-content-space-between">
+                <SMRow
+                    class="px-2 flex-row-reverse justify-content-space-between">
+                    <SMButton type="submit" label="Save" :form="form" />
                     <SMButton
+                        :form="form"
+                        v-if="route.params.id"
                         type="danger"
                         label="Delete"
                         @click="handleDelete" />
-                    <SMButton type="submit" label="Save" />
                 </SMRow>
             </SMForm>
         </SMContainer>
@@ -74,13 +84,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
 import { And, FileSize, Required } from "../../helpers/validate";
-import { Media, MediaResponse } from "../../helpers/api.types";
+import { MediaResponse } from "../../helpers/api.types";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
@@ -89,6 +99,9 @@ import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { toTitleCase } from "../../helpers/string";
+import { useToastStore } from "../../store/ToastStore";
+import SMColumn from "../../components/SMColumn.vue";
+import SMImage from "../../components/SMImage.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -116,6 +129,8 @@ const fileData = reactive({
     user: {},
 });
 
+const imageUrl = ref("");
+
 const handleLoad = async () => {
     if (route.params.id) {
         try {
@@ -142,6 +157,8 @@ const handleLoad = async () => {
                     : toTitleCase(data.medium.status);
 
             fileData.dimensions = data.medium.dimensions;
+
+            imageUrl.value = fileData.url;
         } catch (err) {
             pageError.value = err.status;
         }
@@ -152,51 +169,74 @@ const handleLoad = async () => {
 
 const handleSubmit = async () => {
     try {
-        let res = null;
-        // let data = {
-        //     title: formData.title.value,
-        //     slug: formData.slug.value,
-        //     user_id: formData.user_id.value,
-        //     content: formData.content.value
-        // }
+        form.loading(true);
+        let submitData = new FormData();
 
-        // if(route.params.id) {
-        //     res = await axios.put(`posts/${route.params.id}`, data);
-        // } else {
-        //     res = await axios.post(`posts`, data);
-        // }
-
-        let submitFormData = new FormData();
-        if (form.file.value instanceof File) {
-            submitFormData.append("file", form.file.value);
+        // add file if there is one
+        if (form.controls.file.value instanceof File) {
+            submitData.append("file", form.controls.file.value);
         }
 
-        submitFormData.append("permission", form.permission.value);
+        submitData.append("title", form.controls.title.value as string);
+        submitData.append(
+            "permission",
+            form.controls.permission.value as string
+        );
+        submitData.append(
+            "description",
+            form.controls.description.value as string
+        );
 
-        await api.post({
-            url: "/media",
-            body: submitFormData,
-            headers: {
-                "Content-Type": "multipart/form-data",
-            },
-            progress: (progressEvent) =>
-                (formLoadingMessage.value = `Uploading Files ${Math.floor(
-                    (progressEvent.loaded / progressEvent.total) * 100
-                )}%`),
+        if (route.params.id) {
+            await api.put({
+                url: "/media/{id}",
+                params: {
+                    id: route.params.id,
+                },
+                body: submitData,
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+            });
+        } else {
+            await api.post({
+                url: "/media",
+                body: submitData,
+                headers: {
+                    "Content-Type": "multipart/form-data",
+                },
+                // progress: (progressEvent) =>
+                //     (formLoadingMessage.value = `Uploading Files ${Math.floor(
+                //         (progressEvent.loaded / progressEvent.total) * 100
+                //     )}%`),
+            });
+        }
+
+        useToastStore().addToast({
+            title: route.params.id ? "Media Updated" : "Media Created",
+            content: route.params.id
+                ? "The media item has been updated."
+                : "The media item been created.",
+            type: "success",
         });
 
-        form.message("Your details have been updated", "success");
-    } catch (err) {
-        form.apiErrors(err);
+        router.push({ name: "dashboard-media-list" });
+    } catch (error) {
+        console.log(error);
+        useToastStore().addToast({
+            title: "Server error",
+            content: "An error occurred saving the media.",
+            type: "danger",
+        });
+    } finally {
+        form.loading(false);
     }
-
-    form.loading(false);
 };
 
-const handleDelete = async (item: Media) => {
+const handleDelete = async () => {
     let result = await openDialog(DialogConfirm, {
         title: "Delete File?",
-        text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
+        text: `Are you sure you want to delete the file <strong>${form.controls.title.value}</strong>?`,
         cancel: {
             type: "secondary",
             label: "Cancel",
@@ -209,7 +249,7 @@ const handleDelete = async (item: Media) => {
 
     if (result) {
         try {
-            await api.delete(`media/${item.id}`);
+            await api.delete(`media/${route.params.id}`);
             router.push({ name: "media" });
         } catch (error) {
             pageError.value = error.status;
@@ -223,3 +263,14 @@ const computedFileSize = computed(() => {
 
 handleLoad();
 </script>
+
+<style lang="scss">
+.page-dashboard-media-edit {
+    .media-container {
+        max-height: 300px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+}
+</style>

@@ -8,6 +8,7 @@
             props.size,
             { 'button-block': block },
             { 'button-dropdown': dropdown },
+            { 'button-loading': loading },
         ]"
         ref="buttonRef"
         :style="{ minWidth: minWidth }"
@@ -146,8 +147,10 @@ if (props.form !== undefined) {
     watch(
         () => props.form.loading(),
         (newValue) => {
-            loading.value = newValue;
             disabled.value = newValue;
+            if (buttonType === "submit") {
+                loading.value = newValue;
+            }
         }
     );
 }
@@ -265,7 +268,7 @@ const handleClickItem = (item: string) => {
 
     &:disabled,
     &.primary:disabled {
-        background-color: var(--base-color-dark);
+        background-color: var(--base-color-dark) !important;
         box-shadow: none;
     }
 

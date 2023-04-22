@@ -1,8 +1,9 @@
 import { bytesReadable } from "../helpers/types";
 import { SMDate } from "./datetime";
+import { isEmpty } from "../helpers/utils";
 
 export interface ValidationObject {
-    validate: (value: any) => Promise<ValidationResult>;
+    validate: (value: unknown) => Promise<ValidationResult>;
 }
 
 export interface ValidationResult {
@@ -744,9 +745,9 @@ export function Required(
 
     return {
         ...options,
-        validate: function (value: string): Promise<ValidationResult> {
+        validate: function (value: unknown): Promise<ValidationResult> {
             return Promise.resolve({
-                valid: value.length > 0,
+                valid: !isEmpty(value),
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
@@ -831,8 +832,11 @@ export function FileSize(
     return {
         ...options,
         validate: function (value: File): Promise<ValidationResult> {
+            const isValid =
+                value instanceof File ? value.size < options.size : true;
+
             return Promise.resolve({
-                valid: value.size < options.size,
+                valid: isValid,
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage

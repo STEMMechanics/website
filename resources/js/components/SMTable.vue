@@ -17,17 +17,11 @@
                     :data-title="header['text']"
                     :key="`item-row-${index}-${header['value']}`">
                     <template v-if="slots[`item-${header['value']}`]">
-                        <slot
-                            :name="`item-${header['value']}`"
-                            v-bind="item as any">
+                        <slot :name="`item-${header['value']}`" v-bind="item">
                         </slot>
                     </template>
                     <template v-else>
-                        {{
-                            header["value"]
-                                .split(".")
-                                .reduce((item, key) => item[key], item)
-                        }}
+                        {{ getItemValue(item, header["value"]) }}
                     </template>
                 </td>
             </tr>
@@ -57,6 +51,22 @@ const slots = useSlots();
 const handleRowClick = (item) => {
     emits("rowClick", item);
 };
+
+const getItemValue = (data: unknown, key: string): string => {
+    if (typeof data === "object" && data !== null) {
+        return key.split(".").reduce((item, key) => item[key], data);
+    }
+
+    return "";
+};
+
+const hasClassLong = (text: unknown): boolean => {
+    if (typeof text == "string") {
+        return text.length >= 35;
+    }
+
+    return false;
+};
 </script>
 
 <style lang="scss">
@@ -81,6 +91,10 @@ const handleRowClick = (item) => {
     td {
         font-size: 85%;
         background-color: #fff;
+
+        &.long {
+            font-size: 75%;
+        }
     }
 
     tbody {
@@ -127,16 +141,19 @@ const handleRowClick = (item) => {
             border: none;
             border-bottom: 1px solid #eee;
             position: relative;
-            padding: 8px 12px 8px 50%;
+            padding: 8px 12px 8px 40%;
             white-space: normal;
             text-align: left;
 
             &:before {
                 position: absolute;
-                padding: 8px 12px;
+                display: flex;
+                align-items: center;
+                padding-left: 12px;
                 top: 0;
+                bottom: 0;
                 left: 0;
-                width: 45%;
+                width: 35%;
                 white-space: nowrap;
                 text-align: left;
                 font-weight: 600;

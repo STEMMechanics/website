@@ -206,7 +206,7 @@ class Media extends Model
      */
     public function getUrlAttribute()
     {
-        if(isset($this->attributes['name'])) {
+        if (isset($this->attributes['name']) === true) {
             $url = config("filesystems.disks.$this->storage.url");
             return "$url/$this->name";
         }
@@ -248,6 +248,28 @@ class Media extends Model
      */
     public static function createFromUploadedFile(Request $request, UploadedFile $file)
     {
+        $request->merge([
+            'title' => $request->get('title', ''),
+            'name' => '',
+            'size' => 0,
+            'mime_type' => '',
+            'status' => '',
+        ]);
+
+        $mediaItem = $request->user()->media()->create($request->all());
+        $mediaItem->updateWithUploadedFile($file);
+
+        return $mediaItem;
+    }
+
+    /**
+     * Update Media with UploadedFile data.
+     *
+     * @param Illuminate\Http\UploadedFile $file The file.
+     * @return null|Media The media item.
+     */
+    public function updateWithUploadedFile(UploadedFile $file)
+    {
         if ($file === null || $file->isValid() !== true) {
             throw new \Exception('The file is invalid.', self::INVALID_FILE_ERROR);
         }
@@ -261,34 +283,40 @@ class Media extends Model
             throw new \Exception('The file name already exists in storage.', self::FILE_NAME_EXISTS_ERROR);
         }
 
-        $request->merge([
-            'title' => $request->get('title', $name),
-            'name' => $name,
-            'size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-            'status' => 'Processing media',
-        ]);
+        // remove file if there is an existing entry in this medium item
+        if (strlen($this->name) > 0 && strlen($this->storage) > 0) {
+            Storage::disk($this->storage)->delete($this->name);
+            foreach ($this->variants as $variantName => $fileName) {
+                Storage::disk($this->storage)->delete($fileName);
+            }
 
-        $mediaItem = $request->user()->media()->create($request->all());
-
-        try {
-            $temporaryFilePath = tempnam(sys_get_temp_dir(), 'upload');
-            $temporaryDirectoryPath = dirname($temporaryFilePath);
-            $file->move($temporaryDirectoryPath, basename($temporaryFilePath));
-        } catch (\Exception $e) {
-            throw new \Exception('Could not temporarily store file. ' . $e->getMessage(), self::TEMP_FILE_ERROR);
+            $this->name = '';
+            $this->variants = [];
         }
 
+        if (strlen($this->title) === 0) {
+            $this->title = $name;
+        }
+
+        $this->name = $name;
+        $this->size = $file->getSize();
+        $this->mime_type = $file->getMimeType();
+        $this->status = 'Processing media';
+        $this->save();
+
+        $temporaryFilePath = tempnam(sys_get_temp_dir(), 'upload');
+        copy($file->path(), $temporaryFilePath);
+
         try {
-            StoreUploadedFileJob::dispatch($mediaItem, $temporaryFilePath)->onQueue('media');
+            StoreUploadedFileJob::dispatch($this, $temporaryFilePath)->onQueue('media');
         } catch (\Exception $e) {
-            $mediaItem->delete();
-            $mediaItem = null;
+            $this->status = 'Error';
+            $this->save();
 
             throw $e;
         }//end try
 
-        return $mediaItem;
+        return $this;
     }
 
     /**

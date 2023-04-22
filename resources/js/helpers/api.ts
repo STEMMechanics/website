@@ -71,6 +71,8 @@ export const api = {
                 options.headers["Authorization"] = `Bearer ${userStore.token}`;
             }
 
+            options.method = options.method.toUpperCase() || "GET";
+
             if (options.body && typeof options.body === "object") {
                 if (options.body instanceof FormData) {
                     if (
@@ -81,6 +83,11 @@ export const api = {
                     ) {
                         // remove the "Content-Type" key from the headers object
                         delete options.headers["Content-Type"];
+                    }
+
+                    if (options.method != "POST") {
+                        options.body.append("_method", options.method);
+                        options.method = "POST";
                     }
                 } else if (
                     options.body instanceof Blob ||
@@ -94,7 +101,9 @@ export const api = {
             }
 
             if (
-                (options.method.toUpperCase() || "GET") == "POST" &&
+                (options.method == "POST" ||
+                    options.method == "PUT" ||
+                    options.method == "PATCH") &&
                 options.progress
             ) {
                 const xhr = new XMLHttpRequest();

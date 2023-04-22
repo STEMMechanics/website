@@ -31,10 +31,7 @@ return [
     'disks' => [
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app/uploads'),
-            'throw' => false,
-            'url' => env('STORAGE_LOCAL_URL'),
-            'public' => true,
+            'root' => storage_path('app'),
         ],
 
         'cdn' => [

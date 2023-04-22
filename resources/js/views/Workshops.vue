@@ -40,7 +40,10 @@
                 <div
                     class="thumbnail"
                     :style="{
-                        backgroundImage: `url('${event.hero.url}')`,
+                        backgroundImage: `url('${mediaGetVariantUrl(
+                            event.hero,
+                            'medium'
+                        )}')`,
                     }">
                     <div :class="['banner', event['bannerType']]">
                         {{ event["banner"] }}
@@ -87,6 +90,7 @@ import SMToolbar from "../components/SMToolbar.vue";
 import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
+import { mediaGetVariantUrl } from "../helpers/media";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMContainer from "../components/SMContainer.vue";
 import SMNoItems from "../components/SMNoItems.vue";
