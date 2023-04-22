@@ -37,7 +37,7 @@ defineProps({
 }
 
 @media screen and (max-width: 768px) {
-    .sm-row {
+    .row {
         flex-direction: column;
     }
 }

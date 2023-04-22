@@ -1,11 +1,11 @@
 <template>
-    <section class="sm-hero">
-        <div class="sm-hero-background" :style="heroStyles"></div>
+    <section class="hero">
+        <div class="hero-background" :style="heroStyles"></div>
         <SMContainer class="align-items-start">
-            <div class="sm-hero-content">
+            <div class="hero-content">
                 <h1>{{ heroTitle }}</h1>
                 <p>{{ heroExcerpt }}</p>
-                <div class="sm-hero-buttons">
+                <div class="hero-buttons">
                     <SMButton
                         v-if="loaded"
                         type="primary"
@@ -14,7 +14,7 @@
                 </div>
             </div>
         </SMContainer>
-        <div class="sm-hero-caption">
+        <div class="hero-caption">
             <router-link
                 v-if="loaded"
                 :to="{ name: 'article', params: { slug: heroSlug } }"
@@ -100,11 +100,11 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-hero {
+.hero {
     position: relative;
     overflow: hidden;
 
-    .sm-hero-background {
+    .hero-background {
         position: absolute;
         top: 0;
         left: 0;
@@ -115,7 +115,7 @@ handleLoad();
         background-size: cover;
     }
 
-    .sm-hero-content {
+    .hero-content {
         position: relative;
         margin: 150px 32px 120px;
         max-width: 640px;
@@ -137,7 +137,7 @@ handleLoad();
         }
     }
 
-    .sm-hero-caption {
+    .hero-caption {
         position: absolute;
         bottom: 14px;
         right: 30px;
@@ -158,11 +158,26 @@ handleLoad();
         }
     }
 
-    .sm-hero-buttons {
+    .hero-buttons {
         padding-top: 48px;
 
         .primary {
             background-color: var(--primary-color-dark);
+        }
+    }
+}
+
+@media only screen and (max-width: 640px) {
+    .hero {
+        .hero-content {
+            margin: 150px 0;
+        }
+
+        .hero-buttons {
+            .button {
+                display: block;
+                text-align: center;
+            }
         }
     }
 }

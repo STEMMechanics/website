@@ -83,7 +83,9 @@
             <SMRow>
                 <SMColumn
                     class="align-items-center justify-content-center flex-basis-45">
-                    <img src="/img/discord.jpg" />
+                    <div class="support-image">
+                        <img src="/img/discord.jpg" />
+                    </div>
                 </SMColumn>
                 <SMColumn class="align-items-center flex-basis-55">
                     <p>
@@ -210,9 +212,18 @@ import SMHero from "../components/SMHero.vue";
         border-radius: 24px;
         max-width: 960px;
 
+        .row {
+            gap: 30px;
+        }
+
+        .support-image {
+            display: block;
+        }
+
         img {
+            margin: 32px 0;
             border-radius: 24px;
-            width: 80%;
+            width: 320px;
             transform: rotateZ(-10deg);
         }
 
@@ -229,27 +240,14 @@ import SMHero from "../components/SMHero.vue";
 
         .button-row {
             display: flex;
-            justify-content: space-between;
             width: 100%;
             margin-top: 16px;
-        }
-    }
-}
 
-@media only screen and (max-width: 1000px) {
-    .page-home {
-        .support {
-            img {
-                min-width: 256px;
-                margin-left: -90px;
-            }
-            .button-row {
-                flex-direction: column;
-                gap: 15px;
+            flex-direction: column;
+            gap: 15px;
 
-                .button {
-                    text-align: center;
-                }
+            .button {
+                text-align: center;
             }
         }
     }
@@ -258,13 +256,22 @@ import SMHero from "../components/SMHero.vue";
 @media only screen and (max-width: 768px) {
     .page-home {
         .about {
-            margin: 0;
-            border-radius: 0;
+            padding: 0;
+
+            .container-inner {
+                margin: 0;
+                padding: 0 32px;
+                border-radius: 0;
+            }
         }
 
         .workshops {
             margin-top: 0;
             margin-bottom: 0;
+
+            .row {
+                gap: 30px;
+            }
         }
 
         .minecraft {
@@ -283,39 +290,16 @@ import SMHero from "../components/SMHero.vue";
         }
 
         .support {
-            margin: 0;
-            border-radius: 0;
-        }
-    }
-}
+            padding: 0;
 
-@media only screen and (max-width: 640px) {
-    .page-home {
-        .about {
-            padding: 0 32px 32px 32px;
+            .container-inner {
+                margin: 0;
+                padding: 32px;
+                border-radius: 0;
 
-            h2 {
-                font-size: 300%;
-            }
-
-            p {
-                font-size: 100%;
-                line-height: 1.5em;
-            }
-        }
-
-        .workshops,
-        .support,
-        .minecraft,
-        .subscribe {
-            padding: 32px 32px 32px 32px;
-
-            h2 {
-                font-size: 200%;
-            }
-
-            p {
-                font-size: 100%;
+                .row {
+                    gap: 30px;
+                }
             }
         }
     }

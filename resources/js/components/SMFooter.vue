@@ -36,10 +36,8 @@
                 </ul>
             </SMColumn>
         </SMRow>
-        <SMRow>
-            <SMColumn
-                width="350px"
-                class="align-items-center justify-content-center align-items-center">
+        <SMRow class="align-items-center">
+            <SMColumn class="align-items-center logo">
                 <router-link to="/" class="logo-link">
                     <img
                         class="dark:d-none"
@@ -76,10 +74,8 @@
                 </p>
             </SMColumn>
         </SMRow>
-        <SMRow>
-            <SMColumn
-                width="350px"
-                class="justify-content-center align-items-center copyright"
+        <SMRow class="align-items-center">
+            <SMColumn class="align-items-center copyright"
                 >Made with ❤️ - Copyright &copy; 2023</SMColumn
             >
             <SMColumn class="justify-content-center footer-links">
@@ -145,6 +141,11 @@
         }
     }
 
+    .copyright,
+    .logo {
+        flex-basis: 350px;
+    }
+
     .logo-link:hover {
         filter: none;
     }
@@ -190,6 +191,12 @@
         .footer-links {
             align-items: center;
             justify-content: center;
+        }
+
+        .copyright,
+        .logo {
+            flex-basis: auto;
+            margin: 16px 0;
         }
     }
 }
