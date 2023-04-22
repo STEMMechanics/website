@@ -1,26 +1,32 @@
 <template>
     <section class="hero">
-        <div class="hero-background" :style="heroStyles"></div>
-        <SMContainer class="align-items-start">
-            <div class="hero-content">
-                <h1>{{ heroTitle }}</h1>
-                <p>{{ heroExcerpt }}</p>
-                <div class="hero-buttons">
-                    <SMButton
-                        v-if="loaded"
-                        type="primary"
-                        :to="{ name: 'article', params: { slug: heroSlug } }"
-                        label="Read More" />
+        <SMLoading v-if="!loaded" large />
+        <template v-else>
+            <div class="hero-background" :style="heroStyles"></div>
+            <SMContainer class="align-items-start">
+                <div class="hero-content">
+                    <h1>{{ heroTitle }}</h1>
+                    <p>{{ heroExcerpt }}</p>
+                    <div class="hero-buttons">
+                        <SMButton
+                            v-if="loaded"
+                            type="primary"
+                            :to="{
+                                name: 'article',
+                                params: { slug: heroSlug },
+                            }"
+                            label="Read More" />
+                    </div>
                 </div>
+            </SMContainer>
+            <div class="hero-caption">
+                <router-link
+                    v-if="loaded"
+                    :to="{ name: 'article', params: { slug: heroSlug } }"
+                    >{{ heroImageTitle }}</router-link
+                >
             </div>
-        </SMContainer>
-        <div class="hero-caption">
-            <router-link
-                v-if="loaded"
-                :to="{ name: 'article', params: { slug: heroSlug } }"
-                >{{ heroImageTitle }}</router-link
-            >
-        </div>
+        </template>
     </section>
 </template>
 
@@ -31,6 +37,7 @@ import { PostCollection } from "../helpers/api.types";
 import { mediaGetVariantUrl } from "../helpers/media";
 import { excerpt } from "../helpers/string";
 import SMButton from "./SMButton.vue";
+import SMLoading from "./SMLoading.vue";
 
 const loaded = ref(false);
 let heroTitle = ref("");
@@ -101,6 +108,7 @@ handleLoad();
 
 <style lang="scss">
 .hero {
+    display: flex;
     position: relative;
     overflow: hidden;
     min-height: 700px;
