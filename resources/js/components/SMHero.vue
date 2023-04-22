@@ -103,6 +103,7 @@ handleLoad();
 .hero {
     position: relative;
     overflow: hidden;
+    min-height: 700px;
 
     .hero-background {
         position: absolute;
