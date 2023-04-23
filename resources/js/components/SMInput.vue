@@ -80,7 +80,7 @@
                 <template v-else-if="props.type == 'media'">
                     <div class="media-input-control">
                         <img
-                            v-if="mediaUrl.length > 0"
+                            v-if="mediaUrl?.length > 0"
                             :src="mediaGetVariantUrl(value, 'medium')" />
                         <ion-icon v-else name="image-outline" />
                         <SMButton
