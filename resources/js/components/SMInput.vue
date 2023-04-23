@@ -30,7 +30,7 @@
                 <ion-icon
                     class="select-dropdown-icon"
                     name="caret-down-outline" />
-                <select class="select-input-control">
+                <select class="select-input-control" @input="handleInput">
                     <option
                         v-for="option in Object.entries(props.options)"
                         :key="option[0]"
