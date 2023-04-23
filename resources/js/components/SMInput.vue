@@ -655,15 +655,13 @@ const handleMediaSelect = async (event) => {
             .input-control-append {
                 .button {
                     .button-label {
-                        padding: 7px 16px 15px 16px;
-
                         ion-icon {
                             height: 16px;
                             width: 16px;
                         }
                     }
 
-                    padding: 0;
+                    padding: 3px 24px 13px 24px;
                 }
             }
         }

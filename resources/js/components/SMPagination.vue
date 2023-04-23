@@ -1,5 +1,5 @@
 <template>
-    <div class="pagination">
+    <div :class="['pagination', props.size]">
         <div
             :class="['item', 'prev', { disabled: computedDisablePrevButton }]"
             @click="handleClickPrev">
@@ -23,7 +23,6 @@
 </template>
 
 <script setup lang="ts">
-import { unwatchFile } from "fs";
 import { computed } from "vue";
 
 const props = defineProps({
@@ -38,6 +37,11 @@ const props = defineProps({
     perPage: {
         type: Number,
         required: true,
+    },
+    size: {
+        type: String,
+        default: "",
+        required: false,
     },
 });
 
@@ -143,6 +147,24 @@ if (props.modelValue < 1) {
     font-weight: 600;
     margin: 24px auto;
     box-shadow: var(--base-shadow);
+
+    &.small {
+        font-size: 75%;
+        .item {
+            padding: 8px 12px;
+
+            &.prev,
+            &.next {
+                ion-icon {
+                    padding: 3px 0;
+                }
+
+                .text {
+                    display: none;
+                }
+            }
+        }
+    }
 
     .item {
         display: flex;

@@ -1,16 +1,35 @@
 <template>
-    <SMFormCard
-        :loading="dialogLoading"
-        full
-        :loading-message="dialogLoadingMessage"
-        class="sm-dialog-media">
-        <h1>Insert Media</h1>
-        <SMMessage
-            v-if="formMessage"
-            icon="alert-circle-outline"
-            type="error"
-            :message="formMessage"
-            class="d-flex" />
+    <SMFormCard full class="dialog-media">
+        <h3>Insert Media</h3>
+        <SMToolbar class="align-items-center">
+            <SMGroupButtons
+                :buttons="[
+                    {
+                        name: 'grid',
+                        icon: 'grid-outline',
+                    },
+                    {
+                        name: 'list',
+                        icon: 'list-outline',
+                    },
+                ]"
+                :active="listActive"
+                @click="handleClickLayout" />
+            <SMInput
+                v-model="itemSearch"
+                label="Search"
+                class="toolbar-search"
+                size="small"
+                @keyup.enter="handleSearch">
+                <template #append>
+                    <SMButton
+                        type="primary"
+                        label="Search"
+                        icon="search-outline"
+                        @click="handleSearch" />
+                </template>
+            </SMInput>
+        </SMToolbar>
         <div class="media-browser" :class="mediaBrowserClasses">
             <div class="media-browser-content">
                 <SMLoadingIcon v-if="mediaLoading" />
@@ -42,33 +61,17 @@
                     </li>
                 </ul>
             </div>
-            <div class="media-browser-toolbar">
-                <div class="layout-buttons">
-                    <ion-icon
-                        name="grid-outline"
-                        class="layout-button-grid"
-                        @click="handleClickGridLayout"></ion-icon>
-                    <ion-icon
-                        name="list-outline"
-                        class="layout-button-list"
-                        @click="handleClickListLayout"></ion-icon>
-                </div>
-                <div class="pagination-buttons">
-                    <ion-icon
-                        name="chevron-back-outline"
-                        :class="[{ disabled: computedDisablePrevButton }]"
-                        @click="handleClickPrev" />
-                    <span class="pagination-info">{{
-                        computedPaginationInfo
-                    }}</span>
-                    <ion-icon
-                        name="chevron-forward-outline"
-                        :class="[{ disabled: computedDisableNextButton }]"
-                        @click="handleClickNext" />
-                </div>
-            </div>
         </div>
-        <SMFormFooter>
+        <SMRow>
+            <SMPagination
+                v-if="mediaItems.length < totalItems"
+                v-model="page"
+                :total="totalItems"
+                :per-page="perPage"
+                size="small"
+                class="mt-1" />
+        </SMRow>
+        <SMButtonRow>
             <template #left>
                 <SMButton
                     type="button"
@@ -87,7 +90,7 @@
                     :disabled="selected.length == 0"
                     @click="handleClickInsert" />
             </template>
-        </SMFormFooter>
+        </SMButtonRow>
         <input
             v-if="props.allowUpload"
             id="file"
@@ -108,11 +111,13 @@ import { bytesReadable } from "../../helpers/types";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
-import SMFormFooter from "../SMFormFooter.vue";
 import SMLoadingIcon from "../SMLoadingIcon.vue";
-import SMMessage from "../SMMessage.vue";
 import { mediaGetVariantUrl } from "../../helpers/media";
-import { toTitleCase } from "../../helpers/string";
+import SMToolbar from "../SMToolbar.vue";
+import SMInput from "../SMInput.vue";
+import SMGroupButtons from "../SMGroupButtons.vue";
+import SMPagination from "../SMPagination.vue";
+import SMButtonRow from "../SMButtonRow.vue";
 
 const props = defineProps({
     mime: {
@@ -185,7 +190,7 @@ const selected = ref("");
 /**
  * How many media items are we showing per page.
  */
-const perPage = ref(12);
+const perPage = ref(24);
 
 const applicationStore = useApplicationStore();
 
@@ -306,50 +311,16 @@ const handleDblClickItem = (item_id: string): void => {
     closeDialog(false);
 };
 
+const listActive = ref("grid");
+
 /**
  * Handle Grid layout request click
- */
-const handleClickGridLayout = () => {
-    mediaBrowserClasses.value = ["media-browser-grid"];
-};
-
-/**
- * Handle List layout request click
- */
-const handleClickListLayout = () => {
-    mediaBrowserClasses.value = ["media-browser-list"];
-};
-
-/**
- * Handle click on previous button
  *
- * @param {MouseEvent} $event The mouse event.
+ * @param name
  */
-const handleClickPrev = ($event: MouseEvent): void => {
-    if (
-        $event.target &&
-        ($event.target as HTMLElement).classList.contains("disabled") ==
-            false &&
-        page.value > 1
-    ) {
-        page.value--;
-    }
-};
-
-/**
- * Handle click on next button
- *
- * @param {MouseEvent} $event The mouse event.
- */
-const handleClickNext = ($event: MouseEvent): void => {
-    if (
-        $event.target &&
-        ($event.target as HTMLElement).classList.contains("disabled") ==
-            false &&
-        page.value < computedTotalPages.value
-    ) {
-        page.value++;
-    }
+const handleClickLayout = (name: string) => {
+    listActive.value = name;
+    mediaBrowserClasses.value = [`media-browser-${listActive.value}`];
 };
 
 /**
@@ -531,7 +502,11 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-dialog-media {
+.dialog-media {
+    h3 {
+        margin-bottom: 16px;
+    }
+
     .media-browser {
         display: flex;
         flex-direction: column;
@@ -587,63 +562,6 @@ handleLoad();
             }
         }
 
-        .media-browser-toolbar {
-            display: flex;
-            margin-bottom: map-get($spacer, 3);
-
-            .layout-buttons,
-            .pagination-buttons {
-                flex: 1;
-                display: flex;
-                align-items: center;
-            }
-
-            .layout-buttons {
-                ion-icon {
-                    &:first-of-type {
-                        border-top-right-radius: 0;
-                        border-bottom-right-radius: 0;
-                    }
-                    &:last-of-type {
-                        border-top-left-radius: 0;
-                        border-bottom-left-radius: 0;
-                        border-left: 0;
-                    }
-                }
-            }
-
-            .pagination-buttons {
-                justify-content: right;
-            }
-
-            ion-icon {
-                border: 1px solid $secondary-color;
-                border-radius: 4px;
-                padding: 0.25rem;
-
-                cursor: pointer;
-                transition: color 0.1s ease-in-out,
-                    background-color 0.1s ease-in-out;
-                color: $font-color;
-
-                &.disabled {
-                    cursor: not-allowed;
-                    color: $secondary-color;
-                }
-
-                &:not(.disabled) {
-                    &:hover {
-                        background-color: $secondary-color;
-                        color: #eee;
-                    }
-                }
-            }
-
-            .pagination-info {
-                margin: 0 map-get($spacer, 3);
-            }
-        }
-
         &.media-browser-list {
             ul {
                 flex-direction: column;
@@ -668,16 +586,6 @@ handleLoad();
 
             .media-size {
                 font-size: 75%;
-            }
-
-            .media-browser-toolbar {
-                .layout-button-grid {
-                    color: $font-color;
-                }
-
-                .layout-button-list {
-                    color: $primary-color;
-                }
             }
         }
 
@@ -710,16 +618,6 @@ handleLoad();
 
                 .media-size {
                     font-size: 75%;
-                }
-            }
-
-            .media-browser-toolbar {
-                .layout-button-grid {
-                    color: $primary-color;
-                }
-
-                .layout-button-list {
-                    color: $font-color;
                 }
             }
         }
