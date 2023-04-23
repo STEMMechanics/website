@@ -7,7 +7,7 @@
         <SMContainer class="flex-grow-1">
             <SMToolbar>
                 <SMButton
-                    :to="{ name: 'workshops' }"
+                    :to="{ name: 'dashboard-media-create' }"
                     type="primary"
                     label="Upload Media" />
                 <SMInput

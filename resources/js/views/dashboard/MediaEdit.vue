@@ -79,7 +79,7 @@
                     <template #left>
                         <SMButton
                             :form="form"
-                            v-if="route.params.id"
+                            v-if="route.params.id !== 'create'"
                             type="danger"
                             label="Delete"
                             @click="handleDelete" />
@@ -116,7 +116,8 @@ const router = useRouter();
 
 const pageError = ref(200);
 const pageLoading = ref(true);
-const pageHeading = route.params.id ? "Edit Media" : "Upload Media";
+const pageHeading =
+    route.params.id !== "create" ? "Edit Media" : "Upload Media";
 
 const form = reactive(
     Form({
@@ -140,7 +141,7 @@ const fileData = reactive({
 const imageUrl = ref("");
 
 const handleLoad = async () => {
-    if (route.params.id) {
+    if (route.params.id !== "create") {
         try {
             let result = await api.get({
                 url: "/media/{id}",
@@ -195,7 +196,7 @@ const handleSubmit = async () => {
             form.controls.description.value as string
         );
 
-        if (route.params.id) {
+        if (route.params.id !== "create") {
             await api.put({
                 url: "/media/{id}",
                 params: {
@@ -221,7 +222,10 @@ const handleSubmit = async () => {
         }
 
         useToastStore().addToast({
-            title: route.params.id ? "Media Updated" : "Media Created",
+            title:
+                route.params.id !== "create"
+                    ? "Media Updated"
+                    : "Media Created",
             content: route.params.id
                 ? "The media item has been updated."
                 : "The media item been created.",
