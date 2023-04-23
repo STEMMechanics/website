@@ -304,4 +304,12 @@ const handleClickItem = (item: string) => {
         color: var(--base-color);
     }
 }
+
+@media only screen and (max-width: 768px) {
+    .button {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+}
 </style>

@@ -51,7 +51,7 @@
             </template>
             <SMRow>
                 <SMColumn>
-                    <SMFormFooter>
+                    <SMButtonRow>
                         <template #right>
                             <SMButton
                                 type="secondary"
@@ -59,7 +59,7 @@
                                 @click="handleChangePassword" />
                             <SMButton type="submit" label="Update" />
                         </template>
-                    </SMFormFooter>
+                    </SMButtonRow>
                 </SMColumn>
             </SMRow>
         </SMForm>
@@ -73,7 +73,6 @@ import { openDialog } from "../../components/SMDialog";
 import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
-import SMFormFooter from "../../components/SMFormFooter.vue";
 import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { UserResponse } from "../../helpers/api.types";
@@ -83,6 +82,7 @@ import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
 import SMCheckbox from "../../components/SMCheckbox.vue";
+import SMButtonRow from "../../components/SMButtonRow.vue";
 
 const route = useRoute();
 const router = useRouter();

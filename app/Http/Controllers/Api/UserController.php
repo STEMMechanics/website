@@ -57,7 +57,8 @@ class UserController extends ApiController
         return $this->respondAsResource(
             $collection,
             ['isCollection' => true,
-            'appendData' => ['total' => $total]]
+                'appendData' => ['total' => $total]
+            ]
         );
     }
 
@@ -97,14 +98,14 @@ class UserController extends ApiController
      * Update the specified resource in storage.
      *
      * @param  \App\Http\Requests\UserRequest $request The user update request.
-     * @param  \App\Models\User                     $user    The specified user.
+     * @param  \App\Models\User               $user    The specified user.
      * @return \Illuminate\Http\Response
      */
     public function update(UserRequest $request, User $user)
     {
         if (UserConductor::updatable($user) === true) {
             $input = [];
-            $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password'];
+            $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password', 'display_name'];
 
             if ($request->user()->hasPermission('admin/user') === true) {
                 $updatable = array_merge($updatable, ['email_verified_at']);

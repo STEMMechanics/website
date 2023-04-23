@@ -59,22 +59,22 @@
                 </div>
                 <div class="content">
                     <h3 class="title">{{ event.title }}</h3>
-                    <div class="row date">
+                    <SMRow class="date" no-responsive>
                         <ion-icon name="calendar-outline" class="icon" />
                         <div class="text">{{ computedDate(event) }}</div>
-                    </div>
-                    <div class="row location">
+                    </SMRow>
+                    <SMRow class="location" no-responsive>
                         <ion-icon name="location-outline" class="icon" />
                         <div class="text">{{ computedLocation(event) }}</div>
-                    </div>
-                    <div class="row ages">
+                    </SMRow>
+                    <SMRow class="ages" no-responsive>
                         <ion-icon name="body-outline" class="icon" />
                         <div class="text">{{ computedAges(event.ages) }}</div>
-                    </div>
-                    <div class="row price">
+                    </SMRow>
+                    <SMRow class="price" no-responsive>
                         <div class="icon">$</div>
                         <div class="text">{{ computedPrice(event.price) }}</div>
-                    </div>
+                    </SMRow>
                 </div>
             </router-link>
         </div>

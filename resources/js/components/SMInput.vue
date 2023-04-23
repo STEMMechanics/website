@@ -11,7 +11,9 @@
             }}</label>
             <template v-if="props.type == 'static'">
                 <div class="static-input-control" v-bind="{ id: id }">
-                    {{ value }}
+                    <span class="text">
+                        {{ value }}
+                    </span>
                 </div>
             </template>
             <template v-else-if="props.type == 'file'">
@@ -344,6 +346,8 @@ const handleChange = (event) => {
         }
 
         .control-item {
+            max-width: 100%;
+
             .control-label {
                 position: absolute;
                 display: block;
@@ -399,6 +403,13 @@ const handleChange = (event) => {
                 border-radius: 8px;
                 background-color: var(--base-color);
                 height: 52px;
+                overflow: auto;
+                scroll-behavior: smooth;
+                scrollbar-width: none;
+
+                &::-webkit-scrollbar {
+                    display: none;
+                }
             }
 
             .file-input-control {
@@ -416,6 +427,14 @@ const handleChange = (event) => {
                 border-radius: 8px 0 0 8px;
                 background-color: var(--base-color);
                 height: 52px;
+
+                overflow: auto;
+                scroll-behavior: smooth;
+                scrollbar-width: none;
+
+                &::-webkit-scrollbar {
+                    display: none;
+                }
             }
 
             .file-input-control-button {
@@ -424,6 +443,7 @@ const handleChange = (event) => {
                 border-color: var(--base-color-darker);
                 border-radius: 0 8px 8px 0;
                 padding: 15px 30px;
+                width: auto;
             }
         }
     }
@@ -444,6 +464,12 @@ const handleChange = (event) => {
                 border: 2px solid var(--danger-color);
             }
         }
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .control-group.control-type-input {
+        // width: 100%;
     }
 }
 </style>

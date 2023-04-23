@@ -282,6 +282,12 @@ onUnmounted(() => {
 //     }
 // }
 
+@media only screen and (max-width: 768px) {
+    #nav-toggle {
+        margin-right: -16px;
+    }
+}
+
 @media screen and (max-width: 650px) {
     .nav-right {
         .button {

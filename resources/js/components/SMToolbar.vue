@@ -12,4 +12,15 @@
     align-items: flex-start;
     gap: 20px;
 }
+
+@media screen and (max-width: 768px) {
+    .toolbar {
+        flex-direction: column;
+        margin-bottom: 32px;
+
+        .control-group {
+            margin-bottom: 0;
+        }
+    }
+}
 </style>

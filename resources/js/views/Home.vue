@@ -245,10 +245,6 @@ import SMHero from "../components/SMHero.vue";
 
             flex-direction: column;
             gap: 15px;
-
-            .button {
-                text-align: center;
-            }
         }
     }
 }

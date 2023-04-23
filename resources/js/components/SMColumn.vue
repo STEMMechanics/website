@@ -45,7 +45,7 @@ if (props.width != "") {
 }
 
 @media screen and (max-width: 768px) {
-    .sm-column {
+    .column {
         flex-basis: auto !important;
         width: 100%;
 
@@ -55,7 +55,7 @@ if (props.width != "") {
 }
 
 @media screen and (max-width: 640px) {
-    .sm-column {
+    .column {
         flex-direction: column;
     }
 }

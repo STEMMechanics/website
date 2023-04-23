@@ -163,6 +163,10 @@ const tabs = () => {
         overflow-x: auto;
         scroll-behavior: smooth;
         scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
     }
 }
 

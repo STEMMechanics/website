@@ -68,16 +68,19 @@
                         <SMInput type="textarea" control="description" />
                     </SMColumn>
                 </SMRow>
-                <SMRow
-                    class="px-2 flex-row-reverse justify-content-space-between">
-                    <SMButton type="submit" label="Save" :form="form" />
-                    <SMButton
-                        :form="form"
-                        v-if="route.params.id"
-                        type="danger"
-                        label="Delete"
-                        @click="handleDelete" />
-                </SMRow>
+                <SMButtonRow>
+                    <template #right>
+                        <SMButton type="submit" label="Save" :form="form" />
+                    </template>
+                    <template #left>
+                        <SMButton
+                            :form="form"
+                            v-if="route.params.id"
+                            type="danger"
+                            label="Delete"
+                            @click="handleDelete" />
+                    </template>
+                </SMButtonRow>
             </SMForm>
         </SMContainer>
     </SMPage>
@@ -102,6 +105,7 @@ import { toTitleCase } from "../../helpers/string";
 import { useToastStore } from "../../store/ToastStore";
 import SMColumn from "../../components/SMColumn.vue";
 import SMImage from "../../components/SMImage.vue";
+import SMButtonRow from "../../components/SMButtonRow.vue";
 
 const route = useRoute();
 const router = useRouter();

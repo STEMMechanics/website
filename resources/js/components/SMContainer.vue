@@ -50,8 +50,8 @@ const slots = useSlots();
         max-width: 100%;
 
         .container-inner {
-            padding-left: 1rem;
-            padding-right: 1rem;
+            padding-left: 16px;
+            padding-right: 16px;
             width: 100%;
             max-width: 1200px;
             margin: 0 auto;

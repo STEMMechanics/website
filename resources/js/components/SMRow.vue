@@ -1,6 +1,13 @@
 <template>
     <div
-        :class="['row', { 'row-break-lg': breakLarge }, { 'flex-fill': fill }]">
+        :class="[
+            'row',
+            {
+                'row-break-lg': breakLarge,
+                'flex-fill': fill,
+                'no-responsive': noResponsive,
+            },
+        ]">
         <slot></slot>
     </div>
 </template>
@@ -17,6 +24,11 @@ defineProps({
         default: false,
         required: false,
     },
+    noResponsive: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
 </script>
 
@@ -28,6 +40,10 @@ defineProps({
     align-items: flex-start;
     width: 100%;
     max-width: 1200px;
+
+    &.no-responsive {
+        flex-direction: row !important;
+    }
 }
 
 @media screen and (max-width: 992px) {

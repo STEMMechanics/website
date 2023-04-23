@@ -1,14 +1,10 @@
 <template>
     <div class="pagination">
         <div
-            :class="[
-                'item',
-                'previous',
-                { disabled: computedDisablePrevButton },
-            ]"
+            :class="['item', 'prev', { disabled: computedDisablePrevButton }]"
             @click="handleClickPrev">
             <ion-icon name="chevron-back-outline" />
-            Prev
+            <span class="text">Prev</span>
         </div>
         <div
             :class="['item', 'page', { active: page == props.modelValue }]"
@@ -20,7 +16,7 @@
         <div
             :class="['item', 'next', { disabled: computedDisableNextButton }]"
             @click="handleClickNext">
-            Next
+            <span class="text">Next</span>
             <ion-icon name="chevron-forward-outline" />
         </div>
     </div>
@@ -172,7 +168,7 @@ if (props.modelValue < 1) {
             border-right-width: 0;
         }
 
-        &.previous ion-icon {
+        &.prev ion-icon {
             padding-right: 12px;
         }
 
@@ -188,6 +184,23 @@ if (props.modelValue < 1) {
             cursor: not-allowed;
             color: var(--base-color-darker);
             background-color: var(--base-color);
+        }
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .pagination {
+        .item {
+            &.prev,
+            &.next {
+                ion-icon {
+                    padding: 1px 0;
+                }
+
+                .text {
+                    display: none;
+                }
+            }
         }
     }
 }
