@@ -6,9 +6,11 @@
             'button',
             classType,
             props.size,
-            { 'button-block': block },
-            { 'button-dropdown': dropdown },
-            { 'button-loading': loading },
+            {
+                'button-block': block,
+                'button-dropdown': dropdown,
+                'button-loading': loading,
+            },
         ]"
         ref="buttonRef"
         :style="{ minWidth: minWidth }"
@@ -279,8 +281,8 @@ const handleClickItem = (item: string) => {
     }
 
     &.small {
-        padding: 8px 16px;
-        font-size: 75%;
+        padding: 4px 16px;
+        font-size: 70%;
         font-weight: 600;
     }
 
