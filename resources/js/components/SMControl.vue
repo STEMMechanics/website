@@ -36,7 +36,7 @@ watch(
 
 <style lang="scss">
 .control-group {
-    margin-bottom: 16px;
+    margin-bottom: 8px;
     width: 100%;
 
     .control-row {
