@@ -203,6 +203,7 @@ const handleClickItem = (item: string) => {
     background-color: var(--base-color-light);
     text-decoration: none;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    text-align: center;
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
