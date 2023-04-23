@@ -41,6 +41,9 @@
                     <template #item-location="item"
                         >{{ parseEventLocation(item) }}
                     </template>
+                    <template #item-status="item"
+                        >{{ toTitleCase(item.status) }}
+                    </template>
                     <template #item-actions="item">
                         <SMButton
                             label="Edit"
@@ -68,6 +71,7 @@ import { EventCollection, Event } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { updateRouterParams } from "../../helpers/url";
 import { useToastStore } from "../../store/ToastStore";
+import { toTitleCase } from "../../helpers/string";
 import SMButton from "../../components/SMButton.vue";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMInput from "../../components/SMInput.vue";
@@ -92,6 +96,7 @@ const itemsPage = ref(parseInt((route.query.page as string) || "1"));
 const headers = [
     { text: "Title", value: "title", sortable: true },
     { text: "Starts", value: "start_at", sortable: true },
+    { text: "Status", value: "status", sortable: true },
     { text: "Location", value: "location", sortable: true },
     { text: "Actions", value: "actions" },
 ];
