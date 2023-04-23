@@ -192,6 +192,7 @@ const handleLoad = async () => {
 
         query["limit"] = postsPerPage;
         query["page"] = postsPage.value;
+        query["sort"] = "start_at";
 
         console.log(query);
 
