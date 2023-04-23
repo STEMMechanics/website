@@ -24,7 +24,6 @@ class EventConductor extends Conductor
 
     /**
      * The included fields
-     * 
      * @var string[]
      */
     protected $includes = ['attachments'];
@@ -101,7 +100,7 @@ class EventConductor extends Conductor
 
     /**
      * Include Attachments Field.
-     * 
+     *
      * @param Model $model Them model.
      * @return mixed The model result.
      */
@@ -114,7 +113,7 @@ class EventConductor extends Conductor
 
     /**
      * Transform the Hero field.
-     * 
+     *
      * @param mixed $value The current value.
      * @return array The new value.
      */

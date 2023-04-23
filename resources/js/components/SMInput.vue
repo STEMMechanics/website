@@ -48,6 +48,19 @@
                     @input="handleInput"
                     @keyup="handleKeyup"></textarea>
             </template>
+            <template v-else-if="props.type == 'select'">
+                <ion-icon
+                    class="select-dropdown-icon"
+                    name="caret-down-outline" />
+                <select class="select-input-control">
+                    <option
+                        v-for="option in Object.entries(props.options)"
+                        :key="option[0]"
+                        :value="option[0]">
+                        {{ option[1] }}
+                    </option>
+                </select>
+            </template>
             <template v-else>
                 <ion-icon
                     class="invalid-icon"
@@ -144,6 +157,11 @@ const props = defineProps({
     accept: {
         type: String,
         default: "",
+        required: false,
+    },
+    options: {
+        type: Object,
+        default: null,
         required: false,
     },
 });
@@ -445,6 +463,24 @@ const handleChange = (event) => {
                 padding: 15px 30px;
                 width: auto;
             }
+
+            .select-dropdown-icon {
+                position: absolute;
+                top: 50%;
+                right: 0;
+                transform: translate(-50%, -50%);
+                font-size: 110%;
+            }
+
+            .select-input-control {
+                appearance: none;
+                width: 100%;
+                padding: 22px 16px 8px 16px;
+                border: 1px solid var(--base-color-darker);
+                border-radius: 8px;
+                background-color: var(--base-color-light);
+                height: 52px;
+            }
         }
     }
 
@@ -464,12 +500,6 @@ const handleChange = (event) => {
                 border: 2px solid var(--danger-color);
             }
         }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .control-group.control-type-input {
-        // width: 100%;
     }
 }
 </style>

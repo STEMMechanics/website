@@ -14,6 +14,8 @@ export interface Event {
     price: string;
     ages: string;
     attachments: Array<Media>;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface EventResponse {

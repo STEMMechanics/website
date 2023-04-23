@@ -1,11 +1,13 @@
 <template>
-    <SMPage
-        :page-error="pageError"
-        permission="admin/events"
-        class="sm-page-event-edit">
-        <template #container>
-            <h1>{{ page_title }}</h1>
+    <SMPage :page-error="pageError" permission="admin/events">
+        <SMMastHead
+            :title="pageHeading"
+            :back-link="{ name: 'dashboard-event-list' }"
+            back-title="Back to Events" />
+        <SMContainer class="flex-grow-1">
+            <SMLoading v-if="pageLoading" large />
             <SMForm
+                v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
@@ -122,7 +124,7 @@
                     </SMFormFooter>
                 </SMRow>
             </SMForm>
-        </template>
+        </SMContainer>
     </SMPage>
 </template>
 
@@ -149,11 +151,16 @@ import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import SMForm from "../../components/SMForm.vue";
 import { EventResponse } from "../../helpers/api.types";
 import { useToastStore } from "../../store/ToastStore";
+import SMMastHead from "../../components/SMMastHead.vue";
+import SMLoading from "../../components/SMLoading.vue";
 
 const route = useRoute();
 const router = useRouter();
-const page_title = route.params.id ? "Edit Event" : "Create New Event";
+
 const pageError = ref(200);
+const pageLoading = ref(true);
+const pageHeading = route.params.id ? "Edit Event" : "Create Event";
+
 const attachments = ref([]);
 
 const address_data = computed(() => {
@@ -259,7 +266,7 @@ let form = reactive(
 const loadData = async () => {
     if (route.params.id) {
         try {
-            form.loading(true);
+            pageLoading.value = true;
 
             const result = await api.get({
                 url: "/events/{id}",
@@ -308,7 +315,7 @@ const loadData = async () => {
         } catch (err) {
             pageError.value = err.response.status;
         } finally {
-            form.loading(false);
+            pageLoading.value = false;
         }
     }
 };
@@ -380,8 +387,11 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-event-list" });
     } catch (error) {
-        handleFailValidation();
-        form.apiErrors(error);
+        useToastStore().addToast({
+            title: "Server error",
+            content: "An error occurred saving the media.",
+            type: "danger",
+        });
     }
 };
 

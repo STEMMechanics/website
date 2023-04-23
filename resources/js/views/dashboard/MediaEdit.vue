@@ -6,7 +6,11 @@
             back-title="Back to Media" />
         <SMContainer class="flex-grow-1">
             <SMLoading v-if="pageLoading" large />
-            <SMForm v-else :model-value="form" @submit="handleSubmit">
+            <SMForm
+                v-else
+                :model-value="form"
+                @submit="handleSubmit"
+                @failed-validation="handleFailValidation">
                 <SMRow>
                     <SMColumn class="media-container">
                         <!-- <div class="media-container"> -->
@@ -226,7 +230,6 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-media-list" });
     } catch (error) {
-        console.log(error);
         useToastStore().addToast({
             title: "Server error",
             content: "An error occurred saving the media.",
@@ -235,6 +238,15 @@ const handleSubmit = async () => {
     } finally {
         form.loading(false);
     }
+};
+
+const handleFailValidation = () => {
+    useToastStore().addToast({
+        title: "Save Error",
+        content:
+            "There are some errors in the form. Fix these before continuing.",
+        type: "danger",
+    });
 };
 
 const handleDelete = async () => {

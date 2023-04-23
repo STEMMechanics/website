@@ -5,17 +5,20 @@
             <SMInput
                 v-model="filterKeywords"
                 label="Keywords"
-                @blur="handleFilter" />
+                @blur="handleFilter"
+                @keyup.enter="handleFilter" />
             <SMInput
                 v-model="filterLocation"
                 label="Location"
-                @blur="handleFilter" />
+                @blur="handleFilter"
+                @keyup.enter="handleFilter" />
             <SMInput
                 v-model="filterDateRange"
                 type="daterange"
                 label="Date Range"
                 :feedback-invalid="dateRangeError"
-                @blur="handleFilter" />
+                @blur="handleFilter"
+                @keyup.enter="handleFilter" />
         </SMToolbar>
         <SMPagination
             v-if="postsTotal > postsPerPage"
@@ -125,13 +128,16 @@ const handleLoad = async () => {
         (title:""cats, dogs", mice",OR,content:"\"cats, dogs\", mice")
         */
 
+        query["filter"] = [];
         if (filterKeywords.value && filterKeywords.value.length > 0) {
             let value = filterKeywords.value.replace(/"/g, '\\"');
 
-            query["filter"] = `(title:"${value}",OR,content:"${value}")`;
+            query["filter"].push(`(title:"${value}",OR,content:"${value}")`);
         }
         if (filterLocation.value && filterLocation.value.length > 0) {
-            query["location"] = filterLocation.value;
+            let value = filterLocation.value.replace(/"/g, '\\"');
+
+            query["filter"].push(`(location:"${value}",OR,address:"${value}")`);
         }
         if (filterDateRange.value && filterDateRange.value.length > 0) {
             let error = false;
@@ -167,6 +173,12 @@ const handleLoad = async () => {
         formMessage.value = "";
         events = [];
 
+        if (query["filter"].length > 0) {
+            query["filter"] = query["filter"].join(",AND,");
+        } else {
+            delete query["filter"];
+        }
+
         if (Object.keys(query).length == 0) {
             const now = new Date();
             const startingDate = new Date(now.setDate(now.getDate() - 14));
@@ -180,6 +192,8 @@ const handleLoad = async () => {
 
         query["limit"] = postsPerPage;
         query["page"] = postsPage.value;
+
+        console.log(query);
 
         let result = await api.get({
             url: "/events",
@@ -329,6 +343,10 @@ const computedLocation = (event: Event): string => {
 const computedAges = (ages: string): string => {
     const trimmed = ages.trim();
     const regex = /^(\d+)(\s*\+?\s*|\s*-\s*\d+\s*)?$/;
+
+    if (trimmed.length === 0) {
+        return "All ages";
+    }
 
     if (regex.test(trimmed)) {
         return `Ages ${trimmed}`;

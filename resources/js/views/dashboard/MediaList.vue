@@ -1,62 +1,66 @@
 <template>
-    <SMMastHead
-        title="Media"
-        :back-link="{ name: 'dashboard' }"
-        back-title="Return to Dashboard" />
-    <SMContainer class="flex-grow-1">
-        <SMToolbar>
-            <SMButton
-                :to="{ name: 'workshops' }"
-                type="primary"
-                label="Upload Media" />
-            <SMInput
-                v-model="itemSearch"
-                label="Search"
-                class="toolbar-search"
-                @keyup.enter="handleSearch">
-                <template #append>
-                    <SMButton
-                        type="primary"
-                        label="Search"
-                        icon="search-outline"
-                        @click="handleSearch" />
-                </template>
-            </SMInput>
-        </SMToolbar>
-        <SMLoading large v-if="itemsLoading" />
-        <template v-else>
-            <SMPagination
-                v-if="items.length < itemsTotal"
-                v-model="itemsPage"
-                :total="itemsTotal"
-                :per-page="itemsPerPage" />
-            <SMNoItems v-if="items.length == 0" text="No Media Found" />
-            <SMTable
-                v-else
-                :headers="headers"
-                :items="items"
-                @row-click="handleEdit">
-                <template #item-size="item">
-                    {{ bytesReadable(item.size) }}
-                </template>
-                <template #item-title="item"
-                    >{{ item.title }}<br /><span class="small"
-                        >({{ item.name }})</span
-                    ></template
-                >
-                <template #item-actions="item">
-                    <SMButton
-                        label="Edit"
-                        :dropdown="{
-                            download: 'Download',
-                            delete: 'Delete',
-                        }"
-                        size="medium"
-                        @click="handleActionButton(item, $event)"></SMButton>
-                </template>
-            </SMTable>
-        </template>
-    </SMContainer>
+    <SMPage permission="admin/media">
+        <SMMastHead
+            title="Media"
+            :back-link="{ name: 'dashboard' }"
+            back-title="Return to Dashboard" />
+        <SMContainer class="flex-grow-1">
+            <SMToolbar>
+                <SMButton
+                    :to="{ name: 'workshops' }"
+                    type="primary"
+                    label="Upload Media" />
+                <SMInput
+                    v-model="itemSearch"
+                    label="Search"
+                    class="toolbar-search"
+                    @keyup.enter="handleSearch">
+                    <template #append>
+                        <SMButton
+                            type="primary"
+                            label="Search"
+                            icon="search-outline"
+                            @click="handleSearch" />
+                    </template>
+                </SMInput>
+            </SMToolbar>
+            <SMLoading large v-if="itemsLoading" />
+            <template v-else>
+                <SMPagination
+                    v-if="items.length < itemsTotal"
+                    v-model="itemsPage"
+                    :total="itemsTotal"
+                    :per-page="itemsPerPage" />
+                <SMNoItems v-if="items.length == 0" text="No Media Found" />
+                <SMTable
+                    v-else
+                    :headers="headers"
+                    :items="items"
+                    @row-click="handleEdit">
+                    <template #item-size="item">
+                        {{ bytesReadable(item.size) }}
+                    </template>
+                    <template #item-title="item"
+                        >{{ item.title }}<br /><span class="small"
+                            >({{ item.name }})</span
+                        ></template
+                    >
+                    <template #item-actions="item">
+                        <SMButton
+                            label="Edit"
+                            :dropdown="{
+                                download: 'Download',
+                                delete: 'Delete',
+                            }"
+                            size="medium"
+                            @click="
+                                handleActionButton(item, $event)
+                            "></SMButton>
+                    </template>
+                </SMTable>
+            </template>
+        </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">

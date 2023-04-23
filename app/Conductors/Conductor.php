@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class Conductor
@@ -552,19 +553,35 @@ class Conductor
         } else {
             $limitFields = array_map('strtolower', $limitFields);
         }
-
         $tokens = preg_split('/([()]|,OR,|,AND,|,)/', $filterString, -1, (PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE));
         $glued = [];
         $glueToken = '';
         foreach ($tokens as $item) {
             if ($glueToken === '') {
-                if (preg_match('/(?<!\\\\)[\'"]/', $item, $matches, PREG_OFFSET_CAPTURE) === 1) {
-                    $glueToken = $matches[0][0];
-                    $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
-                    $item = str_replace("\\$glueToken", $glueToken, $item);
-                }
-
-                $glued[] = $item;
+                $amount = preg_match_all('/(?<!\\\\)[\'"]/', $item, $matches, PREG_OFFSET_CAPTURE);
+                if ($amount > 0) {
+                    $glueToken = $matches[0][0][0];
+                    if ($amount === 1) {
+                        $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
+                        $item = str_replace("\\$glueToken", $glueToken, $item);
+                        $glued[] = $item;
+                    } else {
+                        $lastPos = 0;
+                        $newStr = '';
+                        foreach ($matches[0] as $pos) {
+                            $matchLen = strlen($glueToken);
+                            $startPos = ($pos[1] - $lastPos);
+                            $newStr .= substr($item, $lastPos, $startPos);
+                            $lastPos = ($pos[1] + $matchLen);
+                        }
+                        $newStr .= substr($item, $lastPos);
+                        $newStr = str_replace("\\$glueToken", $glueToken, $newStr);
+                        $glued[] = $newStr;
+                        $glueToken = '';
+                    }
+                } else {
+                    $glued[] = $item;
+                }//end if
             } else {
                 // search for ending glue token
                 if (preg_match('/(?<!\\\\)' . $glueToken . '/', $item, $matches, PREG_OFFSET_CAPTURE) === 1) {
@@ -575,7 +592,7 @@ class Conductor
                 $item = str_replace("\\$glueToken", $glueToken, $item);
 
                 $glued[(count($glued) - 1)] .= $item;
-            }
+            }//end if
         }//end foreach
         $tokens = $glued;
 
@@ -671,7 +688,10 @@ class Conductor
             return $index;
         };
 
+        Log::info(print_r($tokens, true));
         $parseTokens($tokens, 0, 0);
+
+        // Log::info($this->query->toSql());
     }
 
     /**
