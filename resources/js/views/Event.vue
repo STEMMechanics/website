@@ -1,7 +1,7 @@
 <template>
     <SMPage :page-error="pageError" :loading="pageLoading">
         <div
-            class="sm-workshop-image"
+            class="workshop-image"
             :style="{
                 backgroundImage: `url('${mediaGetVariantUrl(event.hero)}')`,
             }"></div>
@@ -12,29 +12,29 @@
                 type="error"
                 :message="formMessage"
                 class="mt-5" />
-            <SMContainer class="sm-workshop-page">
-                <div class="sm-workshop-body">
-                    <h2 class="sm-workshop-title">{{ event.title }}</h2>
-                    <SMHTML :html="event.content" class="sm-workshop-content" />
+            <SMContainer class="workshop-page">
+                <div class="workshop-body">
+                    <h2 class="workshop-title">{{ event.title }}</h2>
+                    <SMHTML :html="event.content" class="workshop-content" />
                     <SMAttachments :attachments="event.attachments || []" />
                 </div>
-                <div class="sm-workshop-info">
+                <div class="workshop-info">
                     <div
                         v-if="
                             event.status == 'closed' ||
                             (event.status == 'open' && expired)
                         "
-                        class="sm-workshop-registration sm-workshop-registration-closed">
+                        class="workshop-registration workshop-registration-closed">
                         Registration for this event has closed.
                     </div>
                     <div
                         v-if="event.status == 'soon'"
-                        class="sm-workshop-registration sm-workshop-registration-soon">
+                        class="workshop-registration workshop-registration-soon">
                         Registration for this event will open soon.
                     </div>
                     <div
                         v-if="event.status == 'cancelled'"
-                        class="sm-workshop-registration sm-workshop-registration-cancelled">
+                        class="workshop-registration workshop-registration-cancelled">
                         This event has been cancelled.
                     </div>
                     <div
@@ -43,7 +43,7 @@
                             expired == false &&
                             event.registration_type == 'none'
                         "
-                        class="sm-workshop-registration sm-workshop-registration-none">
+                        class="workshop-registration workshop-registration-none">
                         Registration not required for this event.<br />Arrive
                         early to avoid disappointment as seating maybe limited.
                     </div>
@@ -53,7 +53,7 @@
                             expired == false &&
                             event.registration_type == 'link'
                         "
-                        class="sm-workshop-registration sm-workshop-registration-url">
+                        class="workshop-registration workshop-registration-url">
                         <SMButton
                             :to="registerUrl"
                             :block="true"
@@ -65,10 +65,10 @@
                             expired == false &&
                             event.registration_type == 'message'
                         "
-                        class="sm-workshop-registration sm-workshop-registration-message">
+                        class="workshop-registration workshop-registration-message">
                         {{ event.registration_data }}
                     </div>
-                    <div class="sm-workshop-date">
+                    <div class="workshop-date">
                         <h4>
                             <ion-icon
                                 class="icon"
@@ -81,7 +81,7 @@
                             {{ line }}
                         </p>
                     </div>
-                    <div class="sm-workshop-location">
+                    <div class="workshop-location">
                         <h4>
                             <ion-icon
                                 class="icon"
@@ -95,7 +95,7 @@
                             }}
                         </p>
                     </div>
-                    <div v-if="event.ages" class="sm-workshop-ages">
+                    <div v-if="event.ages" class="workshop-ages">
                         <h4>
                             <ion-icon class="icon" name="body-outline" />{{
                                 computedAges
@@ -103,7 +103,7 @@
                         </h4>
                         <p>{{ computedAgeNotice }}</p>
                     </div>
-                    <div v-if="event.price" class="sm-workshop-price">
+                    <div v-if="event.price" class="workshop-price">
                         <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
                 </div>
@@ -300,7 +300,7 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.sm-workshop-image {
+.workshop-image {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -312,32 +312,32 @@ handleLoad();
     background-color: #eee;
     transition: background-image 0.2s;
 
-    .sm-workshop-image-loader {
+    .workshop-image-loader {
         font-size: 5rem;
         color: $secondary-color;
     }
 }
 
-.sm-workshop-page {
+.page-event .workshop-page {
     display: flex;
     flex-direction: row;
 
-    .sm-workshop-body,
-    .sm-workshop-info {
+    .workshop-body,
+    .workshop-info {
         line-height: 1.5rem;
     }
 
-    .sm-workshop-body {
+    .workshop-body {
         flex: 1;
         text-align: left;
     }
 
-    .sm-workshop-title {
+    .workshop-title {
         line-height: 1.15em;
         margin-bottom: 32px;
     }
 
-    .sm-workshop-info {
+    .workshop-info {
         width: 18rem;
         margin-left: 2rem;
 
@@ -361,14 +361,14 @@ handleLoad();
             font-size: 90%;
         }
 
-        .sm-workshop-registration {
+        .workshop-registration {
             margin-top: 1.5rem;
             line-height: 1.25rem;
         }
 
-        .sm-workshop-registration-none,
-        .sm-workshop-registration-soon,
-        .sm-workshop-registration-message {
+        .workshop-registration-none,
+        .workshop-registration-soon,
+        .workshop-registration-message {
             border: 1px solid #ffeeba;
             background-color: #fff3cd;
             color: #856404;
@@ -377,8 +377,8 @@ handleLoad();
             padding: 0.5rem;
         }
 
-        .sm-workshop-registration-closed,
-        .sm-workshop-registration-cancelled {
+        .workshop-registration-closed,
+        .workshop-registration-cancelled {
             border: 1px solid #f5c2c7;
             background-color: #f8d7da;
             color: #842029;
@@ -387,14 +387,14 @@ handleLoad();
             padding: 0.5rem;
         }
 
-        .sm-workshop-date,
-        .sm-workshop-location,
-        .sm-workshop-price,
-        .sm-workshop-ages {
+        .workshop-date,
+        .workshop-location,
+        .workshop-price,
+        .workshop-ages {
             padding: 0 1rem;
         }
 
-        .sm-workshop-ages p {
+        .workshop-ages p {
             margin-top: 0.5rem;
             margin-left: 1rem;
             padding: 0 0 0 0.5rem;
@@ -406,14 +406,14 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .sm-workshop-page {
+    .workshop-page {
         flex-direction: column;
 
-        .sm-workshop-body {
+        .workshop-body {
             text-align: center;
         }
 
-        .sm-workshop-info {
+        .workshop-info {
             width: 100%;
             margin-left: 0;
 
@@ -426,7 +426,7 @@ handleLoad();
                 text-align: center;
             }
 
-            .sm-workshop-ages p {
+            .workshop-ages p {
                 margin-left: 0;
                 border-left: 0;
             }
