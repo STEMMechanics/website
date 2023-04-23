@@ -66,7 +66,6 @@ import { openDialog } from "../../components/SMDialog";
 import { api } from "../../helpers/api";
 import { EventCollection, Event } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
-import { bytesReadable } from "../../helpers/types";
 import { updateRouterParams } from "../../helpers/url";
 import { useToastStore } from "../../store/ToastStore";
 import SMButton from "../../components/SMButton.vue";
@@ -150,7 +149,7 @@ const handleLoad = async () => {
         if (itemSearch.value.length > 0) {
             params[
                 "filter"
-            ] = `title:${itemSearch.value},OR,name:${itemSearch.value},OR,description:${itemSearch.value}`;
+            ] = `title:${itemSearch.value},OR,content:${itemSearch.value}`;
         }
 
         let result = await api.get({
