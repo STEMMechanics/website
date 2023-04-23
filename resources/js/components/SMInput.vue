@@ -21,6 +21,24 @@
                     >{{ label }}</label
                 >
             </template>
+            <template v-else-if="props.type == 'select'">
+                <label
+                    class="control-label control-label-select"
+                    v-bind="{ for: id }"
+                    >{{ label }}</label
+                >
+                <ion-icon
+                    class="select-dropdown-icon"
+                    name="caret-down-outline" />
+                <select class="select-input-control">
+                    <option
+                        v-for="option in Object.entries(props.options)"
+                        :key="option[0]"
+                        :value="option[0]">
+                        {{ option[1] }}
+                    </option>
+                </select>
+            </template>
             <template v-else>
                 <label class="control-label" v-bind="{ for: id }">{{
                     label
@@ -63,19 +81,6 @@
                         @blur="handleBlur"
                         @input="handleInput"
                         @keyup="handleKeyup"></textarea>
-                </template>
-                <template v-else-if="props.type == 'select'">
-                    <ion-icon
-                        class="select-dropdown-icon"
-                        name="caret-down-outline" />
-                    <select class="select-input-control">
-                        <option
-                            v-for="option in Object.entries(props.options)"
-                            :key="option[0]"
-                            :value="option[0]">
-                            {{ option[1] }}
-                        </option>
-                    </select>
                 </template>
                 <template v-else-if="props.type == 'media'">
                     <div class="media-input-control">
@@ -538,6 +543,10 @@ const handleMediaSelect = async () => {
                 width: auto;
             }
 
+            .control-label-select {
+                transform: translate(16px, 6px) scale(0.7);
+            }
+
             .select-dropdown-icon {
                 position: absolute;
                 top: 50%;
@@ -549,7 +558,7 @@ const handleMediaSelect = async () => {
             .select-input-control {
                 appearance: none;
                 width: 100%;
-                padding: 22px 16px 8px 16px;
+                padding: 20px 16px 8px 14px;
                 border: 1px solid var(--base-color-darker);
                 border-radius: 8px;
                 background-color: var(--base-color-light);
@@ -611,6 +620,7 @@ const handleMediaSelect = async () => {
                     display: block;
                     margin: 48px auto 8px auto;
                     border-radius: 8px;
+                    font-size: 800%;
                     max-height: 300px;
                 }
             }
