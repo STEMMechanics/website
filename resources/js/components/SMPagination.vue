@@ -23,7 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 const props = defineProps({
     modelValue: {
@@ -127,10 +127,10 @@ const handleClickPage = (page: number): void => {
     emits("update:modelValue", page);
 };
 
-if (props.modelValue < 1) {
+const totalPages = computedTotalPages.value;
+if (props.modelValue < 1 || totalPages < 1) {
     emits("update:modelValue", 1);
 } else {
-    const totalPages = computedTotalPages.value;
     if (totalPages < props.modelValue) {
         emits("update:modelValue", totalPages);
     }

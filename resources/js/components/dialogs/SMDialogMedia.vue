@@ -20,7 +20,8 @@
                 label="Search"
                 class="toolbar-search"
                 size="small"
-                @keyup.enter="handleSearch">
+                @keyup.enter="handleSearch"
+                @blur="handleSearch">
                 <template #append>
                     <SMButton
                         type="primary"
@@ -55,16 +56,12 @@
                             }"
                             class="media-image"></div>
                         <span class="media-title">{{ item.title }}</span>
-                        <span class="media-size">{{
-                            bytesReadable(item.size)
-                        }}</span>
                     </li>
                 </ul>
             </div>
         </div>
         <SMRow>
             <SMPagination
-                v-if="mediaItems.length < totalItems"
                 v-model="page"
                 :total="totalItems"
                 :per-page="perPage"
@@ -195,20 +192,6 @@ const perPage = ref(24);
 const applicationStore = useApplicationStore();
 
 /**
- * Returns the pagination info
- */
-const computedPaginationInfo = computed(() => {
-    if (totalItems.value == 0) {
-        return "0 - 0 of 0";
-    }
-
-    const start = (page.value - 1) * perPage.value + 1;
-    const end = start + perPage.value - 1;
-
-    return `${start} - ${end} of ${totalItems.value}`;
-});
-
-/**
  * Returns the file types accepted.
  */
 const computedAccepts = computed(() => {
@@ -221,27 +204,6 @@ const computedAccepts = computed(() => {
     }
 
     return props.mime;
-});
-
-/**
- * Return the total number of pages.
- */
-const computedTotalPages = computed(() => {
-    return Math.ceil(totalItems.value / perPage.value);
-});
-
-/**
- * Return if the previous button should be disabled.
- */
-const computedDisablePrevButton = computed(() => {
-    return page.value <= 1;
-});
-
-/**
- * Return if the next button should be disabled.
- */
-const computedDisableNextButton = computed(() => {
-    return page.value >= computedTotalPages.value;
 });
 
 /**
@@ -435,18 +397,37 @@ const handleChangeUpload = async () => {
     }
 };
 
+const itemSearch = ref("");
+
+const handleSearch = () => {
+    mediaItems.value = [];
+    totalItems.value = 0;
+    page.value = 1;
+
+    handleLoad();
+};
+
 /**
  * Load the data of the dialog
  */
 const handleLoad = async () => {
     mediaLoading.value = true;
 
+    let params = {
+        page: page.value,
+        limit: perPage.value,
+    };
+
+    if (itemSearch.value.length > 0) {
+        let value = itemSearch.value.replace(/"/g, '\\"');
+        params[
+            "filter"
+        ] = `(title:"${value}",OR,name:"${value}",OR,description:"${value}")`;
+    }
+
     api.get({
         url: "/media",
-        params: {
-            page: page.value,
-            limit: perPage.value,
-        },
+        params: params,
     })
         .then((result) => {
             if (result.data) {
@@ -518,15 +499,15 @@ handleLoad();
             background-color: #fff;
             justify-content: center;
             align-items: center;
-            margin: 0 0 1rem 0;
+            margin: 0 0 16px 0;
 
             .media-none {
-                font-size: 1.5rem;
+                font-size: 150%;
                 text-align: center;
 
                 ion-icon {
-                    font-size: 3rem;
-                    margin-bottom: 0.5rem;
+                    font-size: 200%;
+                    margin-bottom: 16px;
                 }
             }
 
@@ -537,9 +518,9 @@ handleLoad();
                 max-height: 40vh;
                 height: 100%;
                 width: 100%;
-                gap: 1rem;
+                gap: 8px;
                 justify-content: center;
-                padding: map-get($spacer, 3);
+                padding: 0;
 
                 li {
                     display: flex;
@@ -576,16 +557,12 @@ handleLoad();
             .media-image {
                 width: 64px;
                 height: 64px;
-                margin-right: map-get($spacer, 1);
+                margin-right: 8px;
             }
 
             .media-title {
                 flex: 1;
                 text-align: left;
-            }
-
-            .media-size {
-                font-size: 75%;
             }
         }
 
@@ -598,7 +575,7 @@ handleLoad();
 
             li {
                 flex-direction: column;
-                height: 194px;
+                height: 160px;
                 width: 220px;
 
                 .media-image {
@@ -608,16 +585,13 @@ handleLoad();
 
                 .media-title {
                     text-align: center;
-                    padding: map-get($spacer, 1) 4px;
-                    width: 13rem;
+                    padding: 4px;
+                    font-size: 80%;
+                    width: 224px;
                     display: block;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
-                }
-
-                .media-size {
-                    font-size: 75%;
                 }
             }
         }

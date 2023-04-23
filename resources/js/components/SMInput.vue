@@ -132,6 +132,7 @@ import SMControl from "./SMControl.vue";
 import SMButton from "./SMButton.vue";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
+import { Media } from "../helpers/api.types";
 
 const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
@@ -357,17 +358,17 @@ const handleChange = (event) => {
     }
 };
 
-const handleMediaSelect = async (event) => {
+const handleMediaSelect = async () => {
     let result = await openDialog(SMDialogMedia);
     if (result) {
-        console.log(result);
-        // mediaUrl.value = result.url;
-        // emits("update:modelValue", result.id);
+        const mediaResult = result as Media;
+        mediaUrl.value = mediaResult.url;
+        emits("update:modelValue", mediaResult);
 
-        // if (control) {
-        //     control.value = result.id;
-        //     feedbackInvalid.value = "";
-        // }
+        if (control) {
+            control.value = mediaResult;
+            feedbackInvalid.value = "";
+        }
     }
 };
 </script>

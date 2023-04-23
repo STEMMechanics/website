@@ -157,6 +157,15 @@ if (props.form !== undefined) {
     );
 }
 
+if (props.disabled !== undefined) {
+    watch(
+        () => props.disabled,
+        (newValue) => {
+            disabled.value = newValue;
+        }
+    );
+}
+
 onMounted(() => {
     if (buttonRef.value) {
         minWidth.value = `${buttonRef.value.clientWidth}px`;
