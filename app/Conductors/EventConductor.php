@@ -20,7 +20,7 @@ class EventConductor extends Conductor
      * The default sorting field
      * @var string
      */
-    protected $sort = 'start_at';
+    protected $sort = '-start_at';
 
     /**
      * The included fields
