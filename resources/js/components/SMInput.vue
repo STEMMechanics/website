@@ -6,83 +6,102 @@
             <slot name="prepend"></slot>
         </div>
         <div class="control-item">
-            <label class="control-label" v-bind="{ for: id }">{{
-                label
-            }}</label>
-            <template v-if="props.type == 'static'">
-                <div class="static-input-control" v-bind="{ id: id }">
-                    <span class="text">
-                        {{ value }}
-                    </span>
-                </div>
-            </template>
-            <template v-else-if="props.type == 'file'">
-                <input
-                    :id="id"
-                    type="file"
-                    class="file-input-control"
-                    :accept="props.accept"
-                    @change="handleChange" />
-                <div class="file-input-control-value">
-                    {{ value?.name ? value.name : value }}
-                </div>
+            <template v-if="props.type == 'checkbox'">
                 <label
-                    class="button primary file-input-control-button"
-                    :for="id"
-                    >Select file</label
+                    class="control-label control-label-checkbox"
+                    v-bind="{ for: id }"
+                    ><input
+                        :id="id"
+                        type="checkbox"
+                        class="checkbox-control"
+                        :value="value"
+                        @input="handleCheckbox" />
+                    <span class="checkbox-control-box">
+                        <span class="checkbox-control-tick"></span> </span
+                    >{{ label }}</label
                 >
             </template>
-            <template v-else-if="props.type == 'textarea'">
-                <ion-icon
-                    class="invalid-icon"
-                    name="alert-circle-outline"></ion-icon>
-                <textarea
-                    :type="props.type"
-                    class="input-control"
-                    :disabled="disabled"
-                    v-bind="{ id: id, autofocus: props.autofocus }"
-                    v-model="value"
-                    rows="5"
-                    @focus="handleFocus"
-                    @blur="handleBlur"
-                    @input="handleInput"
-                    @keyup="handleKeyup"></textarea>
-            </template>
-            <template v-else-if="props.type == 'select'">
-                <ion-icon
-                    class="select-dropdown-icon"
-                    name="caret-down-outline" />
-                <select class="select-input-control">
-                    <option
-                        v-for="option in Object.entries(props.options)"
-                        :key="option[0]"
-                        :value="option[0]">
-                        {{ option[1] }}
-                    </option>
-                </select>
-            </template>
             <template v-else>
-                <ion-icon
-                    class="invalid-icon"
-                    name="alert-circle-outline"></ion-icon>
-                <ion-icon
-                    v-if="
-                        props.showClear && value?.length > 0 && !feedbackInvalid
-                    "
-                    class="clear-icon"
-                    name="close-outline"
-                    @click.stop="handleClear"></ion-icon>
+                <label class="control-label" v-bind="{ for: id }">{{
+                    label
+                }}</label>
+                <template v-if="props.type == 'static'">
+                    <div class="static-input-control" v-bind="{ id: id }">
+                        <span class="text">
+                            {{ value }}
+                        </span>
+                    </div>
+                </template>
+                <template v-else-if="props.type == 'file'">
+                    <input
+                        :id="id"
+                        type="file"
+                        class="file-input-control"
+                        :accept="props.accept"
+                        @change="handleChange" />
+                    <div class="file-input-control-value">
+                        {{ value?.name ? value.name : value }}
+                    </div>
+                    <label
+                        class="button primary file-input-control-button"
+                        :for="id"
+                        >Select file</label
+                    >
+                </template>
+                <template v-else-if="props.type == 'textarea'">
+                    <ion-icon
+                        class="invalid-icon"
+                        name="alert-circle-outline"></ion-icon>
+                    <textarea
+                        :type="props.type"
+                        class="input-control"
+                        :disabled="disabled"
+                        v-bind="{ id: id, autofocus: props.autofocus }"
+                        v-model="value"
+                        rows="5"
+                        @focus="handleFocus"
+                        @blur="handleBlur"
+                        @input="handleInput"
+                        @keyup="handleKeyup"></textarea>
+                </template>
+                <template v-else-if="props.type == 'select'">
+                    <ion-icon
+                        class="select-dropdown-icon"
+                        name="caret-down-outline" />
+                    <select class="select-input-control">
+                        <option
+                            v-for="option in Object.entries(props.options)"
+                            :key="option[0]"
+                            :value="option[0]">
+                            {{ option[1] }}
+                        </option>
+                    </select>
+                </template>
+                <template v-else>
+                    <ion-icon
+                        class="invalid-icon"
+                        name="alert-circle-outline"></ion-icon>
+                    <ion-icon
+                        v-if="
+                            props.showClear &&
+                            value?.length > 0 &&
+                            !feedbackInvalid
+                        "
+                        class="clear-icon"
+                        name="close-outline"
+                        @click.stop="handleClear"></ion-icon>
 
-                <input
-                    :type="props.type"
-                    class="input-control"
-                    :disabled="disabled"
-                    v-bind="{ id: id, autofocus: props.autofocus }"
-                    v-model="value"
-                    @focus="handleFocus"
-                    @blur="handleBlur"
-                    @input="handleInput"
-                    @keyup="handleKeyup" />
+                    <input
+                        :type="props.type"
+                        class="input-control"
+                        :disabled="disabled"
+                        v-bind="{ id: id, autofocus: props.autofocus }"
+                        v-model="value"
+                        @focus="handleFocus"
+                        @blur="handleBlur"
+                        @input="handleInput"
+                        @keyup="handleKeyup" />
+                </template>
             </template>
         </div>
         <div v-if="slots.append" class="input-control-append">
@@ -93,10 +112,11 @@
 </template>
 
 <script setup lang="ts">
-import { inject, watch, ref, useSlots } from "vue";
+import { inject, watch, ref, useSlots, computed } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 import SMControl from "./SMControl.vue";
+import { Booleanish } from "../helpers/api.types";
 
 const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
@@ -196,7 +216,7 @@ const value = ref(
 const id = ref(
     props.id != undefined
         ? props.id
-        : typeof props.control == "string"
+        : typeof props.control == "string" && props.control.length > 0
         ? props.control
         : generateRandomElementId()
 );
@@ -273,6 +293,18 @@ const handleBlur = async () => {
     if (control) {
         await control.validate();
         control.isValid();
+    }
+};
+
+const handleCheckbox = (event: Event) => {
+    console.log("here");
+    const target = event.target as HTMLInputElement;
+    value.value = target.checked;
+    emits("update:modelValue", target.checked);
+
+    if (control) {
+        control.value = target.checked;
+        feedbackInvalid.value = "";
     }
 };
 
@@ -374,6 +406,11 @@ const handleChange = (event) => {
                 transition: all 0.1s ease-in-out;
                 color: var(--base-color-darker);
                 pointer-events: none;
+
+                -webkit-user-select: none;
+                -moz-user-select: none;
+                -ms-user-select: none;
+                user-select: none;
             }
 
             .invalid-icon {
@@ -480,6 +517,51 @@ const handleChange = (event) => {
                 border-radius: 8px;
                 background-color: var(--base-color-light);
                 height: 52px;
+            }
+
+            .control-label-checkbox {
+                position: relative;
+                display: flex;
+                align-items: center;
+                padding: 16px 0 16px 32px;
+                pointer-events: all;
+                transform: none;
+                color: var(--base-color-text);
+            }
+
+            .checkbox-control {
+                opacity: 0;
+                width: 0;
+                height: 0;
+
+                &:checked + .checkbox-control-box {
+                    .checkbox-control-tick {
+                        display: block;
+                    }
+                }
+            }
+
+            .checkbox-control-box {
+                position: absolute;
+                top: 14px;
+                left: 0;
+                width: 24px;
+                height: 24px;
+                border: 1px solid var(--base-color-darker);
+                border-radius: 2px;
+                background-color: var(--base-color-light);
+
+                .checkbox-control-tick {
+                    position: absolute;
+                    display: none;
+                    border-right: 3px solid var(--base-color-text);
+                    border-bottom: 3px solid var(--base-color-text);
+                    top: 1px;
+                    left: 7px;
+                    width: 8px;
+                    height: 16px;
+                    transform: rotate(45deg);
+                }
             }
         }
     }
