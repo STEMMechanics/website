@@ -131,13 +131,11 @@ class StoreUploadedFileJob implements ShouldQueue
 
                     $newFilename = pathinfo($this->media->name, PATHINFO_FILENAME) . "-$postfix." . pathinfo($this->media->name, PATHINFO_EXTENSION);
 
-                    // Store the variant in the variants array
-                    $variants[$variantName] = $newFilename;
-
                     if (Storage::disk($storageDisk)->exists($newFilename) == false || $this->replaceExisting == true) {
                         // Get the largest available variant
                         if ($dimensions[0] >= $size[0] && $dimensions[1] >= $size[1]) {
-                            // $largestVariant = $newFilename;
+                            // Store the variant in the variants array
+                            $variants[$variantName] = $newFilename;
 
                             // Resize the image to the variant size if its dimensions are greater than the specified size
                             $image = clone $originalImage;
