@@ -77,6 +77,18 @@
                         </option>
                     </select>
                 </template>
+                <template v-else-if="props.type == 'media'">
+                    <div class="media-input-control">
+                        <img
+                            v-if="mediaUrl.length > 0"
+                            :src="mediaGetVariantUrl(value, 'medium')" />
+                        <ion-icon v-else name="image-outline" />
+                        <SMButton
+                            size="small"
+                            @click="handleMediaSelect"
+                            label="Select File" />
+                    </div>
+                </template>
                 <template v-else>
                     <ion-icon
                         class="invalid-icon"
@@ -112,11 +124,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, watch, ref, useSlots, computed } from "vue";
+import { inject, watch, ref, useSlots } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
+import { mediaGetVariantUrl } from "../helpers/media";
 import SMControl from "./SMControl.vue";
-import { Booleanish } from "../helpers/api.types";
+import SMButton from "./SMButton.vue";
+import { openDialog } from "./SMDialog";
+import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 
 const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
@@ -280,6 +295,8 @@ if (form) {
     );
 }
 
+const mediaUrl = ref(value.value.url);
+
 const handleFocus = () => {
     active.value = true;
     focused.value = true;
@@ -332,6 +349,20 @@ const handleChange = (event) => {
     if (control) {
         control.value = event.target.files[0];
         feedbackInvalid.value = "";
+    }
+};
+
+const handleMediaSelect = async (event) => {
+    let result = await openDialog(SMDialogMedia);
+    if (result) {
+        console.log(result);
+        // mediaUrl.value = result.url;
+        // emits("update:modelValue", result.id);
+
+        // if (control) {
+        //     control.value = result.id;
+        //     feedbackInvalid.value = "";
+        // }
     }
 };
 </script>
@@ -517,6 +548,7 @@ const handleChange = (event) => {
                 border-radius: 8px;
                 background-color: var(--base-color-light);
                 height: 52px;
+                color: var(--base-color-text);
             }
 
             .control-label-checkbox {
@@ -561,6 +593,19 @@ const handleChange = (event) => {
                     width: 8px;
                     height: 16px;
                     transform: rotate(45deg);
+                }
+            }
+
+            .media-input-control {
+                width: 100%;
+                text-align: center;
+
+                img,
+                ion-icon {
+                    display: block;
+                    margin: 48px auto 8px auto;
+                    border-radius: 8px;
+                    max-height: 300px;
                 }
             }
         }
