@@ -157,7 +157,7 @@ const handleLoad = async () => {
                 if (filterDates.length == 1) {
                     query["start_at"] = `>=${filterDates[0]}`;
                 } else if (filterDates.length >= 2) {
-                    query["start_at"] = `${filterDates[0]}<>${filterDates[1]}`;
+                    query["start_at"] = `<>${filterDates[0]}|${filterDates[1]}`;
                 }
 
                 dateRangeError.value = "";
