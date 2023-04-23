@@ -1,6 +1,6 @@
 <template>
     <SMControl
-        :class="['control-type-input', { 'input-active': active }]"
+        :class="['control-type-input', { 'input-active': active }, props.size]"
         :invalid="feedbackInvalid">
         <div v-if="slots.prepend" class="input-control-prepend">
             <slot name="prepend"></slot>
@@ -197,6 +197,11 @@ const props = defineProps({
     options: {
         type: Object,
         default: null,
+        required: false,
+    },
+    size: {
+        type: String,
+        default: "",
         required: false,
     },
 });
@@ -625,6 +630,41 @@ const handleMediaSelect = async (event) => {
 
             .input-control {
                 border: 2px solid var(--danger-color);
+            }
+        }
+    }
+
+    &.small {
+        &.input-active {
+            .control-row .control-item .control-label {
+                transform: translate(16px, 6px) scale(0.7);
+            }
+        }
+
+        .control-row {
+            .control-item {
+                .control-label {
+                    transform: translate(16px, 10px) scale(1);
+                }
+
+                .input-control {
+                    padding: 16px 8px 4px 14px;
+                }
+            }
+
+            .input-control-append {
+                .button {
+                    .button-label {
+                        padding: 7px 16px 15px 16px;
+
+                        ion-icon {
+                            height: 16px;
+                            width: 16px;
+                        }
+                    }
+
+                    padding: 0;
+                }
             }
         }
     }
