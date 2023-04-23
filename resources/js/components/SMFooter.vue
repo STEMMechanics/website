@@ -143,7 +143,7 @@
 
     .copyright,
     .logo {
-        flex-basis: 350px;
+        max-width: 350px;
     }
 
     .logo-link:hover {
@@ -195,7 +195,7 @@
 
         .copyright,
         .logo {
-            flex-basis: auto;
+            max-width: none;
             margin: 16px 0;
         }
     }
