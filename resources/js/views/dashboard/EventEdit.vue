@@ -24,8 +24,8 @@
                                 physical: 'Physical',
                             }" />
                     </SMColumn>
-                    <SMColumn
-                        ><SMInput
+                    <SMColumn>
+                        <SMInput
                             v-if="form.controls.location.value !== 'online'"
                             control="address"
                     /></SMColumn>
@@ -233,7 +233,7 @@ let form = reactive(
             route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
             DateTime()
         ),
-        status: FormControl(),
+        status: FormControl("draft"),
         registration_type: FormControl("none"),
         registration_data: FormControl(
             "",
@@ -342,7 +342,7 @@ const handleSubmit = async () => {
             registration_type: form.controls.registration_type.value,
             registration_data: form.controls.registration_data.value,
             content: form.controls.content.value,
-            hero: form.controls.hero.value,
+            hero: form.controls.hero.value.id,
             price: form.controls.price.value,
             ages: form.controls.ages.value,
         };
@@ -370,12 +370,12 @@ const handleSubmit = async () => {
             }
         }
 
-        await api.put({
-            url: `/events/${event_id}/attachments`,
-            body: {
-                attachments: attachments.value,
-            },
-        });
+        // await api.put({
+        //     url: `/events/${event_id}/attachments`,
+        //     body: {
+        //         attachments: attachments.value,
+        //     },
+        // });
 
         useToastStore().addToast({
             title: route.params.id ? "Event Updated" : "Event Created",
@@ -387,9 +387,10 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-event-list" });
     } catch (error) {
+        console.log(error);
         useToastStore().addToast({
             title: "Server error",
-            content: "An error occurred saving the media.",
+            content: "An error occurred saving the event.",
             type: "danger",
         });
     }
