@@ -296,8 +296,8 @@ export const routes = [
                             import("@/views/dashboard/MediaList.vue"),
                     },
                     {
-                        path: "upload",
-                        name: "dashboard-media-upload",
+                        path: "create",
+                        name: "dashboard-media-create",
                         meta: {
                             title: "Upload Media",
                             middleware: "authenticated",

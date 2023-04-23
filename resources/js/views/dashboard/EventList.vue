@@ -7,7 +7,7 @@
         <SMContainer class="flex-grow-1">
             <SMToolbar>
                 <SMButton
-                    :to="{ name: 'dashboard-events-create' }"
+                    :to="{ name: 'dashboard-event-create' }"
                     type="primary"
                     label="Create Event" />
                 <SMInput
