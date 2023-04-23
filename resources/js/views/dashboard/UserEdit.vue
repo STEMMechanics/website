@@ -33,17 +33,20 @@
                 >
                 <SMRow>
                     <SMColumn
-                        ><SMCheckbox
+                        ><SMInput
+                            type="checkbox"
                             label="Edit Users"
                             v-model="permissions.users"
                     /></SMColumn>
                     <SMColumn
-                        ><SMCheckbox
+                        ><SMInput
+                            type="checkbox"
                             label="Edit Posts"
                             v-model="permissions.users"
                     /></SMColumn>
                     <SMColumn
-                        ><SMCheckbox
+                        ><SMInput
+                            type="checkbox"
                             label="Edit Events"
                             v-model="permissions.users"
                     /></SMColumn>
@@ -81,7 +84,6 @@ import { And, Email, Phone, Required } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
-import SMCheckbox from "../../components/SMCheckbox.vue";
 import SMButtonRow from "../../components/SMButtonRow.vue";
 
 const route = useRoute();
