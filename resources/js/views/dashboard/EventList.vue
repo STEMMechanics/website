@@ -7,10 +7,9 @@
         <SMContainer class="flex-grow-1">
             <SMToolbar>
                 <SMButton
-                    :to="{ name: 'workshops' }"
+                    :to="{ name: 'dashboard-events-create' }"
                     type="primary"
-                    label="Create Event"
-                    @click="handleCreate" />
+                    label="Create Event" />
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
@@ -211,13 +210,6 @@ const handleLoad = async () => {
     } finally {
         itemsLoading.value = false;
     }
-};
-
-/**
- * Handle creating new event.
- */
-const handleCreate = (): void => {
-    router.push({ name: "dashboard-event-create" });
 };
 
 /**
