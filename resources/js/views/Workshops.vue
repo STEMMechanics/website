@@ -364,7 +364,7 @@ const computedAges = (ages: string): string => {
  */
 const computedPrice = (price: string): string => {
     const trimmed = parseInt(price.trim());
-    if (trimmed == 0) {
+    if (isNaN(trimmed) || trimmed == 0) {
         return "Free";
     }
 
