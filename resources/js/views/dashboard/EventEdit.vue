@@ -158,9 +158,8 @@ const route = useRoute();
 const router = useRouter();
 
 const pageError = ref(200);
-const pageLoading = ref(true);
-const pageHeading =
-    route.params.id !== "create" ? "Edit Event" : "Create Event";
+const pageLoading = ref(false);
+const pageHeading = route.params.id ? "Edit Event" : "Create Event";
 
 const attachments = ref([]);
 
@@ -231,9 +230,7 @@ let form = reactive(
             ])
         ),
         publish_at: FormControl(
-            route.params.id !== "create"
-                ? ""
-                : new SMDate("now").format("d/M/yy h:mm aa"),
+            route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
             DateTime()
         ),
         status: FormControl(),
@@ -267,7 +264,7 @@ let form = reactive(
 );
 
 const loadData = async () => {
-    if (route.params.id !== "create") {
+    if (route.params.id) {
         try {
             pageLoading.value = true;
 
@@ -316,7 +313,7 @@ const loadData = async () => {
                 return attachment.id.toString();
             });
         } catch (err) {
-            pageError.value = err.response.status;
+            pageError.value = err.status;
         } finally {
             pageLoading.value = false;
         }
@@ -352,7 +349,7 @@ const handleSubmit = async () => {
 
         let event_id = "";
 
-        if (route.params.id !== "create") {
+        if (route.params.id) {
             event_id = route.params.id as string;
             await api.put({
                 url: "/events/{id}",
@@ -381,10 +378,7 @@ const handleSubmit = async () => {
         });
 
         useToastStore().addToast({
-            title:
-                route.params.id !== "create"
-                    ? "Event Updated"
-                    : "Event Created",
+            title: route.params.id ? "Event Updated" : "Event Created",
             content: route.params.id
                 ? "The event has been updated."
                 : "The event has been created.",
