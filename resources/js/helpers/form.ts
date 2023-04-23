@@ -183,7 +183,7 @@ export interface FormControlObject {
  * @returns {FormControlObject} The form control object.
  */
 export const FormControl = (
-    value: string = "",
+    value: unknown = "",
     validator: ValidationObject | null = null
 ): FormControlObject => {
     return {
