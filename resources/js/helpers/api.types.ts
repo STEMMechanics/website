@@ -1,3 +1,5 @@
+export type Booleanish = boolean | "true" | "false";
+
 export interface Event {
     id: string;
     title: string;
