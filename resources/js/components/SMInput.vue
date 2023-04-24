@@ -21,6 +21,25 @@
                     >{{ label }}</label
                 >
             </template>
+            <template v-else-if="props.type == 'range'">
+                <label
+                    class="control-label control-label-range"
+                    v-bind="{ for: id }"
+                    >{{ label }}</label
+                >
+                <input
+                    :id="id"
+                    type="range"
+                    class="range-control"
+                    v-bind="{
+                        min: props.min,
+                        max: props.max,
+                        step: props.step,
+                    }"
+                    :value="value"
+                    @input="handleInput" />
+                <span class="range-control-value">{{ value }}</span>
+            </template>
             <template v-else-if="props.type == 'select'">
                 <label
                     class="control-label control-label-select"
@@ -156,7 +175,7 @@ const props = defineProps({
         required: false,
     },
     modelValue: {
-        type: String,
+        type: [String, Number],
         default: undefined,
         required: false,
     },
@@ -208,6 +227,21 @@ const props = defineProps({
     size: {
         type: String,
         default: "",
+        required: false,
+    },
+    min: {
+        type: Number,
+        default: undefined,
+        required: false,
+    },
+    max: {
+        type: Number,
+        default: undefined,
+        required: false,
+    },
+    step: {
+        type: Number,
+        default: undefined,
         required: false,
     },
 });
@@ -622,6 +656,24 @@ const handleMediaSelect = async () => {
                     font-size: 800%;
                     max-height: 300px;
                 }
+            }
+
+            .control-label-range {
+                transform: none !important;
+            }
+
+            .range-control {
+                margin-top: 24px;
+                width: 100%;
+            }
+
+            .range-control-value {
+                margin-top: 22px;
+                padding-left: 16px;
+                font-size: 90%;
+                font-weight: 600;
+                width: 48px;
+                text-align: right;
             }
         }
     }
