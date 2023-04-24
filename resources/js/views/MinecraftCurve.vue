@@ -1055,7 +1055,7 @@ window.onload = function () {
 </script>
 
 <style lang="scss">
-.sm-page-minecraft-curve {
+.page-minecraft-curve {
     path {
         stroke-width: 4;
         stroke: #000;

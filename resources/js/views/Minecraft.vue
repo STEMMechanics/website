@@ -96,7 +96,7 @@ const downloads = [
 </script>
 
 <style lang="scss">
-.sm-page-minecraft {
+.page-minecraft {
     h3 {
         margin-bottom: 0.5rem;
     }

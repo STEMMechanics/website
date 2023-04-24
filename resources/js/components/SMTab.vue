@@ -1,5 +1,5 @@
 <template>
-    <div v-show="label == selectedLabel" class="sm-tab-content">
+    <div v-show="label == selectedLabel" class="tab-content">
         <slot></slot>
     </div>
 </template>
@@ -18,7 +18,7 @@ const selectedLabel = inject("selectedLabel");
 </script>
 
 <style lang="scss">
-.sm-tab-content {
+.tab-content {
     padding: map-get($spacer, 3);
     background-color: #fff;
     border: 1px solid $border-color;

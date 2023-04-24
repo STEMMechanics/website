@@ -1,5 +1,5 @@
 <template>
-    <SMPage permission="admin/posts" class="sm-page-post-list">
+    <SMPage permission="admin/posts" class="page-post-list">
         <template #container>
             <SMMessage v-if="formMessage" type="error" :message="formMessage" />
             <SMToolbar>
@@ -303,7 +303,7 @@ const handleDelete = async (item) => {
 </script>
 
 <style lang="scss">
-.sm-page-post-list {
+.page-post-list {
     background-color: #f8f8f8;
 }
 </style>

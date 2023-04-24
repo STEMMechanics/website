@@ -36,7 +36,7 @@ const computedContent = computed(() => {
 
     // Convert image galleries to SMImageGallery component
     const regexGallery =
-        /<div.*?class="tinymce-sm-gallery".*?>\s*((?:<div class="tinymce-sm-gallery-item" style="background-image: url\('.*?'\);">.*?<\/div>\s*)*)<\/div>/gi;
+        /<div.*?class="tinymce-gallery".*?>\s*((?:<div class="tinymce-gallery-item" style="background-image: url\('.*?'\);">.*?<\/div>\s*)*)<\/div>/gi;
 
     const matches = [...html.matchAll(regexGallery)];
     for (const match of matches) {

@@ -35,22 +35,22 @@ const props = defineProps({
     }
     div:nth-child(1) {
         left: 0em;
-        animation: sm-loading-icon1 0.6s infinite;
+        animation: loading-icon1 0.6s infinite;
     }
     div:nth-child(2) {
         left: 0em;
-        animation: sm-loading-icon2 0.6s infinite;
+        animation: loading-icon2 0.6s infinite;
     }
     div:nth-child(3) {
         left: 1em;
-        animation: sm-loading-icon2 0.6s infinite;
+        animation: loading-icon2 0.6s infinite;
     }
     div:nth-child(4) {
         left: 2em;
-        animation: sm-loading-icon3 0.6s infinite;
+        animation: loading-icon3 0.6s infinite;
     }
 
-    @keyframes sm-loading-icon1 {
+    @keyframes loading-icon1 {
         0% {
             transform: scale(0);
         }
@@ -58,7 +58,7 @@ const props = defineProps({
             transform: scale(1);
         }
     }
-    @keyframes sm-loading-icon3 {
+    @keyframes loading-icon3 {
         0% {
             transform: scale(1);
         }
@@ -66,7 +66,7 @@ const props = defineProps({
             transform: scale(0);
         }
     }
-    @keyframes sm-loading-icon2 {
+    @keyframes loading-icon2 {
         0% {
             transform: translate(0, 0);
         }
@@ -85,17 +85,17 @@ const props = defineProps({
         }
 
         div:nth-child(2) {
-            animation: sm-loading-large-icon2 0.6s infinite;
+            animation: loading-large-icon2 0.6s infinite;
         }
         div:nth-child(3) {
             left: 3em;
-            animation: sm-loading-large-icon2 0.6s infinite;
+            animation: loading-large-icon2 0.6s infinite;
         }
         div:nth-child(4) {
             left: 6em;
         }
 
-        @keyframes sm-loading-large-icon2 {
+        @keyframes loading-large-icon2 {
             0% {
                 transform: translate(0, 0);
             }

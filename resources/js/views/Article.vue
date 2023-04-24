@@ -140,7 +140,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 768px) {
-    .sm-page-post-view .sm-heading-image {
+    .page-post-view .heading-image {
         height: 10rem;
     }
 }

@@ -1,10 +1,10 @@
 <template>
-    <div class="sm-tab-group">
-        <ul class="sm-tab-header">
+    <div class="tab-group">
+        <ul class="tab-header">
             <li
                 v-for="label in tabLabels"
                 :key="label"
-                :class="['sm-tab-item', { selected: selectedLabel == label }]"
+                :class="['tab-item', { selected: selectedLabel == label }]"
                 @click="selectedLabel = label">
                 {{ label }}
             </li>
@@ -24,17 +24,17 @@ provide("selectedLabel", selectedLabel);
 </script>
 
 <style lang="scss">
-.sm-tab-group {
+.tab-group {
     margin-bottom: map-get($spacer, 4);
 
-    .sm-tab-header {
+    .tab-header {
         // border-bottom: 1px solid $border-color;
         list-style-type: none;
         margin: 0;
         padding: 0;
     }
 
-    .sm-tab-item {
+    .tab-item {
         display: inline-block;
         padding: map-get($spacer, 2) map-get($spacer, 3);
         border: 1px solid transparent;

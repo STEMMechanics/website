@@ -1,6 +1,6 @@
 <template>
-    <div class="sm-message-container">
-        <div :class="['sm-message', type]">
+    <div class="message-container">
+        <div :class="['message', type]">
             <ion-icon v-if="icon" :name="icon"></ion-icon>
             <p>{{ message }}</p>
         </div>
@@ -25,11 +25,11 @@ defineProps({
 </script>
 
 <style lang="scss">
-.sm-message-container {
+.message-container {
     justify-content: center;
     align-self: center;
 
-    .sm-message {
+    .message {
         display: flex;
         padding: map-get($spacer, 2) map-get($spacer, 3);
         margin-bottom: map-get($spacer, 4);

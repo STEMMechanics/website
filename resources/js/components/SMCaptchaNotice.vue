@@ -1,5 +1,5 @@
 <template>
-    <div class="sm-captcha-notice">
+    <div class="captcha-notice">
         This site is protected by reCAPTCHA and the Google
         <a href="https://policies.google.com/privacy">Privacy Policy</a> and
         <a href="https://policies.google.com/terms">Terms of Service</a> apply.
@@ -7,7 +7,7 @@
 </template>
 
 <style lang="scss">
-.sm-captcha-notice {
+.captcha-notice {
     color: $secondary-color;
     font-size: 65%;
     line-height: 1.2rem;

@@ -409,7 +409,7 @@ loadData();
 </script>
 
 <style lang="scss">
-.sm-page-event-edit {
+.page-event-edit {
     background-color: #f8f8f8;
 }
 </style>

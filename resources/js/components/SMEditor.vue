@@ -1,5 +1,5 @@
 <template>
-    <div class="sm-editor">
+    <div class="editor">
         <Editor
             ref="tinyeditor"
             v-model="editorContent"
@@ -80,7 +80,7 @@ tinymce.PluginManager.add("gallery", function (editor) {
     editor.on("PreInit", function () {
         var contentStyle = editor.options.get("content_style") || "";
         contentStyle += `
-          .tinymce-sm-gallery {
+          .tinymce-gallery {
             position: relative;
             overflow: hidden;
             margin: 20px auto;
@@ -90,7 +90,7 @@ tinymce.PluginManager.add("gallery", function (editor) {
             white-space: nowrap;
         }
 
-        .tinymce-sm-gallery::before {
+        .tinymce-gallery::before {
             position: absolute;
             content: "";
             top: 0;
@@ -100,7 +100,7 @@ tinymce.PluginManager.add("gallery", function (editor) {
             background-color: rgba(255, 255, 255, 0.5);
         }
 
-        .tinymce-sm-gallery::after {
+        .tinymce-gallery::after {
             position: absolute;
             content: "Image Gallery";
             top: 50%;
@@ -116,7 +116,7 @@ tinymce.PluginManager.add("gallery", function (editor) {
             border-radius: 12px;
         }
 
-        .tinymce-sm-gallery-item {
+        .tinymce-gallery-item {
             display: inline-block;
             width: 355px;
             height: 200px;
@@ -132,11 +132,11 @@ tinymce.PluginManager.add("gallery", function (editor) {
         var node = editor.selection.getNode();
 
         if (node) {
-            if (!editor.dom.hasClass(node, "tinymce-sm-gallery")) {
+            if (!editor.dom.hasClass(node, "tinymce-gallery")) {
                 // Check if node is a descendant of a gallery node
                 var galleryNode = editor.dom.getParent(
                     node,
-                    ".tinymce-sm-gallery"
+                    ".tinymce-gallery"
                 );
                 if (!galleryNode) {
                     node = null;
@@ -162,10 +162,10 @@ tinymce.PluginManager.add("gallery", function (editor) {
                 let galleryContent = "";
                 if (url.length > 0) {
                     url.forEach((item) => {
-                        galleryContent += `<div class="tinymce-sm-gallery-item" style="background-image:url('${item}');"></div>`;
+                        galleryContent += `<div class="tinymce-gallery-item" style="background-image:url('${item}');"></div>`;
                     });
 
-                    galleryContent = `<div contentEditable="false" class="tinymce-sm-gallery">${galleryContent}</div>`;
+                    galleryContent = `<div contentEditable="false" class="tinymce-gallery">${galleryContent}</div>`;
                 }
 
                 const selection = editor.selection;
@@ -194,11 +194,11 @@ tinymce.PluginManager.add("gallery", function (editor) {
 
                 api.setActive(
                     node &&
-                        (editor.dom.hasClass(node, "tinymce-sm-gallery") ||
+                        (editor.dom.hasClass(node, "tinymce-gallery") ||
                             (node.parentNode &&
                                 editor.dom.hasClass(
                                     node.parentNode,
-                                    "tinymce-sm-gallery"
+                                    "tinymce-gallery"
                                 )))
                 );
             };

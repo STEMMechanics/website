@@ -1,21 +1,21 @@
 <template>
-    <div class="sm-image-gallery" ref="gallery">
+    <div class="image-gallery" ref="gallery">
         <div
-            class="sm-image-gallery-inner"
+            class="image-gallery-inner"
             :style="{ transform: `translateX(-${sliderOffset}px)` }">
             <div
-                class="sm-image-gallery-slide"
+                class="image-gallery-slide"
                 v-for="(image, index) in images"
                 :key="index">
                 <img
                     :src="imageSize('small', image as string)"
-                    class="sm-image-gallery-image"
+                    class="image-gallery-image"
                     @click="showModal(index)" />
             </div>
         </div>
         <div
             v-if="!hidePrevArrow"
-            class="sm-image-gallery-arrow sm-image-gallery-arrow-left"
+            class="image-gallery-arrow image-gallery-arrow-left"
             @click="prevSlide">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -27,7 +27,7 @@
         </div>
         <div
             v-if="!hideNextArrow"
-            class="sm-image-gallery-arrow sm-image-gallery-arrow-right"
+            class="image-gallery-arrow image-gallery-arrow-right"
             @click="nextSlide">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -39,12 +39,12 @@
         </div>
         <div
             v-if="showModalImage !== null"
-            class="sm-image-gallery-modal"
+            class="image-gallery-modal"
             @click="hideModal">
             <img
                 :src="images[showModalImage]"
-                class="sm-image-gallery-modal-image" />
-            <div class="sm-image-gallery-modal-close" @click="hideModal">
+                class="image-gallery-modal-image" />
+            <div class="image-gallery-modal-close" @click="hideModal">
                 &times;
             </div>
         </div>
@@ -103,7 +103,7 @@ const handleTouchEnd = () => {
 
 const handleResize = () => {
     const slides = gallery.value.querySelectorAll(
-        ".sm-image-gallery-slide"
+        ".image-gallery-slide"
     ) as HTMLElement[];
     slideWidths.value = Array.from(slides).map((slide) => {
         const computedStyle = window.getComputedStyle(slide);
@@ -120,7 +120,7 @@ const handleResize = () => {
         );
     });
     sliderWidth.value = gallery.value.querySelector(
-        ".sm-image-gallery-inner"
+        ".image-gallery-inner"
     ).offsetWidth;
 
     let visibleWidth = 0;
@@ -228,7 +228,7 @@ const hideNextArrow = computed(() => {
 </script>
 
 <style lang="scss">
-.sm-image-gallery {
+.image-gallery {
     position: relative;
     overflow: hidden;
     margin: 20px auto;
@@ -237,13 +237,13 @@ const hideNextArrow = computed(() => {
     justify-content: center;
 }
 
-.sm-image-gallery-inner {
+.image-gallery-inner {
     display: flex;
     transition: transform 0.3s ease-in-out;
     // height: 100%;
 }
 
-.sm-image-gallery-slide {
+.image-gallery-slide {
     // display: flex;
     // justify-content: center;
     // align-items: center;
@@ -261,14 +261,14 @@ const hideNextArrow = computed(() => {
     }
 }
 
-.sm-image-gallery-image {
+.image-gallery-image {
     cursor: pointer;
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
 
-.sm-image-gallery-arrow {
+.image-gallery-arrow {
     position: absolute;
     top: 50%;
     transform: translateY(-50%);
@@ -284,33 +284,33 @@ const hideNextArrow = computed(() => {
     transition: transform 0.2s ease-in-out;
 }
 
-.sm-image-gallery-arrow.disabled {
+.image-gallery-arrow.disabled {
     pointer-events: none;
 }
 
-.sm-image-gallery-arrow:hover {
+.image-gallery-arrow:hover {
     transform: translateY(-50%) scale(1.25);
 }
 
-.sm-image-gallery-arrow-left {
+.image-gallery-arrow-left {
     left: 0;
 }
 
-.sm-image-gallery-arrow-right {
+.image-gallery-arrow-right {
     right: 0;
 }
 
-.sm-image-gallery-arrow svg {
+.image-gallery-arrow svg {
     width: 100%;
     height: 100%;
     fill: none;
 }
 
-.sm-image-gallery-arrow svg path {
+.image-gallery-arrow svg path {
     stroke-width: 2;
 }
 
-.sm-image-gallery-modal {
+.image-gallery-modal {
     position: fixed;
     top: 0;
     left: 0;
@@ -327,7 +327,7 @@ const hideNextArrow = computed(() => {
     z-index: 1000;
 }
 
-.sm-image-gallery-modal * {
+.image-gallery-modal * {
     pointer-events: auto;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -335,13 +335,13 @@ const hideNextArrow = computed(() => {
     user-select: none;
 }
 
-.sm-image-gallery-modal-image {
+.image-gallery-modal-image {
     max-width: 90%;
     max-height: 90%;
     object-fit: contain;
 }
 
-.sm-image-gallery-modal-close {
+.image-gallery-modal-close {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -357,7 +357,7 @@ const hideNextArrow = computed(() => {
     transition: color 0.3s ease-in-out;
 }
 
-.sm-image-gallery-modal-close:hover {
+.image-gallery-modal-close:hover {
     color: rgba(255, 255, 255, 0.7);
 }
 </style>

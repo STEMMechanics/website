@@ -1,6 +1,6 @@
 <template>
     <SMPage
-        class="sm-page-post-edit"
+        class="page-post-edit"
         :page-error="pageError"
         permission="admin/posts">
         <template #container>
@@ -326,7 +326,7 @@ loadData();
 </script>
 
 <style lang="scss">
-.sm-page-post-edit {
+.page-post-edit {
     background-color: #f8f8f8;
 }
 </style>
