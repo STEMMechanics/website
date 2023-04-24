@@ -1,10 +1,8 @@
 <template>
-    <a :href="`#${id}`" class="header">
-        <h3>
-            {{ props.text }}
-            <span class="hash" @click.prevent="copyAnchor">#</span>
-        </h3>
-    </a>
+    <h3 :id="id" class="header">
+        {{ props.text }}
+        <span class="hash" @click.prevent="copyAnchor">#</span>
+    </h3>
 </template>
 
 <script setup lang="ts">
@@ -56,9 +54,6 @@ const copyAnchor = () => {
 
 <style lang="scss">
 .header {
-    color: var(--base-color-text) !important;
-    text-decoration: none;
-
     .hash {
         display: none;
         color: var(--primary-color);

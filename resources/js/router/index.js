@@ -489,6 +489,14 @@ router.afterEach((to, from) => {
         if (autofocusElement) {
             autofocusElement.focus();
         }
+
+        const hash = window.location.hash;
+        if (hash) {
+            const target = document.querySelector(hash);
+            if (target) {
+                target.scrollIntoView();
+            }
+        }
     }, 10);
 });
 
