@@ -2,38 +2,7 @@
     <SMContainer :full="true" class="footer">
         <SMRow class="social">
             <SMColumn class="align-items-center">
-                <ul>
-                    <li>
-                        <a href="https://facebook.com/stemmechanics"
-                            ><ion-icon name="logo-facebook"></ion-icon
-                        ></a>
-                    </li>
-                    <li>
-                        <a href="https://mastodon.au/@stemmechanics"
-                            ><ion-icon name="logo-mastodon"></ion-icon
-                        ></a>
-                    </li>
-                    <li>
-                        <a href="https://www.youtube.com/@stemmechanics"
-                            ><ion-icon name="logo-youtube"></ion-icon
-                        ></a>
-                    </li>
-                    <li>
-                        <a href="https://twitter.com/stemmechanics"
-                            ><ion-icon name="logo-twitter"></ion-icon
-                        ></a>
-                    </li>
-                    <li>
-                        <a href="https://github.com/stemmechanics"
-                            ><ion-icon name="logo-github"></ion-icon
-                        ></a>
-                    </li>
-                    <li>
-                        <a href="https://discord.gg/yNzk4x7mpD"
-                            ><ion-icon name="logo-discord"></ion-icon
-                        ></a>
-                    </li>
-                </ul>
+                <SMSocialIcons />
             </SMColumn>
         </SMRow>
         <SMRow class="align-items-center">
@@ -106,7 +75,11 @@
     </SMContainer>
 </template>
 
-<style lang="scss" scoped>
+<script setup lang="ts">
+import SMSocialIcons from "../components/SMSocialIcons.vue";
+</script>
+
+<style lang="scss">
 .footer {
     flex: 0;
     align-items: center;
@@ -128,7 +101,7 @@
     }
 
     .social {
-        font-size: 200%;
+        font-size: 115%;
         max-width: 100%;
         border-top: 1px solid var(--footer-color-border);
         border-bottom: 1px solid var(--footer-color-border);
@@ -136,6 +109,7 @@
         margin-bottom: 24px;
 
         a {
+            color: var(--footer-color-text);
             vertical-align: middle;
             display: flex;
         }
