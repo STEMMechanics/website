@@ -2,7 +2,7 @@
     <SMMastHead title="Contact us" />
     <SMContainer>
         <div class="container-text">
-            <h3>Questions & Support</h3>
+            <SMHeader text="Questions & Support" />
             <p>
                 If you have a question or would like help with a project, you
                 can send it our way using the form on this page or be emailing
@@ -18,7 +18,7 @@
                 participants, and other individuals who share similar interests.
             </p>
             <SMSocialIcons />
-            <h3>Wanting a workshop?</h3>
+            <SMHeader text="Wanting a workshop?" />
             <p>
                 We provide both public and private workshops as well as run
                 events on behalf of your organisation. If you would like to
@@ -27,7 +27,7 @@
                     >hello@stemmechanics.com.au</a
                 >.
             </p>
-            <h3>Where are you located?</h3>
+            <SMHeader text="Where are you located?" />
             <p>
                 We do not have a physical address as our workshops are delivered
                 across Queensland. Visit the
@@ -48,6 +48,7 @@
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
 import SMSocialIcons from "../components/SMSocialIcons.vue";
+import SMHeader from "../components/SMHeader.vue";
 </script>
 
 <style lang="scss">

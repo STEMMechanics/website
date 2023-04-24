@@ -1,5 +1,7 @@
 <template>
-    <h3 v-if="props.attachments && props.attachments.length > 0">Files</h3>
+    <SMHeader
+        v-if="props.attachments && props.attachments.length > 0"
+        text="Files" />
     <table class="attachment-list">
         <tbody>
             <tr
@@ -46,6 +48,7 @@
 <script setup lang="ts">
 import { bytesReadable } from "../helpers/types";
 import { getFileIconImagePath } from "../helpers/utils";
+import SMHeader from "../components/SMHeader.vue";
 
 const props = defineProps({
     attachments: {

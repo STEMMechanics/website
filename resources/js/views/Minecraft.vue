@@ -1,7 +1,7 @@
 <template>
     <SMMastHead title="Minecraft Server" />
     <SMContainer narrow>
-        <h3>Connecting to our Minecraft Server</h3>
+        <SMHeader id="connect" text="Connecting to our Minecraft Server" />
         <ol>
             <li>
                 Open up your Minecraft on your computer and make sure you are
@@ -18,7 +18,7 @@
             <li>Click Done</li>
             <li>Join the Server!</li>
         </ol>
-        <h3>Java or Bedrock</h3>
+        <SMHeader text="Java or Bedrock" />
         <p>
             Regrettably, our support is exclusively for the Java edition of
             Minecraft. The reason for this is that we rely on the features
@@ -32,7 +32,7 @@
             keep in mind that the Java version is solely compatible with Windows
             or Mac operating systems.
         </p>
-        <h3>Goodbye Drustcraft</h3>
+        <SMHeader text="Goodbye Drustcraft" />
         <p>
             STEMMechanics launched the Drustcraft server three years ago and
             since then, players have had countless enjoyable experiences. Cities
@@ -47,7 +47,7 @@
             mini-games, bosses, and survival. Join us on the new STEMMechanics
             Minecraft server, where the Drustcraft community awaits.
         </p>
-        <h3>So long Cairns Minecraft</h3>
+        <SMHeader text="So long Cairns Minecraft" />
         <p>
             After seven incredible years of operation, the Cairns Minecraft
             server officially closed its virtual doors in May 2022. This
@@ -68,6 +68,7 @@
 <script setup lang="ts">
 import SMAttachments from "../components/SMAttachments.vue";
 import SMMastHead from "../components/SMMastHead.vue";
+import SMHeader from "../components/SMHeader.vue";
 
 const downloads = [
     {

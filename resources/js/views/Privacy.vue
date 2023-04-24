@@ -2,7 +2,9 @@
     <SMMastHead title="Privacy Policy" />
     <SMContainer narrow>
         <template #inner>
-            <h3>We take our customers' privacy & security seriously.</h3>
+            <SMHeader
+                id="serious"
+                text="We take our customers' privacy & security seriously." />
             <p>
                 At STEMMechanics, we take our customers' privacy and security
                 seriously. We are committed to protecting your privacy and
@@ -33,13 +35,18 @@
                 and Conditions, you should not use the Site.
             </p>
 
-            <h3>1. The kinds of information we collect and hold</h3>
+            <SMHeader
+                id="1"
+                text="1. The kinds of information we collect and hold" />
             <p>
                 Depending on the particular circumstances, we may collect and
                 hold a range of different information about you.
             </p>
 
-            <h4>1.1. Individually identifiable information</h4>
+            <SMHeader
+                :size="4"
+                id="1.1"
+                text="1.1. Individually identifiable information" />
             <p>
                 The types of individually identifiable information we collect
                 will depend on the purposes(s) for which we are collecting it.
@@ -71,7 +78,10 @@
                 activities applicable to you.
             </p>
 
-            <h4>1.2. Non-identifiable information</h4>
+            <SMHeader
+                :size="4"
+                id="1.2"
+                text="1.2. Non-identifiable information" />
             <p>
                 Non-identifiable information is data that has never been
                 labelled with individual identifiers or from which identifiers
@@ -103,7 +113,7 @@
                 and products we provide. This data will not be used in
                 association with any other Personal Information
             </p>
-            <h4>2. How we collect your information</h4>
+            <SMHeader id="2" text="2. How we collect your information" />
             <p>
                 We may collect your information in a number of ways, including:
             </p>
@@ -131,7 +141,7 @@
                 We may also collect information from you online. See more
                 information in clause 6.
             </p>
-            <h4>3. How we hold your Personal Information</h4>
+            <SMHeader id="3" text="3. How we hold your Personal Information" />
             <p>
                 We may store your Personal Information in hard copy or
                 electronic format, in facilities that we own and operate
@@ -171,7 +181,7 @@
                 loss or disclosure of information due to the Site being linked
                 to the Internet.
             </p>
-            <h4>4. How we use your information</h4>
+            <SMHeader id="4" text="4. How we use your information" />
             <p>
                 We may use your information for a range of different purposes,
                 including:
@@ -223,7 +233,7 @@
                 to administer and improve our education and training products
                 and services.
             </p>
-            <h4>5. When we disclose your information</h4>
+            <SMHeader id="5" text="5. When we disclose your information" />
             <p>
                 We engage a range of third parties to provide services and
                 perform business support functions for us. Some of those third
@@ -251,7 +261,7 @@
                 information securely, for example, storing in non-human readable
                 form to ensure the security of your information.
             </p>
-            <h4>6. Cookies</h4>
+            <SMHeader id="6" text="6. Cookies" />
             <p>
                 We use "cookies" when you visit our Site. It is a technology
                 that enables us to operate an efficient service and track the
@@ -288,7 +298,9 @@
                 user experience may be affected and you might not be able to
                 take advantage of certain functions of our Site.
             </p>
-            <h4>7. How to access or correct your Personal Information</h4>
+            <SMHeader
+                id="7"
+                text="7. How to access or correct your Personal Information" />
             <p>
                 Under the Privacy Act, individuals have a right to complete
                 access to their records. You may ask us in writing to provide
@@ -303,7 +315,9 @@
                     >https://www.stemmechanics.com.au/contact</router-link
                 >.
             </p>
-            <h4>8. How to make a complaint about a breach of privacy</h4>
+            <SMHeader
+                id="8"
+                text="8. How to make a complaint about a breach of privacy" />
             <p>
                 If you wish to exercise any of your rights under this Privacy
                 Policy, have any questions, comments or complaints regarding our
@@ -316,7 +330,7 @@
                 OAIC at
                 <a href="https://www.oaic.gov.au">https://www.oaic.gov.au</a>.
             </p>
-            <h4>9. Changes to this Policy</h4>
+            <SMHeader id="9" text="9. Changes to this Policy" />
             <p>
                 Please note that this Privacy Policy forms part of the Terms and
                 Conditions for use of the Site and forms part of the Agreement
@@ -338,6 +352,7 @@
 
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
+import SMHeader from "../components/SMHeader.vue";
 </script>
 
 <style lang="scss">

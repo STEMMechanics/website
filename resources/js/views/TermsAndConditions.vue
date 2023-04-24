@@ -20,7 +20,9 @@
                 agrees to indemnify you and STEMMechanics for its violations of
                 these Terms.
             </p>
-            <h3>1. Eligibility, registration &amp; account</h3>
+            <SMHeader
+                id="1"
+                text="1. Eligibility, registration &amp; account" />
             <p>
                 You must be 18 years of age to use the Website. If you are under
                 18 years of age you must have the permission of your parent or
@@ -50,7 +52,7 @@
                 if you discover or otherwise suspect any security breaches
                 related to the Sites.
             </p>
-            <h3>2. Ownership of site content</h3>
+            <SMHeader id="2" text="2. Ownership of site content" />
             <p>
                 Unless otherwise indicated on our Sites, the Sites and all
                 content and materials therein, including but not limited to the
@@ -86,7 +88,7 @@
                 intellectual property rights, whether by estoppel, implication
                 or otherwise. This license is revocable at any time.
             </p>
-            <h3>3. Hyperlinks</h3>
+            <SMHeader id="3" text="3. Hyperlinks" />
             <p>
                 You are granted a limited, non-exclusive right to create a text
                 hyperlink to the Sites for non-commercial purposes, provided
@@ -119,7 +121,7 @@
                 including privacy and data gathering practices, of any site to
                 which you navigate from the Sites.
             </p>
-            <h3>4. User content</h3>
+            <SMHeader id="4" text="4. User content" />
             <p>
                 The Sites may include discussion blogs, profiles, product
                 reviews or other interactive features or areas (collectively,
@@ -223,7 +225,7 @@
                 among other things, termination or suspension of your rights to
                 use the Sites.
             </p>
-            <h3>5. Rights in user content</h3>
+            <SMHeader id="5" text="5. Rights in user content" />
             <p>
                 Except as otherwise provided herein, on the Sites or in a
                 separate agreement with us (such as the rules of a STEMMechanics
@@ -261,7 +263,7 @@
                 guidelines or policies or any applicable law, rule or
                 regulation.
             </p>
-            <h3>6. Feedback</h3>
+            <SMHeader id="6" text="6. Feedback" />
             <p>
                 Separate and apart from User Content, you have the ability to
                 submit questions, comments suggestions, reviews, ideas, plans,
@@ -279,7 +281,7 @@
                 idea might be great, but we may have already had the same or a
                 similar idea and we do not want disputes.
             </p>
-            <h3>7. User conduct</h3>
+            <SMHeader id="7" text="7. User conduct" />
             <p>
                 You agree that you will not violate any law, contract or
                 intellectual property or other third party right or commit a
@@ -364,14 +366,14 @@
                 before contacting or meeting anyone (online or offline) that is
                 unfamiliar to you.
             </p>
-            <h3>8. No third-party beneficiaries</h3>
+            <SMHeader id="8" text="8. No third-party beneficiaries" />
             <p>
                 These Terms are for the benefit of, and will be enforceable by,
                 the parties only. These Terms are not intended to confer any
                 right or benefit on any third party or to create any obligations
                 or liability of a party to any such third party.
             </p>
-            <h3>9. Indemnification</h3>
+            <SMHeader id="9" text="9. Indemnification" />
             <p>
                 To the fullest extent permitted by applicable law, you agree to
                 defend, indemnify and hold harmless STEMMechanics and our
@@ -385,7 +387,7 @@
                 provide; (d) your violation of these Terms; and (e) your
                 violation of any rights of another.
             </p>
-            <h3>10. Disclaimers</h3>
+            <SMHeader id="10" text=">10. Disclaimers" />
             <p>
                 Except as expressly provided, the Sites, Site Content, User
                 Content and services provided on or in connection with the Sites
@@ -413,7 +415,7 @@
                 is not a substitute for in-person guidance by a qualified
                 instructor.
             </p>
-            <h3>11. Liability</h3>
+            <SMHeader id="11" text="11. Liability" />
             <p>
                 To the fullest extent permitted by applicable law, in no event
                 shall the STEMMechanics parties be liable for any special,
@@ -433,13 +435,13 @@
                 access to an STEMMechanics party's records, programs or
                 services.
             </p>
-            <h3>12. Modifications to site</h3>
+            <SMHeader id="12" text="12. Modifications to site" />
             <p>
                 STEMMechanics reserves the right to modify or discontinue,
                 temporarily or permanently, the Sites or any features or
                 portions thereof without prior notice.
             </p>
-            <h3>13. Termination</h3>
+            <SMHeader id="13" text="13. Termination" />
             <p>
                 You may terminate the Terms at any time by closing your account,
                 discontinuing your use of the Sites and providing STEMMechanics
@@ -449,14 +451,14 @@
                 block or prevent your future access to and use of the Sites or
                 any portion of the Sites.
             </p>
-            <h3>14. Severability</h3>
+            <SMHeader id="14" text="14. Severability" />
             <p>
                 If any provision of these Terms shall be deemed unlawful, void
                 or for any reason unenforceable, then that provision shall be
                 deemed severable from these Terms and shall not affect the
                 validity and enforceability of any remaining provisions.
             </p>
-            <h3>15. Ordering online</h3>
+            <SMHeader id="15" text="15. Ordering online" />
             <p>
                 Upon completing your order and submitting it through the
                 checkout system, an order reference number will be issued to you
@@ -486,7 +488,7 @@
                 Digital items cannot be cancelled or edited after receiving
                 payment.
             </p>
-            <h3>16. Pricing &amp; availability</h3>
+            <SMHeader id="16" text="16. Pricing &amp; availability" />
             <p>
                 All prices are shown in Australia dollars (AUD). All items are
                 subject to availability and we reserve the right to impose
@@ -497,7 +499,7 @@
                 from those in the store or from store-advertised prices. All
                 purchases on applicable products include GST at the rate of 10%.
             </p>
-            <h3>17. Errors</h3>
+            <SMHeader id="17" text="17. Errors" />
             <p>
                 We attempt to be as accurate as possible and eliminate errors on
                 the Sites; however, we do not warrant that any product, service,
@@ -511,7 +513,7 @@
                 any amount charged. Your sole remedy in the event of such error
                 is to cancel your order and obtain a refund.
             </p>
-            <h3>18. Out of stock / pre-order items</h3>
+            <SMHeader id="18" text="18. Out of stock / pre-order items" />
             <p>
                 If the colour or size you want is not listed in the "Choose Your
                 Colour/Size" drop-down box on the Product Information page, it
@@ -527,10 +529,9 @@
                 the availability of that item. If you have items on pre-order
                 that you would like to cancel, please contact us.
             </p>
-            <h3>
-                19. Agreement to Conduct Transactions Electronically; Recording;
-                Copies
-            </h3>
+            <SMHeader
+                id="19"
+                text="19. Agreement to Conduct Transactions Electronically; Recording; Copies" />
             <p>
                 You agree that all of your transactions with or through the
                 Sites may, at our option, be conducted electronically from start
@@ -542,7 +543,7 @@
                 other contract or disclosure that we are required to provide to
                 you.
             </p>
-            <h3>20. Payment</h3>
+            <SMHeader id="20" text="20. Payment" />
             <p>
                 We currently accept Visa and Mastercard online. Only valid
                 credit cards or other payment method acceptable to us may be
@@ -556,7 +557,9 @@
                 otherwise acceptable, your order may be suspended or cancelled
                 automatically.
             </p>
-            <h3>21. Third-party sellers / on-sellers (buying &amp; selling)</h3>
+            <SMHeader
+                id="21"
+                text="21. Third-party sellers / on-sellers (buying &amp; selling)" />
             <p>
                 You may not place orders with the intention to immediately
                 on-forward the products to another person in a business
@@ -597,6 +600,7 @@
 
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
+import SMHeader from "../components/SMHeader.vue";
 </script>
 
 <style lang="scss">

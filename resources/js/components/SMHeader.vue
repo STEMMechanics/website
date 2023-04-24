@@ -1,8 +1,8 @@
 <template>
-    <h3 :id="id" class="header">
+    <component :is="`h${props.size}`" :id="id" class="header">
         {{ props.text }}
         <span class="hash" @click.prevent="copyAnchor">#</span>
-    </h3>
+    </component>
 </template>
 
 <script setup lang="ts">
@@ -10,6 +10,11 @@ import { ref } from "vue";
 import { useToastStore } from "../store/ToastStore";
 
 const props = defineProps({
+    size: {
+        type: Number,
+        default: 3,
+        required: false,
+    },
     text: {
         type: String,
         required: true,
