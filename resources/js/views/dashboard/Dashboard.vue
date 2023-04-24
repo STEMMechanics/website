@@ -54,7 +54,7 @@
                 :to="{ name: 'dashboard-discord-bot-logs' }"
                 class="admin-card discord">
                 <ion-icon name="logo-discord" />
-                <h3>Discord Bot Logs</h3>
+                <h3>Discord</h3>
             </router-link>
         </div>
     </SMContainer>
