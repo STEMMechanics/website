@@ -2,6 +2,14 @@
     <SMMastHead title="Minecraft Server" />
     <SMContainer narrow>
         <SMHeader id="connect" text="Connecting to our Minecraft Server" />
+        <p>
+            By connecting to our Minecraft server, you agree to follow our
+            <router-link :to="{ name: 'code-of-conduct' }"
+                >Code of Conduct</router-link
+            >
+            and our
+            <router-link :to="{ name: 'rules' }">Server Rules</router-link>.
+        </p>
         <ol>
             <li>
                 Open up your Minecraft on your computer and make sure you are
