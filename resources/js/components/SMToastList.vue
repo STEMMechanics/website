@@ -20,8 +20,8 @@ const toastStore = useToastStore();
 <style lang="scss">
 .toast-container {
     position: fixed;
-    top: 3.5rem;
-    right: 0.75rem;
+    top: 16px;
+    right: 16px;
     z-index: 3000;
     padding: 10px;
     overflow: hidden;
