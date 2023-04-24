@@ -484,6 +484,8 @@ handleLoad();
 
 <style lang="scss">
 .dialog-media {
+    width: 100%;
+
     h3 {
         margin-bottom: 16px;
     }
