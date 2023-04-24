@@ -32,40 +32,40 @@ import SMMastHead from "../components/SMMastHead.vue";
 
 const communities = [
     {
-        thumbnail: "/img/community-discord.png",
-        url: "https://someone.com/",
+        thumbnail: "/img/community-discord.jpg",
+        url: "https://discord.gg/yNzk4x7mpD",
         title: "Discord",
         content:
             "A vibrant community for discussion, user support, showcases... and custom emoji!",
     },
     {
-        thumbnail: "/img/community-discord.png",
+        thumbnail: "/img/community-minecraft.jpg",
         url: "/minecraft",
         title: "Minecraft",
         content:
             "Our usual hang-out to kill zombies and build redstone contraptions.",
     },
     {
-        thumbnail: "/img/community-discord.png",
+        thumbnail: "/img/community-github.jpg",
         url: "https://github.com/stemmechanics",
         title: "GitHub",
         content: "All our open-source projects. Send bug reports here.",
     },
     {
-        thumbnail: "/img/community-discord.png",
+        thumbnail: "/img/community-youtube.jpg",
         url: "https://youtube.com/stemmechanics",
         title: "YouTube",
         content: "Channel for official STEMMechanics videos.",
     },
     {
-        thumbnail: "/img/community-discord.png",
+        thumbnail: "/img/community-facebook.jpg",
         url: "https://facebook.com/stemmechanics",
         title: "Facebook",
         content: "Community for discussions and showcasing workshops.",
     },
     {
-        thumbnail: "/img/community-discord.png",
-        url: "https://facebook.com/stemmechanics",
+        thumbnail: "/img/community-mastodon.jpg",
+        url: "https://mastodon.au/@stemmechanics",
         title: "Mastodon",
         content: "Connect with us in the Fediverse.",
     },
@@ -95,7 +95,6 @@ const communities = [
 
             .thumbnail {
                 aspect-ratio: 16 / 9;
-                border-radius: 7px;
                 background-position: center;
                 background-size: cover;
                 background-color: var(--card-background-color);
