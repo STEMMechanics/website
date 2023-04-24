@@ -18,7 +18,7 @@
                     v-for="(tab, idx) in tabs()"
                     :key="idx"
                     class="tab-item"
-                    active-class="active"
+                    exact-active-class="active"
                     >{{ tab.title }}</router-link
                 >
             </div>
@@ -57,6 +57,10 @@ const tabGroups = [
         { title: "Code of Conduct", to: "/code-of-conduct" },
         { title: "Terms and Conditions", to: "/terms-and-conditions" },
         { title: "Privacy", to: "/privacy" },
+    ],
+    [
+        { title: "Connect", to: "/minecraft" },
+        { title: "Curves", to: "/minecraft/curve" },
     ],
 ];
 
