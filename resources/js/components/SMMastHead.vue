@@ -55,6 +55,7 @@ const tabGroups = [
     [
         { title: "Contact", to: "/contact" },
         { title: "Code of Conduct", to: "/code-of-conduct" },
+        { title: "Rules", to: "/rules" },
         { title: "Terms and Conditions", to: "/terms-and-conditions" },
         { title: "Privacy", to: "/privacy" },
     ],

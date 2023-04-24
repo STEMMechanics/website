@@ -1,7 +1,7 @@
 <template>
-    <SMPage class="sm-page-rules">
-        <template #container>
-            <h1>Rules</h1>
+    <SMMastHead title="Rules" />
+    <SMContainer narrow>
+        <template #inner>
             <p>
                 We want to make sure everyone has fun and stays safe while using
                 our platforms and services. That's why we have some rules to
@@ -51,7 +51,7 @@
                 <li><strong>Don't bully or be mean to others.</strong></li>
             </ul>
 
-            <h2>Discord Server</h2>
+            <h3>Discord Server</h3>
             <ul>
                 <li>
                     Please follow Discord's
@@ -59,7 +59,7 @@
                 </li>
             </ul>
 
-            <h2>Minecraft</h2>
+            <h3>Minecraft</h3>
             <ul>
                 <li>Don't beg for things from others.</li>
                 <li>Use must use a Microsoft account to play on the server.</li>
@@ -73,18 +73,21 @@
                 </li>
             </ul>
         </template>
-    </SMPage>
+    </SMContainer>
 </template>
 
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import SMMastHead from "../components/SMMastHead.vue";
+</script>
 
 <style lang="scss">
-.sm-page-rules {
-    h2 {
-        margin-bottom: 0.5rem;
+.page-rules {
+    h3 {
+        margin-top: 60px;
     }
-    li {
-        margin-bottom: 0.5rem;
+
+    h4 {
+        margin-top: 30px;
     }
 }
 </style>
