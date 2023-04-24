@@ -1,5 +1,5 @@
 <template>
-    <SMContainer :full="true" class="footer">
+    <SMContainer :full="true" class="page-footer">
         <SMRow class="social">
             <SMColumn class="align-items-center">
                 <SMSocialIcons />
@@ -152,7 +152,7 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
 }
 
 @media only screen and (max-width: 768px) {
-    .footer {
+    .page-footer {
         .row:first-of-type {
             padding-bottom: 0;
         }
