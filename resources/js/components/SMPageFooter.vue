@@ -80,7 +80,7 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
 </script>
 
 <style lang="scss">
-.footer {
+.page-footer {
     flex: 0;
     align-items: center;
     font-size: 80%;

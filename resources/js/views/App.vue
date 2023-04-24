@@ -8,7 +8,7 @@
         </router-view>
     </main>
     <footer>
-        <SMFooter />
+        <SMPageFooter />
     </footer>
     <SMToastList />
     <SMDialogList />
@@ -16,7 +16,7 @@
 
 <script setup lang="ts">
 import SMNavbar from "../components/SMNavbar.vue";
-import SMFooter from "../components/SMFooter.vue";
+import SMPageFooter from "../components/SMPageFooter.vue";
 import SMToastList from "../components/SMToastList.vue";
 import SMDialogList from "../components/SMDialog";
 </script>
