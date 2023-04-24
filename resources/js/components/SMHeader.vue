@@ -38,14 +38,14 @@ const copyAnchor = () => {
         .then(() => {
             useToastStore().addToast({
                 title: "Copy to Clipboard",
-                content: "The header URL has been copied to the clipboard",
+                content: "The header URL has been copied to the clipboard.",
                 type: "success",
             });
         })
         .catch(() => {
             useToastStore().addToast({
                 title: "Copy to Clipboard",
-                content: "Failed to copy the header URL to the clipboard",
+                content: "Failed to copy the header URL to the clipboard.",
                 type: "danger",
             });
         });
