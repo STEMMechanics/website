@@ -10,7 +10,7 @@
                 their personal background and affiliation our projects and
                 workshops.
             </p>
-            <h3>Philosophy</h3>
+            <SMHeader text="Philosophy" />
             <p>
                 In the STEMMechanics community, participants from all over the
                 world come together to create and work on STEM projects. This is
@@ -31,13 +31,13 @@
                 <a href="#coc-team">Code of Conduct team</a> surely will be as
                 well.
             </p>
-            <h3>Application</h3>
+            <SMHeader text="Application" />
             <p>
                 This Code of Conduct applies to all users, contributors and
                 participants who engage with the STEMMechanics workshops,
                 projects and its community platforms.
             </p>
-            <h3>Expectations</h3>
+            <SMHeader text="Expectations" />
             <ul>
                 <li>
                     Politeness is expected at all times. Be kind and courteous.
@@ -60,7 +60,7 @@
                     please accept it gracefully.
                 </li>
             </ul>
-            <h3>Restricted conduct</h3>
+            <SMHeader text="Restricted conduct" />
             <p>
                 Participating in restricted conduct will lead to a warning from
                 community moderators and/or the Code of Conduct team and may
@@ -108,7 +108,7 @@
                     acceptable.
                 </li>
             </ul>
-            <h3>Reporting a breach</h3>
+            <SMHeader text="Reporting a breach" />
             <p>
                 If you witness or are involved in an interaction with another
                 community member that you think may violate this Code of
@@ -127,7 +127,7 @@
                 using their personal emails listed below, or via direct
                 messaging on community platforms where they are present.
             </p>
-            <h3 id="coc-item">Code of Conduct team</h3>
+            <SMHeader id="coc-item" text="Code of Conduct team" />
             <ul>
                 <li>James Collins, james@stemmechanics.com.au</li>
                 <ul>
@@ -143,6 +143,7 @@
 
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
+import SMHeader from "../components/SMHeader.vue";
 </script>
 
 <style lang="scss">

@@ -51,7 +51,7 @@
                 <li><strong>Don't bully or be mean to others.</strong></li>
             </ul>
 
-            <h3>Discord Server</h3>
+            <SMHeader text="Discord Server" />
             <ul>
                 <li>
                     Please follow Discord's
@@ -59,7 +59,7 @@
                 </li>
             </ul>
 
-            <h3>Minecraft</h3>
+            <SMHeader text="Minecraft" />
             <ul>
                 <li>Don't beg for things from others.</li>
                 <li>Use must use a Microsoft account to play on the server.</li>
@@ -78,6 +78,7 @@
 
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
+import SMHeader from "../components/SMHeader.vue";
 </script>
 
 <style lang="scss">
