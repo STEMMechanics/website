@@ -325,7 +325,6 @@ const handleBlur = async () => {
 };
 
 const handleCheckbox = (event: Event) => {
-    console.log("here");
     const target = event.target as HTMLInputElement;
     value.value = target.checked;
     emits("update:modelValue", target.checked);

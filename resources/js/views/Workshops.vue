@@ -194,8 +194,6 @@ const handleLoad = async () => {
         query["page"] = postsPage.value;
         query["sort"] = "start_at";
 
-        console.log(query);
-
         let result = await api.get({
             url: "/events",
             params: query,
