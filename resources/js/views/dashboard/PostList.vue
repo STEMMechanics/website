@@ -1,7 +1,6 @@
 <template>
     <SMPage permission="admin/posts" class="sm-page-post-list">
         <template #container>
-            <SMHeading heading="Posts" />
             <SMMessage v-if="formMessage" type="error" :message="formMessage" />
             <SMToolbar>
                 <template #left>
@@ -62,7 +61,6 @@ import EasyDataTable from "vue3-easy-data-table";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMHeading from "../../components/SMHeading.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMMessage from "../../components/SMMessage.vue";
