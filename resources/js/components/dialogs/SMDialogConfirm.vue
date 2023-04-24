@@ -2,7 +2,7 @@
     <SMFormCard>
         <h3>{{ props.title }}</h3>
         <p v-html="computedSanitizedText"></p>
-        <SMFormFooter>
+        <SMButtonRow>
             <template #left>
                 <SMButton
                     :type="props.cancel.type"
@@ -15,7 +15,7 @@
                     :label="props.confirm.label"
                     @click="handleClickConfirm()" />
             </template>
-        </SMFormFooter>
+        </SMButtonRow>
     </SMFormCard>
 </template>
 
@@ -26,7 +26,7 @@ import { closeDialog } from "../SMDialog";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
-import SMFormFooter from "../SMFormFooter.vue";
+import SMButtonRow from "../SMButtonRow.vue";
 
 const props = defineProps({
     title: {

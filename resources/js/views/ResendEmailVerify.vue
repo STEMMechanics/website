@@ -6,7 +6,7 @@
                     <h1>Resend Verify Email</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
                         <SMInput control="username" />
-                        <SMFormFooter>
+                        <SMButtonRow>
                             <template #left>
                                 <div class="small">
                                     <span class="pr-1">Stuck?</span
@@ -21,7 +21,7 @@
                                     label="Send"
                                     icon="arrow-forward-outline" />
                             </template>
-                        </SMFormFooter>
+                        </SMButtonRow>
                     </SMForm>
                 </template>
                 <template v-else>
@@ -31,11 +31,11 @@
                         to verify your email, you will receive an email with a
                         new verify code.
                     </p>
-                    <SMFormFooter>
+                    <SMButtonRow>
                         <template #right>
                             <SMButton :to="{ name: 'home' }" label="Home" />
                         </template>
-                    </SMFormFooter>
+                    </SMButtonRow>
                 </template>
             </SMFormCard>
         </SMRow>
@@ -48,7 +48,7 @@ import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
+import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";

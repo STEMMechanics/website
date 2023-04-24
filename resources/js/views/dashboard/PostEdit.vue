@@ -53,11 +53,11 @@
                     </SMColumn>
                 </SMRow>
                 <SMRow>
-                    <SMFormFooter>
+                    <SMButtonRow>
                         <template #right>
                             <SMButton type="submit" label="Save" />
                         </template>
-                    </SMFormFooter>
+                    </SMButtonRow>
                 </SMRow>
             </SMForm>
         </template>
@@ -70,7 +70,7 @@ import { useRoute, useRouter } from "vue-router";
 import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMForm from "../../components/SMForm.vue";
-import SMFormFooter from "../../components/SMFormFooter.vue";
+import SMButtonRow from "../../components/SMButtonRow.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import { api } from "../../helpers/api";

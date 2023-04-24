@@ -7,7 +7,7 @@
                     <SMForm v-model="form" @submit="handleSubmit">
                         <SMInput control="code" />
                         <SMInput control="password" type="password" />
-                        <SMFormFooter>
+                        <SMButtonRow>
                             <template #left>
                                 <div class="small">
                                     <router-link
@@ -22,7 +22,7 @@
                                     label="Reset Password"
                                     icon="arrow-forward-outline" />
                             </template>
-                        </SMFormFooter>
+                        </SMButtonRow>
                     </SMForm>
                 </template>
                 <template v-else>
@@ -30,11 +30,11 @@
                     <p class="text-center">
                         Hurrah, Your password has been changed!
                     </p>
-                    <SMFormFooter>
+                    <SMButtonRow>
                         <template #right>
                             <SMButton :to="{ name: 'login' }" label="Login" />
                         </template>
-                    </SMFormFooter>
+                    </SMButtonRow>
                 </template>
             </SMFormCard>
         </SMRow>
@@ -48,7 +48,7 @@ import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMFormFooter from "../components/SMFormFooter.vue";
+import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";

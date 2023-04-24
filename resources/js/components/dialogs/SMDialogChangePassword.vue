@@ -32,7 +32,6 @@ import { useUserStore } from "../../store/UserStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
 import SMForm from "../SMForm.vue";
-import SMFormFooter from "../SMFormFooter.vue";
 import SMInput from "../SMInput.vue";
 
 const form: FormObject = reactive(
