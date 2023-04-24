@@ -53,26 +53,21 @@
                 </div>
             </SMColumn>
             <SMColumn class="info">
-                Grid size
-                <input
+                <SMInput
                     type="range"
-                    min="5"
-                    max="20"
-                    :value="gridsize"
-                    step="5"
+                    label="Grid size"
+                    :min="5"
+                    :max="20"
+                    v-model="gridsize"
+                    :step="5"
                     @input="handleInputGridSize" />
-                <span>{{ gridsize }}</span
-                ><br />
-                Curve width
-                <input
+                <SMInput
                     type="range"
-                    min="1"
-                    max="25"
-                    :value="curvewidth"
+                    label="Curve width"
+                    :min="1"
+                    :max="25"
+                    v-model="curvewidth"
                     @input="handleInputCurveWidth" />
-                <span>{{ curvewidth }}</span
-                ><br />
-
                 <SMInput
                     type="checkbox"
                     :checked="ruler"
@@ -111,6 +106,7 @@ import { onMounted, onUnmounted, ref } from "vue";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
+import { useToastStore } from "../store/ToastStore";
 
 const container = ref(null);
 const svg = ref(null);
@@ -960,6 +956,12 @@ function copyArrayToClipboard() {
     navigator.clipboard.writeText(
         "var array = [\n" + curve.join(",\n") + "\n];"
     );
+
+    useToastStore().addToast({
+        title: "Copied to Clipboard",
+        content: "The curve has been copied to the clipboard.",
+        type: "success",
+    });
 }
 
 /**
