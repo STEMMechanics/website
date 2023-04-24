@@ -103,11 +103,24 @@ export const routes = [
     },
     {
         path: "/minecraft",
-        name: "minecraft",
-        meta: {
-            title: "Minecraft",
-        },
-        component: () => import("@/views/Minecraft.vue"),
+        children: [
+            {
+                path: "",
+                name: "minecraft",
+                meta: {
+                    title: "Minecraft",
+                },
+                component: () => import("@/views/Minecraft.vue"),
+            },
+            {
+                path: "curve",
+                name: "minecraft-curve",
+                meta: {
+                    title: "Minecraft Curve",
+                },
+                component: () => import("@/views/MinecraftCurve.vue"),
+            },
+        ],
     },
     {
         path: "/login",
