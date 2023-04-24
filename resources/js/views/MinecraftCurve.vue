@@ -1,101 +1,126 @@
 <template>
-    <SMMastHead title="Minecraft Curve" />
+    <SMMastHead title="Minecraft Curve Calculator" />
     <SMContainer>
-        <div id="svg">
-            <svg
-                id="svgelem"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 1000 800"
-                preserveAspectRatio="xMidYMid meet">
-                <g id="grid"></g>
-                <g id="ruler_grid"></g>
-                <g id="main">
-                    <circle id="p1" cx="299" cy="500" r="10" />
-                    <circle id="p2" cx="699" cy="500" r="10" />
+        <SMRow>
+            <SMColumn>
+                <div ref="container" class="curve-area">
+                    <svg
+                        ref="svg"
+                        id="svgelem"
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 1000 800"
+                        preserveAspectRatio="xMidYMid meet">
+                        <g id="grid"></g>
+                        <g id="ruler_grid"></g>
+                        <g id="main">
+                            <circle id="p1" cx="299" cy="500" r="10" />
+                            <circle id="p2" cx="699" cy="500" r="10" />
 
-                    <circle id="c1" cx="299" cy="250" r="8" />
-                    <circle id="c2" cx="699" cy="250" r="8" />
+                            <circle id="c1" cx="299" cy="250" r="8" />
+                            <circle id="c2" cx="699" cy="250" r="8" />
 
-                    <circle
-                        id="r1"
-                        cx="405"
-                        cy="405"
-                        r="5"
-                        style="display: none"
-                        class="ruler" />
-                    <circle
-                        id="r2"
-                        cx="605"
-                        cy="505"
-                        r="5"
-                        style="display: none"
-                        class="ruler" />
+                            <circle
+                                id="r1"
+                                cx="405"
+                                cy="405"
+                                r="5"
+                                style="display: none"
+                                class="ruler" />
+                            <circle
+                                id="r2"
+                                cx="605"
+                                cy="505"
+                                r="5"
+                                style="display: none"
+                                class="ruler" />
 
-                    <line
-                        id="l1"
-                        x1="100"
-                        y1="250"
-                        x2="100"
-                        y2="100"
-                        class="controlline" />
-                    <line
-                        id="l2"
-                        x1="400"
-                        y1="250"
-                        x2="400"
-                        y2="100"
-                        class="controlline" />
-                </g>
-            </svg>
-        </div>
+                            <line
+                                id="l1"
+                                x1="100"
+                                y1="250"
+                                x2="100"
+                                y2="100"
+                                class="controlline" />
+                            <line
+                                id="l2"
+                                x1="400"
+                                y1="250"
+                                x2="400"
+                                y2="100"
+                                class="controlline" />
+                        </g>
+                    </svg>
+                </div>
+            </SMColumn>
+            <SMColumn class="info">
+                Grid size
+                <input
+                    type="range"
+                    min="5"
+                    max="20"
+                    :value="gridsize"
+                    step="5"
+                    @input="handleInputGridSize" />
+                <span>{{ gridsize }}</span
+                ><br />
+                Curve width
+                <input
+                    type="range"
+                    min="1"
+                    max="25"
+                    :value="curvewidth"
+                    @input="handleInputCurveWidth" />
+                <span>{{ curvewidth }}</span
+                ><br />
 
-        <div id="info">
-            Grid size
-            <input
-                type="range"
-                min="5"
-                max="20"
-                value="10"
-                step="5"
-                id="gridsize" />
-            <span id="gridsizevalue">10</span><br />
-            Curve width
-            <input type="range" min="1" max="25" value="1" id="curvewidth" />
-            <span id="curvewidthvalue">1</span><br />
-            <br />
-            Ruler
-            <label class="switch">
-                <input type="checkbox" id="ruler" />
-                <span class="slider round"></span>
-            </label>
+                <SMInput
+                    type="checkbox"
+                    :checked="ruler"
+                    label="Show Ruler"
+                    @input="handleInputRuler" />
 
-            <div id="ruler_dimensions" style="display: none"></div>
+                <div class="ruler_dimensions" v-if="ruler">
+                    <div>Width: {{ ruler_info.width }}</div>
+                    <div>Height: {{ ruler_info.height }}</div>
+                    <div>Area: {{ ruler_info.area }}</div>
+                    <div>Filled: {{ ruler_info.filled }}</div>
+                </div>
 
-            <br /><br />
-
-            <button type="button" id="array_button">
-                Copy 2D array of curve to clipboard
-            </button>
-        </div>
+                <SMButton
+                    @click="handleClickButton"
+                    type="primary"
+                    size="small"
+                    label="Copy curve" />
+            </SMColumn>
+        </SMRow>
+        <SMRow>
+            <SMColumn>
+                <p class="credit">
+                    Based on the work at
+                    <a href="https://iseenbaas.nl/curve/"
+                        >https://iseenbaas.nl/curve/</a
+                    >.
+                </p>
+            </SMColumn>
+        </SMRow>
     </SMContainer>
 </template>
 
 <script setup lang="ts">
+import { onMounted, onUnmounted, ref } from "vue";
 import SMMastHead from "../components/SMMastHead.vue";
+import SMInput from "../components/SMInput.vue";
+import SMButton from "../components/SMButton.vue";
 
-// developed by Rene Koning 2022
-// inspired by work from Craig Buckler (https://blogs.sitepointstatic.com/examples/tech/svg-curves/cubic-curve.html)
+const container = ref(null);
+const svg = ref(null);
 
-var container,
-    svg,
-    point = {},
+var point = {},
     line = {},
     drag = null,
     dPoint,
     maxX,
-    maxY,
-    gridsize,
-    curvewidth;
+    maxY;
 var circles = [
     [[]], // 0
     [[1]], // 1
@@ -625,7 +650,7 @@ var circles = [
  *
  */
 function Init() {
-    var c = svg.getElementsByTagName("circle");
+    var c = svg.value.getElementsByTagName("circle");
     for (var i = 0; i < c.length; i++) {
         point[c[i].getAttributeNS(null, "id")] = {
             x: parseInt(c[i].getAttributeNS(null, "cx"), 10),
@@ -634,36 +659,36 @@ function Init() {
     }
 
     // lines
-    line.l1 = svg.getElementById("l1");
-    line.l2 = svg.getElementById("l2");
-    line.curve = svg.getElementById("curve");
+    line.l1 = svg.value.getElementById("l1");
+    line.l2 = svg.value.getElementById("l2");
+    line.curve = svg.value.getElementById("curve");
 
     // event handlers
-    svg.onmousedown = svg.onmousemove = svg.onmouseup = Drag;
-    svg.ontouchstart = svg.ontouchmove = svg.ontouchend = Drag;
+    svg.value.onmousedown = svg.value.onmousemove = svg.value.onmouseup = Drag;
+    svg.value.ontouchstart =
+        svg.value.ontouchmove =
+        svg.value.ontouchend =
+            Drag;
 
     // setPixels is empty
-    setPixels = [];
-
-    DrawGrid();
-    DrawSVG();
+    //setPixels = [];
 }
 
 /**
  *
  */
 function DrawGrid() {
-    ggrid = document.getElementById("grid");
+    const ggrid = document.getElementById("grid");
 
     // empty grid
     while (ggrid.firstElementChild) {
         ggrid.firstElementChild.remove();
     }
 
-    for (x = 0; x < maxX; x += gridsize) {
-        var xpos = Math.round(x / gridsize);
-        for (y = 0; y < maxY; y += gridsize) {
-            var ypos = Math.round(y / gridsize);
+    for (let x = 0; x < maxX; x += gridsize.value) {
+        var xpos = Math.round(x / gridsize.value);
+        for (let y = 0; y < maxY; y += gridsize.value) {
+            var ypos = Math.round(y / gridsize.value);
             var id = "grid_" + xpos + "_" + ypos;
 
             var rect = document.createElementNS(
@@ -672,8 +697,8 @@ function DrawGrid() {
             );
             rect.setAttributeNS(null, "x", x);
             rect.setAttributeNS(null, "y", y);
-            rect.setAttributeNS(null, "width", gridsize);
-            rect.setAttributeNS(null, "height", gridsize);
+            rect.setAttributeNS(null, "width", gridsize.value);
+            rect.setAttributeNS(null, "height", gridsize.value);
             rect.setAttributeNS(null, "fill", "transparent");
             rect.setAttributeNS(null, "stroke", "#eee");
             rect.setAttributeNS(null, "stroke-width", 1);
@@ -684,23 +709,24 @@ function DrawGrid() {
     }
 }
 
+const ruler_info = ref({
+    width: 0,
+    height: 0,
+    area: 0,
+    filled: 0,
+});
+
 /**
  *
  */
 function DrawRuler() {
-    ruler_grid = document.getElementById("ruler_grid");
-    ruler_dimensions = document.getElementById("ruler_dimensions");
-    r1 = document.getElementById("r1");
-    r2 = document.getElementById("r2");
+    let ruler_grid = document.getElementById("ruler_grid");
+    let r1 = document.getElementById("r1");
+    let r2 = document.getElementById("r2");
 
     // empty ruler grid
     while (ruler_grid.firstElementChild) {
         ruler_grid.firstElementChild.remove();
-    }
-
-    // show dimensions
-    if (ruler_dimensions.style.display == "none") {
-        ruler_dimensions.style.display = "block";
     }
 
     // handles
@@ -712,25 +738,30 @@ function DrawRuler() {
     }
 
     // ruler
-    rmin = [
-        Math.floor(Math.min(point.r1.x, point.r2.x) / gridsize),
-        Math.floor(Math.min(point.r1.y, point.r2.y) / gridsize),
+    const rmin = [
+        Math.floor(Math.min(point.r1.x, point.r2.x) / gridsize.value),
+        Math.floor(Math.min(point.r1.y, point.r2.y) / gridsize.value),
     ];
-    rmax = [
-        Math.floor(Math.max(point.r1.x, point.r2.x) / gridsize),
-        Math.floor(Math.max(point.r1.y, point.r2.y) / gridsize),
+    const rmax = [
+        Math.floor(Math.max(point.r1.x, point.r2.x) / gridsize.value),
+        Math.floor(Math.max(point.r1.y, point.r2.y) / gridsize.value),
     ];
-    var width = 1 + rmax[0] - rmin[0];
-    var height = 1 + rmax[1] - rmin[1];
-    var area = width * height;
-    var filled = 0;
+
+    ruler_info.value.width = 1 + rmax[0] - rmin[0];
+    ruler_info.value.height = 1 + rmax[1] - rmin[1];
+    ruler_info.value.area = ruler_info.value.width * ruler_info.value.height;
+    ruler_info.value.filled = 0;
 
     // ruler
     var rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-    rect.setAttributeNS(null, "x", rmin[0] * gridsize);
-    rect.setAttributeNS(null, "y", rmin[1] * gridsize);
-    rect.setAttributeNS(null, "width", width * gridsize);
-    rect.setAttributeNS(null, "height", height * gridsize);
+    rect.setAttributeNS(null, "x", rmin[0] * gridsize.value);
+    rect.setAttributeNS(null, "y", rmin[1] * gridsize.value);
+    rect.setAttributeNS(null, "width", ruler_info.value.width * gridsize.value);
+    rect.setAttributeNS(
+        null,
+        "height",
+        ruler_info.value.height * gridsize.value
+    );
     rect.setAttributeNS(null, "fill", "#00c");
     rect.setAttributeNS(null, "fill-opacity", "0.2");
     rect.setAttributeNS(null, "stroke", "#eee");
@@ -739,39 +770,25 @@ function DrawRuler() {
     ruler_grid.append(rect);
 
     // filled
-    for (x = rmin[0]; x <= rmax[0]; x += 1) {
-        for (y = rmin[1]; y <= rmax[1]; y += 1) {
+    for (let x = rmin[0]; x <= rmax[0]; x += 1) {
+        for (let y = rmin[1]; y <= rmax[1]; y += 1) {
             var grid = document.getElementById("grid_" + x + "_" + y);
-            if (grid.style.fill != "transparent") {
-                filled += 1;
+            if (grid) {
+                if (grid.style.fill != "transparent") {
+                    ruler_info.value.filled += 1;
+                }
             }
         }
     }
-
-    // update dimensions
-    ruler_dimensions.innerHTML =
-        "<pre>Width:  " +
-        width +
-        "\nHeight: " +
-        height +
-        "\nArea:   " +
-        area +
-        "\nFilled: " +
-        filled +
-        "</pre>";
 }
 
 /**
  *
  */
 function HideRuler() {
-    ruler_grid = document.getElementById("ruler_grid");
-    ruler_dimensions = document.getElementById("ruler_dimensions");
-    r1 = document.getElementById("r1");
-    r2 = document.getElementById("r2");
-
-    // hide dimensions
-    ruler_dimensions.style.display = "none";
+    const ruler_grid = document.getElementById("ruler_grid");
+    const r1 = document.getElementById("r1");
+    const r2 = document.getElementById("r2");
 
     // hide grid
     while (ruler_grid.firstElementChild) {
@@ -819,19 +836,21 @@ function DrawSVG() {
     //line.curve.setAttributeNS(null, "d", d);
 
     // clear pixels
-    for (x = 0; x < maxX; x += gridsize) {
-        var xpos = x / gridsize;
-        for (y = 0; y < maxY; y += gridsize) {
-            var ypos = y / gridsize;
+    for (let x = 0; x < maxX; x += gridsize.value) {
+        var xpos = x / gridsize.value;
+        for (let y = 0; y < maxY; y += gridsize.value) {
+            var ypos = y / gridsize.value;
             var id = "grid_" + xpos + "_" + ypos;
             var rect = document.getElementById(id);
-            rect.style.fill = "transparent";
+            if (rect) {
+                rect.style.fill = "transparent";
+            }
         }
     }
 
     // grid dimensions
-    var dimx = Math.floor(maxX / gridsize);
-    var dimy = Math.floor(maxY / gridsize);
+    var dimx = Math.floor(maxX / gridsize.value);
+    var dimy = Math.floor(maxY / gridsize.value);
     var filled = {};
     var done = {};
 
@@ -849,8 +868,8 @@ function DrawSVG() {
             Math.pow(t, 3) * point.p2.y;
 
         // center
-        var gridx = Math.round(bx / gridsize);
-        var gridy = Math.round(by / gridsize);
+        var gridx = Math.round(bx / gridsize.value);
+        var gridy = Math.round(by / gridsize.value);
         var id = "grid_" + gridx + "_" + gridy;
 
         if (id in done) {
@@ -860,15 +879,17 @@ function DrawSVG() {
         }
 
         // circle around center
-        if (curvewidth == 1) {
+        if (curvewidth.value == 1) {
             var rect = document.getElementById(id);
-            rect.style.fill = "#888";
+            if (rect) {
+                rect.style.fill = "#888";
+            }
         } else {
-            var circle = circles[curvewidth];
-            var offset = Math.floor(curvewidth / 2);
+            var circle = circles[curvewidth.value];
+            var offset = Math.floor(curvewidth.value / 2);
 
-            for (x = 0; x < curvewidth; x++) {
-                for (y = 0; y < curvewidth; y++) {
+            for (let x = 0; x < curvewidth.value; x++) {
+                for (let y = 0; y < curvewidth.value; y++) {
                     var posx = gridx + x - offset;
                     var posy = gridy + y - offset;
                     var id = "grid_" + posx + "_" + posy;
@@ -879,7 +900,9 @@ function DrawSVG() {
                     if (posx >= 0 && posy >= 0 && posx < dimx && posy < dimy) {
                         if (circle[y][x] == 1) {
                             var rect = document.getElementById(id);
-                            rect.style.fill = "#888";
+                            if (rect) {
+                                rect.style.fill = "#888";
+                            }
                             filled[id] = 1;
                         }
                     }
@@ -893,18 +916,20 @@ function DrawSVG() {
  *
  */
 function copyArrayToClipboard() {
-    var dimx = Math.floor(maxX / gridsize);
-    var dimy = Math.floor(maxY / gridsize);
+    var dimx = Math.floor(maxX / gridsize.value);
+    var dimy = Math.floor(maxY / gridsize.value);
     var grid_array = [];
     var rangeX = [dimx, -1];
     var rangeY = [dimy, -1];
 
     // find bounding box for curve
-    for (y = 0; y < dimy; y++) {
+    for (let y = 0; y < dimy; y++) {
         var row = [];
-        for (x = 0; x < dimx; x++) {
+        for (let x = 0; x < dimx; x++) {
             var grid = document.getElementById("grid_" + x + "_" + y);
-            row.push(grid.style.fill == "transparent" ? 0 : 1);
+            if (grid) {
+                row.push(grid.style.fill == "transparent" ? 0 : 1);
+            }
         }
         var left = row.indexOf(1);
         var right = row.lastIndexOf(1);
@@ -947,7 +972,6 @@ function Drag(e) {
         id = t.id,
         et = e.type,
         m = MousePos(e);
-    var ruler = document.getElementById("ruler");
 
     // start drag
     if (
@@ -969,7 +993,7 @@ function Drag(e) {
         drag.setAttributeNS(null, "cy", point[id].y);
         DrawSVG();
 
-        if (ruler.checked) {
+        if (ruler.value) {
             DrawRuler();
         }
     }
@@ -993,69 +1017,72 @@ function MousePos(event) {
 }
 
 // start
-window.onload = function () {
-    container = document.getElementById("svg");
 
-    var gs = document.getElementById("gridsize");
-    var cw = document.getElementById("curvewidth");
-    var gso = document.getElementById("gridsizevalue");
-    var cwo = document.getElementById("curvewidthvalue");
-    var ruler = document.getElementById("ruler");
-    var button = document.getElementById("array_button");
-
-    gs.oninput = function () {
-        gridsize = parseInt(this.value);
-        gso.innerHTML = gridsize;
-        DrawGrid();
-        DrawSVG();
-        if (ruler.checked) {
-            DrawRuler();
-        }
-    };
-
-    cw.oninput = function () {
-        curvewidth = parseInt(this.value);
-        cwo.innerHTML = curvewidth;
-        DrawSVG();
-        if (ruler.checked) {
-            DrawRuler();
-        }
-    };
-
-    cw.oninput = function () {
-        curvewidth = parseInt(this.value);
-        cwo.innerHTML = curvewidth;
-        DrawSVG();
-        if (ruler.checked) {
-            DrawRuler();
-        }
-    };
-
-    ruler.oninput = function () {
-        if (ruler.checked) {
-            DrawRuler();
-        } else {
-            HideRuler();
-        }
-    };
-
-    button.onclick = function () {
-        copyArrayToClipboard();
-    };
-
-    if (container) {
-        maxX = container.offsetWidth;
-        maxY = container.offsetHeight;
-        svg = container.firstElementChild;
-        gridsize = parseInt(document.getElementById("gridsize").value);
-        curvewidth = parseInt(document.getElementById("curvewidth").value);
-        Init();
+const curvewidth = ref(1);
+const handleInputCurveWidth = (event) => {
+    curvewidth.value = parseInt(event.target.value);
+    DrawSVG();
+    if (ruler.value) {
+        DrawRuler();
     }
 };
+
+const gridsize = ref(10);
+const handleInputGridSize = (event) => {
+    gridsize.value = parseInt(event.target.value);
+    DrawGrid();
+    DrawSVG();
+    if (ruler.value) {
+        DrawRuler();
+    }
+};
+
+const ruler = ref(false);
+const handleInputRuler = (event) => {
+    ruler.value = event.target.checked;
+    DrawGrid();
+    DrawSVG();
+    if (ruler.value) {
+        DrawRuler();
+    } else {
+        HideRuler();
+    }
+};
+
+const handleClickButton = () => {
+    copyArrayToClipboard();
+};
+
+onMounted(() => {
+    maxX = 1000;
+    maxY = 800;
+    Init();
+    DrawGrid();
+    DrawSVG();
+});
 </script>
 
 <style lang="scss">
 .page-minecraft-curve {
+    .curve-area svg {
+        background: var(--base-color-light);
+    }
+
+    .info {
+        max-width: 250px;
+
+        .ruler_dimensions {
+            border: 1px solid var(--base-color-dark);
+            background-color: var(--base-color-light);
+            padding: 8px;
+            margin-top: -16px;
+            margin-bottom: 16px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 75%;
+            font-weight: 600;
+        }
+    }
+
     path {
         stroke-width: 4;
         stroke: #000;
@@ -1090,6 +1117,20 @@ window.onload = function () {
         stroke: #999;
         stroke-linecap: round;
         stroke-dasharray: 5, 3;
+    }
+
+    .credit {
+        font-size: 75%;
+        margin-bottom: 0;
+    }
+}
+
+@media screen and (max-width: 768px) {
+    .page-minecraft-curve {
+        .info {
+            margin-top: 32px;
+            max-width: none;
+        }
     }
 }
 </style>

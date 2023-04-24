@@ -61,7 +61,7 @@ const tabGroups = [
     ],
     [
         { title: "Connect", to: "/minecraft" },
-        { title: "Curves", to: "/minecraft/curve" },
+        { title: "Curve Calculator", to: "/minecraft/curve" },
     ],
 ];
 
