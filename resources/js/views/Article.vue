@@ -141,7 +141,7 @@ handleLoad();
 
 @media only screen and (max-width: 768px) {
     .page-post-view .heading-image {
-        height: #{map-get($spacing, 3) * 10};
+        height: #{calc(map-get($spacing, 3) * 10)};
     }
 }
 </style>
