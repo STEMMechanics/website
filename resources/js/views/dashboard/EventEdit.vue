@@ -407,8 +407,4 @@ const handleFailValidation = () => {
 loadData();
 </script>
 
-<style lang="scss">
-.page-event-edit {
-    background-color: #f8f8f8;
-}
-</style>
+<style lang="scss"></style>

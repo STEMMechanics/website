@@ -71,7 +71,7 @@ const hasClassLong = (text: unknown): boolean => {
 
 <style lang="scss">
 .table {
-    border: 1px solid #ccc;
+    border: 1px solid var(--table-color-border);
     border-collapse: collapse;
     margin-bottom: 32px;
     width: 100%;
@@ -80,7 +80,7 @@ const hasClassLong = (text: unknown): boolean => {
     th {
         padding: 24px 16px;
         text-align: left;
-        border-bottom: 1px solid #ccc;
+        border-bottom: 1px solid var(--table-color-border);
     }
 
     th {
@@ -90,7 +90,7 @@ const hasClassLong = (text: unknown): boolean => {
 
     td {
         font-size: 85%;
-        background-color: #fff;
+        background-color: var(--table-color);
 
         &.long {
             font-size: 75%;
@@ -101,7 +101,7 @@ const hasClassLong = (text: unknown): boolean => {
         tr {
             &:hover {
                 td {
-                    background-color: var(--primary-color-hover);
+                    background-color: var(--table-color-hover);
                     cursor: pointer;
                 }
             }
@@ -135,11 +135,11 @@ const hasClassLong = (text: unknown): boolean => {
     }
 
     .table tbody tr {
-        border-bottom: 1px solid #ccc;
+        border-bottom: 1px solid var(--table-color-border);
 
         td {
             border: none;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--table-color-border);
             position: relative;
             padding: 8px 12px 8px 40%;
             white-space: normal;
@@ -168,7 +168,7 @@ const hasClassLong = (text: unknown): boolean => {
         }
 
         &:nth-child(even) td {
-            background-color: #f8f8f8;
+            background-color: var(--table-color-even);
         }
     }
 }

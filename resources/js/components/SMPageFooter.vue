@@ -124,25 +124,26 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
         filter: none;
     }
 
-    ul {
+    .footer-links ul {
         display: flex;
         flex-direction: row;
         padding: 0;
         list-style-type: none;
+        flex-wrap: wrap;
+        gap: 15px 30px;
+        justify-content: center;
 
         li {
-            padding: 0;
-            margin-left: 1rem;
-            margin-right: 1rem;
-            margin-bottom: 0;
+            margin: 0;
             text-align: center;
+            white-space: nowrap;
         }
     }
 
     .footer-text {
         p {
             padding: 0;
-            margin: 0 0 0.5rem 0;
+            margin: 0 0 #{map-get($spacing, 2)} 0;
         }
 
         p:last-of-type {
@@ -179,14 +180,14 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
 @media only screen and (max-width: 864px) {
     .footer {
         .footer-text {
-            padding: 0 1rem;
+            padding: 0 #{map-get($spacing, 3)};
         }
         .footer-links ul {
             flex-direction: column;
 
             li {
                 text-align: center;
-                margin-bottom: 0.5rem;
+                margin-bottom: #{map-get($spacing, 2)};
             }
         }
     }
@@ -198,8 +199,8 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
         margin-top: 0;
 
         li {
-            margin-top: 0.25rem;
-            margin-bottom: 0.25rem;
+            margin-top: #{map-get($spacing, 1)};
+            margin-bottom: #{map-get($spacing, 1)};
         }
     }
 }

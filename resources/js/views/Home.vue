@@ -131,11 +131,11 @@ import SMHero from "../components/SMHero.vue";
         h2 {
             font-size: 400%;
             text-align: center;
+            color: var(--accent-1-color-text);
         }
 
         p {
             font-size: 125%;
-            line-height: 150%;
         }
     }
 
@@ -150,15 +150,14 @@ import SMHero from "../components/SMHero.vue";
 
         p {
             font-size: 125%;
-            line-height: 150%;
-            max-width: 32rem;
+            max-width: #{calc(map-get($spacing, 6) * 16)};
             margin: 16px auto 32px auto;
         }
 
         img {
-            border-radius: 50rem;
-            height: 360px;
-            width: 360px;
+            border-radius: 50%;
+            height: #{calc(map-get($spacing, 5) * 15)};
+            width: #{calc(map-get($spacing, 5) * 15)};
         }
 
         .button {
@@ -179,11 +178,11 @@ import SMHero from "../components/SMHero.vue";
         h2 {
             font-size: 300%;
             text-align: center;
+            color: #f8f8f8;
         }
 
         p {
             font-size: 125%;
-            line-height: 150%;
             text-align: center;
             margin: 24px auto;
         }
@@ -231,11 +230,11 @@ import SMHero from "../components/SMHero.vue";
             font-size: 300%;
             text-align: center;
             margin-bottom: 16px;
+            color: var(--accent-2-color-text);
         }
 
         p {
             font-size: 125%;
-            line-height: 1.5em;
         }
 
         .button-row {
@@ -280,7 +279,7 @@ import SMHero from "../components/SMHero.vue";
                 .minecraft-image {
                     float: none;
                     display: block;
-                    margin: 0 auto 1rem auto;
+                    margin: 0 auto #{map-get($spacing, 3)} auto;
                 }
             }
         }

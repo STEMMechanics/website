@@ -117,11 +117,11 @@ if (
         align-items: center;
         font-size: 30vw;
         font-weight: 600;
-        color: #295b7e;
+        color: var(--primary-color);
 
         img {
             height: 25vw;
-            margin: 0 0.5rem 0 1rem;
+            margin: 0 #{map-get($spacing, 2)} 0 #{map-get($spacing, 3)};
         }
     }
 
@@ -131,7 +131,7 @@ if (
 
         h2 {
             margin-top: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: #{map-get($spacing, 2)};
         }
     }
 }

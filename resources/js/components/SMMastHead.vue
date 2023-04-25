@@ -140,7 +140,6 @@ const tabs = () => {
             color: rgba(255, 255, 255, 0.8);
             font-family: var(--header-font-family);
             font-weight: 800;
-            font-size: 18px;
             text-decoration: none;
             padding: 16px 24px;
             white-space: nowrap;
@@ -174,14 +173,4 @@ const tabs = () => {
         }
     }
 }
-
-// @media (prefers-color-scheme: dark) {
-//     .masthead {
-//         background-color: var(--primary-color-light);
-
-//         .tabs .tab-item.active {
-//             color: var(--primary-color-light);
-//         }
-//     }
-// }
 </style>

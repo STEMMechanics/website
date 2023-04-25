@@ -25,10 +25,9 @@ provide("selectedLabel", selectedLabel);
 
 <style lang="scss">
 .tab-group {
-    margin-bottom: map-get($spacer, 4);
+    margin-bottom: 32px;
 
     .tab-header {
-        // border-bottom: 1px solid $border-color;
         list-style-type: none;
         margin: 0;
         padding: 0;
@@ -36,29 +35,29 @@ provide("selectedLabel", selectedLabel);
 
     .tab-item {
         display: inline-block;
-        padding: map-get($spacer, 2) map-get($spacer, 3);
+        padding: 16px 24px;
         border: 1px solid transparent;
         margin-bottom: -1px;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
-        color: $primary-color;
+        color: var(--primary-color);
         transition: 0.2s all ease-out;
 
         &.selected {
-            color: $font-color;
-            background-color: #fff;
-            border-top: 1px solid $border-color;
-            border-left: 1px solid $border-color;
-            border-bottom: 1px solid #fff;
-            border-right: 1px solid $border-color;
+            color: var(--tab-color-text);
+            background-color: var(--tab-color);
+            border-top: 1px solid var(--tab-color-border);
+            border-left: 1px solid var(--tab-color-border);
+            border-bottom: 1px solid var(--tab-color);
+            border-right: 1px solid var(--tab-color-border);
         }
 
         &:hover:not(.selected) {
-            color: $primary-color-dark;
-            border-top: 1px solid $border-color;
-            border-left: 1px solid $border-color;
-            border-bottom: 1px solid #fff;
-            border-right: 1px solid $border-color;
+            color: var(--primary-color);
+            border-top: 1px solid var(--tab-color-border);
+            border-left: 1px solid var(--tab-color-border);
+            border-bottom: 1px solid var(--tab-color);
+            border-right: 1px solid var(--tab-color-border);
         }
     }
 }

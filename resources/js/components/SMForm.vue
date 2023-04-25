@@ -1,10 +1,10 @@
 <template>
     <form class="SMForm" @submit.prevent="handleSubmit">
-        <SMMessage
+        <!-- <SMMessage
             v-if="props.modelValue._message.length > 0"
             :message="props.modelValue._message"
             :type="props.modelValue._messageType"
-            :icon="props.modelValue._messageIcon" />
+            :icon="props.modelValue._messageIcon" /> -->
 
         <slot></slot>
     </form>
@@ -12,7 +12,6 @@
 
 <script setup lang="ts">
 import { provide } from "vue";
-import SMMessage from "./SMMessage.vue";
 
 const props = defineProps({
     modelValue: {

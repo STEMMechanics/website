@@ -62,7 +62,7 @@ const props = defineProps({
 
 <style lang="scss">
 .attachment-list {
-    border: 1px solid $secondary-color;
+    border: 1px solid var(--base-color);
     border-collapse: collapse;
     table-layout: fixed;
     width: 100%;
@@ -109,11 +109,11 @@ const props = defineProps({
 
             a {
                 display: block;
-                color: $secondary-color-dark;
+                color: var(--base-color-dark);
                 transition: color 0.2s ease-in-out;
 
                 &:hover {
-                    color: $primary-color-dark;
+                    color: var(--primary-color);
                 }
 
                 svg {
@@ -127,7 +127,7 @@ const props = defineProps({
         .attachment-file-size {
             width: 80px;
             font-size: 75%;
-            color: $secondary-color-dark;
+            color: var(--base-color-dark);
             white-space: nowrap;
             text-align: right;
             padding-right: 8px;
@@ -143,7 +143,7 @@ const props = defineProps({
 
         .attachment-download a,
         .attachment-file-size {
-            padding-left: 0.25rem;
+            padding-left: 8px;
         }
     }
 }

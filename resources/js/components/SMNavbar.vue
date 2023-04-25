@@ -225,10 +225,6 @@ onUnmounted(() => {
             gap: 20px;
         }
 
-        .button {
-            color: #fff;
-        }
-
         #nav-toggle {
             padding: 24px;
             cursor: pointer;
@@ -276,11 +272,11 @@ onUnmounted(() => {
     }
 }
 
-// @media (prefers-color-scheme: dark) {
-//     .navbar #nav-head #nav-toggle {
-//         filter: invert(100%) saturate(0%) brightness(120%);
-//     }
-// }
+@media (prefers-color-scheme: dark) {
+    .navbar #nav-head #nav-toggle {
+        filter: invert(100%) saturate(0%) brightness(120%);
+    }
+}
 
 @media only screen and (max-width: 768px) {
     #nav-toggle {

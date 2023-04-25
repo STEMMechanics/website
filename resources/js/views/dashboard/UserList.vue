@@ -1,15 +1,9 @@
 <template>
-    <SMPage permission="admin/users">
+    <SMPage permission="admin/users" :page-error="pageError">
         <SMMastHead
             title="Users"
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
-        <SMMessage
-            v-if="formMessage.message"
-            :icon="formMessage.icon"
-            :type="formMessage.type"
-            :message="formMessage.message" />
-
         <SMContainer>
             <SMTable
                 :headers="headers"
@@ -34,14 +28,15 @@ import { reactive, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import SMMessage from "../../components/SMMessage.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
 import SMTable from "../../components/SMTable.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
+import { useToastStore } from "../../store/ToastStore";
 
 const router = useRouter();
 const searchValue = ref("");
+const pageError = ref(0);
 
 const headers = [
     { text: "Username", value: "username", sortable: true },
@@ -55,12 +50,6 @@ const headers = [
 ];
 
 const items = ref([]);
-const formMessage = reactive({
-    icon: "",
-    type: "",
-    message: "",
-});
-
 const formLoading = ref(false);
 const serverItemsLength = ref(0);
 const serverOptions = ref({
@@ -76,9 +65,6 @@ const handleRowClick = (item) => {
 
 const loadFromServer = async () => {
     formLoading.value = true;
-    formMessage.type = "error";
-    formMessage.icon = "alert-circle-outline";
-    formMessage.message = "";
 
     try {
         let params = {};
@@ -163,10 +149,17 @@ const handleDelete = async (user) => {
             await api.delete(`users${user.id}`);
             loadFromServer();
 
-            formMessage.message = "User deleted successfully";
-            formMessage.type = "success";
+            useToastStore().addToast({
+                title: "User Deleted",
+                content: "User deleted successfully.",
+                type: "success",
+            });
         } catch (err) {
-            formMessage.message = err.response?.data?.message;
+            useToastStore().addToast({
+                title: "Server Error",
+                content: "User could not be deleted because an error occurred.",
+                type: "danger",
+            });
         }
     }
 };

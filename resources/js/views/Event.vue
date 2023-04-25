@@ -6,12 +6,6 @@
                 backgroundImage: `url('${mediaGetVariantUrl(event.hero)}')`,
             }"></div>
         <SMContainer>
-            <SMMessage
-                v-if="formMessage"
-                icon="alert-circle-outline"
-                type="error"
-                :message="formMessage"
-                class="mt-5" />
             <SMContainer class="workshop-page">
                 <div class="workshop-body">
                     <h2 class="workshop-title">{{ event.title }}</h2>
@@ -117,7 +111,6 @@ import { computed, Ref, ref } from "vue";
 import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMHTML from "../components/SMHTML.vue";
-import SMMessage from "../components/SMMessage.vue";
 import SMAttachments from "../components/SMAttachments.vue";
 import { api } from "../helpers/api";
 import { Event, EventResponse } from "../helpers/api.types";
@@ -136,11 +129,6 @@ const event: Ref<Event | null> = ref(null);
 
 const route = useRoute();
 const pageLoading = ref(true);
-
-/**
- * Page message.
- */
-const formMessage = ref("");
 
 /**
  * Page error.
@@ -256,8 +244,6 @@ const computedAgeNotice = computed(() => {
  * Load the page data.
  */
 const handleLoad = async () => {
-    formMessage.value = "";
-
     try {
         let result = await api.get({
             url: "/events/{event}",
@@ -284,13 +270,7 @@ const handleLoad = async () => {
             pageError.value = 404;
         }
     } catch (error) {
-        if (error.status == 404) {
-            pageError.value = 404;
-        } else {
-            formMessage.value =
-                error.data?.message ||
-                "Could not load event information from the server.";
-        }
+        pageError.value = error.status;
     } finally {
         pageLoading.value = false;
     }
@@ -304,17 +284,17 @@ handleLoad();
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: map-get($spacer, 5) * 4;
+    min-height: 256px;
     height: 20vw;
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
-    background-color: #eee;
+    background-color: var(--base-color);
     transition: background-image 0.2s;
 
     .workshop-image-loader {
-        font-size: 5rem;
-        color: $secondary-color;
+        font-size: 350%;
+        color: var(--base-color);
     }
 }
 
@@ -322,85 +302,75 @@ handleLoad();
     display: flex;
     flex-direction: row;
 
-    .workshop-body,
-    .workshop-info {
-        line-height: 1.5rem;
-    }
-
     .workshop-body {
         flex: 1;
         text-align: left;
     }
 
     .workshop-title {
-        line-height: 1.15em;
         margin-bottom: 32px;
     }
 
     .workshop-info {
-        width: 18rem;
-        margin-left: 2rem;
+        width: 288px;
+        margin-left: 32px;
 
         h4 {
-            margin-bottom: 0.25rem;
             display: flex;
             align-items: center;
-            height: 1rem;
 
             .icon {
                 display: inline-block;
-                width: 1rem;
-                margin-right: 0.5rem;
+                font-size: 20px;
+                margin-right: 8px;
                 text-align: center;
             }
         }
 
         p {
             margin: 0;
-            padding-left: 1.5rem;
+            padding-left: 28px;
             font-size: 90%;
         }
 
         .workshop-registration {
-            margin-top: 1.5rem;
-            line-height: 1.25rem;
+            margin-top: 32px;
         }
 
         .workshop-registration-none,
         .workshop-registration-soon,
         .workshop-registration-message {
-            border: 1px solid #ffeeba;
-            background-color: #fff3cd;
-            color: #856404;
+            border: 1px solid var(--warning-color-light);
+            background-color: var(--warning-color-lighter);
+            color: var(--warning-color-dark);
             text-align: center;
             font-size: 80%;
-            padding: 0.5rem;
+            padding: 8px;
         }
 
         .workshop-registration-closed,
         .workshop-registration-cancelled {
-            border: 1px solid #f5c2c7;
-            background-color: #f8d7da;
-            color: #842029;
+            border: 1px solid var(--danger-color-light);
+            background-color: var(--danger-color-lighter);
+            color: var(--danger-color-dark);
             text-align: center;
             font-size: 80%;
-            padding: 0.5rem;
+            padding: 8px;
         }
 
         .workshop-date,
         .workshop-location,
         .workshop-price,
         .workshop-ages {
-            padding: 0 1rem;
+            padding: 0 16px;
         }
 
         .workshop-ages p {
-            margin-top: 0.5rem;
-            margin-left: 1rem;
-            padding: 0 0 0 0.5rem;
+            margin-top: 8px;
+            margin-left: 16px;
+            padding: 0 0 0 8px;
             font-size: 80%;
-            border-left: 4px solid $warning-color;
-            line-height: 1.2rem;
+            border-left: 4px solid var(--warning-color-darker);
         }
     }
 }

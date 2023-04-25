@@ -106,11 +106,11 @@ tinymce.PluginManager.add("gallery", function (editor) {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background-color: #fff;
+            background-color: var(--base-color-light);
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 2rem;
+            font-size: 150%;
             color: black;
             padding: .25rem 1.5rem;
             border-radius: 12px;
@@ -877,20 +877,19 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             padding: 4px 8px;
             font-size: 90%;
             min-height: auto;
-            line-height: normal;
         }
 
         #image-library-search-button {
             border-width: 1px 1px 1px 0;
             border-style: solid;
-            border-color: #eee;
+            border-color: var(--base-color-border);
             border-top-right-radius: 6px;
             border-bottom-right-radius: 6px;
             padding: 0 8px;
-            background-color: #eee;
+            background-color: var(--base-color);
 
             &:hover {
-                background-color: #ddd;
+                background-color: var(--base-color-dark);
             }
         }
     }
@@ -907,12 +906,12 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
         button {
             display: flex;
             cursor: pointer;
-            background-color: #eee;
+            background-color: var(--base-color);
             border-radius: 6px;
             padding: 2px;
 
             &:hover {
-                background-color: #ddd;
+                background-color: var(--base-color-dark);
             }
         }
     }
@@ -960,11 +959,11 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            color: #fff;
+            color: var(--base-color-light);
             box-shadow: 0 0 0 2px #fff;
             background-repeat: no-repeat;
             background-position: center;
-            background-color: #0060ce;
+            background-color: var(--primary-color);
         }
 
         .image-gallery-content-item-remove {
@@ -979,12 +978,12 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             align-items: center;
             justify-content: center;
             border-radius: 50%;
-            color: #fff;
-            box-shadow: 0 0 0 2px #fff;
+            color: var(--base-color-light);
+            box-shadow: var(--base-shadow);
             background-repeat: no-repeat;
             background-position: center;
             background-size: 50%;
-            background-color: #ce0000;
+            background-color: var(--danger-color);
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" style="fill:white"><path d="M170.5 51.6L151.5 80h145l-19-28.4c-1.5-2.2-4-3.6-6.7-3.6H177.1c-2.7 0-5.2 1.3-6.7 3.6zm147-26.6L354.2 80H368h48 8c13.3 0 24 10.7 24 24s-10.7 24-24 24h-8V432c0 44.2-35.8 80-80 80H112c-44.2 0-80-35.8-80-80V128H24c-13.3 0-24-10.7-24-24S10.7 80 24 80h8H80 93.8l36.7-55.1C140.9 9.4 158.4 0 177.1 0h93.7c18.7 0 36.2 9.4 46.6 24.9zM80 128V432c0 17.7 14.3 32 32 32H336c17.7 0 32-14.3 32-32V128H80zm80 64V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16zm80 0V400c0 8.8-7.2 16-16 16s-16-7.2-16-16V192c0-8.8 7.2-16 16-16s16 7.2 16 16z" /></svg>');
         }
 
@@ -1001,7 +1000,7 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             justify-content: center;
             border-radius: 50%;
             color: #fff;
-            box-shadow: 0 0 0 2px #fff;
+            box-shadow: var(--base-shadow);
             background-repeat: no-repeat;
             background-position: center;
             background-size: 50%;
@@ -1108,7 +1107,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
     justify-content: center;
     align-items: center;
     text-align: center;
-    line-height: 2rem;
 }
 
 @keyframes spin {

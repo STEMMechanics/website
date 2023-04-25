@@ -43,33 +43,20 @@ h4,
 h5,
 h6 {
     font-family: var(--header-font-family);
-    font-weight: 800;
-    margin-bottom: 0;
+    font-weight: var(--header-font-weight);
+    color: var(--header-color-text);
 }
 
-h1 {
-    font-size: 42px;
-}
-
-h2 {
-    font-size: 36px;
-}
-
-h3 {
-    font-size: 28px;
-}
-
-h4 {
-    font-size: 20px;
-}
-
-h5 {
-    font-size: 16px;
+@for $i from 1 through 6 {
+    h#{$i} {
+        font-size: var(--header-font-size-#{$i});
+        margin-bottom: #{calc(var(--header-font-size-#{$i}) / 2)};
+    }
 }
 
 a,
 a:visited {
-    color: var(--primary-color);
+    color: var(--link-color);
     text-decoration-thickness: 0.1em;
     text-decoration-color: var(--primary-color-light);
 
@@ -86,61 +73,28 @@ li,
 }
 
 p {
-    margin: 1rem 0;
+    margin: #{map-get($spacing, 5)} 0;
 }
 
 li {
-    margin-bottom: 16px;
+    margin-bottom: #{map-get($spacing, 1)};
 
     & + ul {
-        margin-top: -16px;
+        margin-top: -#{map-get($spacing, 1)};
     }
 }
 
-// Who knows why ion-icon randomally sets this to hidden.....
-// ion-icon {
-//     visibility: visible;
-// }
-
-// #app {
-//     display: flex;
-//     flex-direction: column;
-//     min-height: 100vh;
-// }
-
-// a,
-// a:visited {
-//     color: $primary-color;
-//     text-decoration: none;
-//     transition: color 0.1s, underline 0.1s;
-
-//     &:hover {
-//         color: $primary-color-dark;
-//         text-decoration: underline;
-//     }
-// }
-
-// h1 {
-//     text-align: left;
-//     font-weight: 800;
-// }
-
-// p {
-//     line-height: 1.5rem;
-//     margin-top: 0;
-// }
-
-// code {
-//     display: block;
-//     font-size: 0.8rem;
-//     background-color: #eee;
-//     padding: 1rem;
-//     border: 1px solid #ddd;
-//     white-space: pre-wrap;
-//     overflow-x: auto;
-//     max-height: 30rem;
-//     margin-bottom: 1rem;
-// }
+code {
+    display: block;
+    font-size: 80%;
+    background-color: var(--base-color);
+    padding: #{map-get($spacing, 3)};
+    border: 1px solid var(--base-color-border);
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: #{calc(map-get($spacing, 7) * 12)};
+    margin-bottom: #{map-get($spacing, 3)};
+}
 
 /* SM Dialog */
 .dialog-outer {
@@ -154,7 +108,7 @@ li {
     align-items: center;
     justify-content: center;
     z-index: 1000;
-    padding: 1rem;
+    padding: #{map-get($spacing, 2)};
 }
 
 .dialog-outer:last-of-type {

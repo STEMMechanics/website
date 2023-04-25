@@ -196,13 +196,14 @@ const handleClickItem = (item: string) => {
 <style lang="scss">
 .button {
     display: inline-block;
-    font-family: var(--header-font-family);
-    font-weight: 600;
+    font-family: var(--button-font-family);
+    font-weight: var(--button-font-weight);
     padding: 12px 32px 12px 32px;
     border: 0;
-    background-color: var(--base-color-light);
+    color: var(--button-color-text);
+    background-color: var(--button-color);
     text-decoration: none;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--base-shadow);
     text-align: center;
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -251,16 +252,16 @@ const handleClickItem = (item: string) => {
             margin: 0;
             padding: 0;
             background-color: inherit;
-            border-color: #999;
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+            border-color: var(--button-dropdown-color-border);
+            box-shadow: var(--base-shadow);
 
             li {
                 margin: 0;
                 padding: 16px 24px;
-                background-color: #fff;
+                background-color: var(--button-dropdown-color);
 
                 &:hover {
-                    background-color: var(--primary-color-hover);
+                    background-color: var(--button-dropdown-color-hover);
                 }
             }
         }
@@ -280,7 +281,8 @@ const handleClickItem = (item: string) => {
 
     &:disabled,
     &.primary:disabled {
-        background-color: var(--base-color-dark) !important;
+        color: var(--button-disabled-color-text) !important;
+        background-color: var(--button-disabled-color) !important;
         box-shadow: none;
     }
 
@@ -296,24 +298,19 @@ const handleClickItem = (item: string) => {
         font-weight: 600;
     }
 
-    &.light {
-        background-color: #eee;
-        // color: #095589;
-        color: #333;
-    }
-
     &.primary {
-        background-color: var(--primary-color);
-        color: var(--base-color);
+        background-color: var(--button-primary-color);
+        color: var(--button-primary-color-text);
     }
 
     &.secondary {
-        background-color: #ccc;
+        background-color: var(--button-secondary-color);
+        color: var(--button-secondary-color-text);
     }
 
     &.danger {
-        background-color: var(--danger-color-light);
-        color: var(--base-color);
+        background-color: var(--button-danger-color);
+        color: var(--button-danger-color-text);
     }
 }
 

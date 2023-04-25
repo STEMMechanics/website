@@ -1,95 +1,98 @@
 <template>
-    <SMMastHead title="Workshops" />
-    <SMContainer class="flex-grow-1">
-        <SMToolbar class="align-items-start">
-            <SMInput
-                v-model="filterKeywords"
-                label="Keywords"
-                @blur="handleFilter"
-                @keyup.enter="handleFilter" />
-            <SMInput
-                v-model="filterLocation"
-                label="Location"
-                @blur="handleFilter"
-                @keyup.enter="handleFilter" />
-            <SMInput
-                v-model="filterDateRange"
-                type="daterange"
-                label="Date Range"
-                :feedback-invalid="dateRangeError"
-                @blur="handleFilter"
-                @keyup.enter="handleFilter" />
-        </SMToolbar>
-        <SMPagination
-            v-if="postsTotal > postsPerPage"
-            v-model="postsPage"
-            :total="postsTotal"
-            :per-page="postsPerPage" />
-        <SMMessage
-            v-if="formMessage"
-            icon="alert-circle-outline"
-            type="error"
-            :message="formMessage"
-            class="mt-5" />
-
-        <SMLoading v-if="pageLoading" large />
-        <SMNoItems v-else-if="events.length == 0" text="No Workshops Found" />
-        <div v-else class="events">
-            <router-link
-                class="event-card"
-                v-for="event in events"
-                :key="event.id"
-                :to="{ name: 'event', params: { id: event.id } }">
-                <div
-                    class="thumbnail"
-                    :style="{
-                        backgroundImage: `url('${mediaGetVariantUrl(
-                            event.hero,
-                            'medium'
-                        )}')`,
-                    }">
-                    <div :class="['banner', event['bannerType']]">
-                        {{ event["banner"] }}
-                    </div>
-                    <div class="date">
-                        <div class="day">
-                            {{ formatDateDay(event.start_at) }}
+    <SMPage :error="pageError">
+        <SMMastHead title="Workshops" />
+        <SMContainer class="flex-grow-1">
+            <SMToolbar class="align-items-start">
+                <SMInput
+                    v-model="filterKeywords"
+                    label="Keywords"
+                    @blur="handleFilter"
+                    @keyup.enter="handleFilter" />
+                <SMInput
+                    v-model="filterLocation"
+                    label="Location"
+                    @blur="handleFilter"
+                    @keyup.enter="handleFilter" />
+                <SMInput
+                    v-model="filterDateRange"
+                    type="daterange"
+                    label="Date Range"
+                    :feedback-invalid="dateRangeError"
+                    @blur="handleFilter"
+                    @keyup.enter="handleFilter" />
+            </SMToolbar>
+            <SMPagination
+                v-if="postsTotal > postsPerPage"
+                v-model="postsPage"
+                :total="postsTotal"
+                :per-page="postsPerPage" />
+            <SMLoading v-if="pageLoading" large />
+            <SMNoItems
+                v-else-if="events.length == 0"
+                text="No Workshops Found" />
+            <div v-else class="events">
+                <router-link
+                    class="event-card"
+                    v-for="event in events"
+                    :key="event.id"
+                    :to="{ name: 'event', params: { id: event.id } }">
+                    <div
+                        class="thumbnail"
+                        :style="{
+                            backgroundImage: `url('${mediaGetVariantUrl(
+                                event.hero,
+                                'medium'
+                            )}')`,
+                        }">
+                        <div :class="['banner', event['bannerType']]">
+                            {{ event["banner"] }}
                         </div>
-                        <div class="month">
-                            {{ formatDateMonth(event.start_at) }}
+                        <div class="date">
+                            <div class="day">
+                                {{ formatDateDay(event.start_at) }}
+                            </div>
+                            <div class="month">
+                                {{ formatDateMonth(event.start_at) }}
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="content">
-                    <h3 class="title">{{ event.title }}</h3>
-                    <SMRow class="date" no-responsive>
-                        <ion-icon name="calendar-outline" class="icon" />
-                        <div class="text">{{ computedDate(event) }}</div>
-                    </SMRow>
-                    <SMRow class="location" no-responsive>
-                        <ion-icon name="location-outline" class="icon" />
-                        <div class="text">{{ computedLocation(event) }}</div>
-                    </SMRow>
-                    <SMRow class="ages" no-responsive>
-                        <ion-icon name="body-outline" class="icon" />
-                        <div class="text">{{ computedAges(event.ages) }}</div>
-                    </SMRow>
-                    <SMRow class="price" no-responsive>
-                        <div class="icon">$</div>
-                        <div class="text">{{ computedPrice(event.price) }}</div>
-                    </SMRow>
-                </div>
-            </router-link>
-        </div>
-    </SMContainer>
+                    <div class="content">
+                        <h3 class="title">{{ event.title }}</h3>
+                        <SMRow class="date" no-responsive>
+                            <ion-icon name="calendar-outline" class="icon" />
+                            <div class="text">{{ computedDate(event) }}</div>
+                        </SMRow>
+                        <SMRow class="location" no-responsive>
+                            <ion-icon name="location-outline" class="icon" />
+                            <div class="text">
+                                {{ computedLocation(event) }}
+                            </div>
+                        </SMRow>
+                        <SMRow class="ages" no-responsive>
+                            <ion-icon name="body-outline" class="icon" />
+                            <div class="text">
+                                {{ computedAges(event.ages) }}
+                            </div>
+                        </SMRow>
+                        <SMRow class="price" no-responsive>
+                            <div class="icon">$</div>
+                            <div class="text">
+                                {{ computedPrice(event.price) }}
+                            </div>
+                        </SMRow>
+                    </div>
+                </router-link>
+            </div>
+        </SMContainer>
+    </SMPage>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref, watch } from "vue";
 import SMInput from "../components/SMInput.vue";
-import SMMessage from "../components/SMMessage.vue";
 import SMPagination from "../components/SMPagination.vue";
 import SMToolbar from "../components/SMToolbar.vue";
+import SMPage from "../components/SMPage.vue";
 import { api } from "../helpers/api";
 import { Event, EventCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
@@ -103,8 +106,6 @@ const pageLoading = ref(true);
 let events: Event[] = reactive([]);
 const dateRangeError = ref("");
 
-const formMessage = ref("123");
-
 const filterKeywords = ref("");
 const filterLocation = ref("");
 const filterDateRange = ref("");
@@ -112,6 +113,7 @@ const filterDateRange = ref("");
 const postsPerPage = 24;
 let postsPage = ref(1);
 let postsTotal = ref(0);
+const pageError = ref(0);
 
 /**
  * Load page data.
@@ -170,7 +172,6 @@ const handleLoad = async () => {
         }
 
         pageLoading.value = true;
-        formMessage.value = "";
         events = [];
 
         if (query["filter"].length > 0) {
@@ -248,11 +249,7 @@ const handleLoad = async () => {
             });
         }
     } catch (error) {
-        if (error.status != 404) {
-            formMessage.value =
-                error.response?.data?.message ||
-                "Could not load any events from the server.";
-        }
+        pageError.value = error.status;
     } finally {
         pageLoading.value = false;
     }

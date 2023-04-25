@@ -143,10 +143,8 @@ handleLoad();
     label {
         position: relative;
         display: block;
-        padding: map-get($spacer, 2) map-get($spacer, 3) map-get($spacer, 0)
-            map-get($spacer, 3);
-        line-height: 1.5;
-        color: $secondary-color-dark;
+        padding: 8px 16px 0 16px;
+        color: var(--base-color);
     }
 
     a.button {
@@ -156,24 +154,24 @@ handleLoad();
     ul {
         list-style-type: none;
         padding: 0;
-        border: 1px solid $border-color;
+        border: 1px solid var(--base-color-border);
 
         li {
-            background-color: #fff;
+            background-color: var(--base-color-light);
             display: flex;
             align-items: center;
-            padding: map-get($spacer, 2);
+            padding: 16px;
 
             &.attachments-none {
                 justify-content: center;
 
                 ion-icon {
-                    font-size: 1.5rem;
+                    font-size: 115%;
                 }
 
                 p {
                     margin: 0;
-                    padding-left: 0.5rem;
+                    padding-left: #{map-get($spacing, 2)};
                 }
             }
 
@@ -189,19 +187,19 @@ handleLoad();
 
             .attachment-media-size {
                 font-size: 75%;
-                padding-left: 0.75rem;
-                color: $secondary-color-dark;
+                padding-left: #{map-get($spacing, 2)};
+                color: var(--base-color-dark);
             }
 
             .attachment-media-remove {
-                font-size: 1.5rem;
-                padding-top: 0.2rem;
-                margin-left: 1rem;
-                color: $font-color;
+                font-size: 115%;
+                padding-top: #{map-get($spacing, 1)};
+                margin-left: #{map-get($spacing, 3)};
+                color: var(--base-color-text);
                 cursor: pointer;
 
                 &:hover {
-                    color: $danger-color;
+                    color: var(--danger-color);
                 }
             }
         }

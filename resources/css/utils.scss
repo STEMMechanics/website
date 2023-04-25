@@ -15,17 +15,17 @@
     display: none;
 }
 
-// @media (prefers-color-scheme: dark) {
-//     .dark\:d-none {
-//         display: none !important;
-//     }
-// }
-
-// @media (prefers-color-scheme: light) {
-.light\:d-none {
-    display: none !important;
+@media (prefers-color-scheme: dark) {
+    .dark\:d-none {
+        display: none !important;
+    }
 }
-// }
+
+@media (prefers-color-scheme: light) {
+    .light\:d-none {
+        display: none !important;
+    }
+}
 
 /* Width */
 .w-100 {
@@ -134,7 +134,7 @@
 }
 
 /* Padding */
-@each $index, $size in $spacer {
+@each $index, $size in $spacing {
     .p-#{$index} {
         padding: #{$size} !important;
     }
@@ -167,7 +167,7 @@
 }
 
 /* Margin */
-@each $index, $size in $spacer {
+@each $index, $size in $spacing {
     .m-#{$index} {
         margin: #{$size} !important;
     }
@@ -258,7 +258,6 @@
 small,
 .small {
     font-size: 70%;
-    line-height: 150%;
 }
 
 .italic {

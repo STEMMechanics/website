@@ -349,7 +349,7 @@ const hideNextArrow = computed(() => {
     display: block;
     justify-content: center;
     align-items: center;
-    font-size: 30px;
+    font-size: 150%;
     font-weight: bold;
     color: white;
     cursor: pointer;

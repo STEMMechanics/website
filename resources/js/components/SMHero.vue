@@ -133,16 +133,16 @@ handleLoad();
             font-size: 300%;
             margin-bottom: 20px;
             max-width: 550px;
-            color: #fff;
+            color: var(--hero-color-text);
             text-align: left;
-            text-shadow: 0 0 8px #000;
+            text-shadow: var(--hero-shadow);
         }
 
         p {
             max-width: 550px;
-            color: #fff;
+            color: var(--hero-color-text);
             text-align: left;
-            text-shadow: 0 0 8px #000;
+            text-shadow: var(--hero-shadow);
         }
     }
 
@@ -150,10 +150,10 @@ handleLoad();
         position: absolute;
         bottom: 14px;
         right: 30px;
-        color: #ccc;
+        color: var(--hero-caption-color-text);
         font-size: 80%;
         padding: 6px 12px;
-        background-color: rgba(0, 0, 0, 0.5);
+        background-color: var(--hero-caption-color);
 
         a {
             color: inherit;
@@ -162,7 +162,7 @@ handleLoad();
 
             &:hover {
                 text-decoration: none;
-                color: #eee;
+                color: var(--hero-caption-color-link);
             }
         }
     }

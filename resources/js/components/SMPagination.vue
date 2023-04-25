@@ -169,9 +169,9 @@ if (props.modelValue < 1 || totalPages < 1) {
     .item {
         display: flex;
         cursor: pointer;
-        background-color: var(--base-color-light);
+        background-color: var(--pagination-color);
         padding: 12px 16px;
-        border-right: 1px solid rgba(0, 0, 0, 0.1);
+        // border-right: 1px solid rgba(0, 0, 0, 0.1);
 
         &.page {
             width: 44px;
@@ -179,7 +179,7 @@ if (props.modelValue < 1 || totalPages < 1) {
         }
 
         &.active {
-            background-color: var(--primary-color);
+            background-color: var(--pagination-color-active);
         }
 
         &:first-of-type {
@@ -199,13 +199,13 @@ if (props.modelValue < 1 || totalPages < 1) {
         }
 
         &:hover:not(.active):not(.disabled) {
-            background-color: var(--primary-color-hover);
+            background-color: var(--pagination-color-hover);
         }
 
         &.disabled {
             cursor: not-allowed;
-            color: var(--base-color-darker);
-            background-color: var(--base-color);
+            color: var(--pagination-color-disabled-text);
+            background-color: var(--pagination-color-disabled);
         }
     }
 }
@@ -226,10 +226,4 @@ if (props.modelValue < 1 || totalPages < 1) {
         }
     }
 }
-
-// @media (prefers-color-scheme: dark) {
-//     .pagination .item.active {
-//         background-color: var(--primary-color-light);
-//     }
-// }
 </style>

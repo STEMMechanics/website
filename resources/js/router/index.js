@@ -6,6 +6,11 @@ import { updateSEOTags } from "../helpers/seo";
 
 export const routes = [
     {
+        path: "/elements",
+        name: "elements",
+        component: () => import("@/views/Elements.vue"),
+    },
+    {
         path: "/",
         name: "home",
         meta: {

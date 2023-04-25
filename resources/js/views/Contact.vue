@@ -55,7 +55,6 @@ import SMHeader from "../components/SMHeader.vue";
 .container-text {
     max-width: 800px;
     margin: 0 auto;
-    line-height: 1.4em;
 
     h3 {
         margin-top: 60px;

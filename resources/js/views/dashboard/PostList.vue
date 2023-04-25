@@ -1,7 +1,6 @@
 <template>
-    <SMPage permission="admin/posts" class="page-post-list">
+    <SMPage permission="admin/posts" :page-error="pageError">
         <template #container>
-            <SMMessage v-if="formMessage" type="error" :message="formMessage" />
             <SMToolbar>
                 <template #left>
                     <SMButton
@@ -63,7 +62,6 @@ import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
-import SMMessage from "../../components/SMMessage.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
 import { PostCollection, PostResponse } from "../../helpers/api.types";
@@ -83,7 +81,7 @@ const headers = [
 ];
 
 const items = ref([]);
-const formMessage = ref("");
+const pageError = ref(0);
 
 const formLoading = ref(false);
 const serverItemsLength = ref(0);
@@ -165,7 +163,7 @@ const loadFromServer = async () => {
 
         serverItemsLength.value = data.total;
     } catch (error) {
-        formMessage.value = error.data.message || "An unknown error occurred";
+        pageError.value = error.status;
     } finally {
         formLoading.value = false;
     }
@@ -302,8 +300,4 @@ const handleDelete = async (item) => {
 };
 </script>
 
-<style lang="scss">
-.page-post-list {
-    background-color: #f8f8f8;
-}
-</style>
+<style lang="scss"></style>

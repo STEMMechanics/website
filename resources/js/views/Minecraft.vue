@@ -106,10 +106,10 @@ const downloads = [
 <style lang="scss">
 .page-minecraft {
     h3 {
-        margin-bottom: 0.5rem;
+        margin-bottom: #{map-get($spacing, 2)};
     }
     li {
-        margin-bottom: 0.5rem;
+        margin-bottom: #{map-get($spacing, 2)};
     }
 }
 </style>

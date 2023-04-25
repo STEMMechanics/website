@@ -150,7 +150,8 @@ handleLoad();
 
         .article-card {
             text-decoration: none;
-            color: var(--base-color-text);
+            color: var(--card-color-text);
+            margin-bottom: 48px;
 
             &:hover {
                 filter: none;
@@ -165,7 +166,7 @@ handleLoad();
                 border-radius: 7px;
                 background-position: center;
                 background-size: cover;
-                background-color: var(--card-background-color);
+                background-color: var(--card-color);
                 box-shadow: var(--base-shadow);
                 margin-bottom: 24px;
             }

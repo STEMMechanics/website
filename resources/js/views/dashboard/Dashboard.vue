@@ -98,7 +98,7 @@ const courseBoxTitle = computed(() => {
             padding: 32px;
 
             ion-icon {
-                font-size: 64px;
+                font-size: 350%;
             }
 
             img {

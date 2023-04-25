@@ -8,9 +8,8 @@
 
 <style lang="scss">
 .captcha-notice {
-    color: $secondary-color;
+    color: var(base-color-text);
     font-size: 65%;
-    line-height: 1.2rem;
-    margin-bottom: map-get($spacer, 4);
+    margin-bottom: 16px;
 }
 </style>

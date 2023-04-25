@@ -494,20 +494,20 @@ const handleMediaSelect = async () => {
                 right: 10px;
                 top: 14px;
                 color: var(--danger-color);
-                font-size: 28px;
+                font-size: 150%;
             }
 
             .clear-icon {
                 position: absolute;
                 right: 12px;
                 top: 18px;
-                background-color: #ccc;
+                background-color: var(--input-clear-icon-color);
                 border-radius: 50%;
                 font-size: 80%;
                 padding: 1px 1px 1px 0px;
 
                 &:hover {
-                    color: #fff;
+                    color: var(--input-clear-icon-color-hover);
                 }
             }
 

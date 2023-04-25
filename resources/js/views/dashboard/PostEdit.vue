@@ -325,8 +325,4 @@ loadOptionsAuthors();
 loadData();
 </script>
 
-<style lang="scss">
-.page-post-edit {
-    background-color: #f8f8f8;
-}
-</style>
+<style lang="scss"></style>

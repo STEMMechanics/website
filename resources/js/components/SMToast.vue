@@ -104,7 +104,6 @@ onMounted(() => {
 
     p {
         margin-bottom: 0;
-        line-height: 1rem;
         word-wrap: break-word;
     }
 

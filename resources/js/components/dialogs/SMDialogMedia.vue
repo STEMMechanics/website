@@ -497,8 +497,8 @@ handleLoad();
         .media-browser-content {
             display: flex;
             height: 40vh;
-            border: 1px solid $border-color;
-            background-color: #fff;
+            border: 1px solid var(--base-color-border);
+            background-color: var(--base-color-light);
             justify-content: center;
             align-items: center;
             margin: 0 0 16px 0;
@@ -533,7 +533,7 @@ handleLoad();
 
                     &.selected,
                     &:hover {
-                        border-color: $primary-color-dark;
+                        border-color: var(--primary-color);
                     }
 
                     .media-image {

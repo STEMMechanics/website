@@ -2,8 +2,7 @@
     <SMPage :loading="formLoading" permission="logs/discord">
         <template #container>
             <h1>Discord Bot Logs</h1>
-            <SMMessage v-if="message" type="error" :message="message" />
-            <SMTabGroup v-if="!message">
+            <SMTabGroup>
                 <SMTab label="Output">
                     <code v-if="logOutputContent.length > 0">{{
                         logOutputContent
@@ -15,7 +14,7 @@
                     }}</code>
                 </SMTab>
             </SMTabGroup>
-            <SMButton v-if="!message" label="Reload Logs" @click="loadData" />
+            <SMButton label="Reload Logs" @click="loadData" />
         </template>
     </SMPage>
 </template>
@@ -23,20 +22,17 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import SMButton from "../../components/SMButton.vue";
-import SMMessage from "../../components/SMMessage.vue";
 import SMTab from "../../components/SMTab.vue";
 import SMTabGroup from "../../components/SMTabGroup.vue";
 import { api } from "../../helpers/api";
 import { LogsDiscordResponse } from "../../helpers/api.types";
+import { useToastStore } from "../../store/ToastStore";
 
 let formLoading = ref(false);
 let logOutputContent = ref("");
 let logErrorContent = ref("");
-let message = ref("");
 
 const loadData = async () => {
-    message.value = "";
-
     try {
         formLoading.value = true;
         const result = await api.get({ url: "/logs/discord" });
@@ -54,7 +50,11 @@ const loadData = async () => {
             }
         }
     } catch (error) {
-        message.value = "Could not load logs from server";
+        useToastStore().addToast({
+            title: "Server Error",
+            content: "Could not load logs from server",
+            type: "danger",
+        });
     } finally {
         formLoading.value = false;
     }
