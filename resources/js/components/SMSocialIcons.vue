@@ -45,9 +45,17 @@
     display: flex;
     font-size: 200%;
     justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
 
     li {
-        margin: 0 16px;
+        margin: 0 !important;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .social-icons {
+        gap: 16px;
     }
 }
 </style>
