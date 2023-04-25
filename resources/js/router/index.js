@@ -324,7 +324,7 @@ export const routes = [
                             import("@/views/dashboard/MediaEdit.vue"),
                     },
                     {
-                        path: "edit/:id",
+                        path: ":id",
                         name: "dashboard-media-edit",
                         meta: {
                             title: "Edit Media",

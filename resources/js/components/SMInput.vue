@@ -572,7 +572,7 @@ const handleMediaSelect = async () => {
                 border-style: solid;
                 border-color: var(--base-color-darker);
                 border-radius: 0 8px 8px 0;
-                padding: 15px 30px;
+                padding: 16px 30px;
                 width: auto;
             }
 

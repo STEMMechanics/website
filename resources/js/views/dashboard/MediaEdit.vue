@@ -11,11 +11,9 @@
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <SMRow>
+                <SMRow v-if="route.params.id">
                     <SMColumn class="media-container">
-                        <!-- <div class="media-container"> -->
                         <SMImage :src="imageUrl" />
-                        <!-- </div> -->
                     </SMColumn>
                 </SMRow>
                 <SMRow>
@@ -79,7 +77,7 @@
                     <template #left>
                         <SMButton
                             :form="form"
-                            v-if="route.params.id !== 'create'"
+                            v-if="route.params.id"
                             type="danger"
                             label="Delete"
                             @click="handleDelete" />
@@ -91,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
@@ -116,8 +114,7 @@ const router = useRouter();
 
 const pageError = ref(200);
 const pageLoading = ref(true);
-const pageHeading =
-    route.params.id !== "create" ? "Edit Media" : "Upload Media";
+const pageHeading = route.params.id ? "Edit Media" : "Upload Media";
 
 const form = reactive(
     Form({
@@ -141,7 +138,7 @@ const fileData = reactive({
 const imageUrl = ref("");
 
 const handleLoad = async () => {
-    if (route.params.id !== "create") {
+    if (route.params.id) {
         try {
             let result = await api.get({
                 url: "/media/{id}",
@@ -196,7 +193,7 @@ const handleSubmit = async () => {
             form.controls.description.value as string
         );
 
-        if (route.params.id !== "create") {
+        if (route.params.id) {
             await api.put({
                 url: "/media/{id}",
                 params: {
@@ -222,10 +219,7 @@ const handleSubmit = async () => {
         }
 
         useToastStore().addToast({
-            title:
-                route.params.id !== "create"
-                    ? "Media Updated"
-                    : "Media Created",
+            title: route.params.id ? "Media Updated" : "Media Created",
             content: route.params.id
                 ? "The media item has been updated."
                 : "The media item been created.",

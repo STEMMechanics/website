@@ -45,6 +45,7 @@ const imgError = ref(false);
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        margin: 0 auto;
 
         ion-icon {
             font-size: 300%;
