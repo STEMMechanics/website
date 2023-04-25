@@ -89,7 +89,8 @@ const handleLoad = async () => {
                 200
             );
             heroImageUrl.value = mediaGetVariantUrl(
-                postsData.posts[randomIndex].hero
+                postsData.posts[randomIndex].hero,
+                "large"
             );
             heroImageTitle = postsData.posts[randomIndex].hero.title;
             heroSlug.value = postsData.posts[randomIndex].slug;
