@@ -222,7 +222,6 @@ const hidePrevArrow = computed(() => {
 const hideNextArrow = computed(() => {
     return false;
     // const sum = slideWidths.value.reduce((acc, curr) => acc + curr, 0);
-    // console.log(sum, sliderWidth.value, sliderOffset.value);
     // return sliderWidth.value + sliderOffset.value >= sum;
 });
 </script>

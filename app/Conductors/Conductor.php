@@ -688,10 +688,7 @@ class Conductor
             return $index;
         };
 
-        Log::info(print_r($tokens, true));
         $parseTokens($tokens, 0, 0);
-
-        // Log::info($this->query->toSql());
     }
 
     /**

@@ -46,7 +46,6 @@ let form = reactive(
 //             formData.content.value = res.data.content;
 //         }
 //     } catch (err) {
-//         console.log(err);
 //         formMessage.icon = "";
 //         formMessage.type = "error";
 //         formMessage.message = "";
