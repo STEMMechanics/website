@@ -160,6 +160,7 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
         .footer-text {
             align-items: center;
             text-align: center;
+            padding: 0 8px;
         }
 
         .footer-links {
@@ -192,9 +193,14 @@ import SMSocialIcons from "../components/SMSocialIcons.vue";
 }
 
 @media only screen and (max-width: 400px) {
-    .footer ul li {
-        margin-left: 0.5rem;
-        margin-right: 0.5rem;
+    .footer-links ul {
+        flex-direction: column;
+        margin-top: 0;
+
+        li {
+            margin-top: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
     }
 }
 </style>
