@@ -2,7 +2,9 @@
     <SMHeader
         v-if="props.attachments && props.attachments.length > 0"
         text="Files" />
-    <table class="attachment-list">
+    <table
+        v-if="props.attachments && props.attachments.length > 0"
+        class="attachment-list">
         <tbody>
             <tr
                 v-for="file of props.attachments"
