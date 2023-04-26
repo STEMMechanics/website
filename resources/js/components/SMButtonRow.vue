@@ -17,7 +17,7 @@ const slots = useSlots();
 </script>
 
 <style lang="scss">
-.button-row {
+.row.button-row {
     flex-direction: row-reverse;
     padding: 0 16px;
 
