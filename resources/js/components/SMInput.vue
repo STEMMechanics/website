@@ -8,12 +8,17 @@
         <div class="control-item">
             <template v-if="props.type == 'checkbox'">
                 <label
-                    class="control-label control-label-checkbox"
+                    :class="[
+                        'control-label',
+                        'control-label-checkbox',
+                        { disabled: disabled },
+                    ]"
                     v-bind="{ for: id }"
                     ><input
                         :id="id"
                         type="checkbox"
                         class="checkbox-control"
+                        :disabled="disabled"
                         :value="value"
                         @input="handleCheckbox" />
                     <span class="checkbox-control-box">
@@ -31,6 +36,7 @@
                     :id="id"
                     type="range"
                     class="range-control"
+                    :disabled="disabled"
                     v-bind="{
                         min: props.min,
                         max: props.max,
@@ -49,7 +55,10 @@
                 <ion-icon
                     class="select-dropdown-icon"
                     name="caret-down-outline" />
-                <select class="select-input-control" @input="handleInput">
+                <select
+                    class="select-input-control"
+                    :disabled="disabled"
+                    @input="handleInput">
                     <option
                         v-for="option in Object.entries(props.options)"
                         :key="option[0]"
@@ -76,12 +85,18 @@
                         type="file"
                         class="file-input-control"
                         :accept="props.accept"
+                        :disabled="disabled"
                         @change="handleChange" />
                     <div class="file-input-control-value">
                         {{ value?.name ? value.name : value }}
                     </div>
                     <label
-                        class="button primary file-input-control-button"
+                        :class="[
+                            'button',
+                            'primary',
+                            'file-input-control-button',
+                            { disabled: disabled },
+                        ]"
                         :for="id"
                         >Select file</label
                     >
@@ -110,6 +125,7 @@
                         <ion-icon v-else name="image-outline" />
                         <SMButton
                             size="small"
+                            :disabled="disabled"
                             @click="handleMediaSelect"
                             label="Select File" />
                     </div>
@@ -608,6 +624,15 @@ const handleMediaSelect = async () => {
                 pointer-events: all;
                 transform: none;
                 color: var(--base-color-text);
+
+                &.disabled {
+                    color: var(--base-color-darker);
+                    cursor: not-allowed;
+
+                    .checkbox-control-box {
+                        background-color: var(--base-color);
+                    }
+                }
             }
 
             .checkbox-control {
