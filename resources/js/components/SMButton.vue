@@ -267,20 +267,22 @@ const handleClickItem = (item: string) => {
         }
     }
 
-    &:hover:not(:disabled) {
+    &:hover:not(:disabled):not(.disabled) {
         cursor: pointer;
     }
 
-    &:hover:not(:disabled):not(.button-dropdown) {
+    &:hover:not(:disabled):not(.disabled):not(.button-dropdown) {
         filter: brightness(115%);
     }
 
-    &:hover:disabled {
+    &:hover:disabled,
+    &.disabled:hover {
         cursor: not-allowed;
     }
 
-    &:disabled,
-    &.primary:disabled {
+    &.disabled &:disabled,
+    &.primary:disabled,
+    &.primary.disabled {
         color: var(--button-disabled-color-text) !important;
         background-color: var(--button-disabled-color) !important;
         box-shadow: none;
