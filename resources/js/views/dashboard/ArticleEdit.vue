@@ -170,8 +170,7 @@ const loadData = async () => {
                       }).format("dd/MM/yyyy HH:mm")
                     : "";
                 form.controls.content.value = data.article.content;
-                form.controls.hero.value = data.article.hero.id;
-                console.log(form.controls.hero.value);
+                form.controls.hero.value = data.article.hero;
 
                 attachments.value = (data.article.attachments || []).map(
                     function (attachment) {
