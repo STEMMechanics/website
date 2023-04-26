@@ -4,6 +4,7 @@
             :title="pageHeading"
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
+        <SMLoading v-if="progressText" overlay :text="progressText" />
         <SMContainer class="flex-grow-1">
             <SMLoading v-if="pageLoading" large />
             <SMForm
@@ -115,6 +116,7 @@ const router = useRouter();
 const pageError = ref(200);
 const pageLoading = ref(true);
 const pageHeading = route.params.id ? "Edit Media" : "Upload Media";
+const progressText = ref("");
 
 const form = reactive(
     Form({
@@ -158,9 +160,7 @@ const handleLoad = async () => {
             fileData.size = data.medium.size;
             fileData.storage = data.medium.storage;
             fileData.status =
-                data.medium.status == ""
-                    ? "OK"
-                    : toTitleCase(data.medium.status);
+                data.medium.status == "" ? "OK" : data.medium.status;
 
             fileData.dimensions = data.medium.dimensions;
 
@@ -203,6 +203,10 @@ const handleSubmit = async () => {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
+                progress: (progressEvent) =>
+                    (progressText.value = `Uploading File: ${Math.floor(
+                        (progressEvent.loaded / progressEvent.total) * 100
+                    )}%`),
             });
         } else {
             await api.post({
@@ -211,10 +215,10 @@ const handleSubmit = async () => {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 },
-                // progress: (progressEvent) =>
-                //     (formLoadingMessage.value = `Uploading Files ${Math.floor(
-                //         (progressEvent.loaded / progressEvent.total) * 100
-                //     )}%`),
+                progress: (progressEvent) =>
+                    (progressText.value = `Uploading File: ${Math.floor(
+                        (progressEvent.loaded / progressEvent.total) * 100
+                    )}%`),
             });
         }
 
@@ -228,12 +232,14 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-media-list" });
     } catch (error) {
+        console.log(error);
         useToastStore().addToast({
             title: "Server error",
             content: "An error occurred saving the media.",
             type: "danger",
         });
     } finally {
+        progressText.value = "";
         form.loading(false);
     }
 };
