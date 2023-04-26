@@ -53,7 +53,8 @@
                     <option
                         v-for="option in Object.entries(props.options)"
                         :key="option[0]"
-                        :value="option[0]">
+                        :value="option[0]"
+                        :selected="option[0] == value">
                         {{ option[1] }}
                     </option>
                 </select>
