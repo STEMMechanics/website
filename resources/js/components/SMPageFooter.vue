@@ -10,13 +10,13 @@
                 <router-link to="/" class="logo-link">
                     <img
                         class="dark:d-none"
-                        src="/assets/logo.png"
+                        src="/assets/logo.webp"
                         width="270"
                         height="40"
                         alt="STEMMechanics" />
                     <img
                         class="light:d-none"
-                        src="/assets/logo-dark.png"
+                        src="/assets/logo-dark.webp"
                         width="270"
                         height="40"
                         alt="STEMMechanics" />
