@@ -730,4 +730,18 @@ const handleMediaSelect = async () => {
         }
     }
 }
+
+@media (prefers-color-scheme: dark) {
+    .control-group.control-type-input {
+        .control-row {
+            .control-item {
+                .input-control {
+                    &:disabled {
+                        background-color: hsl(0, 0%, 8%);
+                    }
+                }
+            }
+        }
+    }
+}
 </style>
