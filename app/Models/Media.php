@@ -304,7 +304,7 @@ class Media extends Model
         $this->status = 'Processing media';
         $this->save();
 
-        $temporaryFilePath = tempnam(sys_get_temp_dir(), 'upload');
+        $temporaryFilePath = generateTempFilePath();
         copy($file->path(), $temporaryFilePath);
 
         try {
