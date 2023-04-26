@@ -1,8 +1,8 @@
 <template>
     <SMPage
-        class="page-post-edit"
+        class="page-article-edit"
         :page-error="pageError"
-        permission="admin/posts">
+        permission="admin/articles">
         <template #container>
             <h1>{{ page_title }}</h1>
             <SMForm
@@ -74,7 +74,7 @@ import SMButtonRow from "../../components/SMButtonRow.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import { api } from "../../helpers/api";
-import { PostResponse, UserCollection } from "../../helpers/api.types";
+import { ArticleResponse, UserCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { Form, FormControl } from "../../helpers/form";
 import { And, DateTime, Min, Required } from "../../helpers/validate";
@@ -84,7 +84,7 @@ import { useUserStore } from "../../store/UserStore";
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const page_title = route.params.id ? "Edit Post" : "Create New Post";
+const page_title = route.params.id ? "Edit Article" : "Create New Article";
 let pageError = ref(200);
 const authors = ref({});
 const attachments = ref([]);
@@ -122,7 +122,7 @@ const updateSlug = async () => {
                 }
 
                 await api.get({
-                    url: "/posts",
+                    url: "/articles",
                     params: {
                         slug: slug,
                     },
@@ -149,33 +149,33 @@ const loadData = async () => {
         if (route.params.id) {
             form.loading(true);
             let result = await api.get({
-                url: "/posts/{id}",
+                url: "/articles/{id}",
                 params: {
                     id: route.params.id,
                 },
             });
 
-            const data = result.data as PostResponse;
+            const data = result.data as ArticleResponse;
 
-            if (data && data.post) {
-                form.controls.title.value = data.post.title;
-                form.controls.slug.value = data.post.slug;
-                form.controls.user_id.value = data.post.user.id;
-                form.controls.content.value = data.post.content;
-                form.controls.publish_at.value = data.post.publish_at
-                    ? new SMDate(data.post.publish_at, {
+            if (data && data.article) {
+                form.controls.title.value = data.article.title;
+                form.controls.slug.value = data.article.slug;
+                form.controls.user_id.value = data.article.user.id;
+                form.controls.content.value = data.article.content;
+                form.controls.publish_at.value = data.article.publish_at
+                    ? new SMDate(data.article.publish_at, {
                           format: "yMd",
                           utc: true,
                       }).format("dd/MM/yyyy HH:mm")
                     : "";
-                form.controls.content.value = data.post.content;
-                form.controls.hero.value = data.post.hero.id;
+                form.controls.content.value = data.article.content;
+                form.controls.hero.value = data.article.hero.id;
 
-                attachments.value = (data.post.attachments || []).map(function (
-                    attachment
-                ) {
-                    return attachment.id.toString();
-                });
+                attachments.value = (data.article.attachments || []).map(
+                    function (attachment) {
+                        return attachment.id.toString();
+                    }
+                );
             } else {
                 pageError.value = 404;
             }
@@ -201,12 +201,12 @@ const handleSubmit = async () => {
             hero: form.controls.hero.value,
         };
 
-        let post_id = "";
+        let article_id = "";
 
         if (route.params.id) {
-            post_id = route.params.id as string;
+            article_id = route.params.id as string;
             await api.put({
-                url: `/posts/{id}`,
+                url: `/articles/{id}`,
                 params: {
                     id: route.params.id,
                 },
@@ -214,32 +214,32 @@ const handleSubmit = async () => {
             });
         } else {
             let result = await api.post({
-                url: "/posts",
+                url: "/articles",
                 body: data,
             });
 
             if (result.data) {
-                const data = result.data as PostResponse;
-                post_id = data.post.id;
+                const data = result.data as ArticleResponse;
+                article_id = data.article.id;
             }
         }
 
         await api.put({
-            url: `/posts/${post_id}/attachments`,
+            url: `/articles/${article_id}/attachments`,
             body: {
                 attachments: attachments.value,
             },
         });
 
         useToastStore().addToast({
-            title: route.params.id ? "Post Updated" : "Post Created",
+            title: route.params.id ? "Article Updated" : "Article Created",
             content: route.params.id
-                ? "The post has been updated."
-                : "The post has been created.",
+                ? "The article has been updated."
+                : "The article has been created.",
             type: "success",
         });
 
-        router.push({ name: "dashboard-post-list" });
+        router.push({ name: "dashboard-article-list" });
     } catch (error) {
         form.apiErrors(error);
     }

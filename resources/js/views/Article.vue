@@ -3,11 +3,11 @@
         class="thumbnail"
         :style="{ backgroundImage: `url('${backgroundImageUrl}')` }"></div>
     <SMContainer narrow>
-        <h1 class="title">{{ post.title }}</h1>
-        <div class="author">By {{ post.user.username }}</div>
-        <div class="date">{{ formattedDate(post.publish_at) }}</div>
-        <SMHTML :html="post.content" class="content" />
-        <SMAttachments :attachments="post.attachments || []" />
+        <h1 class="title">{{ article.title }}</h1>
+        <div class="author">By {{ article.user.username }}</div>
+        <div class="date">{{ formattedDate(article.publish_at) }}</div>
+        <SMHTML :html="article.content" class="content" />
+        <SMAttachments :attachments="article.attachments || []" />
     </SMContainer>
 </template>
 
@@ -17,7 +17,7 @@ import { useRoute } from "vue-router";
 import SMAttachments from "../components/SMAttachments.vue";
 import SMHTML from "../components/SMHTML.vue";
 import { api } from "../helpers/api";
-import { Post, PostCollection, User } from "../helpers/api.types";
+import { Article, ArticleCollection, User } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../helpers/media";
@@ -25,9 +25,9 @@ import { mediaGetVariantUrl } from "../helpers/media";
 const applicationStore = useApplicationStore();
 
 /**
- * The post data.
+ * The article data.
  */
-let post: Ref<Post> = ref({
+let article: Ref<Article> = ref({
     title: "",
     user: { username: "" },
 });
@@ -43,9 +43,9 @@ let pageError = ref(200);
 let pageLoading = ref(false);
 
 /**
- * Post user.
+ * Article user.
  */
-let postUser: User | null = null;
+let articleUser: User | null = null;
 
 /**
  * Thumbnail image URL.
@@ -62,25 +62,30 @@ const handleLoad = async () => {
     try {
         if (slug.length > 0) {
             let result = await api.get({
-                url: "/posts/",
+                url: "/articles",
                 params: {
                     slug: `=${slug}`,
                     limit: 1,
                 },
             });
 
-            const data = result.data as PostCollection;
+            const data = result.data as ArticleCollection;
 
-            if (data && data.posts && data.total && data.total > 0) {
-                post.value = data.posts[0];
+            if (data && data.articles && data.total && data.total > 0) {
+                article.value = data.articles[0];
 
-                post.value.publish_at = new SMDate(post.value.publish_at, {
-                    format: "ymd",
-                    utc: true,
-                }).format("yyyy/MM/dd HH:mm:ss");
+                article.value.publish_at = new SMDate(
+                    article.value.publish_at,
+                    {
+                        format: "ymd",
+                        utc: true,
+                    }
+                ).format("yyyy/MM/dd HH:mm:ss");
 
-                backgroundImageUrl.value = mediaGetVariantUrl(post.value.hero);
-                applicationStore.setDynamicTitle(post.value.title);
+                backgroundImageUrl.value = mediaGetVariantUrl(
+                    article.value.hero
+                );
+                applicationStore.setDynamicTitle(article.value.title);
             } else {
                 pageError.value = 404;
             }
@@ -140,7 +145,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 768px) {
-    .page-post-view .heading-image {
+    .page-article-view .heading-image {
         height: #{calc(map-get($spacing, 3) * 10)};
     }
 }

@@ -34,7 +34,7 @@ class Event extends Model
 
 
     /**
-     * Get all of the post's attachments.
+     * Get all of the article's attachments.
      */
     public function attachments()
     {

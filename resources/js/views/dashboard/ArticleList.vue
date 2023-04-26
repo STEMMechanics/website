@@ -1,11 +1,11 @@
 <template>
-    <SMPage permission="admin/posts" :page-error="pageError">
+    <SMPage permission="admin/articles" :page-error="pageError">
         <template #container>
             <SMToolbar>
                 <template #left>
                     <SMButton
                         type="primary"
-                        label="Create Post"
+                        label="Create Article"
                         :small="true"
                         @click="handleCreate" />
                 </template>
@@ -31,7 +31,7 @@
                 <template #item-title="item">
                     <router-link
                         :to="{
-                            name: 'dashboard-post-edit',
+                            name: 'dashboard-article-edit',
                             params: { id: item.id },
                         }"
                         >{{ item.title }}</router-link
@@ -64,7 +64,7 @@ import SMInput from "../../components/SMInput.vue";
 import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { PostCollection, PostResponse } from "../../helpers/api.types";
+import { ArticleCollection, ArticleResponse } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { debounce } from "../../helpers/debounce";
 import { useToastStore } from "../../store/ToastStore";
@@ -103,7 +103,7 @@ const handleClick = (item, extra: string): void => {
 };
 
 /**
- * Load the post data from the server.
+ * Load the article data from the server.
  */
 const loadFromServer = async () => {
     formLoading.value = true;
@@ -128,17 +128,17 @@ const loadFromServer = async () => {
         }
 
         const result = await api.get({
-            url: "/posts",
+            url: "/articles",
             params: params,
         });
 
-        const data = result.data as PostCollection;
+        const data = result.data as ArticleCollection;
 
-        if (!data || !data.posts) {
+        if (!data || !data.articles) {
             throw new Error("The server is currently not available");
         }
 
-        items.value = data.posts;
+        items.value = data.articles;
 
         items.value.forEach((row) => {
             if (row.created_at !== "undefined") {
@@ -185,15 +185,15 @@ watch(search, () => {
 });
 
 const handleClickRow = (item) => {
-    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
 };
 
 const handleCreate = () => {
-    router.push({ name: "dashboard-post-create" });
+    router.push({ name: "dashboard-article-create" });
 };
 
 const handleEdit = (item) => {
-    router.push({ name: "dashboard-post-edit", params: { id: item.id } });
+    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
 };
 
 const handleDuplicate = async (item) => {
@@ -223,7 +223,7 @@ const handleDuplicate = async (item) => {
             const slug = `${originalSlug}-${number}`;
             try {
                 await api.get({
-                    url: `/posts/?slug=${slug}`,
+                    url: `/articles/?slug=${slug}`,
                 });
             } catch (err) {
                 if (err.status === 404) {
@@ -233,7 +233,7 @@ const handleDuplicate = async (item) => {
                 } else {
                     useToastStore().addToast({
                         title: "Server error",
-                        content: "The post could not be duplicated.",
+                        content: "The article could not be duplicated.",
                         type: "danger",
                     });
                     return;
@@ -245,28 +245,28 @@ const handleDuplicate = async (item) => {
         }
 
         const result = await api.post({
-            url: "/posts",
+            url: "/articles",
             body: item,
         });
 
-        const data = result.data as PostResponse;
+        const data = result.data as ArticleResponse;
 
         loadFromServer();
 
         useToastStore().addToast({
-            title: "Post duplicated",
-            content: "The post was duplicated successfully.",
+            title: "Article duplicated",
+            content: "The article was duplicated successfully.",
             type: "success",
         });
 
         router.push({
-            name: "dashboard-post-edit",
-            params: { id: data.post.id },
+            name: "dashboard-article-edit",
+            params: { id: data.article.id },
         });
     } catch (err) {
         useToastStore().addToast({
             title: "Server error",
-            content: "The post could not be duplicated.",
+            content: "The article could not be duplicated.",
             type: "danger",
         });
     }
@@ -274,24 +274,24 @@ const handleDuplicate = async (item) => {
 
 const handleDelete = async (item) => {
     let result = await openDialog(SMDialogConfirm, {
-        title: "Delete Post?",
-        text: `Are you sure you want to delete the post <strong>${item.title}</strong>?`,
+        title: "Delete Article?",
+        text: `Are you sure you want to delete the article <strong>${item.title}</strong>?`,
         cancel: {
             type: "secondary",
             label: "Cancel",
         },
         confirm: {
             type: "danger",
-            label: "Delete Post",
+            label: "Delete Article",
         },
     });
 
     if (result == true) {
         try {
-            await api.delete(`posts${item.id}`);
+            await api.delete(`articles${item.id}`);
             loadFromServer();
 
-            formMessage.value.message = "Post deleted successfully";
+            formMessage.value.message = "Article deleted successfully";
             formMessage.value.type = "success";
         } catch (err) {
             formMessage.value.message = err.response?.data?.message;

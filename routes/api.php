@@ -7,7 +7,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\OCRController;
-use App\Http\Controllers\Api\PostController;
+use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\UserController;
 
@@ -35,8 +35,8 @@ Route::post('/users/verifyEmail', [UserController::class, 'verifyEmail']);
 Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
-Route::apiResource('posts', PostController::class);
-Route::apiAttachmentResource('posts', PostController::class);
+Route::apiResource('articles', ArticleController::class);
+Route::apiAttachmentResource('articles', ArticleController::class);
 
 Route::apiResource('events', EventController::class);
 Route::apiAttachmentResource('events', EventController::class);

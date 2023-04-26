@@ -41,7 +41,7 @@
                     <SMColumn
                         ><SMInput
                             type="checkbox"
-                            label="Edit Posts"
+                            label="Edit Articles"
                             v-model="permissions.users"
                     /></SMColumn>
                     <SMColumn

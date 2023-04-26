@@ -13,13 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use LogicException;
 
-class PostConductor extends Conductor
+class ArticleConductor extends Conductor
 {
     /**
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Post';
+    protected $class = '\App\Models\Article';
 
     /**
      * The default sorting field
@@ -44,7 +44,7 @@ class PostConductor extends Conductor
     public function scope(Builder $builder)
     {
         $user = auth()->user();
-        if ($user === null || $user->hasPermission('admin/posts') === false) {
+        if ($user === null || $user->hasPermission('admin/articles') === false) {
             $builder
                 ->where('publish_at', '<=', now());
         }
@@ -60,7 +60,7 @@ class PostConductor extends Conductor
     {
         if (Carbon::parse($model->publish_at)->isFuture() === true) {
             $user = auth()->user();
-            if ($user === null || $user->hasPermission('admin/posts') === false) {
+            if ($user === null || $user->hasPermission('admin/articles') === false) {
                 return false;
             }
         }
@@ -76,7 +76,7 @@ class PostConductor extends Conductor
     public static function creatable()
     {
         $user = auth()->user();
-        return ($user !== null && $user->hasPermission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/articles') === true);
     }
 
     /**
@@ -88,7 +88,7 @@ class PostConductor extends Conductor
     public static function updatable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->hasPermission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/articles') === true);
     }
 
     /**
@@ -100,7 +100,7 @@ class PostConductor extends Conductor
     public static function destroyable(Model $model)
     {
         $user = auth()->user();
-        return ($user !== null && $user->hasPermission('admin/posts') === true);
+        return ($user !== null && $user->hasPermission('admin/articles') === true);
     }
 
     /**

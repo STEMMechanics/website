@@ -197,37 +197,37 @@ export const routes = [
                 component: () => import("@/views/dashboard/Dashboard.vue"),
             },
             {
-                path: "posts",
+                path: "articles",
                 children: [
                     {
                         path: "",
-                        name: "dashboard-post-list",
+                        name: "dashboard-article-list",
                         meta: {
-                            title: "Posts",
+                            title: "Articles",
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/dashboard/PostList.vue"),
+                            import("@/views/dashboard/ArticleList.vue"),
                     },
                     {
                         path: "create",
-                        name: "dashboard-post-create",
+                        name: "dashboard-article-create",
                         meta: {
-                            title: "Create Post",
+                            title: "Create Article",
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/dashboard/PostEdit.vue"),
+                            import("@/views/dashboard/ArticleEdit.vue"),
                     },
                     {
                         path: ":id",
-                        name: "dashboard-post-edit",
+                        name: "dashboard-article-edit",
                         meta: {
-                            title: "Edit Post",
+                            title: "Edit Article",
                             middleware: "authenticated",
                         },
                         component: () =>
-                            import("@/views/dashboard/PostEdit.vue"),
+                            import("@/views/dashboard/ArticleEdit.vue"),
                     },
                 ],
             },
@@ -258,7 +258,7 @@ export const routes = [
                         path: ":id",
                         name: "dashboard-event-edit",
                         meta: {
-                            title: "Event Post",
+                            title: "Event",
                             middleware: "authenticated",
                         },
                         component: () =>

@@ -4,7 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Validation\Rule;
 
-class PostRequest extends BaseRequest
+class ArticleRequest extends BaseRequest
 {
     /**
      * Get the validation rules that apply to POST requests.
@@ -14,7 +14,7 @@ class PostRequest extends BaseRequest
     public function postRules()
     {
         return [
-            'slug' => 'required|string|min:6|unique:posts',
+            'slug' => 'required|string|min:6|unique:articles',
             'title' => 'required|string|min:6|max:255',
             'publish_at' => 'required|date',
             'user_id' => 'required|uuid|exists:users,id',
@@ -34,7 +34,7 @@ class PostRequest extends BaseRequest
             'slug' => [
                 'string',
                 'min:6',
-                Rule::unique('posts')->ignoreModel($this->post),
+                Rule::unique('articles')->ignoreModel($this->article),
             ],
             'title' => 'string|min:6|max:255',
             'publish_at' => 'date',

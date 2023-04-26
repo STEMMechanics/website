@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Conductors\MediaConductor;
-use App\Conductors\PostConductor;
+use App\Conductors\ArticleConductor;
 use App\Enum\HttpResponseCodes;
-use App\Http\Requests\PostRequest;
+use App\Http\Requests\ArticleRequest;
 use App\Models\Media;
-use App\Models\Post;
+use App\Models\Article;
 use Illuminate\Http\JsonResponse;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -15,7 +15,7 @@ use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\MassAssignmentException;
 use Illuminate\Http\Request;
 
-class PostController extends ApiController
+class ArticleController extends ApiController
 {
     /**
      * ApplicationController constructor.
@@ -38,12 +38,13 @@ class PostController extends ApiController
      */
     public function index(Request $request)
     {
-        list($collection, $total) = PostConductor::request($request);
+        list($collection, $total) = ArticleConductor::request($request);
 
         return $this->respondAsResource(
             $collection,
             ['isCollection' => true,
-            'appendData' => ['total' => $total]]
+                'appendData' => ['total' => $total]
+            ]
         );
     }
 
@@ -51,13 +52,13 @@ class PostController extends ApiController
      * Display the specified resource.
      *
      * @param \Illuminate\Http\Request $request The endpoint request.
-     * @param  \App\Models\Post         $post    The post model.
+     * @param  \App\Models\Article      $article The article model.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, Post $post)
+    public function show(Request $request, Article $article)
     {
-        if (PostConductor::viewable($post) === true) {
-            return $this->respondAsResource(PostConductor::model($request, $post));
+        if (ArticleConductor::viewable($article) === true) {
+            return $this->respondAsResource(ArticleConductor::model($request, $article));
         }
 
         return $this->respondForbidden();
@@ -66,15 +67,15 @@ class PostController extends ApiController
     /**
      * Store a newly created resource in storage.
      *
-     * @param \App\Http\Requests\PostRequest $request The user request.
+     * @param \App\Http\Requests\ArticleRequest $request The user request.
      * @return \Illuminate\Http\Response
      */
-    public function store(PostRequest $request)
+    public function store(ArticleRequest $request)
     {
-        if (PostConductor::creatable() === true) {
-            $post = Post::create($request->all());
+        if (ArticleConductor::creatable() === true) {
+            $article = Article::create($request->all());
             return $this->respondAsResource(
-                PostConductor::model($request, $post),
+                ArticleConductor::model($request, $article),
                 ['respondCode' => HttpResponseCodes::HTTP_CREATED]
             );
         } else {
@@ -85,15 +86,15 @@ class PostController extends ApiController
     /**
      * Update the specified resource in storage.
      *
-     * @param  \App\Http\Requests\PostRequest $request The post update request.
-     * @param  \App\Models\Post               $post    The specified post.
+     * @param  \App\Http\Requests\ArticleRequest $request The article update request.
+     * @param  \App\Models\Article               $article The specified article.
      * @return \Illuminate\Http\Response
      */
-    public function update(PostRequest $request, Post $post)
+    public function update(ArticleRequest $request, Article $article)
     {
-        if (PostConductor::updatable($post) === true) {
-            $post->update($request->all());
-            return $this->respondAsResource(PostConductor::model($request, $post));
+        if (ArticleConductor::updatable($article) === true) {
+            $article->update($request->all());
+            return $this->respondAsResource(ArticleConductor::model($request, $article));
         }
 
         return $this->respondForbidden();
@@ -102,13 +103,13 @@ class PostController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Post $post The specified post.
+     * @param  \App\Models\Article $article The specified article.
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Post $post)
+    public function destroy(Article $article)
     {
-        if (PostConductor::destroyable($post) === true) {
-            $post->delete();
+        if (ArticleConductor::destroyable($article) === true) {
+            $article->delete();
             return $this->respondNoContent();
         } else {
             return $this->respondForbidden();
@@ -117,18 +118,18 @@ class PostController extends ApiController
 
     /**
      * Get a list of attachments related to this model.
-     * 
+     *
      * @param Request $request The user request.
-     * @param Post    $post    The post model.
-     * @return JsonResponse Returns the post attachments.
-     * @throws InvalidFormatException 
-     * @throws BindingResolutionException 
-     * @throws InvalidCastException 
+     * @param Article $article The article model.
+     * @return JsonResponse Returns the article attachments.
+     * @throws InvalidFormatException
+     * @throws BindingResolutionException
+     * @throws InvalidCastException
      */
-    public function getAttachments(Request $request, Post $post)
+    public function getAttachments(Request $request, Article $article)
     {
-        if (PostConductor::viewable($post) === true) {
-            $medium = $post->attachments->map(function ($attachment) {
+        if (ArticleConductor::viewable($article) === true) {
+            $medium = $article->attachments->map(function ($attachment) {
                 return $attachment->media;
             });
 
@@ -140,18 +141,18 @@ class PostController extends ApiController
 
     /**
      * Store an attachment related to this model.
-     * 
+     *
      * @param Request $request The user request.
-     * @param Post    $post    The post model.
+     * @param Article $article The article model.
      * @return JsonResponse The response.
-     * @throws BindingResolutionException 
-     * @throws MassAssignmentException 
+     * @throws BindingResolutionException
+     * @throws MassAssignmentException
      */
-    public function storeAttachment(Request $request, Post $post)
+    public function storeAttachment(Request $request, Article $article)
     {
-        if (PostConductor::updatable($post) === true) {
-            if($request->has("medium") && Media::find($request->medium)) {
-                $post->attachments()->create(['media_id' => $request->medium]);
+        if (ArticleConductor::updatable($article) === true) {
+            if ($request->has("medium") && Media::find($request->medium)) {
+                $article->attachments()->create(['media_id' => $request->medium]);
                 return $this->respondCreated();
             }
 
@@ -163,67 +164,67 @@ class PostController extends ApiController
 
     /**
      * Update/replace attachments related to this model.
-     * 
+     *
      * @param Request $request The user request.
-     * @param Post    $post    The related model.
+     * @param Article $article The related model.
      * @return JsonResponse
-     * @throws BindingResolutionException 
-     * @throws MassAssignmentException 
+     * @throws BindingResolutionException
+     * @throws MassAssignmentException
      */
-    public function updateAttachments(Request $request, Post $post)
+    public function updateAttachments(Request $request, Article $article)
     {
-        if (PostConductor::updatable($post) === true) {
+        if (ArticleConductor::updatable($article) === true) {
             $mediaIds = $request->attachments;
-            if(is_array($mediaIds) === false) {
+            if (is_array($mediaIds) === false) {
                 $mediaIds = explode(',', $request->attachments);
             }
-            
+
             $mediaIds = array_map('trim', $mediaIds); // trim each media ID
-            $attachments = $post->attachments;
-    
+            $attachments = $article->attachments;
+
             // Delete attachments that are not in $mediaIds
             foreach ($attachments as $attachment) {
                 if (!in_array($attachment->media_id, $mediaIds)) {
                     $attachment->delete();
                 }
             }
-    
-            // Create new attachments for media IDs that are not already in $post->attachments()
+
+            // Create new attachments for media IDs that are not already in $article->attachments()
             foreach ($mediaIds as $mediaId) {
                 $found = false;
-    
+
                 foreach ($attachments as $attachment) {
                     if ($attachment->media_id == $mediaId) {
                         $found = true;
                         break;
                     }
                 }
-    
+
                 if (!$found) {
-                    $post->attachments()->create(['media_id' => $mediaId]);
+                    $article->attachments()->create(['media_id' => $mediaId]);
                 }
             }
-    
+
             return $this->respondNoContent();
-        }
-    
+        }//end if
+
         return $this->respondForbidden();
     }
 
     /**
      * Delete a specific related attachment.
      * @param Request $request The user request.
-     * @param Post $post The model.
-     * @param Media $medium The attachment medium.
-     * @return JsonResponse 
-     * @throws BindingResolutionException 
+     * @param Article $article The model.
+     * @param Media   $medium  The attachment medium.
+     * @return JsonResponse
+     * @throws BindingResolutionException
      */
-    public function deleteAttachment(Request $request, Post $post, Media $medium)
+    public function deleteAttachment(Request $request, Article $article, Media $medium)
     {
-        if (PostConductor::updatable($post) === true) {
-            $attachments = $post->attachments;
+        if (ArticleConductor::updatable($article) === true) {
+            $attachments = $article->attachments;
             $deleted = false;
-    
+
             foreach ($attachments as $attachment) {
                 if ($attachment->media_id === $medium->id) {
                     $attachment->delete();
@@ -231,7 +232,7 @@ class PostController extends ApiController
                     break;
                 }
             }
-    
+
             if ($deleted) {
                 // Attachment was deleted successfully
                 return $this->respondNoContent();

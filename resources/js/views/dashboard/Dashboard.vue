@@ -7,9 +7,9 @@
                 <h3>My Details</h3>
             </router-link>
             <router-link
-                v-if="userStore.permissions.includes('admin/posts')"
-                :to="{ name: 'dashboard-post-list' }"
-                class="admin-card posts">
+                v-if="userStore.permissions.includes('admin/articles')"
+                :to="{ name: 'dashboard-article-list' }"
+                class="admin-card articles">
                 <ion-icon name="newspaper-outline" />
                 <h3>Articles</h3>
             </router-link>

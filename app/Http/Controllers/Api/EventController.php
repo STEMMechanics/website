@@ -111,8 +111,8 @@ class EventController extends ApiController
      * Get a list of attachments related to this model.
      *
      * @param Request $request The user request.
-     * @param Post    $post    The post model.
-     * @return JsonResponse Returns the post attachments.
+     * @param Article $article The article model.
+     * @return JsonResponse Returns the article attachments.
      * @throws InvalidFormatException
      * @throws BindingResolutionException
      * @throws InvalidCastException
@@ -134,7 +134,7 @@ class EventController extends ApiController
      * Store an attachment related to this model.
      *
      * @param Request $request The user request.
-     * @param Post    $post    The post model.
+     * @param Article $article The article model.
      * @return JsonResponse The response.
      * @throws BindingResolutionException
      * @throws MassAssignmentException
@@ -157,7 +157,7 @@ class EventController extends ApiController
      * Update/replace attachments related to this model.
      *
      * @param Request $request The user request.
-     * @param Post    $post    The related model.
+     * @param Article $article The related model.
      * @return JsonResponse
      * @throws BindingResolutionException
      * @throws MassAssignmentException
@@ -180,7 +180,7 @@ class EventController extends ApiController
                 }
             }
 
-            // Create new attachments for media IDs that are not already in $post->attachments()
+            // Create new attachments for media IDs that are not already in $article->attachments()
             foreach ($mediaIds as $mediaId) {
                 $found = false;
 
@@ -205,7 +205,7 @@ class EventController extends ApiController
     /**
      * Delete a specific related attachment.
      * @param Request $request The user request.
-     * @param Post    $post    The model.
+     * @param Article $article The model.
      * @param Media   $medium  The attachment medium.
      * @return JsonResponse
      * @throws BindingResolutionException

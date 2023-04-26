@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
-class Post extends Model
+class Article extends Model
 {
     use HasFactory;
     use Uuids;
@@ -28,7 +28,7 @@ class Post extends Model
 
 
     /**
-     * Get the post user
+     * Get the article user
      *
      * @return BelongsTo
      */
@@ -38,7 +38,7 @@ class Post extends Model
     }
 
     /**
-     * Get all of the post's attachments.
+     * Get all of the article's attachments.
      *
      * @return MorphMany
      */

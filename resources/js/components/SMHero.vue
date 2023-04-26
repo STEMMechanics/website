@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api, getApiResultData } from "../helpers/api";
-import { PostCollection } from "../helpers/api.types";
+import { ArticleCollection } from "../helpers/api.types";
 import { mediaGetVariantUrl } from "../helpers/media";
 import { excerpt } from "../helpers/string";
 import SMButton from "./SMButton.vue";
@@ -70,30 +70,31 @@ onBeforeUnmount(() => {
 
 const handleLoad = async () => {
     try {
-        let postsResult = await api.get({
-            url: "/posts",
+        let articlesResult = await api.get({
+            url: "/articles",
             params: {
                 limit: 3,
             },
         });
 
-        const postsData = getApiResultData<PostCollection>(postsResult);
+        const articlesData =
+            getApiResultData<ArticleCollection>(articlesResult);
 
-        if (postsData && postsData.posts) {
+        if (articlesData && articlesData.articles) {
             const randomIndex = Math.floor(
-                Math.random() * postsData.posts.length
+                Math.random() * articlesData.articles.length
             );
-            heroTitle.value = postsData.posts[randomIndex].title;
+            heroTitle.value = articlesData.articles[randomIndex].title;
             heroExcerpt.value = excerpt(
-                postsData.posts[randomIndex].content,
+                articlesData.articles[randomIndex].content,
                 200
             );
             heroImageUrl.value = mediaGetVariantUrl(
-                postsData.posts[randomIndex].hero,
+                articlesData.articles[randomIndex].hero,
                 "large"
             );
-            heroImageTitle = postsData.posts[randomIndex].hero.title;
-            heroSlug.value = postsData.posts[randomIndex].slug;
+            heroImageTitle = articlesData.articles[randomIndex].hero.title;
+            heroSlug.value = articlesData.articles[randomIndex].slug;
 
             heroStyles.value.backgroundImage = `linear-gradient(to right, rgba(0, 0, 0, 0.7),rgba(0, 0, 0, 0.2)),url('${heroImageUrl.value}')`;
 

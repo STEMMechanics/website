@@ -142,7 +142,7 @@ class User extends Authenticatable implements Auditable
      * Revoke permissions from the user
      *
      * @param string|array $permissions The permission(s) to revoke.
-     * @return int
+     * @return integer
      */
     public function revokePermission($permissions)
     {
@@ -170,9 +170,9 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function posts()
+    public function articles()
     {
-        return $this->hasMany(Post::class);
+        return $this->hasMany(Article::class);
     }
 
     /**

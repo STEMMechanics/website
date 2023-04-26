@@ -68,7 +68,7 @@ export interface Article {
     attachments: Array<Media>;
 }
 
-export interface Post {
+export interface Article {
     id: string;
     title: string;
     slug: string;
@@ -80,12 +80,12 @@ export interface Post {
     attachments: Array<Media>;
 }
 
-export interface PostResponse {
-    post: Post;
+export interface ArticleResponse {
+    article: Article;
 }
 
-export interface PostCollection {
-    posts: Array<Post>;
+export interface ArticleCollection {
+    articles: Array<Article>;
     total: number;
 }
 
