@@ -62,6 +62,19 @@
                         class="workshop-registration workshop-registration-message">
                         {{ event.registration_data }}
                     </div>
+                    <div
+                        v-if="userHasPermission('admin/events') && event.id"
+                        class="workshop-edit">
+                        <SMButton
+                            block
+                            size="medium"
+                            type="primary"
+                            :to="{
+                                name: 'dashboard-event-edit',
+                                params: { id: event.id },
+                            }"
+                            label="Edit Event" />
+                    </div>
                     <div class="workshop-date">
                         <h4>
                             <ion-icon
@@ -100,15 +113,6 @@
                     <div v-if="event.price" class="workshop-price">
                         <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
-                    <SMButton
-                        v-if="userHasPermission('admin/events') && event.id"
-                        size="medium"
-                        type="primary"
-                        :to="{
-                            name: 'dashboard-event-edit',
-                            params: { id: event.id },
-                        }"
-                        label="Edit Event" />
                 </div>
             </SMContainer>
         </SMContainer>
