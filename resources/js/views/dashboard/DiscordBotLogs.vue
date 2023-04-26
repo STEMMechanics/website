@@ -1,21 +1,33 @@
 <template>
-    <SMPage :loading="formLoading" permission="logs/discord">
-        <template #container>
-            <h1>Discord Bot Logs</h1>
-            <SMTabGroup>
-                <SMTab label="Output">
-                    <code v-if="logOutputContent.length > 0">{{
-                        logOutputContent
-                    }}</code>
-                </SMTab>
-                <SMTab label="Errors">
-                    <code v-if="logErrorContent.length > 0">{{
-                        logErrorContent
-                    }}</code>
-                </SMTab>
-            </SMTabGroup>
-            <SMButton label="Reload Logs" @click="loadData" />
-        </template>
+    <SMPage permission="logs/discord">
+        <SMMastHead
+            title="Discord"
+            :back-link="{ name: 'dashboard' }"
+            back-title="Back to Dashboard" />
+        <SMContainer class="flex-grow-1">
+            <SMRow>
+                <SMColumn>
+                    <SMTabGroup>
+                        <SMTab label="Output">
+                            <code v-if="logOutputContent.length > 0">{{
+                                logOutputContent
+                            }}</code>
+                        </SMTab>
+                        <SMTab label="Errors">
+                            <code v-if="logErrorContent.length > 0">{{
+                                logErrorContent
+                            }}</code>
+                        </SMTab>
+                    </SMTabGroup>
+                </SMColumn>
+            </SMRow>
+            <SMButtonRow>
+                <SMButton
+                    type="primary"
+                    label="Reload Logs"
+                    @click="loadData" />
+            </SMButtonRow>
+        </SMContainer>
     </SMPage>
 </template>
 
@@ -27,6 +39,8 @@ import SMTabGroup from "../../components/SMTabGroup.vue";
 import { api } from "../../helpers/api";
 import { LogsDiscordResponse } from "../../helpers/api.types";
 import { useToastStore } from "../../store/ToastStore";
+import SMMastHead from "../../components/SMMastHead.vue";
+import SMButtonRow from "../../components/SMButtonRow.vue";
 
 let formLoading = ref(false);
 let logOutputContent = ref("");
