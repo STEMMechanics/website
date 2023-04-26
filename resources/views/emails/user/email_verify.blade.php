@@ -49,7 +49,7 @@
                     <a href="https://www.stemmechanics.com.au/">
                         <img
                             alt="STEMMechanics Logo"
-                            src="{{ $message->embed(public_path('img').'/logo.png') }}"
+                            src="{{ $message->embed(public_path('assets').'/logo.webp') }}"
                             width="400"
                             height="62"
                         />

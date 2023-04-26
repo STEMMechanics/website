@@ -49,10 +49,10 @@ export const getFileExtension = (fileName: string): string => {
 export const getFileIconImagePath = (fileName: string): string => {
     const ext = getFileExtension(fileName);
     if (ext.length > 0) {
-        return `/img/fileicons/${ext}.png`;
+        return `/assets/fileicons/${ext}.webp`;
     }
 
-    return "/img/fileicons/unknown.png";
+    return "/assets/fileicons/unknown.webp";
 };
 
 /**
@@ -68,10 +68,10 @@ export const getFilePreview = (url: string): string => {
             return `${url}?size=thumb`;
         }
 
-        return `/img/fileicons/${ext}.png`;
+        return `/assets/fileicons/${ext}.webp`;
     }
 
-    return "/img/fileicons/unknown.png";
+    return "/assets/fileicons/unknown.webp";
 };
 
 /**

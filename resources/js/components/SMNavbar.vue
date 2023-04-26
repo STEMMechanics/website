@@ -9,13 +9,13 @@
                     <router-link :to="{ name: 'home' }" id="logo-link">
                         <img
                             class="nav-logo dark:d-none"
-                            src="/assets/logo.png"
+                            src="/assets/logo.webp"
                             width="270"
                             height="40"
                             alt="STEMMechanics" />
                         <img
                             class="nav-logo light:d-none"
-                            src="/assets/logo-dark.png"
+                            src="/assets/logo-dark.webp"
                             width="270"
                             height="40"
                             alt="STEMMechanics" />

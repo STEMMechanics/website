@@ -32,39 +32,39 @@ import SMMastHead from "../components/SMMastHead.vue";
 
 const communities = [
     {
-        thumbnail: "/img/community-discord.jpg",
+        thumbnail: "/assets/community-discord.webp",
         url: "https://discord.gg/yNzk4x7mpD",
         title: "Discord",
         content:
             "A vibrant community for discussion, user support, showcases... and custom emoji!",
     },
     {
-        thumbnail: "/img/community-minecraft.jpg",
+        thumbnail: "/assets/community-minecraft.webp",
         url: "/minecraft",
         title: "Minecraft",
         content:
             "Our usual hang-out to kill zombies and build redstone contraptions.",
     },
     {
-        thumbnail: "/img/community-github.jpg",
+        thumbnail: "/assets/community-github.webp",
         url: "https://github.com/stemmechanics",
         title: "GitHub",
         content: "All our open-source projects. Send bug reports here.",
     },
     {
-        thumbnail: "/img/community-youtube.jpg",
+        thumbnail: "/assets/community-youtube.webp",
         url: "https://youtube.com/stemmechanics",
         title: "YouTube",
         content: "Channel for official STEMMechanics videos.",
     },
     {
-        thumbnail: "/img/community-facebook.jpg",
+        thumbnail: "/assets/community-facebook.webp",
         url: "https://facebook.com/stemmechanics",
         title: "Facebook",
         content: "Community for discussions and showcasing workshops.",
     },
     {
-        thumbnail: "/img/community-mastodon.jpg",
+        thumbnail: "/assets/community-mastodon.webp",
         url: "https://mastodon.au/@stemmechanics",
         title: "Mastodon",
         content: "Connect with us in the Fediverse.",
