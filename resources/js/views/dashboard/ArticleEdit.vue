@@ -1,9 +1,10 @@
 <template>
-    <SMPage
-        class="page-article-edit"
-        :page-error="pageError"
-        permission="admin/articles">
-        <template #container>
+    <SMPage :page-error="pageError" permission="admin/articles">
+        <SMMastHead
+            :title="pageHeading"
+            :back-link="{ name: 'dashboard-article-list' }"
+            back-title="Back to Articles" />
+        <SMContainer class="flex-grow-1">
             <h1>{{ page_title }}</h1>
             <SMForm
                 :model-value="form"
@@ -60,7 +61,7 @@
                     </SMButtonRow>
                 </SMRow>
             </SMForm>
-        </template>
+        </SMContainer>
     </SMPage>
 </template>
 
@@ -80,14 +81,15 @@ import { Form, FormControl } from "../../helpers/form";
 import { And, DateTime, Min, Required } from "../../helpers/validate";
 import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
+import SMMastHead from "../../components/SMMastHead.vue";
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
-const page_title = route.params.id ? "Edit Article" : "Create New Article";
 let pageError = ref(200);
 const authors = ref({});
 const attachments = ref([]);
+const pageHeading = route.params.id ? "Edit Article" : "Create Article";
 
 let form = reactive(
     Form({

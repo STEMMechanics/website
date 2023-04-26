@@ -3,9 +3,24 @@
         class="thumbnail"
         :style="{ backgroundImage: `url('${backgroundImageUrl}')` }"></div>
     <SMContainer narrow>
-        <h1 class="title">{{ article.title }}</h1>
-        <div class="author">By {{ article.user.username }}</div>
-        <div class="date">{{ formattedDate(article.publish_at) }}</div>
+        <h1 class="title">
+            {{ article.title }}
+        </h1>
+        <SMToolbar>
+            <div>
+                <div class="author">By {{ article.user.username }}</div>
+                <div class="date">{{ formattedDate(article.publish_at) }}</div>
+            </div>
+            <SMButton
+                v-if="userHasPermission('admin/articles') && article.id"
+                size="medium"
+                type="primary"
+                :to="{
+                    name: 'dashboard-article-edit',
+                    params: { id: article.id },
+                }"
+                label="Edit Article" />
+        </SMToolbar>
         <SMHTML :html="article.content" class="content" />
         <SMAttachments :attachments="article.attachments || []" />
     </SMContainer>
@@ -21,6 +36,9 @@ import { Article, ArticleCollection, User } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../helpers/media";
+import SMToolbar from "../components/SMToolbar.vue";
+import SMButton from "../components/SMButton.vue";
+import { userHasPermission } from "../helpers/utils";
 
 const applicationStore = useApplicationStore();
 
@@ -129,12 +147,12 @@ handleLoad();
     }
 
     .author {
-        margin-top: 16px;
+        // margin-top: 16px;
         font-weight: 700;
     }
 
     .date {
-        margin-top: 16px;
+        margin-top: 8px;
         font-weight: 700;
         filter: brightness(175%);
     }
