@@ -72,12 +72,13 @@ export interface Article {
     id: string;
     title: string;
     slug: string;
-    user_id: string;
     user: User;
     content: string;
     publish_at: string;
     hero: Media;
     attachments: Array<Media>;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface ArticleResponse {
