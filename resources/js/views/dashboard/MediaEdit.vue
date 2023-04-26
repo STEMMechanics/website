@@ -232,7 +232,6 @@ const handleSubmit = async () => {
 
         router.push({ name: "dashboard-media-list" });
     } catch (error) {
-        console.log(error);
         useToastStore().addToast({
             title: "Server error",
             content: "An error occurred saving the media.",
