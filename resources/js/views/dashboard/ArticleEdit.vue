@@ -107,7 +107,7 @@ let form = reactive(
 const updateSlug = async () => {
     if (form.controls.slug.value == "" && form.controls.title.value != "") {
         let idx = 0;
-        let pre_slug = form.controls.title.value
+        let pre_slug = (form.controls.title.value as string)
             .toLowerCase()
             .replace(/[^a-z0-9]/gim, "-")
             .replace(/-+/g, "-")
@@ -171,6 +171,7 @@ const loadData = async () => {
                     : "";
                 form.controls.content.value = data.article.content;
                 form.controls.hero.value = data.article.hero.id;
+                console.log(form.controls.hero.value);
 
                 attachments.value = (data.article.attachments || []).map(
                     function (attachment) {
@@ -193,13 +194,12 @@ const handleSubmit = async () => {
         let data = {
             title: form.controls.title.value,
             slug: form.controls.slug.value,
-            publish_at: new SMDate(form.controls.publish_at.value).format(
-                "yyyy/MM/dd HH:mm:ss",
-                { utc: true }
-            ),
+            publish_at: new SMDate(
+                form.controls.publish_at.value as string
+            ).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
             user_id: form.controls.user_id.value,
             content: form.controls.content.value,
-            hero: form.controls.hero.value,
+            hero: form.controls.hero.value.id,
         };
 
         let article_id = "";
@@ -225,12 +225,12 @@ const handleSubmit = async () => {
             }
         }
 
-        await api.put({
-            url: `/articles/${article_id}/attachments`,
-            body: {
-                attachments: attachments.value,
-            },
-        });
+        // await api.put({
+        //     url: `/articles/${article_id}/attachments`,
+        //     body: {
+        //         attachments: attachments.value,
+        //     },
+        // });
 
         useToastStore().addToast({
             title: route.params.id ? "Article Updated" : "Article Created",
