@@ -146,10 +146,13 @@ if (props.modelValue < 1 || totalPages < 1) {
     font-size: 90%;
     font-weight: 600;
     margin: 24px auto;
-    // box-shadow: var(--base-shadow);
+    border: 1px solid var(--base-color);
+    box-shadow: var(--base-shadow);
 
     &.small {
         font-size: 75%;
+        box-shadow: none;
+
         .item {
             padding: 10px 12px;
 
