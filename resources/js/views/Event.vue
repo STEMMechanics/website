@@ -3,7 +3,10 @@
         <div
             class="workshop-image"
             :style="{
-                backgroundImage: `url('${mediaGetVariantUrl(event.hero)}')`,
+                backgroundImage: `url('${mediaGetVariantUrl(
+                    event.hero,
+                    'medium'
+                )}')`,
             }"></div>
         <SMContainer>
             <SMContainer class="workshop-page">

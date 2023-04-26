@@ -101,7 +101,8 @@ const handleLoad = async () => {
                 ).format("yyyy/MM/dd HH:mm:ss");
 
                 backgroundImageUrl.value = mediaGetVariantUrl(
-                    article.value.hero
+                    article.value.hero,
+                    "medium"
                 );
                 applicationStore.setDynamicTitle(article.value.title);
             } else {
