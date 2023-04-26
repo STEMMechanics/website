@@ -100,6 +100,15 @@
                     <div v-if="event.price" class="workshop-price">
                         <h4><span class="icon">$</span>{{ computedPrice }}</h4>
                     </div>
+                    <SMButton
+                        v-if="userHasPermission('admin/events') && event.id"
+                        size="medium"
+                        type="primary"
+                        :to="{
+                            name: 'dashboard-event-edit',
+                            params: { id: event.id },
+                        }"
+                        label="Edit Event" />
                 </div>
             </SMContainer>
         </SMContainer>
@@ -119,6 +128,7 @@ import { stringToNumber } from "../helpers/string";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../helpers/media";
 import SMPage from "../components/SMPage.vue";
+import { userHasPermission } from "../helpers/utils";
 
 const applicationStore = useApplicationStore();
 
@@ -370,7 +380,7 @@ handleLoad();
             margin-left: 16px;
             padding: 0 0 0 8px;
             font-size: 80%;
-            border-left: 4px solid var(--warning-color-darker);
+            border-left: 4px solid var(--warning-color-dark);
         }
     }
 }
