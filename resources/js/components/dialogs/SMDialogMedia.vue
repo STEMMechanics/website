@@ -1,5 +1,6 @@
 <template>
     <SMFormCard full class="dialog-media">
+        <SMLoading v-if="progressText" overlay :text="progressText" />
         <h3>Insert Media</h3>
         <SMToolbar class="align-items-center">
             <SMGroupButtons
@@ -115,6 +116,7 @@ import SMInput from "../SMInput.vue";
 import SMGroupButtons from "../SMGroupButtons.vue";
 import SMPagination from "../SMPagination.vue";
 import SMButtonRow from "../SMButtonRow.vue";
+import SMLoading from "../SMLoading.vue";
 
 const props = defineProps({
     mime: {
@@ -138,16 +140,6 @@ const props = defineProps({
  * Reference to the File Upload Input element.
  */
 const refUploadInput = ref<HTMLInputElement | null>(null);
-
-/**
- * Is the dialog loading/busy
- */
-const dialogLoading = ref(false);
-
-/**
- * The dialog loading message to display
- */
-const dialogLoadingMessage = ref("");
 
 /**
  * The form user message to display
@@ -190,6 +182,7 @@ const selected = ref("");
 const perPage = ref(24);
 
 const applicationStore = useApplicationStore();
+const progressText = ref("");
 
 /**
  * Returns the file types accepted.
@@ -306,9 +299,6 @@ const handleChangeUpload = async () => {
             let submitFormData = new FormData();
             submitFormData.append("file", firstFile);
 
-            dialogLoading.value = true;
-            dialogLoadingMessage.value = "Uploading file...";
-
             try {
                 let result = await api.post({
                     url: "/media",
@@ -317,7 +307,7 @@ const handleChangeUpload = async () => {
                         "Content-Type": "multipart/form-data",
                     },
                     progress: (progressData) =>
-                        (dialogLoadingMessage.value = `Uploading Files ${Math.floor(
+                        (progressText.value = `Uploading File: ${Math.floor(
                             (progressData.loaded / progressData.total) * 100
                         )}%`),
                 });
@@ -325,11 +315,12 @@ const handleChangeUpload = async () => {
                 if (result.data) {
                     const data = result.data as MediaResponse;
 
+                    console.log(data.medium.status);
                     if (
                         data.medium.status != "" &&
                         data.medium.status.startsWith("Failed") == false
                     ) {
-                        dialogLoadingMessage.value = `${data.medium.status}...`;
+                        progressText.value = `${data.medium.status}...`;
 
                         let mediaProcessed = false;
 
@@ -349,6 +340,7 @@ const handleChangeUpload = async () => {
                                 if (updateResult.data) {
                                     const updateData =
                                         updateResult.data as MediaResponse;
+                                    console.log(updateData.medium.status);
                                     if (
                                         updateData.medium.status == "" &&
                                         data.medium.status.startsWith(
@@ -357,7 +349,7 @@ const handleChangeUpload = async () => {
                                     ) {
                                         mediaProcessed = true;
                                     } else {
-                                        dialogLoadingMessage.value = `${updateData.medium.status}...`;
+                                        progressText.value = `${updateData.medium.status}...`;
                                     }
                                 } else {
                                     throw "error";
@@ -369,7 +361,7 @@ const handleChangeUpload = async () => {
                             }
                         }
 
-                        dialogLoadingMessage.value;
+                        progressText.value;
                     }
 
                     closeDialog(data.medium);
@@ -387,7 +379,7 @@ const handleChangeUpload = async () => {
                         "An unexpected error occurred";
                 }
             } finally {
-                dialogLoading.value = false;
+                progressText.value = "";
             }
         } else {
             formMessage.value = "No file was selected to upload";
