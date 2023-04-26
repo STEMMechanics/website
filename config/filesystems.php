@@ -31,26 +31,25 @@ return [
     'disks' => [
         'local' => [
             'driver' => 'local',
-            'root' => storage_path('app'),
+            'root' => storage_path('app/public'),
+            'url' => env('APP_URL') . "/storage",
+            'public' => true,
         ],
 
         'cdn' => [
-            'driver' => 'local',
-            'root' => storage_path('app/public'),
-            'url' => env('APP_URL') . "/storage",
-            // 'driver' => 's3',
-            // 'key' => env('AWS_PUBLIC_ACCESS_KEY_ID'),
-            // 'secret' => env('AWS_PUBLIC_SECRET_ACCESS_KEY'),
-            // 'region' => env('AWS_PUBLIC_DEFAULT_REGION'),
-            // 'bucket' => env('AWS_PUBLIC_BUCKET'),
-            // 'url' => env('AWS_PUBLIC_URL'),
-            // 'endpoint' => env('AWS_PUBLIC_ENDPOINT'),
-            // 'use_path_style_endpoint' => env('AWS_PUBLIC_USE_PATH_STYLE_ENDPOINT', false),
-            // 'throw' => false,
+            'driver' => 's3',
+            'key' => env('AWS_PUBLIC_ACCESS_KEY_ID'),
+            'secret' => env('AWS_PUBLIC_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_PUBLIC_DEFAULT_REGION'),
+            'bucket' => env('AWS_PUBLIC_BUCKET'),
+            'url' => env('AWS_PUBLIC_URL'),
+            'endpoint' => env('AWS_PUBLIC_ENDPOINT'),
+            'use_path_style_endpoint' => env('AWS_PUBLIC_USE_PATH_STYLE_ENDPOINT', false),
+            'throw' => false,
             'public' => true,
-            // 'options' => [
-            //     'ACL' => '',
-            // ]
+            'options' => [
+                'ACL' => '',
+            ]
         ],
 
         'private' => [
