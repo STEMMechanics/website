@@ -1,6 +1,6 @@
 <template>
     <div :class="['loading-background', { overlay: props.overlay }]">
-        <div :class="{ 'loading-box': props.overlay }">
+        <div :class="{ 'loading-box': props.overlay, large: props.large }">
             <SMLoadingIcon v-bind="{ large: props.large }" />
             <p v-if="props.text" class="loading-text">{{ props.text }}</p>
         </div>
@@ -57,12 +57,19 @@ const props = defineProps({
 
     .loading-box {
         background-color: #fff;
-        padding: 48px 48px 16px 48px;
+        padding: 24px 48px;
         border-radius: 10px;
         box-shadow: var(--base-shadow);
 
         .loading-text {
+            font-size: 120%;
+            margin-top: #{map-get($spacing, 2)};
+            margin-bottom: 0;
+        }
+
+        &.large .loading-text {
             font-size: 150%;
+            margin-top: #{map-get($spacing, 3)};
         }
     }
 }
