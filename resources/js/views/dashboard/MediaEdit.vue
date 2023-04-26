@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
@@ -126,12 +126,12 @@ const form = reactive(
 );
 
 const fileData = reactive({
-    url: "",
-    mime_type: "",
-    size: 0,
-    storage: "",
-    status: "",
-    dimensions: "",
+    url: "Not available",
+    mime_type: "--",
+    size: "--",
+    storage: "--",
+    status: "--",
+    dimensions: "--",
     user: {},
 });
 
@@ -272,8 +272,28 @@ const handleDelete = async () => {
 };
 
 const computedFileSize = computed(() => {
+    if (isNaN(+fileData.size) == true) {
+        return fileData.size;
+    }
+
     return bytesReadable(fileData.size);
 });
+
+watch(
+    () => form.controls.file.value,
+    (newValue) => {
+        fileData.mime_type = (newValue as File).type;
+        fileData.size = (newValue as File).size.toString();
+
+        if ((form.controls.title.value as string).length == 0) {
+            form.controls.title.value = (newValue as File).name
+                .replace(/\.[^/.]+$/, "")
+                .replace(/[^\w\s]/g, " ")
+                .toLowerCase()
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+        }
+    }
+);
 
 handleLoad();
 </script>
