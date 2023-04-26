@@ -226,7 +226,8 @@ const handleLoad = async () => {
                 item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
 
                 if (
-                    parsedEndAt.isBefore(new SMDate("now")) ||
+                    (parsedEndAt.isBefore(new SMDate("now")) &&
+                        (item.status == "open" || item.status == "soon")) ||
                     item.status == "closed"
                 ) {
                     banner = "closed";
