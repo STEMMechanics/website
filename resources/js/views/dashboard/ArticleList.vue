@@ -1,303 +1,284 @@
 <template>
-    <SMPage permission="admin/articles" :page-error="pageError">
-        <template #container>
+    <SMPage permission="admin/articles">
+        <SMMastHead
+            title="Article List"
+            :back-link="{ name: 'dashboard' }"
+            back-title="Return to Dashboard" />
+        <SMContainer class="flex-grow-1">
             <SMToolbar>
-                <template #left>
-                    <SMButton
-                        type="primary"
-                        label="Create Article"
-                        :small="true"
-                        @click="handleCreate" />
-                </template>
-                <template #right>
-                    <SMInput
-                        v-model="search"
-                        label="Search"
-                        :small="true"
-                        style="max-width: 250px" />
-                </template>
+                <SMButton
+                    type="primary"
+                    label="Create Article"
+                    :to="{ name: 'dashboard-article-create' }" />
+                <SMInput
+                    v-model="itemSearch"
+                    label="Search"
+                    class="toolbar-search"
+                    @keyup.enter="handleSearch">
+                    <template #append>
+                        <SMButton
+                            type="primary"
+                            label="Search"
+                            icon="search-outline"
+                            @click="handleSearch" />
+                    </template>
+                </SMInput>
             </SMToolbar>
 
-            <EasyDataTable
-                v-model:server-options="serverOptions"
-                :server-items-length="serverItemsLength"
-                :loading="formLoading"
-                :headers="headers"
-                :items="items"
-                :search-value="search">
-                <template #loading>
-                    <SMLoadingIcon />
-                </template>
-                <template #item-title="item">
-                    <router-link
-                        :to="{
-                            name: 'dashboard-article-edit',
-                            params: { id: item.id },
-                        }"
-                        >{{ item.title }}</router-link
-                    >
-                </template>
-                <template #item-actions="item">
-                    <div class="action-wrapper">
+            <SMLoading large v-if="itemsLoading" />
+            <template v-else>
+                <SMPagination
+                    v-if="items.length < itemsTotal"
+                    v-model="itemsPage"
+                    :total="itemsTotal"
+                    :per-page="itemsPerPage" />
+                <SMNoItems v-if="items.length == 0" text="No Articles Found" />
+                <SMTable
+                    v-else
+                    :headers="headers"
+                    :items="items"
+                    @row-click="handleEdit">
+                    <template #item-actions="item">
                         <SMButton
                             label="Edit"
                             :dropdown="{
-                                duplicate: 'Duplicate',
+                                download: 'Download',
                                 delete: 'Delete',
                             }"
-                            @click="handleClick(item, $event)"></SMButton>
-                    </div>
-                </template>
-            </EasyDataTable>
-        </template>
+                            size="medium"
+                            @click="
+                                handleActionButton(item, $event)
+                            "></SMButton>
+                    </template>
+                </SMTable>
+            </template>
+        </SMContainer>
     </SMPage>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import EasyDataTable from "vue3-easy-data-table";
+import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMButton from "../../components/SMButton.vue";
-import SMInput from "../../components/SMInput.vue";
-import SMLoadingIcon from "../../components/SMLoadingIcon.vue";
 import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
-import { ArticleCollection, ArticleResponse } from "../../helpers/api.types";
+import { Article, ArticleCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
-import { debounce } from "../../helpers/debounce";
+import { bytesReadable } from "../../helpers/types";
 import { useToastStore } from "../../store/ToastStore";
+import SMInput from "../../components/SMInput.vue";
+import SMMastHead from "../../components/SMMastHead.vue";
+import SMTable from "../../components/SMTable.vue";
+import SMPagination from "../../components/SMPagination.vue";
+import SMNoItems from "../../components/SMNoItems.vue";
+import SMLoading from "../../components/SMLoading.vue";
+import { updateRouterParams } from "../../helpers/url";
 
+const route = useRoute();
 const router = useRouter();
-const search = ref("");
+const toastStore = useToastStore();
+
+const items = ref([]);
+const itemsLoading = ref(true);
+const itemSearch = ref((route.query.search as string) || "");
+const itemsTotal = ref(0);
+const itemsPerPage = 25;
+const itemsPage = ref(parseInt((route.query.page as string) || "1"));
 
 const headers = [
     { text: "Title", value: "title", sortable: true },
-    { text: "Published", value: "publish_at", sortable: true },
-    { text: "Created", value: "created_at", sortable: true },
-    { text: "Updated", value: "updated_at", sortable: true },
+    { text: "Author", value: "user.display_name", sortable: true },
+    { text: "Last Updates", value: "updated_at", sortable: true },
     { text: "Actions", value: "actions" },
 ];
 
-const items = ref([]);
-const pageError = ref(0);
-
-const formLoading = ref(false);
-const serverItemsLength = ref(0);
-const serverOptions = ref({
-    page: 1,
-    rowsPerPage: 25,
-    sortBy: null,
-    sortType: null,
+/**
+ * Watch if page number changes.
+ */
+watch(itemsPage, () => {
+    handleLoad();
 });
 
-const handleClick = (item, extra: string): void => {
-    if (extra.length == 0) {
+/**
+ * Handle searching for item.
+ */
+const handleSearch = () => {
+    itemsPage.value = 1;
+    handleLoad();
+};
+
+/**
+ * Handle user selecting option in action button.
+ *
+ * @param {Media} item The media item.
+ * @param {string} extra The option selected.
+ * @param option
+ */
+const handleActionButton = (item: Article, option: string): void => {
+    if (option.length == 0) {
         handleEdit(item);
-    } else if (extra.toLowerCase() == "duplicate") {
-        handleDuplicate(item);
-    } else if (extra.toLowerCase() == "delete") {
+    } else if (option.toLowerCase() == "download") {
+        handleDownload(item);
+    } else if (option.toLowerCase() == "delete") {
         handleDelete(item);
     }
 };
 
 /**
- * Load the article data from the server.
+ * Handle loading the page and list
  */
-const loadFromServer = async () => {
-    formLoading.value = true;
+const handleLoad = async () => {
+    itemsLoading.value = true;
+    items.value = [];
+    itemsTotal.value = 0;
+
+    updateRouterParams(router, {
+        search: itemSearch.value,
+        page: itemsPage.value == 1 ? "" : itemsPage.value.toString(),
+    });
 
     try {
-        let params = {};
-        if (serverOptions.value.sortBy) {
-            params["sort"] = serverOptions.value.sortBy;
-            if (
-                serverOptions.value.sortType &&
-                serverOptions.value.sortType === "desc"
-            ) {
-                params["sort"] = "-" + params["sort"];
-            }
+        let params = {
+            page: itemsPage.value,
+            limit: itemsPerPage,
+        };
+
+        if (itemSearch.value.length > 0) {
+            params[
+                "filter"
+            ] = `title:${itemSearch.value},OR,name:${itemSearch.value},OR,description:${itemSearch.value}`;
         }
 
-        params["page"] = serverOptions.value.page;
-        params["limit"] = serverOptions.value.rowsPerPage;
-
-        if (search.value.length > 0) {
-            params["title"] = search.value;
-        }
-
-        const result = await api.get({
+        let result = await api.get({
             url: "/articles",
             params: params,
         });
 
         const data = result.data as ArticleCollection;
-
-        if (!data || !data.articles) {
-            throw new Error("The server is currently not available");
-        }
-
-        items.value = data.articles;
-
-        items.value.forEach((row) => {
+        data.articles.forEach(async (row) => {
             if (row.created_at !== "undefined") {
                 row.created_at = new SMDate(row.created_at, {
-                    format: "yMd",
+                    format: "ymd",
                     utc: true,
                 }).relative();
             }
             if (row.updated_at !== "undefined") {
                 row.updated_at = new SMDate(row.updated_at, {
-                    format: "yMd",
+                    format: "ymd",
                     utc: true,
                 }).relative();
             }
-            if (row.publish_at !== "undefined") {
-                row.publish_at = new SMDate(row.publish_at, {
-                    format: "yMd",
-                    utc: true,
-                }).relative();
-            }
+
+            items.value.push(row);
         });
 
-        serverItemsLength.value = data.total;
+        itemsTotal.value = data.total;
     } catch (error) {
-        pageError.value = error.status;
+        if (error.status != 404) {
+            toastStore.addToast({
+                title: "Server Error",
+                content:
+                    "An error occurred retrieving the list from the server.",
+                type: "danger",
+            });
+        }
     } finally {
-        formLoading.value = false;
+        itemsLoading.value = false;
     }
 };
 
-loadFromServer();
-
-watch(
-    serverOptions,
-    () => {
-        loadFromServer();
-    },
-    { deep: true }
-);
-
-const debouncedFilter = debounce(loadFromServer, 1000);
-watch(search, () => {
-    debouncedFilter();
-});
-
-const handleClickRow = (item) => {
-    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
+/**
+ * User requests to edit the item
+ *
+ * @param {Media} item The media item.
+ */
+const handleEdit = (item: Media) => {
+    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
 };
 
-const handleCreate = () => {
-    router.push({ name: "dashboard-article-create" });
-};
-
-const handleEdit = (item) => {
-    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
-};
-
-const handleDuplicate = async (item) => {
-    try {
-        let tries = 1;
-        let number = 2;
-
-        let originalSlug = item.slug;
-        let originalTitle = item.title;
-
-        const slugMatch = originalSlug.match(/-(\d+)$/);
-        if (slugMatch == true) {
-            number = parseInt(slugMatch[1], 10);
-
-            originalSlug = originalSlug.replace(new RegExp(`-${number}$`), "");
-            originalTitle = originalTitle.replace(
-                new RegExp(`[- ]${number}$`),
-                ""
-            );
-        }
-
-        delete item.id;
-        delete item.created_at;
-        delete item.updated_at;
-
-        while (tries < 25) {
-            const slug = `${originalSlug}-${number}`;
-            try {
-                await api.get({
-                    url: `/articles/?slug=${slug}`,
-                });
-            } catch (err) {
-                if (err.status === 404) {
-                    item.slug = slug;
-                    item.title = `${originalTitle} ${number}`;
-                    break;
-                } else {
-                    useToastStore().addToast({
-                        title: "Server error",
-                        content: "The article could not be duplicated.",
-                        type: "danger",
-                    });
-                    return;
-                }
-            }
-
-            ++tries;
-            ++number;
-        }
-
-        const result = await api.post({
-            url: "/articles",
-            body: item,
-        });
-
-        const data = result.data as ArticleResponse;
-
-        loadFromServer();
-
-        useToastStore().addToast({
-            title: "Article duplicated",
-            content: "The article was duplicated successfully.",
-            type: "success",
-        });
-
-        router.push({
-            name: "dashboard-article-edit",
-            params: { id: data.article.id },
-        });
-    } catch (err) {
-        useToastStore().addToast({
-            title: "Server error",
-            content: "The article could not be duplicated.",
-            type: "danger",
-        });
-    }
-};
-
-const handleDelete = async (item) => {
+/**
+ * Request to delete a media item from the server.
+ *
+ * @param {Media} item The media object to delete.
+ */
+const handleDelete = async (item: Media) => {
     let result = await openDialog(SMDialogConfirm, {
-        title: "Delete Article?",
-        text: `Are you sure you want to delete the article <strong>${item.title}</strong>?`,
+        title: "Delete File?",
+        text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
         cancel: {
             type: "secondary",
             label: "Cancel",
         },
         confirm: {
             type: "danger",
-            label: "Delete Article",
+            label: "Delete File",
         },
     });
 
     if (result == true) {
         try {
-            await api.delete(`articles${item.id}`);
-            loadFromServer();
+            await api.delete({
+                url: "/media/{id}",
+                params: {
+                    id: item.id,
+                },
+            });
 
-            formMessage.value.message = "Article deleted successfully";
-            formMessage.value.type = "success";
-        } catch (err) {
-            formMessage.value.message = err.response?.data?.message;
+            toastStore.addToast({
+                title: "File Deleted",
+                content: `The file ${item.title} has been deleted.`,
+                type: "success",
+            });
+            handleLoad();
+        } catch (error) {
+            toastStore.addToast({
+                title: "Error Deleting File",
+                content:
+                    error.data?.message ||
+                    "An unexpected server error occurred",
+                type: "danger",
+            });
         }
     }
 };
+
+/**
+ * Handle the user requesting to download the item.
+ *
+ * @param {Media} item The media item.
+ */
+const handleDownload = (item: Media) => {
+    window.open(`${item.url}?download=1`, "_blank");
+};
+
+handleLoad();
 </script>
 
-<style lang="scss"></style>
+<style lang="scss">
+.page-dashboard-media-list {
+    .toolbar-search {
+        max-width: 350px;
+    }
+
+    .table tr {
+        td:first-of-type,
+        td:nth-of-type(2) {
+            word-break: break-all;
+        }
+
+        td:not(:first-of-type) {
+            white-space: nowrap;
+        }
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .page-dashboard-media-list {
+        .toolbar-search {
+            max-width: none;
+        }
+    }
+}
+</style>
