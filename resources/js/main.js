@@ -3,7 +3,7 @@ import "normalize.css";
 import { createPinia } from "pinia";
 import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp } from "vue";
-import { VueReCaptcha } from "vue-recaptcha-v3";
+// import { VueReCaptcha } from "vue-recaptcha-v3";
 import "../css/app.scss";
 import "./bootstrap";
 import SMColumn from "./components/SMColumn.vue";
@@ -19,12 +19,12 @@ pinia.use(piniaPluginPersistedstate);
 createApp(App)
     .use(pinia)
     .use(Router)
-    .use(VueReCaptcha, {
-        siteKey: import.meta.env.GOOGLE_RECAPTCHA_SITE_KEY,
-        loaderOptions: {
-            autoHideBadge: true,
-        },
-    })
+    // .use(VueReCaptcha, {
+    //     siteKey: import.meta.env.GOOGLE_RECAPTCHA_SITE_KEY,
+    //     loaderOptions: {
+    //         autoHideBadge: true,
+    //     },
+    // })
     .component("SMContainer", SMContainer)
     .component("SMRow", SMRow)
     .component("SMColumn", SMColumn)

@@ -16,7 +16,7 @@ class UserResendVerifyEmailRequest extends FormRequest
     {
         return [
             'username' => 'required|exists:users,username',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 }

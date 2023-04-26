@@ -16,7 +16,7 @@ class UserVerifyEmailRequest extends FormRequest
     {
         return [
             'code' => 'required|digits:6',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 }

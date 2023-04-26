@@ -44,7 +44,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
+// import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
@@ -54,7 +54,7 @@ import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { Required } from "../helpers/validate";
 
-const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
+// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
@@ -66,14 +66,14 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        await recaptchaLoaded();
-        const captcha = await executeRecaptcha("submit");
+        // await recaptchaLoaded();
+        // const captcha = await executeRecaptcha("submit");
 
         await api.post({
             url: "/users/resendVerifyEmailCode",
             body: {
                 username: form.controls.username.value,
-                captcha_token: captcha,
+                // captcha_token: captcha,
             },
         });
 

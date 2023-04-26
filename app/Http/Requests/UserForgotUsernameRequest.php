@@ -16,7 +16,7 @@ class UserForgotUsernameRequest extends FormRequest
     {
         return [
             'email' => 'required|email|max:255',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 }

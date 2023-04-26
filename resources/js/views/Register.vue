@@ -67,7 +67,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
+// import { useReCaptcha } from "vue-recaptcha-v3";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
@@ -84,7 +84,7 @@ import {
     Required,
 } from "../helpers/validate";
 
-const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
+// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 let abortController: AbortController | null = null;
 
 const checkUsername = async (value: string): Promise<boolean | string> => {
@@ -133,8 +133,8 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        await recaptchaLoaded();
-        const captcha = await executeRecaptcha("submit");
+        // await recaptchaLoaded();
+        // const captcha = await executeRecaptcha("submit");
 
         await api.post({
             url: "/register",
@@ -146,7 +146,7 @@ const handleSubmit = async () => {
                 username: form.controls.username.value,
                 password: form.controls.password.value,
                 display_name: form.controls.username.value,
-                captcha_token: captcha,
+                // captcha_token: captcha,
             },
         });
 

@@ -17,7 +17,7 @@ class UserResetPasswordRequest extends FormRequest
         return [
             'code' => 'required|digits:6',
             'password' => 'required|string|min:8',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 }

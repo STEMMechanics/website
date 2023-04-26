@@ -15,7 +15,7 @@ class SubscriptionRequest extends BaseRequest
     {
         return [
             'email' => 'required|email|unique:subscriptions',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 
@@ -28,7 +28,7 @@ class SubscriptionRequest extends BaseRequest
     {
         return [
             'email' => 'required|email',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 

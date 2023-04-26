@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-import { useReCaptcha } from "vue-recaptcha-v3";
+// import { useReCaptcha } from "vue-recaptcha-v3";
 import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
@@ -54,7 +54,7 @@ import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Max, Min, Password, Required } from "../helpers/validate";
 
-const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
+// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
@@ -76,15 +76,15 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        await recaptchaLoaded();
-        const captcha = await executeRecaptcha("submit");
+        // await recaptchaLoaded();
+        // const captcha = await executeRecaptcha("submit");
 
         await api.post({
             url: "/users/resetPassword",
             body: {
                 code: form.controls.code.value,
                 password: form.controls.password.value,
-                captcha_token: captcha,
+                // captcha_token: captcha,
             },
         });
 

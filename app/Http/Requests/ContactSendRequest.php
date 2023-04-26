@@ -18,7 +18,7 @@ class ContactSendRequest extends FormRequest
             'name' => 'required|max:255',
             'email' => 'required|email|max:255',
             'content' => 'required|max:2000',
-            'captcha_token' => [new Recaptcha()],
+            // 'captcha_token' => [new Recaptcha()],
         ];
     }
 }
