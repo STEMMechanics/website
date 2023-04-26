@@ -390,94 +390,26 @@ router.beforeEach(async (to, from, next) => {
 
     applicationStore.clearDynamicTitle();
 
-    // Check Token
-    if (userStore.id) {
-        try {
-            let res = await api.get("/me");
-            userStore.setUserDetails(res.json.user);
-        } catch (err) {
-            if (err.status == 401) {
-                userStore.clearUser();
-            }
-        }
-    }
-
-    const getMetaValue = (tag, defaultValue = "") => {
-        const getMeta = (obj, tag) => {
-            const tagHierarchy = tag.split(".");
-
-            const nearestWithMeta = obj.matched
-                .slice()
-                .reverse()
-                .reduce(
-                    (acc, r) => acc || (r.meta && r.meta[tagHierarchy[0]]),
-                    null
-                );
-            if (nearestWithMeta) {
-                let result = nearestWithMeta;
-                for (let i = 1; i < tagHierarchy.length; i++) {
-                    result = result[tagHierarchy[i]];
-                    if (!result) break;
+    if (to.meta.middleware == "authenticated") {
+        if (userStore.id) {
+            try {
+                let res = await api.get("/me");
+                userStore.setUserDetails(res.json.user);
+            } catch (err) {
+                if (err.status == 401) {
+                    userStore.clearUser();
                 }
-                if (result !== undefined) return result;
             }
-
-            return null;
-        };
-
-        const nearestMeta = getMeta(to, tag);
-        if (nearestMeta == null) {
-            const previousMeta = getMeta(from, tag);
-            if (previousMeta == null) {
-                return defaultValue;
-            }
-
-            return previousMeta;
         }
-        return nearestMeta;
-    };
 
-    updateSEOTags({
-        title: getMetaValue("title"),
-        description: getMetaValue("description"),
-        keywords: getMetaValue("keywords", []),
-        robots: {
-            index: getMetaValue("robots.index", true),
-            follow: getMetaValue("robots.follow", true),
-        },
-        url: getMetaValue("url", to.path),
-        image: getMetaValue("image", ""),
-    });
-
-    // Meta tags
-    // const nearestWithMeta = to.matched
-    //     .slice()
-    //     .reverse()
-    //     .find((r) => r.meta && r.meta.metaTags);
-    // Array.from(document.querySelectorAll("[data-vue-router-controlled]")).map(
-    //     (el) => el.parentNode.removeChild(el)
-    // );
-    // if (nearestWithMeta) {
-    //     nearestWithMeta.meta.metaTags
-    //         .map((tagDef) => {
-    //             const tag = document.createElement("meta");
-
-    //             Object.keys(tagDef).forEach((key) => {
-    //                 tag.setAttribute(key, tagDef[key]);
-    //             });
-
-    //             tag.setAttribute("data-vue-router-controlled", "");
-
-    //             return tag;
-    //         })
-    //         .forEach((tag) => document.head.appendChild(tag));
-    // }
-
-    if (to.meta.middleware == "authenticated" && !userStore.id) {
-        next({
-            name: "login",
-            query: { redirect: encodeURIComponent(to.fullPath) },
-        });
+        if (!userStore.id) {
+            next({
+                name: "login",
+                query: { redirect: encodeURIComponent(to.fullPath) },
+            });
+        } else {
+            next();
+        }
     } else {
         next();
     }
@@ -488,6 +420,55 @@ router.afterEach((to, from) => {
         document.body.classList.remove(`page-${from.name}`);
     }
     document.body.classList.add(`page-${to.name}`);
+
+    window.setTimeout(() => {
+        const getMetaValue = (tag, defaultValue = "") => {
+            const getMeta = (obj, tag) => {
+                const tagHierarchy = tag.split(".");
+
+                const nearestWithMeta = obj.matched
+                    .slice()
+                    .reverse()
+                    .reduce(
+                        (acc, r) => acc || (r.meta && r.meta[tagHierarchy[0]]),
+                        null
+                    );
+                if (nearestWithMeta) {
+                    let result = nearestWithMeta;
+                    for (let i = 1; i < tagHierarchy.length; i++) {
+                        result = result[tagHierarchy[i]];
+                        if (!result) break;
+                    }
+                    if (result !== undefined) return result;
+                }
+
+                return null;
+            };
+
+            const nearestMeta = getMeta(to, tag);
+            if (nearestMeta == null) {
+                const previousMeta = getMeta(from, tag);
+                if (previousMeta == null) {
+                    return defaultValue;
+                }
+
+                return previousMeta;
+            }
+            return nearestMeta;
+        };
+
+        updateSEOTags({
+            title: getMetaValue("title"),
+            description: getMetaValue("description"),
+            keywords: getMetaValue("keywords", []),
+            robots: {
+                index: getMetaValue("robots.index", true),
+                follow: getMetaValue("robots.follow", true),
+            },
+            url: getMetaValue("url", to.path),
+            image: getMetaValue("image", ""),
+        });
+    }, 10);
 
     window.setTimeout(() => {
         const autofocusElement = document.querySelector("[autofocus]");
