@@ -5,7 +5,6 @@
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
         <SMContainer class="flex-grow-1">
-            <h1>{{ page_title }}</h1>
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"
