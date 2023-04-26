@@ -170,7 +170,6 @@ class StoreUploadedFileJob implements ShouldQueue
                     }
                 }
 
-                $this->media->mime_type = 'image/webp';
                 $this->media->variants = $variants;
             }//end if
 
