@@ -26,6 +26,7 @@ const logout = async () => {
             content: "You have been logged out.",
             type: "success",
         });
+
         router.push({ name: "home" });
     });
 };
