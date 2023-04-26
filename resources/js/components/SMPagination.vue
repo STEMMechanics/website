@@ -146,17 +146,17 @@ if (props.modelValue < 1 || totalPages < 1) {
     font-size: 90%;
     font-weight: 600;
     margin: 24px auto;
-    box-shadow: var(--base-shadow);
+    // box-shadow: var(--base-shadow);
 
     &.small {
         font-size: 75%;
         .item {
-            padding: 8px 12px;
+            padding: 10px 12px;
 
             &.prev,
             &.next {
                 ion-icon {
-                    padding: 3px 0;
+                    padding: 0;
                 }
 
                 .text {
