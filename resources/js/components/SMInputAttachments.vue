@@ -161,6 +161,7 @@ handleLoad();
             display: flex;
             align-items: center;
             padding: 16px;
+            margin: 0;
 
             &.attachments-none {
                 justify-content: center;
