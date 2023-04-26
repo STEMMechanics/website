@@ -82,7 +82,7 @@ const modifiedPageError = computed(() => {
     if (middleDigit === "0") {
         return errorNumber.replace(
             middleDigit,
-            '<img src="/img/sad-monster.png" />'
+            '<img src="/assets/sad-monster.webp" />'
         ); // Replace with image
     } else {
         return errorNumber; // Use the entire number

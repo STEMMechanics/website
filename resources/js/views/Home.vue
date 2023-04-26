@@ -40,7 +40,7 @@
                 </SMColumn>
                 <SMColumn
                     class="align-items-center justify-content-center flex-basis-45">
-                    <img src="/img/green-screen.jpg" />
+                    <img src="/assets/home-green-screen.webp" />
                 </SMColumn>
             </SMRow>
         </template>
@@ -57,7 +57,7 @@
             </p>
             <p class="minecraft-education">
                 <img
-                    src="/img/minecraft-edu.png"
+                    src="/assets/home-minecraft-edu.webp"
                     height="96"
                     width="96"
                     class="minecraft-image" />
@@ -71,7 +71,7 @@
             </p>
             <p class="pt-5">
                 <img
-                    src="/img/minecraft-address.png"
+                    src="/assets/home-minecraft-address.webp"
                     height="70"
                     class="minecraft-address" />
             </p>
@@ -84,7 +84,7 @@
                 <SMColumn
                     class="align-items-center justify-content-center flex-basis-45">
                     <div class="support-image">
-                        <img src="/img/discord.jpg" />
+                        <img src="/assets/home-discord.webp" />
                     </div>
                 </SMColumn>
                 <SMColumn class="align-items-center flex-basis-55">
@@ -168,7 +168,7 @@ import SMHero from "../components/SMHero.vue";
 
     .minecraft {
         margin-top: 64px;
-        background-image: url("/img/minecraft.png");
+        background-image: url("/assets/home-minecraft.webp");
         background-repeat: no-repeat;
         background-position: center;
         background-size: cover;
