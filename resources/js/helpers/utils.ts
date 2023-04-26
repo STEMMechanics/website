@@ -1,3 +1,4 @@
+import { useUserStore } from "../store/UserStore";
 import { extractFileNameFromUrl } from "./url";
 
 /**
@@ -101,4 +102,15 @@ export const generateRandomElementId = (prefix: string = ""): string => {
     } while (document.getElementById(randomId));
 
     return randomId;
+};
+
+/**
+ * Return if the current user has a permission.
+ *
+ * @param {string} permission The permission to check.
+ * @returns {boolean} If the user has the permission.
+ */
+export const userHasPermission = (permission: string): boolean => {
+    const userStore = useUserStore();
+    return userStore.permissions && userStore.permissions.includes(permission);
 };
