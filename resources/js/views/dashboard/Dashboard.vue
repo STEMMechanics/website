@@ -44,11 +44,18 @@
             <router-link
                 v-if="userStore.permissions.includes('admin/media')"
                 :to="{ name: 'dashboard-media-list' }"
+                class="admin-card media">
+                <ion-icon name="bar-chart-outline" />
+                <h3>Analytics</h3>
+            </router-link>
+            <!-- <router-link
+                v-if="userStore.permissions.includes('admin/media')"
+                :to="{ name: 'dashboard-media-list' }"
                 class="admin-card minecraft"
                 style="background-image: url('/img/minecraft.png')">
                 <img src="/img/minecraft-grass-block.png" />
                 <h3>Minecraft</h3>
-            </router-link>
+            </router-link> -->
             <router-link
                 v-if="userStore.permissions.includes('logs/discord')"
                 :to="{ name: 'dashboard-discord-bot-logs' }"
