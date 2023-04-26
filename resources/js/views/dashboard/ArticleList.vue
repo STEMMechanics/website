@@ -42,7 +42,6 @@
                         <SMButton
                             label="Edit"
                             :dropdown="{
-                                download: 'Download',
                                 delete: 'Delete',
                             }"
                             size="medium"
@@ -112,15 +111,13 @@ const handleSearch = () => {
 /**
  * Handle user selecting option in action button.
  *
- * @param {Media} item The media item.
+ * @param {Article} item The article item.
  * @param {string} extra The option selected.
  * @param option
  */
 const handleActionButton = (item: Article, option: string): void => {
     if (option.length == 0) {
         handleEdit(item);
-    } else if (option.toLowerCase() == "download") {
-        handleDownload(item);
     } else if (option.toLowerCase() == "delete") {
         handleDelete(item);
     }
@@ -192,18 +189,18 @@ const handleLoad = async () => {
 /**
  * User requests to edit the item
  *
- * @param {Media} item The media item.
+ * @param {Artile} item The article item.
  */
-const handleEdit = (item: Media) => {
-    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
+const handleEdit = (item: Article) => {
+    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
 };
 
 /**
- * Request to delete a media item from the server.
+ * Request to delete a article item from the server.
  *
- * @param {Media} item The media object to delete.
+ * @param {Article} item The article object to delete.
  */
-const handleDelete = async (item: Media) => {
+const handleDelete = async (item: Article) => {
     let result = await openDialog(SMDialogConfirm, {
         title: "Delete File?",
         text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
@@ -220,7 +217,7 @@ const handleDelete = async (item: Media) => {
     if (result == true) {
         try {
             await api.delete({
-                url: "/media/{id}",
+                url: "/articles/{id}",
                 params: {
                     id: item.id,
                 },
@@ -242,15 +239,6 @@ const handleDelete = async (item: Media) => {
             });
         }
     }
-};
-
-/**
- * Handle the user requesting to download the item.
- *
- * @param {Media} item The media item.
- */
-const handleDownload = (item: Media) => {
-    window.open(`${item.url}?download=1`, "_blank");
 };
 
 handleLoad();
@@ -275,7 +263,7 @@ handleLoad();
 }
 
 @media only screen and (max-width: 768px) {
-    .page-dashboard-media-list {
+    .page-dashboard-article-list {
         .toolbar-search {
             max-width: none;
         }
