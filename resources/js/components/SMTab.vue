@@ -19,7 +19,7 @@ const selectedLabel = inject("selectedLabel");
 
 <style lang="scss">
 .tab-content {
-    padding: 32px;
+    padding: 32px 32px 16px 32px;
     background-color: var(--tab-color);
     border: 1px solid var(--tab-color-border);
 }

@@ -35,13 +35,12 @@ provide("selectedLabel", selectedLabel);
 
     .tab-item {
         display: inline-block;
-        padding: 16px 24px;
+        padding: 8px 16px;
         border: 1px solid transparent;
         margin-bottom: -1px;
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
         color: var(--primary-color);
-        transition: 0.2s all ease-out;
 
         &.selected {
             color: var(--tab-color-text);
