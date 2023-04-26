@@ -397,14 +397,18 @@ const handleChangeUpload = async () => {
     }
 };
 
+let prevItemSearch = "";
 const itemSearch = ref("");
 
 const handleSearch = () => {
-    mediaItems.value = [];
-    totalItems.value = 0;
-    page.value = 1;
+    if (prevItemSearch !== itemSearch.value) {
+        prevItemSearch = itemSearch.value;
+        mediaItems.value = [];
+        totalItems.value = 0;
+        page.value = 1;
 
-    handleLoad();
+        handleLoad();
+    }
 };
 
 /**
