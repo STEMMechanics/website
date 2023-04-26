@@ -15,7 +15,7 @@
 
     # Add www subdomain if missing
     RewriteCond %{HTTP_HOST} ^stemmechanics.com.au$ [NC]
-    RewriteRule (.*) https://www.stemmechanics.com.au/$1 [R=301,L] 
+    RewriteRule (.*) https://www.stemmechanics.com.au/$1 [R=301,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -27,9 +27,9 @@
     RewriteRule ^ %1 [L,R=301]
 
     # Pass to media handler if the media request has query
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteCond %{QUERY_STRING} .
-    RewriteRule ^uploads/(.+)\.(jpe?g|png)$ media.php?url=uploads/$1.$2 [NC,QSA,L]
+    #RewriteCond %{REQUEST_FILENAME} -f
+    #RewriteCond %{QUERY_STRING} .
+    #RewriteRule ^uploads/(.+)\.(jpe?g|png)$ media.php?url=uploads/$1.$2 [NC,QSA,L]
 
     # AddEncoding allows you to have certain browsers uncompress information on the fly.
     AddEncoding gzip .gz
@@ -52,4 +52,5 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
+
 </IfModule>
