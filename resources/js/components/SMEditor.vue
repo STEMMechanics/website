@@ -215,8 +215,8 @@ tinymce.PluginManager.add("gallery", function (editor) {
 const init = {
     promotion: false,
     emoticons_database_url: "/tinymce/plugins/emoticons/js/emojis.min.js",
-    template_cdate_format: "[Date Created (CDATE): %m/%d/%Y : %H:%M:%S]",
-    template_mdate_format: "[Date Modified (MDATE): %m/%d/%Y : %H:%M:%S]",
+    // template_cdate_format: "[Date Created (CDATE): %m/%d/%Y : %H:%M:%S]",
+    // template_mdate_format: "[Date Modified (MDATE): %m/%d/%Y : %H:%M:%S]",
     relative_urls: false,
     skin_url: useDarkMode
         ? "/tinymce/skins/ui/oxide-dark"
