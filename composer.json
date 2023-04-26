@@ -18,7 +18,6 @@
         "league/flysystem-aws-s3-v3": "^3.12",
         "owen-it/laravel-auditing": "^13.0",
         "php-ffmpeg/php-ffmpeg": "^1.1",
-        "spatie/image-optimizer": "^1.6",
         "sunspikes/clamav-validator": "*",
         "thiagoalessio/tesseract_ocr": "^2.12"
     },

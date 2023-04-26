@@ -118,7 +118,6 @@ class StoreUploadedFileJob implements ShouldQueue
                 $variants = [];
 
                 $originalImage = Image::make($this->uploadedFilePath);
-                $optimizerChain = OptimizerChainFactory::create();
 
                 $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
                 $this->media->dimensions = implode('x', $dimensions);
@@ -151,8 +150,7 @@ class StoreUploadedFileJob implements ShouldQueue
 
                             // Optimize and store image
                             $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
-                            $image->save($tempImagePath);
-                            $optimizerChain->optimize($tempImagePath);
+                            $image->encode('webp', 75)->save($tempImagePath);
                             Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
                             unlink($tempImagePath);
                         }//end if
@@ -168,6 +166,7 @@ class StoreUploadedFileJob implements ShouldQueue
                     }
                 }
 
+                $this->media->mime_type = 'image/webp';
                 $this->media->variants = $variants;
             }//end if
 
