@@ -37,6 +37,13 @@ class MediaRebuild extends Command
             InputOption::VALUE_NONE,
             'Replace existing files'
         );
+
+        $this->addOption(
+            'all',
+            null,
+            InputOption::VALUE_NONE,
+            'Rebuild all variants'
+        );
     }
 
     /**
@@ -47,8 +54,15 @@ class MediaRebuild extends Command
     public function handle()
     {
         $replace = $this->option('replace');
+        $all = $this->option('replace');
 
-        $media = Media::where(['variants' => ''])->orWhere(['variants' => '[]'])->orWhere(['variants' => '{}'])->get();
+        $media = [];
+        if ($all === true) {
+            $media = Media::all();
+        } else {
+            $media = Media::where(['variants' => ''])->orWhere(['variants' => '[]'])->orWhere(['variants' => '{}'])->get();
+        }
+
         foreach ($media as $medium) {
             StoreUploadedFileJob::dispatch($medium, '', $replace)->onQueue('media');
         }

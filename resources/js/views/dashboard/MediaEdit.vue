@@ -288,7 +288,7 @@ watch(
     () => form.controls.file.value,
     (newValue) => {
         fileData.mime_type = (newValue as File).type;
-        fileData.size = (newValue as File).size.toString();
+        fileData.size = (newValue as File).size;
 
         if ((form.controls.title.value as string).length == 0) {
             form.controls.title.value = (newValue as File).name

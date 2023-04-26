@@ -128,9 +128,13 @@ class StoreUploadedFileJob implements ShouldQueue
                         $postfix = 'scaled';
                     }
 
-                    $newFilename = pathinfo($this->media->name, PATHINFO_FILENAME) . "-$postfix." . pathinfo($this->media->name, PATHINFO_EXTENSION);
+                    if (is_array($this->media->variants) === true && array_key_exists($postfix, $this->media->variants) === true && Storage::disk($storageDisk)->exists($this->media->variants[$postfix]) === true && $this->replaceExisting === true) {
+                        Storage::disk($storageDisk)->delete($this->media->variants[$postfix]);
+                    }
 
-                    if (Storage::disk($storageDisk)->exists($newFilename) == false || $this->replaceExisting == true) {
+                    $newFilename = pathinfo($this->media->name, PATHINFO_FILENAME) . "-$postfix.webp";
+
+                    if (Storage::disk($storageDisk)->exists($newFilename) === false || $this->replaceExisting === true) {
                         // Get the largest available variant
                         if ($dimensions[0] >= $size[0] && $dimensions[1] >= $size[1]) {
                             // Store the variant in the variants array
