@@ -256,6 +256,19 @@ class Media extends Model
             'status' => '',
         ]);
 
+        if ($request->get('storage') === null) {
+            // We store images by default locally
+            if (strpos($file->getMimeType(), 'image/') === 0) {
+                $request->merge([
+                    'storage' => 'local',
+                ]);
+            } else {
+                $request->merge([
+                    'storage' => 'cdn',
+                ]);
+            }
+        }
+
         $mediaItem = $request->user()->media()->create($request->all());
         $mediaItem->updateWithUploadedFile($file);
 
