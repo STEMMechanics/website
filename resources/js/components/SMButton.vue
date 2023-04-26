@@ -287,7 +287,7 @@ const handleClickItem = (item: string) => {
     }
 
     &.medium {
-        padding: 12px 24px;
+        padding: 8px 24px;
         font-size: 80%;
         font-weight: 600;
     }
