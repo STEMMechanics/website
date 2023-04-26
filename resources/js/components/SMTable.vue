@@ -71,34 +71,39 @@ const hasClassLong = (text: unknown): boolean => {
 
 <style lang="scss">
 .table {
-    border: 1px solid var(--table-color-border);
-    border-collapse: collapse;
+    border-spacing: 0;
     margin-bottom: 32px;
+    border-radius: 50px;
     width: 100%;
 
-    td,
-    th {
-        padding: 24px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--table-color-border);
-    }
-
-    th {
+    thead tr {
         font-size: 90%;
         white-space: nowrap;
-    }
 
-    td {
-        font-size: 85%;
-        background-color: var(--table-color);
+        &:first-child th {
+            border-top: 1px solid var(--table-color-border);
 
-        &.long {
-            font-size: 75%;
+            &:first-child {
+                border-top-left-radius: 8px;
+            }
+
+            &:last-child {
+                border-top-right-radius: 8px;
+            }
         }
     }
 
     tbody {
         tr {
+            td {
+                font-size: 85%;
+                background-color: var(--table-color);
+
+                &.long {
+                    font-size: 75%;
+                }
+            }
+
             &:hover {
                 td {
                     background-color: var(--table-color-hover);
@@ -108,9 +113,30 @@ const hasClassLong = (text: unknown): boolean => {
 
             &:last-child {
                 td {
-                    border-bottom: 0;
+                    &:first-child {
+                        border-bottom-left-radius: 8px;
+                    }
+
+                    &:last-child {
+                        border-bottom-right-radius: 8px;
+                    }
                 }
             }
+        }
+    }
+
+    td,
+    th {
+        padding: 24px 16px;
+        text-align: left;
+        border-bottom: 1px solid var(--table-color-border);
+
+        &:first-child {
+            border-left: 1px solid var(--table-color-border);
+        }
+
+        &:last-child {
+            border-right: 1px solid var(--table-color-border);
         }
     }
 }
