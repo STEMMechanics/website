@@ -74,6 +74,7 @@ export class SMDate {
         { format = "dmy", utc = false } = {}
     ): SMDate {
         const now = new Date();
+        let time = "";
 
         if (dateString.toLowerCase() === "now") {
             this.date = now;
@@ -96,7 +97,6 @@ export class SMDate {
         // Split the date string into an array of components based on the length of each date component
         const components = dateString.split(/[ /-]/);
 
-        let time = "";
         for (const component of components) {
             if (isNaN(parseInt(component))) {
                 return this;
