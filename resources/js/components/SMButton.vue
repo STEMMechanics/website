@@ -227,6 +227,10 @@ const handleClickItem = (item: string) => {
         }
     }
 
+    &.button-block {
+        display: block;
+    }
+
     &.button-dropdown {
         position: relative;
 
