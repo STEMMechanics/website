@@ -5,7 +5,7 @@
             :style="{
                 backgroundImage: `url('${mediaGetVariantUrl(
                     event.hero,
-                    'medium'
+                    'large'
                 )}')`,
             }"></div>
         <SMContainer>
