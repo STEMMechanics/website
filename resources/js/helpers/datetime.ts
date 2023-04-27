@@ -137,13 +137,16 @@ export class SMDate {
         const parsedDay = parseInt(day.padStart(2, "0"), 10);
         const parsedMonth = this.getMonthAsNumber(month);
         const parsedYear = parseInt(year.padStart(4, "20"), 10);
+        let parsedHours: number = 0,
+            parsedMinutes: number = 0,
+            parsedSeconds: number = 0;
 
         const parsedTime = timeRegex.exec(time);
         if (time && parsedTime) {
             const [_, hourStr, minuteStr, secondStr, ampm] = parsedTime;
-            let parsedHours = parseInt(hourStr);
-            const parsedMinutes = parseInt(minuteStr || "0");
-            const parsedSeconds = parseInt(secondStr || "0");
+            parsedHours = parseInt(hourStr);
+            parsedMinutes = parseInt(minuteStr || "0");
+            parsedSeconds = parseInt(secondStr || "0");
 
             if (parsedHours < 0 || parsedHours > 23) {
                 return this;
