@@ -47,6 +47,7 @@
                         <SMButton
                             label="Edit"
                             :dropdown="{
+                                view: 'View',
                                 duplicate: 'Duplicate',
                                 delete: 'Delete',
                             }"
@@ -124,6 +125,8 @@ const handleSearch = () => {
 const handleActionButton = (item: Event, option: string): void => {
     if (option.length == 0) {
         handleEdit(item);
+    } else if (option.toLowerCase() == "view") {
+        handleView(item);
     } else if (option.toLowerCase() == "duplicate") {
         handleDuplicate(item);
     } else if (option.toLowerCase() == "delete") {
@@ -213,12 +216,44 @@ const handleLoad = async () => {
 };
 
 /**
+ * Handle viewing an event.
+ *
+ * @param item
+ */
+const handleView = (item: Event): void => {
+    //  router.push({ name: "event", params: { id: item.id } });
+    window.open(
+        router.resolve({ name: "event", params: { id: item.id } }).href,
+        "_blank"
+    );
+};
+
+/**
  * Handle duplicating an event.
  *
  * @param item
  */
-const handleDuplicate = (item: Event): void => {
-    alert("not implemented");
+const handleDuplicate = async (item: Event): Promise<void> => {
+    // try {
+    //     let result = await api.post({
+    //         url: "/events",
+    //         body: item,
+    //     });
+    //     toastStore.addToast({
+    //         title: "Event Duplicated",
+    //         content:
+    //             "The event has been duplicated.",
+    //         type: "success",
+    //     });
+    //     router.push({ name: "dashboard-event-edit", params: { id: result.id } });
+    // } catch {
+    //     toastStore.addToast({
+    //         title: "Server Error",
+    //         content:
+    //             "An error occurred duplicating the event.",
+    //         type: "danger",
+    //     });
+    // }
 };
 
 /**
