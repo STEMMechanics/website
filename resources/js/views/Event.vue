@@ -53,7 +53,8 @@
                         class="workshop-registration workshop-registration-url">
                         <SMButton
                             :to="registerUrl"
-                            :block="true"
+                            block
+                            size="medium"
                             label="Register for Event"></SMButton>
                     </div>
                     <div
@@ -350,7 +351,8 @@ handleLoad();
             font-size: 90%;
         }
 
-        .workshop-registration {
+        .workshop-registration,
+        .workshop-edit {
             margin-top: 32px;
         }
 
