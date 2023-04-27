@@ -19,7 +19,8 @@ const slots = useSlots();
 <style lang="scss">
 .row.button-row {
     flex-direction: row-reverse;
-    padding: 0 16px;
+    align-items: center;
+    // padding: 0 16px;
 
     & > div {
         display: flex;
@@ -34,12 +35,13 @@ const slots = useSlots();
 }
 
 @media only screen and (max-width: 768px) {
-    .button-row {
+    .row.button-row {
         padding: 0;
         flex-direction: column-reverse;
         gap: 15px;
 
         & > div {
+            align-items: center;
             flex-direction: column;
         }
     }
