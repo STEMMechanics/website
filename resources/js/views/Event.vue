@@ -398,7 +398,7 @@ handleLoad();
 }
 
 @media screen and (max-width: 768px) {
-    .workshop-page {
+    .page-event .workshop-page {
         flex-direction: column;
 
         .workshop-body {
