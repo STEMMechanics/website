@@ -152,49 +152,66 @@ const hasClassLong = (text: unknown): boolean => {
         tr {
             display: block;
         }
-    }
 
-    .table thead tr {
-        position: absolute;
-        top: -9999px;
-        left: -9999px;
-    }
+        thead tr {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
 
-    .table tbody tr {
-        border-bottom: 1px solid var(--table-color-border);
-
-        td {
-            border: none;
+        tbody tr {
             border-bottom: 1px solid var(--table-color-border);
-            position: relative;
-            padding: 8px 12px 8px 40%;
-            white-space: normal;
-            text-align: left;
 
-            &:before {
-                position: absolute;
-                display: flex;
-                align-items: center;
-                padding-left: 12px;
-                top: 0;
-                bottom: 0;
-                left: 0;
-                width: 35%;
-                white-space: nowrap;
-                text-align: left;
-                font-weight: 600;
-                content: attr(data-title);
+            &:first-child {
+                td:first-child {
+                    border-top: 1px solid var(--table-color-border);
+                    border-radius: 8px 8px 0 0;
+                }
             }
-        }
 
-        &:hover {
+            &:last-child {
+                border-bottom: 0;
+
+                td {
+                    &:first-child {
+                        border-radius: 0;
+                    }
+
+                    &:last-child {
+                        border-bottom: 1px solid var(--table-color-border);
+                        border-radius: 0 0 8px 8px;
+                    }
+                }
+            }
+
             td {
-                border-bottom-color: transparent;
-            }
-        }
+                border-bottom: 0;
+                border-left: 1px solid var(--table-color-border);
+                border-right: 1px solid var(--table-color-border);
+                position: relative;
+                padding: 8px 12px 8px 40%;
+                white-space: normal;
+                text-align: left;
 
-        &:nth-child(even) td {
-            background-color: var(--table-color-even);
+                &:before {
+                    position: absolute;
+                    display: flex;
+                    align-items: center;
+                    padding-left: 12px;
+                    top: 0;
+                    bottom: 0;
+                    left: 0;
+                    width: 35%;
+                    white-space: nowrap;
+                    text-align: left;
+                    font-weight: 600;
+                    content: attr(data-title);
+                }
+            }
+
+            &:nth-child(even) td {
+                background-color: var(--table-color-even);
+            }
         }
     }
 }
