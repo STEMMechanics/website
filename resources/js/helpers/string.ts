@@ -5,7 +5,7 @@
  * @returns {string} A string transformed to title case.
  */
 export const toTitleCase = (str: string): string => {
-    return str.replace(/\b\w+\b/g, function (txt) {
+    return str.replace(/[_-]+/g, " ").replace(/\b\w+\b/g, function (txt) {
         return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
     });
 };
