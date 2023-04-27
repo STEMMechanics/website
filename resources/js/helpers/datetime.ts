@@ -71,199 +71,166 @@ export class SMDate {
      */
     public parse(
         dateString: string,
-        options: { format?: string; utc?: boolean } = {}
+        { format = "dmy", utc = false } = {}
     ): SMDate {
         const now = new Date();
 
-        if (dateString.toLowerCase() == "now") {
+        if (dateString.toLowerCase() === "now") {
             this.date = now;
             return this;
         }
 
-        // Parse the date format to determine the order of the date components
-        const order = (options.format || "dmy").toLowerCase().split("");
-        options.utc = options.utc || false;
-
-        let components = [];
-        let time = "";
+        // Cache regular expressions
+        const isoDateRegex =
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,10})?Z$/i;
+        const timeRegex =
+            /^(\d+)(?::(\d+))?(?::(\d+))? ?(am?|a\.m\.|pm?|p\.m\.)?$/i;
 
         // Test if the dateString is in ISO 8601
-        if (
-            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,10})?Z$/i.test(
-                dateString
-            )
-        ) {
-            options.format = "YMd";
+        if (isoDateRegex.test(dateString)) {
+            format = "YMd";
             [dateString, time] = dateString.split("T");
             time = time.slice(0, -8);
         }
 
         // Split the date string into an array of components based on the length of each date component
-        components = dateString.split(/[ /-]/);
+        const components = dateString.split(/[ /-]/);
 
-        for (let i = 0; i < components.length; i++) {
-            if (components[i].includes(":")) {
-                time = components[i];
-                components.splice(i, 1);
+        let time = "";
+        for (const component of components) {
+            if (isNaN(parseInt(component))) {
+                return this;
+            }
+            if (component.includes(":")) {
+                time = component;
+                const index = components.indexOf(component);
                 if (
-                    i < components.length &&
-                    /^(am?|a\.m\.|pm?|p\.m\.)$/i.test(components[i])
+                    index < components.length - 1 &&
+                    /^(am?|a\.m\.|pm?|p\.m\.)$/i.test(components[index + 1])
                 ) {
-                    time += " " + components[i].toUpperCase();
-                    components.splice(i, 1);
+                    time += " " + components[index + 1].toUpperCase();
+                    components.splice(index + 1, 1);
                 }
+                components.splice(index, 1);
                 break;
             }
         }
 
-        if (components.every((v) => !isNaN(parseInt(v))) == false) {
-            return this;
-        }
-
-        if (components.length > 3) {
-            return this;
-        }
-
-        // Map the date components to the expected order based on the format
         const [day, month, year] =
-            order[0] === "d"
-                ? [components[0], components[1], components[2]]
-                : order[0] === "m"
+            format === "dmy"
+                ? components
+                : format === "mdy"
                 ? [components[1], components[0], components[2]]
                 : [components[2], components[1], components[0]];
 
-        let parsedDay: number = 0,
-            parsedMonth: number = 0,
-            parsedYear: number = 0;
-
-        if (year == undefined || year.length == 3 || year.length >= 5) {
+        if (year === undefined || year.length === 3 || year.length >= 5) {
             return this;
         }
 
-        if (day && day.length != 0 && month && month.length != 0) {
-            // Parse the day, month, and year components
-            parsedDay = parseInt(day.padStart(2, "0"), 10);
-            parsedMonth = this.getMonthAsNumber(month);
-            parsedYear = year
-                ? parseInt(year.padStart(4, "20"), 10)
-                : now.getFullYear();
-        } else {
-            parsedDay = now.getDate();
-            parsedMonth = now.getMonth() + 1;
-            parsedYear = now.getFullYear();
-        }
-
-        let parsedHours: number = 0,
-            parsedMinutes: number = 0,
-            parsedSeconds: number = 0;
-        if (time) {
-            const regEx = new RegExp(
-                /^(\d+)(?::(\d+))?(?::(\d+))? ?(am?|a\.m\.|pm?|p\.m\.)?$/,
-                "i"
-            );
-            if (regEx.test(time)) {
-                const match = time.match(regEx);
-                if (match) {
-                    parsedHours = parseInt(match[1]);
-                    parsedMinutes = match[2] ? parseInt(match[2]) : 0;
-                    parsedSeconds = match[3] ? parseInt(match[3]) : 0;
-
-                    if (
-                        parsedHours < 0 ||
-                        parsedHours > 23 ||
-                        (match[4] &&
-                            (/(am|pm)/i.test(match[4]) == false ||
-                                parsedHours > 12)) ||
-                        parsedMinutes < 0 ||
-                        parsedMinutes > 59 ||
-                        parsedSeconds < 0 ||
-                        parsedSeconds > 59
-                    ) {
-                        // not valid
-                        this.date = null;
-                        return this;
-                    }
-
-                    if (match[4] && /pm/i.test(match[4]) && parsedHours < 12) {
-                        parsedHours += 12;
-                    }
-                    if (
-                        match[4] &&
-                        /am/i.test(match[4]) &&
-                        parsedHours === 12
-                    ) {
-                        parsedHours = 0;
-                    }
-                } else {
-                    return this;
-                }
-            } else {
+        // numeric
+        for (const component of [day, month, year]) {
+            if (isNaN(parseInt(component))) {
                 return this;
             }
         }
 
-        // Create a date object with the parsed components
-        let date: Date | null = null;
-        if (options.utc) {
-            date = new Date(
-                Date.UTC(
-                    parsedYear,
-                    parsedMonth - 1,
-                    parsedDay,
-                    parsedHours,
-                    parsedMinutes,
-                    parsedSeconds
-                )
-            );
+        const parsedDay = parseInt(day.padStart(2, "0"), 10);
+        const parsedMonth = this.getMonthAsNumber(month);
+        const parsedYear = parseInt(year.padStart(4, "20"), 10);
+
+        const parsedTime = timeRegex.exec(time);
+        if (time && parsedTime) {
+            const [_, hourStr, minuteStr, secondStr, ampm] = parsedTime;
+            let parsedHours = parseInt(hourStr);
+            const parsedMinutes = parseInt(minuteStr || "0");
+            const parsedSeconds = parseInt(secondStr || "0");
+
+            if (parsedHours < 0 || parsedHours > 23) {
+                return this;
+            }
+
+            if (ampm) {
+                if (/pm/i.test(ampm) && parsedHours < 12) {
+                    parsedHours += 12;
+                } else if (/am/i.test(ampm) && parsedHours === 12) {
+                    parsedHours = 0;
+                }
+            }
+
+            if (
+                parsedMinutes < 0 ||
+                parsedMinutes > 59 ||
+                parsedSeconds < 0 ||
+                parsedSeconds > 59
+            ) {
+                return this;
+            }
+
+            time = `${parsedHours.toString().padStart(2, "0")}:${parsedMinutes
+                .toString()
+                .padStart(2, "0")}:${parsedSeconds
+                .toString()
+                .padStart(2, "0")}`;
         } else {
-            date = new Date(
-                parsedYear,
-                parsedMonth - 1,
-                parsedDay,
-                parsedHours,
-                parsedMinutes,
-                parsedSeconds
-            );
+            time = "00:00:00";
         }
 
-        // Test created date object
-        let checkYear: number,
-            checkMonth: number,
-            checkDay: number,
-            checkHours: number,
-            checkMinutes: number,
-            checkSeconds: number;
-        if (options.utc) {
+        const date = utc
+            ? new Date(
+                  Date.UTC(
+                      parsedYear,
+                      parsedMonth - 1,
+                      parsedDay,
+                      parsedHours,
+                      parsedMinutes,
+                      parsedSeconds
+                  )
+              )
+            : new Date(
+                  parsedYear,
+                  parsedMonth - 1,
+                  parsedDay,
+                  parsedHours,
+                  parsedMinutes,
+                  parsedSeconds
+              );
+
+        if (isNaN(date.getTime())) {
+            return this;
+        }
+
+        if (utc) {
             const isoDate = date.toISOString();
-            checkYear = parseInt(isoDate.substring(0, 4), 10);
-            checkMonth = parseInt(isoDate.substring(5, 7), 10);
-            checkDay = new Date(isoDate).getUTCDate();
-            checkHours = parseInt(isoDate.substring(11, 13), 10);
-            checkMinutes = parseInt(isoDate.substring(14, 16), 10);
-            checkSeconds = parseInt(isoDate.substring(17, 19), 10);
+            const checkYear = parseInt(isoDate.substring(0, 4), 10);
+            const checkMonth = parseInt(isoDate.substring(5, 7), 10);
+            const checkDay = new Date(isoDate).getUTCDate();
+            const checkHours = parseInt(isoDate.substring(11, 13), 10);
+            const checkMinutes = parseInt(isoDate.substring(14, 16), 10);
+            const checkSeconds = parseInt(isoDate.substring(17, 19), 10);
+            if (
+                checkYear !== parsedYear ||
+                checkMonth !== parsedMonth ||
+                checkDay !== parsedDay ||
+                checkHours !== parsedHours ||
+                checkMinutes !== parsedMinutes ||
+                checkSeconds !== parsedSeconds
+            ) {
+                return this;
+            }
         } else {
-            checkYear = date.getFullYear();
-            checkMonth = date.getMonth() + 1;
-            checkDay = date.getDate();
-            checkHours = date.getHours();
-            checkMinutes = date.getMinutes();
-            checkSeconds = date.getSeconds();
+            if (
+                date.getFullYear() !== parsedYear ||
+                date.getMonth() + 1 !== parsedMonth ||
+                date.getDate() !== parsedDay ||
+                date.getHours() !== parsedHours ||
+                date.getMinutes() !== parsedMinutes ||
+                date.getSeconds() !== parsedSeconds
+            ) {
+                return this;
+            }
         }
 
-        if (
-            Number.isNaN(date.getTime()) == false &&
-            checkYear == parsedYear &&
-            checkMonth == parsedMonth &&
-            checkDay == parsedDay &&
-            checkHours == parsedHours &&
-            checkMinutes == parsedMinutes &&
-            checkSeconds == parsedSeconds
-        ) {
-            this.date = date;
-        } else {
-            this.date = null;
-        }
-
+        this.date = date;
         return this;
     }
 
@@ -297,7 +264,7 @@ export class SMDate {
             day = new Date(isoDate).getUTCDay();
             hour = isoDate.substring(11, 13);
             min = isoDate.substring(14, 16);
-            sec = isoDate.substring(17, 18);
+            sec = isoDate.substring(17, 19);
         } else {
             year = this.date.getFullYear().toString();
             month = (this.date.getMonth() + 1).toString();
@@ -367,45 +334,36 @@ export class SMDate {
      * @returns {string} A relative date string.
      */
     public relative(): string {
-        let prefix = "";
-        let postfix = " ago";
-
         if (this.date === null) {
             return "";
         }
 
         const now = new Date();
-        let dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
-
-        if (dif < 0) {
-            dif = Math.abs(dif);
-            prefix = "In ";
-            postfix = "";
-        }
+        const dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
 
         if (dif < 60) {
             return "Just now";
         } else if (dif < 3600) {
             const v = Math.round(dif / 60);
-            return prefix + v + " min" + (v != 1 ? "s" : "") + postfix;
+            return `${v} min${v != 1 ? "s" : ""} ago`;
         } else if (dif < 86400) {
             const v = Math.round(dif / 3600);
-            return prefix + v + " hour" + (v != 1 ? "s" : "") + postfix;
+            return `${v} hour${v != 1 ? "s" : ""} ago`;
         } else if (dif < 604800) {
             const v = Math.round(dif / 86400);
-            return prefix + v + " day" + (v != 1 ? "s" : "") + postfix;
+            return `${v} day${v != 1 ? "s" : ""} ago`;
         } else if (dif < 2419200) {
             const v = Math.round(dif / 604800);
-            return prefix + v + " week" + (v != 1 ? "s" : "") + postfix;
+            return `${v} week${v != 1 ? "s" : ""} ago`;
+        } else {
+            return (
+                this.monthString[this.date.getMonth()] +
+                " " +
+                this.date.getDate() +
+                ", " +
+                this.date.getFullYear()
+            );
         }
-
-        return (
-            this.monthString[this.date.getMonth()] +
-            " " +
-            this.date.getDate() +
-            ", " +
-            this.date.getFullYear()
-        );
     }
 
     /**

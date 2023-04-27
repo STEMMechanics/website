@@ -56,14 +56,15 @@ export const bytesReadable = (bytes: number): string => {
     const units = ["KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
     let u = -1;
     const r = 10 ** 1;
+    let tempBytes = bytes;
 
-    do {
-        bytes /= 1000;
-        ++u;
-    } while (
-        Math.round(Math.abs(bytes) * r) / r >= 1000 &&
+    while (
+        Math.round(Math.abs(tempBytes) * r) / r >= 1000 &&
         u < units.length - 1
-    );
+    ) {
+        tempBytes /= 1000;
+        ++u;
+    }
 
-    return bytes.toFixed(1) + " " + units[u];
+    return tempBytes.toFixed(1) + " " + units[u];
 };
