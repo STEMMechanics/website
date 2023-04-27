@@ -9,6 +9,6 @@ describe("toTitleCase()", () => {
 
     it("should return a converted title case string and spaces", () => {
         const result = toTitleCase("titlecase_and_more");
-        expect(result).toEqual("Titlecase and more");
+        expect(result).toEqual("Titlecase And More");
     });
 });
