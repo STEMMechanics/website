@@ -20,12 +20,23 @@
                         >
                     </SMInput>
                 </template>
-                <template #footer-space-between>
-                    <div class="small">
-                        <span class="pr-1">Need an account?</span
-                        ><router-link to="/register">Register</router-link>
-                    </div>
-                    <SMButton :form="form" type="submit" label="Log in" />
+                <template #footer>
+                    <SMButtonRow>
+                        <template #left>
+                            <div class="small">
+                                <span class="pr-1">Need an account?</span
+                                ><router-link to="/register"
+                                    >Register</router-link
+                                >
+                            </div>
+                        </template>
+                        <template #right>
+                            <SMButton
+                                :form="form"
+                                type="submit"
+                                label="Log in" />
+                        </template>
+                    </SMButtonRow>
                 </template>
             </SMFormCard>
         </SMForm>
@@ -45,6 +56,7 @@ import { LoginResponse } from "../helpers/api.types";
 import { Form, FormControl } from "../helpers/form";
 import { And, Min, Required } from "../helpers/validate";
 import { useUserStore } from "../store/UserStore";
+import SMButtonRow from "../components/SMButtonRow.vue";
 
 const userStore = useUserStore();
 
