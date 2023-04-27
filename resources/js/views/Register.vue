@@ -33,8 +33,10 @@
                             <SMInput control="email" />
                         </SMColumn>
                         <SMColumn>
-                            <SMInput control="phone">
-                                This field is optional.
+                            <SMInput control="phone"
+                                ><template #help
+                                    >This field is optional</template
+                                >
                             </SMInput>
                         </SMColumn>
                     </SMRow>
