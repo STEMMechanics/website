@@ -102,7 +102,7 @@ const handleLoad = async () => {
 
                 backgroundImageUrl.value = mediaGetVariantUrl(
                     article.value.hero,
-                    "medium"
+                    "large"
                 );
                 applicationStore.setDynamicTitle(article.value.title);
             } else {
