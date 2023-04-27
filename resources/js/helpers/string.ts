@@ -5,11 +5,8 @@
  * @returns {string} A string transformed to title case.
  */
 export const toTitleCase = (str: string): string => {
-    return str.replace(/\w\S*/g, function (txt) {
-        return (
-            txt.charAt(0).toUpperCase() +
-            txt.substring(1).replace(/_/g, " ").toLowerCase()
-        );
+    return str.replace(/\b\w+\b/g, function (txt) {
+        return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
     });
 };
 
@@ -22,31 +19,34 @@ export const toTitleCase = (str: string): string => {
  * @param stripHtml
  * @returns {string} The excerpt.
  */
-export const excerpt = (
+export function excerpt(
     txt: string,
     maxLen: number = 150,
     stripHtml: boolean = true
-): string => {
+): string {
     if (stripHtml) {
-        txt = stripHtmlTags(replaceHtmlEntites(txt));
+        txt = txt.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
     }
 
-    const txtPieces = txt.split(" ");
-    const excerptPieces: string[] = [];
+    const words = txt.trim().split(/\s+/);
     let curLen = 0;
+    const excerptWords: string[] = [];
 
-    txtPieces.every((itm) => {
-        if (curLen + itm.length >= maxLen) {
-            return false;
+    for (const word of words) {
+        if (curLen + word.length + 1 > maxLen) {
+            break;
         }
+        curLen += word.length + 1;
+        excerptWords.push(word);
+    }
 
-        excerptPieces.push(itm);
-        curLen += itm.length + 1;
-        return true;
-    });
+    let excerpt = excerptWords.join(" ");
+    if (curLen < txt.length) {
+        excerpt += "...";
+    }
 
-    return excerptPieces.join(" ") + (curLen < txt.length ? "..." : "");
-};
+    return excerpt;
+}
 
 /**
  * String HTML tags from text.
@@ -55,8 +55,7 @@ export const excerpt = (
  * @returns {string} The stripped text.
  */
 export const stripHtmlTags = (txt: string): string => {
-    txt = txt.replace(/<(p|br)([ /]*?>|[ /]+.*?>)/g, " ");
-    return txt.replace(/<[a-zA-Z/][^>]+(>|$)/g, "");
+    return txt.replace(/<(p|br)([ /]*?>|[ /]+.*?>)|<[a-zA-Z/][^>]+(>|$)/g, " ");
 };
 
 /**
@@ -65,18 +64,24 @@ export const stripHtmlTags = (txt: string): string => {
  * @param {string} txt The text to transform.
  * @returns {string} Transformed text
  */
-export const replaceHtmlEntites = (txt: string): string => {
+export const replaceHtmlEntities = (txt: string): string => {
     const translate_re = /&(nbsp|amp|quot|lt|gt);/g;
-    const translate = {
-        nbsp: " ",
-        amp: "&",
-        quot: '"',
-        lt: "<",
-        gt: ">",
-    };
 
     return txt.replace(translate_re, function (match, entity) {
-        return translate[entity];
+        switch (entity) {
+            case "nbsp":
+                return " ";
+            case "amp":
+                return "&";
+            case "quot":
+                return '"';
+            case "lt":
+                return "<";
+            case "gt":
+                return ">";
+            default:
+                return match;
+        }
     });
 };
 
@@ -88,8 +93,8 @@ export const replaceHtmlEntites = (txt: string): string => {
  */
 export const stringToNumber = (str: string): number => {
     str = str.replace(/[^\d.-]/g, "");
-    const num = Number.parseFloat(str);
-    return isNaN(num) ? 0 : parseFloat(num.toFixed(2));
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Number(num.toFixed(2));
 };
 
 /**
@@ -99,19 +104,9 @@ export const stringToNumber = (str: string): number => {
  * @returns {string} The converted result.
  */
 export const toPrice = (numOrString: number | string): string => {
-    let num = 0;
-
-    if (typeof numOrString == "string") {
-        num = stringToNumber(numOrString);
-    } else {
-        num = numOrString;
-    }
-
-    if (num % 1 === 0) {
-        // Number has no decimal places
-        return num.toFixed(0);
-    } else {
-        // Number has decimal places
-        return num.toFixed(2);
-    }
+    const num =
+        typeof numOrString === "string"
+            ? stringToNumber(numOrString)
+            : numOrString;
+    return num.toFixed(num % 1 === 0 ? 0 : 2);
 };
