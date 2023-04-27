@@ -351,9 +351,12 @@ handleLoad();
             font-size: 90%;
         }
 
-        .workshop-registration,
-        .workshop-edit {
+        .workshop-registration {
             margin-top: 32px;
+        }
+
+        .workshop-edit {
+            margin-top: 16px;
         }
 
         .workshop-registration-none,
