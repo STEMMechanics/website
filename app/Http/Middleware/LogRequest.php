@@ -21,8 +21,8 @@ class LogRequest
         $response = $next($request);
 
         try {
-            Analytics::create([
-                'type' => 'pageview',
+            Analytics::createWithSession([
+                'type' => 'apirequest',
                 'attribute' => $request->path(),
                 'useragent' => $request->userAgent(),
                 'ip' => $request->ip(),

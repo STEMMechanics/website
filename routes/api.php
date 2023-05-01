@@ -25,6 +25,9 @@ use App\Http\Controllers\Api\UserController;
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/register', [UserController::class, 'register']);
 
+Route::get('/analytics', [AnalyticsController::class, 'index']);
+Route::post('/analytics', [AnalyticsController::class, 'store']);
+
 Route::apiResource('users', UserController::class);
 Route::post('/users/forgotUsername', [UserController::class, 'forgotUsername']);
 Route::post('/users/forgotPassword', [UserController::class, 'forgotPassword']);
