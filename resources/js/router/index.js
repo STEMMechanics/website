@@ -393,7 +393,9 @@ router.beforeEach(async (to, from, next) => {
     if (to.meta.middleware == "authenticated") {
         if (userStore.id) {
             try {
-                let res = await api.get("/me");
+                let res = await api.get({
+                    url: "/me",
+                });
                 userStore.setUserDetails(res.json.user);
             } catch (err) {
                 if (err.status == 401) {
@@ -407,12 +409,22 @@ router.beforeEach(async (to, from, next) => {
                 name: "login",
                 query: { redirect: encodeURIComponent(to.fullPath) },
             });
-        } else {
-            next();
+
+            return;
         }
-    } else {
-        next();
     }
+
+    api.post({
+        url: "/analytics",
+        body: {
+            type: "pageview",
+            attribute: to.fullPath,
+        },
+    }).catch(() => {
+        /* empty */
+    });
+
+    next();
 });
 
 router.afterEach((to, from) => {
