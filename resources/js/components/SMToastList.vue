@@ -1,5 +1,5 @@
 <template>
-    <div class="toast-container">
+    <div class="toast-container" v-if="toastStore.toasts">
         <SMToast
             v-for="toast of toastStore.toasts"
             :id="toast.id"
