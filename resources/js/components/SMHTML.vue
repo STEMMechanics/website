@@ -54,14 +54,14 @@ const computedContent = computed(() => {
     const regexImg = new RegExp(
         `<img ([^>]*?)src="${
             (import.meta as ImportMetaExtras).env.APP_URL
-        }/uploads/([^"]*?)"`,
+        }/storage/([^"]*?)"`,
         "ig"
     );
     html = html.replace(
         regexImg,
         `<img $1src="${
             (import.meta as ImportMetaExtras).env.APP_URL
-        }/uploads/$2?size=large"`
+        }/storage/$2?size=large"`
     );
 
     return {

@@ -80,14 +80,20 @@ tinymce.PluginManager.add("gallery", function (editor) {
     editor.on("PreInit", function () {
         var contentStyle = editor.options.get("content_style") || "";
         contentStyle += `
-          .tinymce-gallery {
+        .tinymce-gallery {
             position: relative;
-            overflow: hidden;
-            margin: 20px auto;
-            height: 200px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 30px;
             width: 100%;
-            display: block;
-            white-space: nowrap;
+            border: 3px solid #666;
+        }
+
+        .tinymce-gallery-item {
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            padding-bottom: 56.25%;
         }
 
         .tinymce-gallery::before {
@@ -98,30 +104,24 @@ tinymce.PluginManager.add("gallery", function (editor) {
             width: 100%;
             height: 100%;
             background-color: rgba(255, 255, 255, 0.5);
+            z-index: 100;
         }
 
         .tinymce-gallery::after {
             position: absolute;
             content: "Image Gallery";
             top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: var(--base-color-light);
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            background-color: #666;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 150%;
-            color: black;
+            font-size: 200%;
+            color: #fff;
             padding: .25rem 1.5rem;
-            border-radius: 12px;
-        }
-
-        .tinymce-gallery-item {
-            display: inline-block;
-            width: 355px;
-            height: 200px;
-            background-size: cover;
-            background-position: center;
+            z-index: 110;
         }`;
         editor.options.set("content_style", contentStyle);
     });
