@@ -35,7 +35,6 @@ const gallery = ref(null);
 const showModalImage = ref(null);
 
 const showModal = (index) => {
-    console.log(index);
     showModalImage.value = index;
     document.addEventListener("keydown", handleKeyDown);
 };

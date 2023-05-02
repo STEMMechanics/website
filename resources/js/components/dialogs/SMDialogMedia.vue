@@ -315,7 +315,6 @@ const handleChangeUpload = async () => {
                 if (result.data) {
                     const data = result.data as MediaResponse;
 
-                    console.log(data.medium.status);
                     if (
                         data.medium.status != "" &&
                         data.medium.status.startsWith("Failed") == false
@@ -340,7 +339,6 @@ const handleChangeUpload = async () => {
                                 if (updateResult.data) {
                                     const updateData =
                                         updateResult.data as MediaResponse;
-                                    console.log(updateData.medium.status);
                                     if (
                                         updateData.medium.status == "" &&
                                         data.medium.status.startsWith(
