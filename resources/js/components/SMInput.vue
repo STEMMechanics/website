@@ -305,6 +305,10 @@ const disabled = ref(props.disabled);
 watch(
     () => value.value,
     (newValue) => {
+        if (props.type === "media") {
+            mediaUrl.value = value.value.url ?? "";
+        }
+
         active.value =
             newValue.length > 0 ||
             newValue instanceof File ||
@@ -357,7 +361,7 @@ if (form) {
     );
 }
 
-const mediaUrl = ref(value.value.url);
+const mediaUrl = ref(value.value.url ?? "");
 
 const handleFocus = () => {
     active.value = true;
