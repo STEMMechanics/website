@@ -105,17 +105,7 @@ class StoreUploadedFileJob implements ShouldQueue
                 $this->media->save();
 
                 // Generate additional image sizes
-                $sizes = [
-                    'thumb' => [150, 150],
-                    'small' => [300, 225],
-                    'medium' => [768, 576],
-                    'large' => [1024, 768],
-                    'xlarge' => [1536, 1152],
-                    'xxlarge' => [2048, 1536],
-                    'scaled' => [2560, 1920]
-                ];
-
-                $variants = [];
+                $sizes = Media::getTypeVariants('image');
 
                 $originalImage = Image::make($this->uploadedFilePath);
 
@@ -123,7 +113,7 @@ class StoreUploadedFileJob implements ShouldQueue
                 $this->media->dimensions = implode('x', $dimensions);
 
                 foreach ($sizes as $variantName => $size) {
-                    $postfix = "{$size[0]}x{$size[1]}";
+                    $postfix = "{$size['width']}x{$size['height']}";
                     if ($variantName === 'scaled') {
                         $postfix = 'scaled';
                     }
@@ -136,7 +126,7 @@ class StoreUploadedFileJob implements ShouldQueue
 
                     if (Storage::disk($storageDisk)->exists($newFilename) === false || $this->replaceExisting === true) {
                         // Get the largest available variant
-                        if ($dimensions[0] >= $size[0] && $dimensions[1] >= $size[1]) {
+                        if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {
                             // Store the variant in the variants array
                             $variants[$variantName] = $newFilename;
 
@@ -144,12 +134,12 @@ class StoreUploadedFileJob implements ShouldQueue
                             $image = clone $originalImage;
 
                             $imageSize = $image->getSize();
-                            if ($imageSize->getWidth() > $size[0] || $imageSize->getHeight() > $size[1]) {
-                                $image->resize($size[0], $size[1], function ($constraint) {
+                            if ($imageSize->getWidth() > $size['width'] || $imageSize->getHeight() > $size['height']) {
+                                $image->resize($size['width'], $size['height'], function ($constraint) {
                                     $constraint->aspectRatio();
                                     $constraint->upsize();
                                 });
-                                $image->resizeCanvas($size[0], $size[1], 'center', false, '#FFFFFF');
+                                $image->resizeCanvas($size['width'], $size['height'], 'center', false, '#FFFFFF');
                             }
 
                             // Optimize and store image

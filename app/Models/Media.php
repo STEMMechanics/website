@@ -48,7 +48,6 @@ class Media extends Model
         'description',
         'name',
         'size',
-        'mime_type',
         'status',
     ];
 
@@ -80,6 +79,23 @@ class Media extends Model
      * @var array
      */
     protected static $storageFileListCache = [];
+
+    /**
+     * The variant types.
+     *
+     * @var int[][][]
+     */
+    protected static $variantTypes = [
+        'image' => [
+            'thumb'     => ['width' => 150, 'height' => 150],
+            'small'     => ['width' => 300, 'height' => 225],
+            'medium'    => ['width' => 768, 'height' => 576],
+            'large'     => ['width' => 1024, 'height' => 768],
+            'xlarge'    => ['width' => 1536, 'height' => 1152],
+            'xxlarge'   => ['width' => 2048, 'height' => 1536],
+            'scaled'    => ['width' => 2560, 'height' => 1920]
+        ]
+    ];
 
 
     /**
@@ -115,6 +131,21 @@ class Media extends Model
 
 
     /**
+     * Get Type Variants.
+     *
+     * @param string $type The variant type to get.
+     * @return array The variant data.
+     */
+    public static function getTypeVariants(string $type)
+    {
+        if (isset(self::$variantTypes[$type]) === true) {
+            return self::$variantTypes[$type];
+        }
+
+        return [];
+    }
+
+    /**
      * Variants Get Mutator.
      *
      * @param mixed $value The value to mutate.
@@ -143,6 +174,85 @@ class Media extends Model
 
         $this->attributes['variants'] = json_encode(($value ?? []));
     }
+
+    /**
+     * Get previous variant.
+     *
+     * @param string $type    The variant type.
+     * @param string $variant The initial variant.
+     * @return string The previous variant name (or '').
+     */
+    public function getPreviousVariant(string $type, string $variant)
+    {
+        if (isset(self::$variantTypes[$type]) === false) {
+            return '';
+        }
+
+        $variants = self::$variantTypes[$type];
+        $keys = array_keys($variants);
+
+        $currentIndex = array_search($variant, $keys);
+        if ($currentIndex === false || $currentIndex === 0) {
+            return '';
+        }
+
+        return $keys[($currentIndex - 1)];
+    }
+
+    /**
+     * Get next variant.
+     *
+     * @param string $type    The variant type.
+     * @param string $variant The initial variant.
+     * @return string The next variant name (or '').
+     */
+    public function getNextVariant(string $type, string $variant)
+    {
+        if (isset(self::$variantTypes[$type]) === false) {
+            return '';
+        }
+
+        $variants = self::$variantTypes[$type];
+        $keys = array_keys($variants);
+
+        $currentIndex = array_search($variant, $keys);
+        if ($currentIndex === false || $currentIndex === (count($keys) - 1)) {
+            return '';
+        }
+
+        return $keys[($currentIndex + 1)];
+    }
+
+    /**
+     * Get variant URL.
+     *
+     * @param string  $variant       The variant to find.
+     * @param boolean $returnNearest Return the nearest variant if request is not found.
+     * @return string The URL.
+     */
+    public function getVariantURL(string $variant, bool $returnNearest = true)
+    {
+        $variants = $this->variants;
+        if (isset($variants[$variant]) === true) {
+            return self::getUrlPath() . $variants[$variant];
+        }
+
+        if ($returnNearest === true) {
+            $variantType = explode('/', $this->mime_type)[0];
+            $previousVariant = $variant;
+            while (empty($previousVariant) === false) {
+                $previousVariant = $this->getPreviousVariant($variantType, $previousVariant);
+                if (empty($previousVariant) === false && isset($variants[$previousVariant]) === true) {
+                    return self::getUrlPath() . $variants[$previousVariant];
+                }
+            }
+        }
+
+        return '';
+    }
+
+
+
 
     /**
      * Delete file and associated files with the modal.
@@ -200,6 +310,17 @@ class Media extends Model
     }
 
     /**
+     * Get URL path
+     *
+     * @return string
+     */
+    public function getUrlPath()
+    {
+        $url = config("filesystems.disks.$this->storage.url");
+        return "$url/";
+    }
+
+    /**
      * Return the file URL
      *
      * @return string
@@ -207,8 +328,7 @@ class Media extends Model
     public function getUrlAttribute()
     {
         if (isset($this->attributes['name']) === true) {
-            $url = config("filesystems.disks.$this->storage.url");
-            return "$url/$this->name";
+            return self::getUrlPath() . $this->name;
         }
 
         return '';
