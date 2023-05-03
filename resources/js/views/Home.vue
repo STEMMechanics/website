@@ -178,7 +178,7 @@ const handleLoad = async () => {
                         getApiResultData<ArticleCollection>(articlesResult);
 
                     if (articlesData && articlesData.articles) {
-                        const randomIndex = 1;
+                        const randomIndex = 0;
                         // Math.floor(
                         //     Math.random() * articlesData.articles.length
                         // );
