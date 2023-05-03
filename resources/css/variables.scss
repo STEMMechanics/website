@@ -113,6 +113,8 @@ $spacing: (
     // Input
     --input-clear-icon-color: var(--base-color-dark);
     --input-clear-icon-color-hover: var(--base-color-light);
+    --input-color: var(--base-color-light);
+    --input-color-border: var(--base-color-darker);
 
     // Pagination
     --pagination-color: var(--base-color-light);
@@ -143,6 +145,7 @@ $spacing: (
     // SKIP BELOW
     --navbar-color: var(--base-color-light);
     --navbar-color-dropdown: var(--base-color-light);
+    --navbar-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
 
     --card-color: var(--base-color-light);
 
@@ -159,6 +162,10 @@ $spacing: (
     --banner-red-color-text: #fff;
     --banner-purple-color: #707;
     --banner-purple-color-text: #fff;
+
+    // Editor
+    --editor-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
+    --editor-backdrop: rgba(255, 255, 255, 0.75);
 }
 
 // --primary-color-hover: #f1fdff;
@@ -175,6 +182,8 @@ $spacing: (
         --base-color-dark: #666;
         --base-color-darker: #999;
 
+        // --base-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+
         --button-color: var(--base-color-lighter);
         --button-color-text: var(--base-color-background);
         --button-primary-color-text: var(--base-color-background);
@@ -186,5 +195,9 @@ $spacing: (
         // Accents
         --accent-2-color: #063954;
         --accent-2-color-text: #cce8fb;
+
+        // Editor
+        --editor-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+        --editor-backdrop: rgba(0, 0, 0, 0.75);
     }
 }

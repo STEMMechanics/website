@@ -72,7 +72,6 @@ const props = defineProps({
     },
 });
 
-const useDarkMode = false; // window.matchMedia("(prefers-color-scheme: dark)").matches;
 const tinyeditor = ref(null);
 
 tinymce.PluginManager.add("gallery", function (editor) {
@@ -218,12 +217,8 @@ const init = {
     // template_cdate_format: "[Date Created (CDATE): %m/%d/%Y : %H:%M:%S]",
     // template_mdate_format: "[Date Modified (MDATE): %m/%d/%Y : %H:%M:%S]",
     relative_urls: false,
-    skin_url: useDarkMode
-        ? "/tinymce/skins/ui/oxide-dark"
-        : "/tinymce/skins/ui/oxide",
-    content_css: useDarkMode
-        ? "/tinymce/skins/content/default/dark.min.css"
-        : "/tinymce/skins/content/default/content.min.css",
+    skin_url: "/tinymce/skins/ui/stemmech",
+    content_css: "/tinymce/skins/ui/stemmech/content.min.css",
     height: 600,
     plugins: [
         "link",

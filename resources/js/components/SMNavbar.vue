@@ -174,7 +174,7 @@ onUnmounted(() => {
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
     background-color: var(--navbar-color);
-    box-shadow: var(--base-shadow);
+    box-shadow: var(--navbar-shadow);
 
     &.nav-active {
         background-color: var(--navbar-color) !important;
