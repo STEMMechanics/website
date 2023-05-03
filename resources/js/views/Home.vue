@@ -275,6 +275,13 @@ handleLoad();
             gap: 30px;
             width: 100%;
             max-width: 1200px;
+
+            .event-card,
+            .article-card {
+                &:nth-child(4) {
+                    display: none;
+                }
+            }
         }
     }
 
@@ -451,6 +458,13 @@ handleLoad();
             .events,
             .articles {
                 grid-template-columns: 1fr 1fr;
+
+                .event-card,
+                .article-card {
+                    &:nth-child(4) {
+                        display: block;
+                    }
+                }
             }
         }
     }
