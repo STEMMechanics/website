@@ -24,28 +24,10 @@
                 :total="articlesTotal"
                 :per-page="articlesPerPage" />
             <div class="articles">
-                <router-link
-                    :to="{ name: 'article', params: { slug: article.slug } }"
-                    class="article-card"
-                    v-for="(article, idx) in articles"
-                    :key="idx">
-                    <div
-                        class="thumbnail"
-                        :style="{
-                            backgroundImage: `url(${mediaGetVariantUrl(
-                                article.hero,
-                                'medium'
-                            )})`,
-                        }"></div>
-                    <div class="info">
-                        {{ article.user.display_name }} -
-                        {{ computedDate(article.publish_at) }}
-                    </div>
-                    <h3 class="title">{{ article.title }}</h3>
-                    <p class="content">
-                        {{ excerpt(article.content) }}
-                    </p>
-                </router-link>
+                <SMArticleCard
+                    v-for="(article, index) in articles"
+                    :key="index"
+                    :article="article" />
             </div>
         </template>
     </SMContainer>
@@ -57,13 +39,12 @@ import SMPagination from "../components/SMPagination.vue";
 import { api } from "../helpers/api";
 import { Article, ArticleCollection } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
-import { mediaGetVariantUrl } from "../helpers/media";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMInput from "../components/SMInput.vue";
 import SMButton from "../components/SMButton.vue";
-import { excerpt } from "../helpers/string";
 import SMLoading from "../components/SMLoading.vue";
 import SMNoItems from "../components/SMNoItems.vue";
+import SMArticleCard from "../components/SMArticleCard.vue";
 
 const message = ref("");
 const pageLoading = ref(true);
@@ -127,10 +108,6 @@ const handleLoad = () => {
         });
 };
 
-const computedDate = (date) => {
-    return new SMDate(date, { format: "yMd" }).format("d MMMM yyyy");
-};
-
 watch(
     () => articlesPage.value,
     () => {
@@ -147,43 +124,6 @@ handleLoad();
         display: grid;
         grid-template-columns: 1fr;
         gap: 30px;
-
-        .article-card {
-            text-decoration: none;
-            color: var(--card-color-text);
-            margin-bottom: 48px;
-
-            &:hover {
-                filter: none;
-
-                .thumbnail {
-                    filter: brightness(115%);
-                }
-            }
-
-            .thumbnail {
-                aspect-ratio: 16 / 9;
-                border-radius: 7px;
-                background-position: center;
-                background-size: cover;
-                background-color: var(--card-color);
-                box-shadow: var(--base-shadow);
-                margin-bottom: 24px;
-            }
-
-            .info {
-                font-size: 80%;
-            }
-
-            .title {
-                margin: 16px 0;
-                word-break: break-word;
-            }
-
-            .content {
-                font-size: 90%;
-            }
-        }
     }
 }
 

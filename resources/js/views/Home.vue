@@ -1,5 +1,11 @@
 <template>
-    <SMHero class="hero-offset" />
+    <SMHero
+        class="hero-offset"
+        :title="heroTitle"
+        :excerpt="heroExcerpt"
+        :image-url="heroImageUrl"
+        :image-title="heroImageTitle"
+        :to="heroTo" />
 
     <SMContainer class="about align-items-center">
         <template #inner>
@@ -23,11 +29,25 @@
             </p>
         </template>
     </SMContainer>
+    <SMContainer class="upcoming align-items-center">
+        <h2>Upcoming Workshops</h2>
+        <div class="events">
+            <SMEventCard
+                v-for="event in events"
+                :event="event"
+                :key="event.id" />
+        </div>
+    </SMContainer>
     <SMContainer class="workshops align-items-center">
         <template #inner>
             <SMRow>
-                <SMColumn class="align-items-center flex-basis-55">
-                    <h2>Build skills while having a great time</h2>
+                <SMColumn
+                    ><h2>Build skills while having a great time</h2></SMColumn
+                >
+            </SMRow>
+            <SMRow class="align-items-stretch">
+                <SMColumn
+                    class="align-items-center justify-content-center flex-basis-55">
                     <p>
                         Our online and in-person workshops are filled with
                         engaging and exciting activities that kids will love.
@@ -44,6 +64,15 @@
                 </SMColumn>
             </SMRow>
         </template>
+    </SMContainer>
+    <SMContainer class="latest-articles align-items-center">
+        <h2>Latest Posts</h2>
+        <div class="articles">
+            <SMArticleCard
+                v-for="(article, index) in articles"
+                :key="index"
+                :article="article" />
+        </div>
     </SMContainer>
     <SMContainer full class="minecraft">
         <SMContainer>
@@ -110,8 +139,101 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
 import SMButton from "../components/SMButton.vue";
 import SMHero from "../components/SMHero.vue";
+import { api, getApiResultData } from "../helpers/api";
+import { ArticleCollection, EventCollection } from "../helpers/api.types";
+import { excerpt } from "../helpers/string";
+import { mediaGetVariantUrl } from "../helpers/media";
+import { SMDate } from "../helpers/datetime";
+import SMEventCard from "../components/SMEventCard.vue";
+import SMArticleCard from "../components/SMArticleCard.vue";
+
+const articles = ref([]);
+const events = ref([]);
+
+const heroTitle = ref("");
+const heroExcerpt = ref("");
+const heroImageUrl = ref("");
+const heroImageTitle = ref("");
+const heroTo = ref({});
+
+const computedDate = (date) => {
+    return new SMDate(date, { format: "yMd" }).format("d MMMM yyyy");
+};
+
+const handleLoad = async () => {
+    try {
+        await Promise.all([
+            api
+                .get({
+                    url: "/articles",
+                    params: {
+                        limit: 5,
+                    },
+                })
+                .then((articlesResult) => {
+                    const articlesData =
+                        getApiResultData<ArticleCollection>(articlesResult);
+
+                    if (articlesData && articlesData.articles) {
+                        const randomIndex = 1;
+                        // Math.floor(
+                        //     Math.random() * articlesData.articles.length
+                        // );
+
+                        heroTitle.value =
+                            articlesData.articles[randomIndex].title;
+                        heroExcerpt.value = excerpt(
+                            articlesData.articles[randomIndex].content,
+                            200
+                        );
+                        heroImageUrl.value = mediaGetVariantUrl(
+                            articlesData.articles[randomIndex].hero,
+                            "large"
+                        );
+                        heroImageTitle.value =
+                            articlesData.articles[randomIndex].hero.title;
+                        heroTo.value = {
+                            name: "article",
+                            params: {
+                                slug: articlesData.articles[randomIndex].slug,
+                            },
+                        };
+
+                        articles.value = articlesData.articles.filter(
+                            (article, index) => index !== randomIndex
+                        );
+                    }
+                }),
+            api
+                .get({
+                    url: "/events",
+                    params: {
+                        limit: 4,
+                        status: "open,soon",
+                        sort: "start_at",
+                        start_at:
+                            ">" +
+                            new SMDate("now").format("yyyy-MM-dd hh:mm:ss"),
+                    },
+                })
+                .then((eventsResult) => {
+                    const eventsData =
+                        getApiResultData<EventCollection>(eventsResult);
+
+                    if (eventsData && eventsData.events) {
+                        events.value = eventsData.events;
+                    }
+                }),
+        ]);
+    } catch {
+        // Handle error
+    }
+};
+
+handleLoad();
 </script>
 
 <style lang="scss">
@@ -139,13 +261,35 @@ import SMHero from "../components/SMHero.vue";
         }
     }
 
+    .upcoming,
+    .latest-articles {
+        h2 {
+            font-size: 250%;
+            margin-bottom: #{calc(var(--header-font-size-2))};
+        }
+
+        .events,
+        .articles {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+            width: 100%;
+            max-width: 1200px;
+        }
+    }
+
     .workshops .container-inner {
-        margin: 64px 24px;
+        margin: 64px 32px 32px;
+        padding: 0 90px 64px 90px;
+        background-color: var(--accent-3-color);
+        color: var(--accent-3-color-text);
+        border-radius: 24px;
         max-width: 960px;
 
         h2 {
             font-size: 300%;
             text-align: center;
+            color: var(--accent-3-color-text);
         }
 
         p {
@@ -294,6 +438,37 @@ import SMHero from "../components/SMHero.vue";
 
                 .row {
                     gap: 30px;
+                }
+            }
+        }
+    }
+}
+
+@media only screen and (min-width: 512px) {
+    .page-home {
+        .upcoming,
+        .latest-articles {
+            .events,
+            .articles {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    }
+}
+
+@media only screen and (min-width: 832px) {
+    .page-home {
+        .upcoming,
+        .latest-articles {
+            .events,
+            .articles {
+                grid-template-columns: 1fr 1fr 1fr;
+
+                .event-card,
+                .article-card {
+                    &:nth-child(4) {
+                        display: none;
+                    }
                 }
             }
         }

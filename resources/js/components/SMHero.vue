@@ -5,33 +5,28 @@
             <div class="hero-background" :style="heroStyles"></div>
             <SMContainer class="align-items-start">
                 <div class="hero-content">
-                    <h1>{{ heroTitle }}</h1>
-                    <p>{{ heroExcerpt }}</p>
+                    <h1>{{ props.title }}</h1>
+                    <p>{{ props.excerpt }}</p>
                     <div class="hero-buttons">
                         <SMButton
                             v-if="loaded"
                             type="primary"
-                            :to="{
-                                name: 'article',
-                                params: { slug: heroSlug },
-                            }"
-                            label="Read More" />
+                            :to="props.to"
+                            :label="props.more" />
                     </div>
                 </div>
             </SMContainer>
             <div class="hero-caption">
-                <router-link
-                    v-if="loaded"
-                    :to="{ name: 'article', params: { slug: heroSlug } }"
-                    >{{ heroImageTitle }}</router-link
-                >
+                <router-link v-if="loaded" :to="props.to">{{
+                    props.imageTitle
+                }}</router-link>
             </div>
         </template>
     </section>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { api, getApiResultData } from "../helpers/api";
 import { ArticleCollection } from "../helpers/api.types";
 import { mediaGetVariantUrl } from "../helpers/media";
@@ -39,12 +34,35 @@ import { excerpt } from "../helpers/string";
 import SMButton from "./SMButton.vue";
 import SMLoading from "./SMLoading.vue";
 
+const props = defineProps({
+    title: {
+        type: String,
+        required: true,
+    },
+    excerpt: {
+        type: String,
+        required: true,
+    },
+    imageUrl: {
+        type: String,
+        required: true,
+    },
+    imageTitle: {
+        type: String,
+        required: true,
+    },
+    to: {
+        type: Object,
+        required: true,
+    },
+    more: {
+        type: String,
+        default: "Read More",
+        required: false,
+    },
+});
+
 const loaded = ref(false);
-let heroTitle = ref("");
-let heroExcerpt = ref("");
-let heroImageUrl = ref("");
-let heroImageTitle = "";
-let heroSlug = ref("");
 const translateY = ref(0);
 const heroStyles = ref({
     backgroundImage: "none",
@@ -60,6 +78,18 @@ watch(translateY, () => {
     heroStyles.value.transform = `translateY(${translateY.value}px)`;
 });
 
+const updateImageUrl = (url: string) => {
+    heroStyles.value.backgroundImage = `linear-gradient(to right, rgba(0, 0, 0, 0.7),rgba(0, 0, 0, 0.2)),url('${url}')`;
+    loaded.value = true;
+};
+
+watch(
+    () => props.imageUrl,
+    () => {
+        updateImageUrl(props.imageUrl);
+    }
+);
+
 onMounted(() => {
     window.addEventListener("scroll", handleScroll);
 });
@@ -68,44 +98,9 @@ onBeforeUnmount(() => {
     window.removeEventListener("scroll", handleScroll);
 });
 
-const handleLoad = async () => {
-    try {
-        let articlesResult = await api.get({
-            url: "/articles",
-            params: {
-                limit: 3,
-            },
-        });
-
-        const articlesData =
-            getApiResultData<ArticleCollection>(articlesResult);
-
-        if (articlesData && articlesData.articles) {
-            const randomIndex = Math.floor(
-                Math.random() * articlesData.articles.length
-            );
-            heroTitle.value = articlesData.articles[randomIndex].title;
-            heroExcerpt.value = excerpt(
-                articlesData.articles[randomIndex].content,
-                200
-            );
-            heroImageUrl.value = mediaGetVariantUrl(
-                articlesData.articles[randomIndex].hero,
-                "large"
-            );
-            heroImageTitle = articlesData.articles[randomIndex].hero.title;
-            heroSlug.value = articlesData.articles[randomIndex].slug;
-
-            heroStyles.value.backgroundImage = `linear-gradient(to right, rgba(0, 0, 0, 0.7),rgba(0, 0, 0, 0.2)),url('${heroImageUrl.value}')`;
-
-            loaded.value = true;
-        }
-    } catch {
-        // empty
-    }
-};
-
-handleLoad();
+if (props.imageUrl && props.imageUrl !== "") {
+    updateImageUrl(props.imageUrl);
+}
 </script>
 
 <style lang="scss">
