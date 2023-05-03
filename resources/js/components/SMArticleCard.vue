@@ -45,6 +45,10 @@ a.article-card {
     color: var(--card-color-text);
     margin-bottom: 48px;
 
+    &:visited {
+        color: var(--card-color-text);
+    }
+
     &:hover {
         filter: none;
 

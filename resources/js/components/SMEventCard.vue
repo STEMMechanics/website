@@ -217,6 +217,10 @@ a.event-card {
     position: relative;
     overflow: hidden;
 
+    &:visited {
+        color: var(--card-color-text);
+    }
+
     .thumbnail {
         width: 100%;
         aspect-ratio: 16 / 9;
