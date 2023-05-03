@@ -370,12 +370,12 @@ const handleSubmit = async () => {
             }
         }
 
-        // await api.put({
-        //     url: `/events/${event_id}/attachments`,
-        //     body: {
-        //         attachments: attachments.value,
-        //     },
-        // });
+        await api.put({
+            url: `/events/${event_id}/attachments`,
+            body: {
+                attachments: attachments.value,
+            },
+        });
 
         useToastStore().addToast({
             title: route.params.id ? "Event Updated" : "Event Created",

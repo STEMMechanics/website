@@ -224,12 +224,12 @@ const handleSubmit = async () => {
             }
         }
 
-        // await api.put({
-        //     url: `/articles/${article_id}/attachments`,
-        //     body: {
-        //         attachments: attachments.value,
-        //     },
-        // });
+        await api.put({
+            url: `/articles/${article_id}/attachments`,
+            body: {
+                attachments: attachments.value,
+            },
+        });
 
         useToastStore().addToast({
             title: route.params.id ? "Article Updated" : "Article Created",

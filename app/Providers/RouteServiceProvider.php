@@ -42,17 +42,17 @@ class RouteServiceProvider extends ServiceProvider
         Route::macro('apiAttachmentResource', function ($uri, $controller) {
             $singularUri = Str::singular($uri);
 
-            Route::get("$uri/{$singularUri}/attachments", [$controller, 'getAttachments'])
-            ->name("$singularUri.attachments.index");
+            Route::get("$uri/{{$singularUri}}/attachments", [$controller, 'getAttachments'])
+                ->name("{{$singularUri}}.attachments.index");
 
-            Route::post("$uri/{$singularUri}/attachments", [$controller, 'storeAttachment'])
-            ->name("$singularUri.attachments.store");
+            Route::post("$uri/{{$singularUri}}/attachments", [$controller, 'storeAttachment'])
+                ->name("{{$singularUri}}.attachments.store");
 
-            Route::match(['put', 'patch'], "$uri/{$singularUri}/attachments", [$controller, 'updateAttachments'])
-            ->name("$singularUri.attachments.update");
+            Route::match(['put', 'patch'], "$uri/{{$singularUri}}/attachments", [$controller, 'updateAttachments'])
+                ->name("{{$singularUri}}.attachments.update");
 
-            Route::delete("$uri/{$singularUri}/attachments/{medium}", [$controller, 'deleteAttachment'])
-            ->name("$singularUri.attachments.destroy");
+            Route::delete("$uri/{{$singularUri}}/attachments/{medium}", [$controller, 'deleteAttachment'])
+                ->name("{{$singularUri}}.attachments.destroy");
         });
     }
 
