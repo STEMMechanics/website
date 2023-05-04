@@ -106,6 +106,7 @@ export interface UserResponse {
 
 export interface UserCollection {
     users: Array<User>;
+    total: number;
 }
 
 export interface LoginResponse {
