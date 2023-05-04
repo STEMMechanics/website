@@ -7,10 +7,9 @@
         :image-title="heroImageTitle"
         :to="heroTo" />
 
-    <SMContainer class="about align-items-center">
-        <template #inner>
+    <SMContainer full class="about">
+        <SMContainer>
             <h2>Join the Fun!</h2>
-            <p></p>
             <p>
                 To meet the demands of a constantly evolving world, it is
                 essential to nurture a new generation of scientists, engineers,
@@ -27,7 +26,7 @@
                 themed workshops across Queensland, both to the general public
                 and to private groups.
             </p>
-        </template>
+        </SMContainer>
     </SMContainer>
     <SMContainer class="upcoming align-items-center">
         <h2>Upcoming Workshops</h2>
@@ -38,8 +37,8 @@
                 :key="event.id" />
         </div>
     </SMContainer>
-    <SMContainer class="workshops align-items-center">
-        <template #inner>
+    <SMContainer full class="workshops">
+        <SMContainer>
             <SMRow>
                 <SMColumn
                     ><h2>Build skills while having a great time</h2></SMColumn
@@ -63,7 +62,7 @@
                     <img src="/assets/home-green-screen.webp" />
                 </SMColumn>
             </SMRow>
-        </template>
+        </SMContainer>
     </SMContainer>
     <SMContainer class="latest-articles align-items-center">
         <h2>Latest Posts</h2>
@@ -106,8 +105,8 @@
             </p>
         </SMContainer>
     </SMContainer>
-    <SMContainer class="support align-items-center">
-        <template #inner>
+    <SMContainer full class="support">
+        <SMContainer>
             <h2>And the support doesn't stop!</h2>
             <SMRow>
                 <SMColumn
@@ -134,7 +133,7 @@
                     </div>
                 </SMColumn>
             </SMRow>
-        </template>
+        </SMContainer>
     </SMContainer>
 </template>
 
@@ -242,29 +241,35 @@ handleLoad();
         margin-top: -80px;
     }
 
-    .about .container-inner {
-        margin: 64px 32px 32px;
-        padding: 0 90px 64px 90px;
+    .about {
         background-color: var(--accent-1-color);
         color: var(--accent-1-color-text);
-        border-radius: 24px;
-        max-width: 960px;
+        padding-top: 96px;
+        padding-bottom: 96px;
 
         h2 {
             font-size: 400%;
             text-align: center;
             color: var(--accent-1-color-text);
+            margin-top: 0;
         }
 
         p {
             font-size: 125%;
+            max-width: 960px;
+            margin-left: auto;
+            margin-right: auto;
         }
     }
 
     .upcoming,
     .latest-articles {
+        padding-top: 96px;
+        padding-bottom: 96px;
+
         h2 {
-            font-size: 250%;
+            font-size: 300%;
+            margin-top: 0;
             margin-bottom: #{calc(var(--header-font-size-2))};
         }
 
@@ -285,18 +290,17 @@ handleLoad();
         }
     }
 
-    .workshops .container-inner {
-        margin: 64px 32px 32px;
-        padding: 0 90px 64px 90px;
+    .workshops {
         background-color: var(--accent-3-color);
         color: var(--accent-3-color-text);
-        border-radius: 24px;
-        max-width: 960px;
+        padding-top: 96px;
+        padding-bottom: 96px;
 
         h2 {
             font-size: 300%;
             text-align: center;
             color: var(--accent-3-color-text);
+            margin-top: 0;
         }
 
         p {
@@ -311,6 +315,10 @@ handleLoad();
             width: #{calc(map-get($spacing, 5) * 15)};
         }
 
+        .row {
+            max-width: 960px;
+        }
+
         .button {
             background-color: var(--accent-1-color);
             color: var(--accent-1-color-text);
@@ -318,7 +326,6 @@ handleLoad();
     }
 
     .minecraft {
-        margin-top: 64px;
         background-image: url("/assets/home-minecraft.webp");
         background-repeat: no-repeat;
         background-position: center;
@@ -354,16 +361,15 @@ handleLoad();
         }
     }
 
-    .support .container-inner {
-        margin: 64px 32px 32px;
-        padding: 0 90px 64px 90px;
+    .support {
         color: var(--accent-2-color-text);
         background-color: var(--accent-2-color);
-        border-radius: 24px;
-        max-width: 960px;
+        padding-top: 96px;
+        padding-bottom: 96px;
 
         .row {
             gap: 30px;
+            max-width: 960px;
         }
 
         .support-image {
@@ -380,6 +386,7 @@ handleLoad();
         h2 {
             font-size: 300%;
             text-align: center;
+            margin-top: 0;
             margin-bottom: 16px;
             color: var(--accent-2-color-text);
         }
