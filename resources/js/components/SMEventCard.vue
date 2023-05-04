@@ -77,21 +77,24 @@ const computedDate = (event: Event) => {
             event.start_at.substring(0, event.start_at.indexOf(" ")) !=
                 event.end_at.substring(0, event.end_at.indexOf(" "))
         ) {
-            str = new SMDate(event.start_at, { format: "yMd" }).format(
-                "dd/MM/yyyy"
-            );
+            str = new SMDate(event.start_at, {
+                format: "yMd",
+                utc: true,
+            }).format("dd/MM/yyyy");
             if (event.end_at.length > 0) {
                 str =
                     str +
                     " - " +
-                    new SMDate(event.end_at, { format: "yMd" }).format(
-                        "dd/MM/yyyy"
-                    );
+                    new SMDate(event.end_at, {
+                        format: "yMd",
+                        utc: true,
+                    }).format("dd/MM/yyyy");
             }
         } else {
-            str = new SMDate(event.start_at, { format: "yMd" }).format(
-                "dd/MM/yyyy @ h:mm aa"
-            );
+            str = new SMDate(event.start_at, {
+                format: "yMd",
+                utc: true,
+            }).format("dd/MM/yyyy @ h:mm aa");
         }
     }
 
