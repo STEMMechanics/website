@@ -241,7 +241,7 @@ handleLoad();
         margin-top: -80px;
     }
 
-    .about {
+    .container.full.about {
         background-color: var(--accent-1-color);
         color: var(--accent-1-color-text);
         padding-top: 96px;
@@ -290,7 +290,7 @@ handleLoad();
         }
     }
 
-    .workshops {
+    .container.full.workshops {
         background-color: var(--accent-3-color);
         color: var(--accent-3-color-text);
         padding-top: 96px;
@@ -325,7 +325,7 @@ handleLoad();
         }
     }
 
-    .minecraft {
+    .container.full.minecraft {
         background-image: url("/assets/home-minecraft.webp");
         background-repeat: no-repeat;
         background-position: center;
@@ -361,7 +361,7 @@ handleLoad();
         }
     }
 
-    .support {
+    .container.full.support {
         color: var(--accent-2-color-text);
         background-color: var(--accent-2-color);
         padding-top: 96px;
