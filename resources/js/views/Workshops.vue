@@ -158,49 +158,49 @@ const handleLoad = async () => {
         postsTotal.value = data.total;
 
         if (data && data.events) {
-            events = [];
+            events = data.events;
 
-            data.events.forEach((item) => {
-                let banner = "";
-                let bannerType = "";
+            // data.events.forEach((item) => {
+            //     let banner = "";
+            //     let bannerType = "";
 
-                const parsedStartAt = new SMDate(item.start_at, {
-                    format: "yyyy-MM-dd HH:mm:ss",
-                    utc: true,
-                });
+            //     const parsedStartAt = new SMDate(item.start_at, {
+            //         format: "yyyy-MM-dd HH:mm:ss",
+            //         utc: true,
+            //     });
 
-                const parsedEndAt = new SMDate(item.end_at, {
-                    format: "yyyy-MM-dd HH:mm:ss",
-                    utc: true,
-                });
+            //     const parsedEndAt = new SMDate(item.end_at, {
+            //         format: "yyyy-MM-dd HH:mm:ss",
+            //         utc: true,
+            //     });
 
-                item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
+            //     item.start_at = parsedStartAt.format("yyyy-MM-dd HH:mm:ss");
 
-                item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
+            //     item.end_at = parsedEndAt.format("yyyy-MM-dd HH:mm:ss");
 
-                if (
-                    (parsedEndAt.isBefore(new SMDate("now")) &&
-                        (item.status == "open" || item.status == "soon")) ||
-                    item.status == "closed"
-                ) {
-                    banner = "closed";
-                    bannerType = "expired";
-                } else if (item.status == "open") {
-                    banner = "open";
-                    bannerType = "success";
-                } else if (item.status == "cancelled") {
-                    banner = "cancelled";
-                    bannerType = "danger";
-                } else if (item.status == "soon") {
-                    banner = "Open Soon";
-                    bannerType = "warning";
-                }
+            //     if (
+            //         (parsedEndAt.isBefore(new SMDate("now")) &&
+            //             (item.status == "open" || item.status == "soon")) ||
+            //         item.status == "closed"
+            //     ) {
+            //         banner = "closed";
+            //         bannerType = "expired";
+            //     } else if (item.status == "open") {
+            //         banner = "open";
+            //         bannerType = "success";
+            //     } else if (item.status == "cancelled") {
+            //         banner = "cancelled";
+            //         bannerType = "danger";
+            //     } else if (item.status == "soon") {
+            //         banner = "Open Soon";
+            //         bannerType = "warning";
+            //     }
 
-                item["banner"] = banner;
-                item["bannerType"] = bannerType;
+            //     item["banner"] = banner;
+            //     item["bannerType"] = bannerType;
 
-                events.push(item);
-            });
+            //     events.push(item);
+            // });
         }
     } catch (error) {
         pageError.value = error.status;
