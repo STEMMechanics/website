@@ -24,13 +24,16 @@ $code = $_SERVER['REQUEST_URI'];
 $code = trim($code, '/');
 
 // lookup code in database
-$sql = "SELECT url FROM shortlinks WHERE code = '$code'";
+$sql = "SELECT url, used FROM shortlinks WHERE code = '$code'";
 $result = $conn->query($sql);
 
-// if code is found, redirect to URL
+// if code is found, redirect to URL and update 'used' column
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $url = $row["url"];
+    $used = $row["used"] + 1;
+    $updateSql = "UPDATE shortlinks SET used = $used WHERE code = '$code'";
+    $conn->query($updateSql);
     header("Location: " . $url);
     exit();
 } else {
