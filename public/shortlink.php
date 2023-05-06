@@ -7,7 +7,7 @@ $dotenv->load();
 
 $dbHost = $_ENV['DB_HOST'];
 $dbPort = $_ENV['DB_PORT'];
-$dbName = $_ENV['DB_NAME'];
+$dbName = $_ENV['DB_DATABASE'];
 $dbUser = $_ENV['DB_USERNAME'];
 $dbPass = $_ENV['DB_PASSWORD'];
 
@@ -22,6 +22,9 @@ if ($conn->connect_error) {
 // get code from URL
 $code = $_SERVER['REQUEST_URI'];
 $code = trim($code, '/');
+if (($pos = strpos($code, '?')) !== false) {
+    $code = substr($code, 0, $pos);
+}
 
 // lookup code in database
 $sql = "SELECT url, used FROM shortlinks WHERE code = '$code'";
