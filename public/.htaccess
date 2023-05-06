@@ -13,6 +13,12 @@
 
     RewriteEngine On
 
+    # Support shortlinks
+    RewriteCond %{HTTP_HOST} ^(www\.)?stemmech\.com\.au$ [NC]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ shortlink.php?code=$1 [L,QSA]
+
     # Add www subdomain if missing
     RewriteCond %{HTTP_HOST} ^stemmechanics.com.au$ [NC]
     RewriteRule (.*) https://www.stemmechanics.com.au/$1 [R=301,L]
