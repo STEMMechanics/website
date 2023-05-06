@@ -30,17 +30,6 @@
                     respect to Aboriginal and Torres Strait Islander cultures;
                     and to Elders both past, present and emerging.
                 </p>
-                <p class="small">
-                    This site is protected by reCAPTCHA and the Google
-                    <a href="https://policies.google.com/privacy"
-                        >Privacy Policy</a
-                    >
-                    and
-                    <a href="https://policies.google.com/terms"
-                        >Terms of Service</a
-                    >
-                    apply.
-                </p>
             </SMColumn>
         </SMRow>
         <SMRow class="align-items-center">
