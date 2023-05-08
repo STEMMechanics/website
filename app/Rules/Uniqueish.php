@@ -25,7 +25,7 @@ class Uniqueish implements Rule
     /**
      * The ID of the record to be ignored.
      *
-     * @var integer|null
+     * @var mixed
      */
     protected $ignoreId;
 
@@ -46,10 +46,10 @@ class Uniqueish implements Rule
     /**
      * Set the ID of the record to be ignored.
      *
-     * @param  integer $id The ID to ignore.
+     * @param  mixed $id The ID to ignore.
      * @return $this
      */
-    public function ignore(int $id)
+    public function ignore(mixed $id)
     {
         $this->ignoreId = $id;
         return $this;
