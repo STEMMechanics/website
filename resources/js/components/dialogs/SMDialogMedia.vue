@@ -1,107 +1,153 @@
 <template>
     <SMFormCard full class="dialog-media">
         <SMLoading v-if="progressText" overlay :text="progressText" />
-        <h3>Insert Media</h3>
-        <SMToolbar>
-            <SMGroupButtons
-                :buttons="[
-                    {
-                        name: 'grid',
-                        icon: 'grid-outline',
-                    },
-                    {
-                        name: 'list',
-                        icon: 'list-outline',
-                    },
-                ]"
-                :active="listActive"
-                @click="handleClickLayout" />
-            <SMInput
-                v-model="itemSearch"
-                label="Search"
-                class="toolbar-search"
-                size="small"
-                @keyup.enter="handleSearch"
-                @blur="handleSearch">
-                <template #append>
+        <template #header>
+            <h3>Insert Media</h3>
+        </template>
+        <template #body>
+            <SMTabGroup v-model="selectedTab">
+                <SMTab id="tab-browser" label="Media Browser">
+                    <SMToolbar>
+                        <SMGroupButtons
+                            :buttons="[
+                                {
+                                    name: 'grid',
+                                    icon: 'grid-outline',
+                                },
+                                {
+                                    name: 'list',
+                                    icon: 'list-outline',
+                                },
+                            ]"
+                            :active="listActive"
+                            @click="handleClickLayout" />
+                        <SMInput
+                            v-model="itemSearch"
+                            label="Search"
+                            class="toolbar-search"
+                            size="small"
+                            no-help
+                            @keyup.enter="handleSearch"
+                            @blur="handleSearch">
+                            <template #append>
+                                <SMButton
+                                    type="primary"
+                                    label="Search"
+                                    icon="search-outline"
+                                    @click="handleSearch" />
+                            </template>
+                        </SMInput>
+                    </SMToolbar>
+                    <div class="media-browser" :class="mediaBrowserClasses">
+                        <div class="media-browser-content">
+                            <SMLoadingIcon v-if="mediaLoading" />
+                            <div
+                                v-if="!mediaLoading && mediaItems.length == 0"
+                                class="media-none">
+                                <ion-icon name="sad-outline"></ion-icon>
+                                <p>No media found</p>
+                            </div>
+                            <ul v-if="!mediaLoading && mediaItems.length > 0">
+                                <li
+                                    v-for="item in mediaItems"
+                                    :key="item.id"
+                                    :class="[{ selected: item.id == selected }]"
+                                    @click="handleClickItem(item.id)"
+                                    @dblclick="handleDblClickItem(item.id)">
+                                    <div
+                                        :style="{
+                                            backgroundImage: `url('${mediaGetVariantUrl(
+                                                item,
+                                                'small'
+                                            )}')`,
+                                        }"
+                                        class="media-image"></div>
+                                    <span class="media-title">{{
+                                        item.title
+                                    }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <SMRow>
+                        <SMPagination
+                            v-model="page"
+                            :total="totalItems"
+                            :per-page="perPage"
+                            size="small"
+                            class="my-0" />
+                    </SMRow>
+                </SMTab>
+                <SMTab id="tab-upload" label="Upload">
+                    <SMForm v-model="uploadForm">
+                        <SMFormError v-model="uploadForm" />
+                        <SMRow>
+                            <SMColumn width="250px">
+                                <div
+                                    class="upload-preview mb-4"
+                                    :style="{
+                                        backgroundImage: `url(${uploadPreview})`,
+                                    }"></div>
+                                <SMButton
+                                    v-if="props.allowUpload"
+                                    type="primary"
+                                    label="Select File"
+                                    @click="handleClickSelectFile" />
+                            </SMColumn>
+                            <SMColumn>
+                                <SMInput
+                                    label="Title"
+                                    control="title"
+                                    :disabled="uploadPreview.length == 0" />
+                                <SMInput
+                                    type="textarea"
+                                    label="Description"
+                                    control="description"
+                                    :disabled="uploadPreview.length == 0" />
+                            </SMColumn>
+                        </SMRow>
+                    </SMForm>
+                    <input
+                        v-if="props.allowUpload"
+                        id="file"
+                        ref="refUploadInput"
+                        type="file"
+                        style="display: none"
+                        :accept="computedAccepts"
+                        @change="handleChangeSelectFile" />
+                </SMTab>
+            </SMTabGroup>
+        </template>
+        <template #footer>
+            <SMButtonRow>
+                <template #left>
+                    <SMButton
+                        type="button"
+                        label="Cancel"
+                        @click="handleClickCancel" />
+                </template>
+                <template #right>
                     <SMButton
                         type="primary"
-                        label="Search"
-                        icon="search-outline"
-                        @click="handleSearch" />
+                        label="Insert"
+                        :disabled="computedInsertDisabled"
+                        @click="handleClickInsert" />
                 </template>
-            </SMInput>
-        </SMToolbar>
-        <div class="media-browser" :class="mediaBrowserClasses">
-            <div class="media-browser-content">
-                <SMLoadingIcon v-if="mediaLoading" />
-                <div
-                    v-if="!mediaLoading && mediaItems.length == 0"
-                    class="media-none">
-                    <ion-icon name="sad-outline"></ion-icon>
-                    <p>No media found</p>
-                </div>
-                <ul v-if="!mediaLoading && mediaItems.length > 0">
-                    <li
-                        v-for="item in mediaItems"
-                        :key="item.id"
-                        :class="[{ selected: item.id == selected }]"
-                        @click="handleClickItem(item.id)"
-                        @dblclick="handleDblClickItem(item.id)">
-                        <div
-                            :style="{
-                                backgroundImage: `url('${mediaGetVariantUrl(
-                                    item,
-                                    'small'
-                                )}')`,
-                            }"
-                            class="media-image"></div>
-                        <span class="media-title">{{ item.title }}</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        <SMRow>
-            <SMPagination
-                v-model="page"
-                :total="totalItems"
-                :per-page="perPage"
-                size="small"
-                class="mt-1" />
-        </SMRow>
-        <SMButtonRow>
-            <template #left>
-                <SMButton
-                    type="button"
-                    label="Cancel"
-                    @click="handleClickCancel" />
-            </template>
-            <template #right>
-                <SMButton
-                    v-if="props.allowUpload"
-                    type="button"
-                    label="Upload"
-                    @click="handleClickUpload" />
-                <SMButton
-                    type="primary"
-                    label="Insert"
-                    :disabled="selected.length == 0"
-                    @click="handleClickInsert" />
-            </template>
-        </SMButtonRow>
-        <input
-            v-if="props.allowUpload"
-            id="file"
-            ref="refUploadInput"
-            type="file"
-            style="display: none"
-            :accept="computedAccepts"
-            @change="handleChangeUpload" />
+            </SMButtonRow>
+        </template>
     </SMFormCard>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, Ref, watch } from "vue";
+import {
+    computed,
+    onMounted,
+    onUnmounted,
+    reactive,
+    ref,
+    Ref,
+    watch,
+} from "vue";
 import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
@@ -117,6 +163,12 @@ import SMGroupButtons from "../SMGroupButtons.vue";
 import SMPagination from "../SMPagination.vue";
 import SMButtonRow from "../SMButtonRow.vue";
 import SMLoading from "../SMLoading.vue";
+import SMTabGroup from "../SMTabGroup.vue";
+import SMTab from "../SMTab.vue";
+import { Form, FormControl } from "../../helpers/form";
+import { And, Min, Required } from "../../helpers/validate";
+import SMForm from "../SMForm.vue";
+import SMFormError from "../SMFormError.vue";
 
 const props = defineProps({
     mime: {
@@ -142,9 +194,21 @@ const props = defineProps({
 const refUploadInput = ref<HTMLInputElement | null>(null);
 
 /**
- * The form user message to display
+ * The selected tab
  */
-const formMessage = ref("");
+const selectedTab = ref("");
+
+/**
+ * Upload form
+ */
+let uploadForm = reactive(
+    Form({
+        title: FormControl("", And([Required(), Min(4)])),
+        description: FormControl(""),
+    })
+);
+
+const uploadPreview = ref("");
 
 /**
  * Is the media loading/busy
@@ -230,12 +294,119 @@ const handleClickCancel = () => {
 /**
  * Handle user clicking the insert button.
  */
-const handleClickInsert = () => {
-    if (selected.value !== "") {
-        const mediaItem = getMediaItem(selected.value);
-        if (mediaItem != null) {
-            closeDialog(mediaItem);
-            return;
+const handleClickInsert = async () => {
+    if (selectedTab.value == "tab-browser") {
+        if (selected.value !== "") {
+            const mediaItem = getMediaItem(selected.value);
+            if (mediaItem != null) {
+                closeDialog(mediaItem);
+                return;
+            }
+        }
+    } else if (selectedTab.value == "tab-upload") {
+        if (
+            refUploadInput.value != null &&
+            refUploadInput.value.files != null
+        ) {
+            const firstFile: File | undefined = refUploadInput.value.files[0];
+            if (firstFile != null) {
+                let submitFormData = new FormData();
+                submitFormData.append("file", firstFile);
+                submitFormData.append("title", uploadForm.controls.title.value);
+                submitFormData.append(
+                    "description",
+                    uploadForm.controls.description.value
+                );
+                try {
+                    let result = await api.post({
+                        url: "/media",
+                        body: submitFormData,
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                        progress: (progressData) =>
+                            (progressText.value = `Uploading File: ${Math.floor(
+                                (progressData.loaded / progressData.total) * 100
+                            )}%`),
+                    });
+                    if (result.data) {
+                        const data = result.data as MediaResponse;
+                        if (
+                            data.medium.status != "" &&
+                            data.medium.status.startsWith("Failed") == false
+                        ) {
+                            progressText.value = `${data.medium.status}...`;
+                            let mediaProcessed = false;
+                            let timeout = 0;
+                            while (mediaProcessed == false) {
+                                timeout++;
+                                if (timeout >= 240) {
+                                    mediaProcessed = true;
+                                    uploadForm._message =
+                                        "Timed out processing the file. Please try again later.";
+                                }
+
+                                await new Promise((resolve) =>
+                                    setTimeout(resolve, 500)
+                                );
+                                try {
+                                    let updateResult = await api.get({
+                                        url: "/media/{id}",
+                                        params: {
+                                            id: data.medium.id,
+                                        },
+                                    });
+                                    if (updateResult.data) {
+                                        const updateData =
+                                            updateResult.data as MediaResponse;
+
+                                        if (updateData.medium.status == "") {
+                                            data.medium = updateData.medium;
+                                            mediaProcessed = true;
+                                        } else if (
+                                            updateData.medium.status.startsWith(
+                                                "Failed"
+                                            ) == true
+                                        ) {
+                                            throw "error";
+                                        } else {
+                                            progressText.value = `${updateData.medium.status}...`;
+                                        }
+                                    } else {
+                                        throw "error";
+                                    }
+                                } catch {
+                                    mediaProcessed = true;
+                                    uploadForm._message =
+                                        "An server error occurred processing the file.";
+                                }
+                            }
+
+                            if (data.medium.status.length == 0) {
+                                closeDialog(data.medium);
+                            }
+                        }
+                    } else {
+                        uploadForm._message =
+                            "An unexpected response was received from the server";
+                    }
+                } catch (error) {
+                    if (error.status === 413) {
+                        uploadForm._message =
+                            "The selected file is larger than the maximum size limit";
+                    } else {
+                        uploadForm._message =
+                            error.response?.data?.message ||
+                            "An unexpected error occurred";
+                    }
+                } finally {
+                    progressText.value = "";
+                }
+            } else {
+                uploadForm._message = "No file was selected to upload";
+            }
+        } else {
+            uploadForm._message = "No file was selected to upload";
         }
     }
 
@@ -281,7 +452,7 @@ const handleClickLayout = (name: string) => {
 /**
  * When the user clicks the upload button
  */
-const handleClickUpload = async () => {
+const handleClickSelectFile = async () => {
     if (refUploadInput.value != null) {
         refUploadInput.value.click();
     }
@@ -290,100 +461,23 @@ const handleClickUpload = async () => {
 /**
  * Upload the file to the server.
  */
-const handleChangeUpload = async () => {
-    formMessage.value = "";
+const handleChangeSelectFile = async () => {
+    uploadForm._message = "";
 
     if (refUploadInput.value != null && refUploadInput.value.files != null) {
         const firstFile: File | undefined = refUploadInput.value.files[0];
         if (firstFile != null) {
-            let submitFormData = new FormData();
-            submitFormData.append("file", firstFile);
-
-            try {
-                let result = await api.post({
-                    url: "/media",
-                    body: submitFormData,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    progress: (progressData) =>
-                        (progressText.value = `Uploading File: ${Math.floor(
-                            (progressData.loaded / progressData.total) * 100
-                        )}%`),
-                });
-
-                if (result.data) {
-                    const data = result.data as MediaResponse;
-
-                    if (
-                        data.medium.status != "" &&
-                        data.medium.status.startsWith("Failed") == false
-                    ) {
-                        progressText.value = `${data.medium.status}...`;
-
-                        let mediaProcessed = false;
-
-                        while (mediaProcessed == false) {
-                            await new Promise((resolve) =>
-                                setTimeout(resolve, 500)
-                            );
-
-                            try {
-                                let updateResult = await api.get({
-                                    url: "/media/{id}",
-                                    params: {
-                                        id: data.medium.id,
-                                    },
-                                });
-
-                                if (updateResult.data) {
-                                    const updateData =
-                                        updateResult.data as MediaResponse;
-                                    if (
-                                        updateData.medium.status == "" &&
-                                        data.medium.status.startsWith(
-                                            "Failed"
-                                        ) == false
-                                    ) {
-                                        mediaProcessed = true;
-                                    } else {
-                                        progressText.value = `${updateData.medium.status}...`;
-                                    }
-                                } else {
-                                    throw "error";
-                                }
-                            } catch {
-                                mediaProcessed = true;
-                                formMessage.value =
-                                    "An server error occurred processing the file";
-                            }
-                        }
-
-                        progressText.value;
-                    }
-
-                    closeDialog(data.medium);
-                } else {
-                    formMessage.value =
-                        "An unexpected response was received from the server";
-                }
-            } catch (error) {
-                if (error.status === 413) {
-                    formMessage.value =
-                        "The selected file is larger than the maximum size limit";
-                } else {
-                    formMessage.value =
-                        error.response?.data?.message ||
-                        "An unexpected error occurred";
-                }
-            } finally {
-                progressText.value = "";
+            if (uploadForm.controls.title.value.length == 0) {
+                uploadForm.controls.title.value = firstFile.name;
             }
-        } else {
-            formMessage.value = "No file was selected to upload";
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const imgSrc = event.target.result;
+                uploadPreview.value = imgSrc as string;
+            };
+            reader.readAsDataURL(firstFile);
         }
-    } else {
-        formMessage.value = "No file was selected to upload";
     }
 };
 
@@ -432,7 +526,7 @@ const handleLoad = async () => {
             }
         })
         .catch((error) => {
-            formMessage.value =
+            uploadForm._message =
                 error?.data?.message || "An unexpected error occurred";
         })
         .finally(() => {
@@ -471,6 +565,19 @@ onUnmounted(() => {
 
 watch(page, () => {
     handleLoad();
+});
+
+/**
+ * Determine if the Insert button should be disabled
+ */
+const computedInsertDisabled = computed(() => {
+    if (selectedTab.value == "tab-browser") {
+        return selected.value.length == 0;
+    } else if (selectedTab.value == "tab-upload") {
+        return uploadPreview.value.length == 0;
+    }
+
+    return false;
 });
 
 handleLoad();
@@ -591,6 +698,15 @@ handleLoad();
                 }
             }
         }
+    }
+
+    .upload-preview {
+        width: 250px;
+        height: 140px;
+        border: 1px solid var(--base-color-dark);
+        border-radius: 8px;
+        background-position: center;
+        background-size: cover;
     }
 }
 </style>
