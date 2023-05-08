@@ -42,7 +42,7 @@ const copyAnchor = () => {
         .writeText(newUrl)
         .then(() => {
             useToastStore().addToast({
-                title: "Copy to Clipboard",
+                title: "Copied to Clipboard",
                 content: "The header URL has been copied to the clipboard.",
                 type: "success",
             });
