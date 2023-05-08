@@ -535,7 +535,7 @@ const handleMediaSelect = async () => {
             .input-control {
                 display: block;
                 width: 100%;
-                padding: 20px 16px 8px 16px;
+                padding: 20px 16px 10px 16px;
                 border: 1px solid var(--base-color-darker);
                 border-radius: 8px;
                 background-color: var(--base-color-light);
