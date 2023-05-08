@@ -1,11 +1,5 @@
 <template>
-    <form class="SMForm" @submit.prevent="handleSubmit">
-        <!-- <SMMessage
-            v-if="props.modelValue._message.length > 0"
-            :message="props.modelValue._message"
-            :type="props.modelValue._messageType"
-            :icon="props.modelValue._messageIcon" /> -->
-
+    <form class="form" @submit.prevent="handleSubmit">
         <slot></slot>
     </form>
 </template>
@@ -36,7 +30,7 @@ provide("form", props.modelValue);
 </script>
 
 <style lang="scss">
-.SMForm {
+.form {
     width: 100%;
 }
 </style>
