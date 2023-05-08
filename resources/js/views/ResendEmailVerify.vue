@@ -1,36 +1,49 @@
 <template>
-    <SMPage>
-        <SMRow>
-            <SMFormCard class="mt-5" narrow>
-                <template v-if="!formDone">
-                    <h1>Resend Verify Email</h1>
-                    <SMForm v-model="form" @submit="handleSubmit">
+    <SMContainer :center="true">
+        <template v-if="!formDone">
+            <SMForm v-model="form" @submit="handleSubmit">
+                <SMFormCard class="mt-5" narrow>
+                    <template #header>
+                        <h1>Resend Email</h1>
+                        <p>
+                            If you have not received your verification email
+                            yet, we can send you another one.
+                        </p>
+                    </template>
+                    <template #body>
                         <SMInput control="email" />
+                    </template>
+                    <template #footer>
                         <SMButtonRow>
                             <template #left>
                                 <div class="small">
-                                    <span class="pr-1">Stuck?</span
+                                    <span>Stuck?</span
                                     ><router-link to="/contact"
                                         >Contact Us</router-link
                                     >
                                 </div>
                             </template>
                             <template #right>
-                                <SMButton
-                                    type="submit"
-                                    label="Send"
-                                    icon="arrow-forward-outline" />
+                                <SMButton type="submit" label="Send" />
                             </template>
                         </SMButtonRow>
-                    </SMForm>
-                </template>
-                <template v-else>
+                    </template>
+                </SMFormCard>
+            </SMForm>
+        </template>
+        <template v-else>
+            <SMFormCard>
+                <template #header>
                     <h1>Email Sent!</h1>
+                </template>
+                <template #body>
                     <p class="text-center">
                         If that email address has been registered, and you still
                         need to verify your email, you will receive an email
                         with a new verify code.
-                    </p>
+                    </p></template
+                >
+                <template #footer>
                     <SMButtonRow>
                         <template #right>
                             <SMButton :to="{ name: 'home' }" label="Home" />
@@ -38,8 +51,8 @@
                     </SMButtonRow>
                 </template>
             </SMFormCard>
-        </SMRow>
-    </SMPage>
+        </template>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">

@@ -1,30 +1,42 @@
 <template>
-    <SMPage>
-        <SMRow>
-            <SMFormCard class="mt-5" narrow>
-                <template v-if="!formDone">
-                    <h1>Email Verify</h1>
-                    <p>
-                        Enter your verification code below. If you have not yet
-                        received one,
-                        <router-link to="/resend-verify-email"
-                            >request a new code</router-link
-                        >.
-                    </p>
-                    <SMForm v-model="form" @submit="handleSubmit">
+    <SMContainer :center="true">
+        <template v-if="!formDone">
+            <SMForm v-model="form" @submit="handleSubmit">
+                <SMFormCard class="mt-5" narrow>
+                    <template #header>
+                        <h1>Email Verify</h1>
+                    </template>
+                    <template #body>
+                        <p>
+                            Enter your verification code below. If you have not
+                            yet received one,
+                            <router-link to="/resend-verify-email"
+                                >request a new code</router-link
+                            >.
+                        </p>
                         <SMInput control="code" />
+                    </template>
+                    <template #footer>
                         <SMButtonRow>
                             <template #right>
                                 <SMButton type="submit" label="Verify Code" />
                             </template>
                         </SMButtonRow>
-                    </SMForm>
-                </template>
-                <template v-else>
+                    </template>
+                </SMFormCard>
+            </SMForm>
+        </template>
+        <template v-else>
+            <SMFormCard class="mt-5" narrow>
+                <template #header>
                     <h1>Email Verified!</h1>
+                </template>
+                <template #body>
                     <p class="text-center">
                         Hurrah, Your email has been verified!
                     </p>
+                </template>
+                <template #footer>
                     <SMButtonRow>
                         <SMButton
                             type="primary"
@@ -34,8 +46,8 @@
                     </SMButtonRow>
                 </template>
             </SMFormCard>
-        </SMRow>
-    </SMPage>
+        </template>
+    </SMContainer>
 </template>
 
 <script setup lang="ts">
