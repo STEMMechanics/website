@@ -90,7 +90,7 @@ $spacing: (
     --button-disabled-color: var(--base-color-dark);
     --button-disabled-color-text: var(--base-color-light);
     --button-dropdown-color-border: var(--base-color-border);
-    --button-dropdown-color: var(--base-color-background);
+    --button-dropdown-color: var(--base-color-light);
     --button-dropdown-color-hover: var(--primary-color-lighter);
     --button-primary-color: var(--primary-color);
     --button-primary-color-text: var(--base-color-light);
@@ -183,7 +183,12 @@ $spacing: (
         --base-color-dark: #666;
         --base-color-darker: #999;
 
-        // --base-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
+        // Primary
+        --primary-color: #35a5f1;
+        --primary-color-dark: #67bbf4;
+        --primary-color-darker: #cce8fb;
+        --primary-color-light: #0e80ce;
+        --primary-color-lighter: #095589;
 
         --button-color: var(--base-color-lighter);
         --button-color-text: var(--base-color-background);
