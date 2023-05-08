@@ -146,27 +146,26 @@ class UserController extends ApiController
     public function register(UserRegisterRequest $request)
     {
         try {
+            $userData = $request->only([
+                'first_name',
+                'last_name',
+                'email',
+                'phone',
+                'password',
+                'display_name',
+            ]);
+
+            $userData['password'] = Hash::make($userData['password']);
+
             $user = User::where('email', $request->input('email'))
                 ->whereNull('password')
                 ->first();
 
             if ($user === null) {
-                $user = User::create([
-                    'first_name' => $request->input('first_name'),
-                    'last_name' => $request->input('last_name'),
-                    'email' => $request->input('email'),
-                    'phone' => $request->input('phone', ''),
-                    'password' => Hash::make($request->input('password')),
-                    'display_name' => $request->input('display_name'),
-                ]);
+                $user = User::create($userData);
             } else {
-                $user->update([
-                    'first_name' => $request->input('first_name'),
-                    'last_name' => $request->input('last_name'),
-                    'phone' => $request->input('phone', ''),
-                    'password' => Hash::make($request->input('password')),
-                    'display_name' => $request->input('display_name'),
-                ]);
+                unset($userData['email']);
+                $user->update($userData);
             }//end if
 
             $code = $user->codes()->create([
