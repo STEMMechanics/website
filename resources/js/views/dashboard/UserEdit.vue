@@ -93,6 +93,7 @@ import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
 import SMButtonRow from "../../components/SMButtonRow.vue";
+import { userHasPermission } from "../../helpers/utils";
 
 const route = useRoute();
 const router = useRouter();
@@ -105,6 +106,7 @@ const customRequire = async (value) => {
 
     if (value.length == 0) {
         if (
+            userHasPermission("admin/users") &&
             control_names.every((item) => form.controls[item].value.length == 0)
         ) {
             control_names.forEach((item) => {
