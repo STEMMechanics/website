@@ -4,6 +4,7 @@ namespace App\Rules;
 
 use Illuminate\Contracts\Validation\Rule;
 use Illuminate\Support\Facades\DB;
+use PDO;
 
 class Uniqueish implements Rule
 {
@@ -45,10 +46,10 @@ class Uniqueish implements Rule
     /**
      * Set the ID of the record to be ignored.
      *
-     * @param  integer $id
+     * @param  integer $id The ID to ignore.
      * @return $this
      */
-    public function ignore($id)
+    public function ignore(int $id)
     {
         $this->ignoreId = $id;
         return $this;
@@ -66,14 +67,30 @@ class Uniqueish implements Rule
         $columnName = ($this->column ?? $attribute);
         $similarValue = preg_replace('/[^A-Za-z]/', '', strtolower($value));
 
-        $query = DB::table($this->table)
-        ->whereRaw('LOWER(REGEXP_REPLACE(' . $columnName . ', \'[^A-Za-z]\', \'\')) = ?', [$similarValue]);
+        try {
+            $query = DB::table($this->table)
+            ->where($columnName, 'like', '%' . $similarValue . '%');
 
-        if ($this->ignoreId !== null) {
-            $query->where('id', '<>', $this->ignoreId);
-        }
+            if ($this->ignoreId !== null) {
+                $query->where('id', '<>', $this->ignoreId);
+            }
 
-        $result = $query->first();
+            $query->whereRaw('LOWER(REGEXP_REPLACE(' . $columnName . ', \'[^A-Za-z0-9]\', \'\')) = ?', [$similarValue]);
+            $result = $query->first();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Fall back to performing the regex replace in PHP
+            // $results = $query->get();
+            $query = DB::table($this->table);
+            $results = $query->get();
+
+            foreach ($results as $result) {
+                $resultValue = preg_replace('/[^A-Za-z0-9]/', '', strtolower($result->{$columnName}));
+                if ($resultValue === $similarValue) {
+                    return false; // Value already exists in the table
+                }
+            }
+            return true; // Value does not exist in the table
+        }//end try
 
         return $result === null;
     }
@@ -85,6 +102,6 @@ class Uniqueish implements Rule
      */
     public function message()
     {
-        return 'The :attribute is similar to an existing value in the database.';
+        return 'The :attribute is similar to one that already exists. Please choose another.';
     }
 }
