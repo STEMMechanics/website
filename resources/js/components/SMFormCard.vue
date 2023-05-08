@@ -55,6 +55,7 @@ const slots = useSlots();
     .footer {
         margin-top: 32px;
         display: flex;
+        gap: 16px;
         align-items: center;
         justify-content: center;
     }
@@ -66,6 +67,12 @@ const slots = useSlots();
     h5,
     h6 {
         margin-top: 0;
+    }
+}
+
+@media only screen and (max-width: 768px) {
+    .form-card .footer {
+        flex-direction: column;
     }
 }
 </style>
