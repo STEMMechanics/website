@@ -2,11 +2,11 @@
     <div class="tab-group">
         <ul class="tab-header">
             <li
-                v-for="label in tabLabels"
-                :key="label"
-                :class="['tab-item', { selected: selectedLabel == label }]"
-                @click="selectedLabel = label">
-                {{ label }}
+                v-for="tab in tabs"
+                :key="tab.id"
+                :class="['tab-item', { selected: selectedTab == tab.id }]"
+                @click="selectedTab = tab.id">
+                {{ tab.label }}
             </li>
         </ul>
         <slot></slot>
@@ -14,13 +14,48 @@
 </template>
 
 <script setup lang="ts">
-import { provide, ref, useSlots } from "vue";
+import { provide, ref, useSlots, watch } from "vue";
 
+const props = defineProps({
+    modelValue: {
+        type: String,
+        default: "",
+        required: false,
+    },
+});
+
+const emits = defineEmits(["tabChanged", "update:modelValue"]);
 const slots = useSlots();
-const tabLabels = ref(slots.default().map((tab) => tab.props.label));
-const selectedLabel = ref(tabLabels.value[0]);
 
-provide("selectedLabel", selectedLabel);
+const tabs = ref(
+    slots.default().map((tab) => {
+        const { label, id } = tab.props;
+        return {
+            label,
+            id,
+        };
+    })
+);
+const selectedTab = ref(
+    props.modelValue.length == 0 ? tabs.value[0].id : props.modelValue
+);
+
+watch(
+    () => selectedTab.value,
+    (newValue) => {
+        emits("tabChanged", newValue);
+        emits("update:modelValue", newValue);
+    }
+);
+
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        selectedTab.value = newValue;
+    }
+);
+
+provide("selectedTab", selectedTab);
 </script>
 
 <style lang="scss">

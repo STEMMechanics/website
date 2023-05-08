@@ -1,5 +1,5 @@
 <template>
-    <div v-show="label == selectedLabel" class="tab-content">
+    <div v-show="id == selectedTab" class="tab-content">
         <slot></slot>
     </div>
 </template>
@@ -12,9 +12,13 @@ defineProps({
         type: String,
         required: true,
     },
+    id: {
+        type: String,
+        required: true,
+    },
 });
 
-const selectedLabel = inject("selectedLabel");
+const selectedTab = inject("selectedTab");
 </script>
 
 <style lang="scss">
