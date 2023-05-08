@@ -67,10 +67,8 @@ provide("selectedLabel", selectedLabel);
 
         &:hover:not(.selected) {
             color: var(--primary-color);
-            border-top: 1px solid var(--tab-color-border);
-            border-left: 1px solid var(--tab-color-border);
-            border-bottom: 1px solid var(--tab-color);
-            border-right: 1px solid var(--tab-color-border);
+            background-color: var(--tab-color-hover);
+            border-bottom: 1px solid var(--tab-color-border);
         }
     }
 }
