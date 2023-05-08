@@ -822,6 +822,70 @@ export function Required(
 }
 
 /**
+ * Required If
+ */
+type ValidationRequiredIfCheck = boolean | Array<boolean>;
+
+interface ValidationRequiredIfOptions {
+    check: ValidationRequiredIfCheck;
+    invalidMessage?:
+        | string
+        | ((options: ValidationRequiredIfOptions) => string);
+}
+
+interface ValidationRequiredIfObject extends ValidationRequiredIfOptions {
+    validate: (value: string) => Promise<ValidationResult>;
+}
+
+const defaultValidationRequiredIfOptions: ValidationRequiredIfOptions = {
+    check: true,
+    invalidMessage: "This field is required.",
+};
+
+/**
+ * Validate field contains value
+ *
+ * @param checkOrOptions
+ * @param options options data
+ * @returns ValidationRequiredIfObject
+ */
+export function RequiredIf(
+    checkOrOptions: boolean | Array<boolean> | ValidationRequiredIfOptions,
+    options?: ValidationRequiredIfOptions
+): ValidationRequiredIfObject {
+    if (
+        typeof checkOrOptions === "boolean" ||
+        Array.isArray(checkOrOptions) === true
+    ) {
+        options = { ...defaultValidationRequiredIfOptions, ...(options || {}) };
+        options.check = checkOrOptions;
+    } else {
+        options = {
+            ...defaultValidationRequiredIfOptions,
+            ...(checkOrOptions || {}),
+        };
+    }
+
+    options = { ...defaultValidationRequiredIfOptions, ...(options || {}) };
+
+    return {
+        ...options,
+        validate: function (value: unknown): Promise<ValidationResult> {
+            return Promise.resolve({
+                valid: Array.isArray(value)
+                    ? value.every((item) => !!item)
+                    : value == true,
+                invalidMessages: [
+                    typeof this.invalidMessage === "string"
+                        ? this.invalidMessage
+                        : this.invalidMessage(this),
+                ],
+            });
+        },
+    };
+}
+
+/**
  * Url
  */
 interface ValidationUrlOptions {
