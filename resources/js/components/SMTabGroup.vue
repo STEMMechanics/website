@@ -36,9 +36,14 @@ const tabs = ref(
         };
     })
 );
+
 const selectedTab = ref(
     props.modelValue.length == 0 ? tabs.value[0].id : props.modelValue
 );
+
+if (props.modelValue.length == 0) {
+    emits("update:modelValue", selectedTab.value);
+}
 
 watch(
     () => selectedTab.value,
