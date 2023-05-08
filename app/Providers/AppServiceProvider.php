@@ -35,17 +35,5 @@ class AppServiceProvider extends ServiceProvider
             $public = config("filesystems.disks.{$diskName}.public", false);
             return $public;
         });
-
-        Validator::extend('uniqueish', function ($attribute, $value, $parameters, $validator) {
-            $table = $parameters[0];
-            $column = isset($parameters[1]) === true ? $parameters[1] : null;
-
-            $rule = new Uniqueish($table, $column);
-            return $rule->passes($attribute, $value);
-        });
-
-        Rule::macro('requiredIfAny', function ($table, ...$columns) {
-            return new RequiredIfAny($table, ...$columns);
-        });
     }
 }
