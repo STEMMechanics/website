@@ -167,6 +167,69 @@ export function Max(
 }
 
 /**
+ * Validation Length
+ */
+interface ValidationLengthOptions {
+    length: number;
+    invalidMessage?: string | ((options: ValidationLengthOptions) => string);
+}
+
+interface ValidationLengthObject extends ValidationLengthOptions {
+    validate: (value: string) => Promise<ValidationResult>;
+}
+
+const defaultValidationLengthOptions: ValidationLengthOptions = {
+    length: 1,
+    invalidMessage: (options: ValidationLengthOptions) => {
+        return `Required to be less than ${options.length + 1} characters.`;
+    },
+};
+
+export function Length(
+    lengthOrOptions: number | ValidationLengthOptions,
+    options?: ValidationLengthOptions
+): ValidationLengthObject;
+export function Length(
+    options: ValidationLengthOptions
+): ValidationLengthObject;
+
+/**
+ * Validate field length
+ *
+ * @param lengthOrOptions string length or options data
+ * @param options options data
+ * @returns ValidationLengthObject
+ */
+export function Length(
+    lengthOrOptions: number | ValidationLengthOptions,
+    options?: ValidationLengthOptions
+): ValidationLengthObject {
+    if (typeof lengthOrOptions === "number") {
+        options = { ...defaultValidationLengthOptions, ...(options || {}) };
+        options.length = lengthOrOptions;
+    } else {
+        options = {
+            ...defaultValidationLengthOptions,
+            ...(lengthOrOptions || {}),
+        };
+    }
+
+    return {
+        ...options,
+        validate: function (value: string): Promise<ValidationResult> {
+            return Promise.resolve({
+                valid: value.toString().length == this.length,
+                invalidMessages: [
+                    typeof this.invalidMessage === "string"
+                        ? this.invalidMessage
+                        : this.invalidMessage(this),
+                ],
+            });
+        },
+    };
+}
+
+/**
  * PASSWORD
  */
 interface ValidationPasswordOptions {
