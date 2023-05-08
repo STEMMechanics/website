@@ -181,7 +181,7 @@ interface ValidationLengthObject extends ValidationLengthOptions {
 const defaultValidationLengthOptions: ValidationLengthOptions = {
     length: 1,
     invalidMessage: (options: ValidationLengthOptions) => {
-        return `Required to be less than ${options.length + 1} characters.`;
+        return `Required to be ${options.length} characters.`;
     },
 };
 
