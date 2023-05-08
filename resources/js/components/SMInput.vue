@@ -124,7 +124,7 @@
                             :src="mediaGetVariantUrl(value, 'medium')" />
                         <ion-icon v-else name="image-outline" />
                         <SMButton
-                            size="small"
+                            size="medium"
                             :disabled="disabled"
                             @click="handleMediaSelect"
                             label="Select File" />
