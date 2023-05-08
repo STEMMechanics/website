@@ -85,7 +85,7 @@ class Uniqueish implements Rule
 
             foreach ($results as $result) {
                 $resultValue = preg_replace('/[^A-Za-z0-9]/', '', strtolower($result->{$columnName}));
-                if ($resultValue === $similarValue) {
+                if ($resultValue === $similarValue && $result->id != $this->ignoreId) {
                     return false; // Value already exists in the table
                 }
             }
