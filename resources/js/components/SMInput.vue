@@ -304,7 +304,7 @@ const id = ref(
         : generateRandomElementId()
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
-const active = ref(value.value?.length ?? 0 > 0);
+const active = ref(value.value?.toString().length ?? 0 > 0);
 const focused = ref(false);
 const disabled = ref(props.disabled);
 
