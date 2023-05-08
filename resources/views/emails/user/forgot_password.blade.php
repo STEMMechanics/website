@@ -57,7 +57,7 @@
                 </td>
             </tr>
             <tr>
-                <td><h2>Yo {{ $user?->username }}</h2></td>
+                <td><h2>Yo {{ $user?->display_name }}</h2></td>
             </tr>
             <tr>
                 <td>

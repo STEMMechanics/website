@@ -57,7 +57,7 @@
                 </td>
             </tr>
             <tr>
-                <td><h2>Hey {{ $user?->username }},</h2></td>
+                <td><h2>Hey {{ $user?->display_name }},</h2></td>
             </tr>
             <tr>
                 <td>

@@ -5,11 +5,10 @@
                 <template v-if="!formDone">
                     <h1>Forgot Password</h1>
                     <p>
-                        Enter your username below to receive a password reset
-                        link to your email address.
+                        Enter your email below to receive a password reset link.
                     </p>
                     <SMForm v-model="form" @submit="handleSubmit">
-                        <SMInput control="username" />
+                        <SMInput control="email" />
                         <SMButtonRow>
                             <template #left>
                                 <div class="small">
@@ -31,9 +30,9 @@
                 <template v-else>
                     <h1>Email Sent!</h1>
                     <p class="text-center">
-                        If that username has been registered, you will receive
-                        an email with a reset password link in the next few
-                        minutes.
+                        If that email address has been registered, you will
+                        receive an email with a reset password link in the next
+                        few minutes.
                     </p>
                     <SMRow class="pb-2">
                         <SMColumn class="justify-content-center">
@@ -56,13 +55,13 @@ import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
-import { And, Min, Required } from "../helpers/validate";
+import { And, Email, Required } from "../helpers/validate";
 
 // const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
-        username: FormControl("", And([Required(), Min(4)])),
+        email: FormControl("", And([Required(), Email()])),
     })
 );
 
@@ -76,7 +75,7 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/forgotPassword",
             body: {
-                username: form.controls.username.value,
+                email: form.controls.email.value,
                 // captcha_token: captcha,
             },
         });

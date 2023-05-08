@@ -25,7 +25,6 @@ class User extends Authenticatable implements Auditable
      * @var array<int, string>
      */
     protected $fillable = [
-        'username',
         'first_name',
         'last_name',
         'email',

@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         \App\Models\User::factory(40)->create();
 
         \App\Models\User::factory()->create([
-            'username' => 'nomadjimbob',
+            'display_name' => 'James Collins',
             'first_name' => 'James',
             'last_name' => 'Collins',
             'email' => 'james@stemmechanics.com.au',

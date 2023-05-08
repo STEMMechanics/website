@@ -289,6 +289,16 @@ export const routes = [
                             import("@/views/dashboard/UserList.vue"),
                     },
                     {
+                        path: "create",
+                        name: "dashboard-user-create",
+                        meta: {
+                            title: "Create User",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/UserEdit.vue"),
+                    },
+                    {
                         path: ":id",
                         name: "dashboard-user-edit",
                         meta: {

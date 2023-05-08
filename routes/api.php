@@ -30,7 +30,6 @@ Route::get('/analytics', [AnalyticsController::class, 'index']);
 Route::post('/analytics', [AnalyticsController::class, 'store']);
 
 Route::apiResource('users', UserController::class);
-Route::post('/users/forgotUsername', [UserController::class, 'forgotUsername']);
 Route::post('/users/forgotPassword', [UserController::class, 'forgotPassword']);
 Route::post('/users/resetPassword', [UserController::class, 'resetPassword']);
 Route::post('/users/resendVerifyEmailCode', [UserController::class, 'resendVerifyEmailCode']);
@@ -44,9 +43,6 @@ Route::apiAttachmentResource('articles', ArticleController::class);
 
 Route::apiResource('events', EventController::class);
 Route::apiAttachmentResource('events', EventController::class);
-
-Route::apiResource('subscriptions', SubscriptionController::class);
-Route::delete('subscriptions', [SubscriptionController::class, 'destroyByEmail']);
 
 Route::post('/contact', [ContactController::class, 'send']);
 

@@ -15,7 +15,7 @@ class UserForgotPasswordRequest extends FormRequest
     public function rules()
     {
         return [
-            'username' => 'required|exists:users,username',
+            'email' => 'required|exists:users,email',
             // 'captcha_token' => [new Recaptcha()],
         ];
     }

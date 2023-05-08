@@ -16,9 +16,8 @@ class UserRegisterRequest extends FormRequest
         return [
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'display_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255',
-            'username' => 'required|string|min:4|max:255|unique:users',
+            'display_name' => 'required|string|max:255|uniqueish:users',
+            'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
         ];
     }

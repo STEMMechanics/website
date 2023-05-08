@@ -5,7 +5,7 @@
                 <template v-if="!formDone">
                     <h1>Resend Verify Email</h1>
                     <SMForm v-model="form" @submit="handleSubmit">
-                        <SMInput control="username" />
+                        <SMInput control="email" />
                         <SMButtonRow>
                             <template #left>
                                 <div class="small">
@@ -27,9 +27,9 @@
                 <template v-else>
                     <h1>Email Sent!</h1>
                     <p class="text-center">
-                        If that username has been registered, and you still need
-                        to verify your email, you will receive an email with a
-                        new verify code.
+                        If that email address has been registered, and you still
+                        need to verify your email, you will receive an email
+                        with a new verify code.
                     </p>
                     <SMButtonRow>
                         <template #right>
@@ -52,13 +52,13 @@ import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
-import { Required } from "../helpers/validate";
+import { And, Email, Required } from "../helpers/validate";
 
 // const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
-        username: FormControl("", Required()),
+        email: FormControl("", And([Required(), Email()])),
     })
 );
 
@@ -72,7 +72,7 @@ const handleSubmit = async () => {
         await api.post({
             url: "/users/resendVerifyEmailCode",
             body: {
-                username: form.controls.username.value,
+                email: form.controls.email.value,
                 // captcha_token: captcha,
             },
         });

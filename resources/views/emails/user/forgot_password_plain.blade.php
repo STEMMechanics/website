@@ -1,4 +1,4 @@
-Yo {{ $user?->username }}
+Yo {{ $user?->display_name }}
 
 We all forget things sometimes! But you can reset your password typing the following into your browser https://www.stemmechanics.com.au/reset-password and entering the following code:
 

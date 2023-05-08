@@ -23,7 +23,7 @@ class UserConductor extends Conductor
     {
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/users') === false) {
-            return ['id', 'username'];
+            return ['id', 'display_name'];
         }
 
         return parent::fields($model);
@@ -41,7 +41,7 @@ class UserConductor extends Conductor
         $data = $model->toArray();
 
         if ($user === null || ($user->hasPermission('admin/users') === false && strcasecmp($user->id, $model->id) !== 0)) {
-            $fields = ['id', 'username', 'display_name'];
+            $fields = ['id', 'display_name'];
             $data = arrayLimitKeys($data, $fields);
         } else {
             $data['permissions'] = $user->permissions;

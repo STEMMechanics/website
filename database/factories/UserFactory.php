@@ -20,14 +20,12 @@ class UserFactory extends Factory
         $faker = \Faker\Factory::create();
         $faker->addProvider(new \Faker\Provider\CustomInternetProvider($faker));
 
-        $username = $faker->unique()->userNameWithMinLength(6);
         $first_name = $faker->firstName();
         $last_name = $faker->lastName();
 
-        $display_name = $faker->randomElement([$username, $first_name . ' ' . $last_name]);
+        $display_name = $first_name . ' ' . $last_name;
 
         return [
-            'username' => $username,
             'first_name' => $first_name,
             'last_name' => $last_name,
             'email' => $faker->safeEmail(),

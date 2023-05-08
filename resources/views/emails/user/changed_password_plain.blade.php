@@ -1,4 +1,4 @@
-Yo {{ $user?->username }}
+Yo {{ $user?->display_name }}
 
 Just a quick word that your password has been changed.
 

@@ -8,7 +8,7 @@
         </h1>
         <SMToolbar>
             <div>
-                <div class="author">By {{ article.user.username }}</div>
+                <div class="author">By {{ article.user.display_name }}</div>
                 <div class="date">{{ formattedDate(article.publish_at) }}</div>
             </div>
             <SMButton
@@ -47,7 +47,7 @@ const applicationStore = useApplicationStore();
  */
 let article: Ref<Article> = ref({
     title: "",
-    user: { username: "" },
+    user: { display_name: "" },
 });
 
 /**

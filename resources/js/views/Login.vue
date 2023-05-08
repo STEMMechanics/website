@@ -9,11 +9,7 @@
                     </p>
                 </template>
                 <template #body>
-                    <SMInput control="username" autofocus>
-                        <router-link to="/forgot-username"
-                            >Forgot username?</router-link
-                        >
-                    </SMInput>
+                    <SMInput control="email" autofocus> </SMInput>
                     <SMInput control="password" type="password">
                         <router-link to="/forgot-password"
                             >Forgot password?</router-link
@@ -54,7 +50,7 @@ import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { LoginResponse } from "../helpers/api.types";
 import { Form, FormControl } from "../helpers/form";
-import { And, Min, Required } from "../helpers/validate";
+import { And, Email, Required } from "../helpers/validate";
 import { useUserStore } from "../store/UserStore";
 import SMButtonRow from "../components/SMButtonRow.vue";
 
@@ -63,7 +59,7 @@ const userStore = useUserStore();
 const router = useRouter();
 let form = reactive(
     Form({
-        username: FormControl("", And([Required(), Min(4)])),
+        email: FormControl("", And([Required(), Email()])),
         password: FormControl("", Required()),
     })
 );
@@ -81,7 +77,7 @@ const handleSubmit = async () => {
         let result = await api.post({
             url: "/login",
             body: {
-                username: form.controls.username.value,
+                email: form.controls.email.value,
                 password: form.controls.password.value,
             },
         });

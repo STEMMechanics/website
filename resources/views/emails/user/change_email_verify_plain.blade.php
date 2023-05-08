@@ -1,4 +1,4 @@
-Hey {{ $user?->username }},
+Hey {{ $user?->display_name }},
 
 We just need to confirm that this is your new email address.
 

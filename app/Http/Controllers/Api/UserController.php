@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserForgotPasswordRequest;
-use App\Http\Requests\UserForgotUsernameRequest;
 use App\Http\Requests\UserRegisterRequest;
 use App\Http\Requests\UserResendVerifyEmailRequest;
 use App\Http\Requests\UserResetPasswordRequest;
@@ -14,7 +13,6 @@ use App\Jobs\SendEmailJob;
 use App\Mail\ChangedEmail;
 use App\Mail\ChangedPassword;
 use App\Mail\ChangeEmailVerify;
-use App\Mail\ForgotUsername;
 use App\Mail\ForgotPassword;
 use App\Mail\EmailVerify;
 use App\Models\User;
@@ -37,7 +35,6 @@ class UserController extends ApiController
             'register',
             'exists',
             'forgotPassword',
-            'forgotUsername',
             'resetPassword',
             'verifyEmail',
             'resendVerifyEmailCode'
@@ -105,7 +102,7 @@ class UserController extends ApiController
     {
         if (UserConductor::updatable($user) === true) {
             $input = [];
-            $updatable = ['username', 'first_name', 'last_name', 'email', 'phone', 'password', 'display_name'];
+            $updatable = ['first_name', 'last_name', 'email', 'phone', 'password', 'display_name'];
 
             if ($request->user()->hasPermission('admin/user') === true) {
                 $updatable = array_merge($updatable, ['email_verified_at']);
@@ -149,15 +146,28 @@ class UserController extends ApiController
     public function register(UserRegisterRequest $request)
     {
         try {
-            $user = User::create([
-                'first_name' => $request->input('first_name'),
-                'last_name' => $request->input('last_name'),
-                'username' => $request->input('username'),
-                'email' => $request->input('email'),
-                'phone' => $request->input('phone', ''),
-                'password' => Hash::make($request->input('password')),
-                'display_name' => $request->input('display_name', $request->input('username')),
-            ]);
+            $user = User::where('email', $request->input('email'))
+                ->whereNull('password')
+                ->first();
+
+            if ($user === null) {
+                $user = User::create([
+                    'first_name' => $request->input('first_name'),
+                    'last_name' => $request->input('last_name'),
+                    'email' => $request->input('email'),
+                    'phone' => $request->input('phone', ''),
+                    'password' => Hash::make($request->input('password')),
+                    'display_name' => $request->input('display_name'),
+                ]);
+            } else {
+                $user->update([
+                    'first_name' => $request->input('first_name'),
+                    'last_name' => $request->input('last_name'),
+                    'phone' => $request->input('phone', ''),
+                    'password' => Hash::make($request->input('password')),
+                    'display_name' => $request->input('display_name'),
+                ]);
+            }//end if
 
             $code = $user->codes()->create([
                 'action' => 'verify-email',
@@ -176,26 +186,6 @@ class UserController extends ApiController
     }
 
     /**
-     * Sends an email with all the usernames registered at that address
-     *
-     * @param \App\Http\Requests\UserForgotUsernameRequest $request The forgot username request.
-     * @return \Illuminate\Http\Response
-     */
-    public function forgotUsername(UserForgotUsernameRequest $request)
-    {
-        $users = User::where('email', $request->input('email'))->whereNotNull('email_verified_at')->get();
-        if ($users->count() > 0) {
-            dispatch((new SendEmailJob(
-                $users->first()->email,
-                new ForgotUsername($users->pluck('username')->toArray())
-            )))->onQueue('mail');
-            return $this->respondNoContent();
-        }
-
-        return $this->respondJson(['message' => 'Username send to the email address if registered']);
-    }
-
-    /**
      * Generates a new reset password code
      *
      * @param \App\Http\Requests\UserForgotPasswordRequest $request The reset password request.
@@ -203,7 +193,7 @@ class UserController extends ApiController
      */
     public function forgotPassword(UserForgotPasswordRequest $request)
     {
-        $user = User::where('username', $request->input('username'))->first();
+        $user = User::where('email', $request->input('email'))->first();
         if ($user !== null) {
             $user->codes()->where('action', 'reset-password')->delete();
             $code = $user->codes()->create([
@@ -299,7 +289,7 @@ class UserController extends ApiController
     {
         UserCode::clearExpired();
 
-        $user = User::where('username', $request->input('username'))->first();
+        $user = User::where('email', $request->input('email'))->first();
         if ($user !== null) {
             $code = $user->codes()->where('action', 'verify-email')->first();
             $code->regenerate();
@@ -324,7 +314,7 @@ class UserController extends ApiController
      */
     public function resendVerifyEmailCode(UserResendVerifyEmailRequest $request)
     {
-        $user = User::where('username', $request->input('username'))->first();
+        $user = User::where('email', $request->input('email'))->first();
         if ($user !== null) {
             $user->codes()->where('action', 'verify-email')->delete();
 

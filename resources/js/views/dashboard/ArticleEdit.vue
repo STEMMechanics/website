@@ -301,7 +301,7 @@ const loadOptionsAuthors = async () => {
     api.get({
         url: "/users",
         params: {
-            fields: "id,username,first_name,last_name",
+            fields: "id,display_name",
             limit: 100,
         },
     })
@@ -312,7 +312,7 @@ const loadOptionsAuthors = async () => {
                 authors.value = {};
 
                 data.users.forEach((item) => {
-                    authors.value[item.id] = `${item.username}`;
+                    authors.value[item.id] = `${item.display_name}`;
                 });
             }
         })

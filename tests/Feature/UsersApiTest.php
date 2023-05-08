@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
@@ -7,6 +8,7 @@ use App\Models\User;
 class UsersApiTest extends TestCase
 {
     use RefreshDatabase;
+
 
     public function testNonAdminUsersCanOnlyViewBasicUserInfo()
     {
@@ -25,7 +27,7 @@ class UsersApiTest extends TestCase
             'users' => [
                 '*' => [
                     'id',
-                    'username'
+                    'display_name'
                 ]
             ],
             'total'
@@ -41,7 +43,7 @@ class UsersApiTest extends TestCase
         ]);
         $response->assertJsonFragment([
             'id' => $nonAdminUser->id,
-            'username' => $nonAdminUser->username
+            'email' => $nonAdminUser->email
         ]);
 
         // ensure the admin user can access the endpoint and see additional user info
@@ -51,7 +53,6 @@ class UsersApiTest extends TestCase
             'users' => [
                 '*' => [
                     'id',
-                    'username',
                     'email'
                 ]
             ],
@@ -66,14 +67,13 @@ class UsersApiTest extends TestCase
         ]);
         $response->assertJsonFragment([
             'id' => $nonAdminUser->id,
-            'username' => $nonAdminUser->username
+            'email' => $nonAdminUser->email
         ]);
     }
 
     public function testGuestCannotCreateUser()
     {
         $userData = [
-            'username' => 'johndoe',
             'email' => 'johndoe@example.com',
             'password' => 'password',
         ];
@@ -81,7 +81,6 @@ class UsersApiTest extends TestCase
         $response = $this->postJson('/api/users', $userData);
         $response->assertStatus(401);
         $this->assertDatabaseMissing('users', [
-            'username' => $userData['username'],
             'email' => $userData['email'],
         ]);
     }
@@ -91,7 +90,6 @@ class UsersApiTest extends TestCase
         $userData = [
             'first_name' => 'John',
             'last_name' => 'Doe',
-            'username' => 'johndoe',
             'display_name' => 'jackdoe',
             'email' => 'johndoe@example.com',
             'password' => 'password',
@@ -100,18 +98,16 @@ class UsersApiTest extends TestCase
         $response = $this->postJson('/api/register', $userData);
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
-            'username' => $userData['username'],
             'email' => $userData['email'],
         ]);
     }
 
-    public function testCannotCreateDuplicateUsername()
+    public function testCannotCreateDuplicateEmailOrDisplayName()
     {
         $userData = [
+            'display_name' => 'JackDoe',
             'first_name' => 'Jack',
             'last_name' => 'Doe',
-            'username' => 'jackdoe',
-            'display_name' => 'jackdoe',
             'email' => 'jackdoe@example.com',
             'password' => 'password',
         ];
@@ -120,14 +116,13 @@ class UsersApiTest extends TestCase
         $response = $this->postJson('/api/register', $userData);
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
-            'username' => 'jackdoe',
             'email' => 'jackdoe@example.com',
         ]);
 
         // Test creating duplicate user
         $response = $this->postJson('/api/register', $userData);
         $response->assertStatus(422);
-        $response->assertJsonValidationErrors('username');
+        $response->assertJsonValidationErrors(['display_name', 'email']);
     }
 
     public function testUserCanOnlyUpdateOwnUser()
@@ -135,7 +130,6 @@ class UsersApiTest extends TestCase
         $user = User::factory()->create();
 
         $userData = [
-            'username' => 'raffi',
             'email' => 'raffi@example.com',
             'password' => 'password',
         ];
@@ -145,14 +139,12 @@ class UsersApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
-            'username' => 'raffi',
             'email' => 'raffi@example.com',
         ]);
 
         // Test updating another user
         $otherUser = User::factory()->create();
         $otherUserData = [
-            'username' => 'otherraffi',
             'email' => 'otherraffi@example.com',
             'password' => 'password',
         ];
@@ -185,7 +177,6 @@ class UsersApiTest extends TestCase
         $user = User::factory()->create();
 
         $userData = [
-            'username' => 'Todd Doe',
             'email' => 'todddoe@example.com',
             'password' => 'password',
         ];
@@ -195,14 +186,12 @@ class UsersApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
-            'username' => 'Todd Doe',
             'email' => 'todddoe@example.com'
         ]);
 
         // Test updating another user
         $otherUser = User::factory()->create();
         $otherUserData = [
-            'username' => 'Kim Doe',
             'email' => 'kimdoe@example.com',
             'password' => 'password',
         ];
@@ -211,7 +200,6 @@ class UsersApiTest extends TestCase
         $response->assertStatus(200);
         $this->assertDatabaseHas('users', [
             'id' => $otherUser->id,
-            'username' => 'Kim Doe',
             'email' => 'kimdoe@example.com',
         ]);
     }

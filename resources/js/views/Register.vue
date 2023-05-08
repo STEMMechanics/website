@@ -1,7 +1,7 @@
 <template>
     <SMContainer :center="true">
         <SMForm v-if="!userRegistered" v-model="form" @submit="handleSubmit">
-            <SMFormCard full>
+            <SMFormCard>
                 <template #header>
                     <h2>Register</h2>
                     <p>
@@ -10,36 +10,9 @@
                     </p>
                 </template>
                 <template #body>
-                    <SMRow>
-                        <SMColumn>
-                            <SMInput control="username" autofocus />
-                        </SMColumn>
-                        <SMColumn>
-                            <SMInput
-                                control="password"
-                                type="password"></SMInput>
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn>
-                            <SMInput control="first_name" />
-                        </SMColumn>
-                        <SMColumn>
-                            <SMInput control="last_name" />
-                        </SMColumn>
-                    </SMRow>
-                    <SMRow>
-                        <SMColumn>
-                            <SMInput control="email" />
-                        </SMColumn>
-                        <SMColumn>
-                            <SMInput control="phone"
-                                ><template #help
-                                    >This field is optional</template
-                                >
-                            </SMInput>
-                        </SMColumn>
-                    </SMRow>
+                    <SMInput control="email" autofocus />
+                    <SMInput control="password" type="password" />
+                    <SMInput control="display_name" label="Display Name" />
                 </template>
                 <template #footer-space-between>
                     <div class="small">
@@ -125,7 +98,6 @@ let form = reactive(
         first_name: FormControl("", Required()),
         last_name: FormControl("", Required()),
         email: FormControl("", And([Required(), Email()])),
-        phone: FormControl("", Phone()),
         username: FormControl("", And([Min(4), Custom(checkUsername)])),
         password: FormControl("", And([Required(), Password()])),
     })
@@ -135,20 +107,14 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        // await recaptchaLoaded();
-        // const captcha = await executeRecaptcha("submit");
-
         await api.post({
             url: "/register",
             body: {
                 first_name: form.controls.first_name.value,
                 last_name: form.controls.last_name.value,
                 email: form.controls.email.value,
-                phone: form.controls.phone.value,
-                username: form.controls.username.value,
                 password: form.controls.password.value,
-                display_name: form.controls.username.value,
-                // captcha_token: captcha,
+                display_name: form.controls.display_name.value,
             },
         });
 

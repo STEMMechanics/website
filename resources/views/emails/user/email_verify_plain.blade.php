@@ -1,4 +1,4 @@
-Welcome {{ $user?->username }},
+Welcome {{ $user?->display_name }},
 
 We've heard you would like to try out our workshops and courses!
 Before we can let you loose on our website, we need to make sure you are a real person and not a pesky robot or cat.

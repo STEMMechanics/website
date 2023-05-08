@@ -47,18 +47,18 @@ class AuthController extends ApiController
      */
     public function login(AuthLoginRequest $request)
     {
-        $user = User::where('username', '=', $request->input('username'))->first();
+        $user = User::where('email', '=', $request->input('email'))->first();
 
         if ($user !== null && Hash::check($request->input('password'), $user->password) === true) {
             if ($user->email_verified_at === null) {
                 return $this->respondWithErrors([
-                    'username' => 'Email address has not been verified.'
+                    'email' => 'Email address has not been verified.'
                 ]);
             }
 
             if ($user->disabled === true) {
                 return $this->respondWithErrors([
-                    'username' => 'Account has been disabled.'
+                    'email' => 'Account has been disabled.'
                 ]);
             }
 
@@ -78,8 +78,8 @@ class AuthController extends ApiController
         }//end if
 
         return $this->respondWithErrors([
-            'username' => 'Invalid username or password',
-            'password' => 'Invalid username or password',
+            'email' => 'Invalid email or password',
+            'password' => 'Invalid email or password',
         ]);
     }
 
