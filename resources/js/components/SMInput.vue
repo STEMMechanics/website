@@ -338,6 +338,13 @@ watch(
     }
 );
 
+watch(
+    () => props.disabled,
+    (newValue) => {
+        disabled.value = newValue;
+    }
+);
+
 if (typeof control === "object" && control !== null) {
     watch(
         () => control.validation.result.valid,
