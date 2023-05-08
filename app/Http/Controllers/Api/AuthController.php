@@ -49,7 +49,7 @@ class AuthController extends ApiController
     {
         $user = User::where('email', '=', $request->input('email'))->first();
 
-        if ($user !== null && Hash::check($request->input('password'), $user->password) === true) {
+        if ($user !== null && strlen($user->password) > 0 && Hash::check($request->input('password'), $user->password) === true) {
             if ($user->email_verified_at === null) {
                 return $this->respondWithErrors([
                     'email' => 'Email address has not been verified.'
