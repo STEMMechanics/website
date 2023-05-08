@@ -10,6 +10,7 @@
                     </p>
                 </template>
                 <template #body>
+                    <SMFormError v-model="form" />
                     <SMInput control="email" autofocus />
                     <SMInput control="password" type="password" />
                     <SMInput control="display_name" label="Display Name" />
@@ -55,11 +56,10 @@ import {
     Email,
     Min,
     Password,
-    Phone,
     Required,
 } from "../helpers/validate";
+import SMFormError from "../components/SMFormError.vue";
 
-// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 let abortController: AbortController | null = null;
 
 const checkUsername = async (value: string): Promise<boolean | string> => {
@@ -95,11 +95,9 @@ const userRegistered = ref(false);
 const lastUsernameCheck = ref("");
 let form = reactive(
     Form({
-        first_name: FormControl("", Required()),
-        last_name: FormControl("", Required()),
         email: FormControl("", And([Required(), Email()])),
-        username: FormControl("", And([Min(4), Custom(checkUsername)])),
         password: FormControl("", And([Required(), Password()])),
+        display_name: FormControl("", And([Min(4)])),
     })
 );
 
@@ -110,8 +108,6 @@ const handleSubmit = async () => {
         await api.post({
             url: "/register",
             body: {
-                first_name: form.controls.first_name.value,
-                last_name: form.controls.last_name.value,
                 email: form.controls.email.value,
                 password: form.controls.password.value,
                 display_name: form.controls.display_name.value,
@@ -120,6 +116,7 @@ const handleSubmit = async () => {
 
         userRegistered.value = true;
     } catch (error) {
+        console.log(error);
         form.apiErrors(error);
     } finally {
         form.loading(false);
