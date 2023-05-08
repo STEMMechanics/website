@@ -3,7 +3,7 @@
         <div class="control-row">
             <slot></slot>
         </div>
-        <div class="control-help">
+        <div v-if="!props.noHelp" class="control-help">
             <span v-if="invalid" class="control-feedback">
                 {{ invalid }}
             </span>
@@ -19,6 +19,11 @@ const props = defineProps({
     invalid: {
         type: String,
         default: "",
+        required: false,
+    },
+    noHelp: {
+        type: Boolean,
+        default: false,
         required: false,
     },
 });

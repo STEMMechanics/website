@@ -1,7 +1,8 @@
 <template>
     <SMControl
         :class="['control-type-input', { 'input-active': active }, props.size]"
-        :invalid="feedbackInvalid">
+        :invalid="feedbackInvalid"
+        :no-help="props.noHelp">
         <div v-if="slots.prepend" class="input-control-prepend">
             <slot name="prepend"></slot>
         </div>
@@ -259,6 +260,11 @@ const props = defineProps({
     step: {
         type: Number,
         default: undefined,
+        required: false,
+    },
+    noHelp: {
+        type: Boolean,
+        default: false,
         required: false,
     },
 });
