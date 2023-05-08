@@ -53,7 +53,6 @@ const slots = useSlots();
     }
 
     .footer {
-        margin-top: 32px;
         display: flex;
         gap: 16px;
         align-items: center;
