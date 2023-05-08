@@ -46,13 +46,14 @@ class UserRequest extends BaseRequest
 
         return [
             'first_name' => [
-                $isAdminUser === true ? 'required_with:last_name,display_name,phone' : 'required',
+                // $isAdminUser === true ? 'required_with:last_name,display_name,phone' : 'required',
                 'string',
                 'between:2,255',
             ],
-            'last_name' => $isAdminUser === true ? 'required_with:first_name,display_name,phone|string|between:2,255' : 'required|string|between:2,255',
+            // 'last_name' => $isAdminUser === true ? 'required_with:first_name,display_name,phone|string|between:2,255' : 'required|string|between:2,255',
+            'last_name' => 'string|between:2,255',
             'display_name' => [
-                $isAdminUser === true ? 'required_with:first_name,last_name,phone' : 'required',
+                // $isAdminUser === true ? 'required_with:first_name,last_name,phone' : 'required',
                 'string',
                 'between:2,255',
                 (new Uniqueish('users', 'display_name'))->ignore($ruleUser->id)
