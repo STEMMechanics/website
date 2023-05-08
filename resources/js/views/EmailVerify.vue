@@ -15,10 +15,7 @@
                         <SMInput control="code" />
                         <SMButtonRow>
                             <template #right>
-                                <SMButton
-                                    type="submit"
-                                    label="Verify Code"
-                                    icon="arrow-forward-outline" />
+                                <SMButton type="submit" label="Verify Code" />
                             </template>
                         </SMButtonRow>
                     </SMForm>
@@ -29,9 +26,11 @@
                         Hurrah, Your email has been verified!
                     </p>
                     <SMButtonRow>
-                        <template #right>
-                            <SMButton :to="{ name: 'login' }" label="Login" />
-                        </template>
+                        <SMButton
+                            type="primary"
+                            block
+                            :to="{ name: 'login' }"
+                            label="Login" />
                     </SMButtonRow>
                 </template>
             </SMFormCard>
@@ -41,7 +40,6 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-// import { useReCaptcha } from "vue-recaptcha-v3";
 import { useRoute } from "vue-router";
 import SMButton from "../components/SMButton.vue";
 import SMFormCard from "../components/SMFormCard.vue";
