@@ -117,11 +117,13 @@
                     </SMColumn>
                 </SMRow>
                 <SMRow>
-                    <SMButtonRow>
-                        <template #right>
-                            <SMButton type="submit" label="Save" />
-                        </template>
-                    </SMButtonRow>
+                    <SMColumn>
+                        <SMButtonRow>
+                            <template #right>
+                                <SMButton type="submit" label="Save" />
+                            </template>
+                        </SMButtonRow>
+                    </SMColumn>
                 </SMRow>
             </SMForm>
         </SMContainer>

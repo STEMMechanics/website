@@ -71,19 +71,26 @@
                         <SMInput type="textarea" control="description" />
                     </SMColumn>
                 </SMRow>
-                <SMButtonRow>
-                    <template #right>
-                        <SMButton type="submit" label="Save" :form="form" />
-                    </template>
-                    <template #left>
-                        <SMButton
-                            :form="form"
-                            v-if="route.params.id"
-                            type="danger"
-                            label="Delete"
-                            @click="handleDelete" />
-                    </template>
-                </SMButtonRow>
+                <SMRow>
+                    <SMColumn>
+                        <SMButtonRow>
+                            <template #right>
+                                <SMButton
+                                    type="submit"
+                                    label="Save"
+                                    :form="form" />
+                            </template>
+                            <template #left>
+                                <SMButton
+                                    :form="form"
+                                    v-if="route.params.id"
+                                    type="danger"
+                                    label="Delete"
+                                    @click="handleDelete" />
+                            </template>
+                        </SMButtonRow>
+                    </SMColumn>
+                </SMRow>
             </SMForm>
         </SMContainer>
     </SMPage>
