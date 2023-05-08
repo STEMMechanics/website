@@ -2,7 +2,7 @@
     <SMFormCard full class="dialog-media">
         <SMLoading v-if="progressText" overlay :text="progressText" />
         <h3>Insert Media</h3>
-        <SMToolbar class="align-items-center">
+        <SMToolbar>
             <SMGroupButtons
                 :buttons="[
                     {
