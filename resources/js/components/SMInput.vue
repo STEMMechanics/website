@@ -736,7 +736,7 @@ const handleMediaSelect = async () => {
         .control-row {
             .control-item {
                 .control-label {
-                    transform: translate(16px, 10px) scale(1);
+                    transform: translate(16px, 12px) scale(1);
                 }
 
                 .input-control {
