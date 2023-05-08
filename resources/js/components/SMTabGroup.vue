@@ -31,6 +31,7 @@ provide("selectedLabel", selectedLabel);
         list-style-type: none;
         margin: 0;
         padding: 0;
+        border-bottom: 1px solid var(--tab-color-border);
     }
 
     .tab-item {
@@ -41,6 +42,7 @@ provide("selectedLabel", selectedLabel);
         border-top-left-radius: 8px;
         border-top-right-radius: 8px;
         color: var(--primary-color);
+        position: relative;
 
         &.selected {
             color: var(--tab-color-text);
@@ -49,6 +51,18 @@ provide("selectedLabel", selectedLabel);
             border-left: 1px solid var(--tab-color-border);
             border-bottom: 1px solid var(--tab-color);
             border-right: 1px solid var(--tab-color-border);
+
+            &::after {
+                display: block;
+                content: "";
+                position: absolute;
+                bottom: -2px;
+                height: 4px;
+                left: 0px;
+                right: 0px;
+                border-bottom: 3px solid var(--tab-color);
+                pointer-events: none;
+            }
         }
 
         &:hover:not(.selected) {
