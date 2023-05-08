@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\Uniqueish;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UserRegisterRequest extends FormRequest
@@ -14,9 +15,7 @@ class UserRegisterRequest extends FormRequest
     public function rules()
     {
         return [
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'display_name' => 'required|string|max:255|uniqueish:users',
+            'display_name' => ['required','string','max:255', new Uniqueish('users')],
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
         ];
