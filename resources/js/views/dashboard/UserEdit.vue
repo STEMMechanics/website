@@ -103,14 +103,20 @@ const isCreating = route.path.endsWith("/create");
 const customRequire = async (value) => {
     const control_names = ["display_name", "first_name", "last_name", "phone"];
 
-    if (control_names.every((item) => form.controls[item].value.length == 0)) {
-        control_names.forEach((item) => {
-            form.controls[item].clearValidations();
-        });
-        return true;
+    if (value.length == 0) {
+        if (
+            control_names.every((item) => form.controls[item].value.length == 0)
+        ) {
+            control_names.forEach((item) => {
+                form.controls[item].clearValidations();
+            });
+            return true;
+        }
+
+        return "This field is required.";
     }
 
-    return "This field is required.";
+    return true;
 };
 
 let form = reactive(
@@ -119,7 +125,7 @@ let form = reactive(
         first_name: FormControl("", Custom(customRequire)),
         last_name: FormControl("", Custom(customRequire)),
         email: FormControl("", And([Required(), Email()])),
-        phone: FormControl("", And([Custom(customRequire), Phone()])),
+        phone: FormControl("", Phone()),
     })
 );
 
