@@ -99,7 +99,7 @@ onMounted(() => {
     }
 
     .title {
-        margin-top: 0;
+        margin-top: 0 !important;
     }
 
     p {
