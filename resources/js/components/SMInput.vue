@@ -316,7 +316,7 @@ watch(
         }
 
         active.value =
-            newValue.length > 0 ||
+            newValue.toString().length > 0 ||
             newValue instanceof File ||
             focused.value == true;
     }
