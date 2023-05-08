@@ -3,7 +3,7 @@
         <div class="control-row">
             <slot></slot>
         </div>
-        <div v-if="slots.help || invalid" class="control-help">
+        <div class="control-help">
             <span v-if="invalid" class="control-feedback">
                 {{ invalid }}
             </span>
@@ -36,36 +36,25 @@ watch(
 
 <style lang="scss">
 .control-group {
-    margin-bottom: 8px;
     width: 100%;
 
     .control-row {
         display: flex;
         align-items: center;
-        margin-bottom: 8px;
 
         .control-item {
             display: flex;
             flex: 1;
             position: relative;
             align-items: center;
-
-            .control-label {
-                // position: absolute;
-                // display: block;
-                // transform-origin: top left;
-                // transform: translate(16px, 16px) scale(1);
-                // transition: all 0.1s ease-in-out;
-                // color: var(--base-color-darker);
-                // pointer-events: none;
-            }
         }
     }
 
     .control-help {
         display: block;
         font-size: 70%;
-        margin-bottom: 8px;
+        min-height: 32px;
+        padding-top: 8px;
 
         .control-feedback {
             color: var(--danger-color);
