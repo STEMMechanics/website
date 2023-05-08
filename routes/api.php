@@ -9,7 +9,7 @@ use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\OCRController;
 use App\Http\Controllers\Api\ArticleController;
-use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\ShortlinkController;
 use App\Http\Controllers\Api\UserController;
 
 /*
@@ -45,6 +45,8 @@ Route::apiResource('events', EventController::class);
 Route::apiAttachmentResource('events', EventController::class);
 
 Route::post('/contact', [ContactController::class, 'send']);
+
+Route::apiResource('/shortlinks', ShortlinkController::class);
 
 Route::get('/logs/{name}', [LogController::class, 'show']);
 Route::get('/ocr', [OCRController::class, 'show']);

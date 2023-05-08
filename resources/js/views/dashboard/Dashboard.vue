@@ -58,6 +58,13 @@
             </router-link> -->
             <router-link
                 v-if="userStore.permissions.includes('logs/discord')"
+                :to="{ name: 'dashboard-shortlink-list' }"
+                class="admin-card discord">
+                <ion-icon name="link-outline" />
+                <h3>Shortlinks</h3>
+            </router-link>
+            <router-link
+                v-if="userStore.permissions.includes('logs/discord')"
                 :to="{ name: 'dashboard-discord-bot-logs' }"
                 class="admin-card discord">
                 <ion-icon name="logo-discord" />

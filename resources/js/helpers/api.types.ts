@@ -120,3 +120,19 @@ export interface LogsDiscordResponse {
         error: string;
     };
 }
+
+export interface Shortlink {
+    id: number;
+    code: string;
+    url: string;
+    used: number;
+}
+
+export interface ShortlinkCollection {
+    shortlinks: Array<Shortlink>;
+    total: number;
+}
+
+export interface ShortlinkResponse {
+    shortlink: Shortlink;
+}

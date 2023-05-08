@@ -346,6 +346,41 @@ export const routes = [
                 ],
             },
             {
+                path: "shortlinks",
+                children: [
+                    {
+                        path: "",
+                        name: "dashboard-shortlink-list",
+                        meta: {
+                            title: "Shortlink",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/ShortlinkList.vue"),
+                    },
+                    {
+                        path: "create",
+                        name: "dashboard-shortlink-create",
+                        meta: {
+                            title: "Create Shortlink",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/ShortlinkEdit.vue"),
+                    },
+                    {
+                        path: ":id",
+                        name: "dashboard-shortlink-edit",
+                        meta: {
+                            title: "Edit Shortlink",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/ShortlinkEdit.vue"),
+                    },
+                ],
+            },
+            {
                 path: "discord-bot-logs",
                 name: "dashboard-discord-bot-logs",
                 meta: {
