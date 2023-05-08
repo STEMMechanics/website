@@ -56,7 +56,9 @@ export function closeDialog(data?: unknown) {
     if (data === undefined) {
         data = lastDialog.comp.returnValue();
     }
-    lastDialog.resolve(data);
+    if (lastDialog) {
+        lastDialog.resolve(data);
+    }
 }
 
 /**
