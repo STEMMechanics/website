@@ -913,9 +913,12 @@ export function Url(options?: ValidationUrlOptions): ValidationUrlObject {
         ...options,
         validate: function (value: string): Promise<ValidationResult> {
             return Promise.resolve({
-                valid: /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*(:\d+)?([/?#][^\s]*)?$/.test(
-                    value
-                ),
+                valid:
+                    value.length > 0
+                        ? /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*(:\d+)?([/?#][^\s]*)?$/.test(
+                              value
+                          )
+                        : true,
                 invalidMessages: [
                     typeof this.invalidMessage === "string"
                         ? this.invalidMessage
