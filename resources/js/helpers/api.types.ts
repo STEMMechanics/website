@@ -9,6 +9,7 @@ export interface Event {
     end_at: string;
     publish_at: string;
     location: string;
+    location_url: string;
     address: string;
     status: string;
     registration_type: string;

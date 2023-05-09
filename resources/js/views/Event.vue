@@ -99,11 +99,21 @@
                                 name="location-outline" />Location
                         </h4>
                         <p>
-                            {{
-                                event.location == "online"
-                                    ? "Online event"
-                                    : event.address
-                            }}
+                            <template v-if="event.location == 'online'"
+                                >Online event</template
+                            >
+                            <template
+                                v-else-if="event.location_url.length == 0"
+                                >{{ event.address }}</template
+                            >
+                            <template v-else
+                                ><a
+                                    :href="event.location_url"
+                                    no-follow
+                                    target="_blank"
+                                    >{{ event.address }}</a
+                                ></template
+                            >
                         </p>
                     </div>
                     <div v-if="event.ages" class="workshop-ages">

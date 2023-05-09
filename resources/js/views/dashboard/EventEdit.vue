@@ -13,8 +13,6 @@
                 @failed-validation="handleFailValidation">
                 <SMRow>
                     <SMColumn><SMInput control="title" /></SMColumn>
-                </SMRow>
-                <SMRow>
                     <SMColumn>
                         <SMInput
                             control="location"
@@ -24,11 +22,12 @@
                                 physical: 'Physical',
                             }" />
                     </SMColumn>
+                </SMRow>
+                <SMRow v-if="form.controls.location.value !== 'online'">
+                    <SMColumn> <SMInput control="address" /></SMColumn>
                     <SMColumn>
-                        <SMInput
-                            v-if="form.controls.location.value !== 'online'"
-                            control="address"
-                    /></SMColumn>
+                        <SMInput control="location_url" />
+                    </SMColumn>
                 </SMRow>
                 <SMRow>
                     <SMColumn>
@@ -217,6 +216,7 @@ let form = reactive(
                     : true;
             })
         ),
+        location_url: FormControl("", Url()),
         start_at: FormControl("", And([Required(), DateTime()])),
         end_at: FormControl(
             "",
@@ -282,6 +282,7 @@ const loadData = async () => {
 
             form.controls.title.value = data.event.title;
             form.controls.location.value = data.event.location;
+            form.controls.location_url.value = data.event.location_url;
             form.controls.address.value = data.event.address
                 ? data.event.address
                 : "";
@@ -327,6 +328,7 @@ const handleSubmit = async () => {
         let data = {
             title: form.controls.title.value,
             location: form.controls.location.value,
+            location_url: form.controls.location_url.value,
             address: form.controls.address.value,
             start_at: new SMDate(form.controls.start_at.value, {
                 format: "dmy",
