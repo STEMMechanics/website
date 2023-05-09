@@ -392,14 +392,6 @@ export const routes = [
         ],
     },
     {
-        path: "/forgot-username",
-        name: "forgot-username",
-        meta: {
-            title: "Forgot Username",
-        },
-        component: () => import("@/views/ForgotUsername.vue"),
-    },
-    {
         path: "/forgot-password",
         name: "forgot-password",
         meta: {
