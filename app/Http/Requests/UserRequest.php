@@ -4,7 +4,9 @@ namespace App\Http\Requests;
 
 use App\Rules\RequiredIfAny;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\RequiredIf;
 use App\Rules\Uniqueish;
+use Illuminate\Support\Arr;
 
 class UserRequest extends BaseRequest
 {
@@ -44,16 +46,45 @@ class UserRequest extends BaseRequest
         $ruleUser = $this->route('user');
         $isAdminUser = $user->hasPermission('admin/users');
 
+        $requiredIfFieldsPresent = function (array $fields) use ($ruleUser): RequiredIf {
+            return new RequiredIf(function () use ($fields, $ruleUser) {
+                $input = $this->all();
+                $values = Arr::only($input, $fields);
+
+                foreach ($values as $key => $value) {
+                    if ($value !== null && $value !== '') {
+                        return true;
+                    }
+                }
+
+                $fields = array_diff($fields, array_keys($values));
+
+                foreach ($fields as $field) {
+                    if ($ruleUser->$field !== '') {
+                        return true;
+                    }
+                }
+
+                return false;
+            });
+        };
+
         return [
             'first_name' => [
-                // $isAdminUser === true ? 'required_with:last_name,display_name,phone' : 'required',
+                'sometimes',
+                $isAdminUser === true ? $requiredIfFieldsPresent(['last_name', 'display_name', 'phone']) : 'required',
                 'string',
                 'between:2,255',
             ],
-            // 'last_name' => $isAdminUser === true ? 'required_with:first_name,display_name,phone|string|between:2,255' : 'required|string|between:2,255',
-            'last_name' => 'string|between:2,255',
+            'last_name' => [
+                'sometimes',
+                $isAdminUser === true ? $requiredIfFieldsPresent(['first_name', 'last_name', 'phone']) : 'required',
+                'string',
+                'between:2,255',
+            ],
             'display_name' => [
-                // $isAdminUser === true ? 'required_with:first_name,last_name,phone' : 'required',
+                'sometimes',
+                $isAdminUser === true ? $requiredIfFieldsPresent(['first_name', 'display_name', 'phone']) : 'required',
                 'string',
                 'between:2,255',
                 (new Uniqueish('users', 'display_name'))->ignore($ruleUser->id)
