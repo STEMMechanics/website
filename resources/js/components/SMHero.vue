@@ -3,7 +3,7 @@
         <SMLoading v-if="!loaded" large />
         <template v-else>
             <div class="hero-background" :style="heroStyles"></div>
-            <SMContainer class="align-items-start">
+            <SMContainer class="hero-container">
                 <div class="hero-content">
                     <h1>{{ props.title }}</h1>
                     <p>{{ props.excerpt }}</p>
@@ -108,7 +108,7 @@ if (props.imageUrl && props.imageUrl !== "") {
     display: flex;
     position: relative;
     overflow: hidden;
-    min-height: 700px;
+    min-height: 101vh;
 
     .hero-background {
         position: absolute;
@@ -119,6 +119,10 @@ if (props.imageUrl && props.imageUrl !== "") {
         background-position: center;
         background-repeat: no-repeat;
         background-size: cover;
+    }
+
+    .hero-container {
+        align-items: flex-start;
     }
 
     .hero-content {
@@ -175,6 +179,10 @@ if (props.imageUrl && props.imageUrl !== "") {
 
 @media only screen and (max-width: 640px) {
     .hero {
+        .hero-container {
+            align-items: center;
+        }
+
         .hero-content {
             margin: 150px 0;
         }
