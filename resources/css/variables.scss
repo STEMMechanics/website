@@ -167,6 +167,10 @@ $spacing: (
     // Editor
     --editor-shadow: 0 0 4px rgba(0, 0, 0, 0.2);
     --editor-backdrop: rgba(255, 255, 255, 0.75);
+
+    // Loading
+    --loading-color: var(--base-color-lighter);
+    --loading-overlay-color: rgba(0, 0, 0, 0.4);
 }
 
 // --primary-color-hover: #f1fdff;
@@ -205,5 +209,9 @@ $spacing: (
         // Editor
         --editor-shadow: 0 0 4px rgba(255, 255, 255, 0.2);
         --editor-backdrop: rgba(0, 0, 0, 0.75);
+
+        // Loading
+        --loading-color: var(--base-color-lighter);
+        --loading-overlay-color: rgba(0, 0, 0, 0.4);
     }
 }

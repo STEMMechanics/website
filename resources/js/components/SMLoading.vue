@@ -43,7 +43,7 @@ const props = defineProps({
         bottom: 0;
         right: 0;
         z-index: 10000;
-        background-color: rgba(0, 0, 0, 0.4);
+        background-color: var(--loading-overlay-color);
         backdrop-filter: blur(2px);
         -webkit-backdrop-filter: blur(2px);
     }
@@ -56,7 +56,7 @@ const props = defineProps({
     }
 
     .loading-box {
-        background-color: #fff;
+        background-color: var(--loading-color);
         padding: 24px 48px;
         border-radius: 10px;
         box-shadow: var(--base-shadow);
