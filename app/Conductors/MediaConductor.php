@@ -33,7 +33,7 @@ class MediaConductor extends Conductor
      * @var array
      */
     protected $defaultFilters = [
-        'status' => 'ok'
+        'status' => 'OK'
     ];
 
 
