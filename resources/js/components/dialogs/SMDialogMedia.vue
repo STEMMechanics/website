@@ -79,7 +79,7 @@
                     </SMRow>
                 </SMTab>
                 <SMTab id="tab-upload" label="Upload">
-                    <SMForm v-model="uploadForm">
+                    <SMForm v-model="uploadForm" form-id="upload-form">
                         <SMFormError v-model="uploadForm" />
                         <SMRow>
                             <SMColumn width="250px">
@@ -98,11 +98,13 @@
                                 <SMInput
                                     label="Title"
                                     control="title"
+                                    form-id="upload-form"
                                     :disabled="uploadPreview.length == 0" />
                                 <SMInput
                                     type="textarea"
                                     label="Description"
                                     control="description"
+                                    form-id="upload-form"
                                     :disabled="uploadPreview.length == 0" />
                             </SMColumn>
                         </SMRow>
