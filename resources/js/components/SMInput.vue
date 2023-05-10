@@ -1,6 +1,14 @@
 <template>
     <SMControl
-        :class="['control-type-input', { 'input-active': active }, props.size]"
+        :class="[
+            'control-type-input',
+            {
+                'input-active': active,
+                'has-prepend': slots.prepend,
+                'has-append': slots.append,
+            },
+            props.size,
+        ]"
         :invalid="feedbackInvalid"
         :no-help="props.noHelp">
         <div v-if="slots.prepend" class="input-control-prepend">
@@ -504,13 +512,6 @@ const handleMediaSelect = async () => {
             }
         }
 
-        &:has(.control-item + .input-control-append)
-            > .control-item
-            .input-control {
-            border-top-right-radius: 0;
-            border-bottom-right-radius: 0;
-        }
-
         .control-item {
             max-width: 100%;
 
@@ -728,6 +729,11 @@ const handleMediaSelect = async () => {
         }
     }
 
+    &.has-append .control-item .input-control {
+        border-top-right-radius: 0 !important;
+        border-bottom-right-radius: 0 !important;
+    }
+
     &.input-active {
         .control-item .control-label {
             transform: translate(16px, 6px) scale(0.7);
@@ -773,6 +779,7 @@ const handleMediaSelect = async () => {
                         }
                     }
 
+                    height: 36px;
                     padding: 3px 24px 13px 24px;
                 }
             }
