@@ -153,7 +153,6 @@ import {
 import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
-import { bytesReadable } from "../../helpers/types";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import SMButton from "../SMButton.vue";
 import SMFormCard from "../SMFormCard.vue";
@@ -342,50 +341,54 @@ const handleClickInsert = async () => {
                             let timeout = 0;
                             while (mediaProcessed == false) {
                                 timeout++;
-                                if (timeout >= 240) {
+                                if (timeout >= 60) {
                                     mediaProcessed = true;
                                     uploadForm._message =
-                                        "Timed out processing the file. Please try again later.";
-                                }
+                                        "The server is taking longer then expected to process the file.\nOnce the file has been processed, select it from the media browser.";
+                                } else {
+                                    await new Promise((resolve) =>
+                                        setTimeout(resolve, 500)
+                                    );
+                                    try {
+                                        let updateResult = await api.get({
+                                            url: "/media/{id}",
+                                            params: {
+                                                id: data.medium.id,
+                                            },
+                                        });
+                                        if (updateResult.data) {
+                                            const updateData =
+                                                updateResult.data as MediaResponse;
 
-                                await new Promise((resolve) =>
-                                    setTimeout(resolve, 500)
-                                );
-                                try {
-                                    let updateResult = await api.get({
-                                        url: "/media/{id}",
-                                        params: {
-                                            id: data.medium.id,
-                                        },
-                                    });
-                                    if (updateResult.data) {
-                                        const updateData =
-                                            updateResult.data as MediaResponse;
-
-                                        if (updateData.medium.status == "") {
-                                            data.medium = updateData.medium;
-                                            mediaProcessed = true;
-                                        } else if (
-                                            updateData.medium.status.startsWith(
-                                                "Failed"
-                                            ) == true
-                                        ) {
-                                            throw "error";
+                                            if (
+                                                updateData.medium.status == ""
+                                            ) {
+                                                data.medium = updateData.medium;
+                                                mediaProcessed = true;
+                                            } else if (
+                                                updateData.medium.status.startsWith(
+                                                    "Failed"
+                                                ) == true
+                                            ) {
+                                                throw "error";
+                                            } else {
+                                                progressText.value = `${updateData.medium.status}...`;
+                                            }
                                         } else {
-                                            progressText.value = `${updateData.medium.status}...`;
+                                            throw "error";
                                         }
-                                    } else {
-                                        throw "error";
+                                    } catch {
+                                        mediaProcessed = true;
+                                        uploadForm._message =
+                                            "An server error occurred processing the file.";
                                     }
-                                } catch {
-                                    mediaProcessed = true;
-                                    uploadForm._message =
-                                        "An server error occurred processing the file.";
                                 }
                             }
 
                             if (data.medium.status.length == 0) {
                                 closeDialog(data.medium);
+                            } else {
+                                return;
                             }
                         }
                     } else {
