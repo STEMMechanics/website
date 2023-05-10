@@ -47,6 +47,13 @@ class Conductor
     protected $includes = [];
 
     /**
+     * The default filters to use in a request.
+     *
+     * @var array
+     */
+    protected $defaultFilters = [];
+
+    /**
      * The conductor collection.
      *
      * @var Collection
@@ -223,7 +230,8 @@ class Conductor
         }
 
         $params = $request->all();
-        $filterFields = array_intersect_key($params, array_flip($fields));
+        $filterFields = (array_intersect_key($params, array_flip($fields)) + $conductor->defaultFilters);
+        print_r($filterFields);
         $conductor->filter($filterFields);
         if ($request->has('filter') === true) {
             $conductor->filterRaw($request->input('filter', ''), $fields);

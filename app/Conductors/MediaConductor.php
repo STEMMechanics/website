@@ -27,6 +27,15 @@ class MediaConductor extends Conductor
      */
     protected $includes = ['user'];
 
+    /**
+     * The default filters to use in a request.
+     *
+     * @var array
+     */
+    protected $defaultFilters = [
+        'status' => 'ok'
+    ];
+
 
     /**
      * Return an array of model fields visible to the current user.
