@@ -160,9 +160,9 @@ class Conductor
                 $prefix = '';
 
                 // Check if value has a prefix and remove it if it's a number
-                if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)$/', $value, $matches) > 0) {
+                if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)*$/', $value, $matches) > 0) {
                     $prefix = $matches[1];
-                    $value = $matches[2];
+                    $value = ($matches[2] ?? '');
                 }
 
                 // Apply the prefix to the query if the value is a number
