@@ -92,7 +92,7 @@ const authors = ref({});
 const attachments = ref([]);
 const pageHeading = route.params.id ? "Edit Article" : "Create Article";
 
-let form = reactive(
+const form = reactive(
     Form({
         title: FormControl("", And([Required(), Min(8)])),
         slug: FormControl("", And([Required(), Min(6)])),
