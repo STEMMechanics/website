@@ -12,6 +12,11 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    formId: {
+        type: String,
+        default: "form",
+        required: false,
+    },
 });
 const emits = defineEmits(["submit", "failedValidation"]);
 
@@ -26,7 +31,7 @@ const handleSubmit = async function () {
     }
 };
 
-provide("form", props.modelValue);
+provide(props.formId, props.modelValue);
 </script>
 
 <style lang="scss">
