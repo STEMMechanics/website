@@ -58,6 +58,11 @@
                             >Privacy Policy</router-link
                         >
                     </li>
+                    <li>
+                        <a href="https://status.stemmechanics.com.au/"
+                            >Status</a
+                        >
+                    </li>
                 </ul>
             </SMColumn>
         </SMRow>
