@@ -123,7 +123,7 @@ const defaultFormObject: FormObject = {
 export const Form = (
     controls: Record<string, FormControlObject>
 ): FormObject => {
-    const form = defaultFormObject;
+    const form = { ...defaultFormObject };
     form.controls = controls;
 
     form._loading = false;
