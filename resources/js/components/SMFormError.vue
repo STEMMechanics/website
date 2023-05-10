@@ -21,6 +21,7 @@ const props = defineProps({
     background-color: var(--danger-color-lighter);
     padding: 6px 12px;
     margin-bottom: 24px;
+    align-items: center;
 
     ion-icon {
         font-size: 1.5rem;
@@ -31,6 +32,7 @@ const props = defineProps({
         margin: 0;
         text-align: center;
         flex-grow: 1;
+        white-space: pre;
     }
 }
 </style>
