@@ -267,15 +267,21 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    formId: {
+        type: String,
+        default: "form",
+        required: false,
+    },
 });
 
 const slots = useSlots();
 
-const form = inject("form", props.form);
+const form = inject(props.formId, props.form);
 const control =
     typeof props.control === "object"
         ? props.control
-        : !isEmpty(form) &&
+        : form &&
+          !isEmpty(form) &&
           typeof props.control === "string" &&
           props.control !== "" &&
           Object.prototype.hasOwnProperty.call(form.controls, props.control)
