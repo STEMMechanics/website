@@ -58,7 +58,7 @@ class MoveMediaJob implements ShouldQueue
             return;
         }
 
-        $this->media->status = 'moving file';
+        $this->media->status = 'Moving file';
         $this->media->save();
 
         $files = ["/{$this->media->name}"];
@@ -78,7 +78,7 @@ class MoveMediaJob implements ShouldQueue
 
         // Update the media model with the new storage and save it to the database
         $this->media->storage = $this->newStorage;
-        $this->media->status = '';
+        $this->media->status = 'OK';
         $this->media->save();
     }
 }

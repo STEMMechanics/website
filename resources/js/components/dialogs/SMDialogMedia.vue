@@ -333,7 +333,7 @@ const handleClickInsert = async () => {
                     if (result.data) {
                         const data = result.data as MediaResponse;
                         if (
-                            data.medium.status != "" &&
+                            data.medium.status != "OK" &&
                             data.medium.status.startsWith("Failed") == false
                         ) {
                             progressText.value = `${data.medium.status}...`;
@@ -361,7 +361,7 @@ const handleClickInsert = async () => {
                                                 updateResult.data as MediaResponse;
 
                                             if (
-                                                updateData.medium.status == ""
+                                                updateData.medium.status == "OK"
                                             ) {
                                                 data.medium = updateData.medium;
                                                 mediaProcessed = true;
@@ -385,7 +385,7 @@ const handleClickInsert = async () => {
                                 }
                             }
 
-                            if (data.medium.status.length == 0) {
+                            if (data.medium.status == "OK") {
                                 closeDialog(data.medium);
                             } else {
                                 return;

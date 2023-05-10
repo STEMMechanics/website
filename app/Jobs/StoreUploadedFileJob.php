@@ -167,7 +167,7 @@ class StoreUploadedFileJob implements ShouldQueue
                 unlink($this->uploadedFilePath);
             }
 
-            $this->media->status = '';
+            $this->media->status = 'OK';
             $this->media->save();
         } catch (\Exception $e) {
             Log::error($e->getMessage());
