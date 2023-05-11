@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Attachment extends Model
 {
@@ -16,11 +18,23 @@ class Attachment extends Model
      */
     protected $fillable = [
         'media_id',
+        'private',
+    ];
+
+    /**
+     * The default attributes.
+     *
+     * @var string[]
+     */
+    protected $attributes = [
+        'private' => 'false',
     ];
 
 
     /**
      * Get attachments attachable
+     *
+     * @return MorphTo
      */
     public function attachable()
     {
@@ -29,6 +43,8 @@ class Attachment extends Model
 
     /**
      * Get the media for this attachment.
+     *
+     * @return BelongsTo
      */
     public function media()
     {
