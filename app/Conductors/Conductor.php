@@ -301,7 +301,7 @@ class Conductor
         $transformedCollection = collect();
 
         foreach ($collection as $item) {
-            if ($conductor->viewable($item)) {
+            if ($conductor->viewable($item) === true) {
                 $transformedCollection->push($conductor->transformModel($item));
             }
         }

@@ -34,6 +34,7 @@ Route::post('/users/forgotPassword', [UserController::class, 'forgotPassword']);
 Route::post('/users/resetPassword', [UserController::class, 'resetPassword']);
 Route::post('/users/resendVerifyEmailCode', [UserController::class, 'resendVerifyEmailCode']);
 Route::post('/users/verifyEmail', [UserController::class, 'verifyEmail']);
+Route::get('/users/{user}/events', [UserController::class, 'eventList']);
 
 Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
@@ -43,6 +44,11 @@ Route::apiAttachmentResource('articles', ArticleController::class);
 
 Route::apiResource('events', EventController::class);
 Route::apiAttachmentResource('events', EventController::class);
+
+Route::get('/events/{event}/users', [EventController::class, 'userList']);
+Route::post('/events/{event}/users', [EventController::class, 'userAdd']);
+Route::match(['put', 'patch'], '/events/{event}/users', [EventController::class, 'userUpdate']);
+Route::delete('/events/{event}/users/{user}', [EventController::class, 'userDelete']);
 
 Route::post('/contact', [ContactController::class, 'send']);
 

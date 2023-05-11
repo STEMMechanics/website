@@ -6,8 +6,10 @@ use App\Enum\HttpResponseCodes;
 use App\Models\Event;
 use App\Conductors\EventConductor;
 use App\Conductors\MediaConductor;
+use App\Conductors\UserConductor;
 use App\Http\Requests\EventRequest;
 use App\Models\Media;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class EventController extends ApiController
@@ -18,7 +20,7 @@ class EventController extends ApiController
     public function __construct()
     {
         $this->middleware('auth:sanctum')
-        ->only(['store','update','destroy']);
+        ->only(['store','update','destroy', 'userAdd', 'userUpdate', 'userDelete']);
     }
 
     /**
@@ -111,11 +113,8 @@ class EventController extends ApiController
      * Get a list of attachments related to this model.
      *
      * @param Request $request The user request.
-     * @param Article $article The article model.
-     * @return JsonResponse Returns the article attachments.
-     * @throws InvalidFormatException
-     * @throws BindingResolutionException
-     * @throws InvalidCastException
+     * @param Event   $event   The event model.
+     * @return JsonResponse Returns the event attachments.
      */
     public function getAttachments(Request $request, Event $event)
     {
@@ -134,15 +133,13 @@ class EventController extends ApiController
      * Store an attachment related to this model.
      *
      * @param Request $request The user request.
-     * @param Article $article The article model.
+     * @param Event   $event   The event model.
      * @return JsonResponse The response.
-     * @throws BindingResolutionException
-     * @throws MassAssignmentException
      */
     public function storeAttachment(Request $request, Event $event)
     {
         if (EventConductor::updatable($event) === true) {
-            if ($request->has("medium") && Media::find($request->medium)) {
+            if ($request->has("medium") === true && Media::find($request->medium) !== null) {
                 $event->attachments()->create(['media_id' => $request->medium]);
                 return $this->respondCreated();
             }
@@ -157,10 +154,8 @@ class EventController extends ApiController
      * Update/replace attachments related to this model.
      *
      * @param Request $request The user request.
-     * @param Article $article The related model.
+     * @param Event   $event   The related model.
      * @return JsonResponse
-     * @throws BindingResolutionException
-     * @throws MassAssignmentException
      */
     public function updateAttachments(Request $request, Event $event)
     {
@@ -175,7 +170,7 @@ class EventController extends ApiController
 
             // Delete attachments that are not in $mediaIds
             foreach ($attachments as $attachment) {
-                if (!in_array($attachment->media_id, $mediaIds)) {
+                if (in_array($attachment->media_id, $mediaIds) === false) {
                     $attachment->delete();
                 }
             }
@@ -185,13 +180,13 @@ class EventController extends ApiController
                 $found = false;
 
                 foreach ($attachments as $attachment) {
-                    if ($attachment->media_id == $mediaId) {
+                    if ($attachment->media_id === $mediaId) {
                         $found = true;
                         break;
                     }
                 }
 
-                if (!$found) {
+                if ($found === false) {
                     $event->attachments()->create(['media_id' => $mediaId]);
                 }
             }
@@ -204,11 +199,11 @@ class EventController extends ApiController
 
     /**
      * Delete a specific related attachment.
+     *
      * @param Request $request The user request.
-     * @param Article $article The model.
+     * @param Event   $event   The model.
      * @param Media   $medium  The attachment medium.
      * @return JsonResponse
-     * @throws BindingResolutionException
      */
     public function deleteAttachment(Request $request, Event $event, Media $medium)
     {
@@ -224,11 +219,89 @@ class EventController extends ApiController
                 }
             }
 
-            if ($deleted) {
+            if ($deleted === true) {
                 // Attachment was deleted successfully
                 return $this->respondNoContent();
             } else {
                 // Attachment with matching media ID was not found
+                return $this->respondNotFound();
+            }
+        }
+
+        return $this->respondForbidden();
+    }
+
+    public function userList(Request $request, Event $event)
+    {
+        $authUser = $request->user();
+        $eventUsers = $event->users;
+
+        if ($authUser !== null) {
+            $isAdmin = $authUser->hasPermission('admin/events');
+            $isEventUser = $eventUsers->contains($authUser->id);
+
+            if ($isAdmin === true || $isEventUser === true) {
+                if ($isAdmin === false) {
+                    $eventUsers = $eventUsers->filter(function ($user) use ($authUser) {
+                        return $user->id === $authUser->id;
+                    });
+                }
+
+                return $this->respondAsResource(UserConductor::collection($request, $eventUsers), ['isCollection' => true, 'resourceName' => 'users']);
+            }
+
+            return $this->respondNotFound();
+        }
+
+        return $this->respondForbidden();
+    }
+
+    public function userAdd(Request $request, Event $event)
+    {
+        $authUser = $request->user();
+        if ($authUser !== null && $authUser->hasPermission('admin/events') === true) {
+            if ($request->has("users") === true) {
+                $eventUsers = $event->users()->pluck('user_id')->toArray(); // Get the current users in the event
+                $requestedUsers = $request->input("users"); // Get the requested users
+
+                $usersToAdd = array_diff($requestedUsers, $eventUsers); // Users to add
+                $usersToRemove = array_diff($eventUsers, $requestedUsers); // Users to remove
+
+                // Add missing users
+                foreach ($usersToAdd as $userToAdd) {
+                    if (User::find($userToAdd) !== null) {
+                        $event->users()->attach($userToAdd);
+                    }
+                }
+
+                // Remove extra users
+                foreach ($usersToRemove as $userToRemove) {
+                    $event->users()->detach($userToRemove);
+                }
+
+                return $this->respondNoContent();
+            }//end if
+
+            return $this->respondWithErrors(['users' => 'The user list was not found']);
+        }//end if
+
+        return $this->respondForbidden();
+    }
+
+    public function userUpdate(Request $request, Event $event)
+    {
+        // only admin/events permitted
+    }
+
+    public function userDelete(Request $request, Event $event, User $user)
+    {
+        $authUser = $request->user();
+        if ($authUser !== null && $authUser->hasPermission('admin/events') === true) {
+            $eventUsers = $event->users;
+            if ($eventUsers->find($user->id) !== null) {
+                $eventUsers->detach($user->id);
+                return $this->respondNoContent();
+            } else {
                 return $this->respondNotFound();
             }
         }

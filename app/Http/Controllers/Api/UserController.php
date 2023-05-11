@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Conductors\EventConductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\UserRequest;
 use App\Http\Requests\UserForgotPasswordRequest;
@@ -20,6 +21,8 @@ use App\Models\UserCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use App\Conductors\UserConductor;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Contracts\Container\BindingResolutionException;
 
 class UserController extends ApiController
 {
@@ -37,7 +40,8 @@ class UserController extends ApiController
             'forgotPassword',
             'resetPassword',
             'verifyEmail',
-            'resendVerifyEmailCode'
+            'resendVerifyEmailCode',
+            'eventList',
         ]);
     }
 
@@ -329,5 +333,30 @@ class UserController extends ApiController
         }
 
         return $this->respondNotFound();
+    }
+
+    /**
+     * Return a JSON event list of a user.
+     *
+     * @param Request $request The http request.
+     * @param User    $user    The specified user.
+     * @return JsonResponse
+     */
+    public function eventList(Request $request, User $user)
+    {
+        if ($request->user() !== null && ($request->user() === $user || $request->user()->hasPermission('admin/events') === true)) {
+            $collection = $user->events;
+            $total = $collection->count();
+
+            $collection = EventConductor::collection($request, $collection);
+            return $this->respondAsResource(
+                $collection,
+                ['isCollection' => true,
+                    'appendData' => ['total' => $total]
+                ]
+            );
+        } else {
+            return $this->respondForbidden();
+        }
     }
 }

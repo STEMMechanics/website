@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Traits\Uuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -76,11 +77,6 @@ class User extends Authenticatable implements Auditable
     ];
 
 
-    // public function getPermissionsAttribute() {
-    //     return $this->permissions()->pluck('permission')->toArray();
-    // }
-
-
     /**
      * Get the list of files of the user
      *
@@ -120,7 +116,7 @@ class User extends Authenticatable implements Auditable
      */
     public function givePermission($permissions)
     {
-        if (!is_array($permissions)) {
+        if (is_array($permissions) === false) {
             $permissions = [$permissions];
         }
 
@@ -145,7 +141,7 @@ class User extends Authenticatable implements Auditable
      */
     public function revokePermission($permissions)
     {
-        if (!is_array($permissions)) {
+        if (is_array($permissions) === false) {
             $permissions = [$permissions];
         }
 
@@ -192,5 +188,15 @@ class User extends Authenticatable implements Auditable
     public function logins()
     {
         return $this->hasMany(UserLogins::class);
+    }
+
+    /**
+     * Get the events associated with the user.
+     *
+     * @return BelongsToMany
+     */
+    public function events()
+    {
+        return $this->belongsToMany(Event::class, 'event_user', 'user_id', 'event_id');
     }
 }
