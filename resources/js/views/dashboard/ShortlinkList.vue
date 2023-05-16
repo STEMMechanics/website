@@ -41,6 +41,7 @@
                         <SMButton
                             label="Edit"
                             :dropdown="{
+                                copy: 'Copy Shortlink',
                                 delete: 'Delete',
                             }"
                             size="medium"
@@ -111,6 +112,8 @@ const handleSearch = () => {
 const handleActionButton = (item: Shortlink, option: string): void => {
     if (option.length == 0) {
         handleEdit(item);
+    } else if (option.toLowerCase() == "copy") {
+        handleCopy(item);
     } else if (option.toLowerCase() == "delete") {
         handleDelete(item);
     }
@@ -161,6 +164,25 @@ const handleEdit = (shortlink: Shortlink) => {
         name: "dashboard-shortlink-edit",
         params: { id: shortlink.id },
     });
+};
+
+const handleCopy = (shortlink: Shortlink) => {
+    navigator.clipboard
+        .writeText(`https://stemmech.com.au/${shortlink.code}`)
+        .then(() => {
+            useToastStore().addToast({
+                title: "Copied to Clipboard",
+                content: "The shortlink URL has been copied to the clipboard.",
+                type: "success",
+            });
+        })
+        .catch(() => {
+            useToastStore().addToast({
+                title: "Copy to Clipboard",
+                content: "Failed to copy the shortlink URL to the clipboard.",
+                type: "danger",
+            });
+        });
 };
 
 const handleDelete = async (shortlink: Shortlink) => {
