@@ -27,16 +27,21 @@ if (($pos = strpos($code, '?')) !== false) {
 }
 
 // lookup code in database
-$sql = "SELECT url, used FROM shortlinks WHERE code = '$code'";
-$result = $conn->query($sql);
+$sql = "SELECT url, used FROM shortlinks WHERE code = ?";
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("s", $code);
+$stmt->execute();
+$result = $stmt->get_result();
 
 // if code is found, redirect to URL and update 'used' column
 if ($result->num_rows > 0) {
     $row = $result->fetch_assoc();
     $url = $row["url"];
     $used = $row["used"] + 1;
-    $updateSql = "UPDATE shortlinks SET used = $used WHERE code = '$code'";
-    $conn->query($updateSql);
+    $updateSql = "UPDATE shortlinks SET used = $used WHERE code = ?";
+    $stmt = $conn->prepare($updateSql);
+    $stmt->bind_param("s", $code);
+    $stmt->execute();
     header("Location: " . $url);
     exit();
 } else {
