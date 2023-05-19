@@ -33,6 +33,10 @@ const imgError = ref(false);
     display: flex;
     flex-basis: 300px;
 
+    /* Firefox */
+    justify-content: center;
+    max-height: 300px;
+
     img {
         max-height: 100%;
         max-width: 100%;
