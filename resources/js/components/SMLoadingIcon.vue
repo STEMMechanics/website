@@ -48,6 +48,7 @@ const props = defineProps({
     div:nth-child(4) {
         left: 2em;
         animation: loading-icon3 0.6s infinite;
+        z-index: -1;
     }
 
     @keyframes loading-icon1 {

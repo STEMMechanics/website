@@ -5,6 +5,7 @@ type ApplicationStoreEventKeyUpCallback = (event: KeyboardEvent) => boolean;
 export interface ApplicationStore {
     dynamicTitle: string;
     eventKeyUpStack: ApplicationStoreEventKeyUpCallback[];
+    pageLoaderTimeout: number;
     _addedListener: boolean;
 }
 
@@ -13,6 +14,7 @@ export const useApplicationStore = defineStore({
     state: (): ApplicationStore => ({
         dynamicTitle: "",
         eventKeyUpStack: [],
+        pageLoaderTimeout: 0,
         _addedListener: false,
     }),
 

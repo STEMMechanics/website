@@ -10,6 +10,9 @@
     <footer>
         <SMPageFooter />
     </footer>
+    <div id="sm-page-loading">
+        <SMLoadingIcon large />
+    </div>
     <SMToastList />
     <SMDialogList />
 </template>
@@ -19,6 +22,7 @@ import SMNavbar from "../components/SMNavbar.vue";
 import SMPageFooter from "../components/SMPageFooter.vue";
 import SMToastList from "../components/SMToastList.vue";
 import SMDialogList from "../components/SMDialog";
+import SMLoadingIcon from "../components/SMLoadingIcon.vue";
 </script>
 
 <style lang="scss">
@@ -26,6 +30,24 @@ main {
     display: flex;
     flex-direction: column;
     flex: 1;
+}
+
+#sm-page-loading {
+    position: fixed;
+    display: flex;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 10000;
+
+    .loading-icon-balls div {
+        box-shadow: 0 0 2px 2px white;
+    }
 }
 
 .fade-enter-active,

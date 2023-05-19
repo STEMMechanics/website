@@ -429,19 +429,18 @@ router.beforeEach(async (to, from, next) => {
 
     applicationStore.clearDynamicTitle();
 
+    if (applicationStore.pageLoaderTimeout !== 0) {
+        window.clearTimeout(applicationStore.pageLoaderTimeout);
+        applicationStore.pageLoaderTimeout = window.setTimeout(() => {
+            const pageLoadingElem = document.getElementById("sm-page-loading");
+            if (pageLoadingElem !== null) {
+                pageLoadingElem.style.display = "flex";
+            }
+        }, 0);
+    }
+
     if (to.meta.middleware == "authenticated") {
         if (userStore.id) {
-            // try {
-            //     let res = await api.get({
-            //         url: "/me",
-            //     });
-            //     userStore.setUserDetails(res.json.user);
-            // } catch (err) {
-            //     if (err.status == 401) {
-            //         userStore.clearUser();
-            //     }
-            // }
-
             api.get({
                 url: "/me",
             })
@@ -482,6 +481,8 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to, from) => {
+    const applicationStore = useApplicationStore();
+
     if (from.name !== undefined) {
         document.body.classList.remove(`page-${from.name}`);
     }
@@ -550,6 +551,16 @@ router.afterEach((to, from) => {
             }
         }
     }, 10);
+
+    if (applicationStore.pageLoaderTimeout !== 0) {
+        window.clearTimeout(applicationStore.pageLoaderTimeout);
+        applicationStore.pageLoaderTimeout = 0;
+    }
+
+    const pageLoadingElem = document.getElementById("sm-page-loading");
+    if (pageLoadingElem !== null) {
+        pageLoadingElem.style.display = "none";
+    }
 });
 
 export default router;
