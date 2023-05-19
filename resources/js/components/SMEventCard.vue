@@ -1,6 +1,7 @@
 <template>
     <router-link
         class="event-card"
+        rel="prefetch"
         :to="{ name: 'event', params: { id: props.event.id } }">
         <div
             class="thumbnail"

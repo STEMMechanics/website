@@ -43,7 +43,7 @@
                             <li
                                 v-if="item.show == undefined || item.show()"
                                 :key="item.name">
-                                <router-link :to="item.to"
+                                <router-link rel="prefetch" :to="item.to"
                                     ><span>{{ item.label }}</span></router-link
                                 >
                             </li>
