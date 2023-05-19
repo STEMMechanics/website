@@ -21,7 +21,7 @@ export const routes = [
         meta: {
             title: "Blog",
         },
-        component: () => import("@/views/Blog.vue"),
+        component: () => import(/* webpackPrefetch: true */ "@/views/Blog.vue"),
     },
     {
         path: "/article",
@@ -40,7 +40,8 @@ export const routes = [
         meta: {
             title: "Workshops",
         },
-        component: () => import("@/views/Workshops.vue"),
+        component: () =>
+            import(/* webpackPreload: true */ "@/views/Workshops.vue"),
     },
     {
         path: "/event",
@@ -129,7 +130,8 @@ export const routes = [
             title: "Login",
             middleware: "guest",
         },
-        component: () => import("@/views/Login.vue"),
+        component: () =>
+            import(/* webpackPrefetch: true */ "@/views/Login.vue"),
     },
     {
         path: "/logout",
@@ -145,7 +147,8 @@ export const routes = [
         meta: {
             title: "Contact",
         },
-        component: () => import("@/views/Contact.vue"),
+        component: () =>
+            import(/* webpackPrefetch: true */ "@/views/Contact.vue"),
     },
     {
         path: "/conduct",
@@ -177,7 +180,8 @@ export const routes = [
         meta: {
             title: "Register",
         },
-        component: () => import("@/views/Register.vue"),
+        component: () =>
+            import(/* webpackPrefetch: true */ "@/views/Register.vue"),
     },
     {
         path: "/dashboard",
@@ -189,7 +193,10 @@ export const routes = [
                     title: "Dashboard",
                     middleware: "authenticated",
                 },
-                component: () => import("@/views/dashboard/Dashboard.vue"),
+                component: () =>
+                    import(
+                        /* webpackPrefetch: true */ "@/views/dashboard/Dashboard.vue"
+                    ),
             },
             {
                 path: "articles",
@@ -424,16 +431,31 @@ router.beforeEach(async (to, from, next) => {
 
     if (to.meta.middleware == "authenticated") {
         if (userStore.id) {
-            try {
-                let res = await api.get({
-                    url: "/me",
+            // try {
+            //     let res = await api.get({
+            //         url: "/me",
+            //     });
+            //     userStore.setUserDetails(res.json.user);
+            // } catch (err) {
+            //     if (err.status == 401) {
+            //         userStore.clearUser();
+            //     }
+            // }
+
+            api.get({
+                url: "/me",
+            })
+                .then((res) => {
+                    userStore.setUserDetails(res.data.user);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    if (err.status == 401) {
+                        userStore.clearUser();
+
+                        window.location.href = `/login?redirect=${to.fullPath}`;
+                    }
                 });
-                userStore.setUserDetails(res.json.user);
-            } catch (err) {
-                if (err.status == 401) {
-                    userStore.clearUser();
-                }
-            }
         }
 
         if (!userStore.id) {
