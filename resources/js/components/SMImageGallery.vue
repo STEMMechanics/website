@@ -75,7 +75,7 @@ onBeforeUnmount(() => {
 .image-gallery {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 30px;
+    gap: 15px;
 
     .image-gallery-image {
         cursor: pointer;
