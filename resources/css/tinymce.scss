@@ -2,12 +2,49 @@
 // @import "../../public/skins/ui/oxide/content.min.css";
 // @import "../../public/skins/content/default/content.min.css";
 
-.tox .tox-dialog.tox-dialog--width-lg {
-    height: 650px;
-    max-height: 650px;
+.tox {
+    .smeditor-select-group.tox-listboxfield {
+        position: relative;
+        display: flex;
+        align-items: center;
 
-    .tox-dialog__body-content {
-        height: auto !important;
-        flex-basis: auto !important;
+        label {
+            font-size: 80%;
+            margin: 0 6px 0 12px;
+        }
+
+        &::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid #000;
+            pointer-events: none;
+        }
+
+        .tox-listbox--select {
+            font-size: 80%;
+            padding-right: 28px;
+        }
+    }
+
+    .smeditor-checkbox-group.tox-checkbox {
+        font-size: 80%;
+        margin: 0 12px;
+    }
+
+    .tox-dialog.tox-dialog--width-lg {
+        height: 650px;
+        max-height: 650px;
+
+        .tox-dialog__body-content {
+            height: auto !important;
+            flex-basis: auto !important;
+        }
     }
 }

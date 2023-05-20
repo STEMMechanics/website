@@ -445,6 +445,14 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                     searchFunc();
                 }
             };
+        document.getElementById("image-library-sort-select").onchange =
+            function () {
+                updateLibrary();
+            };
+        document.getElementById("image-library-sort-desc-checkbox").onchange =
+            function () {
+                updateLibrary();
+            };
 
         const libraryContainer = document.getElementById(
             "image-library-content"
@@ -460,14 +468,40 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
             loadingElem.classList.add("image-library-content-loading");
             libraryContainer.appendChild(loadingElem);
 
+            let params = {
+                limit: limit,
+                page: libraryPage,
+                mime: "image/",
+                title: title,
+            };
+
+            let sort = "";
+            const sortSelectElement = document.getElementById(
+                "image-library-sort-select"
+            ) as HTMLSelectElement;
+            if (sortSelectElement !== null) {
+                if (sortSelectElement.value.length > 0) {
+                    sort = sortSelectElement.value;
+                }
+
+                const sortDescElement = document.getElementById(
+                    "image-library-sort-desc-checkbox"
+                ) as HTMLInputElement;
+                if (
+                    sortDescElement !== null &&
+                    sortDescElement.checked === true
+                ) {
+                    sort = `-${sort}`;
+                }
+            }
+
+            if (sort.length > 0) {
+                params["sort"] = sort;
+            }
+
             api.get({
                 url: "/media",
-                params: {
-                    limit: limit,
-                    page: libraryPage,
-                    mime: "image/",
-                    title: title,
-                },
+                params: params,
             })
                 .then((result) => {
                     const data = result.data as MediaCollection;
@@ -659,6 +693,20 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                     type: "htmlpanel",
                     html: `<div class="image-library">
                                 <div id="image-library-toolbar">
+                                    <div class="smeditor-select-group image-library-sort-group tox-listboxfield">
+                                        <label for="image-library-sort-select">Sort:</label>
+                                        <select id="image-library-sort-select" class="tox-listbox--select">
+                                            <option value="">None</option>
+                                            <option value="title">Title</option>
+                                            <option value="created_at">Uploaded</option>
+                                        </select>
+                                    </div>
+                                    <div class="smeditor-checkbox-group image-library-sort-desc-group tox-checkbox">
+                                        <label for="image-library-sort-desc-checkbox">
+                                            <input type="checkbox" id="image-library-sort-desc-checkbox">
+                                            Desc
+                                        </label>
+                                    </div>
                                     <div class="image-library-search-group">
                                         <input type="text" id="image-library-search-input" placeholder="search" class="tox-textfield" />
                                         <button id="image-library-search-button"><svg width="20" height="20" focusable="false"><path d="M14 15.7a6 6 0 1 1 1.06-1.06l3.54 3.54a1 1 0 0 1-1.06 1.06l-3.54-3.54Zm-4-.4a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Z" fill-rule="nonzero"/></svg></button>
@@ -856,13 +904,13 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
 #image-library-toolbar {
     display: flex;
     margin-bottom: 4px;
+    justify-content: flex-end;
 
     .image-library-search-group {
         display: flex;
-        flex: 1;
         align-content: center;
         justify-content: flex-end;
-        margin-right: 12px;
+        margin: 0 12px;
 
         #image-library-search-input {
             width: auto;
