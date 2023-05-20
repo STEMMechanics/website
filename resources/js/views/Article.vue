@@ -138,7 +138,7 @@ handleLoad();
         background-repeat: no-repeat;
         background-size: cover;
         aspect-ratio: 16 / 9;
-        max-height: 640px;
+        max-height: 320px;
         width: 100%;
     }
 
