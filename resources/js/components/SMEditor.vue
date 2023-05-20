@@ -781,7 +781,7 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                                                     updateResult.data as MediaResponse;
                                                 if (
                                                     updateData.medium.status ==
-                                                        "" &&
+                                                        "OK" &&
                                                     data.medium.status.startsWith(
                                                         "Failed"
                                                     ) == false
