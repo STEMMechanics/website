@@ -12,12 +12,23 @@
     </div>
     <div
         v-if="showModalImage !== null"
-        class="image-gallery-modal"
-        @click="hideModal">
+        :class="[
+            'image-gallery-modal',
+            { 'image-gallery-modal-buttons': showButtons },
+        ]"
+        @click="hideModal"
+        @mousemove="handleModalUpdateButtons"
+        @mouseleave="handleModalUpdateButtons">
         <img
             :src="images[showModalImage] as string"
             class="image-gallery-modal-image" />
         <div class="image-gallery-modal-close" @click="hideModal">&times;</div>
+        <div
+            class="image-gallery-modal-prev"
+            @click="handleModalPrevImage"></div>
+        <div
+            class="image-gallery-modal-next"
+            @click="handleModalNextImage"></div>
     </div>
 </template>
 
@@ -33,6 +44,8 @@ const props = defineProps({
 
 const gallery = ref(null);
 const showModalImage = ref(null);
+let showButtons = ref(false);
+let mouseMoveTimeout = null;
 
 const showModal = (index) => {
     showModalImage.value = index;
@@ -46,19 +59,40 @@ const hideModal = () => {
 
 const handleKeyDown = (event) => {
     if (event.key === "ArrowLeft") {
-        if (showModalImage.value !== null) {
-            if (showModalImage.value > 0) {
-                showModalImage.value--;
-            }
-        }
+        handleModalPrevImage();
     } else if (event.key === "ArrowRight") {
-        if (showModalImage.value !== null) {
-            if (showModalImage.value < props.images.length - 1) {
-                showModalImage.value++;
-            }
-        }
+        handleModalNextImage();
     } else if (event.key === "Escape") {
         hideModal();
+    }
+};
+
+const handleModalUpdateButtons = () => {
+    if (mouseMoveTimeout !== null) {
+        clearTimeout(mouseMoveTimeout);
+        mouseMoveTimeout = null;
+    }
+
+    showButtons.value = true;
+    mouseMoveTimeout = setTimeout(() => {
+        showButtons.value = false;
+        mouseMoveTimeout = null;
+    }, 3000);
+};
+
+const handleModalPrevImage = () => {
+    if (showModalImage.value !== null) {
+        if (showModalImage.value > 0) {
+            showModalImage.value--;
+        }
+    }
+};
+
+const handleModalNextImage = () => {
+    if (showModalImage.value !== null) {
+        if (showModalImage.value < props.images.length - 1) {
+            showModalImage.value++;
+        }
     }
 };
 
@@ -117,6 +151,13 @@ onBeforeUnmount(() => {
         object-fit: contain;
     }
 
+    &.image-gallery-modal-buttons {
+        .image-gallery-modal-prev,
+        .image-gallery-modal-next {
+            opacity: 1;
+        }
+    }
+
     .image-gallery-modal-close {
         position: absolute;
         top: 10px;
@@ -134,6 +175,88 @@ onBeforeUnmount(() => {
 
         &:hover {
             color: rgba(255, 255, 255, 0.7);
+        }
+    }
+
+    .image-gallery-modal-prev,
+    .image-gallery-modal-next {
+        position: absolute;
+        display: flex;
+        content: "";
+        justify-content: center;
+        align-items: center;
+        top: 0;
+        bottom: 0;
+        width: 75px;
+        background-color: rgba(0, 0, 0, 0.25);
+        opacity: 0;
+        transition: all 0.2s ease;
+        cursor: pointer;
+
+        &::before {
+            position: absolute;
+            display: block;
+            content: "";
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #999;
+            transition: all 0.2s ease;
+        }
+
+        &::after {
+            position: absolute;
+            display: block;
+            content: "";
+            width: 12px;
+            height: 12px;
+            transition: all 0.2s ease;
+        }
+
+        &:hover {
+            &::before {
+                background-color: #ddd;
+            }
+        }
+    }
+
+    .image-gallery-modal-prev {
+        left: 0;
+
+        &::after {
+            border-left: 2px solid black;
+            border-bottom: 2px solid black;
+            transform: rotateZ(45deg) translateX(2px) translateY(-2px);
+        }
+
+        &:hover {
+            &::before {
+                transform: translateX(-3px);
+            }
+
+            &::after {
+                transform: rotateZ(45deg) translateX(-0.5px) translateY(0.5px);
+            }
+        }
+    }
+
+    .image-gallery-modal-next {
+        right: 0;
+
+        &::after {
+            border-right: 2px solid black;
+            border-top: 2px solid black;
+            transform: rotateZ(45deg) translateX(-2px) translateY(2px);
+        }
+
+        &:hover {
+            &::before {
+                transform: translateX(3px);
+            }
+
+            &::after {
+                transform: rotateZ(45deg) translateX(0.5px) translateY(-0.5px);
+            }
         }
     }
 }
