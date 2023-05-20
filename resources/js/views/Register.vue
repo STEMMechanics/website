@@ -11,7 +11,7 @@
                 </template>
                 <template #body>
                     <SMFormError v-model="form" />
-                    <SMInput control="email" autofocus />
+                    <SMInput control="email" autofocus type="email" />
                     <SMInput control="password" type="password" />
                     <SMInput control="display_name" label="Display Name" />
                 </template>

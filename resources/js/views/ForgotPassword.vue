@@ -8,7 +8,7 @@
                         Enter your email below to receive a password reset link.
                     </p>
                     <SMForm v-model="form" @submit="handleSubmit">
-                        <SMInput control="email" />
+                        <SMInput control="email" type="email" autofocus />
                         <SMButtonRow>
                             <template #left>
                                 <div class="small">

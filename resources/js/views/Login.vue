@@ -9,7 +9,7 @@
                     </p>
                 </template>
                 <template #body>
-                    <SMInput control="email" autofocus> </SMInput>
+                    <SMInput control="email" autofocus type="email"> </SMInput>
                     <SMInput control="password" type="password">
                         <router-link to="/forgot-password"
                             >Forgot password?</router-link

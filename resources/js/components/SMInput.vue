@@ -157,7 +157,16 @@
                         :type="props.type"
                         class="input-control"
                         :disabled="disabled"
-                        v-bind="{ id: id, autofocus: props.autofocus }"
+                        v-bind="{
+                            id: id,
+                            autofocus: props.autofocus,
+                            autocomplete:
+                                props.type === 'email' ? 'email' : null,
+                            spellcheck: props.type === 'email' ? false : null,
+                            autocorrect: props.type === 'email' ? 'on' : null,
+                            autocapitalize:
+                                props.type === 'email' ? 'off' : null,
+                        }"
                         v-model="value"
                         @focus="handleFocus"
                         @blur="handleBlur"

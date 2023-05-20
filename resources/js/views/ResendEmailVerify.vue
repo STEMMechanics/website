@@ -11,7 +11,7 @@
                         </p>
                     </template>
                     <template #body>
-                        <SMInput control="email" />
+                        <SMInput control="email" type="email" />
                     </template>
                     <template #footer>
                         <SMButtonRow>

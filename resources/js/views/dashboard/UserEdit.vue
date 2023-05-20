@@ -23,7 +23,7 @@
                 <SMColumn><SMInput control="last_name" /></SMColumn>
             </SMRow>
             <SMRow>
-                <SMColumn><SMInput control="email" /></SMColumn>
+                <SMColumn><SMInput control="email" type="email" /></SMColumn>
                 <SMColumn
                     ><SMInput control="phone"
                         ><template #help
