@@ -165,10 +165,6 @@ class MediaController extends ApiController
     public function destroy(Media $medium)
     {
         if (MediaConductor::destroyable($medium) === true) {
-            if (file_exists($medium->path()) === true) {
-                unlink($medium->path());
-            }
-
             $medium->delete();
             return $this->respondNoContent();
         }
