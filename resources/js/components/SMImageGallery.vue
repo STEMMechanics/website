@@ -81,17 +81,25 @@ const handleModalUpdateButtons = () => {
 };
 
 const handleModalPrevImage = () => {
+    handleModalUpdateButtons();
+
     if (showModalImage.value !== null) {
         if (showModalImage.value > 0) {
             showModalImage.value--;
+        } else {
+            showModalImage.value = props.images.length - 1;
         }
     }
 };
 
 const handleModalNextImage = () => {
+    handleModalUpdateButtons();
+
     if (showModalImage.value !== null) {
         if (showModalImage.value < props.images.length - 1) {
             showModalImage.value++;
+        } else {
+            showModalImage.value = 0;
         }
     }
 };
