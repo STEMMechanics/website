@@ -202,7 +202,15 @@ const handleLoad = async () => {
  * @param {Media} item The media item.
  */
 const handleEdit = (item: Media) => {
-    router.push({ name: "dashboard-media-edit", params: { id: item.id } });
+    router.push({
+        name: "dashboard-media-edit",
+        params: { id: item.id },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
+    });
 };
 
 /**

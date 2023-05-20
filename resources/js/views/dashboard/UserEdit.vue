@@ -228,7 +228,13 @@ const handleSubmit = async () => {
             });
         }
 
-        router.push({ name: "dashboard" });
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get("return");
+        if (returnUrl) {
+            router.push(decodeURIComponent(returnUrl));
+        } else {
+            router.push({ name: "dashboard-user-list" });
+        }
     } catch (err) {
         form.apiErrors(err);
     } finally {

@@ -168,7 +168,15 @@ const handleLoad = async () => {
 };
 
 const handleEdit = (user: User) => {
-    router.push({ name: "dashboard-user-edit", params: { id: user.id } });
+    router.push({
+        name: "dashboard-user-edit",
+        params: { id: user.id },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
+    });
 };
 
 const handleDelete = async (user: User) => {

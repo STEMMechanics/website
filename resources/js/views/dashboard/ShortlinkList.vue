@@ -163,6 +163,11 @@ const handleEdit = (shortlink: Shortlink) => {
     router.push({
         name: "dashboard-shortlink-edit",
         params: { id: shortlink.id },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
     });
 };
 

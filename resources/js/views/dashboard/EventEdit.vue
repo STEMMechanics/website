@@ -389,7 +389,13 @@ const handleSubmit = async () => {
             type: "success",
         });
 
-        router.push({ name: "dashboard-event-list" });
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get("return");
+        if (returnUrl) {
+            router.push(decodeURIComponent(returnUrl));
+        } else {
+            router.push({ name: "dashboard-event-list" });
+        }
     } catch (error) {
         useToastStore().addToast({
             title: "Server error",

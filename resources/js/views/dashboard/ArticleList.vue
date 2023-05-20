@@ -192,7 +192,15 @@ const handleLoad = async () => {
  * @param {Artile} item The article item.
  */
 const handleEdit = (item: Article) => {
-    router.push({ name: "dashboard-article-edit", params: { id: item.id } });
+    router.push({
+        name: "dashboard-article-edit",
+        params: { id: item.id },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
+    });
 };
 
 /**

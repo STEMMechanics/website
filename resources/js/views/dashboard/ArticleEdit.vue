@@ -241,7 +241,13 @@ const handleSubmit = async () => {
             type: "success",
         });
 
-        router.push({ name: "dashboard-article-list" });
+        const urlParams = new URLSearchParams(window.location.search);
+        const returnUrl = urlParams.get("return");
+        if (returnUrl) {
+            router.push(decodeURIComponent(returnUrl));
+        } else {
+            router.push({ name: "dashboard-article-list" });
+        }
     } catch (error) {
         form.apiErrors(error);
     }

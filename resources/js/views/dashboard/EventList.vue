@@ -262,7 +262,15 @@ const handleDuplicate = async (item: Event): Promise<void> => {
  * @param {Event} item The event item.
  */
 const handleEdit = (item: Event) => {
-    router.push({ name: "dashboard-event-edit", params: { id: item.id } });
+    router.push({
+        name: "dashboard-event-edit",
+        params: { id: item.id },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
+    });
 };
 
 /**
