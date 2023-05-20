@@ -744,7 +744,7 @@ const handleMediaSelect = async () => {
     }
 
     &.input-active {
-        .control-item .control-label {
+        .control-item .control-label:not(.control-label-checkbox) {
             transform: translate(16px, 6px) scale(0.7);
         }
     }
