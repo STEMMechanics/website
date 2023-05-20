@@ -28,7 +28,7 @@
                         type="checkbox"
                         class="checkbox-control"
                         :disabled="disabled"
-                        :value="value"
+                        :checked="value"
                         @input="handleCheckbox" />
                     <span class="checkbox-control-box">
                         <span class="checkbox-control-tick"></span> </span
