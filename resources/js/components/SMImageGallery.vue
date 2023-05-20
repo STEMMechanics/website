@@ -22,13 +22,13 @@
         <img
             :src="images[showModalImage] as string"
             class="image-gallery-modal-image" />
-        <div class="image-gallery-modal-close" @click="hideModal">&times;</div>
         <div
             class="image-gallery-modal-prev"
-            @click="handleModalPrevImage"></div>
+            @click.stop="handleModalPrevImage"></div>
         <div
             class="image-gallery-modal-next"
-            @click="handleModalNextImage"></div>
+            @click.stop="handleModalNextImage"></div>
+        <div class="image-gallery-modal-close" @click="hideModal">&times;</div>
     </div>
 </template>
 
