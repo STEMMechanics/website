@@ -242,7 +242,14 @@ class Conductor
         });
 
         // Sort request
-        $conductor->sort($request->input('sort', $conductor->sort));
+        $sort = $request->input('sort', $conductor->sort);
+        if (strlen($sort) === 0) {
+            if (strlen($conductor->sort) > 0) {
+                $conductor->sort($conductor->sort);
+            }
+        } else {
+            $conductor->sort($sort);
+        }
 
         // Get total
         $total = $conductor->count();
