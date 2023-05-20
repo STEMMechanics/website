@@ -724,7 +724,7 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
 
                     for (let i = 0; i < files.length; i++) {
                         let formData = new FormData();
-                        formData.append("file", files[0]);
+                        formData.append("file", files[i]);
 
                         try {
                             let progressText = [
@@ -825,7 +825,6 @@ const imageBrowser = (callback, value, meta, gallery = false) => {
                                 }
                             }
                         } catch (error) {
-                            input.value = "";
                             alert(
                                 error.data.message ||
                                     "An unexpected error occurred uploading the file to the server."
