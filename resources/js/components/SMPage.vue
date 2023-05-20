@@ -16,11 +16,18 @@
                 <p v-else-if="pageError == 404">
                     The page you are looking for does not exist!
                 </p>
+                <p v-else-if="pageError == 503">
+                    The server is currently not responding and maybe under
+                    maintenance. Please try again later!
+                </p>
                 <p v-else>
                     We are working to fix that what was broken. Please try again
                     later!
                 </p>
-                <SMButton label="Go Back" @click="handleClick" />
+                <SMButton
+                    v-if="pageError != 503"
+                    label="Go Back"
+                    @click="handleClick" />
             </div>
         </SMContainer>
     </template>

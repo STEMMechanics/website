@@ -1,4 +1,5 @@
 import { useUserStore } from "../store/UserStore";
+import { useApplicationStore } from "../store/ApplicationStore";
 import { ImportMetaExtras } from "../../../import-meta";
 
 interface ApiProgressData {
@@ -155,6 +156,7 @@ export const api = {
                     if (xhr.status < 300) {
                         resolve(result);
                     } else {
+                        useApplicationStore().unavailable = true;
                         reject(result);
                     }
                 };
@@ -211,6 +213,7 @@ export const api = {
                         };
 
                         if (response.status >= 300) {
+                            useApplicationStore().unavailable = true;
                             reject(result);
                         }
 

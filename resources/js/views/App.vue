@@ -3,14 +3,17 @@
         <SMNavbar />
     </header>
     <main>
-        <router-view v-slot="{ Component }">
-            <component :is="Component" />
-        </router-view>
+        <SMPage v-if="useApplicationStore().unavailable" :page-error="503" />
+        <template v-else>
+            <router-view v-slot="{ Component }">
+                <component :is="Component" />
+            </router-view>
+        </template>
     </main>
     <footer>
         <SMPageFooter />
     </footer>
-    <div id="sm-page-loading">
+    <div v-if="!useApplicationStore().unavailable" id="sm-page-loading">
         <SMLoadingIcon large />
     </div>
     <SMToastList />
@@ -23,6 +26,7 @@ import SMPageFooter from "../components/SMPageFooter.vue";
 import SMToastList from "../components/SMToastList.vue";
 import SMDialogList from "../components/SMDialog";
 import SMLoadingIcon from "../components/SMLoadingIcon.vue";
+import { useApplicationStore } from "../store/ApplicationStore";
 </script>
 
 <style lang="scss">
