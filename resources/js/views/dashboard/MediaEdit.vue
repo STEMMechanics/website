@@ -275,10 +275,21 @@ const handleDelete = async () => {
 
     if (result) {
         try {
-            await api.delete(`media/${route.params.id}`);
+            await api.delete({
+                url: "/media/{id}",
+                params: {
+                    id: route.params.id,
+                },
+            });
             router.push({ name: "media" });
         } catch (error) {
-            pageError.value = error.status;
+            useToastStore().addToast({
+                title: "Error Deleting File",
+                content:
+                    error.data?.message ||
+                    "An unexpected server error occurred",
+                type: "danger",
+            });
         }
     }
 };
