@@ -285,9 +285,8 @@ const handleClickItem = (item: string) => {
         cursor: not-allowed;
     }
 
-    &.disabled &:disabled,
-    &.primary:disabled,
-    &.primary.disabled {
+    &.disabled,
+    &:disabled {
         color: var(--button-disabled-color-text) !important;
         background-color: var(--button-disabled-color) !important;
         box-shadow: none;
@@ -318,6 +317,10 @@ const handleClickItem = (item: string) => {
     &.danger {
         background-color: var(--button-danger-color);
         color: var(--button-danger-color-text);
+    }
+
+    & + .button {
+        margin-left: 1rem;
     }
 }
 
