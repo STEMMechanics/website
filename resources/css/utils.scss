@@ -137,6 +137,13 @@
     flex-basis: 55%;
 }
 
+/* Gap */
+@each $index, $size in $spacing {
+    .gap-#{$index} {
+        padding: #{$size} !important;
+    }
+}
+
 /* Padding */
 @each $index, $size in $spacing {
     .p-#{$index} {
