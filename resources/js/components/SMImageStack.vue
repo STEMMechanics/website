@@ -37,7 +37,6 @@ const props = defineProps({
 const frontImage = ref(-1);
 
 const handleHover = (index) => {
-    console.log(index);
     frontImage.value = index;
 };
 </script>
