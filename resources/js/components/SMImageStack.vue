@@ -1,7 +1,10 @@
 <template>
     <div class="sm-image-stack-container">
         <div
-            class="sm-image-stack"
+            :class="[
+                'sm-image-stack',
+                { 'sm-image-stack-hover': frontImage !== -1 },
+            ]"
             :style="{
                 height: 300 + props.src.length * 20 + 'px',
                 width: 533 + props.src.length * 40 + 'px',
@@ -11,12 +14,11 @@
                 v-for="(source, index) in props.src"
                 :key="index"
                 :style="{
-                    top: index * 20 + 'px',
+                    top: (index + 1) * 20 + 'px',
                     left: index * 40 + 'px',
                     'background-image': `url('${source}')`,
-                    'z-index': frontImage == index ? 1 : null,
                 }"
-                class="image"
+                :class="['image', { hover: frontImage == index }]"
                 @mouseover="handleHover(index)"></div>
         </div>
     </div>
@@ -51,6 +53,18 @@ const handleHover = (index) => {
     position: relative;
     display: flex;
 
+    &.sm-image-stack-hover {
+        .image {
+            opacity: 0.5;
+        }
+
+        .hover {
+            opacity: 1 !important;
+            z-index: 1;
+            top: 0 !important;
+        }
+    }
+
     .image {
         position: absolute;
         background-position: top left;
@@ -60,6 +74,8 @@ const handleHover = (index) => {
         width: 533px;
         border-radius: 8px;
         box-shadow: var(--base-shadow);
+        // box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.5);
+        transition: all 0.1s ease-in-out;
     }
 }
 </style>
