@@ -14,12 +14,18 @@
                 @failed-validation="handleFailValidation">
                 <SMRow v-if="route.params.id">
                     <SMColumn class="media-container">
-                        <SMImage :src="imageUrl" />
+                        <SMImage v-if="!editMultiple" :src="imageUrl" />
+                        <SMImageStack
+                            v-if="editMultiple"
+                            :src="imageStackUrls" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>
                     <SMColumn>
-                        <SMInput control="file" type="file" />
+                        <SMInput
+                            v-if="!editMultiple"
+                            control="file"
+                            type="file" />
                     </SMColumn>
                 </SMRow>
                 <SMRow>
@@ -30,7 +36,7 @@
                         <SMInput control="permission" />
                     </SMColumn>
                 </SMRow>
-                <SMRow>
+                <SMRow v-if="!editMultiple">
                     <SMColumn>
                         <SMInput
                             v-model="computedFileSize"
@@ -44,7 +50,7 @@
                             label="File Mime Type" />
                     </SMColumn>
                 </SMRow>
-                <SMRow>
+                <SMRow v-if="!editMultiple">
                     <SMColumn>
                         <SMInput
                             v-model="fileData.status"
@@ -58,7 +64,7 @@
                             label="Dimensions" />
                     </SMColumn>
                 </SMRow>
-                <SMRow>
+                <SMRow v-if="!editMultiple">
                     <SMColumn>
                         <SMInput
                             v-model="fileData.url"
@@ -77,7 +83,7 @@
                             <template #right>
                                 <SMButton
                                     type="submit"
-                                    label="Save"
+                                    :label="editMultiple ? 'Save All' : 'Save'"
                                     :form="form" />
                             </template>
                             <template #left>
@@ -85,7 +91,9 @@
                                     :form="form"
                                     v-if="route.params.id"
                                     type="danger"
-                                    label="Delete"
+                                    :label="
+                                        editMultiple ? 'Delete All' : 'Delete'
+                                    "
                                     @click="handleDelete" />
                             </template>
                         </SMButtonRow>
@@ -111,19 +119,25 @@ import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
-import { toTitleCase } from "../../helpers/string";
 import { useToastStore } from "../../store/ToastStore";
 import SMColumn from "../../components/SMColumn.vue";
 import SMImage from "../../components/SMImage.vue";
 import SMButtonRow from "../../components/SMButtonRow.vue";
+import SMImageStack from "../../components/SMImageStack.vue";
 
 const route = useRoute();
 const router = useRouter();
 
 const pageError = ref(200);
 const pageLoading = ref(true);
-const pageHeading = route.params.id ? "Edit Media" : "Upload Media";
+const editMultiple = "id" in route.params && route.params.id.includes(",");
+const pageHeading = route.params.id
+    ? editMultiple
+        ? "Edit Multiple Media"
+        : "Edit Media"
+    : "Upload Media";
 const progressText = ref("");
+const imageStackUrls = ref([]);
 
 const form = reactive(
     Form({
@@ -148,32 +162,50 @@ const imageUrl = ref("");
 
 const handleLoad = async () => {
     if (route.params.id) {
-        try {
-            let result = await api.get({
-                url: "/media/{id}",
-                params: {
-                    id: route.params.id,
-                },
+        if (editMultiple === false) {
+            try {
+                let result = await api.get({
+                    url: "/media/{id}",
+                    params: {
+                        id: route.params.id,
+                    },
+                });
+
+                const data = result.data as MediaResponse;
+
+                form.controls.file.value = data.medium.name;
+                form.controls.title.value = data.medium.title;
+                form.controls.description.value = data.medium.description;
+                form.controls.permission.value = data.medium.permission;
+                fileData.url = data.medium.url;
+                fileData.mime_type = data.medium.mime_type;
+                fileData.size = data.medium.size;
+                fileData.storage = data.medium.storage;
+                fileData.status =
+                    data.medium.status == "" ? "OK" : data.medium.status;
+
+                fileData.dimensions = data.medium.dimensions;
+
+                imageUrl.value = fileData.url;
+            } catch (err) {
+                pageError.value = err.status;
+            }
+        } else {
+            (route.params.id as string).split(",").forEach(async (id) => {
+                try {
+                    let result = await api.get({
+                        url: "/media/{id}",
+                        params: {
+                            id: id,
+                        },
+                    });
+
+                    const data = result.data as MediaResponse;
+                    imageStackUrls.value.push(data.medium.url);
+                } catch (err) {
+                    pageError.value = err.status;
+                }
             });
-
-            const data = result.data as MediaResponse;
-
-            form.controls.file.value = data.medium.name;
-            form.controls.title.value = data.medium.title;
-            form.controls.description.value = data.medium.description;
-            form.controls.permission.value = data.medium.permission;
-            fileData.url = data.medium.url;
-            fileData.mime_type = data.medium.mime_type;
-            fileData.size = data.medium.size;
-            fileData.storage = data.medium.storage;
-            fileData.status =
-                data.medium.status == "" ? "OK" : data.medium.status;
-
-            fileData.dimensions = data.medium.dimensions;
-
-            imageUrl.value = fileData.url;
-        } catch (err) {
-            pageError.value = err.status;
         }
     }
 
@@ -183,59 +215,105 @@ const handleLoad = async () => {
 const handleSubmit = async () => {
     try {
         form.loading(true);
-        let submitData = new FormData();
+        if (editMultiple === false) {
+            let submitData = new FormData();
 
-        // add file if there is one
-        if (form.controls.file.value instanceof File) {
-            submitData.append("file", form.controls.file.value);
-        }
+            // add file if there is one
+            if (form.controls.file.value instanceof File) {
+                submitData.append("file", form.controls.file.value);
+            }
 
-        submitData.append("title", form.controls.title.value as string);
-        submitData.append(
-            "permission",
-            form.controls.permission.value as string
-        );
-        submitData.append(
-            "description",
-            form.controls.description.value as string
-        );
+            submitData.append("title", form.controls.title.value as string);
+            submitData.append(
+                "permission",
+                form.controls.permission.value as string
+            );
+            submitData.append(
+                "description",
+                form.controls.description.value as string
+            );
 
-        if (route.params.id) {
-            await api.put({
-                url: "/media/{id}",
-                params: {
-                    id: route.params.id,
-                },
-                body: submitData,
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                progress: (progressEvent) =>
-                    (progressText.value = `Uploading File: ${Math.floor(
-                        (progressEvent.loaded / progressEvent.total) * 100
-                    )}%`),
+            if (route.params.id) {
+                await api.put({
+                    url: "/media/{id}",
+                    params: {
+                        id: route.params.id,
+                    },
+                    body: submitData,
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                    progress: (progressEvent) =>
+                        (progressText.value = `Uploading File: ${Math.floor(
+                            (progressEvent.loaded / progressEvent.total) * 100
+                        )}%`),
+                });
+            } else {
+                await api.post({
+                    url: "/media",
+                    body: submitData,
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                    progress: (progressEvent) =>
+                        (progressText.value = `Uploading File: ${Math.floor(
+                            (progressEvent.loaded / progressEvent.total) * 100
+                        )}%`),
+                });
+            }
+
+            useToastStore().addToast({
+                title: route.params.id ? "Media Updated" : "Media Created",
+                content: route.params.id
+                    ? "The media item has been updated."
+                    : "The media item been created.",
+                type: "success",
             });
         } else {
-            await api.post({
-                url: "/media",
-                body: submitData,
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-                progress: (progressEvent) =>
-                    (progressText.value = `Uploading File: ${Math.floor(
-                        (progressEvent.loaded / progressEvent.total) * 100
-                    )}%`),
-            });
-        }
+            let successCount = 0;
+            let errorCount = 0;
 
-        useToastStore().addToast({
-            title: route.params.id ? "Media Updated" : "Media Created",
-            content: route.params.id
-                ? "The media item has been updated."
-                : "The media item been created.",
-            type: "success",
-        });
+            (route.params.id as string).split(",").forEach(async (id) => {
+                try {
+                    let data = {
+                        title: form.controls.title.value,
+                        content: form.controls.content.value,
+                    };
+
+                    await api.put({
+                        url: "/media/{id}",
+                        params: {
+                            id: id,
+                        },
+                        body: data,
+                    });
+
+                    successCount++;
+                } catch (err) {
+                    errorCount++;
+                }
+            });
+
+            if (errorCount === 0) {
+                useToastStore().addToast({
+                    title: "Media Updated",
+                    content: `The selected media have been updated.`,
+                    type: "success",
+                });
+            } else if (successCount === 0) {
+                useToastStore().addToast({
+                    title: "Error Updating Media",
+                    content: "An unexpected server error occurred.",
+                    type: "danger",
+                });
+            } else {
+                useToastStore().addToast({
+                    title: "Some Media Updated",
+                    content: `Only ${successCount} media items where updated. ${errorCount} could not because of an unexpected error.`,
+                    type: "warning",
+                });
+            }
+        }
 
         const urlParams = new URLSearchParams(window.location.search);
         const returnUrl = urlParams.get("return");
@@ -330,7 +408,6 @@ handleLoad();
 <style lang="scss">
 .page-dashboard-media-edit {
     .media-container {
-        max-height: 300px;
         display: flex;
         justify-content: center;
         align-items: center;

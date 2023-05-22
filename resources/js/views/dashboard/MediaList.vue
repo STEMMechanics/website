@@ -36,7 +36,13 @@
                     v-else
                     :headers="headers"
                     :items="items"
-                    @row-click="handleEdit">
+                    @row-click="handleSelect">
+                    <template #item-select="item">
+                        <SMInput
+                            type="checkbox"
+                            v-model="itemsSelected[item.id]"
+                            @click.stop />
+                    </template>
                     <template #item-size="item">
                         {{ bytesReadable(item.size) }}
                     </template>
@@ -58,13 +64,28 @@
                             "></SMButton>
                     </template>
                 </SMTable>
+                <SMToolbar class="align-items-center">
+                    <div>
+                        <SMButton
+                            type="danger"
+                            label="Delete Selected"
+                            :disabled="computedSelectedCount == 0"
+                            @click="handleDeleteSelected" />
+                        <SMButton
+                            type="primary"
+                            label="Edit Selected"
+                            :disabled="computedSelectedCount == 0"
+                            @click="handleEditSelected" />
+                    </div>
+                    <div>{{ computedSelectedCount }} selected</div>
+                </SMToolbar>
             </template>
         </SMContainer>
     </SMPage>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
@@ -93,8 +114,10 @@ const itemSearch = ref((route.query.search as string) || "");
 const itemsTotal = ref(0);
 const itemsPerPage = 25;
 const itemsPage = ref(parseInt((route.query.page as string) || "1"));
+const itemsSelected = ref({});
 
 const headers = [
+    { text: "", value: "select", sortable: false },
     { text: "Title (Name)", value: "title", sortable: true },
     { text: "Size", value: "size", sortable: true },
     { text: "Uploaded By", value: "user.display_name", sortable: true },
@@ -178,6 +201,15 @@ const handleLoad = async () => {
                 }).relative();
             }
 
+            if (
+                Object.prototype.hasOwnProperty.call(
+                    itemsSelected.value,
+                    row.id
+                ) == false
+            ) {
+                itemsSelected.value[row.id] = false;
+            }
+
             items.value.push(row);
         });
 
@@ -193,6 +225,14 @@ const handleLoad = async () => {
         }
     } finally {
         itemsLoading.value = false;
+    }
+};
+
+const handleSelect = (item: Media) => {
+    if (Object.prototype.hasOwnProperty.call(itemsSelected.value, item.id)) {
+        itemsSelected.value[item.id] = !itemsSelected.value[item.id];
+    } else {
+        itemsSelected.value[item.id] = true;
     }
 };
 
@@ -260,6 +300,96 @@ const handleDelete = async (item: Media) => {
 };
 
 /**
+ * Request to delete selected media item from the server.
+ */
+const handleDeleteSelected = async () => {
+    let result = await openDialog(SMDialogConfirm, {
+        title: "Delete Files?",
+        text: `Are you sure you want to delete the <strong>${computedSelectedCount.value}</strong> selected files?`,
+        cancel: {
+            type: "secondary",
+            label: "Cancel",
+        },
+        confirm: {
+            type: "danger",
+            label: "Delete File",
+        },
+    });
+
+    if (result == true) {
+        let errorCount = 0;
+        let successCount = 0;
+
+        const deleteItems = Object.entries(itemsSelected.value).filter(
+            ([key, value]) => value === true
+        );
+
+        await Promise.all(
+            deleteItems.map(async ([key, value]) => {
+                // Perform actions for each item that is true
+                console.log(key, value);
+
+                // Perform asynchronous operation
+                try {
+                    await api.delete({
+                        url: "/media/{id}",
+                        params: {
+                            id: key,
+                        },
+                    });
+
+                    successCount++;
+                } catch (error) {
+                    errorCount++;
+                }
+            })
+        );
+
+        if (errorCount === 0) {
+            toastStore.addToast({
+                title: "Files Deleted",
+                content: `The selected files have been deleted.`,
+                type: "success",
+            });
+        } else if (successCount === 0) {
+            toastStore.addToast({
+                title: "Error Deleting Files",
+                content: "An unexpected server error occurred.",
+                type: "danger",
+            });
+        } else {
+            toastStore.addToast({
+                title: "Some Files Deleted",
+                content: `Only ${successCount} files where deleted. ${errorCount} could not because of an unexpected error.`,
+                type: "warning",
+            });
+        }
+
+        handleLoad();
+    }
+};
+
+/**
+ * Request to edit selected media item from the server.
+ */
+const handleEditSelected = async () => {
+    const editItems = Object.entries(itemsSelected.value)
+        .filter(([key, value]) => value === true)
+        .map(([key, value]) => key)
+        .join(",");
+
+    router.push({
+        name: "dashboard-media-edit",
+        params: { id: editItems },
+        query: {
+            return: encodeURIComponent(
+                window.location.pathname + window.location.search
+            ),
+        },
+    });
+};
+
+/**
  * Handle the user requesting to download the item.
  *
  * @param {Media} item The media item.
@@ -267,6 +397,12 @@ const handleDelete = async (item: Media) => {
 const handleDownload = (item: Media) => {
     window.open(`${item.url}?download=1`, "_blank");
 };
+
+const computedSelectedCount = computed(() => {
+    const selectedValues = Object.values(itemsSelected.value);
+    const trueValues = selectedValues.filter((value) => value === true);
+    return trueValues.length;
+});
 
 handleLoad();
 </script>
