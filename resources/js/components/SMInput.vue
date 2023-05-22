@@ -172,6 +172,16 @@
                         @blur="handleBlur"
                         @input="handleInput"
                         @keyup="handleKeyup" />
+                    <ul
+                        class="autocomplete-list"
+                        v-if="computedAutocompleteItems.length > 0 && focused">
+                        <li
+                            v-for="item in computedAutocompleteItems"
+                            :key="item"
+                            @mousedown="handleAutocompleteClick(item)">
+                            {{ item }}
+                        </li>
+                    </ul>
                 </template>
             </template>
         </div>
@@ -183,7 +193,7 @@
 </template>
 
 <script setup lang="ts">
-import { inject, watch, ref, useSlots } from "vue";
+import { inject, watch, ref, useSlots, computed } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 import { mediaGetVariantUrl } from "../helpers/media";
@@ -287,6 +297,13 @@ const props = defineProps({
     formId: {
         type: String,
         default: "form",
+        required: false,
+    },
+    autocomplete: {
+        type: [Array<string>, Function],
+        default: () => {
+            [];
+        },
         required: false,
     },
 });
@@ -466,15 +483,34 @@ const handleMediaSelect = async () => {
         }
     }
 };
+
+const computedAutocompleteItems = computed(() => {
+    let autocompleteList = [];
+
+    if (props.autocomplete) {
+        if (typeof props.autocomplete === "function") {
+            autocompleteList = props.autocomplete(value.value);
+        } else {
+            autocompleteList = props.autocomplete.filter((str) =>
+                str.includes(value.value)
+            );
+        }
+
+        return autocompleteList.sort((a, b) => a.localeCompare(b));
+    }
+
+    return autocompleteList;
+});
+
+const handleAutocompleteClick = (item) => {
+    value.value = item;
+    emits("update:modelValue", item);
+};
 </script>
 
 <style lang="scss">
 .control-group.control-type-input {
     .control-row {
-        .control-item {
-            align-items: start;
-        }
-
         .input-control-prepend {
             p {
                 display: block;
@@ -523,6 +559,7 @@ const handleMediaSelect = async () => {
 
         .control-item {
             max-width: 100%;
+            align-items: start;
 
             .control-label {
                 position: absolute;
@@ -574,6 +611,37 @@ const handleMediaSelect = async () => {
                 &:disabled {
                     background-color: hsl(0, 0%, 92%);
                     cursor: not-allowed;
+                }
+            }
+
+            .autocomplete-list {
+                position: absolute;
+                list-style-type: none;
+                top: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                border: 1px solid var(--base-color-darker);
+                background-color: var(--base-color-light);
+                color: var(--primary-color);
+                z-index: 1;
+                max-height: 200px;
+                overflow: scroll;
+                scroll-behavior: smooth;
+                scrollbar-width: none;
+
+                &::-webkit-scrollbar {
+                    display: none;
+                }
+
+                li {
+                    cursor: pointer;
+                    padding: 8px 16px;
+                    margin: 2px;
+
+                    &:hover {
+                        background-color: var(--base-color);
+                    }
                 }
             }
 
@@ -744,8 +812,10 @@ const handleMediaSelect = async () => {
     }
 
     &.input-active {
-        .control-item .control-label:not(.control-label-checkbox) {
-            transform: translate(16px, 6px) scale(0.7);
+        .control-item {
+            .control-label:not(.control-label-checkbox) {
+                transform: translate(16px, 6px) scale(0.7);
+            }
         }
     }
 
