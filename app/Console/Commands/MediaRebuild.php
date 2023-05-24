@@ -26,10 +26,8 @@ class MediaRebuild extends Command
 
     /**
      * Configure the command options.
-     *
-     * @return void
      */
-    protected function configure()
+    protected function configure(): void
     {
         $this->addOption(
             'replace',
@@ -48,10 +46,8 @@ class MediaRebuild extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $replace = $this->option('replace');
         $all = $this->option('replace');

@@ -24,10 +24,8 @@ class Permission extends Model
 
     /**
      * Get the User associated with this model
-     *
-     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

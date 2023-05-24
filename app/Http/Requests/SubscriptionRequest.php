@@ -11,7 +11,7 @@ class SubscriptionRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function postRules()
+    public function postRules(): array
     {
         return [
             'email' => 'required|email|unique:subscriptions',
@@ -24,7 +24,7 @@ class SubscriptionRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function destroyRules()
+    public function destroyRules(): array
     {
         return [
             'email' => 'required|email',
@@ -34,10 +34,8 @@ class SubscriptionRequest extends BaseRequest
 
     /**
      * Get the custom error messages.
-     *
-     * @return array
      */
-    public function messages()
+    public function messages(): array
     {
         return [
             'email.unique' => 'This email address has already subscribed',

@@ -10,7 +10,7 @@ class UsersApiTest extends TestCase
     use RefreshDatabase;
 
 
-    public function testNonAdminUsersCanOnlyViewBasicUserInfo()
+    public function testNonAdminUsersCanOnlyViewBasicUserInfo(): void
     {
         // create a non-admin user
         $nonAdminUser = User::factory()->create();
@@ -71,7 +71,7 @@ class UsersApiTest extends TestCase
         ]);
     }
 
-    public function testGuestCannotCreateUser()
+    public function testGuestCannotCreateUser(): void
     {
         $userData = [
             'email' => 'johndoe@example.com',
@@ -85,7 +85,7 @@ class UsersApiTest extends TestCase
         ]);
     }
 
-    public function testGuestCanRegisterUser()
+    public function testGuestCanRegisterUser(): void
     {
         $userData = [
             'first_name' => 'John',
@@ -102,7 +102,7 @@ class UsersApiTest extends TestCase
         ]);
     }
 
-    public function testCannotCreateDuplicateEmailOrDisplayName()
+    public function testCannotCreateDuplicateEmailOrDisplayName(): void
     {
         $userData = [
             'display_name' => 'JackDoe',
@@ -125,7 +125,7 @@ class UsersApiTest extends TestCase
         $response->assertJsonValidationErrors(['display_name', 'email']);
     }
 
-    public function testUserCanOnlyUpdateOwnUser()
+    public function testUserCanOnlyUpdateOwnUser(): void
     {
         $user = User::factory()->create();
 
@@ -153,7 +153,7 @@ class UsersApiTest extends TestCase
         $response->assertStatus(403);
     }
 
-    public function testUserCannotDeleteUsers()
+    public function testUserCannotDeleteUsers(): void
     {
         $user = User::factory()->create();
 
@@ -169,7 +169,7 @@ class UsersApiTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $otherUser->id]);
     }
 
-    public function testAdminCanUpdateAnyUser()
+    public function testAdminCanUpdateAnyUser(): void
     {
         $admin = User::factory()->create();
         $admin->givePermission('admin/users');
@@ -204,7 +204,7 @@ class UsersApiTest extends TestCase
         ]);
     }
 
-    public function testAdminCanDeleteAnyUser()
+    public function testAdminCanDeleteAnyUser(): void
     {
         $admin = User::factory()->create();
         $admin->givePermission('admin/users');

@@ -11,7 +11,7 @@ class ShortlinkRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function postRules()
+    public function postRules(): array
     {
         return [
             'code' => 'required|string|max:255|min:2|unique:shortlinks',
@@ -24,7 +24,7 @@ class ShortlinkRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function putRules()
+    public function putRules(): array
     {
         $shortlink = $this->route('shortlink');
 

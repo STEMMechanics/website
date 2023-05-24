@@ -24,20 +24,16 @@ class EventUser extends Model
 
     /**
      * Get the event for this attachment.
-     *
-     * @return BelongsTo
      */
-    public function event()
+    public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
 
     /**
      * Get the user for this attachment.
-     *
-     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

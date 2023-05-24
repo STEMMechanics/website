@@ -47,9 +47,8 @@ class Uniqueish implements Rule
      * Set the ID of the record to be ignored.
      *
      * @param  mixed $id The ID to ignore.
-     * @return $this
      */
-    public function ignore(mixed $id)
+    public function ignore(mixed $id): static
     {
         $this->ignoreId = $id;
         return $this;
@@ -60,9 +59,8 @@ class Uniqueish implements Rule
      *
      * @param  mixed $attribute Not used.
      * @param  mixed $value     The value to compare.
-     * @return boolean
      */
-    public function passes(mixed $attribute, mixed $value)
+    public function passes(mixed $attribute, mixed $value): bool
     {
         $columnName = ($this->column ?? $attribute);
         $similarValue = preg_replace('/[^A-Za-z]/', '', strtolower($value));
@@ -97,10 +95,8 @@ class Uniqueish implements Rule
 
     /**
      * Get the validation error message.
-     *
-     * @return string
      */
-    public function message()
+    public function message(): string
     {
         return 'The :attribute is similar to one that already exists. Please choose another.';
     }

@@ -10,7 +10,7 @@ class UserConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\User';
+    protected $class = \App\Models\User::class;
 
 
     /**
@@ -19,7 +19,7 @@ class UserConductor extends Conductor
      * @param Model $model The model.
      * @return string[] The fields visible.
      */
-    public function fields(Model $model)
+    public function fields(Model $model): array
     {
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/users') === false) {
@@ -35,7 +35,7 @@ class UserConductor extends Conductor
      * @param Model $model The model to transform.
      * @return array The transformed model.
      */
-    public function transform(Model $model)
+    public function transform(Model $model): array
     {
         $user = auth()->user();
         $data = $model->toArray();
@@ -56,7 +56,7 @@ class UserConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         if ($user !== null) {
@@ -72,7 +72,7 @@ class UserConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/users') === true);

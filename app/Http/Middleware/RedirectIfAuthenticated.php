@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use Symfony\Component\HttpFoundation\Response;
 use App\Providers\RouteServiceProvider;
 use Closure;
 use Illuminate\Http\Request;
@@ -12,12 +13,11 @@ class RedirectIfAuthenticated
     /**
      * Handle an incoming request.
      *
-     * @param  Request                                       $request   Request.
-     * @param  Closure(Request): (Response|RedirectResponse) $next      Next.
-     * @param  string|null                                   ...$guards Guards.
-     * @return Response|RedirectResponse
+     * @param  Request                                                                                           $request   Request.
+     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next
+     * @param  string|null                                                                                       ...$guards Guards.
      */
-    public function handle(Request $request, Closure $next, ...$guards)
+    public function handle(Request $request, Closure $next, string ...$guards): Response
     {
         $guards = empty($guards) === true ? [null] : $guards;
 

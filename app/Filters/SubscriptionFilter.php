@@ -11,7 +11,7 @@ class SubscriptionFilter extends FilterAbstract
      *
      * @var mixed
      */
-    protected $class = '\App\Models\Subscription';
+    protected $class = \App\Models\Subscription::class;
 
 
     /**

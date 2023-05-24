@@ -19,7 +19,7 @@ class ArticleConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Article';
+    protected $class = \App\Models\Article::class;
 
     /**
      * The default sorting field
@@ -39,9 +39,8 @@ class ArticleConductor extends Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
-     * @return void
      */
-    public function scope(Builder $builder)
+    public function scope(Builder $builder): void
     {
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/articles') === false) {
@@ -56,7 +55,7 @@ class ArticleConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow model to be visible.
      */
-    public static function viewable(Model $model)
+    public static function viewable(Model $model): bool
     {
         if (Carbon::parse($model->publish_at)->isFuture() === true) {
             $user = auth()->user();
@@ -73,7 +72,7 @@ class ArticleConductor extends Conductor
      *
      * @return boolean Allow creating model.
      */
-    public static function creatable()
+    public static function creatable(): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
@@ -85,7 +84,7 @@ class ArticleConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
@@ -97,7 +96,7 @@ class ArticleConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
@@ -109,7 +108,7 @@ class ArticleConductor extends Conductor
      * @param array $data The model data to transform.
      * @return array The transformed model.
      */
-    public function transformFinal(array $data)
+    public function transformFinal(array $data): array
     {
         unset($data['user_id']);
         return $data;
@@ -145,7 +144,7 @@ class ArticleConductor extends Conductor
      * @param mixed $value The current value.
      * @return array The new value.
      */
-    public function transformHero(mixed $value)
+    public function transformHero(mixed $value): array
     {
         return MediaConductor::includeModel(request(), 'hero', Media::find($value));
     }

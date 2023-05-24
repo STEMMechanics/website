@@ -8,7 +8,7 @@ class ContactFormTest extends TestCase
     use RefreshDatabase;
 
 
-    public function testContactForm()
+    public function testContactForm(): void
     {
         $formData = [
             'name' => 'John Doe',

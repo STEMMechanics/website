@@ -29,21 +29,17 @@ class Article extends Model
 
     /**
      * Get the article user
-     *
-     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
     /**
      * Get all of the article's attachments.
-     *
-     * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
-        return $this->morphMany('App\Models\Attachment', 'attachable');
+        return $this->morphMany(\App\Models\Attachment::class, 'attachable');
     }
 }

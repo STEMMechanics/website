@@ -8,10 +8,8 @@ trait Uuids
 {
     /**
      * Boot function from Laravel.
-     *
-     * @return void
      */
-    protected static function bootUuids()
+    protected static function bootUuids(): void
     {
         static::creating(function ($model) {
             if (empty($model->{$model->getKeyName()}) === true) {
@@ -22,20 +20,16 @@ trait Uuids
 
     /**
      * Get the value indicating whether the IDs are incrementing.
-     *
-     * @return boolean
      */
-    public function getIncrementing()
+    public function getIncrementing(): bool
     {
         return false;
     }
 
     /**
      * Get the auto-incrementing key type.
-     *
-     * @return string
      */
-    public function getKeyType()
+    public function getKeyType(): string
     {
         return 'string';
     }

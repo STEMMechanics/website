@@ -38,20 +38,16 @@ class Event extends Model
 
     /**
      * Get all of the article's attachments.
-     *
-     * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
-        return $this->morphMany('App\Models\Attachment', 'attachable');
+        return $this->morphMany(\App\Models\Attachment::class, 'attachable');
     }
 
     /**
      * Get all the associated users.
-     *
-     * @return BelongsToMany
      */
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'event_user', 'event_id', 'user_id');
     }

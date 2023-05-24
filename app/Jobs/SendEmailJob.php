@@ -47,10 +47,8 @@ class SendEmailJob implements ShouldQueue
 
     /**
      * Execute the job.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         Mail::to($this->to)->send($this->mailable);
     }

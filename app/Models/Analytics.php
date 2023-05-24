@@ -22,9 +22,8 @@ class Analytics extends Model
      * automatically assigning a session value based on previous rows.
      *
      * @param  array $attributes Model attributes.
-     * @return static
      */
-    public static function createWithSession(array $attributes)
+    public static function createWithSession(array $attributes): static
     {
         $previousRow = self::where('useragent', $attributes['useragent'])
         ->where('ip', $attributes['ip'])

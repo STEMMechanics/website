@@ -9,10 +9,8 @@ class BaseRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
      */
-    public function authorize()
+    public function authorize(): bool
     {
         if (request()->isMethod('post') === true && method_exists($this, 'postAuthorize') === true) {
             return $this->postAuthorize();
@@ -30,7 +28,7 @@ class BaseRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         $rules = [];
 
@@ -54,9 +52,8 @@ class BaseRequest extends FormRequest
      *
      * @param array $collection1 The first collection of rules.
      * @param array $collection2 The second collection of rules to merge.
-     * @return array
      */
-    private function mergeRules(array $collection1, array $collection2)
+    private function mergeRules(array $collection1, array $collection2): array
     {
         $rules = [];
 

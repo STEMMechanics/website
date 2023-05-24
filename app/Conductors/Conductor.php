@@ -81,7 +81,7 @@ class Conductor
      * @param string $string The string to split.
      * @return array The split string.
      */
-    private function splitString(string $string)
+    private function splitString(string $string): array
     {
         $parts = [];
         $start = 0;
@@ -143,9 +143,8 @@ class Conductor
      *
      * @param Request    $request     The user request.
      * @param array|null $limitFields A list of fields to limit the filter request to.
-     * @return void
      */
-    private function filter(Request $request, array|null $limitFields = null)
+    private function filter(Request $request, array|null $limitFields = null): void
     {
         if (is_array($limitFields) === true && count($limitFields) === 0) {
             $limitFields = null;
@@ -210,10 +209,8 @@ class Conductor
 
     /**
      * Apple the filter array to the collection.
-     *
-     * @return void
      */
-    final public function applyFilters()
+    final public function applyFilters(): void
     {
         $parseFunc = function ($filterArray, $query) use (&$parseFunc) {
             $item = null;
@@ -365,7 +362,7 @@ class Conductor
      * @param Request $request The request data.
      * @return array The processed and transformed collection | the total rows found.
      */
-    final public static function request(Request $request)
+    final public static function request(Request $request): array
     {
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
@@ -457,7 +454,7 @@ class Conductor
      * @param Collection $collection The collection.
      * @return array The processed and transformed model data.
      */
-    final public static function collection(Request $request, Collection $collection)
+    final public static function collection(Request $request, Collection $collection): array
     {
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
@@ -503,9 +500,8 @@ class Conductor
      * @param Builder    $query       The custom query.
      * @param Request    $request     The request.
      * @param array|null $limitFields Limit the request to these fields.
-     * @return Builder
      */
-    public static function filterQuery(Builder $query, Request $request, array|null $limitFields = null)
+    public static function filterQuery(Builder $query, Request $request, array|null $limitFields = null): Builder
     {
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
@@ -525,7 +521,7 @@ class Conductor
      * @param Model|null $model   The model.
      * @return array The processed and transformed model data.
      */
-    final public static function includeModel(Request $request, string $key, mixed $model)
+    final public static function includeModel(Request $request, string $key, mixed $model): array
     {
         $fields = [];
 
@@ -553,7 +549,7 @@ class Conductor
      * @param Model|null $model  The model.
      * @return array The processed and transformed model data.
      */
-    final public static function model(mixed $fields, mixed $model)
+    final public static function model(mixed $fields, mixed $model): array
     {
         if ($model === null) {
             return null;
@@ -606,7 +602,7 @@ class Conductor
      *
      * @return integer The current collection count.
      */
-    final public function count()
+    final public function count(): int
     {
         if ($this->query !== null) {
             return $this->query->count();
@@ -619,9 +615,8 @@ class Conductor
      * Sort the conductor collection.
      *
      * @param mixed $fields A field name or array of field names to sort. Supports prefix of +/- to change direction.
-     * @return void
      */
-    final public function sort(mixed $fields = null)
+    final public function sort(mixed $fields = null): void
     {
         $collectionSort = [];
 
@@ -698,9 +693,8 @@ class Conductor
      *
      * @param Model $model    The model to append.
      * @param array $includes The list of includes to include.
-     * @return void
      */
-    final public function applyIncludes(Model $model, array $includes)
+    final public function applyIncludes(Model $model, array $includes): void
     {
         foreach ($includes as $include) {
             $includeMethodName = 'include' . Str::studly($include);
@@ -718,9 +712,8 @@ class Conductor
      * Limit the returned fields in the conductor collection.
      *
      * @param array $fields An array of field names.
-     * @return void
      */
-    final public function limitFields(array $fields)
+    final public function limitFields(array $fields): void
     {
         if (empty($fields) !== true) {
             $this->query->select(array_diff($fields, $this->includes));
@@ -733,9 +726,8 @@ class Conductor
      * @param string     $rawFilter   The raw filter string to parse.
      * @param array|null $limitFields The fields to allow in the filter string.
      * @param string     $outerJoin   The join for this filter group.
-     * @return void
      */
-    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR')
+    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR'): void
     {
         if ($rawFilter === '') {
             return;
@@ -847,9 +839,8 @@ class Conductor
      * @param string $operator The operator to append.
      * @param string $value    The value to append.
      * @param string $join     The join to append.
-     * @return void
      */
-    final public function appendFilter(string $field, string $operator, string $value, string $join = 'OR')
+    final public function appendFilter(string $field, string $operator, string $value, string $join = 'OR'): void
     {
         if (count($this->filterArray) !== 0) {
             $this->filterArray[] = $join;
@@ -861,9 +852,8 @@ class Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
-     * @return void
      */
-    public function scope(Builder $builder)
+    public function scope(Builder $builder): void
     {
     }
 
@@ -873,7 +863,7 @@ class Conductor
      * @param Model $model The model in question.
      * @return array The array of field names.
      */
-    public function fields(Model $model)
+    public function fields(Model $model): array
     {
         $visibleFields = $model->getVisible();
         if (empty($visibleFields) === true) {
@@ -900,7 +890,7 @@ class Conductor
      * @param Model $model The model to transform.
      * @return array The transformed model.
      */
-    protected function transformModel(Model $model)
+    protected function transformModel(Model $model): array
     {
         $result = $this->transform($model);
         foreach ($result as $key => $value) {
@@ -920,7 +910,7 @@ class Conductor
      * @param Model $model The model to transform.
      * @return array The transformed model.
      */
-    public function transform(Model $model)
+    public function transform(Model $model): array
     {
         $result = $model->toArray();
 
@@ -939,7 +929,7 @@ class Conductor
      * @param array $data The model array to transform.
      * @return array The transformed model.
      */
-    public function transformFinal(array $data)
+    public function transformFinal(array $data): array
     {
         return $data;
     }
@@ -950,7 +940,7 @@ class Conductor
      * @param Model $model The model in question.
      * @return boolean Is the model viewable.
      */
-    public static function viewable(Model $model)
+    public static function viewable(Model $model): bool
     {
         return true;
     }
@@ -960,7 +950,7 @@ class Conductor
      *
      * @return boolean Is the model creatable.
      */
-    public static function creatable()
+    public static function creatable(): bool
     {
         return true;
     }
@@ -971,7 +961,7 @@ class Conductor
      * @param Model $model The model in question.
      * @return boolean Is the model updatable.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         return true;
     }
@@ -982,7 +972,7 @@ class Conductor
      * @param Model $model The model in question.
      * @return boolean Is the model destroyable.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         return true;
     }

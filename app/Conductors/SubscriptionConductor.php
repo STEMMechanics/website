@@ -10,7 +10,7 @@ class SubscriptionConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Subscription';
+    protected $class = \App\Models\Subscription::class;
 
 
     /**
@@ -19,7 +19,7 @@ class SubscriptionConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
@@ -31,7 +31,7 @@ class SubscriptionConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));

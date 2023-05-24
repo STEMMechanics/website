@@ -11,7 +11,7 @@ class AuthLoginRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'email' => 'required|string|min:6|max:255',

@@ -20,21 +20,17 @@ class UniqueFileName implements Rule
     /**
      * Determine if the validation rule passes.
      *
-     * @param  string $attribute
-     * @param  mixed  $value
-     * @return boolean
+     * @param  mixed $value
      */
-    public function passes($attribute, $value)
+    public function passes(string $attribute, $value): bool
     {
         return (Media::fileExists($value) === false);
     }
 
     /**
      * Get the validation error message.
-     *
-     * @return string
      */
-    public function message()
+    public function message(): string
     {
         return 'The file name already exists.';
     }

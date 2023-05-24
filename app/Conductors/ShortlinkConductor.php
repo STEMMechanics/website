@@ -12,7 +12,7 @@ class ShortlinkConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Shortlink';
+    protected $class = \App\Models\Shortlink::class;
 
     /**
      * The default sorting field
@@ -26,7 +26,7 @@ class ShortlinkConductor extends Conductor
      *
      * @return boolean Allow creating model.
      */
-    public static function creatable()
+    public static function creatable(): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);
@@ -38,7 +38,7 @@ class ShortlinkConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);
@@ -50,7 +50,7 @@ class ShortlinkConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);

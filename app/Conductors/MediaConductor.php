@@ -12,7 +12,7 @@ class MediaConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Media';
+    protected $class = \App\Models\Media::class;
 
     /**
      * The default sorting field
@@ -43,7 +43,7 @@ class MediaConductor extends Conductor
      * @param Model $model The model in question.
      * @return array The array of field names.
      */
-    public function fields(Model $model)
+    public function fields(Model $model): array
     {
         $fields = parent::fields($model);
 
@@ -59,9 +59,8 @@ class MediaConductor extends Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
-     * @return void
      */
-    public function scope(Builder $builder)
+    public function scope(Builder $builder): void
     {
         $user = auth()->user();
         if ($user === null) {
@@ -77,7 +76,7 @@ class MediaConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow model to be visible.
      */
-    public static function viewable(Model $model)
+    public static function viewable(Model $model): bool
     {
         if ($model->permission !== '') {
             $user = auth()->user();
@@ -94,7 +93,7 @@ class MediaConductor extends Conductor
      *
      * @return boolean Allow creating model.
      */
-    public static function creatable()
+    public static function creatable(): bool
     {
         $user = auth()->user();
         return ($user !== null);
@@ -106,7 +105,7 @@ class MediaConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 || $user->hasPermission('admin/media') === true));
@@ -118,7 +117,7 @@ class MediaConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && ($model->user_id === $user->id || $user->hasPermission('admin/media') === true));
@@ -130,7 +129,7 @@ class MediaConductor extends Conductor
      * @param array $data The model data to transform.
      * @return array The transformed model.
      */
-    public function transformFinal(array $data)
+    public function transformFinal(array $data): array
     {
         unset($data['user_id']);
         return $data;

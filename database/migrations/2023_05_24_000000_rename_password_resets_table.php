@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::dropIfExists('subscriptions');
+        Schema::rename('password_resets', 'password_reset_tokens');
     }
 
     /**
@@ -19,11 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::create('subscriptions', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string('email');
-            $table->timestamp('confirmed_at')->nullable();
-            $table->timestamps();
-        });
+        Schema::rename('password_reset_tokens', 'password_resets');
     }
 };

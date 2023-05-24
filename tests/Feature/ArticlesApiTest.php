@@ -14,13 +14,13 @@ class ArticlesApiTest extends TestCase
     protected $faker;
 
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
         $this->faker = FakerFactory::create();
     }
 
-    public function testAnyUserCanViewArticle()
+    public function testAnyUserCanViewArticle(): void
     {
         // Create an event
         $article = Article::factory()->create([
@@ -51,7 +51,7 @@ class ArticlesApiTest extends TestCase
         ]);
     }
 
-    public function testAdminCanCreateUpdateDeleteArticle()
+    public function testAdminCanCreateUpdateDeleteArticle(): void
     {
         // Create a user with the admin/events permission
         $adminUser = User::factory()->create();
@@ -102,7 +102,7 @@ class ArticlesApiTest extends TestCase
         ]);
     }
 
-    public function testNonAdminCannotCreateUpdateDeleteArticle()
+    public function testNonAdminCannotCreateUpdateDeleteArticle(): void
     {
         // Create a user without admin/events permission
         $user = User::factory()->create();

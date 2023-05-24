@@ -48,10 +48,8 @@ class MoveMediaJob implements ShouldQueue
 
     /**
      * Execute the job.
-     *
-     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         // Don't continue if the media is already on the new storage disk
         if ($this->media->storage === $this->newStorage) {

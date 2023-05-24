@@ -126,7 +126,7 @@ class ArticleController extends ApiController
      * @throws BindingResolutionException
      * @throws InvalidCastException
      */
-    public function getAttachments(Request $request, Article $article)
+    public function getAttachments(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::viewable($article) === true) {
             $medium = $article->attachments->map(function ($attachment) {
@@ -148,7 +148,7 @@ class ArticleController extends ApiController
      * @throws BindingResolutionException
      * @throws MassAssignmentException
      */
-    public function storeAttachment(Request $request, Article $article)
+    public function storeAttachment(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
             if ($request->has("medium") && Media::find($request->medium)) {
@@ -167,11 +167,10 @@ class ArticleController extends ApiController
      *
      * @param Request $request The user request.
      * @param Article $article The related model.
-     * @return JsonResponse
      * @throws BindingResolutionException
      * @throws MassAssignmentException
      */
-    public function updateAttachments(Request $request, Article $article)
+    public function updateAttachments(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
             $mediaIds = $request->attachments;
@@ -216,10 +215,9 @@ class ArticleController extends ApiController
      * @param Request $request The user request.
      * @param Article $article The model.
      * @param Media   $medium  The attachment medium.
-     * @return JsonResponse
      * @throws BindingResolutionException
      */
-    public function deleteAttachment(Request $request, Article $article, Media $medium)
+    public function deleteAttachment(Request $request, Article $article, Media $medium): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
             $attachments = $article->attachments;

@@ -19,7 +19,7 @@ class AnalyticsConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Analytics';
+    protected $class = \App\Models\Analytics::class;
 
     /**
      * The default sorting field
@@ -41,7 +41,7 @@ class AnalyticsConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow model to be visible.
      */
-    public static function viewable(Model $model)
+    public static function viewable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);
@@ -52,7 +52,7 @@ class AnalyticsConductor extends Conductor
      *
      * @return boolean Allow creating model.
      */
-    public static function creatable()
+    public static function creatable(): bool
     {
         return true;
     }
@@ -63,7 +63,7 @@ class AnalyticsConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow updating model.
      */
-    public static function updatable(Model $model)
+    public static function updatable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);
@@ -75,7 +75,7 @@ class AnalyticsConductor extends Conductor
      * @param Model $model The model.
      * @return boolean Allow deleting model.
      */
-    public static function destroyable(Model $model)
+    public static function destroyable(Model $model): bool
     {
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);

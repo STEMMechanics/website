@@ -100,10 +100,8 @@ class Media extends Model
 
     /**
      * Model Boot
-     *
-     * @return void
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
 
@@ -136,7 +134,7 @@ class Media extends Model
      * @param string $type The variant type to get.
      * @return array The variant data.
      */
-    public static function getTypeVariants(string $type)
+    public static function getTypeVariants(string $type): array
     {
         if (isset(self::$variantTypes[$type]) === true) {
             return self::$variantTypes[$type];
@@ -151,7 +149,7 @@ class Media extends Model
      * @param mixed $value The value to mutate.
      * @return array The mutated value.
      */
-    public function getVariantsAttribute(mixed $value)
+    public function getVariantsAttribute(mixed $value): array
     {
         if (is_string($value) === true) {
             return json_decode($value, true);
@@ -164,9 +162,8 @@ class Media extends Model
      * Variants Set Mutator.
      *
      * @param mixed $value The value to mutate.
-     * @return void
      */
-    public function setVariantsAttribute(mixed $value)
+    public function setVariantsAttribute(mixed $value): void
     {
         if (is_array($value) !== true) {
             $value = [];
@@ -182,7 +179,7 @@ class Media extends Model
      * @param string $variant The initial variant.
      * @return string The previous variant name (or '').
      */
-    public function getPreviousVariant(string $type, string $variant)
+    public function getPreviousVariant(string $type, string $variant): string
     {
         if (isset(self::$variantTypes[$type]) === false) {
             return '';
@@ -206,7 +203,7 @@ class Media extends Model
      * @param string $variant The initial variant.
      * @return string The next variant name (or '').
      */
-    public function getNextVariant(string $type, string $variant)
+    public function getNextVariant(string $type, string $variant): string
     {
         if (isset(self::$variantTypes[$type]) === false) {
             return '';
@@ -230,7 +227,7 @@ class Media extends Model
      * @param boolean $returnNearest Return the nearest variant if request is not found.
      * @return string The URL.
      */
-    public function getVariantURL(string $variant, bool $returnNearest = true)
+    public function getVariantURL(string $variant, bool $returnNearest = true): string
     {
         $variants = $this->variants;
         if (isset($variants[$variant]) === true) {
@@ -256,10 +253,8 @@ class Media extends Model
 
     /**
      * Delete file and associated files with the modal.
-     *
-     * @return void
      */
-    public function deleteFile()
+    public function deleteFile(): void
     {
         $fileName = $this->name;
         $baseName = pathinfo($fileName, PATHINFO_FILENAME);
@@ -279,10 +274,9 @@ class Media extends Model
     /**
      * Invalidate Cloudflare Cache.
      *
-     * @return void
      * @throws InvalidArgumentException Exception.
      */
-    private function invalidateCFCache()
+    private function invalidateCFCache(): void
     {
         $zone_id = env("CLOUDFLARE_ZONE_ID");
         $api_key = env("CLOUDFLARE_API_KEY");
@@ -311,10 +305,8 @@ class Media extends Model
 
     /**
      * Get URL path
-     *
-     * @return string
      */
-    public function getUrlPath()
+    public function getUrlPath(): string
     {
         $url = config("filesystems.disks.$this->storage.url");
         return "$url/";
@@ -322,10 +314,8 @@ class Media extends Model
 
     /**
      * Return the file URL
-     *
-     * @return string
      */
-    public function getUrlAttribute()
+    public function getUrlAttribute(): string
     {
         if (isset($this->attributes['name']) === true) {
             return self::getUrlPath() . $this->name;
@@ -336,10 +326,8 @@ class Media extends Model
 
     /**
      * Return the file owner
-     *
-     * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -348,9 +336,8 @@ class Media extends Model
      * Move files to new storage device.
      *
      * @param string $storage The storage ID to move to.
-     * @return void
      */
-    public function moveToStorage(string $storage)
+    public function moveToStorage(string $storage): void
     {
         if ($storage !== $this->storage && Config::has("filesystems.disks.$storage") === true) {
             $this->status = "Processing media";
@@ -366,7 +353,7 @@ class Media extends Model
      * @param Illuminate\Http\UploadedFile $file    The file.
      * @return null|Media The result or null if not successful.
      */
-    public static function createFromUploadedFile(Request $request, UploadedFile $file)
+    public static function createFromUploadedFile(Request $request, UploadedFile $file): ?Media
     {
         $request->merge([
             'title' => $request->get('title', ''),
@@ -401,7 +388,7 @@ class Media extends Model
      * @param Illuminate\Http\UploadedFile $file The file.
      * @return null|Media The media item.
      */
-    public function updateWithUploadedFile(UploadedFile $file)
+    public function updateWithUploadedFile(UploadedFile $file): ?Media
     {
         if ($file === null || $file->isValid() !== true) {
             throw new \Exception('The file is invalid.', self::INVALID_FILE_ERROR);
@@ -494,10 +481,8 @@ class Media extends Model
 
     /**
      * Get the server maximum upload size
-     *
-     * @return integer
      */
-    public static function getMaxUploadSize()
+    public static function getMaxUploadSize(): int
     {
         $sizes = [
             ini_get('upload_max_filesize'),
@@ -561,7 +546,7 @@ class Media extends Model
      * @param boolean $ignoreCache Ignore the file list cache.
      * @return boolean If the file exists on any storage disks.
      */
-    public static function fileExistsInStorage(string $fileName, bool $ignoreCache = false)
+    public static function fileExistsInStorage(string $fileName, bool $ignoreCache = false): bool
     {
         $disks = array_keys(Config::get('filesystems.disks'));
 
@@ -608,7 +593,7 @@ class Media extends Model
      * @param string $fileName The file name to test.
      * @return boolean If the file name contains the special suffix.
      */
-    public static function fileNameHasSuffix(string $fileName)
+    public static function fileNameHasSuffix(string $fileName): bool
     {
         $suffix = '/(-\d+x\d+|-scaled)$/i';
         $fileNameWithoutExtension = pathinfo($fileName, PATHINFO_FILENAME);
@@ -620,9 +605,8 @@ class Media extends Model
      * Sanitize fileName for upload
      *
      * @param string $fileName Filename to sanitize.
-     * @return string
      */
-    private static function sanitizeFilename(string $fileName)
+    private static function sanitizeFilename(string $fileName): string
     {
         /*
         # file system reserved https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words

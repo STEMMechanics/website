@@ -15,7 +15,7 @@ class UserRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function postRules()
+    public function postRules(): array
     {
         $user = auth()->user();
         $isAdminUser = $user->hasPermission('admin/users');
@@ -40,7 +40,7 @@ class UserRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function putRules()
+    public function putRules(): array
     {
         $user = auth()->user();
         $ruleUser = $this->route('user');

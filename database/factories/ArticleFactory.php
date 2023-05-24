@@ -15,7 +15,7 @@ class ArticleFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         $publishDate = Carbon::parse($this->faker->dateTimeBetween('-1 month', '+1 month'));
 
@@ -24,8 +24,8 @@ class ArticleFactory extends Factory
             'slug' => $this->faker->slug(),
             'publish_at' => $publishDate,
             'content' => $this->faker->paragraphs(3, true),
-            'user_id' => $this->faker->uuid,
-            'hero' => $this->faker->uuid,
+            'user_id' => $this->faker->uuid(),
+            'hero' => $this->faker->uuid(),
         ];
     }
 }

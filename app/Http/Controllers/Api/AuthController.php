@@ -31,9 +31,8 @@ class AuthController extends ApiController
      * Current User details
      *
      * @param Request $request Current request data.
-     * @return JsonResponse
      */
-    public function me(Request $request)
+    public function me(Request $request): JsonResponse
     {
         $user = $request->user()->makeVisible(['permissions']);
         return $this->respondAsResource($user);
@@ -87,9 +86,8 @@ class AuthController extends ApiController
      * Logout current user
      *
      * @param Request $request Current request data.
-     * @return JsonResponse
      */
-    public function logout(Request $request)
+    public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
 

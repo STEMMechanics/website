@@ -23,12 +23,32 @@ class RouteServiceProvider extends ServiceProvider
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
-     *
-     * @return void
      */
-    public function boot()
+    public function boot(): void
     {
-        $this->configureRateLimiting();
+        // RateLimiter::for('api', function (Request $request) {
+        //     return Limit::perMinute(60)->by($request->user()?->id !== null ?: $request->ip());
+        // });
+
+        $rateLimitEnabled = true;
+        $user = auth()->user();
+
+        if (app()->environment('testing')) {
+            $rateLimitEnabled = false;
+        } elseif ($user !== null && $user->hasPermission('admin/ratelimit') === true) {
+            // Admin users with the "admin/ratelimit" permission are not rate limited
+            $rateLimitEnabled = false;
+        }
+
+        if ($rateLimitEnabled === true) {
+            RateLimiter::for('api', function (Request $request) {
+                return Limit::perMinute(180)->by($request->user()?->id ?: $request->ip());
+            });
+        } else {
+            RateLimiter::for('api', function () {
+                return Limit::none();
+            });
+        }
 
         $this->routes(function () {
             Route::middleware('api')
@@ -54,37 +74,5 @@ class RouteServiceProvider extends ServiceProvider
             Route::delete("$uri/{{$singularUri}}/attachments/{medium}", [$controller, 'deleteAttachment'])
                 ->name("{{$singularUri}}.attachments.destroy");
         });
-    }
-
-    /**
-     * Configure the rate limiters for the application.
-     *
-     * @return void
-     */
-    protected function configureRateLimiting()
-    {
-        // RateLimiter::for('api', function (Request $request) {
-        //     return Limit::perMinute(60)->by($request->user()?->id !== null ?: $request->ip());
-        // });
-
-        $rateLimitEnabled = true;
-        $user = auth()->user();
-
-        if (app()->environment('testing')) {
-            $rateLimitEnabled = false;
-        } elseif ($user !== null && $user->hasPermission('admin/ratelimit') === true) {
-            // Admin users with the "admin/ratelimit" permission are not rate limited
-            $rateLimitEnabled = false;
-        }
-
-        if ($rateLimitEnabled === true) {
-            RateLimiter::for('api', function (Request $request) {
-                return Limit::perMinute(180)->by($request->user()?->id ?: $request->ip());
-            });
-        } else {
-            RateLimiter::for('api', function () {
-                return Limit::none();
-            });
-        }
     }
 }
