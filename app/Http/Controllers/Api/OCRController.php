@@ -32,7 +32,7 @@ class OCRController extends ApiController
             $data = ['ocr' => []];
 
             $filters = $request->get('filters', ['tesseract']);
-            if(is_array($filters) === false) {
+            if (is_array($filters) === false) {
                 $filters = explode(',', $filters);
             }
 
@@ -52,9 +52,12 @@ class OCRController extends ApiController
             // We need progress updates to break the connection mid-way
             curl_setopt($ch, CURLOPT_BUFFERSIZE, 128); // more progress info
             curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function(
-                $downloadSize, $downloaded, $uploadSize, $uploaded
-            ) use($maxDownloadSize) {
+            curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function (
+                $downloadSize,
+                $downloaded,
+                $uploadSize,
+                $uploaded
+            ) use ($maxDownloadSize) {
                 return ($downloaded > $maxDownloadSize) ? 1 : 0;
             });
 
@@ -62,9 +65,9 @@ class OCRController extends ApiController
             $curlError = curl_errno($ch);
             $curlSize = curl_getinfo($ch, CURLINFO_CONTENT_LENGTH_DOWNLOAD);
             curl_close($ch);
-            if($curlError !== 0) {
+            if ($curlError !== 0) {
                 $error = 'File size is larger then allowed';
-                if($curlError !== CurlErrorCodes::CURLE_ABORTED_BY_CALLBACK) {
+                if ($curlError !== CurlErrorCodes::CURLE_ABORTED_BY_CALLBACK) {
                     $error = CurlErrorCodes::getMessage($curlError);
                 }
 
@@ -77,8 +80,8 @@ class OCRController extends ApiController
 
             // tesseract (overall)
             $ocr = null;
-            foreach($filters as $filterItem) {
-                if(str_starts_with($filterItem, 'tesseract') === true) {
+            foreach ($filters as $filterItem) {
+                if (str_starts_with($filterItem, 'tesseract') === true) {
                     $ocr = new TesseractOCR();
                     $ocr->image($urlDownloadFilePath);
                     if ($tesseractOEM !== null) {
@@ -95,11 +98,10 @@ class OCRController extends ApiController
             }
 
             // Image Filter Function
-            $tesseractImageFilterFunc = function($filter, $options = null) use($curlResult, $curlSize, $ocr) {
+            $tesseractImageFilterFunc = function ($filter, $options = null) use ($curlResult, $curlSize, $ocr) {
                 $result = '';
                 $img = imagecreatefromstring($curlResult);
                 if ($img !== false && (($options !== null && imagefilter($img, $filter, $options) === true) || ($options === null && imagefilter($img, $filter) === true))) {
-
                     ob_start();
                     imagepng($img);
                     $imgData = ob_get_contents();
@@ -108,7 +110,7 @@ class OCRController extends ApiController
 
                     $ocr->imageData($imgData, $imgDataSize);
                     imagedestroy($img);
-                    
+
                     $result = $ocr->run(500);
                 }
 
@@ -116,7 +118,7 @@ class OCRController extends ApiController
             };
 
             // Image Scale Function
-            $tesseractImageScaleFunc = function($scaleFunc) use ($curlResult, $ocr) {
+            $tesseractImageScaleFunc = function ($scaleFunc) use ($curlResult, $ocr) {
                 $result = '';
                 $srcImage = imagecreatefromstring($curlResult);
                 $srcWidth = imagesx($srcImage);
@@ -133,7 +135,7 @@ class OCRController extends ApiController
                 $imgData = ob_get_contents();
                 ob_end_clean();
                 $imgDataSize = strlen($imgData);
-                
+
                 imagedestroy($srcImage);
                 imagedestroy($dstImage);
 
@@ -143,7 +145,7 @@ class OCRController extends ApiController
             };
 
             // filter: tesseract
-            if(in_array('tesseract', $filters) === true) {
+            if (in_array('tesseract', $filters) === true) {
                 $data['ocr']['tesseract'] = $ocr->run(500);
             }
 
@@ -154,14 +156,14 @@ class OCRController extends ApiController
 
             // filter: tesseract.double_scale
             if (in_array('tesseract.double_scale', $filters) === true) {
-                $data['ocr']['tesseract.double_scale'] = $tesseractImageScaleFunc(function($size) {
+                $data['ocr']['tesseract.double_scale'] = $tesseractImageScaleFunc(function ($size) {
                     return $size * 2;
                 });
             }
 
             // filter: tesseract.half_scale
             if (in_array('tesseract.half_scale', $filters) === true) {
-                $data['ocr']['tesseract.half_scale'] = $tesseractImageScaleFunc(function($size) {
+                $data['ocr']['tesseract.half_scale'] = $tesseractImageScaleFunc(function ($size) {
                     return $size / 2;
                 });
             }
@@ -187,12 +189,12 @@ class OCRController extends ApiController
             }
 
             // filter: keras
-            if(in_array('keras', $filters) === true) {
+            if (in_array('keras', $filters) === true) {
                 $cmd = '/usr/bin/python3 ' . base_path() . '/scripts/keras_oc.py ' . urlencode($url);
                 $command = escapeshellcmd($cmd);
                 $output = shell_exec($cmd);
                 if ($output !== null && strlen($output) > 0) {
-                    $output = substr($output, strpos($output, '----------START----------') + 25);
+                    $output = substr($output, (strpos($output, '----------START----------') + 25));
                 } else {
                     $output = '';
                 }
