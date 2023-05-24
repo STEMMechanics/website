@@ -26,7 +26,7 @@ class UserCode extends Model
      *
      * @return void
      */
-    protected static function boot()
+    protected static function boot(): void
     {
         parent::boot();
         static::creating(function ($model) {
@@ -49,7 +49,7 @@ class UserCode extends Model
      *
      * @return void
      */
-    public function regenerate()
+    public function regenerate(): void
     {
         while (true) {
             $code = random_int(100000, 999999);
@@ -65,7 +65,7 @@ class UserCode extends Model
      *
      * @return void
      */
-    public static function clearExpired()
+    public static function clearExpired(): void
     {
         UserCode::where('updated_at', '<=', now()->subDays(5))->delete();
     }
@@ -75,7 +75,7 @@ class UserCode extends Model
      *
      * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

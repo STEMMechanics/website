@@ -27,7 +27,7 @@ class EventUser extends Model
      *
      * @return BelongsTo
      */
-    public function event()
+    public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
     }
@@ -37,7 +37,7 @@ class EventUser extends Model
      *
      * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

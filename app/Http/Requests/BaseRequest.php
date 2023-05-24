@@ -56,7 +56,7 @@ class BaseRequest extends FormRequest
      * @param array $collection2 The second collection of rules to merge.
      * @return array
      */
-    private function mergeRules(array $collection1, array $collection2)
+    private function mergeRules(array $collection1, array $collection2): array
     {
         $rules = [];
 

@@ -41,7 +41,7 @@ class Event extends Model
      *
      * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
         return $this->morphMany(\App\Models\Attachment::class, 'attachable');
     }
@@ -51,7 +51,7 @@ class Event extends Model
      *
      * @return BelongsToMany
      */
-    public function users()
+    public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'event_user', 'event_id', 'user_id');
     }

@@ -24,7 +24,7 @@ class Recaptcha implements Rule
      * @param  mixed $value     Attribute value.
      * @return boolean
      */
-    public function passes(mixed $attribute, mixed $value)
+    public function passes(mixed $attribute, mixed $value): bool
     {
         $endpoint = config('services.google_recaptcha');
 
@@ -45,7 +45,7 @@ class Recaptcha implements Rule
      *
      * @return string
      */
-    public function message()
+    public function message(): string
     {
         return 'Captcha failed. Refresh the page and try again';
     }

@@ -11,7 +11,7 @@ class AnalyticsRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function postRules()
+    public function postRules(): array
     {
         return [
             'type' => 'required|string',
@@ -23,7 +23,7 @@ class AnalyticsRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function putRules()
+    public function putRules(): array
     {
         return [
             'type' => 'string',

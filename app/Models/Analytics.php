@@ -24,7 +24,7 @@ class Analytics extends Model
      * @param  array $attributes Model attributes.
      * @return static
      */
-    public static function createWithSession(array $attributes)
+    public static function createWithSession(array $attributes): static
     {
         $previousRow = self::where('useragent', $attributes['useragent'])
         ->where('ip', $attributes['ip'])

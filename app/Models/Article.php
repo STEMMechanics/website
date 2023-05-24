@@ -32,7 +32,7 @@ class Article extends Model
      *
      * @return BelongsTo
      */
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
@@ -42,7 +42,7 @@ class Article extends Model
      *
      * @return MorphMany
      */
-    public function attachments()
+    public function attachments(): MorphMany
     {
         return $this->morphMany(\App\Models\Attachment::class, 'attachable');
     }

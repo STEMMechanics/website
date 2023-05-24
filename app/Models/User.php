@@ -82,7 +82,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function permissions()
+    public function permissions(): HasMany
     {
         return $this->hasMany(Permission::class);
     }
@@ -92,7 +92,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return array
      */
-    public function getPermissionsAttribute()
+    public function getPermissionsAttribute(): array
     {
         return $this->permissions()->pluck('permission')->toArray();
     }
@@ -103,7 +103,7 @@ class User extends Authenticatable implements Auditable
      * @param string $permission Permission to test.
      * @return boolean
      */
-    public function hasPermission(string $permission)
+    public function hasPermission(string $permission): bool
     {
         return ($this->permissions()->where('permission', $permission)->first() !== null);
     }
@@ -114,7 +114,7 @@ class User extends Authenticatable implements Auditable
      * @param string|array $permissions The permission(s) to give.
      * @return Collection
      */
-    public function givePermission($permissions)
+    public function givePermission($permissions): Collection
     {
         if (is_array($permissions) === false) {
             $permissions = [$permissions];
@@ -139,7 +139,7 @@ class User extends Authenticatable implements Auditable
      * @param string|array $permissions The permission(s) to revoke.
      * @return integer
      */
-    public function revokePermission($permissions)
+    public function revokePermission($permissions): int
     {
         if (is_array($permissions) === false) {
             $permissions = [$permissions];
@@ -155,7 +155,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function media()
+    public function media(): HasMany
     {
         return $this->hasMany(Media::class);
     }
@@ -165,7 +165,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function articles()
+    public function articles(): HasMany
     {
         return $this->hasMany(Article::class);
     }
@@ -175,7 +175,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function codes()
+    public function codes(): HasMany
     {
         return $this->hasMany(UserCode::class);
     }
@@ -185,7 +185,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return HasMany
      */
-    public function logins()
+    public function logins(): HasMany
     {
         return $this->hasMany(UserLogins::class);
     }
@@ -195,7 +195,7 @@ class User extends Authenticatable implements Auditable
      *
      * @return BelongsToMany
      */
-    public function events()
+    public function events(): BelongsToMany
     {
         return $this->belongsToMany(Event::class, 'event_user', 'user_id', 'event_id');
     }

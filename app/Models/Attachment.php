@@ -36,7 +36,7 @@ class Attachment extends Model
      *
      * @return MorphTo
      */
-    public function attachable()
+    public function attachable(): MorphTo
     {
         return $this->morphTo();
     }
@@ -46,7 +46,7 @@ class Attachment extends Model
      *
      * @return BelongsTo
      */
-    public function media()
+    public function media(): BelongsTo
     {
         return $this->belongsTo(Media::class);
     }

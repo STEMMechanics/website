@@ -57,7 +57,7 @@ class ChangedEmail extends Mailable
      *
      * @return \Illuminate\Mail\Mailables\Envelope
      */
-    public function envelope()
+    public function envelope(): Envelope
     {
         return new Envelope(
             subject: '👍 Your email has been changed!',
@@ -69,7 +69,7 @@ class ChangedEmail extends Mailable
      *
      * @return \Illuminate\Mail\Mailables\Content
      */
-    public function content()
+    public function content(): Content
     {
         return new Content(
             view: 'emails.user.changed_email',

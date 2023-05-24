@@ -24,7 +24,7 @@ class UniqueFileName implements Rule
      * @param  mixed  $value
      * @return boolean
      */
-    public function passes($attribute, $value)
+    public function passes(string $attribute, $value): bool
     {
         return (Media::fileExists($value) === false);
     }
@@ -34,7 +34,7 @@ class UniqueFileName implements Rule
      *
      * @return string
      */
-    public function message()
+    public function message(): string
     {
         return 'The file name already exists.';
     }

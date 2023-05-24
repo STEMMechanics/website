@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Http\JsonResponse;
 use App\Enum\HttpResponseCodes;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Model;
@@ -25,7 +26,7 @@ class ApiController extends Controller
      * @param array   $headers     Response headers.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondJson(array $data, int $respondCode = HttpResponseCodes::HTTP_OK, array $headers = [])
+    public function respondJson(array $data, int $respondCode = HttpResponseCodes::HTTP_OK, array $headers = []): JsonResponse
     {
         return response()->json($data, $respondCode, $headers);
     }
@@ -36,7 +37,7 @@ class ApiController extends Controller
      * @param string $message Response message.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondForbidden(string $message = 'You do not have permission to access the resource.')
+    public function respondForbidden(string $message = 'You do not have permission to access the resource.'): JsonResponse
     {
         return response()->json(['message' => $message], HttpResponseCodes::HTTP_FORBIDDEN);
     }
@@ -47,7 +48,7 @@ class ApiController extends Controller
      * @param string $message Response message.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondNotFound(string $message = 'The resource was not found.')
+    public function respondNotFound(string $message = 'The resource was not found.'): JsonResponse
     {
         return response()->json(['message' => $message], HttpResponseCodes::HTTP_NOT_FOUND);
     }
@@ -58,7 +59,7 @@ class ApiController extends Controller
      * @param string $message Response message.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondTooLarge(string $message = 'The request entity is too large.')
+    public function respondTooLarge(string $message = 'The request entity is too large.'): JsonResponse
     {
         return response()->json(['message' => $message], HttpResponseCodes::HTTP_REQUEST_ENTITY_TOO_LARGE);
     }
@@ -67,7 +68,7 @@ class ApiController extends Controller
      * Return no content
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondNoContent()
+    public function respondNoContent(): JsonResponse
     {
         return response()->json([], HttpResponseCodes::HTTP_NO_CONTENT);
     }
@@ -76,7 +77,7 @@ class ApiController extends Controller
      * Return created
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondCreated()
+    public function respondCreated(): JsonResponse
     {
         return response()->json([], HttpResponseCodes::HTTP_CREATED);
     }
@@ -85,7 +86,7 @@ class ApiController extends Controller
      * Return accepted
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondAccepted()
+    public function respondAccepted(): JsonResponse
     {
         return response()->json([], HttpResponseCodes::HTTP_ACCEPTED);
     }
@@ -97,7 +98,7 @@ class ApiController extends Controller
      * @param integer $responseCode Resource code.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondError(string $message, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY)
+    public function respondError(string $message, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
     {
         return response()->json([
             'message' => $message
@@ -111,7 +112,7 @@ class ApiController extends Controller
      * @param integer $responseCode Resource code.
      * @return \Illuminate\Http\JsonResponse
      */
-    public function respondWithErrors(array $errors, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY)
+    public function respondWithErrors(array $errors, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
     {
         $keys = array_keys($errors);
         $error = $errors[$keys[0]];
@@ -138,7 +139,7 @@ class ApiController extends Controller
         mixed $data,
         array $options = [],
         $validationFn = null
-    ) {
+    ): JsonResponse {
         $isCollection = $options['isCollection'] ?? false;
         $appendData = $options['appendData'] ?? null;
         $resourceName = $options['resourceName'] ?? null;

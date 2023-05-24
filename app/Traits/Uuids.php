@@ -11,7 +11,7 @@ trait Uuids
      *
      * @return void
      */
-    protected static function bootUuids()
+    protected static function bootUuids(): void
     {
         static::creating(function ($model) {
             if (empty($model->{$model->getKeyName()}) === true) {
@@ -25,7 +25,7 @@ trait Uuids
      *
      * @return boolean
      */
-    public function getIncrementing()
+    public function getIncrementing(): bool
     {
         return false;
     }
@@ -35,7 +35,7 @@ trait Uuids
      *
      * @return string
      */
-    public function getKeyType()
+    public function getKeyType(): string
     {
         return 'string';
     }

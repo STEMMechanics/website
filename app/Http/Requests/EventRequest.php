@@ -11,7 +11,7 @@ class EventRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function baseRules()
+    public function baseRules(): array
     {
         return [
             'title'             => 'min:6',
@@ -42,7 +42,7 @@ class EventRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    protected function postRules()
+    protected function postRules(): array
     {
         return [
             'title'             => 'required',

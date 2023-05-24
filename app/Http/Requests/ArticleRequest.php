@@ -11,7 +11,7 @@ class ArticleRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function postRules()
+    public function postRules(): array
     {
         return [
             'slug' => 'required|string|min:6|unique:articles',
@@ -28,7 +28,7 @@ class ArticleRequest extends BaseRequest
      *
      * @return array<string, mixed>
      */
-    public function putRules()
+    public function putRules(): array
     {
         return [
             'slug' => [

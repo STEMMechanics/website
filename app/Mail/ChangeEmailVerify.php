@@ -57,7 +57,7 @@ class ChangeEmailVerify extends Mailable
      *
      * @return \Illuminate\Mail\Mailables\Envelope
      */
-    public function envelope()
+    public function envelope(): Envelope
     {
         return new Envelope(
             subject: '👋🏻 Lets change your email!',
@@ -69,7 +69,7 @@ class ChangeEmailVerify extends Mailable
      *
      * @return \Illuminate\Mail\Mailables\Content
      */
-    public function content()
+    public function content(): Content
     {
         return new Content(
             view: 'emails.user.change_email_verify',

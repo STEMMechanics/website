@@ -147,7 +147,7 @@ class UserController extends ApiController
      * @param \App\Http\Requests\UserRegisterRequest $request The register user request.
      * @return \Illuminate\Http\Response
      */
-    public function register(UserRegisterRequest $request)
+    public function register(UserRegisterRequest $request): JsonResponse
     {
         try {
             $userData = $request->only([
@@ -288,7 +288,7 @@ class UserController extends ApiController
      * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend verify email request.
      * @return \Illuminate\Http\Response
      */
-    public function resendVerifyEmail(UserResendVerifyEmailRequest $request)
+    public function resendVerifyEmail(UserResendVerifyEmailRequest $request): JsonResponse
     {
         UserCode::clearExpired();
 
@@ -342,7 +342,7 @@ class UserController extends ApiController
      * @param User    $user    The specified user.
      * @return JsonResponse
      */
-    public function eventList(Request $request, User $user)
+    public function eventList(Request $request, User $user): JsonResponse
     {
         if ($request->user() !== null && ($request->user() === $user || $request->user()->hasPermission('admin/events') === true)) {
             $collection = $user->events;
