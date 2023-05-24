@@ -19,9 +19,9 @@ class MediaFactory extends Factory
     {
         return [
             'title' => $this->faker->sentence(),
-            'name' => storage_path('app/public/') . $this->faker->slug() . '.' . $this->faker->fileExtension,
-            'mime_type' => $this->faker->mimeType,
-            'user_id' => $this->faker->uuid,
+            'name' => storage_path('app/public/') . $this->faker->slug() . '.' . $this->faker->fileExtension(),
+            'mime_type' => $this->faker->mimeType(),
+            'user_id' => $this->faker->uuid(),
             'size' => $this->faker->numberBetween(1000, 1000000),
         ];
     }

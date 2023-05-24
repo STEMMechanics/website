@@ -24,8 +24,8 @@ class ArticleFactory extends Factory
             'slug' => $this->faker->slug(),
             'publish_at' => $publishDate,
             'content' => $this->faker->paragraphs(3, true),
-            'user_id' => $this->faker->uuid,
-            'hero' => $this->faker->uuid,
+            'user_id' => $this->faker->uuid(),
+            'hero' => $this->faker->uuid(),
         ];
     }
 }
