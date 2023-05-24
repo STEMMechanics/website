@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Conductors\AnalyticsConductor;
+use App\Conductors\Conductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\AnalyticsRequest;
 use App\Models\Media;
@@ -37,14 +38,34 @@ class AnalyticsController extends ApiController
      */
     public function index(Request $request)
     {
-        list($collection, $total) = AnalyticsConductor::request($request);
+        if ($request->user() !== null && $request->user()?->hasPermission('admin/analytics') === true) {
+            $searchFields = ['attribute', 'type', 'useragent', 'ip'];
 
-        return $this->respondAsResource(
-            $collection,
-            ['isCollection' => true,
-                'appendData' => ['total' => $total]
-            ]
-        );
+            $queryRequest = new Request();
+            $queryRequest->merge($request->only($searchFields));
+            foreach ($searchFields as $field) {
+                unset($request[$field]);
+            }
+
+            $query = Analytics::query()
+                ->selectRaw('session,
+                MIN(created_at) as created_at,
+                TIMESTAMPDIFF(MINUTE, MIN(created_at), MAX(created_at)) as duration');
+            $query = Conductor::filterQuery($query, $queryRequest);
+
+            list($collection, $total) = AnalyticsConductor::collection($request, $query
+            ->groupBy('session')
+            ->get());
+
+            return $this->respondAsResource(
+                $collection,
+                ['isCollection' => true,
+                    'appendData' => ['total' => $total]
+                ]
+            );
+        }//end if
+
+        return $this->respondForbidden();
     }
 
     /**
@@ -54,10 +75,19 @@ class AnalyticsController extends ApiController
      * @param  \App\Models\Analytics    $analytics The analyics model.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, Analytics $analytics)
+    public function show(Request $request, int $session)
     {
-        if (AnalyticsConductor::viewable($analytics) === true) {
-            return $this->respondAsResource(AnalyticsConductor::model($request, $analytics));
+        if ($request->user() !== null && $request->user()?->hasPermission('admin/analytics') === true) {
+            list($collection, $total) = AnalyticsConductor::collection($request, Analytics::query()
+            ->where('session', $session)
+            ->get());
+
+            return $this->respondAsResource(
+                $collection,
+                ['isCollection' => true,
+                    'appendData' => ['total' => $total]
+                ]
+            );
         }
 
         return $this->respondForbidden();

@@ -27,6 +27,13 @@ class AnalyticsConductor extends Conductor
      */
     protected $sort = 'created_at';
 
+    /**
+     * The default includes to include in a request.
+     *
+     * @var array
+     */
+    protected $includes = ['duration'];
+
 
     /**
      * Return if the current model is visible.

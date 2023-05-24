@@ -27,6 +27,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/register', [UserController::class, 'register']);
 
 Route::get('/analytics', [AnalyticsController::class, 'index']);
+Route::get('/analytics/{session}', [AnalyticsController::class, 'show']);
 Route::post('/analytics', [AnalyticsController::class, 'store']);
 
 Route::apiResource('users', UserController::class);
