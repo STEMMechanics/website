@@ -142,9 +142,9 @@ class ArticleConductor extends Conductor
      * Transform the Hero field.
      *
      * @param mixed $value The current value.
-     * @return array The new value.
+     * @return array|null The new value.
      */
-    public function transformHero(mixed $value): array
+    public function transformHero(mixed $value): array|null
     {
         return MediaConductor::includeModel(request(), 'hero', Media::find($value));
     }

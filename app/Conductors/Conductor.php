@@ -519,9 +519,9 @@ class Conductor
      * @param Request    $request The request data.
      * @param string     $key     The key prefix to use.
      * @param Model|null $model   The model.
-     * @return array The processed and transformed model data.
+     * @return array|null The processed and transformed model data.
      */
-    final public static function includeModel(Request $request, string $key, mixed $model): array
+    final public static function includeModel(Request $request, string $key, mixed $model): array|null
     {
         $fields = [];
 
@@ -547,9 +547,9 @@ class Conductor
      *
      * @param mixed      $fields The fields to show.
      * @param Model|null $model  The model.
-     * @return array The processed and transformed model data.
+     * @return array|null The processed and transformed model data.
      */
-    final public static function model(mixed $fields, mixed $model): array
+    final public static function model(mixed $fields, mixed $model): array|null
     {
         if ($model === null) {
             return null;

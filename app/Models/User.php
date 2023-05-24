@@ -5,8 +5,10 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Traits\Uuids;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -79,6 +81,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
+     *
+     * @return Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function permissions(): HasMany
     {
@@ -87,6 +91,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the permission attribute
+     *
+     * @return array
      */
     public function getPermissionsAttribute(): array
     {
@@ -97,6 +103,7 @@ class User extends Authenticatable implements Auditable
      * Test if user has permission
      *
      * @param string $permission Permission to test.
+     * @return boolean
      */
     public function hasPermission(string $permission): bool
     {
@@ -107,6 +114,7 @@ class User extends Authenticatable implements Auditable
      * Give permissions to the user
      *
      * @param string|array $permissions The permission(s) to give.
+     * @return Illuminate\Database\Eloquent\Collection
      */
     public function givePermission($permissions): Collection
     {
