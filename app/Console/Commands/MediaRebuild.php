@@ -51,7 +51,7 @@ class MediaRebuild extends Command
      *
      * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $replace = $this->option('replace');
         $all = $this->option('replace');

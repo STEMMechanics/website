@@ -21,7 +21,7 @@ class EventsApiTest extends TestCase
         $this->faker = FakerFactory::create();
     }
 
-    public function testAnyUserCanViewEvent()
+    public function testAnyUserCanViewEvent(): void
     {
         // Create an event
         $event = Event::factory()->create([
@@ -52,7 +52,7 @@ class EventsApiTest extends TestCase
         ]);
     }
 
-    public function testAnyUserCannotSeeDraftEvent()
+    public function testAnyUserCannotSeeDraftEvent(): void
     {
         // Create a draft event
         $draftEvent = Event::factory()->create([
@@ -85,7 +85,7 @@ class EventsApiTest extends TestCase
         ]);
     }
 
-    public function testAdminCanCreateUpdateDeleteEvent()
+    public function testAdminCanCreateUpdateDeleteEvent(): void
     {
         // Create a user with the admin/events permission
         $adminUser = User::factory()->create();
@@ -139,7 +139,7 @@ class EventsApiTest extends TestCase
         ]);
     }
 
-    public function testNonAdminCannotCreateUpdateDeleteEvent()
+    public function testNonAdminCannotCreateUpdateDeleteEvent(): void
     {
         // Create a user without admin/events permission
         $user = User::factory()->create();

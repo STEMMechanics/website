@@ -65,7 +65,7 @@ class StoreUploadedFileJob implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $storageDisk = $this->media->storage;
         $fileName = $this->media->name;

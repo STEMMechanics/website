@@ -15,7 +15,7 @@ class EventFactory extends Factory
      *
      * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         $startDate = Carbon::parse($this->faker->dateTimeBetween('now', '+1 year'));
         $endDate = Carbon::parse($this->faker->dateTimeBetween($startDate, '+1 year'));

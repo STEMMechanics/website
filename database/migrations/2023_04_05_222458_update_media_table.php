@@ -12,7 +12,7 @@ return new class extends Migration
      *
      * @return void
      */
-    public function up()
+    public function up(): void
     {
         DB::table('media')->whereNull('mime')->update(['mime' => '']);
         DB::table('media')->whereNull('permission')->update(['permission' => '']);
@@ -40,7 +40,7 @@ return new class extends Migration
      *
      * @return void
      */
-    public function down()
+    public function down(): void
     {
         Schema::table('media', function (Blueprint $table) {
             $table->bigInteger('size')->change();

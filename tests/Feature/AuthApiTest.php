@@ -9,7 +9,7 @@ class AuthApiTest extends TestCase
     use RefreshDatabase;
 
 
-    public function testLogin()
+    public function testLogin(): void
     {
         $user = User::factory()->create([
             'password' => bcrypt('password'),

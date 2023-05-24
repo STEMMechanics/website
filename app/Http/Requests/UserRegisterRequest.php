@@ -12,7 +12,7 @@ class UserRegisterRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         return [
             'display_name' => ['required','string','max:255', new Uniqueish('users')],

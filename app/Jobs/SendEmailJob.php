@@ -50,7 +50,7 @@ class SendEmailJob implements ShouldQueue
      *
      * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         Mail::to($this->to)->send($this->mailable);
     }

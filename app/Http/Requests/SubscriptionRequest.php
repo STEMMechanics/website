@@ -37,7 +37,7 @@ class SubscriptionRequest extends BaseRequest
      *
      * @return array
      */
-    public function messages()
+    public function messages(): array
     {
         return [
             'email.unique' => 'This email address has already subscribed',

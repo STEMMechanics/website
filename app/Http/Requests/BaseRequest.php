@@ -12,7 +12,7 @@ class BaseRequest extends FormRequest
      *
      * @return boolean
      */
-    public function authorize()
+    public function authorize(): bool
     {
         if (request()->isMethod('post') === true && method_exists($this, 'postAuthorize') === true) {
             return $this->postAuthorize();
@@ -30,7 +30,7 @@ class BaseRequest extends FormRequest
      *
      * @return array<string, mixed>
      */
-    public function rules()
+    public function rules(): array
     {
         $rules = [];
 
