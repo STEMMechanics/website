@@ -35,7 +35,8 @@ class SubscriptionController extends ApiController
         return $this->respondAsResource(
             $collection,
             ['isCollection' => true,
-            'appendData' => ['total' => $total]]
+                'appendData' => ['total' => $total]
+            ]
         );
     }
 
