@@ -7,7 +7,7 @@ use App\Models\Media;
 use App\Models\Article;
 use Faker\Factory as FakerFactory;
 
-class ArticlesApiTest extends TestCase
+final class ArticlesApiTest extends TestCase
 {
     use RefreshDatabase;
 
