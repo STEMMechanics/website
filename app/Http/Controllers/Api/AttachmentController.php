@@ -29,7 +29,7 @@ class AttachmentController extends ApiController
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param  \Illuminate\Http\Request $request
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
@@ -40,7 +40,7 @@ class AttachmentController extends ApiController
     /**
      * Display the specified resource.
      *
-     * @param  \App\Models\Attachment  $attachment
+     * @param  \App\Models\Attachment $attachment
      * @return \Illuminate\Http\Response
      */
     public function show(Attachment $attachment)
@@ -51,7 +51,7 @@ class AttachmentController extends ApiController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\Models\Attachment  $attachment
+     * @param  \App\Models\Attachment $attachment
      * @return \Illuminate\Http\Response
      */
     public function edit(Attachment $attachment)
@@ -62,11 +62,11 @@ class AttachmentController extends ApiController
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Attachment  $attachment
+     * @param  \Illuminate\Http\Request $request
+     * @param  \App\Models\Attachment   $attachment
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, Attachment  $attachment)
+    public function update(Request $request, Attachment $attachment)
     {
         //
     }
@@ -74,10 +74,10 @@ class AttachmentController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Attachment  $attachment
+     * @param  \App\Models\Attachment $attachment
      * @return \Illuminate\Http\Response
      */
-    public function destroy(Attachment  $attachment)
+    public function destroy(Attachment $attachment)
     {
         //
     }

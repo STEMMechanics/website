@@ -80,7 +80,7 @@ class CurlErrorCodes extends Enum
     public const CURLE_RTSP_SESSION_ERROR           = 86;
     public const CURLE_FTP_BAD_FILE_LIST            = 87;
     public const CURLE_CHUNK_FAILED                 = 88;
-    
+
 
     /**
      * Curl Error messages
@@ -163,7 +163,7 @@ class CurlErrorCodes extends Enum
         86 => 'CURLE_RTSP_SESSION_ERROR.',
         87 => 'CURLE_FTP_BAD_FILE_LIST.',
         88 => 'CURLE_CHUNK_FAILED.',
-    
+
 
     ];
 }

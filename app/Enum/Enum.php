@@ -8,7 +8,7 @@ class Enum
 {
     /**
      * Message list
-     * 
+     *
      * @var array<string<static>>
      */
     public static $messages = [];
@@ -57,12 +57,12 @@ class Enum
 
     /**
      * Returns a message from the enum subclass
-     * 
+     *
      * @return string
      */
     public static function getMessage(int $messageIndex, string $defaultMessage = 'Unknown'): string
     {
-        if(array_key_exists($messageIndex, self::$messages) === true) {
+        if (array_key_exists($messageIndex, self::$messages) === true) {
             return self::$messages[$messageIndex];
         }
 

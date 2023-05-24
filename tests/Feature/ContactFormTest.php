@@ -1,10 +1,12 @@
 <?php
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ContactFormTest extends TestCase
 {
     use RefreshDatabase;
+
 
     public function testContactForm()
     {
