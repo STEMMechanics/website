@@ -8,7 +8,7 @@ use App\Models\Media;
 use Carbon\Carbon;
 use Faker\Factory as FakerFactory;
 
-class EventsApiTest extends TestCase
+final class EventsApiTest extends TestCase
 {
     use RefreshDatabase;
 

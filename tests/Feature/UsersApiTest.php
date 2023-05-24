@@ -5,7 +5,7 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 use App\Models\User;
 
-class UsersApiTest extends TestCase
+final class UsersApiTest extends TestCase
 {
     use RefreshDatabase;
 
