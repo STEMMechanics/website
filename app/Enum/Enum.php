@@ -57,6 +57,8 @@ class Enum
 
     /**
      * Returns a message from the enum subclass
+     *
+     * @return string
      */
     public static function getMessage(int $messageIndex, string $defaultMessage = 'Unknown'): string
     {
