@@ -14,7 +14,7 @@ class EventConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Event';
+    protected $class = \App\Models\Event::class;
 
     /**
      * The default sorting field

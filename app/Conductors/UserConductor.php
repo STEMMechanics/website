@@ -10,7 +10,7 @@ class UserConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\User';
+    protected $class = \App\Models\User::class;
 
 
     /**

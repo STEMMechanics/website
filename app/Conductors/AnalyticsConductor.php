@@ -19,7 +19,7 @@ class AnalyticsConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Analytics';
+    protected $class = \App\Models\Analytics::class;
 
     /**
      * The default sorting field

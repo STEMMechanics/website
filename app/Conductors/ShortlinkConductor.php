@@ -12,7 +12,7 @@ class ShortlinkConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Shortlink';
+    protected $class = \App\Models\Shortlink::class;
 
     /**
      * The default sorting field

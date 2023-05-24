@@ -12,7 +12,7 @@ class MediaConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Media';
+    protected $class = \App\Models\Media::class;
 
     /**
      * The default sorting field

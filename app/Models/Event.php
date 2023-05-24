@@ -43,7 +43,7 @@ class Event extends Model
      */
     public function attachments()
     {
-        return $this->morphMany('App\Models\Attachment', 'attachable');
+        return $this->morphMany(\App\Models\Attachment::class, 'attachable');
     }
 
     /**

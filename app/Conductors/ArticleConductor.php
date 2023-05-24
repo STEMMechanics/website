@@ -19,7 +19,7 @@ class ArticleConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Article';
+    protected $class = \App\Models\Article::class;
 
     /**
      * The default sorting field

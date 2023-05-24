@@ -10,7 +10,7 @@ class SubscriptionConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = '\App\Models\Subscription';
+    protected $class = \App\Models\Subscription::class;
 
 
     /**
