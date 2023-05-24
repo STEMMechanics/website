@@ -245,3 +245,6 @@ dist/
 
 ### TempCodeRunner ###
 tempCodeRunnerFile.*
+
+### PHPUnit ###
+.phpunit.result.cache
