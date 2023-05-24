@@ -58,7 +58,14 @@ class Conductor
      *
      * @var Collection
      */
-    private $collection = null;
+    protected $collection = null;
+
+    /**
+     * The collection filter to apply.
+     *
+     * @var array
+     */
+    protected $filterArray = [];
 
     /**
      * The conductor query.
@@ -132,76 +139,224 @@ class Conductor
     }
 
     /**
-     * Filter a field with a specific Builder object
+     * Filter Collection based on the Request.
      *
-     * @param Builder $builder The builder object to append.
-     * @param string  $field   The field name.
-     * @param mixed   $value   The value or array of values to filter.
-     * @param string  $boolean The comparision boolean (AND or OR).
+     * @param Request    $request     The user request.
+     * @param array|null $limitFields A list of fields to limit the filter request to.
      * @return void
      */
-    private function filterFieldWithBuilder(Builder $builder, string $field, mixed $value, string $boolean = 'AND')
+    private function filter(Request $request, array|null $limitFields = null)
     {
-        $values = [];
-
-        // Split by comma, but respect quotation marks
-        if (is_string($value) === true) {
-            $values = $this->splitString($value);
-        } elseif (is_array($value) === true) {
-            $values = $value;
-        } else {
-            throw new \InvalidArgumentException('Expected string or array, got ' . gettype($value));
+        if (is_array($limitFields) === true && count($limitFields) === 0) {
+            $limitFields = null;
         }
 
-        // Add each AND check to the query
-        $builder->where(function ($query) use ($field, $values) {
-            foreach ($values as $value) {
-                $value = trim($value);
-                $prefix = '';
+        $filterFields = $request->all();
+        if ($limitFields !== null) {
+            $filterFields = array_intersect_key($filterFields, array_flip($limitFields));
+        }
+        $filterFields += $this->defaultFilters;
 
-                // Check if value has a prefix and remove it if it's a number
+        foreach ($filterFields as $field => $value) {
+            if (
+                is_array($limitFields) === false ||
+                in_array(strtolower($field), array_map('strtolower', $limitFields)) !== false
+            ) {
+                $value = trim($value);
+                $operator = '';
+                $join = 'OR';
+
+                // Check if value has a operator and remove it if it's a number
                 if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)*$/', $value, $matches) > 0) {
-                    $prefix = $matches[1];
+                    $operator = $matches[1];
                     $value = ($matches[2] ?? '');
                 }
 
-                // Apply the prefix to the query if the value is a number
-                switch ($prefix) {
+                switch ($operator) {
                     case '=':
-                        $query->orWhere($field, '=', $value);
+                        $operator = '==';
                         break;
                     case '!':
-                        $query->orWhere($field, 'NOT LIKE', "%$value%");
+                        $operator = 'NOT LIKE';
+                        $value = "%{$value}%";
                         break;
                     case '>':
-                        $query->orWhere($field, '>', $value);
-                        break;
                     case '<':
-                        $query->orWhere($field, '<', $value);
-                        break;
                     case '>=':
-                        $query->orWhere($field, '>=', $value);
-                        break;
                     case '<=':
-                        $query->orWhere($field, '<=', $value);
-                        break;
                     case '!=':
-                        $query->orWhere($field, '!=', $value);
                         break;
                     case '<>':
-                        $seperatorPos = strpos($value, '|');
-                        if ($seperatorPos !== false) {
-                            $query->orWhereBetween($field, [substr($value, 0, $seperatorPos), substr($value, ($seperatorPos + 1))]);
-                        } else {
-                            $query->orWhere($field, '!=', $value);
+                        $separatorPos = strpos($value, '|');
+                        if ($separatorPos === false) {
+                            $operator = '!=';
                         }
                         break;
                     default:
-                        $query->orWhere($field, 'LIKE', "%$value%");
+                        $operator = 'LIKE';
+                        $value = "%{$value}%";
                         break;
                 }//end switch
+
+                $this->appendFilter($field, $operator, $value, $join);
+            }//end if
+        }//end foreach
+        if ($request->has('filter') === true) {
+            $this->appendFilterString($request->input('filter', ''), $limitFields);
+        }
+
+        $this->applyFilters();
+    }
+
+    /**
+     * Apple the filter array to the collection.
+     *
+     * @return void
+     */
+    final public function applyFilters()
+    {
+        $parseFunc = function ($filterArray, $query) use (&$parseFunc) {
+            $item = null;
+            $result = null;
+            $join = 'AND';
+
+            if (gettype($query) === 'array') {
+                $item = $query;
+            }
+
+            foreach ($filterArray as $condition) {
+                $currentResult = false;
+
+                if (is_array($condition) === true) {
+                    if (isset($condition[0]) === true && is_array($condition[0]) === true) {
+                        if ($item !== null) {
+                            $currentResult = $parseFunc($condition, $item);
+                        } else {
+                            if ($join === 'OR') {
+                                $query->orWhere(function ($subQuery) use ($parseFunc, $condition) {
+                                    $parseFunc($condition, $subQuery);
+                                });
+                            } else {
+                                $query->where(function ($subQuery) use ($parseFunc, $condition) {
+                                    $parseFunc($condition, $subQuery);
+                                });
+                            }
+                        }
+                    } else {
+                        list($field, $operator, $value) = $condition;
+
+                        if ($item !== null) {
+                            if (array_key_exists($field, $item) === true) {
+                                switch ($operator) {
+                                    case '==':
+                                        $currentResult = ($item[$field] == $value);
+                                        break;
+                                    case 'NOT LIKE':
+                                        $currentResult = (stripos($item[$field], substr($value, 1, -1)) === false);
+                                        break;
+                                    case '>':
+                                        $currentResult = ($item[$field] > $value);
+                                        break;
+                                    case '<':
+                                        $currentResult = ($item[$field] < $value);
+                                        break;
+                                    case '>=':
+                                        $currentResult = ($item[$field] >= $value);
+                                        break;
+                                    case '<=':
+                                        $currentResult = ($item[$field] <= $value);
+                                        break;
+                                    case '!=':
+                                        $currentResult = ($item[$field] != $value);
+                                        break;
+                                    case '<>':
+                                        $separatorPos = strpos($value, '|');
+                                        if ($separatorPos !== false) {
+                                            $fieldInt = intval($item[$field]);
+                                            $currentResult = (
+                                                $fieldInt > intVal(
+                                                    substr($value, 0, $separatorPos)
+                                                ) && $fieldInt < intVal(substr($value, ($separatorPos + 1))));
+                                        } else {
+                                            $currentResult = ($item[$field] != $value);
+                                        }
+                                        break;
+                                    case 'LIKE':
+                                        $currentResult = (stripos($item[$field], substr($value, 1, -1)) !== false);
+                                        break;
+                                }//end switch
+                            }//end if
+                        } else {
+                            if ($operator === '==') {
+                                $operator = '=';
+                            }
+
+                            if ($join === 'OR') {
+                                if ($operator === '<>') {
+                                    $separatorPos = strpos($value, '|');
+                                    if ($separatorPos !== false) {
+                                        $query->orWhereBetween(
+                                            $field,
+                                            [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
+                                        );
+                                    } else {
+                                        $query->orWhere($field, '!=', $value);
+                                    }
+                                } else {
+                                    $query->orWhere($field, $operator, $value);
+                                }
+                            } else {
+                                if ($operator === '<>') {
+                                    $separatorPos = strpos($value, '|');
+                                    if ($separatorPos !== false) {
+                                        $query->whereBetween(
+                                            $field,
+                                            [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
+                                        );
+                                    } else {
+                                        $query->where($field, '!=', $value);
+                                    }
+                                } else {
+                                    $query->where($field, $operator, $value);
+                                }
+                            }//end if
+                        }//end if
+                    }//end if
+
+                    if ($item !== null) {
+                        if ($result === null) {
+                            $result = $currentResult;
+                        } else {
+                            if ($join === 'OR') {
+                                $result = $result || $currentResult;
+                            } else {
+                                $result = $result && $currentResult;
+                            }
+                        }
+                    }
+
+                    $join = 'OR';
+                } else {
+                    $join = $condition;
+                }//end if
             }//end foreach
-        }, null, null, $boolean);
+
+            return $result;
+        };
+
+        $filterArray = $this->filterArray;
+        if (count($filterArray) === 0) {
+            $filterArray = $this->defaultFilters;
+        }
+        if (count($filterArray) !== 0) {
+            if ($this->collection !== null) {
+                $this->collection = $this->collection->filter(function ($item) use ($parseFunc) {
+                    return $parseFunc($this->filterArray, $item);
+                });
+            } else {
+                $parseFunc($this->filterArray, $this->query);
+            }
+        }
     }
 
     /**
@@ -224,17 +379,11 @@ class Conductor
         }
 
         // Filter request
-        $fields = $conductor->fields(new $conductor->class());
-        if (is_array($fields) === false) {
-            $fields = [];
+        $limitFields = $conductor->fields(new $conductor->class());
+        if (is_array($limitFields) === false) {
+            $limitFields = [];
         }
-
-        $params = $request->all();
-        $filterFields = (array_intersect_key($params, array_flip($fields)) + $conductor->defaultFilters);
-        $conductor->filter($filterFields);
-        if ($request->has('filter') === true) {
-            $conductor->filterRaw($request->input('filter', ''), $fields);
-        }
+        $conductor->filter($request, $limitFields);
 
         // After Scope query
         $conductor->query->where(function ($query) use ($conductor) {
@@ -257,6 +406,12 @@ class Conductor
         // Paginate
         $conductor->paginate($request->input('page', 1), $request->input('limit', -1), $request->input('offset', 0));
 
+        // Filter request
+        $fields = $conductor->fields(new $conductor->class());
+        if (is_array($fields) === false) {
+            $fields = [];
+        }
+
         // Limit fields
         $limitFields = array_map(function ($field) {
             if (strpos($field, '.') !== false) {
@@ -278,17 +433,19 @@ class Conductor
             $includes = array_intersect($limitFields, $conductor->includes);
         }
 
-        $conductor->collection = $conductor->collection->map(function ($model) use ($conductor, $includes, $limitFields) {
-            $conductor->applyIncludes($model, $includes);
+        $conductor->collection = $conductor->collection->map(
+            function ($model) use ($conductor, $includes, $limitFields) {
+                $conductor->applyIncludes($model, $includes);
 
-            if (count($limitFields) > 0) {
-                $model->setAppends(array_intersect($model->getAppends(), $limitFields));
+                if (count($limitFields) > 0) {
+                    $model->setAppends(array_intersect($model->getAppends(), $limitFields));
+                }
+
+                $model = $conductor->transformModel($model);
+
+                return $model;
             }
-
-            $model = $conductor->transformModel($model);
-
-            return $model;
-        });
+        );
 
         return [$conductor->collection, $total];
     }
@@ -305,21 +462,66 @@ class Conductor
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
 
-        $transformedCollection = collect();
+        $conductor->collection = collect();
 
         foreach ($collection as $item) {
             if ($conductor->viewable($item) === true) {
-                $transformedCollection->push($conductor->transformModel($item));
+                $conductor->collection->push($conductor->transformModel($item));
             }
         }
 
-        return $transformedCollection;
+        // Filter request
+        $limitFields = $conductor->fields(new $conductor->class());
+        if (is_array($limitFields) === false) {
+            $limitFields = [];
+        }
+        $conductor->filter($request, $limitFields);
+
+        // Get total
+        $total = $conductor->collection->count();
+
+        // Sort request
+        $sort = $request->input('sort', $conductor->sort);
+        if (strlen($sort) === 0) {
+            if (strlen($conductor->sort) > 0) {
+                $conductor->sort($sort);
+            }
+        } else {
+            $conductor->sort($sort);
+        }
+
+        // Paginate
+        $conductor->paginate($request->input('page', 1), $request->input('limit', -1), $request->input('offset', 0));
+
+
+        return [$conductor->collection, $total];
     }
+
+    /**
+     * Filter a custom query on a user request.
+     *
+     * @param Builder    $query       The custom query.
+     * @param Request    $request     The request.
+     * @param array|null $limitFields Limit the request to these fields.
+     * @return Builder
+     */
+    public static function filterQuery(Builder $query, Request $request, array|null $limitFields = null)
+    {
+        $conductor_class = get_called_class();
+        $conductor = new $conductor_class();
+
+        $conductor->query = $query;
+        $conductor->filter($request, $limitFields);
+
+        return $conductor->query;
+    }
+
 
     /**
      * Run the conductor on a Model with the data stored in a Request.
      *
      * @param Request    $request The request data.
+     * @param string     $key     The key prefix to use.
      * @param Model|null $model   The model.
      * @return array The processed and transformed model data.
      */
@@ -371,7 +573,7 @@ class Conductor
                     $limitFields = array_intersect(explode(',', $requestFields), $modelFields);
                 }
             }
-        } elseif (is_array($fields) && count($fields) > 0) {
+        } elseif (is_array($fields) === true && count($fields) > 0) {
             $limitFields = array_intersect($fields, $modelFields);
         }
 
@@ -400,35 +602,6 @@ class Conductor
     }
 
     /**
-     * Filter a single field in the conductor collection.
-     *
-     * @param string $field   The field name.
-     * @param mixed  $value   The value or array of values to filter.
-     * @param string $boolean The comparision boolean (AND or OR).
-     * @return void
-     */
-    final public function filterField(string $field, mixed $value, string $boolean = 'AND')
-    {
-        $this->filterFieldWithBuilder($this->query, $field, $value, $boolean);
-    }
-
-    /**
-     * Get or Set the conductor collection.
-     *
-     * @param Collection $collection If not null, use the passed collection.
-     * @return Collection The current conductor collection.
-     */
-    // final public function collection(Collection $collection = null)
-    // {
-    //     if ($collection !== null) {
-    //         $this->collection = $collection;
-    //     }
-
-    //     return $this->collection;
-    // }
-
-
-    /**
      * Return the current conductor collection count.
      *
      * @return integer The current collection count.
@@ -445,11 +618,13 @@ class Conductor
     /**
      * Sort the conductor collection.
      *
-     * @param mixed $fields A field name or array of field names to sort. Supports a prefix of + or - to change direction.
+     * @param mixed $fields A field name or array of field names to sort. Supports prefix of +/- to change direction.
      * @return void
      */
     final public function sort(mixed $fields = null)
     {
+        $collectionSort = [];
+
         if (is_string($fields) === true) {
             $fields = explode(',', $fields);
         } elseif ($fields === null) {
@@ -468,23 +643,18 @@ class Conductor
                     }
                 }
 
-                $this->query->orderBy(trim($orderByField), $direction);
+                if ($this->collection !== null) {
+                    $collectionSort[] = [trim($orderByField), $direction];
+                } else {
+                    $this->query->orderBy(trim($orderByField), $direction);
+                }
             }
         } else {
             throw new \InvalidArgumentException('Expected string or array, got ' . gettype($fields));
-        }
-    }
+        }//end if
 
-    /**
-     * Filter the conductor collection based on an array of field => value.
-     *
-     * @param array $filters An array of field => value to filter.
-     * @return void
-     */
-    final public function filter(array $filters)
-    {
-        foreach ($filters as $param => $value) {
-            $this->filterField($param, $value);
+        if ($this->collection !== null) {
+            $this->collection = $this->collection->sortBy($collectionSort)->values();
         }
     }
 
@@ -494,7 +664,7 @@ class Conductor
      * @param integer $page   The current page to return.
      * @param integer $limit  The limit of items to include or use default.
      * @param integer $offset Offset the page count after this count of rows.
-     * @return void
+     * @return mixed
      */
     final public function paginate(int $page = 1, int $limit = -1, int $offset = 0)
     {
@@ -504,7 +674,6 @@ class Conductor
         } else {
             $limit = min($limit, $this->maxLimit);
         }
-        $this->query->limit($limit);
 
         // Page
         if ($page < 1) {
@@ -516,7 +685,12 @@ class Conductor
             $offset = 0;
         }
 
-        $this->query->offset((($page - 1) * $limit) + $offset);
+        if ($this->collection !== null) {
+            $this->collection = $this->collection->splice(((($page - 1) * $limit) + $offset), $limit);
+        } else {
+            $this->query->limit($limit);
+            $this->query->offset((($page - 1) * $limit) + $offset);
+        }
     }
 
     /**
@@ -556,153 +730,131 @@ class Conductor
     /**
      * Filter the conductor collection using raw data.
      *
-     * @param string     $filterString The raw filter string to parse.
-     * @param array|null $limitFields  The fields to ignore in the filter string.
+     * @param string     $rawFilter   The raw filter string to parse.
+     * @param array|null $limitFields The fields to allow in the filter string.
+     * @param string     $outerJoin   The join for this filter group.
      * @return void
      */
-    final public function filterRaw(string $filterString, array|null $limitFields = null)
+    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR')
     {
-        if (is_array($limitFields) === false || empty($limitFields) === true) {
-            $limitFields = null;
-        } else {
-            $limitFields = array_map('strtolower', $limitFields);
+        if ($rawFilter === '') {
+            return;
         }
-        $tokens = preg_split('/([()]|,OR,|,AND,|,)/', $filterString, -1, (PREG_SPLIT_NO_EMPTY | PREG_SPLIT_DELIM_CAPTURE));
-        $glued = [];
-        $glueToken = '';
-        foreach ($tokens as $item) {
-            if ($glueToken === '') {
-                $amount = preg_match_all('/(?<!\\\\)[\'"]/', $item, $matches, PREG_OFFSET_CAPTURE);
-                if ($amount > 0) {
-                    $glueToken = $matches[0][0][0];
-                    if ($amount === 1) {
-                        $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
-                        $item = str_replace("\\$glueToken", $glueToken, $item);
-                        $glued[] = $item;
-                    } else {
-                        $lastPos = 0;
-                        $newStr = '';
-                        foreach ($matches[0] as $pos) {
-                            $matchLen = strlen($glueToken);
-                            $startPos = ($pos[1] - $lastPos);
-                            $newStr .= substr($item, $lastPos, $startPos);
-                            $lastPos = ($pos[1] + $matchLen);
-                        }
-                        $newStr .= substr($item, $lastPos);
-                        $newStr = str_replace("\\$glueToken", $glueToken, $newStr);
-                        $glued[] = $newStr;
-                        $glueToken = '';
-                    }
-                } else {
-                    $glued[] = $item;
-                }//end if
-            } else {
-                // search for ending glue token
-                if (preg_match('/(?<!\\\\)' . $glueToken . '/', $item, $matches, PREG_OFFSET_CAPTURE) === 1) {
-                    $item = substr($item, 0, $matches[0][1]) . substr($item, ($matches[0][1] + 1));
-                    $glueToken = '';
+
+        if (substr($rawFilter, -1) !== ',') {
+            $rawFilter .= ',';
+        }
+
+        $parseFunc = function ($string, &$i = 0) use (&$parseFunc, $limitFields) {
+            $tokens = [];
+            $ignoreUntil = '';
+            $skipUntil = '';
+            $field = '';
+            $value = null;
+            $set = &$field;
+
+            for (; $i < strlen($string); $i++) {
+                $char = $string[$i];
+
+                if ($skipUntil !== '' && $char !== $skipUntil) {
+                    continue;
                 }
 
-                $item = str_replace("\\$glueToken", $glueToken, $item);
+                if ($ignoreUntil === '') {
+                    if ($char === '\'' || $char === '"') {
+                        $ignoreUntil = $char;
+                    } elseif ($char === ':') {
+                        if ($field === '') {
+                            $skipUntil = ',';
+                            continue;
+                        }
 
-                $glued[(count($glued) - 1)] .= $item;
-            }//end if
-        }//end foreach
-        $tokens = $glued;
+                        if ($field[0] === '\'' || $field[0] === '"') {
+                            $field = substr($field, 1, -1);
+                        }
 
-        $parseTokens = function ($tokenList, $level, $index, $groupBoolean = null) use ($limitFields, &$parseTokens) {
-            $tokenGroup = [];
-            $firstToken = false;
-            $tokenGroupBoolean = 'AND';
+                        $set = &$value;
+                        continue;
+                    } elseif (($char === ')' && $string[($i + 1)] === ',') || $char === ',') {
+                        if ($value === null) {
+                            $tokens[] = $field;
+                        } else {
+                            $value = trim($value);
+                            $operator = 'LIKE';
 
-            if ($groupBoolean !== null) {
-                $firstToken = true;
-                $tokenGroupBoolean = $groupBoolean;
-            }
+                            // Check if value has a operator and remove it if it's a number
+                            if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)*$/', $value, $matches) > 0) {
+                                $operator = $matches[1];
+                                $value = ($matches[2] ?? '');
+                            }
 
-            while ($index < count($tokenList)) {
-                $token = $tokenList[$index];
+                            if ($value[0] === '\'' || $value[0] === '"') {
+                                $value = substr($value, 1, -1);
+                            }
 
-                ++$index;
-                if ($token === '(') {
-                    // next group
-                    $nextGroupBoolean = null;
-                    if (count($tokenGroup) > 0 && strlen($tokenGroup[(count($tokenGroup) - 1)]['field']) === 0) {
-                        $nextGroupBoolean = $tokenGroup[(count($tokenGroup) - 1)]['boolean'];
-                        unset($tokenGroup[(count($tokenGroup) - 1)]);
-                    }
+                            if ($operator === 'LIKE') {
+                                $value = "%{$value}%";
+                            }
 
-                    $index = $parseTokens($tokenList, $level + 1, $index, $nextGroupBoolean);
-                } elseif ($token === ')') {
-                    // end group
-                    break;
-                } elseif (in_array(strtoupper($token), [',AND,', ',OR,']) === true) {
-                    // update boolean
-                    $boolean = trim(strtoupper($token), ',');
+                            if (
+                                is_array($limitFields) === false ||
+                                in_array(strtolower($field), array_map('strtolower', $limitFields)) !== false
+                            ) {
+                                $tokens[] = [$field, $operator, $value];
+                            }
+                        }//end if
 
-                    if ($firstToken === false && $level > 0) {
-                        $tokenGroupBoolean = $boolean;
-                    } else {
-                        $firstToken = true;
-                        $tokenGroup[] = [
-                            'field' => '',
-                            'value' => '',
-                            'boolean' => $boolean
-                        ];
-                    }
-                } elseif (strpos($token, ':') !== false) {
-                    // set tokenGroup
-                    $firstToken = true;
-                    $field = substr($token, 0, strpos($token, ':'));
-                    $value = substr($token, (strpos($token, ':') + 1));
-                    $boolean = 'AND';
+                        $field = '';
+                        $value = null;
+                        $set = &$field;
 
-                    if (count($tokenGroup) > 0 && strlen($tokenGroup[(count($tokenGroup) - 1)]['field']) === 0) {
-                        $tokenGroup[(count($tokenGroup) - 1)]['field'] = $field;
-                        $tokenGroup[(count($tokenGroup) - 1)]['value'] = $value;
-                        $boolean = $tokenGroup[(count($tokenGroup) - 1)]['boolean'];
-                    } else {
-                        $tokenGroup[] = [
-                            'field' => $field,
-                            'value' => $value,
-                            'boolean' => 'AND'
-                        ];
-                    }
+                        if ($char === ')') {
+                            $i++;
+                            return $tokens;
+                        }
 
-                    if ($limitFields === null || in_array(strtolower($field), $limitFields) !== true) {
-                        unset($tokenGroup[(count($tokenGroup) - 1)]);
-                    }
-
-                    if ($level === 0) {
-                        $this->filterFieldWithBuilder($this->query, $field, $value, $boolean);
-                    }
+                        continue;
+                    } elseif ($char === '(') {
+                        if ($field === '') {
+                            $i++;
+                            $tokens[] = $parseFunc($string, $i);
+                            continue;
+                        }
+                    }//end if
+                } elseif ($char === $ignoreUntil) {
+                    $ignoreUntil = '';
                 }//end if
-            }//end while
 
-            if ($level > 0) {
-                if ($tokenGroupBoolean === 'OR') {
-                    $this->query->orWhere(function ($query) use ($tokenGroup) {
-                        foreach ($tokenGroup as $tokenItem) {
-                            if (strlen($tokenItem['field']) > 0) {
-                                $this->filterFieldWithBuilder($query, $tokenItem['field'], $tokenItem['value'], $tokenItem['boolean']);
-                            }
-                        }
-                    });
-                } else {
-                    $this->query->where(function ($query) use ($tokenGroup) {
-                        foreach ($tokenGroup as $tokenItem) {
-                            if (strlen($tokenItem['field']) > 0) {
-                                $this->filterFieldWithBuilder($query, $tokenItem['field'], $tokenItem['value'], $tokenItem['boolean']);
-                            }
-                        }
-                    });
-                }
-            }//end if
+                $set .= $char;
+            }//end for
 
-            return $index;
+            return $tokens;
         };
 
-        $parseTokens($tokens, 0, 0);
+        $i = 0;
+        $filterArray = $parseFunc($rawFilter, $i);
+
+        if (count($this->filterArray) !== 0) {
+            $this->filterArray[] = $outerJoin;
+        }
+        $this->filterArray[] = $filterArray;
+    }
+
+    /**
+     * Append a field to the filter array.
+     *
+     * @param string $field    The field name to append.
+     * @param string $operator The operator to append.
+     * @param string $value    The value to append.
+     * @param string $join     The join to append.
+     * @return void
+     */
+    final public function appendFilter(string $field, string $operator, string $value, string $join = 'OR')
+    {
+        if (count($this->filterArray) !== 0) {
+            $this->filterArray[] = $join;
+        }
+        $this->filterArray[] = [$field, $operator, $value];
     }
 
     /**
@@ -718,8 +870,7 @@ class Conductor
     /**
      * Return an array of model fields visible to the current user.
      *
-     * @param Model   $model    The model in question.
-     * @param boolean $includes Include the includes in the result.
+     * @param Model $model The model in question.
      * @return array The array of field names.
      */
     public function fields(Model $model)
@@ -754,7 +905,7 @@ class Conductor
         $result = $this->transform($model);
         foreach ($result as $key => $value) {
             $transformFunction = 'transform' . Str::studly($key);
-            if (method_exists($this, $transformFunction)) {
+            if (method_exists($this, $transformFunction) === true) {
                 $result[$key] = $this->$transformFunction($value);
             }
         }
@@ -815,10 +966,10 @@ class Conductor
     }
 
     /**
-     * Is the passed model updateable by the current user?
+     * Is the passed model updatable by the current user?
      *
      * @param Model $model The model in question.
-     * @return boolean Is the model updateable.
+     * @return boolean Is the model updatable.
      */
     public static function updatable(Model $model)
     {
