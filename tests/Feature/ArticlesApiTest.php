@@ -14,7 +14,7 @@ class ArticlesApiTest extends TestCase
     protected $faker;
 
 
-    public function setUp(): void
+    protected function setUp(): void
     {
         parent::setUp();
         $this->faker = FakerFactory::create();
