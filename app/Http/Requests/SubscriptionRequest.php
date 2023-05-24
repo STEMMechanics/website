@@ -34,8 +34,6 @@ class SubscriptionRequest extends BaseRequest
 
     /**
      * Get the custom error messages.
-     *
-     * @return array
      */
     public function messages(): array
     {

@@ -41,8 +41,6 @@ class AnimatedGifService
      * @param string  $filenameOrBlob GIF filename path
      * @param integer $dataSize       GIF blob size.
      * @param boolean $originalFrames Get original frames (with transparent background)
-     *
-     * @return array
      */
     public function extract(string $filenameOrBlob, int $dataSize = 0, bool $originalFrames = false): array
     {
@@ -275,8 +273,6 @@ class GifFrameExtractor
 
     /**
      * Parse the graphic extension of the frames (old: get_graphics_extension)
-     *
-     * @param integer $type
      */
     private function parseGraphicsExtension(int $type)
     {
@@ -303,8 +299,6 @@ class GifFrameExtractor
 
     /**
      * Get the full frame string block (old: get_image_block)
-     *
-     * @param integer $type
      */
     private function getFrameString(int $type)
     {
@@ -400,12 +394,6 @@ class GifFrameExtractor
 
     /**
      * Get the image data byte (old: get_imagedata_byte)
-     *
-     * @param string  $type
-     * @param integer $start
-     * @param integer $length
-     *
-     * @return string
      */
     private function getImageDataByte(string $type, int $start, int $length): string
     {
@@ -419,13 +407,6 @@ class GifFrameExtractor
 
     /**
      * Get the image data bit (old: get_imagedata_bit)
-     *
-     * @param string  $type
-     * @param integer $byteIndex
-     * @param integer $bitStart
-     * @param integer $bitLength
-     *
-     * @return number
      */
     private function getImageDataBit(string $type, int $byteIndex, int $bitStart, int $bitLength): number
     {
@@ -439,10 +420,6 @@ class GifFrameExtractor
 
     /**
      * Return the value of 2 ASCII chars (old: dualbyteval)
-     *
-     * @param string $s
-     *
-     * @return integer
      */
     private function dualByteVal(string $s): int
     {
@@ -453,8 +430,6 @@ class GifFrameExtractor
 
     /**
      * Read the data stream (old: read_data_stream)
-     *
-     * @param integer $firstLength
      */
     private function readDataStream(int $firstLength)
     {
@@ -471,8 +446,6 @@ class GifFrameExtractor
 
     /**
      * Open the gif file (old: loadfile)
-     *
-     * @param string $filename
      */
     private function openFile(string $filename)
     {
@@ -495,10 +468,6 @@ class GifFrameExtractor
 
     /**
      * Read the file from the beginning to $byteCount in binary (old: readbyte)
-     *
-     * @param integer $byteCount
-     *
-     * @return string
      */
     private function readByte(int $byteCount): string
     {
@@ -510,8 +479,6 @@ class GifFrameExtractor
 
     /**
      * Read a byte and return ASCII value (old: readbyte_int)
-     *
-     * @return integer
      */
     private function readByteInt(): int
     {
@@ -523,12 +490,6 @@ class GifFrameExtractor
 
     /**
      * Convert a $byte to decimal (old: readbits)
-     *
-     * @param string  $byte
-     * @param integer $start
-     * @param integer $length
-     *
-     * @return number
      */
     private function readBits(string $byte, int $start, int $length): number
     {
@@ -540,8 +501,6 @@ class GifFrameExtractor
 
     /**
      * Rewind the file pointer reader (old: p_rewind)
-     *
-     * @param integer $length
      */
     private function pointerRewind(int $length)
     {
@@ -551,8 +510,6 @@ class GifFrameExtractor
 
     /**
      * Forward the file pointer reader (old: p_forward)
-     *
-     * @param integer $length
      */
     private function pointerForward(int $length)
     {
@@ -562,11 +519,6 @@ class GifFrameExtractor
 
     /**
      * Get a section of the data from $start to $start + $length (old: datapart)
-     *
-     * @param integer $start
-     * @param integer $length
-     *
-     * @return string
      */
     private function dataPart(int $start, int $length): string
     {
@@ -579,10 +531,6 @@ class GifFrameExtractor
 
     /**
      * Check if a character if a byte (old: checkbyte)
-     *
-     * @param integer $byte
-     *
-     * @return boolean
      */
     private function checkByte(int $byte): bool
     {
@@ -598,8 +546,6 @@ class GifFrameExtractor
 
     /**
      * Check the end of the file (old: checkEOF)
-     *
-     * @return boolean
      */
     private function checkEOF(): bool
     {
@@ -628,8 +574,6 @@ class GifFrameExtractor
 
     /**
      * Get the total of all added frame duration
-     *
-     * @return integer
      */
     public function getTotalDuration(): int
     {
@@ -638,8 +582,6 @@ class GifFrameExtractor
 
     /**
      * Get the number of extracted frames
-     *
-     * @return integer
      */
     public function getFrameNumber(): int
     {
@@ -648,8 +590,6 @@ class GifFrameExtractor
 
     /**
      * Get the extracted frames (images and durations)
-     *
-     * @return array
      */
     public function getFrames(): array
     {
@@ -658,8 +598,6 @@ class GifFrameExtractor
 
     /**
      * Get the extracted frame positions
-     *
-     * @return array
      */
     public function getFramePositions(): array
     {
@@ -668,8 +606,6 @@ class GifFrameExtractor
 
     /**
      * Get the extracted frame dimensions
-     *
-     * @return array
      */
     public function getFrameDimensions(): array
     {
@@ -678,8 +614,6 @@ class GifFrameExtractor
 
     /**
      * Get the extracted frame images
-     *
-     * @return array
      */
     public function getFrameImages(): array
     {
@@ -688,8 +622,6 @@ class GifFrameExtractor
 
     /**
      * Get the extracted frame durations
-     *
-     * @return array
      */
     public function getFrameDurations(): array
     {

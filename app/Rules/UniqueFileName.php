@@ -20,9 +20,7 @@ class UniqueFileName implements Rule
     /**
      * Determine if the validation rule passes.
      *
-     * @param  string $attribute
      * @param  mixed  $value
-     * @return boolean
      */
     public function passes(string $attribute, $value): bool
     {
@@ -31,8 +29,6 @@ class UniqueFileName implements Rule
 
     /**
      * Get the validation error message.
-     *
-     * @return string
      */
     public function message(): string
     {

@@ -24,7 +24,6 @@ class ApiController extends Controller
      * @param array   $data        Response data.
      * @param integer $respondCode Response status code.
      * @param array   $headers     Response headers.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondJson(array $data, int $respondCode = HttpResponseCodes::HTTP_OK, array $headers = []): JsonResponse
     {
@@ -35,7 +34,6 @@ class ApiController extends Controller
      * Return forbidden message
      *
      * @param string $message Response message.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondForbidden(string $message = 'You do not have permission to access the resource.'): JsonResponse
     {
@@ -46,7 +44,6 @@ class ApiController extends Controller
      * Return forbidden message
      *
      * @param string $message Response message.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondNotFound(string $message = 'The resource was not found.'): JsonResponse
     {
@@ -57,7 +54,6 @@ class ApiController extends Controller
      * Return too large message
      *
      * @param string $message Response message.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondTooLarge(string $message = 'The request entity is too large.'): JsonResponse
     {
@@ -66,7 +62,6 @@ class ApiController extends Controller
 
     /**
      * Return no content
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondNoContent(): JsonResponse
     {
@@ -75,7 +70,6 @@ class ApiController extends Controller
 
     /**
      * Return created
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondCreated(): JsonResponse
     {
@@ -84,7 +78,6 @@ class ApiController extends Controller
 
     /**
      * Return accepted
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondAccepted(): JsonResponse
     {
@@ -96,7 +89,6 @@ class ApiController extends Controller
      *
      * @param string  $message      Error message.
      * @param integer $responseCode Resource code.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondError(string $message, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
     {
@@ -110,7 +102,6 @@ class ApiController extends Controller
      *
      * @param array   $errors       Error messages.
      * @param integer $responseCode Resource code.
-     * @return \Illuminate\Http\JsonResponse
      */
     public function respondWithErrors(array $errors, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
     {
@@ -133,7 +124,6 @@ class ApiController extends Controller
      *
      * @param array|Model|Collection $data    Resource data.
      * @param array                  $options Respond options.
-     * @return \Illuminate\Http\JsonResponse
      */
     protected function respondAsResource(
         mixed $data,

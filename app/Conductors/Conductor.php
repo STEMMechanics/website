@@ -143,7 +143,6 @@ class Conductor
      *
      * @param Request    $request     The user request.
      * @param array|null $limitFields A list of fields to limit the filter request to.
-     * @return void
      */
     private function filter(Request $request, array|null $limitFields = null): void
     {
@@ -210,8 +209,6 @@ class Conductor
 
     /**
      * Apple the filter array to the collection.
-     *
-     * @return void
      */
     final public function applyFilters(): void
     {
@@ -503,7 +500,6 @@ class Conductor
      * @param Builder    $query       The custom query.
      * @param Request    $request     The request.
      * @param array|null $limitFields Limit the request to these fields.
-     * @return Builder
      */
     public static function filterQuery(Builder $query, Request $request, array|null $limitFields = null): Builder
     {
@@ -619,7 +615,6 @@ class Conductor
      * Sort the conductor collection.
      *
      * @param mixed $fields A field name or array of field names to sort. Supports prefix of +/- to change direction.
-     * @return void
      */
     final public function sort(mixed $fields = null): void
     {
@@ -698,7 +693,6 @@ class Conductor
      *
      * @param Model $model    The model to append.
      * @param array $includes The list of includes to include.
-     * @return void
      */
     final public function applyIncludes(Model $model, array $includes): void
     {
@@ -718,7 +712,6 @@ class Conductor
      * Limit the returned fields in the conductor collection.
      *
      * @param array $fields An array of field names.
-     * @return void
      */
     final public function limitFields(array $fields): void
     {
@@ -733,7 +726,6 @@ class Conductor
      * @param string     $rawFilter   The raw filter string to parse.
      * @param array|null $limitFields The fields to allow in the filter string.
      * @param string     $outerJoin   The join for this filter group.
-     * @return void
      */
     final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR'): void
     {
@@ -847,7 +839,6 @@ class Conductor
      * @param string $operator The operator to append.
      * @param string $value    The value to append.
      * @param string $join     The join to append.
-     * @return void
      */
     final public function appendFilter(string $field, string $operator, string $value, string $join = 'OR'): void
     {
@@ -861,7 +852,6 @@ class Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
-     * @return void
      */
     public function scope(Builder $builder): void
     {

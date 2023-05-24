@@ -28,8 +28,6 @@ class UserLogins extends Model
 
     /**
      * Get the file user
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

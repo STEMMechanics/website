@@ -24,8 +24,6 @@ class Permission extends Model
 
     /**
      * Get the User associated with this model
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

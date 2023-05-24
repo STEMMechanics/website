@@ -47,7 +47,6 @@ class Uniqueish implements Rule
      * Set the ID of the record to be ignored.
      *
      * @param  mixed $id The ID to ignore.
-     * @return $this
      */
     public function ignore(mixed $id): static
     {
@@ -60,7 +59,6 @@ class Uniqueish implements Rule
      *
      * @param  mixed $attribute Not used.
      * @param  mixed $value     The value to compare.
-     * @return boolean
      */
     public function passes(mixed $attribute, mixed $value): bool
     {
@@ -97,8 +95,6 @@ class Uniqueish implements Rule
 
     /**
      * Get the validation error message.
-     *
-     * @return string
      */
     public function message(): string
     {

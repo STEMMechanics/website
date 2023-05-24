@@ -22,7 +22,6 @@ class Recaptcha implements Rule
      *
      * @param  mixed $attribute Attribute name.
      * @param  mixed $value     Attribute value.
-     * @return boolean
      */
     public function passes(mixed $attribute, mixed $value): bool
     {
@@ -42,8 +41,6 @@ class Recaptcha implements Rule
 
     /**
      * Get the validation error message.
-     *
-     * @return string
      */
     public function message(): string
     {

@@ -29,8 +29,6 @@ class Article extends Model
 
     /**
      * Get the article user
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -39,8 +37,6 @@ class Article extends Model
 
     /**
      * Get all of the article's attachments.
-     *
-     * @return MorphMany
      */
     public function attachments(): MorphMany
     {

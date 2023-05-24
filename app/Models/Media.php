@@ -100,8 +100,6 @@ class Media extends Model
 
     /**
      * Model Boot
-     *
-     * @return void
      */
     protected static function boot(): void
     {
@@ -164,7 +162,6 @@ class Media extends Model
      * Variants Set Mutator.
      *
      * @param mixed $value The value to mutate.
-     * @return void
      */
     public function setVariantsAttribute(mixed $value): void
     {
@@ -256,8 +253,6 @@ class Media extends Model
 
     /**
      * Delete file and associated files with the modal.
-     *
-     * @return void
      */
     public function deleteFile(): void
     {
@@ -279,7 +274,6 @@ class Media extends Model
     /**
      * Invalidate Cloudflare Cache.
      *
-     * @return void
      * @throws InvalidArgumentException Exception.
      */
     private function invalidateCFCache(): void
@@ -311,8 +305,6 @@ class Media extends Model
 
     /**
      * Get URL path
-     *
-     * @return string
      */
     public function getUrlPath(): string
     {
@@ -322,8 +314,6 @@ class Media extends Model
 
     /**
      * Return the file URL
-     *
-     * @return string
      */
     public function getUrlAttribute(): string
     {
@@ -336,8 +326,6 @@ class Media extends Model
 
     /**
      * Return the file owner
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -348,7 +336,6 @@ class Media extends Model
      * Move files to new storage device.
      *
      * @param string $storage The storage ID to move to.
-     * @return void
      */
     public function moveToStorage(string $storage): void
     {
@@ -494,8 +481,6 @@ class Media extends Model
 
     /**
      * Get the server maximum upload size
-     *
-     * @return integer
      */
     public static function getMaxUploadSize(): int
     {
@@ -620,7 +605,6 @@ class Media extends Model
      * Sanitize fileName for upload
      *
      * @param string $fileName Filename to sanitize.
-     * @return string
      */
     private static function sanitizeFilename(string $fileName): string
     {

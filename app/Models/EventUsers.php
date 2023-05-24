@@ -24,8 +24,6 @@ class EventUser extends Model
 
     /**
      * Get the event for this attachment.
-     *
-     * @return BelongsTo
      */
     public function event(): BelongsTo
     {
@@ -34,8 +32,6 @@ class EventUser extends Model
 
     /**
      * Get the user for this attachment.
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

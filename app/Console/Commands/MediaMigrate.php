@@ -27,8 +27,6 @@ class MediaMigrate extends Command
 
     /**
      * Configure the command options.
-     *
-     * @return void
      */
     protected function configure(): void
     {
@@ -42,8 +40,6 @@ class MediaMigrate extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
     public function handle(): void
     {

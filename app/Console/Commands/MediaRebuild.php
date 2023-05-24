@@ -26,8 +26,6 @@ class MediaRebuild extends Command
 
     /**
      * Configure the command options.
-     *
-     * @return void
      */
     protected function configure(): void
     {
@@ -48,8 +46,6 @@ class MediaRebuild extends Command
 
     /**
      * Execute the console command.
-     *
-     * @return void
      */
     public function handle(): void
     {

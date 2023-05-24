@@ -145,7 +145,6 @@ class UserController extends ApiController
      * Register a new user
      *
      * @param \App\Http\Requests\UserRegisterRequest $request The register user request.
-     * @return \Illuminate\Http\Response
      */
     public function register(UserRegisterRequest $request): JsonResponse
     {
@@ -286,7 +285,6 @@ class UserController extends ApiController
      * Resend a new verify email
      *
      * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend verify email request.
-     * @return \Illuminate\Http\Response
      */
     public function resendVerifyEmail(UserResendVerifyEmailRequest $request): JsonResponse
     {
@@ -340,7 +338,6 @@ class UserController extends ApiController
      *
      * @param Request $request The http request.
      * @param User    $user    The specified user.
-     * @return JsonResponse
      */
     public function eventList(Request $request, User $user): JsonResponse
     {

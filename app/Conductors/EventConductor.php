@@ -33,7 +33,6 @@ class EventConductor extends Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
-     * @return void
      */
     public function scope(Builder $builder): void
     {

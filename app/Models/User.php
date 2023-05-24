@@ -79,8 +79,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
-     *
-     * @return HasMany
      */
     public function permissions(): HasMany
     {
@@ -89,8 +87,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the permission attribute
-     *
-     * @return array
      */
     public function getPermissionsAttribute(): array
     {
@@ -101,7 +97,6 @@ class User extends Authenticatable implements Auditable
      * Test if user has permission
      *
      * @param string $permission Permission to test.
-     * @return boolean
      */
     public function hasPermission(string $permission): bool
     {
@@ -112,7 +107,6 @@ class User extends Authenticatable implements Auditable
      * Give permissions to the user
      *
      * @param string|array $permissions The permission(s) to give.
-     * @return Collection
      */
     public function givePermission($permissions): Collection
     {
@@ -137,7 +131,6 @@ class User extends Authenticatable implements Auditable
      * Revoke permissions from the user
      *
      * @param string|array $permissions The permission(s) to revoke.
-     * @return integer
      */
     public function revokePermission($permissions): int
     {
@@ -152,8 +145,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
-     *
-     * @return HasMany
      */
     public function media(): HasMany
     {
@@ -162,8 +153,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
-     *
-     * @return HasMany
      */
     public function articles(): HasMany
     {
@@ -172,8 +161,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get associated user codes
-     *
-     * @return HasMany
      */
     public function codes(): HasMany
     {
@@ -182,8 +169,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of logins of the user
-     *
-     * @return HasMany
      */
     public function logins(): HasMany
     {
@@ -192,8 +177,6 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the events associated with the user.
-     *
-     * @return BelongsToMany
      */
     public function events(): BelongsToMany
     {

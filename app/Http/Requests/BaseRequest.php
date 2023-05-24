@@ -9,8 +9,6 @@ class BaseRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return boolean
      */
     public function authorize(): bool
     {
@@ -54,7 +52,6 @@ class BaseRequest extends FormRequest
      *
      * @param array $collection1 The first collection of rules.
      * @param array $collection2 The second collection of rules to merge.
-     * @return array
      */
     private function mergeRules(array $collection1, array $collection2): array
     {

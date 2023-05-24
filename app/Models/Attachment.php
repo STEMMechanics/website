@@ -33,8 +33,6 @@ class Attachment extends Model
 
     /**
      * Get attachments attachable
-     *
-     * @return MorphTo
      */
     public function attachable(): MorphTo
     {
@@ -43,8 +41,6 @@ class Attachment extends Model
 
     /**
      * Get the media for this attachment.
-     *
-     * @return BelongsTo
      */
     public function media(): BelongsTo
     {

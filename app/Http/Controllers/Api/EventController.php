@@ -155,7 +155,6 @@ class EventController extends ApiController
      *
      * @param Request $request The user request.
      * @param Event   $event   The related model.
-     * @return JsonResponse
      */
     public function updateAttachments(Request $request, Event $event): JsonResponse
     {
@@ -203,7 +202,6 @@ class EventController extends ApiController
      * @param Request $request The user request.
      * @param Event   $event   The model.
      * @param Media   $medium  The attachment medium.
-     * @return JsonResponse
      */
     public function deleteAttachment(Request $request, Event $event, Media $medium): JsonResponse
     {

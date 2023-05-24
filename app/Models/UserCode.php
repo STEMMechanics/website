@@ -23,8 +23,6 @@ class UserCode extends Model
 
     /**
      * Boot function from Laravel.
-     *
-     * @return void
      */
     protected static function boot(): void
     {
@@ -46,8 +44,6 @@ class UserCode extends Model
 
     /**
      * Generate new code
-     *
-     * @return void
      */
     public function regenerate(): void
     {
@@ -62,8 +58,6 @@ class UserCode extends Model
 
     /**
      * Clear expired user codes
-     *
-     * @return void
      */
     public static function clearExpired(): void
     {
@@ -72,8 +66,6 @@ class UserCode extends Model
 
     /**
      * Get associated user
-     *
-     * @return BelongsTo
      */
     public function user(): BelongsTo
     {

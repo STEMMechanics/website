@@ -38,8 +38,6 @@ class Event extends Model
 
     /**
      * Get all of the article's attachments.
-     *
-     * @return MorphMany
      */
     public function attachments(): MorphMany
     {
@@ -48,8 +46,6 @@ class Event extends Model
 
     /**
      * Get all the associated users.
-     *
-     * @return BelongsToMany
      */
     public function users(): BelongsToMany
     {
