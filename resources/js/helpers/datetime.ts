@@ -327,6 +327,7 @@ export class SMDate {
 
         // am/pm
         result = result.replace(/\baa\b/g, apm);
+        result = result.replace(/\bAA\b/g, apm.toUpperCase());
 
         return result;
     }
