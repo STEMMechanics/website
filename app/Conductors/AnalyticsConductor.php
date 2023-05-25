@@ -2,16 +2,7 @@
 
 namespace App\Conductors;
 
-use App\Models\Media;
-use App\Models\User;
-use Carbon\Carbon;
-use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\InvalidCastException;
-use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
-use LogicException;
 
 class AnalyticsConductor extends Conductor
 {
@@ -19,20 +10,14 @@ class AnalyticsConductor extends Conductor
      * The Model Class
      * @var string
      */
-    protected $class = \App\Models\Analytics::class;
-
-    /**
-     * The default sorting field
-     * @var string
-     */
-    protected $sort = 'created_at';
+    protected $class = \App\Models\AnalyticsSession::class;
 
     /**
      * The default includes to include in a request.
      *
      * @var array
      */
-    protected $includes = ['duration'];
+    protected $includes = ['requests.type','requests.path'];
 
 
     /**

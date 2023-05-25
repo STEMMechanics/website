@@ -6,13 +6,8 @@ use App\Conductors\AnalyticsConductor;
 use App\Conductors\Conductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\AnalyticsRequest;
-use App\Models\Media;
 use App\Models\Analytics;
-use Illuminate\Http\JsonResponse;
-use Carbon\Exceptions\InvalidFormatException;
-use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Database\Eloquent\InvalidCastException;
-use Illuminate\Database\Eloquent\MassAssignmentException;
+use App\Models\AnalyticsSession;
 use Illuminate\Http\Request;
 
 class AnalyticsController extends ApiController
@@ -39,27 +34,17 @@ class AnalyticsController extends ApiController
     public function index(Request $request)
     {
         if ($request->user() !== null && $request->user()?->hasPermission('admin/analytics') === true) {
-            $searchFields = ['attribute', 'type', 'useragent', 'ip'];
+            $request->rename([
+                'type' => 'requests.type',
+                'path' => 'requests.path'
+            ]);
 
-            $queryRequest = new Request();
-            $queryRequest->merge($request->only($searchFields));
-            foreach ($searchFields as $field) {
-                unset($request[$field]);
-            }
-
-            $query = Analytics::query()
-                ->selectRaw('session,
-                MIN(created_at) as created_at,
-                TIMESTAMPDIFF(MINUTE, MIN(created_at), MAX(created_at)) as duration');
-            $query = Conductor::filterQuery($query, $queryRequest);
-
-            list($collection, $total) = AnalyticsConductor::collection($request, $query
-            ->groupBy('session')
-            ->get());
+            list($collection, $total) = AnalyticsConductor::request($request);
 
             return $this->respondAsResource(
                 $collection,
-                ['isCollection' => true,
+                ['resourceName' => 'session',
+                    'isCollection' => true,
                     'appendData' => ['total' => $total]
                 ]
             );
@@ -71,22 +56,25 @@ class AnalyticsController extends ApiController
     /**
      * Display the specified resource.
      *
-     * @param \Illuminate\Http\Request $request   The endpoint request.
-     * @param  \App\Models\Analytics    $analytics The analyics model.
+     * @param \Illuminate\Http\Request     $request The endpoint request.
+     * @param  \App\Models\AnalyticsSession $session The analytics session.
      * @return \Illuminate\Http\Response
      */
-    public function show(Request $request, int $session)
+    public function show(Request $request, AnalyticsSession $session)
     {
         if ($request->user() !== null && $request->user()?->hasPermission('admin/analytics') === true) {
-            list($collection, $total) = AnalyticsConductor::collection($request, Analytics::query()
-            ->where('session', $session)
-            ->get());
+            $session->load(['requests' => function ($query) {
+                $query->select('session_id', 'type', 'path', 'created_at');
+            }
+            ]);
+
+            foreach ($session->requests as $requestItem) {
+                $requestItem->makeHidden('session_id');
+            }
 
             return $this->respondAsResource(
-                $collection,
-                ['isCollection' => true,
-                    'appendData' => ['total' => $total]
-                ]
+                $session,
+                ['resourceName' => 'session']
             );
         }
 
@@ -113,10 +101,10 @@ class AnalyticsController extends ApiController
             ];
 
             if ($user !== null && $user->hasPermission('admin/analytics') === true && $request->has('session') === true) {
-                $data['session'] = $request->input('session');
-                $analytics = Analytics::create($data);
+                $data['session_id'] = $request->input('session_id');
+                $analytics = AnalyticsRequest::create($data);
             } else {
-                $analytics = Analytics::createWithSession($data);
+                $analytics = AnalyticsRequest::create($data);
             }
 
             return $this->respondAsResource(
@@ -126,38 +114,5 @@ class AnalyticsController extends ApiController
         } else {
             return $this->respondForbidden();
         }//end if
-    }
-
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param  \App\Http\Requests\AnalyticsRequest $request   The analytics update request.
-     * @param  \App\Models\Analytics               $analytics The specified analytics.
-     * @return \Illuminate\Http\Response
-     */
-    public function update(AnalyticsRequest $request, Analytics $analytics)
-    {
-        if (AnalyticsConductor::updatable($analytics) === true) {
-            $analytics->update($request->all());
-            return $this->respondAsResource(AnalyticsConductor::model($request, $analytics));
-        }
-
-        return $this->respondForbidden();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  \App\Models\Analytics $analytics The specified analytics.
-     * @return \Illuminate\Http\Response
-     */
-    public function destroy(Analytics $analytics)
-    {
-        if (AnalyticsConductor::destroyable($analytics) === true) {
-            $analytics->delete();
-            return $this->respondNoContent();
-        } else {
-            return $this->respondForbidden();
-        }
     }
 }

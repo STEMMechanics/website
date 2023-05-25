@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class Conductor
@@ -143,6 +142,7 @@ class Conductor
      *
      * @param Request    $request     The user request.
      * @param array|null $limitFields A list of fields to limit the filter request to.
+     * @return void
      */
     private function filter(Request $request, array|null $limitFields = null): void
     {
@@ -156,6 +156,7 @@ class Conductor
         }
         $filterFields += $this->defaultFilters;
 
+
         foreach ($filterFields as $field => $value) {
             if (
                 is_array($limitFields) === false ||
@@ -163,7 +164,7 @@ class Conductor
             ) {
                 $value = trim($value);
                 $operator = '';
-                $join = 'OR';
+                $join = 'AND';
 
                 // Check if value has a operator and remove it if it's a number
                 if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)*$/', $value, $matches) > 0) {
@@ -209,6 +210,8 @@ class Conductor
 
     /**
      * Apple the filter array to the collection.
+     *
+     * @return void
      */
     final public function applyFilters(): void
     {
@@ -216,6 +219,40 @@ class Conductor
             $item = null;
             $result = null;
             $join = 'AND';
+
+            $relationFilter = [];
+
+            $buildWhereFunc = function ($query, $field, $operator, $value, $join) {
+                if ($join === 'OR') {
+                    if ($operator === '<>') {
+                        $separatorPos = strpos($value, '|');
+                        if ($separatorPos !== false) {
+                            $query->orWhereBetween(
+                                $field,
+                                [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
+                            );
+                        } else {
+                            $query->orWhere($field, '!=', $value);
+                        }
+                    } else {
+                        $query->orWhere($field, $operator, $value);
+                    }
+                } else {
+                    if ($operator === '<>') {
+                        $separatorPos = strpos($value, '|');
+                        if ($separatorPos !== false) {
+                            $query->whereBetween(
+                                $field,
+                                [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
+                            );
+                        } else {
+                            $query->where($field, '!=', $value);
+                        }
+                    } else {
+                        $query->where($field, $operator, $value);
+                    }
+                }//end if
+            };
 
             if (gettype($query) === 'array') {
                 $item = $query;
@@ -288,35 +325,17 @@ class Conductor
                                 $operator = '=';
                             }
 
-                            if ($join === 'OR') {
-                                if ($operator === '<>') {
-                                    $separatorPos = strpos($value, '|');
-                                    if ($separatorPos !== false) {
-                                        $query->orWhereBetween(
-                                            $field,
-                                            [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
-                                        );
-                                    } else {
-                                        $query->orWhere($field, '!=', $value);
-                                    }
-                                } else {
-                                    $query->orWhere($field, $operator, $value);
+                            $relationSplit = strpos($field, '.');
+                            if ($relationSplit !== false) {
+                                $relation = substr($field, 0, $relationSplit);
+                                $field = substr($field, ($relationSplit + 1));
+
+                                if (method_exists($this->class, $relation) === true) {
+                                    $relationFilter[$relation][] = [$field, $operator, $value, $join];
                                 }
                             } else {
-                                if ($operator === '<>') {
-                                    $separatorPos = strpos($value, '|');
-                                    if ($separatorPos !== false) {
-                                        $query->whereBetween(
-                                            $field,
-                                            [substr($value, 0, $separatorPos), substr($value, ($separatorPos + 1))]
-                                        );
-                                    } else {
-                                        $query->where($field, '!=', $value);
-                                    }
-                                } else {
-                                    $query->where($field, $operator, $value);
-                                }
-                            }//end if
+                                $buildWhereFunc($query, $field, $operator, $value, $join);
+                            }
                         }//end if
                     }//end if
 
@@ -337,6 +356,14 @@ class Conductor
                     $join = $condition;
                 }//end if
             }//end foreach
+
+            foreach ($relationFilter as $relation => $conditions) {
+                $query->whereHas($relation, function ($subQuery) use ($buildWhereFunc, $conditions) {
+                    foreach ($conditions as $condition) {
+                        $buildWhereFunc($subQuery, $condition[0], $condition[1], $condition[2], $condition[3]);
+                    }
+                });
+            }
 
             return $result;
         };

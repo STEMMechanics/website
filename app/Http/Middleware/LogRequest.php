@@ -2,17 +2,19 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Requests\AnalyticsRequest;
 use Symfony\Component\HttpFoundation\Response;
 use Closure;
 use Illuminate\Http\Request;
-use App\Models\Analytics;
 
 class LogRequest
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next
+     * @param Illuminate\Http\Request                                                                           $request HTTP Request.
+     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next    Closure.
+     * @return Symfony\Component\HttpFoundation\Response
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -20,11 +22,9 @@ class LogRequest
         $response = $next($request);
 
         try {
-            Analytics::createWithSession([
+            AnalyticsRequest::create([
                 'type' => 'apirequest',
                 'attribute' => $request->path(),
-                'useragent' => $request->userAgent(),
-                'ip' => $request->ip(),
             ]);
 
             return $response;
