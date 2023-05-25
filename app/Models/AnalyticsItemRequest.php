@@ -51,11 +51,13 @@ class AnalyticsItemRequest extends Model
                             'useragent' => $request->userAgent(),
                             'ended_at'  => now()
                         ]);
+                    } else {
+                        $session->update(['ended_at' => now()]);
                     }
 
                     $analytics->session_id = $session->id;
                 }
-            }
+            }//end if
         });
     }
 
