@@ -147,9 +147,9 @@ class Media extends Model
      * Variants Get Mutator.
      *
      * @param mixed $value The value to mutate.
-     * @return array The mutated value.
+     * @return array|null The mutated value.
      */
-    public function getVariantsAttribute(mixed $value): array
+    public function getVariantsAttribute(mixed $value): array|null
     {
         if (is_string($value) === true) {
             return json_decode($value, true);
