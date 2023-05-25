@@ -6,9 +6,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class AnalyticsRequest extends Model
+class AnalyticsItemRequest extends Model
 {
     use HasFactory;
+
+    /**
+     * The table name
+     *
+     * @var string
+     */
+    protected $table = 'analytics_requests';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'type',
+        'path'
+    ];
 
 
     /**
@@ -20,7 +37,7 @@ class AnalyticsRequest extends Model
     {
         parent::boot();
 
-        static::creating(function (AnalyticsRequest $analytics) {
+        static::creating(function (AnalyticsItemRequest $analytics) {
             if (isset($analytics->session_id) !== true) {
                 $request = request();
                 if ($request !== null) {

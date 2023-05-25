@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Conductors\AnalyticsConductor;
-use App\Conductors\Conductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\AnalyticsRequest;
-use App\Models\Analytics;
+use App\Models\AnalyticsItemRequest;
 use App\Models\AnalyticsSession;
 use Illuminate\Http\Request;
 
@@ -95,16 +94,16 @@ class AnalyticsController extends ApiController
 
             $data = [
                 'type' => $request->input('type'),
-                'attribute' => $request->input('attribute', ''),
+                'path' => $request->input('path', ''),
                 'useragent' => $request->userAgent(),
                 'ip' => $request->ip()
             ];
 
             if ($user !== null && $user->hasPermission('admin/analytics') === true && $request->has('session') === true) {
                 $data['session_id'] = $request->input('session_id');
-                $analytics = AnalyticsRequest::create($data);
+                $analytics = AnalyticsItemRequest::create($data);
             } else {
-                $analytics = AnalyticsRequest::create($data);
+                $analytics = AnalyticsItemRequest::create($data);
             }
 
             return $this->respondAsResource(

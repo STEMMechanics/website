@@ -11,12 +11,22 @@ class AnalyticsSession extends Model
     use HasFactory;
 
     /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
+    protected $fillable = [
+        'ip',
+        'useragent',
+    ];
+
+    /**
      * Returns the related requests for this session.
      * 
      * @return Illuminate\Database\Eloquent\Relations\HasMany
      */
     public function requests(): HasMany {
-        return $this->hasMany(AnalyticsRequest::class, 'session_id', 'id');
+        return $this->hasMany(AnalyticsItemRequest::class, 'session_id', 'id');
     }
     
 }

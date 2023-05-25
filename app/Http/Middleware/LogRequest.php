@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Http\Requests\AnalyticsRequest;
+use App\Models\AnalyticsItemRequest;
 use Symfony\Component\HttpFoundation\Response;
 use Closure;
 use Illuminate\Http\Request;
@@ -22,9 +22,9 @@ class LogRequest
         $response = $next($request);
 
         try {
-            AnalyticsRequest::create([
+            AnalyticsItemRequest::create([
                 'type' => 'apirequest',
-                'attribute' => $request->path(),
+                'path' => $request->path(),
             ]);
 
             return $response;
