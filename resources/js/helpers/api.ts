@@ -153,10 +153,13 @@ export const api = {
                         result.data = xhr.response;
                     }
 
+                    useApplicationStore().unavailable = false;
                     if (xhr.status < 300) {
                         resolve(result);
                     } else {
-                        useApplicationStore().unavailable = true;
+                        if (xhr.status == 503) {
+                            useApplicationStore().unavailable = true;
+                        }
                         reject(result);
                     }
                 };
@@ -212,8 +215,11 @@ export const api = {
                             data: data,
                         };
 
+                        useApplicationStore().unavailable = false;
                         if (response.status >= 300) {
-                            useApplicationStore().unavailable = true;
+                            if (response.status === 503) {
+                                useApplicationStore().unavailable = true;
+                            }
                             reject(result);
                         }
 
