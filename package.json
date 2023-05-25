@@ -39,7 +39,7 @@
         "sass": "^1.57.1",
         "tinymce": "^6.3.1",
         "vue": "^3.2.36",
-        "vue-dompurify-html": "^3.1.2",
+        "vue-dompurify-html": "^4.1.4",
         "vue-final-modal": "^4.4.2",
         "vue-loader": "^17.0.1",
         "vue-router": "^4.1.6",
