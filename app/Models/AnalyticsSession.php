@@ -18,6 +18,7 @@ class AnalyticsSession extends Model
     protected $fillable = [
         'ip',
         'useragent',
+        'ended_at'
     ];
 
     /**
