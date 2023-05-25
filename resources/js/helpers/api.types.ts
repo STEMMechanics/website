@@ -1,5 +1,35 @@
 export type Booleanish = boolean | "true" | "false";
 
+export type EmptyObject = { [key: string]: never };
+
+export interface SessionRequest {
+    id: number;
+    session_id: number;
+    type: string;
+    path: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Session {
+    id: number;
+    ip: string;
+    useragent: string;
+    created_at: string;
+    updated_at: string;
+    ended_at: string;
+    requests?: SessionRequest[];
+}
+
+export interface SessionCollection {
+    sessions: Session[];
+    total: number;
+}
+
+export interface SessionRequestCollection {
+    session: Session;
+}
+
 export interface Event {
     id: string;
     title: string;

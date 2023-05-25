@@ -199,6 +199,31 @@ export const routes = [
                     ),
             },
             {
+                path: "analytics",
+                children: [
+                    {
+                        path: "",
+                        name: "dashboard-analytics-list",
+                        meta: {
+                            title: "Analytics",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/AnalyticsList.vue"),
+                    },
+                    {
+                        path: ":id",
+                        name: "dashboard-analytics-item",
+                        meta: {
+                            title: "Analytics Session",
+                            middleware: "authenticated",
+                        },
+                        component: () =>
+                            import("@/views/dashboard/AnalyticsItem.vue"),
+                    },
+                ],
+            },
+            {
                 path: "articles",
                 children: [
                     {
@@ -471,7 +496,7 @@ router.beforeEach(async (to, from, next) => {
         url: "/analytics",
         body: {
             type: "pageview",
-            attribute: to.fullPath,
+            path: to.fullPath,
         },
     }).catch(() => {
         /* empty */

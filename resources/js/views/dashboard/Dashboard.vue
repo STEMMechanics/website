@@ -43,8 +43,8 @@
             </router-link>
             <router-link
                 v-if="userStore.permissions.includes('admin/media')"
-                :to="{ name: 'dashboard-media-list' }"
-                class="admin-card media">
+                :to="{ name: 'dashboard-analytics-list' }"
+                class="admin-card analytics">
                 <ion-icon name="bar-chart-outline" />
                 <h3>Analytics</h3>
             </router-link>
