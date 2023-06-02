@@ -211,11 +211,10 @@ const handleLoad = async () => {
                     url: "/events",
                     params: {
                         limit: 4,
-                        status: "open,soon",
                         sort: "start_at",
-                        start_at:
-                            ">" +
-                            new SMDate("now").format("yyyy-MM-dd hh:mm:ss"),
+                        filter: `(status:open,OR,status:soon),AND,start_at:>${new SMDate(
+                            "now"
+                        ).format("yyyy-MM-dd hh:mm:ss")}`,
                     },
                 })
                 .then((eventsResult) => {
