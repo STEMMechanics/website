@@ -163,6 +163,11 @@ const computedDate = (date) => {
 };
 
 const handleLoad = async () => {
+    // const filter = `(status:open,OR,status:soon),AND,start_at:>${new SMDate(
+    //     "now"
+    // ).format("yyyy-MM-dd hh:mm:ss")}`;
+    // console.log(filter);
+
     try {
         await Promise.all([
             api
@@ -210,11 +215,12 @@ const handleLoad = async () => {
                 .get({
                     url: "/events",
                     params: {
-                        limit: 4,
+                        limit: 10,
                         sort: "start_at",
-                        filter: `(status:open,OR,status:soon),AND,start_at:>${new SMDate(
-                            "now"
-                        ).format("yyyy-MM-dd hh:mm:ss")}`,
+                        start_at: `>${new SMDate("now").format(
+                            "yyyy-MM-dd hh:mm:ss"
+                        )}`,
+                        // filter: filter,
                     },
                 })
                 .then((eventsResult) => {
@@ -222,7 +228,18 @@ const handleLoad = async () => {
                         getApiResultData<EventCollection>(eventsResult);
 
                     if (eventsData && eventsData.events) {
-                        events.value = eventsData.events;
+                        events.value = [];
+
+                        for (const event of eventsData.events) {
+                            if (
+                                event.status === "open" ||
+                                event.status === "soon"
+                            ) {
+                                events.value.push(event);
+                                if (events.value.length === 4) break;
+                            }
+                        }
+                        // events.value = eventsData.events;
                     }
                 }),
         ]);
