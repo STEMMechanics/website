@@ -753,6 +753,7 @@ class Conductor
      * @param string     $rawFilter   The raw filter string to parse.
      * @param array|null $limitFields The fields to allow in the filter string.
      * @param string     $outerJoin   The join for this filter group.
+     * @return void
      */
     final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR'): void
     {
@@ -792,8 +793,10 @@ class Conductor
                             $field = substr($field, 1, -1);
                         }
 
-                        $set = &$value;
-                        continue;
+                        if ($set !== $value) {
+                            $set = &$value;
+                            continue;
+                        }
                     } elseif (($char === ')' && $string[($i + 1)] === ',') || $char === ',') {
                         if ($value === null) {
                             $tokens[] = $field;
@@ -852,6 +855,7 @@ class Conductor
 
         $i = 0;
         $filterArray = $parseFunc($rawFilter, $i);
+        print_r($filterArray);
 
         if (count($this->filterArray) !== 0) {
             $this->filterArray[] = $outerJoin;
