@@ -855,7 +855,6 @@ class Conductor
 
         $i = 0;
         $filterArray = $parseFunc($rawFilter, $i);
-        print_r($filterArray);
 
         if (count($this->filterArray) !== 0) {
             $this->filterArray[] = $outerJoin;
