@@ -10,6 +10,7 @@ use App\Conductors\UserConductor;
 use App\Http\Requests\EventRequest;
 use App\Models\Media;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class EventController extends ApiController
