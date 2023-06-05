@@ -200,6 +200,11 @@ const computedBanner = (event: Event): EventBanner => {
             banner: "cancelled",
             type: "danger",
         };
+    } else if (event.status == "draft") {
+        return {
+            banner: "draft",
+            type: "expired",
+        };
     }
 
     return {
