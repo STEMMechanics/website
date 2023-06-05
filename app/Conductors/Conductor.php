@@ -172,6 +172,10 @@ class Conductor
                     $value = ($matches[2] ?? '');
                 }
 
+                if (strlen($value) === 0 && ($operator !== '==' && $operator !== '!=')) {
+                    continue;
+                }
+
                 switch ($operator) {
                     case '=':
                         $operator = '==';
@@ -642,6 +646,7 @@ class Conductor
      * Sort the conductor collection.
      *
      * @param mixed $fields A field name or array of field names to sort. Supports prefix of +/- to change direction.
+     * @return void
      */
     final public function sort(mixed $fields = null): void
     {
@@ -720,6 +725,7 @@ class Conductor
      *
      * @param Model $model    The model to append.
      * @param array $includes The list of includes to include.
+     * @return void
      */
     final public function applyIncludes(Model $model, array $includes): void
     {
@@ -739,6 +745,7 @@ class Conductor
      * Limit the returned fields in the conductor collection.
      *
      * @param array $fields An array of field names.
+     * @return void
      */
     final public function limitFields(array $fields): void
     {
@@ -755,7 +762,7 @@ class Conductor
      * @param string     $outerJoin   The join for this filter group.
      * @return void
      */
-    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'OR'): void
+    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'AND'): void
     {
         if ($rawFilter === '') {
             return;
@@ -869,6 +876,7 @@ class Conductor
      * @param string $operator The operator to append.
      * @param string $value    The value to append.
      * @param string $join     The join to append.
+     * @return void
      */
     final public function appendFilter(string $field, string $operator, string $value, string $join = 'OR'): void
     {
