@@ -211,6 +211,13 @@ const workshopDate = computed(() => {
  * Return a computed price amount, if a form of 0, return "Free"
  */
 const computedPrice = computed(() => {
+    if (
+        event.value.price.toLowerCase() == "tbc" ||
+        event.value.price.toLowerCase() == "tbd"
+    ) {
+        return event.value.price.toUpperCase();
+    }
+
     const parsedPrice = stringToNumber(event.value.price || "0");
     if (parsedPrice == 0) {
         return "Free";
