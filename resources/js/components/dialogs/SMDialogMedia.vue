@@ -395,7 +395,6 @@ const handleClickInsert = async () => {
                             "An unexpected response was received from the server";
                     }
                 } catch (error) {
-                    console.log(error);
                     if (error.status === 413) {
                         uploadForm._message =
                             "The selected file is larger than the maximum size limit";
