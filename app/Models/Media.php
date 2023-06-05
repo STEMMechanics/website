@@ -558,8 +558,8 @@ class Media extends Model
                     try {
                         static::$storageFileListCache[$disk] = Storage::disk($disk)->allFiles();
                     } catch (\Exception $e) {
-                        Log::error($e->getMessage());
-                        throw new \Exception("Cannot get a file list for storage device '$disk'");
+                        Log::error("Cannot get a file list for storage device '$disk'. Error: " . $e->getMessage());
+                        continue;
                     }
                 }
             }
