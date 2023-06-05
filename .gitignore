@@ -237,8 +237,11 @@ dist/
 ### This Project ###
 /public/uploads
 /public/build
-# /public/tinymce
 *.key
+
+### TinyMCE ###
+/public/tinymce
+!/public/tinymce/skins/ui/stemmech/
 
 ### Synk ###
 .dccache
@@ -248,3 +251,4 @@ tempCodeRunnerFile.*
 
 ### PHPUnit ###
 .phpunit.result.cache
+.gitignore
