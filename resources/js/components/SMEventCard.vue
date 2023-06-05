@@ -65,37 +65,36 @@ const props = defineProps({
 
 /**
  * Return a human readable Date string.
- *
  * @param {Event} event The event to convert.
  * @returns The converted string.
  */
 const computedDate = (event: Event) => {
     let str = "";
 
-    if (event.start_at.length > 0) {
+    const start_at =
+        event.start_at.length > 0
+            ? new SMDate(event.start_at, {
+                  format: "yMd",
+                  utc: true,
+              }).format("dd/MM/yyyy  @ h:mm aa")
+            : "";
+
+    const end_at =
+        event.end_at.length > 0
+            ? new SMDate(event.end_at, {
+                  format: "yMd",
+                  utc: true,
+              }).format("dd/MM/yyyy")
+            : "";
+
+    if (start_at.length > 0) {
         if (
-            event.end_at.length > 0 &&
-            event.start_at.substring(0, event.start_at.indexOf(" ")) !=
-                event.end_at.substring(0, event.end_at.indexOf(" "))
+            end_at.length > 0 &&
+            start_at.substring(0, start_at.indexOf(" ")) != end_at
         ) {
-            str = new SMDate(event.start_at, {
-                format: "yMd",
-                utc: true,
-            }).format("dd/MM/yyyy");
-            if (event.end_at.length > 0) {
-                str =
-                    str +
-                    " - " +
-                    new SMDate(event.end_at, {
-                        format: "yMd",
-                        utc: true,
-                    }).format("dd/MM/yyyy");
-            }
+            str = start_at.substring(0, start_at.indexOf(" ")) + " - " + end_at;
         } else {
-            str = new SMDate(event.start_at, {
-                format: "yMd",
-                utc: true,
-            }).format("dd/MM/yyyy @ h:mm aa");
+            str = start_at;
         }
     }
 
@@ -104,7 +103,6 @@ const computedDate = (event: Event) => {
 
 /**
  * Return a the event starting month day number.
- *
  * @param {string} date The date to format.
  * @returns The converted string.
  */
@@ -114,7 +112,6 @@ const formatDateDay = (date: string) => {
 
 /**
  * Return a the event starting month name.
- *
  * @param {string} date The date to format.
  * @returns The converted string.
  */
@@ -124,7 +121,6 @@ const formatDateMonth = (date: string) => {
 
 /**
  * Return a human readable Location string.
- *
  * @param {Event} event The event to convert.
  * @returns The converted string.
  */
@@ -138,7 +134,6 @@ const computedLocation = (event: Event): string => {
 
 /**
  * Return a human readable Ages string.
- *
  * @param {string} ages The string to convert.
  * @returns The converted string.
  */
@@ -159,7 +154,6 @@ const computedAges = (ages: string): string => {
 
 /**
  * Return a human readable Price string.
- *
  * @param {string} price The string to convert.
  * @returns The converted string.
  */
