@@ -266,7 +266,6 @@ const computedAccepts = computed(() => {
 
 /**
  * Get the media item by id.
- *
  * @param {string} item_id The media item id.
  * @returns {Media | null} The media object or null.
  */
@@ -396,6 +395,7 @@ const handleClickInsert = async () => {
                             "An unexpected response was received from the server";
                     }
                 } catch (error) {
+                    console.log(error);
                     if (error.status === 413) {
                         uploadForm._message =
                             "The selected file is larger than the maximum size limit";
@@ -415,12 +415,11 @@ const handleClickInsert = async () => {
         }
     }
 
-    closeDialog(false);
+    // closeDialog(false);
 };
 
 /**
  * Handle user clicking a media item (selecting).
- *
  * @param {string} item_id The media id.
  */
 const handleClickItem = (item_id: string): void => {
@@ -429,7 +428,6 @@ const handleClickItem = (item_id: string): void => {
 
 /**
  * Handle user double clicking a media item.
- *
  * @param item_id The media id.
  */
 const handleDblClickItem = (item_id: string): void => {
@@ -446,7 +444,6 @@ const listActive = ref("grid");
 
 /**
  * Handle Grid layout request click
- *
  * @param name
  */
 const handleClickLayout = (name: string) => {
@@ -541,7 +538,6 @@ const handleLoad = async () => {
 
 /**
  * Handle a keyboard event in this component.
- *
  * @param {KeyboardEvent} event The keyboard event.
  * @returns {boolean} If the event was handled.
  */
