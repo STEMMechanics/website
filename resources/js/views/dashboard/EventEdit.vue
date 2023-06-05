@@ -66,7 +66,8 @@
                 <SMRow>
                     <SMColumn>
                         <SMInput control="price"
-                            >Leave blank to hide from public.</SMInput
+                            >Leave blank to hide from public. Also supports TBD
+                            and TBC.</SMInput
                         >
                     </SMColumn>
                     <SMColumn>

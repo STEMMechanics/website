@@ -158,6 +158,10 @@ const computedAges = (ages: string): string => {
  * @returns The converted string.
  */
 const computedPrice = (price: string): string => {
+    if (price.toLowerCase() === "tbd" || price.toLowerCase() === "tbc") {
+        return price.toUpperCase();
+    }
+
     const trimmed = parseInt(price.trim());
     if (isNaN(trimmed) || trimmed == 0) {
         return "Free";
