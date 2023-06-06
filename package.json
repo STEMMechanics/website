@@ -9,7 +9,7 @@
         "prepare": "mkdir -p public/tinymce/skins && cp -r node_modules/tinymce/skins public/tinymce && mkdir -p public/tinymce/plugins/emoticons/js && cp node_modules/tinymce/plugins/emoticons/js/emojis.min.js public/tinymce/plugins/emoticons/js/"
     },
     "devDependencies": {
-        "@typescript-eslint/eslint-plugin": "^5.59.8",
+        "@typescript-eslint/eslint-plugin": "^5.59.9",
         "@typescript-eslint/parser": "^5.59.9",
         "eslint": "^8.31.0",
         "eslint-config-prettier": "^8.6.0",
