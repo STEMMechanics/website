@@ -3,7 +3,6 @@ import { extractFileNameFromUrl } from "./url";
 
 /**
  * Tests if an object or string is empty.
- *
  * @param {unknown} value The object or string.
  * @returns {boolean} If the object or string is empty.
  */
@@ -28,7 +27,6 @@ export const isEmpty = (value: unknown): boolean => {
 
 /**
  * Returns the file extension
- *
  * @param {string} fileName The filename with extension.
  * @returns {string} The file extension.
  */
@@ -42,7 +40,6 @@ export const getFileExtension = (fileName: string): string => {
 
 /**
  * Returns a url to a file type icon based on file name.
- *
  * @param {string} fileName The filename with extension.
  * @returns {string} The url to the file type icon.
  */
@@ -57,7 +54,6 @@ export const getFileIconImagePath = (fileName: string): string => {
 
 /**
  * Returns a url to a file preview icon based on file url.
- *
  * @param {string} url The url of the file.
  * @returns {string} The url to the file preview icon.
  */
@@ -76,7 +72,6 @@ export const getFilePreview = (url: string): string => {
 
 /**
  * Clamps a number between 2 numbers.
- *
  * @param {number} n The number to clamp.
  * @param {number} min The minimum allowable number.
  * @param {number} max The maximum allowable number.
@@ -90,7 +85,6 @@ export const clamp = (n: number, min: number, max: number): number => {
 
 /**
  * Generate a random element ID.
- *
  * @param {string} prefix Any prefix to add to the ID.
  * @returns {string} A random string non-existent in the document.
  */
@@ -106,11 +100,30 @@ export const generateRandomElementId = (prefix: string = ""): string => {
 
 /**
  * Return if the current user has a permission.
- *
  * @param {string} permission The permission to check.
  * @returns {boolean} If the user has the permission.
  */
 export const userHasPermission = (permission: string): boolean => {
     const userStore = useUserStore();
     return userStore.permissions && userStore.permissions.includes(permission);
+};
+
+/**
+ * Convert File Name to Title
+ * @param {string} fileName The filename with extension.
+ * @returns {string} The title.
+ */
+export const convertFileNameToTitle = (fileName: string): string => {
+    // Remove file extension
+    const fileNameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+
+    // Replace dash and underscore with space
+    const fileNameWithSpaces = fileNameWithoutExtension.replace(/[-_]/g, " ");
+
+    // Capitalize the first letter and convert to lowercase
+    const capitalizedFileName =
+        fileNameWithSpaces.charAt(0).toUpperCase() +
+        fileNameWithSpaces.slice(1).toLowerCase();
+
+    return capitalizedFileName;
 };

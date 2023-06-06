@@ -170,6 +170,7 @@ import { Form, FormControl } from "../../helpers/form";
 import { And, Min, Required } from "../../helpers/validate";
 import SMForm from "../SMForm.vue";
 import SMFormError from "../SMFormError.vue";
+import { convertFileNameToTitle } from "../../helpers/utils";
 
 const props = defineProps({
     mime: {
@@ -469,7 +470,9 @@ const handleChangeSelectFile = async () => {
         const firstFile: File | undefined = refUploadInput.value.files[0];
         if (firstFile != null) {
             if (uploadForm.controls.title.value.length == 0) {
-                uploadForm.controls.title.value = firstFile.name;
+                uploadForm.controls.title.value = convertFileNameToTitle(
+                    firstFile.name
+                );
             }
 
             const reader = new FileReader();
