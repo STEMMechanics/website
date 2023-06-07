@@ -25,7 +25,7 @@
         "typescript": "^5.0.4",
         "vite": "^4.0.0",
         "vite-plugin-compression2": "^0.9.2",
-        "vitest": "^0.31.1"
+        "vitest": "^0.32.0"
     },
     "dependencies": {
         "@tinymce/tinymce-vue": "^5.1.0",
