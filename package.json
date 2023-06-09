@@ -36,7 +36,7 @@
         "normalize.css": "^8.0.1",
         "pinia": "^2.0.28",
         "pinia-plugin-persistedstate": "^3.0.1",
-        "sass": "^1.63.1",
+        "sass": "^1.63.2",
         "tinymce": "^6.3.1",
         "vue": "^3.2.36",
         "vue-dompurify-html": "^4.1.4",
