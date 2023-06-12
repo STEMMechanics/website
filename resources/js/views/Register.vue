@@ -59,6 +59,7 @@ import {
     Required,
 } from "../helpers/validate";
 import SMFormError from "../components/SMFormError.vue";
+import { useToastStore } from "../store/ToastStore";
 
 let abortController: AbortController | null = null;
 
@@ -116,8 +117,13 @@ const handleSubmit = async () => {
 
         userRegistered.value = true;
     } catch (error) {
-        console.log(error);
-        form.apiErrors(error);
+        form.apiErrors(error, (message) => {
+            useToastStore().addToast({
+                title: "An error occurred",
+                content: message,
+                type: "danger",
+            });
+        });
     } finally {
         form.loading(false);
     }

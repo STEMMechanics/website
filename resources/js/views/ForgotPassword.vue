@@ -56,6 +56,7 @@ import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Email, Required } from "../helpers/validate";
+import { useToastStore } from "../store/ToastStore";
 
 // const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
@@ -85,7 +86,13 @@ const handleSubmit = async () => {
         if (error.status == 422) {
             formDone.value = true;
         } else {
-            form.apiErrors(error);
+            form.apiErrors(error, (message) => {
+                useToastStore().addToast({
+                    title: "An error occurred",
+                    content: message,
+                    type: "danger",
+                });
+            });
         }
     } finally {
         form.loading(false);

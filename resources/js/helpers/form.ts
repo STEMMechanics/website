@@ -14,7 +14,10 @@ type FormObjectMessageFunction = (
     icon?: string
 ) => void;
 type FormObjectErrorFunction = (message: string) => void;
-type FormObjectApiErrorsFunction = (apiErrors: ApiResponse) => void;
+type FormObjectApiErrorsFunction = (
+    apiErrors: ApiResponse,
+    callback?: (error: string, status: number) => void
+) => void;
 
 export interface FormObject {
     validate: FormObjectValidateFunction;
@@ -78,7 +81,10 @@ const defaultFormObject: FormObject = {
             this.message(message, "error", "alert-circle-outline");
         }
     },
-    apiErrors: function (apiResponse: ApiResponse) {
+    apiErrors: function (
+        apiResponse: ApiResponse,
+        callback?: (error: string, status: number) => void
+    ) {
         let foundKeys = false;
 
         if (
@@ -100,10 +106,15 @@ const defaultFormObject: FormObject = {
         }
 
         if (foundKeys == false) {
-            this.error(
-                apiResponse?.json?.message ||
-                    "An unknown server error occurred.\nPlease try again later."
-            );
+            const errorMessage =
+                (apiResponse?.json?.message as string) ||
+                "An unknown server error occurred.\nPlease try again later.";
+
+            if (callback) {
+                callback(errorMessage, apiResponse.status);
+            } else {
+                this.error(errorMessage);
+            }
         }
     },
     controls: {},

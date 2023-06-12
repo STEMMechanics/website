@@ -249,7 +249,13 @@ const handleSubmit = async () => {
             router.push({ name: "dashboard-article-list" });
         }
     } catch (error) {
-        form.apiErrors(error);
+        form.apiErrors(error, (message) => {
+            useToastStore().addToast({
+                title: "An error occurred",
+                content: message,
+                type: "danger",
+            });
+        });
     }
 };
 
@@ -325,7 +331,13 @@ const loadOptionsAuthors = async () => {
             }
         })
         .catch((error) => {
-            form.apiErrors(error);
+            form.apiErrors(error, (message) => {
+                useToastStore().addToast({
+                    title: "An error occurred",
+                    content: message,
+                    type: "danger",
+                });
+            });
         });
 };
 

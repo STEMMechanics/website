@@ -158,8 +158,14 @@ const loadData = async () => {
                 form.controls.phone.value = data.user.phone;
                 form.controls.email.value = data.user.email;
             }
-        } catch (err) {
-            form.apiErrors(err);
+        } catch (error) {
+            form.apiErrors(error, (message) => {
+                useToastStore().addToast({
+                    title: "An error occurred",
+                    content: message,
+                    type: "danger",
+                });
+            });
         } finally {
             form.loading(false);
         }
@@ -235,8 +241,14 @@ const handleSubmit = async () => {
         } else {
             router.push({ name: "dashboard-user-list" });
         }
-    } catch (err) {
-        form.apiErrors(err);
+    } catch (error) {
+        form.apiErrors(error, (message) => {
+            useToastStore().addToast({
+                title: "An error occurred",
+                content: message,
+                type: "danger",
+            });
+        });
     } finally {
         form.loading(false);
     }

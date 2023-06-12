@@ -95,9 +95,15 @@ const handleSubmit = async () => {
         } else {
             router.push({ name: "dashboard" });
         }
-    } catch (err) {
+    } catch (error) {
         form.controls.password.value = "";
-        form.apiErrors(err);
+        form.apiErrors(error, (message) => {
+            useToastStore().addToast({
+                title: "An error occurred",
+                content: message,
+                type: "danger",
+            });
+        });
     } finally {
         form.loading(false);
     }

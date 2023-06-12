@@ -77,7 +77,13 @@ const handleSubmit = async () => {
         });
         closeDialog(false);
     } catch (error) {
-        form.apiErrors(error);
+        form.apiErrors(error, (message) => {
+            useToastStore().addToast({
+                title: "An error occurred",
+                content: message,
+                type: "danger",
+            });
+        });
     } finally {
         dialogLoading.value = false;
     }
@@ -85,7 +91,6 @@ const handleSubmit = async () => {
 
 /**
  * Handle a keyboard event in this component.
- *
  * @param {KeyboardEvent} event The keyboard event.
  * @returns {boolean} If the event was handled.
  */
