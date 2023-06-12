@@ -43,6 +43,6 @@
         "vue-final-modal": "^4.4.2",
         "vue-loader": "^17.2.2",
         "vue-router": "^4.2.2",
-        "vue3-easy-data-table": "^1.5.24"
+        "vue3-easy-data-table": "^1.5.45"
     }
 }
