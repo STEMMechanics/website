@@ -57,7 +57,7 @@
                 <h3>Minecraft</h3>
             </router-link> -->
             <router-link
-                v-if="userStore.permissions.includes('logs/discord')"
+                v-if="userStore.permissions.includes('admin/shortlinks')"
                 :to="{ name: 'dashboard-shortlink-list' }"
                 class="admin-card discord">
                 <ion-icon name="link-outline" />

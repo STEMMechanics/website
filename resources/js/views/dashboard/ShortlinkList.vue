@@ -1,5 +1,5 @@
 <template>
-    <SMPage permission="admin/users">
+    <SMPage permission="admin/shortlinks">
         <SMMastHead
             title="Shortlinks"
             :back-link="{ name: 'dashboard' }"
@@ -105,7 +105,6 @@ const handleSearch = () => {
 
 /**
  * Handle user selecting option in action button.
- *
  * @param {Shortlink} item The item.
  * @param option
  */
