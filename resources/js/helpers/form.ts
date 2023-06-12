@@ -84,7 +84,7 @@ const defaultFormObject: FormObject = {
         if (
             apiResponse.data &&
             typeof apiResponse.data === "object" &&
-            apiResponse.data.errors
+            "errors" in apiResponse.data
         ) {
             const errors = apiResponse.data.errors as Record<string, string>;
             Object.keys(errors).forEach((key) => {
@@ -116,7 +116,6 @@ const defaultFormObject: FormObject = {
 
 /**
  * Create a new Form object.
- *
  * @param {Record<string, FormControlObject>} controls The controls included in the form.
  * @returns {FormObject} Returns a form object.
  */
@@ -177,7 +176,6 @@ export interface FormControlObject {
 
 /**
  * Create a new form control object.
- *
  * @param {string} value The control name.
  * @param {ValidationObject | null} validator The control validation rules.
  * @returns {FormControlObject} The form control object.
