@@ -294,7 +294,6 @@ export const api = {
 
 /**
  * Get an api result data as type.
- *
  * @param result The api result object.
  * @param defaultValue The default data to return if no result exists.
  * @returns Data object.
