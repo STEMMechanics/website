@@ -27,11 +27,7 @@
                 </div>
             </li>
         </ul>
-        <!-- <SMButton
-            type="secondary"
-            :small="true"
-            label="Add media"
-            @click="handleClickAdd" /> -->
+        <button type="button" @click="handleClickAdd">Add media</button>
     </div>
 </template>
 
@@ -43,7 +39,6 @@ import { Media, MediaResponse } from "../helpers/api.types";
 import { bytesReadable } from "../helpers/types";
 import { getFilePreview } from "../helpers/utils";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
-import SMButton from "../components/SMButton.vue";
 
 const props = defineProps({
     modelValue: {

@@ -86,12 +86,12 @@
                                 :value="editMultiple ? 'Save All' : 'Save'" />
                         </template>
                         <template #left>
-                            <SMButton
-                                :form="form"
+                            <button
                                 v-if="route.params.id"
-                                type="danger"
-                                :label="editMultiple ? 'Delete All' : 'Delete'"
-                                @click="handleDelete" />
+                                type="button"
+                                @click="handleDelete">
+                                {{ editMultiple ? "Delete All" : "Delete" }}
+                            </button>
                         </template>
                     </SMColumn>
                 </SMRow>
