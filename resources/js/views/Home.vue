@@ -136,7 +136,10 @@
             </p>
             <div
                 class="flex flex-row gap-4 mt-8 items-center flex-justify-center">
-                <img src="/assets/home-minecraft-edu.webp" class="h-24" />
+                <img
+                    src="/assets/home-minecraft-edu.webp"
+                    loading="lazy"
+                    class="h-24" />
                 <p class="text-xl mt-4">
                     We also offer workshops for
                     <a
@@ -152,6 +155,7 @@
             <div class="flex flex-row gap-4 mt-8 flex-justify-center">
                 <img
                     src="/assets/home-minecraft-address.webp"
+                    loading="lazy"
                     class="max-w-140 w-full" />
             </div>
         </section>
@@ -270,7 +274,6 @@ const viewLoad = async () => {
 
                     if (articlesData && articlesData.articles) {
                         articles.value = articlesData.articles;
-                        console.log(articles.value);
                     }
                 })
                 .catch((error) => {

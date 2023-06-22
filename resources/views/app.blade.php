@@ -6,10 +6,20 @@
 	<title>STEMMechanics</title>
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link rel="preload" as="image" href="https://www.stemmechanics.com.au/assets/home-hero.webp">
 	<link
+		rel="preload"
 		href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;1,400;1,700&display=swap"
-		rel="stylesheet"
+		as="style"
+		onload="this.onload=null;this.rel='stylesheet'"
 	/>
+	<noscript>
+		<link
+			href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;1,400;1,700&display=swap"
+			rel="stylesheet"
+			type="text/css"
+		/>
+	</noscript>
 	<style>
 		*, :after, :before { box-sizing: border-box; -moz-box-sizing: border-box; -webkit-box-sizing: border-box; border: 0 solid #e5e7eb; }
         html { overflow: -moz-scrollbars-vertical; overflow-y: auto; background-color: #f3f4f6; }
