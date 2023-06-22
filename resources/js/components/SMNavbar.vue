@@ -259,7 +259,7 @@
                                 fill="currentColor" />
                         </svg>
                     </button>
-                    <router-link
+                    <!-- <router-link
                         :to="{ name: 'cart' }"
                         id="navbar-cart"
                         class="block cursor-pointer select-none relative"
@@ -275,7 +275,7 @@
                             class="absolute flex items-center flex-justify-center -top-2 -right-4 bg-red text-3 p-1 w-5 h-5 rounded-9 text-white">
                             14
                         </div>
-                    </router-link>
+                    </router-link> -->
                 </div>
             </div>
             <div
