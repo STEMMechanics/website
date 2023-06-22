@@ -20,6 +20,7 @@
                     @keyup.enter="handleSearch">
                     <template #append>
                         <button
+                            type="button"
                             class="font-medium px-4 py-3.1 rounded-r-2 hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                             @click="handleSearch">
                             <svg
@@ -60,6 +61,7 @@
                 <SMTable :headers="headers" :items="items">
                     <template #item-actions="item">
                         <button
+                            type="button"
                             class="bg-transparent cursor-pointer hover:text-sky-5"
                             title="Edit"
                             @click="handleEdit(item)">
@@ -73,6 +75,7 @@
                             </svg>
                         </button>
                         <button
+                            type="button"
                             class="bg-transparent cursor-pointer hover:text-red-7"
                             title="Delete"
                             @click="handleDelete(item)">

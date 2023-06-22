@@ -21,7 +21,7 @@
                     </SMTabGroup>
                 </SMColumn>
             </SMRow>
-            <button @click="loadData">Reload Logs</button>
+            <button type="button" @click="loadData">Reload Logs</button>
         </SMContainer>
     </SMPage>
 </template>

@@ -83,6 +83,7 @@
                 </div>
 
                 <button
+                    type="button"
                     class="mt-4 font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     @click="handleClickButton">
                     Copy curve

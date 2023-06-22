@@ -13,7 +13,7 @@
                     autofocus />
             </template>
             <template #footer-space-between>
-                <button @click="handleClickCancel">Cancel</button>
+                <button type="button" @click="handleClickCancel">Cancel</button>
                 <input role="button" type="submit" value="Update" />
             </template>
         </SMFormCard>

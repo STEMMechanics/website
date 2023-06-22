@@ -243,6 +243,7 @@
                         Find Workshops
                     </router-link>
                     <button
+                        type="button"
                         title="Toggle nav"
                         id="navbar-toggle"
                         class="leading-0 ml-4 mr-2 bg-transparent cursor-pointer"

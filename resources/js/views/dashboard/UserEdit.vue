@@ -44,6 +44,7 @@
                 </template>
                 <div class="flex flex-justify-between mt-8">
                     <button
+                        type="button"
                         v-if="!isCreating"
                         class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-white border-1 border-sky-500 text-sky-500 cursor-pointer"
                         @click="handleChangePassword">

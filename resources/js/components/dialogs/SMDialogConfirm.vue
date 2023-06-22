@@ -8,11 +8,13 @@
             <p class="mb-4" v-html="props.text"></p>
             <div class="flex flex-justify-between pt-4">
                 <button
+                    type="button"
                     class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     @click="handleClickCancel()">
                     {{ props.cancel.label }}
                 </button>
                 <button
+                    type="button"
                     class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     @click="handleClickConfirm()">
                     {{ props.confirm.label }}
