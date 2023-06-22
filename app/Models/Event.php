@@ -33,6 +33,7 @@ class Event extends Model
         'content',
         'price',
         'ages',
+        'open_at',
     ];
 
 

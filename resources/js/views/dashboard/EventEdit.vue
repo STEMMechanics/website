@@ -50,6 +50,7 @@
                             draft: 'Draft',
                             soon: 'Opening Soon',
                             open: 'Open',
+                            scheduled: 'Scheduled',
                             closed: 'Closed',
                             cancelled: 'Cancelled',
                         }" />
