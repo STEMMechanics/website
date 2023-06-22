@@ -3,6 +3,7 @@ import { defineStore } from "pinia";
 type ApplicationStoreEventKeyUpCallback = (event: KeyboardEvent) => boolean;
 
 export interface ApplicationStore {
+    hydrated: boolean;
     unavailable: boolean;
     dynamicTitle: string;
     eventKeyUpStack: ApplicationStoreEventKeyUpCallback[];
@@ -13,6 +14,7 @@ export interface ApplicationStore {
 export const useApplicationStore = defineStore({
     id: "application",
     state: (): ApplicationStore => ({
+        hydrated: false,
         unavailable: false,
         dynamicTitle: "",
         eventKeyUpStack: [],

@@ -452,6 +452,7 @@ router.beforeEach(async (to, from, next) => {
     const userStore = useUserStore();
     const applicationStore = useApplicationStore();
 
+    applicationStore.hydrated = false;
     applicationStore.clearDynamicTitle();
 
     if (applicationStore.pageLoaderTimeout !== 0) {
@@ -586,6 +587,9 @@ router.afterEach((to, from) => {
     if (pageLoadingElem !== null) {
         pageLoadingElem.style.display = "none";
     }
+
+    applicationStore.hydrated = true;
+    console.log("hydrated");
 });
 
 export default router;
