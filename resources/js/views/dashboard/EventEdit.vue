@@ -81,7 +81,7 @@
                         :type="registration_data?.type" />
                 </div>
                 <div class="mb-8">
-                    <SMInput control="hero" type="media" label="Hero image" />
+                    <SMSelectImage control="hero" label="Hero image" />
                 </div>
                 <SMEditor
                     class="mb-8"
@@ -124,6 +124,7 @@ import SMLoading from "../../components/SMLoading.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMDropdown from "../../components/SMDropdown.vue";
+import SMSelectImage from "../../components/SMSelectImage.vue";
 
 const route = useRoute();
 const router = useRouter();
