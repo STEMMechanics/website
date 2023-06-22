@@ -1,7 +1,7 @@
 <template>
     <div
         ref="toast"
-        class="border-1 border-gray-2 bg-white rounded-md p-4 mt-4 mb-4"
+        class="border-1 border-gray-2 bg-white rounded-md p-4 mt-4 mb-4 pointer-events-auto"
         :style="styles">
         <div :class="['max-w-48', 'border-l-5', 'pl-4', 'relative', colour]">
             <svg
@@ -107,54 +107,3 @@ onMounted(() => {
     }, 200);
 });
 </script>
-
-<!-- <style lang="scss">
-.toast {
-    position: relative;
-    font-size: 80%;
-    background-color: var(--base-color-light);
-    padding: 16px;
-    border-radius: 12px;
-    border: 1px solid var(--base-color-border);
-    box-shadow: var(--base-shadow);
-    margin-bottom: 32px;
-    transition: opacity 0.2s ease-in, margin 0.2s ease-in;
-
-    .toast-inner {
-        border-left: 6px solid var(--primary-color);
-        padding: 8px 32px 8px 16px;
-        max-width: 250px;
-    }
-
-    .title {
-        margin-top: 0 !important;
-    }
-
-    p {
-        margin-bottom: 0;
-        word-wrap: break-word;
-    }
-
-    ion-icon {
-        font-size: 150%;
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        color: var(--base-color-text);
-        cursor: pointer;
-        transition: color 0.1s linear;
-
-        &:hover {
-            color: var(--danger-color);
-        }
-    }
-
-    &.success .toast-inner {
-        border-left-color: var(--success-color);
-    }
-
-    &.danger .toast-inner {
-        border-left-color: var(--danger-color);
-    }
-}
-</style> -->

@@ -1,5 +1,7 @@
 <template>
-    <div class="toast-container" v-if="toastStore.toasts">
+    <div
+        class="fixed top-1 right-1 z-10 overflow-hidden pointer-events-none"
+        v-if="toastStore.toasts">
         <SMToast
             v-for="toast of toastStore.toasts"
             :id="toast.id"
@@ -16,14 +18,3 @@ import SMToast from "./SMToast.vue";
 
 const toastStore = useToastStore();
 </script>
-
-<style lang="scss">
-.toast-container {
-    position: fixed;
-    top: 16px;
-    right: 16px;
-    z-index: 3000;
-    padding: 10px;
-    overflow: hidden;
-}
-</style>

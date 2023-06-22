@@ -427,6 +427,14 @@ export const routes = [
         component: () => import("@/views/ForgotPassword.vue"),
     },
     {
+        path: "/cart",
+        name: "cart",
+        meta: {
+            title: "Cart",
+        },
+        component: () => import("@/views/Cart.vue"),
+    },
+    {
         path: "/:catchAll(.*)",
         name: "not-found",
         meta: {
@@ -589,7 +597,6 @@ router.afterEach((to, from) => {
     }
 
     applicationStore.hydrated = true;
-    console.log("hydrated");
 });
 
 export default router;

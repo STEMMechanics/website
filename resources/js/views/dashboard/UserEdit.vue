@@ -56,6 +56,7 @@
                 </div>
             </SMForm>
         </div>
+        <div id="card-container"></div>
     </template>
 </template>
 
@@ -77,6 +78,7 @@ import { userHasPermission } from "../../helpers/utils";
 import SMLoading from "../../components/SMLoading.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMCheckbox from "../../components/SMCheckbox.vue";
+import { initCard } from "../../helpers/square";
 
 const route = useRoute();
 const router = useRouter();
@@ -253,14 +255,8 @@ const computedSubmitLabel = computed(() => {
     return isCreating ? "Create" : "Update";
 });
 
-loadData();
-</script>
+const refPaymentForm = ref(null);
 
-<style lang="scss">
-.page-dashboard-account-details {
-    h3 {
-        margin-top: 0;
-        margin-bottom: 16px;
-    }
-}
-</style>
+loadData();
+initCard();
+</script>

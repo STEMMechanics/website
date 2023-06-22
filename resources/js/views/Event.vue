@@ -23,7 +23,9 @@
                 class="max-w-4xl mx-auto px-4 flex flex-col-reverse sm:flex-row">
                 <div class="sm:pr-8 mt-4 sm:mt-0">
                     <h1 class="pb-6">{{ event.title }}</h1>
-                    <SMHTML :html="event.content" class="workshop-content" />
+                    <MdPreview
+                        :model-value="event.content"
+                        class="workshop-content" />
                     <SMAttachments :attachments="event.attachments || []" />
                 </div>
                 <div class="sm:min-w-68">
@@ -169,7 +171,6 @@
 <script setup lang="ts">
 import { computed, Ref, ref } from "vue";
 import { useRoute } from "vue-router";
-import SMHTML from "../components/SMHTML.vue";
 import SMAttachments from "../components/SMAttachments.vue";
 import { api } from "../helpers/api";
 import { Event, EventResponse } from "../helpers/api.types";
@@ -180,6 +181,7 @@ import { mediaGetVariantUrl } from "../helpers/media";
 import { userHasPermission } from "../helpers/utils";
 import SMLoading from "../components/SMLoading.vue";
 import SMPageStatus from "../components/SMPageStatus.vue";
+import { MdPreview } from "md-editor-v3";
 
 const applicationStore = useApplicationStore();
 

@@ -205,7 +205,6 @@ const handleEdit = (user: User) => {
 };
 
 const handleDelete = async (user: User) => {
-    console.log("here");
     let result = await openDialog(DialogConfirm, {
         title: "Delete User?",
         text: `Are you sure you want to delete the user <strong>${user.display_name}</strong>?`,

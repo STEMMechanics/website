@@ -363,7 +363,6 @@ const handleDeleteSelected = async () => {
         await Promise.all(
             deleteItems.map(async ([key, value]) => {
                 // Perform actions for each item that is true
-                console.log(key, value);
 
                 // Perform asynchronous operation
                 try {

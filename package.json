@@ -32,18 +32,12 @@
     },
     "dependencies": {
         "@vitejs/plugin-vue": "^4.0.0",
-        "@vuepic/vue-datepicker": "^5.1.2",
-        "dompurify": "^3.0.0",
         "dotenv": "^16.0.3",
         "md-editor-v3": "^4.2.0",
         "pinia": "^2.0.28",
         "pinia-plugin-persistedstate": "^3.0.1",
         "sass": "^1.63.1",
         "vue": "^3.2.36",
-        "vue-dompurify-html": "^4.1.4",
-        "vue-final-modal": "^4.4.2",
-        "vue-loader": "^17.2.2",
-        "vue-router": "^4.2.2",
-        "vue3-easy-data-table": "^1.5.24"
+        "vue-router": "^4.2.2"
     }
 }

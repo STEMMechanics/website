@@ -10,7 +10,7 @@
                 <SMTabGroup v-model="selectedTab">
                     <SMTab id="tab-browser" label="Media Browser">
                         <div class="flex mb-4">
-                            <SMGroupButtons
+                            <div
                                 :buttons="[
                                     {
                                         name: 'grid',
@@ -22,7 +22,7 @@
                                     },
                                 ]"
                                 :active="listActive"
-                                @click="handleClickLayout" />
+                                @click="handleClickLayout"></div>
                             <SMInput
                                 v-model="itemSearch"
                                 label="Search"
@@ -170,7 +170,6 @@ import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../../helpers/media";
 import SMInput from "../SMInput.vue";
-import SMGroupButtons from "../SMGroupButtons.vue";
 import SMPagination from "../SMPagination.vue";
 import SMLoading from "../SMLoading.vue";
 import SMTabGroup from "../SMTabGroup.vue";

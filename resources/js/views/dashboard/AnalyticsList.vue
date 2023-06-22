@@ -161,7 +161,6 @@ const handleLoad = async () => {
 
         itemsTotal.value = data.total;
     } catch (error) {
-        console.log(error);
         if (error.status != 404) {
             toastStore.addToast({
                 title: "Server Error",

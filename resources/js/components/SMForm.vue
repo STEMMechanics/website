@@ -37,7 +37,6 @@ watch(
  * Handle the user submitting the form.
  */
 const handleSubmit = async function () {
-    console.log("form-submit");
     inputs = Array.from(document.querySelectorAll(`#${id} input`));
 
     for (let i = inputs.length - 1; i >= 0; i--) {

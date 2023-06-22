@@ -48,7 +48,6 @@
 import { ref, Ref } from "vue";
 import { useRoute } from "vue-router";
 import SMAttachments from "../components/SMAttachments.vue";
-import SMHTML from "../components/SMHTML.vue";
 import { api } from "../helpers/api";
 import { Article, ArticleCollection, User } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
@@ -58,7 +57,6 @@ import { userHasPermission } from "../helpers/utils";
 import SMLoading from "../components/SMLoading.vue";
 import SMPageStatus from "../components/SMPageStatus.vue";
 import { MdPreview } from "md-editor-v3";
-// import "md-editor-v3/lib/preview.css";
 
 const applicationStore = useApplicationStore();
 

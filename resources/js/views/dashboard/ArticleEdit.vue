@@ -173,7 +173,6 @@ const loadData = async () => {
 };
 
 const handleSubmit = async () => {
-    console.log("handle.-submit");
     try {
         let data = {
             title: form.controls.title.value,

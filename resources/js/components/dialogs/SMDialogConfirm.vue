@@ -5,7 +5,7 @@
         <div
             class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
             <h1 class="mb-4">{{ props.title }}</h1>
-            <p class="mb-4" v-html="computedSanitizedText"></p>
+            <p class="mb-4" v-html="props.text"></p>
             <div class="flex flex-justify-between pt-4">
                 <button
                     class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
@@ -23,8 +23,7 @@
 </template>
 
 <script setup lang="ts">
-import DOMPurify from "dompurify";
-import { computed, onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import { closeDialog } from "../SMDialog";
 import { useApplicationStore } from "../../store/ApplicationStore";
 
@@ -72,13 +71,6 @@ const handleClickCancel = () => {
 const handleClickConfirm = () => {
     closeDialog(true);
 };
-
-/**
- * Sanitize the text property from XSS attacks.
- */
-const computedSanitizedText = computed(() => {
-    return DOMPurify.sanitize(props.text);
-});
 
 /**
  * Handle a keyboard event in this component.

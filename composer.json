@@ -18,6 +18,7 @@
         "league/flysystem-aws-s3-v3": "^3.12",
         "owen-it/laravel-auditing": "^13.1",
         "php-ffmpeg/php-ffmpeg": "^1.1",
+        "square/square": "28.0.1.20230608",
         "sunspikes/clamav-validator": "*",
         "thiagoalessio/tesseract_ocr": "^2.12",
         "vlucas/phpdotenv": "^5.5"

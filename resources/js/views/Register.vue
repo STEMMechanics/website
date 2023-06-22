@@ -99,7 +99,6 @@ let form = reactive(
 );
 
 const handleSubmit = async () => {
-    console.log("here");
     form.loading(true);
 
     try {
