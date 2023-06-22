@@ -13,8 +13,8 @@
                     autofocus />
             </template>
             <template #footer-space-between>
-                <SMButton label="Cancel" @click="handleClickCancel" />
-                <SMButton type="submit" label="Update" />
+                <button @click="handleClickCancel">Cancel</button>
+                <input role="button" type="submit" value="Update" />
             </template>
         </SMFormCard>
     </SMForm>
@@ -29,8 +29,6 @@ import { And, Password, Required } from "../../helpers/validate";
 import { useApplicationStore } from "../../store/ApplicationStore";
 import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
-import SMButton from "../SMButton.vue";
-import SMFormCard from "../SMFormCard.vue";
 import SMForm from "../SMForm.vue";
 import SMInput from "../SMInput.vue";
 

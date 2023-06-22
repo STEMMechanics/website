@@ -1,42 +1,62 @@
 <template>
-    <SMPage permission="admin/media">
+    <SMPageStatus v-if="!userHasPermission('admin/events')" :status="403" />
+    <template v-else>
         <SMMastHead
             title="Events"
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
-        <SMContainer class="flex-grow-1">
-            <SMToolbar>
-                <SMButton
+        <div class="max-w-7xl mx-auto mt-8 p-4">
+            <div class="flex items-center flex-justify-between mb-8">
+                <router-link
+                    role="button"
                     :to="{ name: 'dashboard-event-create' }"
-                    type="primary"
-                    label="Create Event" />
+                    class="font-medium px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    >Create Event</router-link
+                >
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="toolbar-search"
+                    class="max-w-xl ml-4"
                     @keyup.enter="handleSearch">
                     <template #append>
-                        <SMButton
-                            type="primary"
-                            label="Search"
-                            icon="search-outline"
-                            @click="handleSearch" />
+                        <button
+                            class="font-medium px-4 py-3.1 rounded-r-2 hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                            @click="handleSearch">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M796-121 533-384q-30 26-69.959 40.5T378-329q-108.162 0-183.081-75Q120-479 120-585t75-181q75-75 181.5-75t181 75Q632-691 632-584.85 632-542 618-502q-14 40-42 75l264 262-44 44ZM377-389q81.25 0 138.125-57.5T572-585q0-81-56.875-138.5T377-781q-82.083 0-139.542 57.5Q180-666 180-585t57.458 138.5Q294.917-389 377-389Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
                     </template>
                 </SMInput>
-            </SMToolbar>
+            </div>
             <SMLoading large v-if="itemsLoading" />
+            <div
+                v-else-if="!itemsLoading && items.length == 0"
+                class="py-12 text-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                    class="h-24 text-gray-5">
+                    <path
+                        d="M453-280h60v-240h-60v240Zm26.982-314q14.018 0 23.518-9.2T513-626q0-14.45-9.482-24.225-9.483-9.775-23.5-9.775-14.018 0-23.518 9.775T447-626q0 13.6 9.482 22.8 9.483 9.2 23.5 9.2Zm.284 514q-82.734 0-155.5-31.5t-127.266-86q-54.5-54.5-86-127.341Q80-397.681 80-480.5q0-82.819 31.5-155.659Q143-709 197.5-763t127.341-85.5Q397.681-880 480.5-880q82.819 0 155.659 31.5Q709-817 763-763t85.5 127Q880-563 880-480.266q0 82.734-31.5 155.5T763-197.684q-54 54.316-127 86Q563-80 480.266-80Zm.234-60Q622-140 721-239.5t99-241Q820-622 721.188-721 622.375-820 480-820q-141 0-240.5 98.812Q140-622.375 140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"
+                        fill="currentColor" />
+                </svg>
+                <p class="text-lg text-gray-5">
+                    {{ "No events where found" }}
+                </p>
+            </div>
             <template v-else>
                 <SMPagination
                     v-if="items.length < itemsTotal"
                     v-model="itemsPage"
                     :total="itemsTotal"
                     :per-page="itemsPerPage" />
-                <SMNoItems v-if="items.length == 0" text="No Media Found" />
-                <SMTable
-                    v-else
-                    :headers="headers"
-                    :items="items"
-                    @row-click="handleEdit">
+                <SMTable :headers="headers" :items="items">
                     <template #item-location="item"
                         >{{ parseEventLocation(item) }}
                     </template>
@@ -44,22 +64,63 @@
                         >{{ toTitleCase(item.status) }}
                     </template>
                     <template #item-actions="item">
-                        <SMButton
-                            label="Edit"
-                            :dropdown="{
-                                view: 'View',
-                                duplicate: 'Duplicate',
-                                delete: 'Delete',
-                            }"
-                            size="medium"
-                            @click="
-                                handleActionButton(item, $event)
-                            "></SMButton>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-sky-5"
+                            title="Edit"
+                            @click="handleEdit(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M180-180h44l443-443-44-44-443 443v44Zm614-486L666-794l42-42q17-17 42-17t42 17l44 44q17 17 17 42t-17 42l-42 42Zm-42 42L248-120H120v-128l504-504 128 128Zm-107-21-22-22 44 44-22-22Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-sky-5"
+                            title="View"
+                            @click="handleView(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M180-120q-24.75 0-42.375-17.625T120-180v-600q0-24.75 17.625-42.375T180-840h600q24.75 0 42.375 17.625T840-780v600q0 24.75-17.625 42.375T780-120H180Zm0-60h600v-520H180v520Zm300.041-105Q400-285 337-328.152q-63-43.151-92-112Q274-509 336.959-552t143-43Q560-595 623-551.849q63 43.152 92 112.001Q686-371 623.041-328t-143 43ZM480-335q57 0 104.949-27.825T660-440q-27.102-49.35-75.051-77.175Q537-545 480-545t-104.949 27.825Q327.102-489.35 300-440q27.102 49.35 75.051 77.175Q423-335 480-335Zm0-105Zm.118 50Q501-390 515.5-404.618q14.5-14.617 14.5-35.5Q530-461 515.382-475.5q-14.617-14.5-35.5-14.5Q459-490 444.5-475.382q-14.5 14.617-14.5 35.5Q430-419 444.618-404.5q14.617 14.5 35.5 14.5Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-sky-5"
+                            title="Duplicate"
+                            @click="handleDuplicate(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M180-81q-24 0-42-18t-18-42v-603h60v603h474v60H180Zm120-120q-24 0-42-18t-18-42v-560q0-24 18-42t42-18h440q24 0 42 18t18 42v560q0 24-18 42t-42 18H300Zm0-60h440v-560H300v560Zm0 0v-560 560Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-red-7"
+                            title="Delete"
+                            @click="handleDelete(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M261-120q-24.75 0-42.375-17.625T201-180v-570h-41v-60h188v-30h264v30h188v60h-41v570q0 24-18 42t-42 18H261Zm438-630H261v570h438v-570ZM367-266h60v-399h-60v399Zm166 0h60v-399h-60v399ZM261-750v570-570Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
                     </template>
                 </SMTable>
             </template>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -72,15 +133,14 @@ import { SMDate } from "../../helpers/datetime";
 import { updateRouterParams } from "../../helpers/url";
 import { useToastStore } from "../../store/ToastStore";
 import { toTitleCase } from "../../helpers/string";
-import SMButton from "../../components/SMButton.vue";
+import { userHasPermission } from "../../helpers/utils";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
-import SMNoItems from "../../components/SMNoItems.vue";
 import SMPagination from "../../components/SMPagination.vue";
 import SMTable from "../../components/SMTable.vue";
-import SMToolbar from "../../components/SMToolbar.vue";
+import SMPageStatus from "../../components/SMPageStatus.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -118,7 +178,6 @@ const handleSearch = () => {
 
 /**
  * Handle user selecting option in action button.
- *
  * @param {Event} item The event item.
  * @param option
  */
@@ -217,7 +276,6 @@ const handleLoad = async () => {
 
 /**
  * Handle viewing an event.
- *
  * @param item
  */
 const handleView = (item: Event): void => {
@@ -230,7 +288,6 @@ const handleView = (item: Event): void => {
 
 /**
  * Handle duplicating an event.
- *
  * @param item
  */
 const handleDuplicate = async (item: Event): Promise<void> => {
@@ -258,7 +315,6 @@ const handleDuplicate = async (item: Event): Promise<void> => {
 
 /**
  * User requests to edit the item
- *
  * @param {Event} item The event item.
  */
 const handleEdit = (item: Event) => {
@@ -275,7 +331,6 @@ const handleEdit = (item: Event) => {
 
 /**
  * Request to delete an event item from the server.
- *
  * @param {Event} item The event object to delete.
  */
 const handleDelete = async (item: Event) => {
@@ -321,7 +376,6 @@ const handleDelete = async (item: Event) => {
 
 /**
  * Parse Event location for humans.
- *
  * @param {Event} item The event object to delete.
  * @returns {string} human readable location.
  */

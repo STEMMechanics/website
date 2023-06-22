@@ -1,27 +1,12 @@
 <template>
-    <div :class="['loading-background', { overlay: props.overlay }]">
-        <div :class="{ 'loading-box': props.overlay, large: props.large }">
-            <SMLoadingIcon v-bind="{ large: props.large }" />
-            <p v-if="props.text" class="loading-text">{{ props.text }}</p>
-        </div>
+    <div class="flex flex-items-center justify-center">
+        <div :class="['spinner', { small: props.small }]"></div>
     </div>
 </template>
 
 <script setup lang="ts">
-import SMLoadingIcon from "./SMLoadingIcon.vue";
-
 const props = defineProps({
-    large: {
-        type: Boolean,
-        default: false,
-        required: false,
-    },
-    text: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    overlay: {
+    small: {
         type: Boolean,
         default: false,
         required: false,
@@ -30,47 +15,51 @@ const props = defineProps({
 </script>
 
 <style lang="scss">
-.loading-background {
-    display: flex;
-    flex-grow: 1;
-    align-items: center;
-    justify-content: center;
+.spinner {
+    width: 12rem;
+    height: 12rem;
+    border: 2rem solid transparent;
+    border-top-color: #00a5f1;
+    border-bottom-color: rgba(0, 0, 0, 0.1);
+    border-left-color: rgba(0, 0, 0, 0.1);
+    border-right-color: rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    animation: spinner-rotation 8s ease-in-out infinite;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
 
-    &.overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-        z-index: 10000;
-        background-color: var(--loading-overlay-color);
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
+    &.small {
+        width: 2rem;
+        height: 2rem;
+        border-width: 0.5rem;
+        margin: 0 1.5rem 0 1.5rem;
     }
+}
 
-    div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
+@keyframes spinner-rotation {
+    0% {
+        transform: rotate(0deg);
+        border-top-color: #eb3594;
     }
-
-    .loading-box {
-        background-color: var(--loading-color);
-        padding: 24px 48px;
-        border-radius: 10px;
-        box-shadow: var(--base-shadow);
-
-        .loading-text {
-            font-size: 120%;
-            margin-top: #{map-get($spacing, 2)};
-            margin-bottom: 0;
-        }
-
-        &.large .loading-text {
-            font-size: 150%;
-            margin-top: #{map-get($spacing, 3)};
-        }
+    20% {
+        transform: rotate(360deg);
+        border-top-color: #00a5f1;
+    }
+    40% {
+        transform: rotate(720deg);
+        border-top-color: #39b54a;
+    }
+    60% {
+        transform: rotate(1080deg);
+        border-top-color: #f79e1c;
+    }
+    80% {
+        transform: rotate(1440deg);
+        border-top-color: #e11e26;
+    }
+    100% {
+        transform: rotate(1800deg);
+        border-top-color: #eb3594;
     }
 }
 </style>

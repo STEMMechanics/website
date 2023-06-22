@@ -1,7 +1,11 @@
 <template>
-    <component :is="`h${props.size}`" :id="id" class="header">
+    <component
+        :is="`h${props.size}`"
+        :id="id"
+        class="sm-header cursor-pointer"
+        @click.prevent="copyAnchor">
         {{ props.text }}
-        <span class="hash" @click.prevent="copyAnchor">#</span>
+        <span class="pl-2 text-sky-5 opacity-75 hidden">#</span>
     </component>
 </template>
 
@@ -43,14 +47,14 @@ const copyAnchor = () => {
         .then(() => {
             useToastStore().addToast({
                 title: "Copied to Clipboard",
-                content: "The header URL has been copied to the clipboard.",
+                content: "The heading URL has been copied to the clipboard.",
                 type: "success",
             });
         })
         .catch(() => {
             useToastStore().addToast({
                 title: "Copy to Clipboard",
-                content: "Failed to copy the header URL to the clipboard.",
+                content: "Failed to copy the heading URL to the clipboard.",
                 type: "danger",
             });
         });
@@ -58,15 +62,7 @@ const copyAnchor = () => {
 </script>
 
 <style lang="scss">
-.header {
-    .hash {
-        display: none;
-        color: var(--primary-color);
-        opacity: 75%;
-    }
-
-    &:hover .hash {
-        display: inline-block;
-    }
+.sm-header:hover span {
+    display: inline-block;
 }
 </style>

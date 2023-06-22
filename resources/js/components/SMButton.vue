@@ -49,7 +49,6 @@
                 class="button-icon-dropdown"
                 @click.stop="handleClickToggleDropdown" />
         </template>
-        <SMLoadingIcon v-else class="button-icon-loading" />
     </button>
     <a
         v-else-if="!isEmpty(to) && typeof to == 'string'"
@@ -79,7 +78,6 @@
 <script setup lang="ts">
 import { Ref, onMounted, ref, watch } from "vue";
 import { isEmpty } from "../helpers/utils";
-import SMLoadingIcon from "./SMLoadingIcon.vue";
 
 const props = defineProps({
     label: { type: String, default: "Button", required: false },

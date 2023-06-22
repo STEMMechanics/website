@@ -1,22 +1,25 @@
 <template>
-    <SMFormCard>
-        <h3>{{ props.title }}</h3>
-        <p v-html="computedSanitizedText"></p>
-        <SMButtonRow>
-            <template #left>
-                <SMButton
-                    :type="props.cancel.type"
-                    :label="props.cancel.label"
-                    @click="handleClickCancel()" />
-            </template>
-            <template #right>
-                <SMButton
-                    :type="props.confirm.type"
-                    :label="props.confirm.label"
-                    @click="handleClickConfirm()" />
-            </template>
-        </SMButtonRow>
-    </SMFormCard>
+    <div
+        class="fixed top-0 left-0 w-full h-full z-2 bg-black bg-op-20 backdrop-blur"></div>
+    <div class="fixed top-0 left-0 w-full flex-justify-center flex z-3 pt-36">
+        <div
+            class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
+            <h1 class="mb-4">{{ props.title }}</h1>
+            <p class="mb-4" v-html="computedSanitizedText"></p>
+            <div class="flex flex-justify-between pt-4">
+                <button
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    @click="handleClickCancel()">
+                    {{ props.cancel.label }}
+                </button>
+                <button
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    @click="handleClickConfirm()">
+                    {{ props.confirm.label }}
+                </button>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -24,9 +27,6 @@ import DOMPurify from "dompurify";
 import { computed, onMounted, onUnmounted } from "vue";
 import { closeDialog } from "../SMDialog";
 import { useApplicationStore } from "../../store/ApplicationStore";
-import SMButton from "../SMButton.vue";
-import SMFormCard from "../SMFormCard.vue";
-import SMButtonRow from "../SMButtonRow.vue";
 
 const props = defineProps({
     title: {
@@ -82,7 +82,6 @@ const computedSanitizedText = computed(() => {
 
 /**
  * Handle a keyboard event in this component.
- *
  * @param {KeyboardEvent} event The keyboard event.
  * @returns {boolean} If the event was handled.
  */

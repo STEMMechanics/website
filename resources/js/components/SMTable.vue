@@ -1,5 +1,5 @@
 <template>
-    <table class="table">
+    <table class="sm-table">
         <thead>
             <tr>
                 <th v-for="header in headers" :key="header['value']">
@@ -70,6 +70,53 @@ const hasClassLong = (text: unknown): boolean => {
 </script>
 
 <style lang="scss">
+.sm-table {
+    border-spacing: 0;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-radius: 0.75rem;
+    border-color: rgba(209, 213, 219);
+    width: 100%;
+
+    thead th {
+        background-color: rgba(229, 231, 235, 0.75);
+        border-top-width: 1px;
+        text-align: left;
+
+        &:first-child {
+            border-top-left-radius: 0.75rem;
+        }
+
+        &:last-child {
+            border-top-right-radius: 0.75rem;
+        }
+    }
+
+    th,
+    td {
+        padding: 1rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: rgba(55, 65, 81);
+        border-bottom-width: 1px;
+        border-color: rgba(209, 213, 219);
+    }
+
+    tbody {
+        tr:nth-child(even) td {
+            background-color: rgba(229, 231, 235, 0.5);
+        }
+
+        tr:last-child td:first-child {
+            border-bottom-left-radius: 0.75rem;
+        }
+
+        tr:last-child td:last-child {
+            border-bottom-right-radius: 0.75rem;
+        }
+    }
+}
+
 .table {
     border-spacing: 0;
     margin-bottom: 32px;

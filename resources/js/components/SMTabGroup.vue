@@ -1,10 +1,24 @@
 <template>
     <div class="tab-group">
-        <ul class="tab-header">
+        <ul class="flex">
             <li
                 v-for="tab in tabs"
                 :key="tab.id"
-                :class="['tab-item', { selected: selectedTab == tab.id }]"
+                :class="[
+                    'p-4',
+                    '-mb-0.2',
+                    'border-1',
+                    'rounded-t-2',
+                    'border-gray',
+                    selectedTab == tab.id
+                        ? ['border-b-white']
+                        : [
+                              'border-x-white',
+                              'border-t-white',
+                              'hover:border-x-gray-3',
+                              'hover:border-t-gray-3',
+                          ],
+                ]"
                 @click="selectedTab = tab.id">
                 {{ tab.label }}
             </li>

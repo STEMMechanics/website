@@ -1,45 +1,67 @@
 <template>
-    <SMPage permission="admin/media">
+    <SMPageStatus v-if="!userHasPermission('admin/media')" :status="403" />
+    <template v-else>
         <SMMastHead
             title="Media"
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
-        <SMContainer class="flex-grow-1">
-            <SMToolbar>
-                <SMButton
+        <div class="max-w-7xl mx-auto mt-8 px-8">
+            <div class="flex items-center flex-justify-between mb-8">
+                <router-link
+                    role="button"
                     :to="{ name: 'dashboard-media-create' }"
-                    type="primary"
-                    label="Upload Media" />
+                    class="font-medium px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    >Upload Media</router-link
+                >
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="toolbar-search"
+                    class="max-w-xl ml-4"
                     @keyup.enter="handleSearch">
                     <template #append>
-                        <SMButton
-                            type="primary"
-                            label="Search"
-                            icon="search-outline"
-                            @click="handleSearch" />
+                        <button
+                            class="font-medium px-4 py-3.1 rounded-r-2 hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                            @click="handleSearch">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M796-121 533-384q-30 26-69.959 40.5T378-329q-108.162 0-183.081-75Q120-479 120-585t75-181q75-75 181.5-75t181 75Q632-691 632-584.85 632-542 618-502q-14 40-42 75l264 262-44 44ZM377-389q81.25 0 138.125-57.5T572-585q0-81-56.875-138.5T377-781q-82.083 0-139.542 57.5Q180-666 180-585t57.458 138.5Q294.917-389 377-389Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
                     </template>
                 </SMInput>
-            </SMToolbar>
+            </div>
             <SMLoading large v-if="itemsLoading" />
+            <div
+                v-else-if="!itemsLoading && items.length == 0"
+                class="py-12 text-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                    class="h-24 text-gray-5">
+                    <path
+                        d="M453-280h60v-240h-60v240Zm26.982-314q14.018 0 23.518-9.2T513-626q0-14.45-9.482-24.225-9.483-9.775-23.5-9.775-14.018 0-23.518 9.775T447-626q0 13.6 9.482 22.8 9.483 9.2 23.5 9.2Zm.284 514q-82.734 0-155.5-31.5t-127.266-86q-54.5-54.5-86-127.341Q80-397.681 80-480.5q0-82.819 31.5-155.659Q143-709 197.5-763t127.341-85.5Q397.681-880 480.5-880q82.819 0 155.659 31.5Q709-817 763-763t85.5 127Q880-563 880-480.266q0 82.734-31.5 155.5T763-197.684q-54 54.316-127 86Q563-80 480.266-80Zm.234-60Q622-140 721-239.5t99-241Q820-622 721.188-721 622.375-820 480-820q-141 0-240.5 98.812Q140-622.375 140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"
+                        fill="currentColor" />
+                </svg>
+                <p class="text-lg text-gray-5">
+                    {{ "No media where found" }}
+                </p>
+            </div>
             <template v-else>
                 <SMPagination
                     v-if="items.length < itemsTotal"
                     v-model="itemsPage"
                     :total="itemsTotal"
                     :per-page="itemsPerPage" />
-                <SMNoItems v-if="items.length == 0" text="No Media Found" />
                 <SMTable
-                    v-else
                     :headers="headers"
                     :items="items"
-                    @row-click="handleSelect">
+                    class="sm-table-media">
                     <template #item-select="item">
-                        <SMInput
-                            type="checkbox"
+                        <SMCheckbox
                             v-model="itemsSelected[item.id]"
                             @click.stop />
                     </template>
@@ -52,36 +74,69 @@
                         ></template
                     >
                     <template #item-actions="item">
-                        <SMButton
-                            label="Edit"
-                            :dropdown="{
-                                download: 'Download',
-                                delete: 'Delete',
-                            }"
-                            size="medium"
-                            @click="
-                                handleActionButton(item, $event)
-                            "></SMButton>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-sky-5"
+                            title="Edit"
+                            @click="handleEdit(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M180-180h44l443-443-44-44-443 443v44Zm614-486L666-794l42-42q17-17 42-17t42 17l44 44q17 17 17 42t-17 42l-42 42Zm-42 42L248-120H120v-128l504-504 128 128Zm-107-21-22-22 44 44-22-22Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-sky-5"
+                            title="Download"
+                            @click="handleDownload(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M220-160q-24 0-42-18t-18-42v-143h60v143h520v-143h60v143q0 24-18 42t-42 18H220Zm260-153L287-506l43-43 120 120v-371h60v371l120-120 43 43-193 193Z"
+                                    fill="currrentColor" />
+                            </svg>
+                        </button>
+                        <button
+                            class="bg-transparent cursor-pointer hover:text-red-7"
+                            title="Delete"
+                            @click="handleDelete(item)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M261-120q-24.75 0-42.375-17.625T201-180v-570h-41v-60h188v-30h264v30h188v60h-41v570q0 24-18 42t-42 18H261Zm438-630H261v570h438v-570ZM367-266h60v-399h-60v399Zm166 0h60v-399h-60v399ZM261-750v570-570Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
                     </template>
                 </SMTable>
-                <SMToolbar class="align-items-center">
+                <div class="align-items-center">
                     <div>
-                        <SMButton
+                        <button
                             type="danger"
                             label="Delete Selected"
                             :disabled="computedSelectedCount == 0"
-                            @click="handleDeleteSelected" />
-                        <SMButton
+                            @click="handleDeleteSelected">
+                            Delete Selected
+                        </button>
+                        <button
                             type="primary"
                             label="Edit Selected"
                             :disabled="computedSelectedCount == 0"
-                            @click="handleEditSelected" />
+                            @click="handleEditSelected">
+                            Edit Selected
+                        </button>
                     </div>
                     <div>{{ computedSelectedCount }} selected</div>
-                </SMToolbar>
+                </div>
             </template>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -89,8 +144,6 @@ import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import SMButton from "../../components/SMButton.vue";
-import SMToolbar from "../../components/SMToolbar.vue";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
@@ -100,9 +153,11 @@ import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMTable from "../../components/SMTable.vue";
 import SMPagination from "../../components/SMPagination.vue";
-import SMNoItems from "../../components/SMNoItems.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { updateRouterParams } from "../../helpers/url";
+import { userHasPermission } from "../../helpers/utils";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import SMCheckbox from "../../components/SMCheckbox.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -137,23 +192,6 @@ watch(itemsPage, () => {
 const handleSearch = () => {
     itemsPage.value = 1;
     handleLoad();
-};
-
-/**
- * Handle user selecting option in action button.
- *
- * @param {Media} item The media item.
- * @param {string} extra The option selected.
- * @param option
- */
-const handleActionButton = (item: Media, option: string): void => {
-    if (option.length == 0) {
-        handleEdit(item);
-    } else if (option.toLowerCase() == "download") {
-        handleDownload(item);
-    } else if (option.toLowerCase() == "delete") {
-        handleDelete(item);
-    }
 };
 
 /**
@@ -238,7 +276,6 @@ const handleSelect = (item: Media) => {
 
 /**
  * User requests to edit the item
- *
  * @param {Media} item The media item.
  */
 const handleEdit = (item: Media) => {
@@ -255,7 +292,6 @@ const handleEdit = (item: Media) => {
 
 /**
  * Request to delete a media item from the server.
- *
  * @param {Media} item The media object to delete.
  */
 const handleDelete = async (item: Media) => {
@@ -391,7 +427,6 @@ const handleEditSelected = async () => {
 
 /**
  * Handle the user requesting to download the item.
- *
  * @param {Media} item The media item.
  */
 const handleDownload = (item: Media) => {
@@ -408,28 +443,9 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.page-dashboard-media-list {
-    .toolbar-search {
-        max-width: 350px;
-    }
-
-    .table tr {
-        td:first-of-type,
-        td:nth-of-type(2) {
-            word-break: break-all;
-        }
-
-        td:not(:first-of-type) {
-            white-space: nowrap;
-        }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-dashboard-media-list {
-        .toolbar-search {
-            max-width: none;
-        }
+.sm-table-media {
+    tbody tr td:last-child {
+        white-space: nowrap;
     }
 }
 </style>

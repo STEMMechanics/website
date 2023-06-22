@@ -1,21 +1,23 @@
 <template>
     <router-link
         :to="{ name: 'article', params: { slug: props.article.slug } }"
-        class="article-card">
+        class="article-card bg-white border-1 border-rounded-xl text-black decoration-none hover:shadow-md transition min-w-72">
         <div
-            class="thumbnail"
+            class="h-48 bg-cover bg-center rounded-t-xl relative"
             :style="{
                 backgroundImage: `url(${mediaGetVariantUrl(
                     props.article.hero,
                     'medium'
                 )})`,
             }"></div>
-        <div class="info">
+        <div class="p-4 text-xs text-gray-7">
             {{ props.article.user.display_name }} -
             {{ computedDate(props.article.publish_at) }}
         </div>
-        <h3 class="title">{{ props.article.title }}</h3>
-        <p class="content">
+        <h3 class="px-4 mb-3 font-500 text-gray-7">
+            {{ props.article.title }}
+        </h3>
+        <p class="p-4 text-sm text-gray-7">
             {{ excerpt(props.article.content) }}
         </p>
     </router-link>
@@ -38,46 +40,3 @@ const computedDate = (date) => {
     return new SMDate(date, { format: "yMd" }).format("d MMMM yyyy");
 };
 </script>
-
-<style lang="scss">
-a.article-card {
-    text-decoration: none;
-    color: var(--card-color-text);
-    margin-bottom: 48px;
-
-    &:visited {
-        color: var(--card-color-text);
-    }
-
-    &:hover {
-        filter: none;
-
-        .thumbnail {
-            filter: brightness(115%);
-        }
-    }
-
-    .thumbnail {
-        aspect-ratio: 16 / 9;
-        border-radius: 7px;
-        background-position: center;
-        background-size: cover;
-        background-color: var(--card-color);
-        box-shadow: var(--base-shadow);
-        margin-bottom: 24px;
-    }
-
-    .info {
-        font-size: 80%;
-    }
-
-    .title {
-        margin: 16px 0;
-        word-break: break-word;
-    }
-
-    .content {
-        font-size: 90%;
-    }
-}
-</style>

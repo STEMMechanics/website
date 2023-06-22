@@ -7,7 +7,7 @@ import {
 } from "./validate";
 
 type FormObjectValidateFunction = (item: string | null) => Promise<boolean>;
-type FormObjectLoadingFunction = (state: boolean) => void;
+type FormObjectLoadingFunction = (state?: boolean) => boolean;
 type FormObjectMessageFunction = (
     message?: string,
     type?: string,

@@ -90,9 +90,13 @@ export const clamp = (n: number, min: number, max: number): number => {
  */
 export const generateRandomElementId = (prefix: string = ""): string => {
     let randomId = "";
+    const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
     do {
-        randomId = prefix + Math.random().toString(36).substring(2, 9);
+        randomId =
+            prefix +
+            letters.charAt(Math.floor(Math.random() * letters.length)) +
+            Math.random().toString(36).substring(2, 9);
     } while (document.getElementById(randomId));
 
     return randomId;

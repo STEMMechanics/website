@@ -1,80 +1,62 @@
 <template>
-    <SMMastHead
-        :title="pageHeading"
-        :back-link="
-            route.params.id || isCreating
-                ? { name: 'dashboard-user-list' }
-                : { name: 'dashboard' }
-        "
-        :back-title="
-            route.params.id || isCreating
-                ? 'Back to Users'
-                : 'Back to Dashboard'
-        " />
-    <SMContainer>
-        <SMForm :model-value="form" @submit="handleSubmit">
-            <SMRow>
-                <SMColumn
-                    ><SMInput control="display_name" autofocus
-                /></SMColumn>
-            </SMRow>
-            <SMRow>
-                <SMColumn><SMInput control="first_name" /></SMColumn>
-                <SMColumn><SMInput control="last_name" /></SMColumn>
-            </SMRow>
-            <SMRow>
-                <SMColumn><SMInput control="email" type="email" /></SMColumn>
-                <SMColumn
-                    ><SMInput control="phone"
-                        ><template #help
-                            >This field is optional</template
-                        ></SMInput
-                    >
-                </SMColumn>
-            </SMRow>
-            <template v-if="userStore.permissions.includes('admin/users')">
-                <SMRow
-                    ><SMColumn><h3>Permissions</h3></SMColumn></SMRow
+    <SMPageStatus
+        v-if="!userHasPermission('admin/users') && route.params.id"
+        :status="403" />
+    <template v-else>
+        <SMMastHead
+            :title="pageHeading"
+            :back-link="
+                route.params.id || isCreating
+                    ? { name: 'dashboard-user-list' }
+                    : { name: 'dashboard' }
+            "
+            :back-title="
+                route.params.id || isCreating
+                    ? 'Back to Users'
+                    : 'Back to Dashboard'
+            " />
+        <SMLoading v-if="form.loading()" />
+        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
+            <SMForm :model-value="form" @submit="handleSubmit">
+                <SMInput class="mt-4" control="display_name" autofocus />
+                <SMInput class="mt-4" control="email" type="email" />
+                <SMInput class="mt-4" control="first_name"
+                    >This field is optional</SMInput
                 >
-                <SMRow>
-                    <SMColumn
-                        ><SMInput
-                            type="checkbox"
-                            label="Edit Users"
-                            v-model="permissions.users"
-                    /></SMColumn>
-                    <SMColumn
-                        ><SMInput
-                            type="checkbox"
-                            label="Edit Articles"
-                            v-model="permissions.users"
-                    /></SMColumn>
-                    <SMColumn
-                        ><SMInput
-                            type="checkbox"
-                            label="Edit Events"
-                            v-model="permissions.users"
-                    /></SMColumn>
-                </SMRow>
-            </template>
-            <SMRow>
-                <SMColumn>
-                    <SMButtonRow>
-                        <template #right>
-                            <SMButton
-                                v-if="!isCreating"
-                                type="secondary"
-                                label="Change Password"
-                                @click="handleChangePassword" />
-                            <SMButton
-                                type="submit"
-                                :label="computedSubmitLabel" />
-                        </template>
-                    </SMButtonRow>
-                </SMColumn>
-            </SMRow>
-        </SMForm>
-    </SMContainer>
+                <SMInput class="mt-4" control="last_name"
+                    >This field is optional</SMInput
+                >
+                <SMInput class="mt-4" control="phone"
+                    >This field is optional</SMInput
+                >
+                <template v-if="userStore.permissions.includes('admin/users')">
+                    <h2 class="mt-8">Permissions</h2>
+                    <SMCheckbox
+                        label="Edit Users"
+                        class="mt-4"
+                        v-model="permissions.users" /><SMCheckbox
+                        class="mt-4"
+                        label="Edit Articles"
+                        v-model="permissions.articles" /><SMCheckbox
+                        class="mt-4"
+                        label="Edit Events"
+                        v-model="permissions.events" />
+                </template>
+                <div class="flex flex-justify-between mt-8">
+                    <button
+                        v-if="!isCreating"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-white border-1 border-sky-500 text-sky-500 cursor-pointer"
+                        @click="handleChangePassword">
+                        Change Password
+                    </button>
+                    <input
+                        type="submit"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        :value="computedSubmitLabel" />
+                </div>
+            </SMForm>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -82,7 +64,6 @@ import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import SMDialogChangePassword from "../../components/dialogs/SMDialogChangePassword.vue";
-import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
@@ -92,8 +73,10 @@ import { And, Custom, Email, Phone, Required } from "../../helpers/validate";
 import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 import { userHasPermission } from "../../helpers/utils";
+import SMLoading from "../../components/SMLoading.vue";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import SMCheckbox from "../../components/SMCheckbox.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -133,6 +116,8 @@ let form = reactive(
 
 const permissions = ref({
     users: false,
+    articles: false,
+    events: false,
 });
 
 /**

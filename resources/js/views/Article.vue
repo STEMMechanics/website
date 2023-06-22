@@ -1,29 +1,47 @@
 <template>
-    <div
-        class="thumbnail"
-        :style="{ backgroundImage: `url('${backgroundImageUrl}')` }"></div>
-    <SMContainer narrow>
-        <h1 class="title">
-            {{ article.title }}
-        </h1>
-        <SMToolbar>
-            <div>
-                <div class="author">By {{ article.user.display_name }}</div>
-                <div class="date">{{ formattedDate(article.publish_at) }}</div>
+    <SMLoading class="pt-24 pb-48" v-if="pageLoading" />
+    <SMPageStatus
+        v-else-if="!pageLoading && pageStatus != 200"
+        :status="pageStatus" />
+    <template v-else>
+        <div
+            class="max-w-4xl mx-auto h-96 text-center mb-8 relative rounded-4 overflow-hidden">
+            <div
+                class="blur bg-cover bg-center absolute top-0 left-0 w-full h-full -z-1 opacity-50"
+                :style="{
+                    backgroundImage: `url('${backgroundImageUrl}')`,
+                }"></div>
+            <img :src="backgroundImageUrl" class="h-full" />
+        </div>
+        <div class="max-w-4xl mx-auto flex flex-col px-4">
+            <h1 class="pb-2 text-gray-6">
+                {{ article.title }}
+            </h1>
+            <div
+                class="flex flex-1 flex-justify-between flex-items-center pb-4">
+                <div>
+                    <div class="font-bold text-gray-6">
+                        By {{ article.user.display_name }}
+                    </div>
+                    <div class="font-bold text-gray-4">
+                        {{ formattedDate(article.publish_at) }}
+                    </div>
+                </div>
+                <router-link
+                    v-if="userHasPermission('admin/articles') && article.id"
+                    role="button"
+                    :to="{
+                        name: 'dashboard-article-edit',
+                        params: { id: article.id },
+                    }"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm border-1 bg-white border-sky-6 text-sky-600 text-center"
+                    >Edit Article</router-link
+                >
             </div>
-            <SMButton
-                v-if="userHasPermission('admin/articles') && article.id"
-                size="medium"
-                type="primary"
-                :to="{
-                    name: 'dashboard-article-edit',
-                    params: { id: article.id },
-                }"
-                label="Edit Article" />
-        </SMToolbar>
-        <SMHTML :html="article.content" class="content" />
-        <SMAttachments :attachments="article.attachments || []" />
-    </SMContainer>
+            <MdPreview :model-value="article.content" />
+            <SMAttachments :attachments="article.attachments || []" />
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -36,9 +54,11 @@ import { Article, ArticleCollection, User } from "../helpers/api.types";
 import { SMDate } from "../helpers/datetime";
 import { useApplicationStore } from "../store/ApplicationStore";
 import { mediaGetVariantUrl } from "../helpers/media";
-import SMToolbar from "../components/SMToolbar.vue";
-import SMButton from "../components/SMButton.vue";
 import { userHasPermission } from "../helpers/utils";
+import SMLoading from "../components/SMLoading.vue";
+import SMPageStatus from "../components/SMPageStatus.vue";
+import { MdPreview } from "md-editor-v3";
+// import "md-editor-v3/lib/preview.css";
 
 const applicationStore = useApplicationStore();
 
@@ -53,7 +73,7 @@ let article: Ref<Article> = ref({
 /**
  * The current page error.
  */
-let pageError = ref(200);
+let pageStatus = ref(200);
 
 /**
  * Is the page loading.
@@ -106,10 +126,10 @@ const handleLoad = async () => {
                 );
                 applicationStore.setDynamicTitle(article.value.title);
             } else {
-                pageError.value = 404;
+                pageStatus.value = 404;
             }
         } else {
-            pageError.value = 404;
+            pageStatus.value = 404;
         }
     } catch (error) {
         /* empty */
@@ -120,7 +140,6 @@ const handleLoad = async () => {
 
 /**
  * Format Date
- *
  * @param dateStr Date string.
  * @returns Formatted date.
  */
@@ -130,42 +149,3 @@ const formattedDate = (dateStr) => {
 
 handleLoad();
 </script>
-
-<style lang="scss">
-.page-article {
-    .thumbnail {
-        background-position: center;
-        background-repeat: no-repeat;
-        background-size: cover;
-        aspect-ratio: 16 / 9;
-        max-height: 320px;
-        width: 100%;
-    }
-
-    .title {
-        margin-top: 64px;
-        text-align: left;
-    }
-
-    .author {
-        // margin-top: 16px;
-        font-weight: 700;
-    }
-
-    .date {
-        margin-top: 8px;
-        font-weight: 700;
-        filter: brightness(175%);
-    }
-
-    .content {
-        margin-top: 24px;
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-article-view .heading-image {
-        height: #{calc(map-get($spacing, 3) * 10)};
-    }
-}
-</style>

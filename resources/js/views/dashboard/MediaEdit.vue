@@ -79,24 +79,20 @@
                 </SMRow>
                 <SMRow>
                     <SMColumn>
-                        <SMButtonRow>
-                            <template #right>
-                                <SMButton
-                                    type="submit"
-                                    :label="editMultiple ? 'Save All' : 'Save'"
-                                    :form="form" />
-                            </template>
-                            <template #left>
-                                <SMButton
-                                    :form="form"
-                                    v-if="route.params.id"
-                                    type="danger"
-                                    :label="
-                                        editMultiple ? 'Delete All' : 'Delete'
-                                    "
-                                    @click="handleDelete" />
-                            </template>
-                        </SMButtonRow>
+                        <template #right>
+                            <input
+                                role="button"
+                                type="submit"
+                                :value="editMultiple ? 'Save All' : 'Save'" />
+                        </template>
+                        <template #left>
+                            <SMButton
+                                :form="form"
+                                v-if="route.params.id"
+                                type="danger"
+                                :label="editMultiple ? 'Delete All' : 'Delete'"
+                                @click="handleDelete" />
+                        </template>
                     </SMColumn>
                 </SMRow>
             </SMForm>
@@ -114,15 +110,12 @@ import { And, FileSize, Required } from "../../helpers/validate";
 import { MediaResponse } from "../../helpers/api.types";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
-import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { useToastStore } from "../../store/ToastStore";
-import SMColumn from "../../components/SMColumn.vue";
 import SMImage from "../../components/SMImage.vue";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 import SMImageStack from "../../components/SMImageStack.vue";
 
 const route = useRoute();

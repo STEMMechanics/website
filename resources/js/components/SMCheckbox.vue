@@ -1,61 +1,42 @@
 <template>
-    <div class="sm-input flex flex-col flex-1">
-        <div
-            :class="[
-                'relative',
-                'w-full',
-                'flex',
-                { 'input-active': active || focused },
-            ]">
-            <label
-                :for="id"
+    <div class="sm-checkbox flex flex-col flex-1">
+        <label :class="['control-label-checkbox', ,]" v-bind="{ for: id }"
+            ><input
+                :id="id"
+                type="checkbox"
+                class="opacity-0 w-0 h-0 select-none"
+                :disabled="disabled"
+                :checked="value"
+                @input="handleCheckbox" />
+            <span
                 :class="[
+                    'h-6',
+                    'w-6',
+                    'rounded',
+                    'border-1',
+                    'border-gray',
                     'absolute',
-                    'select-none',
-                    'pointer-events-none',
-                    'transform-origin-top-left',
-                    'text-gray',
-                    'block',
-                    'translate-x-5',
-                    'scale-100',
-                    'transition',
-                    small ? ['text-sm', '-top-0.5'] : 'top-0.5',
-                ]"
-                >{{ label }}</label
-            >
-            <input
-                :type="props.type"
-                :class="[
-                    'w-full',
-                    'text-gray-6',
-                    'flex-1',
-                    'px-4',
-                    small ? ['text-sm', 'pt-3'] : ['text-lg', 'pt-5'],
-                    feedbackInvalid ? 'border-red-6' : 'border-gray',
-                    feedbackInvalid ? 'border-2' : 'border-1',
-                    { 'bg-gray-1': disabled },
-                    { 'rounded-l-2': !slots.prepend },
-                    { 'rounded-r-2': !slots.append },
-                ]"
-                v-bind="{
-                    id: id,
-                    autofocus: props.autofocus,
-                    autocomplete: props.type === 'email' ? 'email' : null,
-                    spellcheck: props.type === 'email' ? false : null,
-                    autocorrect: props.type === 'email' ? 'on' : null,
-                    autocapitalize: props.type === 'email' ? 'off' : null,
-                }"
-                @focus="handleFocus"
-                @blur="handleBlur"
-                @input="handleInput"
-                @keyup="handleKeyup"
-                :value="value"
-                :disabled="disabled" />
-            <template v-if="slots.append"><slot name="append"></slot></template>
-        </div>
-        <p v-if="feedbackInvalid" class="px-2 pt-2 text-xs text-red-6">
-            {{ feedbackInvalid }}
-        </p>
+                    disabled ? 'bg-gray-2' : 'bg-white',
+                ]">
+                <span
+                    :class="[
+                        'sm-check',
+                        'hidden',
+                        'absolute',
+                        'left-1.5',
+                        'top-0.2',
+                        'border-r-4',
+                        'border-b-4',
+                        'h-4',
+                        'w-2.5',
+
+                        'rotate-45',
+                        disabled ? 'border-gray' : 'border-sky-5',
+                    ]"></span> </span
+            ><span :class="['pl-8', disabled ? 'text-gray' : 'text-black']">{{
+                label
+            }}</span></label
+        >
         <p v-if="slots.default" class="px-2 pt-2 text-xs text-gray-5">
             <slot></slot>
         </p>
@@ -123,11 +104,6 @@ const props = defineProps({
         default: "form",
         required: false,
     },
-    small: {
-        type: Boolean,
-        default: false,
-        required: false,
-    },
 });
 
 const slots = useSlots();
@@ -169,6 +145,17 @@ const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.toString().length ?? 0 > 0);
 const focused = ref(false);
 const disabled = ref(props.disabled);
+
+const handleCheckbox = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    value.value = target.checked;
+    emits("update:modelValue", target.checked);
+
+    if (control) {
+        control.value = target.checked;
+        feedbackInvalid.value = "";
+    }
+};
 
 watch(
     () => value.value,
@@ -246,19 +233,10 @@ const handleInput = (event: Event) => {
         feedbackInvalid.value = "";
     }
 };
-
-const handleKeyup = (event: Event) => {
-    emits("keyup", event);
-};
 </script>
 
 <style lang="scss">
-.sm-input {
-    label {
-        --un-translate-y: 0.85rem;
-    }
-    .input-active label {
-        transform: translate(16px, 6px) scale(0.7);
-    }
+.sm-checkbox input:checked + span .sm-check {
+    display: block;
 }
 </style>

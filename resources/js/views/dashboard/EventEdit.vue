@@ -1,141 +1,107 @@
 <template>
-    <SMPage :page-error="pageError" permission="admin/events">
+    <SMPageStatus v-if="!userHasPermission('admin/events')" :status="403" />
+    <template v-else>
         <SMMastHead
             :title="pageHeading"
             :back-link="{ name: 'dashboard-event-list' }"
             back-title="Back to Events" />
-        <SMContainer class="flex-grow-1">
-            <SMLoading v-if="pageLoading" large />
+        <div class="max-w-7xl mx-auto mt-8 px-8">
+            <SMLoading v-if="pageLoading" />
             <SMForm
                 v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <SMRow>
-                    <SMColumn><SMInput control="title" /></SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            control="location"
-                            type="select"
-                            :options="{
-                                online: 'Online',
-                                physical: 'Physical',
-                            }" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow v-if="form.controls.location.value !== 'online'">
-                    <SMColumn> <SMInput control="address" /></SMColumn>
-                    <SMColumn>
-                        <SMInput control="location_url" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            type="datetime"
-                            control="start_at"
-                            label="Start Date/Time" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            type="datetime"
-                            control="end_at"
-                            label="End Date/Time" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            type="datetime"
-                            control="publish_at"
-                            label="Publish Date/Time" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            type="select"
-                            control="status"
-                            :options="{
-                                draft: 'Draft',
-                                soon: 'Opening Soon',
-                                open: 'Open',
-                                closed: 'Closed',
-                                cancelled: 'Cancelled',
-                            }" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput control="price"
-                            >Leave blank to hide from public. Also supports TBD
-                            and TBC.</SMInput
-                        >
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput control="ages"
-                            >Leave blank to hide from public.</SMInput
-                        >
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            type="select"
-                            control="registration_type"
-                            label="Registration"
-                            :options="{
-                                none: 'None',
-                                email: 'Email',
-                                link: 'Link',
-                                message: 'Message',
-                            }" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            v-if="registration_data?.visible"
-                            control="registration_data"
-                            :label="registration_data?.title"
-                            :type="registration_data?.type" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            control="hero"
-                            type="media"
-                            label="Hero image" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMEditor
-                            v-model:model-value="form.controls.content.value" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInputAttachments :model-value="attachments" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMButtonRow>
-                            <template #right>
-                                <SMButton type="submit" label="Save" />
-                            </template>
-                        </SMButtonRow>
-                    </SMColumn>
-                </SMRow>
+                <div class="flex gap-4 mb-8">
+                    <SMInput control="title" />
+                    <SMDropdown
+                        control="location"
+                        type="select"
+                        :options="{
+                            online: 'Online',
+                            physical: 'Physical',
+                        }" />
+                </div>
+                <div
+                    class="flex gap-4 mb-8"
+                    v-if="form.controls.location.value !== 'online'">
+                    <SMInput control="address" />
+                    <SMInput control="location_url" />
+                </div>
+                <div class="flex gap-4 mb-8">
+                    <SMInput
+                        type="datetime"
+                        control="start_at"
+                        label="Start Date/Time" />
+                    <SMInput
+                        type="datetime"
+                        control="end_at"
+                        label="End Date/Time" />
+                </div>
+                <div class="flex gap-4 mb-8">
+                    <SMInput
+                        type="datetime"
+                        control="publish_at"
+                        label="Publish Date/Time" />
+                    <SMDropdown
+                        type="select"
+                        control="status"
+                        :options="{
+                            draft: 'Draft',
+                            soon: 'Opening Soon',
+                            open: 'Open',
+                            closed: 'Closed',
+                            cancelled: 'Cancelled',
+                        }" />
+                </div>
+                <div class="flex gap-4 mb-8">
+                    <SMInput control="price"
+                        >Leave blank to hide from public. Also supports TBD and
+                        TBC.</SMInput
+                    >
+                    <SMInput control="ages"
+                        >Leave blank to hide from public.</SMInput
+                    >
+                </div>
+                <div class="flex gap-4 mb-8">
+                    <SMDropdown
+                        type="select"
+                        control="registration_type"
+                        label="Registration"
+                        :options="{
+                            none: 'None',
+                            email: 'Email',
+                            link: 'Link',
+                            message: 'Message',
+                        }" />
+                    <SMInput
+                        v-if="registration_data?.visible"
+                        control="registration_data"
+                        :label="registration_data?.title"
+                        :type="registration_data?.type" />
+                </div>
+                <div class="mb-8">
+                    <SMInput control="hero" type="media" label="Hero image" />
+                </div>
+                <SMEditor
+                    class="mb-8"
+                    v-model:model-value="form.controls.content.value" />
+                <SMInputAttachments :model-value="attachments" />
+                <div class="flex flex-justify-end">
+                    <input
+                        type="submit"
+                        class="font-medium px-6 py-3.1 rounded-2 hover:shadow-md text-lg transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        value="Save" />
+                </div>
             </SMForm>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
 import { SMDate } from "../../helpers/datetime";
@@ -155,6 +121,9 @@ import { EventResponse } from "../../helpers/api.types";
 import { useToastStore } from "../../store/ToastStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import { userHasPermission } from "../../helpers/utils";
+import SMDropdown from "../../components/SMDropdown.vue";
 
 const route = useRoute();
 const router = useRouter();

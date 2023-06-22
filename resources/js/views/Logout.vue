@@ -1,5 +1,5 @@
 <template>
-    <SMLoading large />
+    <SMLoading />
 </template>
 
 <script setup lang="ts">

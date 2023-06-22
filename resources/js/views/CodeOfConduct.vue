@@ -1,8 +1,8 @@
 <template>
     <SMMastHead title="Code of Conduct" />
-    <SMContainer narrow>
-        <template #inner>
-            <p>
+    <div class="pb-12">
+        <div class="max-w-4xl mx-auto px-4">
+            <p class="pt-16 pb-2">
                 STEMMechanics supports the international community open to
                 everyone without discrimination. We want this community to be a
                 safe and welcoming place for both newcomers and current members.
@@ -10,7 +10,7 @@
                 their personal background and affiliation our projects and
                 workshops.
             </p>
-            <SMHeader text="Philosophy" />
+            <SMHeader text="Philosophy" class="pt-16 pb-2" />
             <p>
                 In the STEMMechanics community, participants from all over the
                 world come together to create and work on STEM projects. This is
@@ -31,14 +31,14 @@
                 <a href="#coc-team">Code of Conduct team</a> surely will be as
                 well.
             </p>
-            <SMHeader text="Application" />
+            <SMHeader text="Application" class="pt-16 pb-2" />
             <p>
                 This Code of Conduct applies to all users, contributors and
                 participants who engage with the STEMMechanics workshops,
                 projects and its community platforms.
             </p>
-            <SMHeader text="Expectations" />
-            <ul>
+            <SMHeader text="Expectations" class="pt-16 pb-2" />
+            <ul class="list-disc">
                 <li>
                     Politeness is expected at all times. Be kind and courteous.
                 </li>
@@ -60,14 +60,14 @@
                     please accept it gracefully.
                 </li>
             </ul>
-            <SMHeader text="Restricted conduct" />
+            <SMHeader text="Restricted conduct" class="pt-16 pb-2" />
             <p>
                 Participating in restricted conduct will lead to a warning from
                 community moderators and/or the Code of Conduct team and may
                 lead to exclusion from the community in the form of a ban from
                 one or all platforms.
             </p>
-            <ul>
+            <ul class="list-disc">
                 <li>
                     STEMMechanics is committed to providing a friendly and safe
                     environment for everyone, regardless of level of experience,
@@ -108,7 +108,7 @@
                     acceptable.
                 </li>
             </ul>
-            <SMHeader text="Reporting a breach" />
+            <SMHeader text="Reporting a breach" class="pt-16 pb-2" />
             <p>
                 If you witness or are involved in an interaction with another
                 community member that you think may violate this Code of
@@ -127,29 +127,24 @@
                 using their personal emails listed below, or via direct
                 messaging on community platforms where they are present.
             </p>
-            <SMHeader id="coc-item" text="Code of Conduct team" />
-            <ul>
+            <SMHeader
+                id="coc-item"
+                text="Code of Conduct team"
+                class="pt-16 pb-2" />
+            <ul class="list-disc">
                 <li>James Collins, james@stemmechanics.com.au</li>
-                <ul>
+                <ul class="list-circle">
                     <li>
                         GitHub / Discord / Reddit / Twitter:
                         <span class="italic">nomadjimbob</span>
                     </li>
                 </ul>
             </ul>
-        </template>
-    </SMContainer>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
 import SMMastHead from "../components/SMMastHead.vue";
 import SMHeader from "../components/SMHeader.vue";
 </script>
-
-<style lang="scss">
-.page-code-of-conduct {
-    h3 {
-        margin-top: 60px;
-    }
-}
-</style>

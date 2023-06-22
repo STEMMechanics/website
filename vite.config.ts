@@ -3,26 +3,14 @@ import laravel from "laravel-vite-plugin";
 import analyzer from "rollup-plugin-analyzer";
 import { compression } from "vite-plugin-compression2";
 import { defineConfig } from "vite";
-import { FontaineTransform } from "fontaine";
-
-const options = {
-    fallbacks: [
-        "BlinkMacSystemFont",
-        "Segoe UI",
-        "Helvetica Neue",
-        "Arial",
-        "Noto Sans",
-    ],
-    resolvePath: (id) => "file:///./public/fonts" + id,
-};
+import Unocss from "unocss/vite";
 
 export default defineConfig({
     plugins: [
         vue({
             template: {
                 compilerOptions: {
-                    isCustomElement: (tag) =>
-                        ["trix-editor", "ion-icon"].includes(tag),
+                    isCustomElement: (tag) => ["ion-icon"].includes(tag),
                 },
                 transformAssetUrls: {
                     base: null,
@@ -30,6 +18,7 @@ export default defineConfig({
                 },
             },
         }),
+        Unocss({}),
         laravel({
             input: ["resources/css/app.scss", "resources/js/main.js"],
             refresh: true,
@@ -39,23 +28,25 @@ export default defineConfig({
             include: [/\.(js)$/, /\.(css)$/],
             // deleteOriginalAssets: true,
         }),
-        FontaineTransform.vite(options),
     ],
     css: {
         preprocessorOptions: {
             scss: {
-                additionalData: `@import "./resources/css/variables.scss";`,
+                // additionalData: `@import "./resources/css/variables.scss";`,
             },
         },
     },
-    envPrefix: ["VITE_", "GOOGLE_RECAPTCHA_SITE_KEY", "APP_URL"],
+    envPrefix: ["VITE_", "APP_URL"],
     resolve: {
         alias: {
             vue: "vue/dist/vue.esm-bundler.js",
         },
     },
-    publicDir: "public",
     build: {
-        chunkSizeWarningLimit: 1600,
+        chunkSizeWarningLimit: 500,
+        rollupOptions: {
+            output: {},
+        },
     },
+    base: "",
 });

@@ -1,58 +1,47 @@
 <template>
-    <SMContainer :center="true">
+    <div
+        class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
         <SMForm v-model="form" @submit="handleSubmit">
-            <SMFormCard>
-                <template #header>
-                    <h2>Log in</h2>
-                    <p>
-                        Enter your website login details to view your account.
-                    </p>
-                </template>
-                <template #body>
-                    <SMInput control="email" autofocus type="email"> </SMInput>
-                    <SMInput control="password" type="password">
-                        <router-link to="/forgot-password"
-                            >Forgot password?</router-link
-                        >
-                    </SMInput>
-                </template>
-                <template #footer>
-                    <SMButtonRow>
-                        <template #left>
-                            <div class="small">
-                                <span class="pr-1">Need an account?</span
-                                ><router-link to="/register"
-                                    >Register</router-link
-                                >
-                            </div>
-                        </template>
-                        <template #right>
-                            <SMButton
-                                :form="form"
-                                type="submit"
-                                label="Log in" />
-                        </template>
-                    </SMButtonRow>
-                </template>
-            </SMFormCard>
+            <h1 class="mb-4">Log in</h1>
+            <p class="mb-4">
+                Enter your website login details to view your account.
+            </p>
+            <SMInput class="mb-4" control="email" autofocus type="email">
+            </SMInput>
+            <SMInput class="mb-4" control="password" type="password">
+                <router-link to="/forgot-password"
+                    >Forgot password?</router-link
+                >
+            </SMInput>
+            <div
+                class="flex flex-justify-between items-center pt-4 flex-col sm:flex-row">
+                <div class="text-xs mb-4 sm:mb-0">
+                    <span class="pr-1">Need an account?</span
+                    ><router-link to="/register">Register</router-link>
+                </div>
+                <input
+                    v-if="!form.loading()"
+                    type="submit"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    value="Log in" />
+                <SMLoading v-else small />
+            </div>
         </SMForm>
-    </SMContainer>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { reactive } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import SMButton from "../components/SMButton.vue";
-import SMContainer from "../components/SMContainer.vue";
 import SMForm from "../components/SMForm.vue";
-import SMFormCard from "../components/SMFormCard.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { LoginResponse } from "../helpers/api.types";
 import { Form, FormControl } from "../helpers/form";
 import { And, Email, Required } from "../helpers/validate";
 import { useUserStore } from "../store/UserStore";
-import SMButtonRow from "../components/SMButtonRow.vue";
+import { useToastStore } from "../store/ToastStore";
+import SMLoading from "../components/SMLoading.vue";
 
 const userStore = useUserStore();
 

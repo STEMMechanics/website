@@ -1,61 +1,53 @@
 <template>
-    <SMPage>
-        <SMRow>
-            <SMFormCard narrow>
-                <template v-if="!formDone">
-                    <h1>Reset Password</h1>
-                    <SMForm v-model="form" @submit="handleSubmit">
-                        <SMInput control="code" />
-                        <SMInput control="password" type="password" />
-                        <SMButtonRow>
-                            <template #left>
-                                <div class="small">
-                                    <router-link
-                                        :to="{ name: 'forgot-password' }"
-                                        >Resend Code</router-link
-                                    >
-                                </div>
-                            </template>
-                            <template #right>
-                                <SMButton
-                                    type="submit"
-                                    label="Reset Password"
-                                    icon="arrow-forward-outline" />
-                            </template>
-                        </SMButtonRow>
-                    </SMForm>
-                </template>
-                <template v-else>
-                    <h1>Password Reset!</h1>
-                    <p class="text-center">
-                        Hurrah, Your password has been changed!
-                    </p>
-                    <SMButtonRow>
-                        <template #right>
-                            <SMButton :to="{ name: 'login' }" label="Login" />
-                        </template>
-                    </SMButtonRow>
-                </template>
-            </SMFormCard>
-        </SMRow>
-    </SMPage>
+    <div
+        class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
+        <template v-if="!formDone">
+            <h1 class="mb-4">Reset Password</h1>
+            <SMForm v-model="form" @submit="handleSubmit">
+                <SMInput class="mb-4" control="code" />
+                <SMInput class="mb-4" control="password" type="password" />
+                <div
+                    class="flex flex-justify-between items-center pt-4 flex-col sm:flex-row">
+                    <div class="text-xs mb-4 sm:mb-0">
+                        <router-link :to="{ name: 'forgot-password' }"
+                            >Resend Code</router-link
+                        >
+                    </div>
+                    <input
+                        v-if="!form.loading()"
+                        type="submit"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        value="Reset Password" />
+                    <SMLoading v-else small />
+                </div>
+            </SMForm>
+        </template>
+        <template v-else>
+            <h1 class="mb-4">Password Reset!</h1>
+            <p class="mb-4">Hurrah, Your password has been changed!</p>
+            <div class="flex flex-justify-center items-center pt-4">
+                <router-link
+                    role="button"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :to="{ name: 'login' }"
+                    >Log in</router-link
+                >
+            </div>
+        </template>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-// import { useReCaptcha } from "vue-recaptcha-v3";
 import { useRoute } from "vue-router";
-import SMButton from "../components/SMButton.vue";
-import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Max, Min, Password, Required } from "../helpers/validate";
 import { useToastStore } from "../store/ToastStore";
+import SMLoading from "../components/SMLoading.vue";
 
-// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
@@ -77,15 +69,11 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        // await recaptchaLoaded();
-        // const captcha = await executeRecaptcha("submit");
-
         await api.post({
             url: "/users/resetPassword",
             body: {
                 code: form.controls.code.value,
                 password: form.controls.password.value,
-                // captcha_token: captcha,
             },
         });
 

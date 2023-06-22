@@ -6,25 +6,25 @@
             >Code of Conduct</router-link
         >.</SMMastHead
     >
-    <SMContainer>
-        <div class="communities">
+    <div class="max-w-7xl mx-auto px-4 pt-8">
+        <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
             <a
                 :href="community.url"
-                class="community-card"
+                class="min-w-84 decoration-none bg-white border-1 border-gray-3 rounded-xl transition hover:shadow-md"
                 v-for="(community, index) in communities"
                 :key="index">
                 <div
-                    class="thumbnail"
+                    class="h-36 bg-cover bg-no-repeat bg-center rounded-t-xl"
                     :style="{
                         backgroundImage: `url(${community.thumbnail})`,
                     }"></div>
-                <h3 class="title">{{ community.title }}</h3>
-                <p class="content">
+                <h2 class="p-4">{{ community.title }}</h2>
+                <p class="text-sm text-gray-5 px-4 pb-8">
                     {{ community.content }}
                 </p>
             </a>
         </div>
-    </SMContainer>
+    </div>
 </template>
 
 <script setup lang="ts">

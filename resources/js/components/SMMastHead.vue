@@ -1,28 +1,42 @@
 <template>
-    <div class="masthead">
-        <SMContainer class="flex-column">
-            <div class="main">
-                <h1 class="title">{{ title }}</h1>
+    <div class="bg-sky-500 text-white">
+        <div class="max-w-7xl mx-auto flex flex-col pt-10 px-4">
+            <div class="pb-12">
+                <h1 class="text-4xl">{{ title }}</h1>
                 <router-link
-                    class="back"
+                    class="sm-masthead-backlink text-sm"
                     v-if="props.backLink !== null"
                     :to="props.backLink"
-                    ><ion-icon name="chevron-back-outline"></ion-icon>
+                    ><svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 -960 960 960"
+                        class="h-3">
+                        <path
+                            d="M400-80 0-480l400-400 56 57-343 343 343 343-56 57Z"
+                            fill="currentColor" />
+                    </svg>
                     {{ props.backTitle }}</router-link
                 >
-                <p class="info" v-if="slots.default"><slot></slot></p>
+                <p
+                    class="sm-masthead-info text-sm max-w-lg pt-2 text-sky-2"
+                    v-if="slots.default">
+                    <slot></slot>
+                </p>
             </div>
-            <div v-if="tabs().length > 0" class="tabs">
+            <div
+                v-if="tabs().length > 0"
+                class="block text-right overflow-x-auto whitespace-nowrap scroll-smooth scrollbar-width-none"
+                style="scrollbar-width: none">
                 <router-link
                     :to="tab.to"
                     v-for="(tab, idx) in tabs()"
                     :key="idx"
-                    class="tab-item"
-                    exact-active-class="active"
+                    class="inline-block decoration-none !text-sky-1 px-6 py-4 font-bold hover:bg-sky-400 rounded-t-2"
+                    exact-active-class="!bg-gray-1 !text-sky-500"
                     >{{ tab.title }}</router-link
                 >
             </div>
-        </SMContainer>
+        </div>
     </div>
 </template>
 
@@ -77,100 +91,13 @@ const tabs = () => {
 </script>
 
 <style lang="scss">
-.masthead {
-    background-color: var(--primary-color);
-    width: 100%;
-    margin-bottom: 32px;
+.sm-masthead-info a,
+.sm-masthead-backlink {
+    color: rgba(255, 255, 255, 1) !important;
+    text-decoration: none;
 
-    .main {
-        width: 100%;
-
-        .title {
-            color: rgb(255, 255, 255);
-            text-align: left;
-            margin-top: 32px;
-            margin-bottom: 32px;
-        }
-
-        .back,
-        .back:visited {
-            display: flex;
-            color: rgb(255, 255, 255, 0.75);
-            margin-top: -24px;
-            margin-bottom: 32px;
-            font-size: 80%;
-            text-decoration: none;
-            transition: color 0.1s linear;
-
-            &:hover {
-                color: rgb(255, 255, 255, 1);
-
-                ion-icon {
-                    margin-left: -4px;
-                    margin-right: 8px;
-                }
-            }
-
-            ion-icon {
-                margin-right: 4px;
-                transition: margin 0.1s linear;
-            }
-        }
-
-        .info {
-            margin-top: -24px;
-            color: rgb(255, 255, 255, 0.74);
-            max-width: 500px;
-
-            a {
-                color: rgb(255, 255, 255);
-                text-decoration: none;
-            }
-        }
-    }
-
-    .tabs {
-        display: flex;
-        justify-content: flex-end;
-        width: 100%;
-        white-space: nowrap;
-
-        .tab-item {
-            display: inline-block;
-            color: rgba(255, 255, 255, 0.8);
-            font-family: var(--header-font-family);
-            font-weight: 800;
-            text-decoration: none;
-            padding: 16px 24px;
-            white-space: nowrap;
-
-            &:hover:not(.active) {
-                color: rgba(255, 255, 255);
-                background-color: hsla(0, 0%, 100%, 0.1);
-            }
-
-            &.active {
-                background-color: var(--base-color);
-                color: var(--primary-color);
-
-                &:hover {
-                    filter: none;
-                }
-            }
-        }
-    }
-}
-
-@media (max-width: 900px) {
-    .masthead .tabs {
-        display: block;
-        overflow-x: auto;
-        scroll-behavior: smooth;
-        scrollbar-width: none;
-
-        &::-webkit-scrollbar {
-            display: none;
-        }
+    &:hover {
+        color: rgba(255, 255, 255, 0.5) !important;
     }
 }
 </style>

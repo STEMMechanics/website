@@ -1,11 +1,22 @@
 <template>
-    <div ref="toast" :class="['toast', type]" :style="styles">
-        <div class="toast-inner">
-            <h5 class="title" v-if="title && title.length > 0">
+    <div
+        ref="toast"
+        class="border-1 border-gray-2 bg-white rounded-md p-4 mt-4 mb-4"
+        :style="styles">
+        <div :class="['max-w-48', 'border-l-5', 'pl-4', 'relative', colour]">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                class="h-4 absolute right-0 hover:text-red-7 cursor-pointer"
+                @click="handleClickClose">
+                <path
+                    d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"
+                    fill="currentColor" />
+            </svg>
+            <h5 class="mt-0 mb-2" v-if="title && title.length > 0">
                 {{ title }}
             </h5>
-            <p>{{ content }}</p>
-            <ion-icon name="close-outline" @click="handleClickClose" />
+            <p class="text-xs">{{ content }}</p>
         </div>
     </div>
 </template>
@@ -37,13 +48,30 @@ const props = defineProps({
 
 const toastStore = useToastStore();
 const toast = ref(null);
+let colour = "";
 let height = 40;
 let hideTimeoutID: number | null = null;
 
 const styles = ref({
+    transition: "opacity 0.2s ease-in, margin 0.2s ease-in",
     opacity: 0,
     marginTop: "40px",
 });
+
+switch (props.type) {
+    case "primary":
+        colour = "border-sky-5";
+        break;
+    case "danger":
+        colour = "border-red-7";
+        break;
+    case "success":
+        colour = "border-green-7";
+        break;
+    case "warning":
+        colour = "border-yellow-4";
+        break;
+}
 
 const handleClickClose = () => {
     if (hideTimeoutID != null) {
@@ -80,7 +108,7 @@ onMounted(() => {
 });
 </script>
 
-<style lang="scss">
+<!-- <style lang="scss">
 .toast {
     position: relative;
     font-size: 80%;
@@ -129,4 +157,4 @@ onMounted(() => {
         border-left-color: var(--danger-color);
     }
 }
-</style>
+</style> -->

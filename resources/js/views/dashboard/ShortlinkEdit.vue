@@ -24,11 +24,10 @@
             </SMRow>
             <SMRow>
                 <SMColumn>
-                    <SMButtonRow>
-                        <template #right>
-                            <SMButton type="submit" :label="saveButtonLabel" />
-                        </template>
-                    </SMButtonRow>
+                    <input
+                        role="button"
+                        type="submit"
+                        :value="saveButtonLabel" />
                 </SMColumn>
             </SMRow>
         </SMForm>
@@ -38,7 +37,6 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import SMButton from "../../components/SMButton.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 import { api } from "../../helpers/api";
@@ -47,7 +45,6 @@ import { Form, FormControl } from "../../helpers/form";
 import { And, Length, Max, Min, Required } from "../../helpers/validate";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 
 const route = useRoute();
 const router = useRouter();

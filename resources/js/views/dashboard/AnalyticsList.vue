@@ -1,68 +1,80 @@
 <template>
-    <SMPage permission="admin/analytics">
+    <SMPageStatus v-if="!userHasPermission('admin/analytics')" :status="403" />
+    <template v-else>
         <SMMastHead
             title="Analytics"
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
-        <SMContainer class="flex-grow-1">
-            <SMToolbar>
+        <div class="max-w-7xl mx-auto mt-8 px-4">
+            <div class="flex items-center flex-justify-between mb-8">
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="toolbar-search"
+                    class="max-w-xl ml-4"
                     @keyup.enter="handleSearch">
                     <template #append>
-                        <SMButton
-                            type="primary"
-                            label="Search"
-                            icon="search-outline"
-                            @click="handleSearch" />
+                        <button
+                            class="font-medium px-4 py-3.1 rounded-r-2 hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                            @click="handleSearch">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 -960 960 960"
+                                class="h-6">
+                                <path
+                                    d="M796-121 533-384q-30 26-69.959 40.5T378-329q-108.162 0-183.081-75Q120-479 120-585t75-181q75-75 181.5-75t181 75Q632-691 632-584.85 632-542 618-502q-14 40-42 75l264 262-44 44ZM377-389q81.25 0 138.125-57.5T572-585q0-81-56.875-138.5T377-781q-82.083 0-139.542 57.5Q180-666 180-585t57.458 138.5Q294.917-389 377-389Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </button>
                     </template>
                 </SMInput>
-            </SMToolbar>
+            </div>
             <SMLoading large v-if="itemsLoading" />
+            <div
+                v-else-if="!itemsLoading && items.length == 0"
+                class="py-12 text-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                    class="h-24 text-gray-5">
+                    <path
+                        d="M453-280h60v-240h-60v240Zm26.982-314q14.018 0 23.518-9.2T513-626q0-14.45-9.482-24.225-9.483-9.775-23.5-9.775-14.018 0-23.518 9.775T447-626q0 13.6 9.482 22.8 9.483 9.2 23.5 9.2Zm.284 514q-82.734 0-155.5-31.5t-127.266-86q-54.5-54.5-86-127.341Q80-397.681 80-480.5q0-82.819 31.5-155.659Q143-709 197.5-763t127.341-85.5Q397.681-880 480.5-880q82.819 0 155.659 31.5Q709-817 763-763t85.5 127Q880-563 880-480.266q0 82.734-31.5 155.5T763-197.684q-54 54.316-127 86Q563-80 480.266-80Zm.234-60Q622-140 721-239.5t99-241Q820-622 721.188-721 622.375-820 480-820q-141 0-240.5 98.812Q140-622.375 140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"
+                        fill="currentColor" />
+                </svg>
+                <p class="text-lg text-gray-5">
+                    {{ "No sessions where found" }}
+                </p>
+            </div>
             <template v-else>
                 <SMPagination
                     v-if="items.length < itemsTotal"
                     v-model="itemsPage"
                     :total="itemsTotal"
                     :per-page="itemsPerPage" />
-                <SMNoItems v-if="items.length == 0" text="No Sessions Found" />
                 <SMTable
-                    v-else
                     :headers="headers"
                     :items="items"
                     @row-click="handleView">
                 </SMTable>
             </template>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { openDialog } from "../../components/SMDialog";
 import { api } from "../../helpers/api";
-import {
-    EventCollection,
-    Event,
-    SessionCollection,
-    Session,
-} from "../../helpers/api.types";
+import { SessionCollection, Session } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { updateRouterParams } from "../../helpers/url";
 import { useToastStore } from "../../store/ToastStore";
-import { toTitleCase } from "../../helpers/string";
-import SMButton from "../../components/SMButton.vue";
-import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
-import SMNoItems from "../../components/SMNoItems.vue";
 import SMPagination from "../../components/SMPagination.vue";
 import SMTable from "../../components/SMTable.vue";
-import SMToolbar from "../../components/SMToolbar.vue";
+import { userHasPermission } from "../../helpers/utils";
+import SMPageStatus from "../../components/SMPageStatus.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -165,7 +177,6 @@ const handleLoad = async () => {
 
 /**
  * User requests to edit the item
- *
  * @param {Session} item The event item.
  */
 const handleView = (item: Session) => {
@@ -180,32 +191,7 @@ const handleView = (item: Session) => {
     });
 };
 
-handleLoad();
+if (userHasPermission("admin/analytics")) {
+    handleLoad();
+}
 </script>
-
-<style lang="scss">
-.page-dashboard-event-list {
-    .toolbar-search {
-        max-width: 350px;
-    }
-
-    .table tr {
-        td:first-of-type,
-        td:nth-of-type(2) {
-            word-break: break-all;
-        }
-
-        td:not(:first-of-type) {
-            white-space: nowrap;
-        }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-dashboard-event-list {
-        .toolbar-search {
-            max-width: none;
-        }
-    }
-}
-</style>

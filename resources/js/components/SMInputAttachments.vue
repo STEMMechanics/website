@@ -27,11 +27,11 @@
                 </div>
             </li>
         </ul>
-        <SMButton
-            type="seconday"
+        <!-- <SMButton
+            type="secondary"
             :small="true"
             label="Add media"
-            @click="handleClickAdd" />
+            @click="handleClickAdd" /> -->
     </div>
 </template>
 
@@ -81,7 +81,6 @@ const handleClickAdd = async () => {
 
 /**
  * Handle removing a media item from the attachment array.
- *
  * @param {string} media_id The media id to remove.
  */
 const handleClickRemove = (media_id: string) => {
@@ -137,73 +136,73 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.input-attachments {
-    display: block;
+// .input-attachments {
+//     display: block;
 
-    label {
-        position: relative;
-        display: block;
-        padding: 8px 16px 0 16px;
-        color: var(--base-color);
-    }
+//     label {
+//         position: relative;
+//         display: block;
+//         padding: 8px 16px 0 16px;
+//         color: var(--base-color);
+//     }
 
-    a.button {
-        display: inline-block;
-    }
+//     a.button {
+//         display: inline-block;
+//     }
 
-    ul {
-        list-style-type: none;
-        padding: 0;
-        border: 1px solid var(--base-color-border);
+//     ul {
+//         list-style-type: none;
+//         padding: 0;
+//         border: 1px solid var(--base-color-border);
 
-        li {
-            background-color: var(--base-color-light);
-            display: flex;
-            align-items: center;
-            padding: 16px;
-            margin: 0;
+//         li {
+//             background-color: var(--base-color-light);
+//             display: flex;
+//             align-items: center;
+//             padding: 16px;
+//             margin: 0;
 
-            &.attachments-none {
-                justify-content: center;
+//             &.attachments-none {
+//                 justify-content: center;
 
-                ion-icon {
-                    font-size: 115%;
-                }
+//                 ion-icon {
+//                     font-size: 115%;
+//                 }
 
-                p {
-                    margin: 0;
-                    padding-left: #{map-get($spacing, 2)};
-                }
-            }
+//                 p {
+//                     margin: 0;
+//                     padding-left: #{map-get($spacing, 2)};
+//                 }
+//             }
 
-            .attachment-media-icon {
-                display: flex;
-                width: 64px;
-                justify-content: center;
-            }
+//             .attachment-media-icon {
+//                 display: flex;
+//                 width: 64px;
+//                 justify-content: center;
+//             }
 
-            .attachment-media-name {
-                flex: 1;
-            }
+//             .attachment-media-name {
+//                 flex: 1;
+//             }
 
-            .attachment-media-size {
-                font-size: 75%;
-                padding-left: #{map-get($spacing, 2)};
-                color: var(--base-color-dark);
-            }
+//             .attachment-media-size {
+//                 font-size: 75%;
+//                 padding-left: #{map-get($spacing, 2)};
+//                 color: var(--base-color-dark);
+//             }
 
-            .attachment-media-remove {
-                font-size: 115%;
-                padding-top: #{map-get($spacing, 1)};
-                margin-left: #{map-get($spacing, 3)};
-                color: var(--base-color-text);
-                cursor: pointer;
+//             .attachment-media-remove {
+//                 font-size: 115%;
+//                 padding-top: #{map-get($spacing, 1)};
+//                 margin-left: #{map-get($spacing, 3)};
+//                 color: var(--base-color-text);
+//                 cursor: pointer;
 
-                &:hover {
-                    color: var(--danger-color);
-                }
-            }
-        }
-    }
-}
+//                 &:hover {
+//                     color: var(--danger-color);
+//                 }
+//             }
+//         }
+//     }
+// }
 </style>

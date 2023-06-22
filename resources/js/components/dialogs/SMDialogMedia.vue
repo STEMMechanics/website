@@ -1,143 +1,157 @@
 <template>
-    <SMFormCard full class="dialog-media">
-        <SMLoading v-if="progressText" overlay :text="progressText" />
-        <template #header>
-            <h3>Insert Media</h3>
-        </template>
-        <template #body>
-            <SMTabGroup v-model="selectedTab">
-                <SMTab id="tab-browser" label="Media Browser">
-                    <SMToolbar>
-                        <SMGroupButtons
-                            :buttons="[
-                                {
-                                    name: 'grid',
-                                    icon: 'grid-outline',
-                                },
-                                {
-                                    name: 'list',
-                                    icon: 'list-outline',
-                                },
-                            ]"
-                            :active="listActive"
-                            @click="handleClickLayout" />
-                        <SMInput
-                            v-model="itemSearch"
-                            label="Search"
-                            class="toolbar-search"
-                            size="small"
-                            no-help
-                            @keyup.enter="handleSearch"
-                            @blur="handleSearch">
-                            <template #append>
-                                <SMButton
-                                    type="primary"
-                                    label="Search"
-                                    icon="search-outline"
-                                    @click="handleSearch" />
-                            </template>
-                        </SMInput>
-                    </SMToolbar>
-                    <div class="media-browser" :class="mediaBrowserClasses">
-                        <div class="media-browser-content">
-                            <SMLoadingIcon v-if="mediaLoading" />
-                            <div
-                                v-if="!mediaLoading && mediaItems.length == 0"
-                                class="media-none">
-                                <ion-icon name="sad-outline"></ion-icon>
-                                <p>No media found</p>
-                            </div>
-                            <ul v-if="!mediaLoading && mediaItems.length > 0">
-                                <li
-                                    v-for="item in mediaItems"
-                                    :key="item.id"
-                                    :class="[{ selected: item.id == selected }]"
-                                    @click="handleClickItem(item.id)"
-                                    @dblclick="handleDblClickItem(item.id)">
-                                    <div
-                                        :style="{
-                                            backgroundImage: `url('${mediaGetVariantUrl(
-                                                item,
-                                                'small'
-                                            )}')`,
-                                        }"
-                                        class="media-image"></div>
-                                    <span class="media-title">{{
-                                        item.title
-                                    }}</span>
-                                </li>
-                            </ul>
+    <div
+        class="fixed top-0 left-0 w-full h-full z-2 bg-black bg-op-20 backdrop-blur"></div>
+    <div class="fixed top-0 left-0 w-full h-full flex-justify-center flex z-3">
+        <div
+            class="m-4 border-1 bg-white rounded-xl text-gray-5 px-12 py-8 w-full">
+            <div class="dialog-media">
+                <SMLoading v-if="progressText" overlay :text="progressText" />
+                <h2 class="mb-4">Insert Media</h2>
+                <SMTabGroup v-model="selectedTab">
+                    <SMTab id="tab-browser" label="Media Browser">
+                        <div class="flex mb-4">
+                            <SMGroupButtons
+                                :buttons="[
+                                    {
+                                        name: 'grid',
+                                        icon: 'grid-outline',
+                                    },
+                                    {
+                                        name: 'list',
+                                        icon: 'list-outline',
+                                    },
+                                ]"
+                                :active="listActive"
+                                @click="handleClickLayout" />
+                            <SMInput
+                                v-model="itemSearch"
+                                label="Search"
+                                class="toolbar-search"
+                                small
+                                @keyup.enter="handleSearch"
+                                @blur="handleSearch">
+                                <template #append>
+                                    <button
+                                        class="font-medium px-4 py-3.1 rounded-r-2 hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                                        @click="handleSearch">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            viewBox="0 -960 960 960"
+                                            class="h-4">
+                                            <path
+                                                d="M796-121 533-384q-30 26-69.959 40.5T378-329q-108.162 0-183.081-75Q120-479 120-585t75-181q75-75 181.5-75t181 75Q632-691 632-584.85 632-542 618-502q-14 40-42 75l264 262-44 44ZM377-389q81.25 0 138.125-57.5T572-585q0-81-56.875-138.5T377-781q-82.083 0-139.542 57.5Q180-666 180-585t57.458 138.5Q294.917-389 377-389Z"
+                                                fill="currentColor" />
+                                        </svg>
+                                    </button>
+                                </template>
+                            </SMInput>
                         </div>
-                    </div>
-                    <SMRow>
-                        <SMPagination
-                            v-model="page"
-                            :total="totalItems"
-                            :per-page="perPage"
-                            size="small"
-                            class="my-0" />
-                    </SMRow>
-                </SMTab>
-                <SMTab id="tab-upload" label="Upload">
-                    <SMForm v-model="uploadForm" form-id="upload-form">
-                        <SMFormError v-model="uploadForm" />
-                        <SMRow>
-                            <SMColumn width="250px">
+                        <div class="media-browser" :class="mediaBrowserClasses">
+                            <div class="media-browser-content">
+                                <SMLoading v-if="mediaLoading" />
                                 <div
-                                    class="upload-preview mb-4"
-                                    :style="{
-                                        backgroundImage: `url(${uploadPreview})`,
-                                    }"></div>
-                                <SMButton
-                                    v-if="props.allowUpload"
-                                    type="primary"
-                                    label="Select File"
-                                    @click="handleClickSelectFile" />
-                            </SMColumn>
-                            <SMColumn>
-                                <SMInput
-                                    label="Title"
-                                    control="title"
-                                    form-id="upload-form"
-                                    :disabled="uploadPreview.length == 0" />
-                                <SMInput
-                                    type="textarea"
-                                    label="Description"
-                                    control="description"
-                                    form-id="upload-form"
-                                    :disabled="uploadPreview.length == 0" />
-                            </SMColumn>
-                        </SMRow>
-                    </SMForm>
-                    <input
-                        v-if="props.allowUpload"
-                        id="file"
-                        ref="refUploadInput"
-                        type="file"
-                        style="display: none"
-                        :accept="computedAccepts"
-                        @change="handleChangeSelectFile" />
-                </SMTab>
-            </SMTabGroup>
-        </template>
-        <template #footer>
-            <SMButtonRow>
-                <template #left>
-                    <SMButton
+                                    v-if="
+                                        !mediaLoading && mediaItems.length == 0
+                                    "
+                                    class="media-none">
+                                    <ion-icon name="sad-outline"></ion-icon>
+                                    <p>No media found</p>
+                                </div>
+                                <ul
+                                    v-if="
+                                        !mediaLoading && mediaItems.length > 0
+                                    ">
+                                    <li
+                                        v-for="item in mediaItems"
+                                        :key="item.id"
+                                        :class="[
+                                            { selected: item.id == selected },
+                                        ]"
+                                        @click="handleClickItem(item.id)"
+                                        @dblclick="handleDblClickItem(item.id)">
+                                        <div
+                                            :style="{
+                                                backgroundImage: `url('${mediaGetVariantUrl(
+                                                    item,
+                                                    'small'
+                                                )}')`,
+                                            }"
+                                            class="media-image"></div>
+                                        <span class="media-title">{{
+                                            item.title
+                                        }}</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div>
+                            <SMPagination
+                                v-model="page"
+                                :total="totalItems"
+                                :per-page="perPage"
+                                small
+                                class="my-0" />
+                        </div>
+                    </SMTab>
+                    <SMTab id="tab-upload" label="Upload">
+                        <SMForm v-model="uploadForm" form-id="upload-form">
+                            <SMFormError v-model="uploadForm" />
+                            <div class="flex">
+                                <div width="250px">
+                                    <div
+                                        class="upload-preview mb-4"
+                                        :style="{
+                                            backgroundImage: `url(${uploadPreview})`,
+                                        }"></div>
+                                    <button
+                                        v-if="props.allowUpload"
+                                        @click="handleClickSelectFile">
+                                        Select File
+                                    </button>
+                                </div>
+                                <div>
+                                    <SMInput
+                                        label="Title"
+                                        control="title"
+                                        form-id="upload-form"
+                                        :disabled="uploadPreview.length == 0" />
+                                    <SMInput
+                                        type="textarea"
+                                        label="Description"
+                                        control="description"
+                                        form-id="upload-form"
+                                        :disabled="uploadPreview.length == 0" />
+                                </div>
+                            </div>
+                        </SMForm>
+                        <input
+                            v-if="props.allowUpload"
+                            id="file"
+                            ref="refUploadInput"
+                            type="file"
+                            style="display: none"
+                            :accept="computedAccepts"
+                            @change="handleChangeSelectFile" />
+                    </SMTab>
+                </SMTabGroup>
+                <div class="flex flex-justify-end">
+                    <button
                         type="button"
-                        label="Cancel"
-                        @click="handleClickCancel" />
-                </template>
-                <template #right>
-                    <SMButton
-                        type="primary"
-                        label="Insert"
+                        class="mr-4 font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        @click="handleClickCancel">
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
                         :disabled="computedInsertDisabled"
-                        @click="handleClickInsert" />
-                </template>
-            </SMButtonRow>
-        </template>
-    </SMFormCard>
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        @click="handleClickInsert">
+                        Insert
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -154,15 +168,10 @@ import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
 import { Media, MediaCollection, MediaResponse } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
-import SMButton from "../SMButton.vue";
-import SMFormCard from "../SMFormCard.vue";
-import SMLoadingIcon from "../SMLoadingIcon.vue";
 import { mediaGetVariantUrl } from "../../helpers/media";
-import SMToolbar from "../SMToolbar.vue";
 import SMInput from "../SMInput.vue";
 import SMGroupButtons from "../SMGroupButtons.vue";
 import SMPagination from "../SMPagination.vue";
-import SMButtonRow from "../SMButtonRow.vue";
 import SMLoading from "../SMLoading.vue";
 import SMTabGroup from "../SMTabGroup.vue";
 import SMTab from "../SMTab.vue";

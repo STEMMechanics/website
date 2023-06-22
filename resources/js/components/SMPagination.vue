@@ -1,29 +1,102 @@
 <template>
-    <div :class="['pagination', props.size]">
+    <div class="flex flex-justify-center">
         <div
-            :class="['item', 'prev', { disabled: computedDisablePrevButton }]"
+            :class="[
+                'flex',
+                'items-center',
+                'border-y-1',
+                'border-l-1',
+                'rounded-l-2',
+                'transition',
+                small
+                    ? ['text-sm', 'px-2', 'py-1']
+                    : ['text-lg', 'px-4', 'py-2'],
+                computedDisablePrevButton
+                    ? [
+                          'bg-gray-2',
+                          'text-gray-4',
+                          'border-gray-3',
+                          'cursor-not-allowed',
+                      ]
+                    : [
+                          'hover:bg-sky-200',
+                          'cursor-pointer',
+                          'bg-white',
+                          'border-gray',
+                      ],
+            ]"
             @click="handleClickPrev">
-            <ion-icon name="chevron-back-outline" />
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                :class="[small ? 'h-4' : 'h-6']">
+                <path
+                    d="M400-80 0-480l400-400 56 57-343 343 343 343-56 57Z"
+                    fill="currentColor" />
+            </svg>
             <span class="text">Prev</span>
         </div>
         <div
-            :class="['item', 'page', { active: page == props.modelValue }]"
+            :class="[
+                'flex',
+                'items-center',
+                'border-y-1',
+                'border-l-1',
+                'border-gray',
+                'transition',
+                small
+                    ? ['text-sm', 'px-2', 'py-1']
+                    : ['text-lg', 'px-4', 'py-2'],
+                page == props.modelValue
+                    ? ['bg-sky-600', 'text-white']
+                    : ['hover:bg-sky-200', 'cursor-pointer', 'bg-white'],
+            ]"
             v-for="(page, idx) of computedPages"
             :key="idx"
             @click="handleClickPage(page)">
             {{ page }}
         </div>
         <div
-            :class="['item', 'next', { disabled: computedDisableNextButton }]"
+            :class="[
+                'flex',
+                'items-center',
+                'border-1',
+                'rounded-r-2',
+                'transition',
+                small
+                    ? ['text-sm', 'px-2', 'py-1']
+                    : ['text-lg', 'px-4', 'py-2'],
+                computedDisableNextButton
+                    ? [
+                          'bg-gray-2',
+                          'text-gray-4',
+                          'border-gray-3',
+                          'cursor-not-allowed',
+                      ]
+                    : [
+                          'hover:bg-sky-200',
+                          'cursor-pointer',
+                          'bg-white',
+                          'border-gray',
+                      ],
+                ,
+            ]"
             @click="handleClickNext">
             <span class="text">Next</span>
-            <ion-icon name="chevron-forward-outline" />
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                :class="[small ? 'h-4' : 'h-6']">
+                <path
+                    d="m304-82-56-57 343-343-343-343 56-57 400 400L304-82Z"
+                    fill="currentColor" />
+            </svg>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch } from "vue";
+import { computed } from "vue";
 
 const props = defineProps({
     modelValue: {
@@ -38,10 +111,10 @@ const props = defineProps({
         type: Number,
         required: true,
     },
-    size: {
-        type: String,
-        default: "",
+    small: {
+        type: Boolean,
         required: false,
+        default: false,
     },
 });
 
@@ -120,7 +193,6 @@ const handleClickNext = (): void => {
 
 /**
  * Handle click on page button
- *
  * @param {number} page The page number to display.
  */
 const handleClickPage = (page: number): void => {
@@ -136,97 +208,3 @@ if (props.modelValue < 1 || totalPages < 1) {
     }
 }
 </script>
-
-<style lang="scss">
-.pagination {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-family: var(--header-font-family);
-    font-size: 90%;
-    font-weight: 600;
-    margin: 24px auto;
-    border: 1px solid var(--base-color);
-    box-shadow: var(--base-shadow);
-
-    &.small {
-        font-size: 75%;
-        box-shadow: none;
-
-        .item {
-            padding: 10px 12px;
-
-            &.prev,
-            &.next {
-                ion-icon {
-                    padding: 0;
-                }
-
-                .text {
-                    display: none;
-                }
-            }
-        }
-    }
-
-    .item {
-        display: flex;
-        cursor: pointer;
-        background-color: var(--pagination-color);
-        padding: 12px 16px;
-        // border-right: 1px solid rgba(0, 0, 0, 0.1);
-
-        &.page {
-            width: 44px;
-            justify-content: center;
-        }
-
-        &.active {
-            background-color: var(--pagination-color-active);
-        }
-
-        &:first-of-type {
-            border-left-width: 0;
-        }
-
-        &:last-of-type {
-            border-right-width: 0;
-        }
-
-        &.prev ion-icon {
-            padding-right: 12px;
-        }
-
-        &.next ion-icon {
-            padding-left: 12px;
-        }
-
-        &:hover:not(.active):not(.disabled) {
-            background-color: var(--pagination-color-hover);
-        }
-
-        &.disabled {
-            cursor: not-allowed;
-            color: var(--pagination-color-disabled-text);
-            background-color: var(--pagination-color-disabled);
-        }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .pagination {
-        .item {
-            &.prev,
-            &.next {
-                ion-icon {
-                    padding: 1px 0;
-                }
-
-                .text {
-                    display: none;
-                }
-            }
-        }
-    }
-}
-</style>

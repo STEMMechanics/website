@@ -1,216 +1,224 @@
 <template>
-    <SMHero
-        class="hero-offset"
-        :title="heroTitle"
-        :excerpt="heroExcerpt"
-        :image-url="heroImageUrl"
-        :image-title="heroImageTitle"
-        :to="heroTo" />
-
-    <SMContainer full class="about">
-        <SMContainer>
-            <h2>Join the Fun!</h2>
-            <p>
-                To meet the demands of a constantly evolving world, it is
-                essential to nurture a new generation of scientists, engineers,
-                and leaders who are skilled in problem-solving. Science and
-                technology offer endless possibilities for innovation and
-                progress, and it is through STEM education that we can equip the
-                next generation with the tools they need to tackle these
-                challenges.
-            </p>
-            <p>
-                STEMMechanics is a family-run business that is committed to
-                providing accessible and inclusive STEM education to all. We
-                offer a wide range of STEM courses, after-school clubs, and
-                themed workshops across Queensland, both to the general public
-                and to private groups.
-            </p>
-        </SMContainer>
-    </SMContainer>
-    <SMContainer class="upcoming align-items-center">
-        <h2>Upcoming Workshops</h2>
-        <div class="events">
-            <SMEventCard
-                v-for="event in events"
-                :event="event"
-                :key="event.id" />
+    <header class="bg-hero">
+        <div
+            class="max-w-7xl flex flex-row mx-auto px-4 pt-32 pb-32 lg:pt-36 gap-16 text-white">
+            <div class="flex-1 max-w-2xl">
+                <h1 class="leading-normal text-4xl lg:leading-normal">
+                    Join the fun!
+                </h1>
+                <p class="mt-4">
+                    To keep up with our ever-changing world, it's important to
+                    encourage and support a new generation of curious minds who
+                    love science, engineering, art, and leadership.
+                </p>
+                <p class="mt-4">
+                    Our fun and exciting workshops can unlock countless
+                    opportunities for new ideas and improvements, giving kids
+                    the skills and tools they need to solve any problem that
+                    comes their way.
+                </p>
+            </div>
         </div>
-    </SMContainer>
-    <SMContainer full class="workshops">
-        <SMContainer>
-            <SMRow>
-                <SMColumn
-                    ><h2>Build skills while having a great time</h2></SMColumn
-                >
-            </SMRow>
-            <SMRow class="align-items-stretch">
-                <SMColumn
-                    class="align-items-center justify-content-center flex-basis-55">
-                    <p>
-                        Our online and in-person workshops are filled with
-                        engaging and exciting activities that kids will love.
-                        They will have fun, make new friends, and gain valuable
-                        skills that they can use throughout their lives.
-                    </p>
-                    <SMButton
-                        :to="{ name: 'workshops' }"
-                        label="Explore Workshops" />
-                </SMColumn>
-                <SMColumn
-                    class="align-items-center justify-content-center flex-basis-45">
-                    <img src="/assets/home-green-screen.webp" />
-                </SMColumn>
-            </SMRow>
-        </SMContainer>
-    </SMContainer>
-    <SMContainer class="latest-articles align-items-center">
-        <h2>Latest Posts</h2>
-        <div class="articles">
-            <SMArticleCard
-                v-for="(article, index) in articles"
-                :key="index"
-                :article="article" />
+        <div class="flex justify-end">
+            <p class="text-white text-xs bg-black px-4 py-1 mb-5 mr-10">
+                Steady Hand Game in Ravenshoe
+            </p>
         </div>
-    </SMContainer>
-    <SMContainer full class="minecraft">
-        <SMContainer>
-            <h2>Play Minecraft with us</h2>
-            <p>
+    </header>
+    <section id="news" class="w-full pt-12 pb-8 bg-sky-100 dark:bg-dark-8">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="font-semibold text-xl md:text-2xl px-6 lg:px-4 mb-4">
+                Latest News
+            </h2>
+            <SMLoading v-if="articlesLoading" />
+            <div
+                v-else-if="
+                    !articlesLoading &&
+                    articlesError.length == 0 &&
+                    articles.length > 0
+                "
+                class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 px-4">
+                <SMArticleCard
+                    v-for="article in articles"
+                    :article="article"
+                    :key="article.id" />
+            </div>
+            <div v-else class="py-12 text-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                    class="h-24 text-gray-5">
+                    <path
+                        d="M453-280h60v-240h-60v240Zm26.982-314q14.018 0 23.518-9.2T513-626q0-14.45-9.482-24.225-9.483-9.775-23.5-9.775-14.018 0-23.518 9.775T447-626q0 13.6 9.482 22.8 9.483 9.2 23.5 9.2Zm.284 514q-82.734 0-155.5-31.5t-127.266-86q-54.5-54.5-86-127.341Q80-397.681 80-480.5q0-82.819 31.5-155.659Q143-709 197.5-763t127.341-85.5Q397.681-880 480.5-880q82.819 0 155.659 31.5Q709-817 763-763t85.5 127Q880-563 880-480.266q0 82.734-31.5 155.5T763-197.684q-54 54.316-127 86Q563-80 480.266-80Zm.234-60Q622-140 721-239.5t99-241Q820-622 721.188-721 622.375-820 480-820q-141 0-240.5 98.812Q140-622.375 140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"
+                        fill="currentColor" />
+                </svg>
+                <p class="text-lg text-gray-5">
+                    {{ articlesError || "No articles where found" }}
+                </p>
+            </div>
+        </div>
+    </section>
+    <section class="max-w-7xl flex flex-row mx-auto px-4 py-24 lg:py-36 gap-16">
+        <div
+            class="flex-1 lg:flex hidden justify-end flex-self-center rounded-lg bg-gray-900 aspect-video relative overflow-clip max-h-82 w-120 h-283">
+            <img
+                class="w-full h-full object-cover"
+                src="/assets/home-green-screen.webp" />
+        </div>
+        <div class="flex-1">
+            <h2
+                class="font-medium leading-normal lg:text-4xl lg:leading-normal text-4xl">
+                Build skills while having a great time
+            </h2>
+            <p class="text-xl mt-4">
+                To keep up with our ever-changing world, it's important to
+                encourage and support a new generation of curious minds who love
+                science, engineering, art, and leadership.
+            </p>
+            <div class="flex flex-row gap-4 mt-8 flex-justify-center">
+                <router-link
+                    :to="{ name: 'workshops' }"
+                    role="button"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition bg-green-600 hover:bg-green-500 text-white">
+                    Explore Workshops
+                </router-link>
+            </div>
+        </div>
+    </section>
+    <section
+        id="workshops"
+        class="w-full py-12 lg:py-16 bg-fuchsia-50 dark:bg-dark-8">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="font-semibold text-3xl md:text-4xl px-6 lg:px-4 mb-14">
+                Upcoming workshops
+            </h2>
+            <SMLoading v-if="eventsLoading" />
+            <div
+                v-else-if="
+                    !eventsLoading &&
+                    eventsError.length == 0 &&
+                    events.length > 0
+                "
+                class="grid md:grid-cols-2 lg:grid-cols-3 gap-5 px-4">
+                <SMEventCard
+                    v-for="event in events"
+                    :event="event"
+                    :key="event.id" />
+            </div>
+            <div v-else class="py-12 text-center">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 -960 960 960"
+                    class="h-24 text-gray-5">
+                    <path
+                        d="M453-280h60v-240h-60v240Zm26.982-314q14.018 0 23.518-9.2T513-626q0-14.45-9.482-24.225-9.483-9.775-23.5-9.775-14.018 0-23.518 9.775T447-626q0 13.6 9.482 22.8 9.483 9.2 23.5 9.2Zm.284 514q-82.734 0-155.5-31.5t-127.266-86q-54.5-54.5-86-127.341Q80-397.681 80-480.5q0-82.819 31.5-155.659Q143-709 197.5-763t127.341-85.5Q397.681-880 480.5-880q82.819 0 155.659 31.5Q709-817 763-763t85.5 127Q880-563 880-480.266q0 82.734-31.5 155.5T763-197.684q-54 54.316-127 86Q563-80 480.266-80Zm.234-60Q622-140 721-239.5t99-241Q820-622 721.188-721 622.375-820 480-820q-141 0-240.5 98.812Q140-622.375 140-480q0 141 99.5 240.5t241 99.5Zm-.5-340Z"
+                        fill="currentColor" />
+                </svg>
+                <p class="text-lg text-gray-5">
+                    {{ eventsError || "No workshops scheduled at this time" }}
+                </p>
+            </div>
+        </div>
+    </section>
+    <div class="bg-minecraft">
+        <section
+            class="max-w-7xl flex flex-col mx-auto px-4 pt-32 pb-26 lg:pt-36 lg:pb-46 text-white">
+            <h2
+                class="font-medium leading-normal lg:text-4xl lg:leading-normal text-4xl">
+                Play Minecraft with us
+            </h2>
+            <p class="text-xl mt-4">
                 We invite you to join us on our
-                <router-link :to="{ name: 'minecraft' }"
-                    >Minecraft server</router-link
+                <router-link :to="{ name: 'minecraft' }">
+                    Minecraft server</router-link
                 >
                 where you can participate in weekly challenges and mini-games.
             </p>
-            <p class="minecraft-education">
-                <img
-                    src="/assets/home-minecraft-edu.webp"
-                    height="96"
-                    width="96"
-                    class="minecraft-image" />
-                We also offer workshops for
-                <a
-                    href="https://education.minecraft.net/en-us/discover/what-is-minecraft"
-                    target="_blank"
-                    >Minecraft Education</a
-                >, where you can learn to make it rain rabbits or grow flowers
-                wherever you walk, all without the need for a school account.
-            </p>
-            <p class="pt-5">
+            <div
+                class="flex flex-row gap-4 mt-8 items-center flex-justify-center">
+                <img src="/assets/home-minecraft-edu.webp" class="h-24" />
+                <p class="text-xl mt-4">
+                    We also offer workshops for
+                    <a
+                        href="https://education.minecraft.net/en-us/discover/what-is-minecraft"
+                        target="_blank">
+                        Minecraft Education</a
+                    >
+                    , where you can learn to make it rain rabbits or grow
+                    flowers wherever you walk, all without the need for a school
+                    account.
+                </p>
+            </div>
+            <div class="flex flex-row gap-4 mt-8 flex-justify-center">
                 <img
                     src="/assets/home-minecraft-address.webp"
-                    height="70"
-                    class="minecraft-address" />
+                    class="max-w-140 w-full" />
+            </div>
+        </section>
+    </div>
+    <section
+        class="max-w-7xl flex flex-row mx-auto px-4 pt-24 pb-8 lg:pt-36 lg:pb-8 gap-16">
+        <div
+            class="flex-1 lg:flex hidden justify-end flex-self-center rounded-lg bg-gray-900 aspect-video relative overflow-clip max-h-82 w-120 h-283">
+            <img
+                class="w-full h-full object-cover"
+                src="/assets/home-discord.webp" />
+        </div>
+        <div class="flex-1">
+            <h2
+                class="font-medium leading-normal lg:text-4xl lg:leading-normal text-4xl">
+                And the support doesn't stop!
+            </h2>
+            <p class="text-xl mt-4">
+                Though the workshop has come to a close, we remain available to
+                assist you via email and Discord with any projects you undertake
+                at home. We are always happy to help.
             </p>
-        </SMContainer>
-    </SMContainer>
-    <SMContainer full class="support">
-        <SMContainer>
-            <h2>And the support doesn't stop!</h2>
-            <SMRow>
-                <SMColumn
-                    class="align-items-center justify-content-center flex-basis-45">
-                    <div class="support-image">
-                        <img src="/assets/home-discord.webp" />
-                    </div>
-                </SMColumn>
-                <SMColumn class="align-items-center flex-basis-55">
-                    <p>
-                        Though the workshop has come to a close, we remain
-                        available to assist you via email and Discord with any
-                        projects you undertake at home. We are always happy to
-                        help.
-                    </p>
-                    <div class="button-row">
-                        <SMButton
-                            type="primary"
-                            to="https://discord.gg/yNzk4x7mpD"
-                            label="Join Discord" />
-                        <SMButton
-                            :to="{ name: 'contact' }"
-                            label="Contact Us" />
-                    </div>
-                </SMColumn>
-            </SMRow>
-        </SMContainer>
-    </SMContainer>
+            <div class="flex flex-row gap-4 mt-8 flex-justify-center">
+                <a
+                    role="button"
+                    href="https://discord.gg/yNzk4x7mpD"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white">
+                    Join Discord
+                </a>
+                <router-link
+                    :to="{ name: 'contact' }"
+                    role="button"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md text-black transition border-1 border-gray-400 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800">
+                    Contact Us
+                </router-link>
+            </div>
+        </div>
+    </section>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import SMButton from "../components/SMButton.vue";
-import SMHero from "../components/SMHero.vue";
 import { api, getApiResultData } from "../helpers/api";
 import { ArticleCollection, EventCollection } from "../helpers/api.types";
-import { excerpt } from "../helpers/string";
-import { mediaGetVariantUrl } from "../helpers/media";
 import { SMDate } from "../helpers/datetime";
-import SMEventCard from "../components/SMEventCard.vue";
 import SMArticleCard from "../components/SMArticleCard.vue";
+import SMEventCard from "../components/SMEventCard.vue";
+import SMLoading from "../components/SMLoading.vue";
 
-const articles = ref([]);
 const events = ref([]);
+const articles = ref([]);
 
-const heroTitle = ref("");
-const heroExcerpt = ref("");
-const heroImageUrl = ref("");
-const heroImageTitle = ref("");
-const heroTo = ref({});
+let eventsLoading = ref(true);
+let eventsError = ref("");
 
-const computedDate = (date) => {
-    return new SMDate(date, { format: "yMd" }).format("d MMMM yyyy");
-};
+let articlesLoading = ref(true);
+let articlesError = ref("");
 
-const handleLoad = async () => {
-    // const filter = `(status:open,OR,status:soon),AND,start_at:>${new SMDate(
-    //     "now"
-    // ).format("yyyy-MM-dd hh:mm:ss")}`;
-    // console.log(filter);
+const viewLoad = async () => {
+    eventsLoading.value = true;
+    eventsError.value = "";
+
+    articlesLoading.value = true;
+    articlesError.value = "";
 
     try {
         await Promise.all([
-            api
-                .get({
-                    url: "/articles",
-                    params: {
-                        limit: 5,
-                    },
-                })
-                .then((articlesResult) => {
-                    const articlesData =
-                        getApiResultData<ArticleCollection>(articlesResult);
-
-                    if (articlesData && articlesData.articles) {
-                        const randomIndex = 0;
-                        // Math.floor(
-                        //     Math.random() * articlesData.articles.length
-                        // );
-
-                        heroTitle.value =
-                            articlesData.articles[randomIndex].title;
-                        heroExcerpt.value = excerpt(
-                            articlesData.articles[randomIndex].content,
-                            200
-                        );
-                        heroImageUrl.value = mediaGetVariantUrl(
-                            articlesData.articles[randomIndex].hero,
-                            "large"
-                        );
-                        heroImageTitle.value =
-                            articlesData.articles[randomIndex].hero.title;
-                        heroTo.value = {
-                            name: "article",
-                            params: {
-                                slug: articlesData.articles[randomIndex].slug,
-                            },
-                        };
-
-                        articles.value = articlesData.articles.filter(
-                            (article, index) => index !== randomIndex
-                        );
-                    }
-                }),
             api
                 .get({
                     url: "/events",
@@ -220,7 +228,6 @@ const handleLoad = async () => {
                         start_at: `>${new SMDate("now").format(
                             "yyyy-MM-dd hh:mm:ss"
                         )}`,
-                        // filter: filter,
                     },
                 })
                 .then((eventsResult) => {
@@ -239,276 +246,76 @@ const handleLoad = async () => {
                                 if (events.value.length === 4) break;
                             }
                         }
-                        // events.value = eventsData.events;
                     }
+                })
+                .catch((error) => {
+                    if (error.status != 404) {
+                        eventsError.value =
+                            "An error occured retrieving the events";
+                    }
+                })
+                .finally(() => {
+                    eventsLoading.value = false;
+                }),
+            api
+                .get({
+                    url: "/articles",
+                    params: {
+                        limit: 4,
+                    },
+                })
+                .then((articlesResult) => {
+                    const articlesData =
+                        getApiResultData<ArticleCollection>(articlesResult);
+
+                    if (articlesData && articlesData.articles) {
+                        articles.value = articlesData.articles;
+                        console.log(articles.value);
+                    }
+                })
+                .catch((error) => {
+                    if (error.status != 404) {
+                        articlesError.value =
+                            "An error occured retrieving the posts";
+                    }
+                })
+                .finally(() => {
+                    articlesLoading.value = false;
                 }),
         ]);
     } catch {
-        // Handle error
+        /* empty */
     }
 };
 
-handleLoad();
+viewLoad();
 </script>
 
 <style lang="scss">
-.page-home {
-    .hero-offset {
-        margin-top: -80px;
-    }
-
-    .container.full.about {
-        background-color: var(--accent-1-color);
-        color: var(--accent-1-color-text);
-        padding-top: 96px;
-        padding-bottom: 96px;
-
-        h2 {
-            font-size: 400%;
-            text-align: center;
-            color: var(--accent-1-color-text);
-            margin-top: 0;
-        }
-
-        p {
-            font-size: 125%;
-            max-width: 960px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-    }
-
-    .upcoming,
-    .latest-articles {
-        padding-top: 96px;
-        padding-bottom: 96px;
-
-        h2 {
-            font-size: 300%;
-            margin-top: 0;
-            margin-bottom: #{calc(var(--header-font-size-2))};
-        }
-
-        .events,
-        .articles {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 30px;
-            width: 100%;
-            max-width: 1200px;
-
-            .event-card,
-            .article-card {
-                &:nth-child(4) {
-                    display: none;
-                }
-            }
-        }
-    }
-
-    .container.full.workshops {
-        background-color: var(--accent-3-color);
-        color: var(--accent-3-color-text);
-        padding-top: 96px;
-        padding-bottom: 96px;
-
-        h2 {
-            font-size: 300%;
-            text-align: center;
-            color: var(--accent-3-color-text);
-            margin-top: 0;
-        }
-
-        p {
-            font-size: 125%;
-            max-width: #{calc(map-get($spacing, 6) * 16)};
-            margin: 16px auto 32px auto;
-        }
-
-        img {
-            border-radius: 50%;
-            height: #{calc(map-get($spacing, 5) * 15)};
-            width: #{calc(map-get($spacing, 5) * 15)};
-        }
-
-        .row {
-            max-width: 960px;
-        }
-
-        .button {
-            background-color: var(--accent-1-color);
-            color: var(--accent-1-color-text);
-        }
-    }
-
-    .container.full.minecraft {
-        background-image: url("/assets/home-minecraft.webp");
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: cover;
-        padding: 48px;
-        color: #f8f8f8;
-
-        h2 {
-            font-size: 300%;
-            text-align: center;
-            color: #f8f8f8;
-        }
-
-        p {
-            font-size: 125%;
-            text-align: center;
-            margin: 24px auto;
-        }
-
-        .minecraft-education {
-            text-align: left;
-
-            .minecraft-image {
-                float: left;
-                margin-top: 24px;
-                margin-right: 48px;
-            }
-        }
-
-        .minecraft-address {
-            width: 100%;
-            height: 100%;
-        }
-    }
-
-    .container.full.support {
-        color: var(--accent-2-color-text);
-        background-color: var(--accent-2-color);
-        padding-top: 96px;
-        padding-bottom: 96px;
-
-        .row {
-            gap: 30px;
-            max-width: 960px;
-        }
-
-        .support-image {
-            display: block;
-        }
-
-        img {
-            margin: 32px 0;
-            border-radius: 24px;
-            width: 320px;
-            transform: rotateZ(-10deg);
-        }
-
-        h2 {
-            font-size: 300%;
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 16px;
-            color: var(--accent-2-color-text);
-        }
-
-        p {
-            font-size: 125%;
-        }
-
-        .button-row {
-            display: flex;
-            width: 100%;
-            margin-top: 16px;
-
-            flex-direction: column;
-            gap: 15px;
-        }
-    }
+.bg-hero {
+    margin-top: -70px;
+    background-image: linear-gradient(
+            to right,
+            rgba(0, 0, 0, 0.7),
+            rgba(0, 0, 0, 0.2)
+        ),
+        url("https://www.stemmechanics.com.au/assets/home-hero.webp");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
 }
 
-@media only screen and (max-width: 768px) {
-    .page-home {
-        .about {
-            padding: 0;
-
-            .container-inner {
-                margin: 0;
-                padding: 0 32px;
-                border-radius: 0;
-            }
-        }
-
-        .workshops {
-            margin-top: 0;
-            margin-bottom: 0;
-
-            .row {
-                gap: 30px;
-            }
-        }
-
-        .minecraft {
-            margin: 0;
-            padding: 32px;
-
-            .minecraft-education {
-                text-align: center;
-
-                .minecraft-image {
-                    float: none;
-                    display: block;
-                    margin: 0 auto #{map-get($spacing, 3)} auto;
-                }
-            }
-        }
-
-        .support {
-            padding: 0;
-
-            .container-inner {
-                margin: 0;
-                padding: 32px;
-                border-radius: 0;
-
-                .row {
-                    gap: 30px;
-                }
-            }
-        }
-    }
+.bg-minecraft {
+    background-image: url("/assets/home-minecraft.webp");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: cover;
 }
 
-@media only screen and (min-width: 512px) {
-    .page-home {
-        .upcoming,
-        .latest-articles {
-            .events,
-            .articles {
-                grid-template-columns: 1fr 1fr;
-
-                .event-card,
-                .article-card {
-                    &:nth-child(4) {
-                        display: block;
-                    }
-                }
-            }
-        }
-    }
-}
-
-@media only screen and (min-width: 832px) {
-    .page-home {
-        .upcoming,
-        .latest-articles {
-            .events,
-            .articles {
-                grid-template-columns: 1fr 1fr 1fr;
-
-                .event-card,
-                .article-card {
-                    &:nth-child(4) {
-                        display: none;
-                    }
-                }
-            }
-        }
+@media (min-width: 1024px) {
+    #news .article-card:nth-child(4),
+    #workshops .event-card:nth-child(4) {
+        display: none;
     }
 }
 </style>

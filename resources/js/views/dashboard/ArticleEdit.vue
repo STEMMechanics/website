@@ -1,79 +1,58 @@
 <template>
-    <SMPage :page-error="pageError" permission="admin/articles">
+    <SMPageStatus v-if="!userHasPermission('admin/articles')" :status="403" />
+    <template v-else>
         <SMMastHead
             :title="pageHeading"
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
-        <SMContainer class="flex-grow-1">
+        <div class="max-w-7xl mx-auto mt-8 px-8">
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <SMRow>
-                    <SMColumn
-                        ><SMInput control="title" @blur="updateSlug()"
-                    /></SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn><SMInput control="slug" /></SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            type="datetime"
-                            control="publish_at"
-                            label="Publish Date" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            control="hero"
-                            type="media"
-                            label="Hero image"
-                            required />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            control="user_id"
-                            label="Created By"
-                            type="select"
-                            :options="authors" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMEditor
-                            v-model:model-value="form.controls.content.value" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInputAttachments v-model:model-value="attachments" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMButtonRow>
-                            <template #right>
-                                <SMButton type="submit" label="Save" />
-                            </template>
-                        </SMButtonRow>
-                    </SMColumn>
-                </SMRow>
+                <div class="mb-8">
+                    <SMInput control="title" @blur="updateSlug()" />
+                </div>
+                <div class="flex gap-4 mb-8">
+                    <SMInput control="slug" />
+                    <SMInput
+                        type="datetime"
+                        control="publish_at"
+                        label="Publish Date" />
+                </div>
+                <div class="mb-8">
+                    <SMSelectImage control="hero" label="Hero image" required />
+                </div>
+                <div class="mb-8">
+                    <SMDropdown
+                        control="user_id"
+                        label="Created By"
+                        type="select"
+                        :options="authors" />
+                </div>
+                <div class="mb-8">
+                    <SMEditor
+                        v-model:model-value="form.controls.content.value" />
+                </div>
+                <SMInputAttachments v-model:model-value="attachments" />
+                <div class="flex flex-justify-end">
+                    <input
+                        type="submit"
+                        class="font-medium px-6 py-3.1 rounded-2 hover:shadow-md text-lg transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        value="Save" />
+                </div>
             </SMForm>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import SMButton from "../../components/SMButton.vue";
 import SMEditor from "../../components/SMEditor.vue";
 import SMForm from "../../components/SMForm.vue";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 import SMInput from "../../components/SMInput.vue";
+import SMDropdown from "../../components/SMDropdown.vue";
 import SMInputAttachments from "../../components/SMInputAttachments.vue";
 import { api } from "../../helpers/api";
 import { ArticleResponse, UserCollection } from "../../helpers/api.types";
@@ -83,6 +62,9 @@ import { And, DateTime, Min, Required } from "../../helpers/validate";
 import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import { userHasPermission } from "../../helpers/utils";
+import SMSelectImage from "../../components/SMSelectImage.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -191,6 +173,7 @@ const loadData = async () => {
 };
 
 const handleSubmit = async () => {
+    console.log("handle.-submit");
     try {
         let data = {
             title: form.controls.title.value,
@@ -344,5 +327,3 @@ const loadOptionsAuthors = async () => {
 loadOptionsAuthors();
 loadData();
 </script>
-
-<style lang="scss"></style>

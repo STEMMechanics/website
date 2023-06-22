@@ -1,74 +1,58 @@
 <template>
-    <SMContainer :center="true">
+    <div
+        class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
         <template v-if="!formDone">
             <SMForm v-model="form" @submit="handleSubmit">
-                <SMFormCard class="mt-5" narrow>
-                    <template #header>
-                        <h1>Resend Email</h1>
-                        <p>
-                            If you have not received your verification email
-                            yet, we can send you another one.
-                        </p>
-                    </template>
-                    <template #body>
-                        <SMInput control="email" type="email" />
-                    </template>
-                    <template #footer>
-                        <SMButtonRow>
-                            <template #left>
-                                <div class="small">
-                                    <span>Stuck?</span
-                                    ><router-link to="/contact"
-                                        >Contact Us</router-link
-                                    >
-                                </div>
-                            </template>
-                            <template #right>
-                                <SMButton type="submit" label="Send" />
-                            </template>
-                        </SMButtonRow>
-                    </template>
-                </SMFormCard>
+                <h1 class="mb-4">Resend Email</h1>
+                <p class="mb-4">
+                    If you have not received your verification email yet, we can
+                    send you another one.
+                </p>
+                <SMInput control="email" type="email" />
+                <div
+                    class="flex flex-justify-between items-center pt-4 flex-col sm:flex-rowpo">
+                    <div class="text-xs mb-4 sm:mb-0">
+                        <span>Stuck?</span
+                        ><router-link to="/contact">Contact Us</router-link>
+                    </div>
+                    <input
+                        v-if="!form.loading()"
+                        type="submit"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        value="Send" />
+                    <SMLoading v-else small />
+                </div>
             </SMForm>
         </template>
         <template v-else>
-            <SMFormCard>
-                <template #header>
-                    <h1>Email Sent!</h1>
-                </template>
-                <template #body>
-                    <p class="text-center">
-                        If that email address has been registered, and you still
-                        need to verify your email, you will receive an email
-                        with a new verify code.
-                    </p></template
+            <h1 class="mb-4">Email Sent!</h1>
+            <p class="mb-4">
+                If that email address has been registered, and you still need to
+                verify your email, you will receive an email with a new verify
+                code.
+            </p>
+            <div class="flex flex-justify-center items-center pt-4">
+                <router-link
+                    role="button"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :to="{ name: 'home' }"
+                    >Home</router-link
                 >
-                <template #footer>
-                    <SMButtonRow>
-                        <template #right>
-                            <SMButton :to="{ name: 'home' }" label="Home" />
-                        </template>
-                    </SMButtonRow>
-                </template>
-            </SMFormCard>
+            </div>
         </template>
-    </SMContainer>
+    </div>
 </template>
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
-// import { useReCaptcha } from "vue-recaptcha-v3";
-import SMButton from "../components/SMButton.vue";
-import SMFormCard from "../components/SMFormCard.vue";
 import SMForm from "../components/SMForm.vue";
-import SMButtonRow from "../components/SMButtonRow.vue";
 import SMInput from "../components/SMInput.vue";
 import { api } from "../helpers/api";
 import { Form, FormControl } from "../helpers/form";
 import { And, Email, Required } from "../helpers/validate";
 import { useToastStore } from "../store/ToastStore";
+import SMLoading from "../components/SMLoading.vue";
 
-// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
@@ -80,14 +64,10 @@ const handleSubmit = async () => {
     form.loading(true);
 
     try {
-        // await recaptchaLoaded();
-        // const captcha = await executeRecaptcha("submit");
-
         await api.post({
             url: "/users/resendVerifyEmailCode",
             body: {
                 email: form.controls.email.value,
-                // captcha_token: captcha,
             },
         });
 

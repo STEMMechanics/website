@@ -1,5 +1,5 @@
 <template>
-    <div class="sm-input flex flex-col flex-1">
+    <div class="sm-dropdown flex flex-col flex-1">
         <div
             :class="[
                 'relative',
@@ -9,53 +9,45 @@
             ]">
             <label
                 :for="id"
-                :class="[
-                    'absolute',
-                    'select-none',
-                    'pointer-events-none',
-                    'transform-origin-top-left',
-                    'text-gray',
-                    'block',
-                    'translate-x-5',
-                    'scale-100',
-                    'transition',
-                    small ? ['text-sm', '-top-0.5'] : 'top-0.5',
-                ]"
+                class="absolute select-none pointer-events-none transform-origin-top-left text-gray block translate-x-4 top-2 scale-70 transition"
                 >{{ label }}</label
             >
-            <input
-                :type="props.type"
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 -960 960 960"
+                class="absolute right-1 top-1 h-10 pointer-events-none">
+                <path d="M480-360 280-559h400L480-360Z" fill="currentColor" />
+            </svg>
+            <select
                 :class="[
-                    'w-full',
+                    'appearance-none',
+                    'border-1',
+                    'border-gray',
+                    'rounded-2',
                     'text-gray-6',
-                    'flex-1',
+                    'text-lg',
                     'px-4',
-                    small ? ['text-sm', 'pt-3'] : ['text-lg', 'pt-5'],
-                    feedbackInvalid ? 'border-red-6' : 'border-gray',
-                    feedbackInvalid ? 'border-2' : 'border-1',
+                    'pt-5',
+                    'flex-1',
                     { 'bg-gray-1': disabled },
-                    { 'rounded-l-2': !slots.prepend },
-                    { 'rounded-r-2': !slots.append },
                 ]"
                 v-bind="{
                     id: id,
-                    autofocus: props.autofocus,
-                    autocomplete: props.type === 'email' ? 'email' : null,
-                    spellcheck: props.type === 'email' ? false : null,
-                    autocorrect: props.type === 'email' ? 'on' : null,
-                    autocapitalize: props.type === 'email' ? 'off' : null,
                 }"
                 @focus="handleFocus"
                 @blur="handleBlur"
                 @input="handleInput"
-                @keyup="handleKeyup"
                 :value="value"
-                :disabled="disabled" />
-            <template v-if="slots.append"><slot name="append"></slot></template>
+                :disabled="disabled">
+                <option
+                    v-for="option in Object.entries(props.options)"
+                    :key="option[0]"
+                    :value="option[0]"
+                    :selected="option[0] == value">
+                    {{ option[1] }}
+                </option>
+            </select>
         </div>
-        <p v-if="feedbackInvalid" class="px-2 pt-2 text-xs text-red-6">
-            {{ feedbackInvalid }}
-        </p>
         <p v-if="slots.default" class="px-2 pt-2 text-xs text-gray-5">
             <slot></slot>
         </p>
@@ -88,27 +80,12 @@ const props = defineProps({
         default: undefined,
         required: false,
     },
-    type: {
-        type: String,
-        default: "text",
-        required: false,
-    },
     id: {
         type: String,
         default: undefined,
         required: false,
     },
     disabled: {
-        type: Boolean,
-        default: false,
-        required: false,
-    },
-    feedbackInvalid: {
-        type: String,
-        default: "",
-        required: false,
-    },
-    autofocus: {
         type: Boolean,
         default: false,
         required: false,
@@ -121,11 +98,6 @@ const props = defineProps({
     formId: {
         type: String,
         default: "form",
-        required: false,
-    },
-    small: {
-        type: Boolean,
-        default: false,
         required: false,
     },
 });
@@ -165,7 +137,6 @@ const id = ref(
         ? props.control
         : generateRandomElementId()
 );
-const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.toString().length ?? 0 > 0);
 const focused = ref(false);
 const disabled = ref(props.disabled);
@@ -187,13 +158,6 @@ if (props.modelValue != undefined) {
 }
 
 watch(
-    () => props.feedbackInvalid,
-    (newValue) => {
-        feedbackInvalid.value = newValue;
-    }
-);
-
-watch(
     () => props.disabled,
     (newValue) => {
         disabled.value = newValue;
@@ -201,16 +165,6 @@ watch(
 );
 
 if (typeof control === "object" && control !== null) {
-    watch(
-        () => control.validation.result.valid,
-        (newValue) => {
-            feedbackInvalid.value = newValue
-                ? ""
-                : control.validation.result.invalidMessages[0];
-        },
-        { deep: true }
-    );
-
     watch(
         () => control.value,
         (newValue) => {
@@ -243,22 +197,28 @@ const handleInput = (event: Event) => {
 
     if (control) {
         control.value = target.value;
-        feedbackInvalid.value = "";
     }
-};
-
-const handleKeyup = (event: Event) => {
-    emits("keyup", event);
 };
 </script>
 
 <style lang="scss">
-.sm-input {
-    label {
-        --un-translate-y: 0.85rem;
-    }
-    .input-active label {
-        transform: translate(16px, 6px) scale(0.7);
+.sm-dropdown {
+    select {
+        // appearance: none;
+        // width: 100%;
+        // padding: 20px 16px 8px 14px;
+        // border: 1px solid var(--base-color-darker);
+        // border-radius: 8px;
+        // background-color: var(--base-color-light);
+        // height: 52px;
+        // color: var(--base-color-text);
     }
 }
+
+// label {
+//     --un-translate-y: 0.85rem;
+// }
+// .input-active label {
+//     transform: translate(16px, 6px) scale(0.7);
+// }
 </style>

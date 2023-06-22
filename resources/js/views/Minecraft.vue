@@ -1,7 +1,10 @@
 <template>
     <SMMastHead title="Minecraft Server" />
-    <SMContainer narrow>
-        <SMHeader id="connect" text="Connecting to our Minecraft Server" />
+    <div class="max-w-4xl mx-auto px-4">
+        <SMHeader
+            id="connect"
+            text="Connecting to our Minecraft Server"
+            class="pt-16 pb-2" />
         <p>
             By connecting to our Minecraft server, you agree to follow our
             <router-link :to="{ name: 'code-of-conduct' }"
@@ -10,7 +13,7 @@
             and our
             <router-link :to="{ name: 'rules' }">Server Rules</router-link>.
         </p>
-        <ol>
+        <ol class="list-decimal mt-8">
             <li>
                 Open up your Minecraft on your computer and make sure you are
                 using version 1.19.3
@@ -26,7 +29,7 @@
             <li>Click Done</li>
             <li>Join the Server!</li>
         </ol>
-        <SMHeader text="Java or Bedrock" />
+        <SMHeader text="Java or Bedrock" class="pt-16 pb-2" />
         <p>
             Regrettably, our support is exclusively for the Java edition of
             Minecraft. The reason for this is that we rely on the features
@@ -40,7 +43,7 @@
             keep in mind that the Java version is solely compatible with Windows
             or Mac operating systems.
         </p>
-        <SMHeader text="Goodbye Drustcraft" />
+        <SMHeader text="Goodbye Drustcraft" class="pt-16 pb-2" />
         <p>
             STEMMechanics launched the Drustcraft server three years ago and
             since then, players have had countless enjoyable experiences. Cities
@@ -55,7 +58,7 @@
             mini-games, bosses, and survival. Join us on the new STEMMechanics
             Minecraft server, where the Drustcraft community awaits.
         </p>
-        <SMHeader text="So long Cairns Minecraft" />
+        <SMHeader text="So long Cairns Minecraft" class="pt-16 pb-2" />
         <p>
             After seven incredible years of operation, the Cairns Minecraft
             server officially closed its virtual doors in May 2022. This
@@ -69,8 +72,8 @@
             will forever remain etched in the hearts of the Cairns Minecraft
             community.
         </p>
-        <SMAttachments :attachments="downloads" />
-    </SMContainer>
+        <SMAttachments class="mt-8" :attachments="downloads" />
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -102,14 +105,3 @@ const downloads = [
     },
 ];
 </script>
-
-<style lang="scss">
-.page-minecraft {
-    h3 {
-        margin-bottom: #{map-get($spacing, 2)};
-    }
-    li {
-        margin-bottom: #{map-get($spacing, 2)};
-    }
-}
-</style>

@@ -1,59 +1,58 @@
 <template>
     <SMMastHead title="Minecraft Curve Calculator" />
-    <SMContainer>
-        <SMRow>
-            <SMColumn>
-                <div ref="container" class="curve-area">
-                    <svg
-                        ref="svg"
-                        id="svgelem"
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 1000 800"
-                        preserveAspectRatio="xMidYMid meet">
-                        <g id="grid"></g>
-                        <g id="ruler_grid"></g>
-                        <g id="main">
-                            <circle id="p1" cx="299" cy="500" r="10" />
-                            <circle id="p2" cx="699" cy="500" r="10" />
+    <div class="max-w-7xl mx-auto mt-8 px-4">
+        <div class="flex gap-4 flex-col md:flex-row">
+            <div ref="container" class="flex-1">
+                <svg
+                    ref="svg"
+                    id="svgelem"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 1000 800"
+                    preserveAspectRatio="xMidYMid meet"
+                    class="bg-white">
+                    <g id="grid"></g>
+                    <g id="ruler_grid"></g>
+                    <g id="main">
+                        <circle id="p1" cx="299" cy="500" r="10" />
+                        <circle id="p2" cx="699" cy="500" r="10" />
 
-                            <circle id="c1" cx="299" cy="250" r="8" />
-                            <circle id="c2" cx="699" cy="250" r="8" />
+                        <circle id="c1" cx="299" cy="250" r="8" />
+                        <circle id="c2" cx="699" cy="250" r="8" />
 
-                            <circle
-                                id="r1"
-                                cx="405"
-                                cy="405"
-                                r="5"
-                                style="display: none"
-                                class="ruler" />
-                            <circle
-                                id="r2"
-                                cx="605"
-                                cy="505"
-                                r="5"
-                                style="display: none"
-                                class="ruler" />
+                        <circle
+                            id="r1"
+                            cx="405"
+                            cy="405"
+                            r="5"
+                            style="display: none"
+                            class="ruler" />
+                        <circle
+                            id="r2"
+                            cx="605"
+                            cy="505"
+                            r="5"
+                            style="display: none"
+                            class="ruler" />
 
-                            <line
-                                id="l1"
-                                x1="100"
-                                y1="250"
-                                x2="100"
-                                y2="100"
-                                class="controlline" />
-                            <line
-                                id="l2"
-                                x1="400"
-                                y1="250"
-                                x2="400"
-                                y2="100"
-                                class="controlline" />
-                        </g>
-                    </svg>
-                </div>
-            </SMColumn>
-            <SMColumn class="info">
-                <SMInput
+                        <line
+                            id="l1"
+                            x1="100"
+                            y1="250"
+                            x2="100"
+                            y2="100"
+                            class="controlline" />
+                        <line
+                            id="l2"
+                            x1="400"
+                            y1="250"
+                            x2="400"
+                            y2="100"
+                            class="controlline" />
+                    </g>
+                </svg>
+            </div>
+            <div class="w-64">
+                <SMRange
                     type="range"
                     label="Grid size"
                     :min="5"
@@ -61,51 +60,48 @@
                     v-model="gridsize"
                     :step="5"
                     @input="handleInputGridSize" />
-                <SMInput
+                <SMRange
                     type="range"
                     label="Curve width"
                     :min="1"
                     :max="25"
                     v-model="curvewidth"
                     @input="handleInputCurveWidth" />
-                <SMInput
+                <SMCheckbox
                     type="checkbox"
-                    :checked="ruler"
+                    :model-value="ruler"
                     label="Show Ruler"
                     @input="handleInputRuler" />
 
-                <div class="ruler_dimensions" v-if="ruler">
+                <div
+                    class="bg-white border-1 rounded px-4 py-2 mt-4 font-mono text-xs"
+                    v-if="ruler">
                     <div>Width: {{ ruler_info.width }}</div>
                     <div>Height: {{ ruler_info.height }}</div>
                     <div>Area: {{ ruler_info.area }}</div>
                     <div>Filled: {{ ruler_info.filled }}</div>
                 </div>
 
-                <SMButton
-                    @click="handleClickButton"
-                    type="primary"
-                    size="small"
-                    label="Copy curve" />
-            </SMColumn>
-        </SMRow>
-        <SMRow>
-            <SMColumn>
-                <p class="credit">
-                    Based on the work at
-                    <a href="https://iseenbaas.nl/curve/"
-                        >https://iseenbaas.nl/curve/</a
-                    >.
-                </p>
-            </SMColumn>
-        </SMRow>
-    </SMContainer>
+                <button
+                    class="mt-4 font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    @click="handleClickButton">
+                    Copy curve
+                </button>
+            </div>
+        </div>
+        <p class="text-xs pt-8">
+            Based on the work at
+            <a href="https://iseenbaas.nl/curve/">https://iseenbaas.nl/curve/</a
+            >.
+        </p>
+    </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import SMMastHead from "../components/SMMastHead.vue";
-import SMInput from "../components/SMInput.vue";
-import SMButton from "../components/SMButton.vue";
+import SMCheckbox from "../components/SMCheckbox.vue";
+import SMRange from "../components/SMRange.vue";
 import { useToastStore } from "../store/ToastStore";
 
 const container = ref(null);
@@ -1066,72 +1062,41 @@ onMounted(() => {
 
 <style lang="scss">
 .page-minecraft-curve {
-    .curve-area svg {
-        background: var(--base-color-light);
-    }
-
-    .info {
-        max-width: 250px;
-
-        .ruler_dimensions {
-            border: 1px solid var(--base-color-dark);
-            background-color: var(--base-color-light);
-            padding: 8px;
-            margin-top: -16px;
-            margin-bottom: 16px;
-            font-family: "Courier New", Courier, monospace;
-            font-size: 75%;
-            font-weight: 600;
+    #svgelem {
+        path {
+            stroke-width: 4;
+            stroke: #000;
+            stroke-linecap: round;
+            fill: none;
         }
-    }
 
-    path {
-        stroke-width: 4;
-        stroke: #000;
-        stroke-linecap: round;
-        fill: none;
-    }
+        circle {
+            stroke-width: 2;
+            stroke: #c00;
+            fill: transparent;
+        }
 
-    circle {
-        stroke-width: 2;
-        stroke: #c00;
-        fill: transparent;
-    }
+        circle:hover {
+            fill: #c00;
+            cursor: move;
+        }
 
-    circle:hover {
-        fill: #c00;
-        cursor: move;
-    }
+        circle.ruler {
+            stroke-width: 2;
+            stroke: #00c;
+            fill: transparent;
+        }
 
-    circle.ruler {
-        stroke-width: 2;
-        stroke: #00c;
-        fill: transparent;
-    }
+        circle.ruler:hover {
+            fill: #00c;
+            cursor: move;
+        }
 
-    circle.ruler:hover {
-        fill: #00c;
-        cursor: move;
-    }
-
-    line.controlline {
-        stroke-width: 1;
-        stroke: #999;
-        stroke-linecap: round;
-        stroke-dasharray: 5, 3;
-    }
-
-    .credit {
-        font-size: 75%;
-        margin-bottom: 0;
-    }
-}
-
-@media screen and (max-width: 768px) {
-    .page-minecraft-curve {
-        .info {
-            margin-top: 32px;
-            max-width: none;
+        line.controlline {
+            stroke-width: 1;
+            stroke: #999;
+            stroke-linecap: round;
+            stroke-dasharray: 5, 3;
         }
     }
 }

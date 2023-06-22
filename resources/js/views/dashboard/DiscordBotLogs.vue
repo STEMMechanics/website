@@ -21,26 +21,19 @@
                     </SMTabGroup>
                 </SMColumn>
             </SMRow>
-            <SMButtonRow>
-                <SMButton
-                    type="primary"
-                    label="Reload Logs"
-                    @click="loadData" />
-            </SMButtonRow>
+            <button @click="loadData">Reload Logs</button>
         </SMContainer>
     </SMPage>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
-import SMButton from "../../components/SMButton.vue";
 import SMTab from "../../components/SMTab.vue";
 import SMTabGroup from "../../components/SMTabGroup.vue";
 import { api } from "../../helpers/api";
 import { LogsDiscordResponse } from "../../helpers/api.types";
 import { useToastStore } from "../../store/ToastStore";
 import SMMastHead from "../../components/SMMastHead.vue";
-import SMButtonRow from "../../components/SMButtonRow.vue";
 
 let formLoading = ref(false);
 let logOutputContent = ref("");
