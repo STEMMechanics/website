@@ -62,7 +62,6 @@ export class SMDate {
 
     /**
      * Parse a string date into a Date object
-     *
      * @param {string} dateString The date string.
      * @param {object} options (optional) Options object.
      * @param {string} options.format (optional) The format of the date string.
@@ -239,7 +238,6 @@ export class SMDate {
 
     /**
      * Format the date to a string.
-     *
      * @param {string} format The format to return.
      * @param {object} options (optional) Function options.
      * @param {boolean} options.utc (optional) Format the date to be as UTC instead of local.
@@ -334,7 +332,6 @@ export class SMDate {
 
     /**
      * Return a relative date string from now.
-     *
      * @returns {string} A relative date string.
      */
     public relative(): string {
@@ -343,22 +340,24 @@ export class SMDate {
         }
 
         const now = new Date();
-        const dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
+        let dif = Math.round((now.getTime() - this.date.getTime()) / 1000);
+        const format = dif < 0 ? "in %" : "% ago";
+        dif = Math.abs(dif);
 
         if (dif < 60) {
             return "Just now";
         } else if (dif < 3600) {
             const v = Math.round(dif / 60);
-            return `${v} min${v != 1 ? "s" : ""} ago`;
+            return format.replace("%", `${v} min${v != 1 ? "s" : ""}`);
         } else if (dif < 86400) {
             const v = Math.round(dif / 3600);
-            return `${v} hour${v != 1 ? "s" : ""} ago`;
+            return format.replace("%", `${v} hour${v != 1 ? "s" : ""}`);
         } else if (dif < 604800) {
             const v = Math.round(dif / 86400);
-            return `${v} day${v != 1 ? "s" : ""} ago`;
+            return format.replace("%", `${v} day${v != 1 ? "s" : ""}`);
         } else if (dif < 2419200) {
             const v = Math.round(dif / 604800);
-            return `${v} week${v != 1 ? "s" : ""} ago`;
+            return format.replace("%", `${v} week${v != 1 ? "s" : ""}`);
         } else {
             return (
                 this.monthString[this.date.getMonth()] +
@@ -372,7 +371,6 @@ export class SMDate {
 
     /**
      * If the date is before the passed date.
-     *
      * @param {Date|SMDate} d (optional) The date to check. If none, use now
      * @returns {boolean} If the date is before the passed date.
      */
@@ -391,7 +389,6 @@ export class SMDate {
 
     /**
      * If the date is after the passed date.
-     *
      * @param {Date|SMDate} d (optional) The date to check. If none, use now
      * @returns {boolean} If the date is after the passed date.
      */
@@ -410,7 +407,6 @@ export class SMDate {
 
     /**
      * Return a month number from a string or a month number or month name
-     *
      * @param {string} monthString The month string as number or name
      * @returns {number} The month number
      */
@@ -436,7 +432,6 @@ export class SMDate {
 
     /**
      * Test if the current date is valid.
-     *
      * @returns {boolean} If the current date is valid.
      */
     public isValid(): boolean {
@@ -445,7 +440,6 @@ export class SMDate {
 
     /**
      * Return a string with only the first occurrence of characters
-     *
      * @param {string} str The string to modify.
      * @param {string} characters The characters to use to test.
      * @returns {string} A string that only contains the first occurrence of the characters.
