@@ -259,5 +259,5 @@ const computedSubmitLabel = computed(() => {
 const refPaymentForm = ref(null);
 
 loadData();
-initCard();
+// initCard();
 </script>
