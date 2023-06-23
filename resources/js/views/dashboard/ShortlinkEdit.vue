@@ -1,37 +1,37 @@
 <template>
-    <SMMastHead
-        :title="pageHeading"
-        :back-link="
-            route.params.id || isCreating
-                ? { name: 'dashboard-shortlink-list' }
-                : { name: 'dashboard' }
-        "
-        :back-title="
-            route.params.id || isCreating
-                ? 'Back to Shortlinks'
-                : 'Back to Dashboard'
-        " />
-    <SMContainer>
-        <SMForm :model-value="form" @submit="handleSubmit">
-            <SMRow>
-                <SMColumn><SMInput control="code" /></SMColumn>
-                <SMColumn
-                    ><SMInput type="static" v-model="used" label="Times used"
-                /></SMColumn>
-            </SMRow>
-            <SMRow>
-                <SMColumn><SMInput control="url" /></SMColumn>
-            </SMRow>
-            <SMRow>
-                <SMColumn>
-                    <input
-                        role="button"
-                        type="submit"
-                        :value="saveButtonLabel" />
-                </SMColumn>
-            </SMRow>
-        </SMForm>
-    </SMContainer>
+    <SMPageStatus v-if="!userHasPermission('admin/shortlinks')" :status="403" />
+    <template v-else>
+        <SMMastHead
+            :title="pageHeading"
+            :back-link="
+                route.params.id || isCreating
+                    ? { name: 'dashboard-shortlink-list' }
+                    : { name: 'dashboard' }
+            "
+            :back-title="
+                route.params.id || isCreating
+                    ? 'Back to Shortlinks'
+                    : 'Back to Dashboard'
+            " />
+        <SMLoading v-if="form.loading()" />
+        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
+            <SMForm :model-value="form" @submit="handleSubmit">
+                <SMInput class="mt-4" control="code" />
+                <SMInput
+                    class="mt-4"
+                    type="static"
+                    v-model="used"
+                    label="Times used" />
+                <SMInput class="mt-4" control="url" />
+
+                <input
+                    role="button"
+                    type="submit"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :value="saveButtonLabel" />
+            </SMForm>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -45,6 +45,8 @@ import { Form, FormControl } from "../../helpers/form";
 import { And, Length, Max, Min, Required } from "../../helpers/validate";
 import SMMastHead from "../../components/SMMastHead.vue";
 import { useToastStore } from "../../store/ToastStore";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import { userHasPermission } from "../../helpers/utils";
 
 const route = useRoute();
 const router = useRouter();
