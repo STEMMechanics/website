@@ -3,7 +3,8 @@
         <MdEditor
             :preview="false"
             language="en-US"
-            v-model="props.modelValue" />
+            v-model="markdown"
+            @change="handleChange" />
     </div>
 </template>
 
@@ -23,8 +24,6 @@ interface PageList {
 import { MdEditor } from "md-editor-v3";
 import "md-editor-v3/lib/style.css";
 
-const text = ref("# Hello Editor");
-
 const props = defineProps({
     modelValue: {
         type: String,
@@ -37,100 +36,113 @@ const props = defineProps({
     },
 });
 
-const tinyeditor = ref(null);
-
-const editorContent = ref(props.modelValue);
-
 const emits = defineEmits(["input", "update:modelValue", "blur", "focus"]);
 
-/* Updating value */
-const handleInitialContentChange = (newContent) => {
-    newContent = newContent === undefined ? "" : newContent;
-    editorContent.value = newContent;
-};
+const markdown = ref(props.modelValue);
+let timeout = null;
 
-const initialContent = computed(() => {
-    return props.modelValue;
-});
-
-watch(initialContent, handleInitialContentChange);
-
-const handleBlur = (event) => {
-    emits("blur", event);
-};
-
-const handleFocus = (event) => {
-    emits("focus", event);
-};
-
-const handleChange = (event, editor) => {
-    emits("update:modelValue", editor.getContent());
-};
-
-const fetchLinkList = () => {
-    const buildPageList = (
-        pageList,
-        routeEntries,
-        prefix_url = "",
-        prefix_title = ""
-    ) => {
-        routeEntries.forEach((entry) => {
-            if (
-                "path" in entry &&
-                entry.path.includes(":") == false &&
-                "meta" in entry &&
-                "title" in entry.meta &&
-                ("hideInEditor" in entry.meta == false ||
-                    entry.meta.hideInEditor == false) &&
-                ("middleware" in entry.meta == false ||
-                    ("showInEditor" in entry.meta == true &&
-                        entry.meta.showInEditor == true))
-            ) {
-                const sep = entry.path.substring(0, 1) == "/" ? "" : "/";
-                pageList[prefix_url + sep + entry.path] =
-                    prefix_title.length > 0
-                        ? `${prefix_title} ${sep} ${entry.meta.title}`
-                        : entry.meta.title.toLowerCase() == "home"
-                        ? entry.meta.title
-                        : `Home / ${entry.meta.title}`;
-            }
-
-            if ("children" in entry) {
-                buildPageList(
-                    pageList,
-                    entry.children,
-                    prefix_url + entry.path,
-                    prefix_title + (entry.meta?.title || "")
-                );
-            }
-        });
-    };
-
-    let pageRoutes: { [key: string]: string } = {};
-    buildPageList(pageRoutes, routes);
-
-    const pageList: PageList[] = [];
-    for (const [key, value] of Object.entries(pageRoutes)) {
-        pageList.push({ title: value, value: key });
+const handleChange = (newValue) => {
+    if (timeout != null) {
+        clearTimeout(timeout);
     }
-
-    pageList.sort((a, b) => {
-        const titleA = a.title.toLowerCase();
-        const titleB = b.title.toLowerCase();
-
-        if (titleA < titleB) {
-            return -1;
-        }
-
-        if (titleA > titleB) {
-            return 1;
-        }
-
-        return 0;
-    });
-
-    return pageList;
+    timeout = setTimeout(() => {
+        timeout = null;
+        emits("update:modelValue", newValue);
+    }, 50);
 };
+
+const tinyeditor = ref(null);
+
+// const editorContent = ref(props.modelValue);
+
+/* Updating value */
+// const handleInitialContentChange = (newContent) => {
+//     newContent = newContent === undefined ? "" : newContent;
+//     editorContent.value = newContent;
+// };
+
+// const initialContent = computed(() => {
+//     return props.modelValue;
+// });
+
+// watch(initialContent, handleInitialContentChange);
+
+// const handleBlur = (event) => {
+//     emits("blur", event);
+// };
+
+// const handleFocus = (event) => {
+//     emits("focus", event);
+// };
+
+// const handleChange = (event, editor) => {
+//     emits("update:modelValue", editor.getContent());
+// };
+
+// const fetchLinkList = () => {
+//     const buildPageList = (
+//         pageList,
+//         routeEntries,
+//         prefix_url = "",
+//         prefix_title = ""
+//     ) => {
+//         routeEntries.forEach((entry) => {
+//             if (
+//                 "path" in entry &&
+//                 entry.path.includes(":") == false &&
+//                 "meta" in entry &&
+//                 "title" in entry.meta &&
+//                 ("hideInEditor" in entry.meta == false ||
+//                     entry.meta.hideInEditor == false) &&
+//                 ("middleware" in entry.meta == false ||
+//                     ("showInEditor" in entry.meta == true &&
+//                         entry.meta.showInEditor == true))
+//             ) {
+//                 const sep = entry.path.substring(0, 1) == "/" ? "" : "/";
+//                 pageList[prefix_url + sep + entry.path] =
+//                     prefix_title.length > 0
+//                         ? `${prefix_title} ${sep} ${entry.meta.title}`
+//                         : entry.meta.title.toLowerCase() == "home"
+//                         ? entry.meta.title
+//                         : `Home / ${entry.meta.title}`;
+//             }
+
+//             if ("children" in entry) {
+//                 buildPageList(
+//                     pageList,
+//                     entry.children,
+//                     prefix_url + entry.path,
+//                     prefix_title + (entry.meta?.title || "")
+//                 );
+//             }
+//         });
+//     };
+
+//     let pageRoutes: { [key: string]: string } = {};
+//     buildPageList(pageRoutes, routes);
+
+//     const pageList: PageList[] = [];
+//     for (const [key, value] of Object.entries(pageRoutes)) {
+//         pageList.push({ title: value, value: key });
+//     }
+
+//     pageList.sort((a, b) => {
+//         const titleA = a.title.toLowerCase();
+//         const titleB = b.title.toLowerCase();
+
+//         if (titleA < titleB) {
+//             return -1;
+//         }
+
+//         if (titleA > titleB) {
+//             return 1;
+//         }
+
+//         return 0;
+//     });
+
+//     return pageList;
+// };
 </script>
 
 <style lang="scss">
