@@ -1,6 +1,6 @@
 <template>
     <div
-        class="fixed top-1 right-1 z-10 overflow-hidden pointer-events-none"
+        class="fixed top-10 right-10 z-10 overflow-hidden pointer-events-none"
         v-if="toastStore.toasts">
         <SMToast
             v-for="toast of toastStore.toasts"
