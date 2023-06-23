@@ -58,7 +58,10 @@
                     v-model="itemsPage"
                     :total="itemsTotal"
                     :per-page="itemsPerPage" />
-                <SMTable :headers="headers" :items="items">
+                <SMTable
+                    class="sm-table-events"
+                    :headers="headers"
+                    :items="items">
                     <template #item-location="item"
                         >{{ parseEventLocation(item) }}
                     </template>
@@ -378,3 +381,11 @@ const parseEventLocation = (item: Event) => {
 
 handleLoad();
 </script>
+
+<style lang="scss">
+.sm-table-events {
+    tbody tr td:last-child {
+        white-space: nowrap;
+    }
+}
+</style>
