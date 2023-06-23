@@ -183,23 +183,6 @@ const handleSearch = () => {
 };
 
 /**
- * Handle user selecting option in action button.
- * @param {Event} item The event item.
- * @param option
- */
-const handleActionButton = (item: Event, option: string): void => {
-    if (option.length == 0) {
-        handleEdit(item);
-    } else if (option.toLowerCase() == "view") {
-        handleView(item);
-    } else if (option.toLowerCase() == "duplicate") {
-        handleDuplicate(item);
-    } else if (option.toLowerCase() == "delete") {
-        handleDelete(item);
-    }
-};
-
-/**
  * Handle loading the page and list
  */
 const handleLoad = async () => {
@@ -235,7 +218,7 @@ const handleLoad = async () => {
                 row.start_at = new SMDate(row.start_at, {
                     format: "ymd",
                     utc: true,
-                }).relative();
+                }).format("MMM d yyyy, H:mm aa");
             }
             if (row.end_at !== "undefined") {
                 row.end_at = new SMDate(row.end_at, {
@@ -395,30 +378,3 @@ const parseEventLocation = (item: Event) => {
 
 handleLoad();
 </script>
-
-<style lang="scss">
-.page-dashboard-event-list {
-    .toolbar-search {
-        max-width: 350px;
-    }
-
-    .table tr {
-        td:first-of-type,
-        td:nth-of-type(2) {
-            word-break: break-all;
-        }
-
-        td:not(:first-of-type) {
-            white-space: nowrap;
-        }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-dashboard-event-list {
-        .toolbar-search {
-            max-width: none;
-        }
-    }
-}
-</style>
