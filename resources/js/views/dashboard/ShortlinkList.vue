@@ -59,6 +59,7 @@
                     :per-page="itemsPerPage" />
                 <SMTable
                     v-if="items.length > 0"
+                    class="sm-table-shortlinks"
                     :headers="headers"
                     :items="items">
                     <template #item-actions="item">
@@ -86,7 +87,7 @@
                                 viewBox="0 -960 960 960"
                                 class="h-6">
                                 <path
-                                    d="M180-81q-24 0-42-18t-18-42v-603h60v603h474v60H180Zm120-120q-24 0-42-18t-18-42v-560q0-24 18-42t42-18h440q24 0 42 18t18 42v560q0 24-18 42t-42 18H300Zm0-60h440v-560H300v560Zm0 0v-560 560Z"
+                                    d="M180-120q-26 0-43-17t-17-43v-600q0-26 17-43t43-17h202q7-35 34.5-57.5T480-920q36 0 63.5 22.5T578-840h202q26 0 43 17t17 43v600q0 26-17 43t-43 17H180Zm0-60h600v-600h-60v90H240v-90h-60v600Zm300-600q17 0 28.5-11.5T520-820q0-17-11.5-28.5T480-860q-17 0-28.5 11.5T440-820q0 17 11.5 28.5T480-780Z"
                                     fill="currentColor" />
                             </svg>
                         </button>
@@ -284,17 +285,9 @@ handleLoad();
 </script>
 
 <style lang="scss">
-.page-dashboard-shortlink-list {
-    .toolbar-search {
-        max-width: 350px;
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-dashboard-shortlink-list {
-        .toolbar-search {
-            max-width: none;
-        }
+.sm-table-shortlinks {
+    tbody tr td:last-child {
+        white-space: nowrap;
     }
 }
 </style>
