@@ -1,103 +1,68 @@
 <template>
-    <SMPage :page-error="pageError" permission="admin/media">
+    <SMPageStatus v-if="!userHasPermission('admin/media')" :status="403" />
+    <template v-else>
         <SMMastHead
             :title="pageHeading"
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
-        <SMLoading v-if="progressText" overlay :text="progressText" />
-        <SMContainer class="flex-grow-1">
-            <SMLoading v-if="pageLoading" large />
+        <SMLoading v-if="form.loading()" />
+        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
             <SMForm
-                v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <SMRow v-if="route.params.id">
-                    <SMColumn class="media-container">
-                        <SMImage v-if="!editMultiple" :src="imageUrl" />
-                        <SMImageStack
-                            v-if="editMultiple"
-                            :src="imageStackUrls" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput
-                            v-if="!editMultiple"
-                            control="file"
-                            type="file" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput control="title" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput control="permission" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow v-if="!editMultiple">
-                    <SMColumn>
-                        <SMInput
-                            v-model="computedFileSize"
-                            type="static"
-                            label="File Size" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            v-model="fileData.mime_type"
-                            type="static"
-                            label="File Mime Type" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow v-if="!editMultiple">
-                    <SMColumn>
-                        <SMInput
-                            v-model="fileData.status"
-                            type="static"
-                            label="Status" />
-                    </SMColumn>
-                    <SMColumn>
-                        <SMInput
-                            v-model="fileData.dimensions"
-                            type="static"
-                            label="Dimensions" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow v-if="!editMultiple">
-                    <SMColumn>
-                        <SMInput
-                            v-model="fileData.url"
-                            type="static"
-                            label="URL" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <SMInput type="textarea" control="description" />
-                    </SMColumn>
-                </SMRow>
-                <SMRow>
-                    <SMColumn>
-                        <template #right>
-                            <input
-                                role="button"
-                                type="submit"
-                                :value="editMultiple ? 'Save All' : 'Save'" />
-                        </template>
-                        <template #left>
-                            <button
-                                v-if="route.params.id"
-                                type="button"
-                                @click="handleDelete">
-                                {{ editMultiple ? "Delete All" : "Delete" }}
-                            </button>
-                        </template>
-                    </SMColumn>
-                </SMRow>
+                <div>
+                    <SMImage v-if="!editMultiple" :src="imageUrl" />
+                    <SMImageStack v-if="editMultiple" :src="imageStackUrls" />
+                </div>
+                <SMInputFile
+                    v-if="!editMultiple"
+                    control="file"
+                    type="file"
+                    class="mt-4" />
+                <SMInput control="title" class="mt-4" />
+                <SMInput control="permission" class="mt-4" />
+                <div v-if="!editMultiple" class="mt-4 flex flex-cols gap-4">
+                    <SMInput
+                        v-model="computedFileSize"
+                        type="static"
+                        label="File Size" />
+                    <SMInput
+                        v-model="fileData.mime_type"
+                        type="static"
+                        label="File Mime Type" />
+                </div>
+                <div v-if="!editMultiple" class="mt-4 flex flex-cols gap-4">
+                    <SMInput
+                        v-model="fileData.status"
+                        type="static"
+                        label="Status" />
+                    <SMInput
+                        v-model="fileData.dimensions"
+                        type="static"
+                        label="Dimensions" />
+                </div>
+                <SMInput
+                    v-if="!editMultiple"
+                    class="mt-4"
+                    v-model="fileData.url"
+                    type="static"
+                    label="URL" />
+                <SMInput type="textarea" control="description" />
+                <input
+                    role="button"
+                    type="submit"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :value="editMultiple ? 'Save All' : 'Save'" />
+                <button
+                    v-if="route.params.id"
+                    type="button"
+                    @click="handleDelete">
+                    {{ editMultiple ? "Delete All" : "Delete" }}
+                </button>
             </SMForm>
-        </SMContainer>
-    </SMPage>
+        </div>
+    </template>
 </template>
 
 <script setup lang="ts">
@@ -117,6 +82,9 @@ import SMLoading from "../../components/SMLoading.vue";
 import { useToastStore } from "../../store/ToastStore";
 import SMImage from "../../components/SMImage.vue";
 import SMImageStack from "../../components/SMImageStack.vue";
+import SMPageStatus from "../../components/SMPageStatus.vue";
+import SMInputFile from "../../components/SMInputFile.vue";
+import { userHasPermission } from "../../helpers/utils";
 
 const route = useRoute();
 const router = useRouter();
@@ -134,7 +102,7 @@ const imageStackUrls = ref([]);
 
 const form = reactive(
     Form({
-        file: FormControl("", And([Required(), FileSize({ size: 5242880 })])),
+        file: FormControl("", And([Required()])),
         title: FormControl(),
         description: FormControl(),
         permission: FormControl(),
