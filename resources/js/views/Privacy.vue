@@ -14,8 +14,8 @@
         <p>
             The purpose of the Privacy Policy ("Privacy Policy") is to outline
             the personal information collected by us and the use of such
-            information. The Privacy Policy applies to (drustcraft.com.au) and
-            online services (collectively, the "Sites") of STEMMechanics.
+            information. The Privacy Policy applies to (stemmechanics.com.au)
+            and online services (collectively, the "Sites") of STEMMechanics.
             ("STEMMechanics"). In this Privacy Policy, "Personal Information"
             means information or opinion about an identified individual, or an
             individual who is reasonably identifiable in accordance with section
