@@ -11,7 +11,6 @@
                 )})`,
             }"></div>
         <div class="p-4 text-xs text-gray-7">
-            {{ props.article.user.display_name }} -
             {{ computedDate(props.article.publish_at) }}
         </div>
         <h3 class="px-4 mb-3 font-500 text-gray-7">

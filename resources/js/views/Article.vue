@@ -20,9 +20,6 @@
             <div
                 class="flex flex-1 flex-justify-between flex-items-center pb-4">
                 <div>
-                    <div class="font-bold text-gray-6">
-                        By {{ article.user.display_name }}
-                    </div>
                     <div class="font-bold text-gray-4">
                         {{ formattedDate(article.publish_at) }}
                     </div>
