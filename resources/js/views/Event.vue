@@ -11,7 +11,7 @@
                 :style="{
                     backgroundImage: `url('${mediaGetVariantUrl(
                         event.hero,
-                        'large'
+                        'large',
                     )}')`,
                 }"></div>
             <img
@@ -23,9 +23,7 @@
                 class="max-w-4xl mx-auto px-4 flex flex-col-reverse sm:flex-row">
                 <div class="sm:pr-8 mt-4 sm:mt-0">
                     <h1 class="pb-6">{{ event.title }}</h1>
-                    <MdPreview
-                        :model-value="event.content"
-                        class="workshop-content" />
+                    <SMHTML :html="event.content" class="workshop-content" />
                     <SMAttachments :attachments="event.attachments || []" />
                 </div>
                 <div class="sm:min-w-68">
@@ -181,7 +179,7 @@ import { mediaGetVariantUrl } from "../helpers/media";
 import { userHasPermission } from "../helpers/utils";
 import SMLoading from "../components/SMLoading.vue";
 import SMPageStatus from "../components/SMPageStatus.vue";
-import { MdPreview } from "md-editor-v3";
+import SMHTML from "../components/SMHTML.vue";
 
 const applicationStore = useApplicationStore();
 
@@ -206,13 +204,13 @@ const workshopDate = computed(() => {
             event.value.end_at.length > 0 &&
             event.value.start_at.substring(
                 0,
-                event.value.start_at.indexOf(" ")
+                event.value.start_at.indexOf(" "),
             ) !=
                 event.value.end_at.substring(0, event.value.end_at.indexOf(" "))
         ) {
             str = [
                 new SMDate(event.value.start_at, { format: "ymd" }).format(
-                    "dd/MM/yyyy"
+                    "dd/MM/yyyy",
                 ),
             ];
             if (event.value.end_at.length > 0) {
@@ -220,20 +218,20 @@ const workshopDate = computed(() => {
                     str[0] +
                     " - " +
                     new SMDate(event.value.end_at, { format: "ymd" }).format(
-                        "dd/MM/yyyy"
+                        "dd/MM/yyyy",
                     );
             }
         } else {
             str = [
                 new SMDate(event.value.start_at, { format: "ymd" }).format(
-                    "EEEE dd MMM yyyy"
+                    "EEEE dd MMM yyyy",
                 ),
                 new SMDate(event.value.start_at, { format: "ymd" }).format(
-                    "h:mm aa"
+                    "h:mm aa",
                 ) +
                     " - " +
                     new SMDate(event.value.end_at, { format: "ymd" }).format(
-                        "h:mm aa"
+                        "h:mm aa",
                     ),
             ];
         }

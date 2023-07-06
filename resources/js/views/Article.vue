@@ -35,7 +35,7 @@
                     >Edit Article</router-link
                 >
             </div>
-            <MdPreview :model-value="article.content" />
+            <SMHTML :html="article.content" />
             <SMAttachments :attachments="article.attachments || []" />
         </div>
     </template>
@@ -53,7 +53,7 @@ import { mediaGetVariantUrl } from "../helpers/media";
 import { userHasPermission } from "../helpers/utils";
 import SMLoading from "../components/SMLoading.vue";
 import SMPageStatus from "../components/SMPageStatus.vue";
-import { MdPreview } from "md-editor-v3";
+import SMHTML from "../components/SMHTML.vue";
 
 const applicationStore = useApplicationStore();
 
@@ -112,12 +112,12 @@ const handleLoad = async () => {
                     {
                         format: "ymd",
                         utc: true,
-                    }
+                    },
                 ).format("yyyy/MM/dd HH:mm:ss");
 
                 backgroundImageUrl.value = mediaGetVariantUrl(
                     article.value.hero,
-                    "large"
+                    "large",
                 );
                 applicationStore.setDynamicTitle(article.value.title);
             } else {
