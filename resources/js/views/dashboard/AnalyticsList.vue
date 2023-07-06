@@ -48,6 +48,7 @@
             <template v-else>
                 <SMPagination
                     v-if="items.length < itemsTotal"
+                    class="mb-4"
                     v-model="itemsPage"
                     :total="itemsTotal"
                     :per-page="itemsPerPage" />
