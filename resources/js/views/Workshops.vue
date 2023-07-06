@@ -77,7 +77,7 @@ let oldFilterValues = {
     dateRange: "",
 };
 
-const postsPerPage = 24;
+const postsPerPage = 18;
 let postsPage = ref(1);
 let postsTotal = ref(0);
 const pageStatus = ref(0);
