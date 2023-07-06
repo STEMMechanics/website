@@ -16,7 +16,18 @@
             <h5 class="mt-0 mb-2" v-if="title && title.length > 0">
                 {{ title }}
             </h5>
-            <p class="text-xs">{{ content }}</p>
+            <div class="flex">
+                <svg
+                    v-if="props.loader"
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    class="spin">
+                    <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+                </svg>
+                <p class="text-xs">
+                    {{ content }}
+                </p>
+            </div>
         </div>
     </div>
 </template>
@@ -43,6 +54,11 @@ const props = defineProps({
     content: {
         type: String,
         required: true,
+    },
+    loader: {
+        type: Boolean,
+        required: false,
+        default: false,
     },
 });
 
@@ -89,21 +105,23 @@ const removeToast = () => {
     }, 500);
 };
 
-onMounted(() => {
-    window.setTimeout(() => {
-        styles.value.opacity = 1;
-        styles.value.marginTop = "0";
+if (!props.loader) {
+    onMounted(() => {
+        window.setTimeout(() => {
+            styles.value.opacity = 1;
+            styles.value.marginTop = "0";
 
-        if (toast.value != null) {
-            const styles = window.getComputedStyle(toast.value);
-            const marginBottom = parseFloat(styles.marginBottom);
-            height = toast.value.offsetHeight + marginBottom || 0;
-        }
+            if (toast.value != null) {
+                const styles = window.getComputedStyle(toast.value);
+                const marginBottom = parseFloat(styles.marginBottom);
+                height = toast.value.offsetHeight + marginBottom || 0;
+            }
 
-        hideTimeoutID = window.setTimeout(() => {
-            hideTimeoutID = null;
-            removeToast();
-        }, 8000);
-    }, 200);
-});
+            hideTimeoutID = window.setTimeout(() => {
+                hideTimeoutID = null;
+                removeToast();
+            }, 8000);
+        }, 200);
+    });
+}
 </script>

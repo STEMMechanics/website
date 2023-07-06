@@ -5,6 +5,7 @@ export interface ToastOptions {
     title?: string;
     content: string;
     type?: string;
+    loader?: boolean;
 }
 
 export interface ToastItem {
@@ -12,6 +13,7 @@ export interface ToastItem {
     title: string;
     content: string;
     type: string;
+    loader: boolean;
 }
 
 export interface ToastStore {
@@ -23,6 +25,7 @@ export const defaultToastItem: ToastItem = {
     title: "",
     content: "",
     type: "primary",
+    loader: false,
 };
 
 export const useToastStore = defineStore({
@@ -32,8 +35,12 @@ export const useToastStore = defineStore({
     }),
 
     actions: {
-        addToast(toast: ToastOptions) {
-            if (!toast.id || toast.id == 0) {
+        addToast(toast: ToastOptions): number {
+            while (
+                !toast.id ||
+                toast.id == 0 ||
+                this.toasts.find((item: ToastItem) => item.id === toast.id)
+            ) {
                 toast.id =
                     Math.floor(Math.random() * Number.MAX_SAFE_INTEGER) + 1;
             }
@@ -42,9 +49,10 @@ export const useToastStore = defineStore({
             toast.type = toast.type || defaultToastItem.type;
 
             this.toasts.push(toast);
+            return toast.id;
         },
 
-        clearToast(id: number) {
+        clearToast(id: number): void {
             this.toasts = this.toasts.filter(
                 (item: ToastItem) => item.id !== id
             );

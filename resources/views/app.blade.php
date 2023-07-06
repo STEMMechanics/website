@@ -37,6 +37,8 @@
 		input { font-family: Poppins, Roboto, "Open Sans", ui-sans-serif, system-ui, sans-serif; }
 		.scrollbar-width-none { scrollbar-width: none; }
 		.scrollbar-width-none::-webkit-scrollbar { display: none; }
+		.spin{animation:rotate 1s infinite linear}
+		@keyframes rotate{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
     </style>
 </head>
 <body>
