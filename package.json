@@ -33,7 +33,6 @@
     "dependencies": {
         "@vitejs/plugin-vue": "^4.0.0",
         "dotenv": "^16.0.3",
-        "md-editor-v3": "^4.2.0",
         "pinia": "^2.0.28",
         "pinia-plugin-persistedstate": "^3.0.1",
         "sass": "^1.63.6",
