@@ -287,30 +287,3 @@ const handleDelete = async (item: Article) => {
 
 handleLoad();
 </script>
-
-<style lang="scss">
-.page-dashboard-media-list {
-    .toolbar-search {
-        max-width: 350px;
-    }
-
-    .table tr {
-        td:first-of-type,
-        td:nth-of-type(2) {
-            word-break: break-all;
-        }
-
-        td:not(:first-of-type) {
-            white-space: nowrap;
-        }
-    }
-}
-
-@media only screen and (max-width: 768px) {
-    .page-dashboard-article-list {
-        .toolbar-search {
-            max-width: none;
-        }
-    }
-}
-</style>
