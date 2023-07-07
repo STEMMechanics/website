@@ -57,5 +57,27 @@ export const useToastStore = defineStore({
                 (item: ToastItem) => item.id !== id
             );
         },
+
+        updateToast(id: number, updatedFields: Partial<ToastOptions>): void {
+            const toastToUpdate = this.toasts.find(
+                (item: ToastItem) => item.id === id
+            );
+
+            if (toastToUpdate) {
+                toastToUpdate.title =
+                    updatedFields.title || toastToUpdate.title;
+                toastToUpdate.content =
+                    updatedFields.content || toastToUpdate.content;
+                toastToUpdate.type = updatedFields.type || toastToUpdate.type;
+                if (
+                    Object.prototype.hasOwnProperty.call(
+                        updatedFields,
+                        "loader"
+                    )
+                ) {
+                    toastToUpdate.loader = updatedFields.loader;
+                }
+            }
+        },
     },
 });

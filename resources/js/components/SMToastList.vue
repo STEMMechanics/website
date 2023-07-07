@@ -8,7 +8,8 @@
             :key="toast.id"
             :type="toast.type"
             :title="toast.title"
-            :content="toast.content" />
+            :content="toast.content"
+            :loader="toast.loader" />
     </div>
 </template>
 

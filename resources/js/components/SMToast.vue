@@ -5,6 +5,7 @@
         :style="styles">
         <div :class="['max-w-48', 'border-l-5', 'pl-4', 'relative', colour]">
             <svg
+                v-if="!props.loader"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 -960 960 960"
                 class="h-4 absolute right-0 hover:text-red-7 cursor-pointer"
@@ -13,7 +14,7 @@
                     d="m249-207-42-42 231-231-231-231 42-42 231 231 231-231 42 42-231 231 231 231-42 42-231-231-231 231Z"
                     fill="currentColor" />
             </svg>
-            <h5 class="mt-0 mb-2" v-if="title && title.length > 0">
+            <h5 class="mt-0 mb-2 pr-6" v-if="title && title.length > 0">
                 {{ title }}
             </h5>
             <div class="flex">
@@ -21,8 +22,10 @@
                     v-if="props.loader"
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 24 24"
-                    class="spin">
-                    <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z" />
+                    class="spin h-4 color-gray mr-2 flex-align-middle">
+                    <path
+                        d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z"
+                        fill="currentColor" />
                 </svg>
                 <p class="text-xs">
                     {{ content }}
@@ -33,8 +36,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useToastStore } from "../store/ToastStore";
+import { I } from "vitest/dist/types-198fd1d9";
 
 const props = defineProps({
     id: {
@@ -64,7 +68,6 @@ const props = defineProps({
 
 const toastStore = useToastStore();
 const toast = ref(null);
-let colour = "";
 let height = 40;
 let hideTimeoutID: number | null = null;
 
@@ -74,20 +77,18 @@ const styles = ref({
     marginTop: "40px",
 });
 
-switch (props.type) {
-    case "primary":
-        colour = "border-sky-5";
-        break;
-    case "danger":
-        colour = "border-red-7";
-        break;
-    case "success":
-        colour = "border-green-7";
-        break;
-    case "warning":
-        colour = "border-yellow-4";
-        break;
-}
+let colour = computed(() => {
+    switch (props.type) {
+        case "danger":
+            return "border-red-7";
+        case "success":
+            return "border-green-7";
+        case "warning":
+            return "border-yellow-4";
+    }
+
+    return "border-sky-5";
+});
 
 const handleClickClose = () => {
     if (hideTimeoutID != null) {
@@ -105,23 +106,47 @@ const removeToast = () => {
     }, 500);
 };
 
-if (!props.loader) {
-    onMounted(() => {
-        window.setTimeout(() => {
-            styles.value.opacity = 1;
-            styles.value.marginTop = "0";
+const cancelRemoveCountdown = () => {
+    if (hideTimeoutID != null) {
+        window.clearTimeout(hideTimeoutID);
+        hideTimeoutID = null;
+    }
+};
 
-            if (toast.value != null) {
-                const styles = window.getComputedStyle(toast.value);
-                const marginBottom = parseFloat(styles.marginBottom);
-                height = toast.value.offsetHeight + marginBottom || 0;
-            }
+const startRemoveCountdown = () => {
+    if (hideTimeoutID == null) {
+        hideTimeoutID = window.setTimeout(() => {
+            hideTimeoutID = null;
+            removeToast();
+        }, 8000);
+    }
+};
 
-            hideTimeoutID = window.setTimeout(() => {
-                hideTimeoutID = null;
-                removeToast();
-            }, 8000);
-        }, 200);
-    });
-}
+onMounted(() => {
+    window.setTimeout(() => {
+        styles.value.opacity = 1;
+        styles.value.marginTop = "0";
+
+        if (toast.value != null) {
+            const styles = window.getComputedStyle(toast.value);
+            const marginBottom = parseFloat(styles.marginBottom);
+            height = toast.value.offsetHeight + marginBottom || 0;
+        }
+
+        if (!props.loader) {
+            startRemoveCountdown();
+        }
+    }, 200);
+});
+
+watch(
+    () => props.loader,
+    (newValue) => {
+        if (newValue) {
+            cancelRemoveCountdown();
+        } else {
+            startRemoveCountdown();
+        }
+    }
+);
 </script>
