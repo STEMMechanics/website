@@ -29,6 +29,7 @@
                     'px-4',
                     'pt-5',
                     'flex-1',
+                    'bg-white',
                     { 'bg-gray-1': disabled },
                 ]"
                 v-bind="{
@@ -121,21 +122,21 @@ const label = ref(
         ? props.label
         : typeof props.control == "string"
         ? toTitleCase(props.control)
-        : ""
+        : "",
 );
 const value = ref(
     props.modelValue != undefined
         ? props.modelValue
         : control != null
         ? control.value
-        : ""
+        : "",
 );
 const id = ref(
     props.id != undefined
         ? props.id
         : typeof props.control == "string" && props.control.length > 0
         ? props.control
-        : generateRandomElementId()
+        : generateRandomElementId(),
 );
 const active = ref(value.value?.toString().length ?? 0 > 0);
 const focused = ref(false);
@@ -145,7 +146,7 @@ watch(
     () => value.value,
     (newValue) => {
         active.value = newValue.toString().length > 0 || focused.value == true;
-    }
+    },
 );
 
 if (props.modelValue != undefined) {
@@ -153,7 +154,7 @@ if (props.modelValue != undefined) {
         () => props.modelValue,
         (newValue) => {
             value.value = newValue;
-        }
+        },
     );
 }
 
@@ -161,7 +162,7 @@ watch(
     () => props.disabled,
     (newValue) => {
         disabled.value = newValue;
-    }
+    },
 );
 
 if (typeof control === "object" && control !== null) {
@@ -170,7 +171,7 @@ if (typeof control === "object" && control !== null) {
         (newValue) => {
             value.value = newValue;
         },
-        { deep: true }
+        { deep: true },
     );
 }
 
