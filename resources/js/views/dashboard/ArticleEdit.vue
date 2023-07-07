@@ -6,7 +6,9 @@
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
         <div class="max-w-7xl mx-auto mt-8 px-8">
+            <SMLoading v-if="pageLoading" />
             <SMForm
+                v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
@@ -65,11 +67,13 @@ import SMMastHead from "../../components/SMMastHead.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMSelectImage from "../../components/SMSelectImage.vue";
+import SMLoading from "../../components/SMLoading.vue";
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 let pageError = ref(200);
+const pageLoading = ref(false);
 const authors = ref({});
 const attachments = ref([]);
 const pageHeading = route.params.id ? "Edit Article" : "Create Article";
@@ -132,7 +136,7 @@ const updateSlug = async () => {
 const loadData = async () => {
     try {
         if (route.params.id) {
-            form.loading(true);
+            pageLoading.value = true;
             let result = await api.get({
                 url: "/articles/{id}",
                 params: {
@@ -168,7 +172,7 @@ const loadData = async () => {
     } catch (error) {
         pageError.value = error.status;
     } finally {
-        form.loading(false);
+        pageLoading.value = false;
     }
 };
 
