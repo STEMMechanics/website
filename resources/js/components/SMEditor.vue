@@ -46,3 +46,18 @@ watch(
     }
 );
 </script>
+
+<style lang="scss">
+.ProseMirror {
+    border-width: 1px;
+    border-radius: 0.5rem;
+    border-color: rgba(156,163,175,1);
+    color: rgba(75,85,99,1);
+    padding: 1rem;
+    background-color: rgba(255,255,255,1);
+    height: 24rem;
+    overflow: scroll;
+}
+
+// w-full text-gray-6 flex-1 px-4 text-lg pt-5 border-gray border-1 rounded-l-2 rounded-r-2 bg-white
+</style>
