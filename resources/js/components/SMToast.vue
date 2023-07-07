@@ -38,7 +38,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useToastStore } from "../store/ToastStore";
-import { I } from "vitest/dist/types-198fd1d9";
 
 const props = defineProps({
     id: {
@@ -147,6 +146,6 @@ watch(
         } else {
             startRemoveCountdown();
         }
-    }
+    },
 );
 </script>
