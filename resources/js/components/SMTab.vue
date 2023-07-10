@@ -18,6 +18,11 @@ defineProps({
         type: String,
         required: true,
     },
+    hide: {
+        type: Boolean,
+        default: true,
+        required: false,
+    },
 });
 
 const selectedTab = inject("selectedTab");

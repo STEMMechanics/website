@@ -42,17 +42,22 @@ const emits = defineEmits(["tabChanged", "update:modelValue"]);
 const slots = useSlots();
 
 const tabs = ref(
-    slots.default().map((tab) => {
-        const { label, id } = tab.props;
-        return {
-            label,
-            id,
-        };
-    })
+    slots
+        .default()
+        .map((tab) => {
+            const { label, id, hide } = tab.props;
+            if (hide !== true) {
+                return {
+                    label,
+                    id,
+                };
+            }
+        })
+        .filter(Boolean),
 );
 
 const selectedTab = ref(
-    props.modelValue.length == 0 ? tabs.value[0].id : props.modelValue
+    props.modelValue.length == 0 ? tabs.value[0].id : props.modelValue,
 );
 
 if (props.modelValue.length == 0) {
@@ -64,14 +69,14 @@ watch(
     (newValue) => {
         emits("tabChanged", newValue);
         emits("update:modelValue", newValue);
-    }
+    },
 );
 
 watch(
     () => props.modelValue,
     (newValue) => {
         selectedTab.value = newValue;
-    }
+    },
 );
 
 provide("selectedTab", selectedTab);
