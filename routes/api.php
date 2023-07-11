@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AnalyticsController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\InfoController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\OCRController;
@@ -22,6 +23,8 @@ use App\Http\Controllers\Api\UserController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::get('/', [InfoController::class, 'index']);
 
 Route::post('/login', [AuthController::class, 'login'])->name('login');
 Route::post('/register', [UserController::class, 'register']);
