@@ -230,11 +230,7 @@
                                         {{ selected.title }}
                                     </p>
                                     <p class="m-0">
-                                        {{
-                                            new SMDate(
-                                                selected.created_at,
-                                            ).format("MMM dd, yyyy")
-                                        }}
+                                        {{ formatDate(selected.created_at) }}
                                     </p>
                                     <p class="m-0">
                                         {{ bytesReadable(selected.size, 0) }}
@@ -911,6 +907,11 @@ const showFileBrowserTab = () => {
             behavior: "smooth",
         });
     }, 50);
+};
+
+const formatDate = (date) => {
+    const smdate = new SMDate(date).format("MMM dd, yyyy");
+    return smdate;
 };
 
 // Get max upload size
