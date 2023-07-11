@@ -871,13 +871,13 @@ const computedSelectDisabled = computed(() => {
 });
 
 const handleDragEnter = () => {
-    if (!showFileDrop.value) {
+    if (props.allowUpload && !showFileDrop.value) {
         showFileDrop.value = true;
     }
 };
 
 const handleDragOver = () => {
-    if (!showFileDrop.value) {
+    if (props.allowUpload && !showFileDrop.value) {
         showFileDrop.value = true;
     }
 };
@@ -889,6 +889,10 @@ const handleDragLeave = () => {
 };
 
 const handleDrop = (event) => {
+    if (!props.allowUpload) {
+        return;
+    }
+
     showFileDrop.value = false;
     handleFilesUpload(event.dataTransfer.files);
     showFileBrowserTab();
