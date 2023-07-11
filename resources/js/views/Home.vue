@@ -230,7 +230,7 @@ const viewLoad = async () => {
                         limit: 10,
                         sort: "start_at",
                         start_at: `>${new SMDate("now").format(
-                            "yyyy-MM-dd hh:mm:ss"
+                            "yyyy-MM-dd hh:mm:ss",
                         )}`,
                     },
                 })
@@ -309,7 +309,7 @@ viewLoad();
 }
 
 .bg-minecraft {
-    background-image: url("/assets/home-minecraft.webp");
+    background-image: url("https://www.stemmechanics.com.au/assets/home-minecraft.webp");
     background-repeat: no-repeat;
     background-position: center;
     background-size: cover;
