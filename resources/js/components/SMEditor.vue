@@ -1,5 +1,29 @@
 <template>
     <div class="sm-html">
+        <bubble-menu
+            :editor="editor"
+            :should-show="bubbleMenuShow"
+            :tippy-options="{ hideOnClick: false }"
+            v-if="editor">
+            <button
+                @click.prevent="editor.chain().focus().toggleBold().run()"
+                :class="{ 'is-active': editor.isActive('bold') }">
+                bold
+            </button>
+            <button
+                @click.prevent="editor.chain().focus().toggleItalic().run()"
+                :class="{ 'is-active': editor.isActive('italic') }">
+                italic
+            </button>
+            <button
+                @click.prevent="editor.chain().focus().toggleStrike().run()"
+                :class="{ 'is-active': editor.isActive('strike') }">
+                strike
+            </button>
+            <button @click.prevent="editor.commands.deleteSelection()">
+                remove
+            </button>
+        </bubble-menu>
         <div
             v-if="editor"
             class="flex flex-wrap bg-white border border-gray rounded-t-2">
@@ -644,7 +668,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, watch } from "vue";
-import { useEditor, EditorContent } from "@tiptap/vue-3";
+import { useEditor, EditorContent, BubbleMenu, isActive } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import TextAlign from "@tiptap/extension-text-align";
@@ -696,11 +720,16 @@ const editor = useEditor({
             openOnClick: false,
         }),
         Image,
+        BubbleMenu,
     ],
     onUpdate: () => {
         emits("update:modelValue", editor.value.getHTML());
     },
 });
+
+const bubbleMenuShow = ({ editor, view, state, oldState, from, to }) => {
+    return isActive(state, "image");
+};
 
 const updateNode = (event) => {
     if (event.target.value) {
@@ -799,3 +828,48 @@ watch(
     },
 );
 </script>
+
+<style lang="scss">
+.tippy-content div {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+
+    button {
+        color: rgba(255, 255, 255, 1);
+        appearance: none;
+        background-color: rgba(0, 0, 0, 1);
+        font-size: 0.8rem;
+        padding: 0.5rem 0.75rem;
+
+        &:hover {
+            background-color: rgba(60, 60, 60, 1);
+        }
+
+        &:first-child {
+            border-top-left-radius: 0.5rem;
+            border-bottom-left-radius: 0.5rem;
+        }
+
+        &:last-child {
+            border-top-right-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+    }
+}
+
+.tippy-arrow {
+    height: 0.75rem;
+    width: 0.75rem;
+    z-index: -1;
+
+    &::after {
+        display: block;
+        content: "";
+        background-color: rgba(0, 0, 0, 1);
+        height: 100%;
+        width: 100%;
+        transform: translateY(-50%) rotate(45deg);
+    }
+}
+</style>
