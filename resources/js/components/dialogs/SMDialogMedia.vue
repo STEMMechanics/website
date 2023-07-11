@@ -25,7 +25,7 @@
                 <SMTab
                     id="tab-upload"
                     label="Upload"
-                    :hide="!props.allowUpload"
+                    :hide="!allowUploads"
                     class="flex flex-1 flex-col flex-items-center flex-justify-center">
                     <h2>Drop files to upload</h2>
                     <p class="text-sm my-2">or</p>
@@ -39,7 +39,7 @@
                         {{ max_upload_size }}
                     </p>
                     <input
-                        v-if="props.allowUpload"
+                        v-if="allowUploads"
                         id="file"
                         ref="refUploadInput"
                         type="file"
@@ -329,6 +329,7 @@ import { bytesReadable } from "../../helpers/types";
 import { SMDate } from "../../helpers/datetime";
 import { isUUID } from "../../helpers/uuid";
 import { useToastStore } from "../../store/ToastStore";
+import { useUserStore } from "../../store/UserStore";
 
 const props = defineProps({
     mime: {
@@ -354,6 +355,10 @@ const props = defineProps({
 const refUploadInput = ref<HTMLInputElement | null>(null);
 
 const refMediaList = ref<HTMLUListElement | null>(null);
+
+const userStore = useUserStore();
+
+const allowUploads = ref(props.allowUpload && userStore.id);
 
 /**
  * The selected tab
@@ -871,13 +876,13 @@ const computedSelectDisabled = computed(() => {
 });
 
 const handleDragEnter = () => {
-    if (props.allowUpload && !showFileDrop.value) {
+    if (allowUploads.value && !showFileDrop.value) {
         showFileDrop.value = true;
     }
 };
 
 const handleDragOver = () => {
-    if (props.allowUpload && !showFileDrop.value) {
+    if (allowUploads.value && !showFileDrop.value) {
         showFileDrop.value = true;
     }
 };
@@ -889,7 +894,7 @@ const handleDragLeave = () => {
 };
 
 const handleDrop = (event) => {
-    if (!props.allowUpload) {
+    if (!allowUploads.value) {
         return;
     }
 
