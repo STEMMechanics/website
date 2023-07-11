@@ -767,7 +767,7 @@ const setLink = () => {
 };
 
 const setImage = async () => {
-    let result = await openDialog(SMDialogMedia);
+    let result = await openDialog(SMDialogMedia, { allowUpload: true });
     if (result) {
         const mediaResult = result as Media;
         editor.value
@@ -775,6 +775,8 @@ const setImage = async () => {
             .focus()
             .setImage({
                 src: mediaResult.url,
+                title: mediaResult.title,
+                alt: mediaResult.description,
             })
             .run();
     }

@@ -1,5 +1,12 @@
 <template>
-    <div class="sm-input flex flex-col flex-1">
+    <div
+        :class="[
+            'sm-input',
+            'flex',
+            'flex-col',
+            'flex-1',
+            { 'sm-input-small': small },
+        ]">
         <div
             :class="[
                 'relative',
@@ -16,42 +23,78 @@
                     'transform-origin-top-left',
                     'text-gray',
                     'block',
-                    'translate-x-5',
                     'scale-100',
                     'transition',
-                    small ? ['text-sm', '-top-0.5'] : 'top-0.5',
+                    small
+                        ? ['translate-x-4', 'text-sm', '-top-1.5']
+                        : ['translate-x-5', 'top-0.5'],
                 ]"
                 >{{ label }}</label
             >
-            <input
-                :type="props.type"
-                :class="[
-                    'w-full',
-                    'text-gray-6',
-                    'flex-1',
-                    'px-4',
-                    small ? ['text-sm', 'pt-3'] : ['text-lg', 'pt-5'],
-                    feedbackInvalid ? 'border-red-6' : 'border-gray',
-                    feedbackInvalid ? 'border-2' : 'border-1',
-                    { 'bg-gray-1': disabled },
-                    { 'rounded-l-2': !slots.prepend },
-                    { 'rounded-r-2': !slots.append },
-                ]"
-                v-bind="{
-                    id: id,
-                    autofocus: props.autofocus,
-                    autocomplete: props.type === 'email' ? 'email' : null,
-                    spellcheck: props.type === 'email' ? false : null,
-                    autocorrect: props.type === 'email' ? 'on' : null,
-                    autocapitalize: props.type === 'email' ? 'off' : null,
-                }"
-                @focus="handleFocus"
-                @blur="handleBlur"
-                @input="handleInput"
-                @keyup="handleKeyup"
-                :value="value"
-                :disabled="disabled" />
-            <template v-if="slots.append"><slot name="append"></slot></template>
+            <template v-if="!props.textarea">
+                <input
+                    :type="props.type"
+                    :class="[
+                        'w-full',
+                        'text-gray-6',
+                        'flex-1',
+                        small
+                            ? ['text-sm', 'pt-3', 'px-3']
+                            : ['text-lg', 'pt-5', 'px-4'],
+                        feedbackInvalid ? 'border-red-6' : 'border-gray',
+                        feedbackInvalid ? 'border-2' : 'border-1',
+                        { 'bg-gray-1': disabled },
+                        { 'rounded-l-2': !slots.prepend },
+                        { 'rounded-r-2': !slots.append },
+                    ]"
+                    v-bind="{
+                        id: id,
+                        autofocus: props.autofocus,
+                        autocomplete: props.type === 'email' ? 'email' : null,
+                        spellcheck: props.type === 'email' ? false : null,
+                        autocorrect: props.type === 'email' ? 'on' : null,
+                        autocapitalize: props.type === 'email' ? 'off' : null,
+                    }"
+                    @focus="handleFocus"
+                    @blur="handleBlur"
+                    @input="handleInput"
+                    @keyup="handleKeyup"
+                    :value="value"
+                    :disabled="disabled" />
+                <template v-if="slots.append"
+                    ><slot name="append"></slot
+                ></template>
+            </template>
+            <template v-else>
+                <textarea
+                    :class="[
+                        'w-full',
+                        'text-gray-6',
+                        'flex-1',
+                        small
+                            ? ['text-sm', 'pt-3', 'px-3']
+                            : ['text-lg', 'pt-5', 'px-4'],
+                        feedbackInvalid ? 'border-red-6' : 'border-gray',
+                        feedbackInvalid ? 'border-2' : 'border-1',
+                        { 'bg-gray-1': disabled },
+                        { 'rounded-l-2': !slots.prepend },
+                        { 'rounded-r-2': !slots.append },
+                    ]"
+                    v-bind="{
+                        id: id,
+                        autofocus: props.autofocus,
+                        autocomplete: props.type === 'email' ? 'email' : null,
+                        spellcheck: props.type === 'email' ? false : null,
+                        autocorrect: props.type === 'email' ? 'on' : null,
+                        autocapitalize: props.type === 'email' ? 'off' : null,
+                    }"
+                    @focus="handleFocus"
+                    @blur="handleBlur"
+                    @input="handleInput"
+                    @keyup="handleKeyup"
+                    :value="value"
+                    :disabled="disabled"></textarea>
+            </template>
         </div>
         <p v-if="feedbackInvalid" class="px-2 pt-2 text-xs text-red-6">
             {{ feedbackInvalid }}
@@ -128,6 +171,11 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    textarea: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
 
 const slots = useSlots();
@@ -149,21 +197,21 @@ const label = ref(
         ? props.label
         : typeof props.control == "string"
         ? toTitleCase(props.control)
-        : ""
+        : "",
 );
 const value = ref(
     props.modelValue != undefined
         ? props.modelValue
         : control != null
         ? control.value
-        : ""
+        : "",
 );
 const id = ref(
     props.id != undefined
         ? props.id
         : typeof props.control == "string" && props.control.length > 0
         ? props.control
-        : generateRandomElementId()
+        : generateRandomElementId(),
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.toString().length ?? 0 > 0);
@@ -174,7 +222,7 @@ watch(
     () => value.value,
     (newValue) => {
         active.value = newValue.toString().length > 0 || focused.value == true;
-    }
+    },
 );
 
 if (props.modelValue != undefined) {
@@ -182,7 +230,7 @@ if (props.modelValue != undefined) {
         () => props.modelValue,
         (newValue) => {
             value.value = newValue;
-        }
+        },
     );
 }
 
@@ -190,14 +238,14 @@ watch(
     () => props.feedbackInvalid,
     (newValue) => {
         feedbackInvalid.value = newValue;
-    }
+    },
 );
 
 watch(
     () => props.disabled,
     (newValue) => {
         disabled.value = newValue;
-    }
+    },
 );
 
 if (typeof control === "object" && control !== null) {
@@ -208,7 +256,7 @@ if (typeof control === "object" && control !== null) {
                 ? ""
                 : control.validation.result.invalidMessages[0];
         },
-        { deep: true }
+        { deep: true },
     );
 
     watch(
@@ -216,7 +264,7 @@ if (typeof control === "object" && control !== null) {
         (newValue) => {
             value.value = newValue;
         },
-        { deep: true }
+        { deep: true },
     );
 }
 
@@ -259,6 +307,9 @@ const handleKeyup = (event: Event) => {
     }
     .input-active label {
         transform: translate(16px, 6px) scale(0.7);
+    }
+    &.sm-input-small .input-active label {
+        transform: translate(12px, 7px) scale(0.7);
     }
 }
 </style>

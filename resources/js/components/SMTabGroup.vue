@@ -1,12 +1,13 @@
 <template>
-    <div class="tab-group">
-        <ul class="flex">
+    <div class="mb-4">
+        <ul class="flex relative">
             <li
                 v-for="tab in tabs"
                 :key="tab.id"
                 :class="[
-                    'p-4',
-                    '-mb-0.2',
+                    'px-4',
+                    'py-2',
+                    '-mb-1px',
                     'border-1',
                     'rounded-t-2',
                     'border-gray',
@@ -81,54 +82,3 @@ watch(
 
 provide("selectedTab", selectedTab);
 </script>
-
-<style lang="scss">
-.tab-group {
-    margin-bottom: 32px;
-
-    .tab-header {
-        list-style-type: none;
-        margin: 0;
-        padding: 0;
-        border-bottom: 1px solid var(--tab-color-border);
-    }
-
-    .tab-item {
-        display: inline-block;
-        padding: 8px 16px;
-        border: 1px solid transparent;
-        margin-bottom: -1px;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
-        color: var(--primary-color);
-        position: relative;
-
-        &.selected {
-            color: var(--tab-color-text);
-            background-color: var(--tab-color);
-            border-top: 1px solid var(--tab-color-border);
-            border-left: 1px solid var(--tab-color-border);
-            border-bottom: 1px solid var(--tab-color);
-            border-right: 1px solid var(--tab-color-border);
-
-            &::after {
-                display: block;
-                content: "";
-                position: absolute;
-                bottom: -2px;
-                height: 4px;
-                left: 0px;
-                right: 0px;
-                border-bottom: 3px solid var(--tab-color);
-                pointer-events: none;
-            }
-        }
-
-        &:hover:not(.selected) {
-            color: var(--primary-color);
-            background-color: var(--tab-color-hover);
-            border-bottom: 1px solid var(--tab-color-border);
-        }
-    }
-}
-</style>

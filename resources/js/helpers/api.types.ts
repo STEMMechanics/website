@@ -167,3 +167,8 @@ export interface ShortlinkCollection {
 export interface ShortlinkResponse {
     shortlink: Shortlink;
 }
+
+export interface ApiInfo {
+    version: string;
+    max_upload_size: number;
+}
