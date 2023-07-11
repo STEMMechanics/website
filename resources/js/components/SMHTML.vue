@@ -67,6 +67,6 @@ const computedContent = computed(() => {
         }/uploads/$2?size=large"`,
     );
 
-    return { template: `<div class="html">${html}</div>` };
+    return { template: `<div class="sm-html">${html}</div>` };
 });
 </script>
