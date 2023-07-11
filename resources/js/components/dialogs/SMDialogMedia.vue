@@ -1,17 +1,22 @@
 <template>
     <div
         v-if="showFileDrop"
-        class="fixed flex flex-items-center flex-justify-center justify-center top-0 left-0 w-full h-full z-4 bg-sky-800 bg-op-95 text-white"
+        class="fixed flex top-0 left-0 w-full h-full z-4 bg-sky-800 bg-op-95 text-white"
         @dragenter.prevent="handleDragEnter"
         @dragover.prevent="handleDragOver"
         @drop.prevent="handleDrop"
         @dragleave.prevent="handleDragLeave">
-        <h2 class="pointer-events-none">Drop files to upload</h2>
+        <h2
+            class="pointer-events-none flex w-full flex-items-center flex-justify-center b-dashed border-1 m-4">
+            Drop files to upload
+        </h2>
     </div>
     <div
         class="fixed top-0 left-0 w-full h-full z-2 bg-black bg-op-20 backdrop-blur"></div>
     <div
-        class="fixed top-0 left-0 right-0 bottom-0 flex-justify-center flex z-3">
+        class="fixed top-0 left-0 right-0 bottom-0 flex-justify-center flex z-3"
+        @dragenter.prevent="handleDragEnter"
+        @dragover.prevent="handleDragOver">
         <div
             class="flex flex-col m-4 border-1 bg-white rounded-xl text-gray-5 px-4 md:px-12 py-4 md:py-8 w-full overflow-hidden">
             <SMLoading v-if="progressText" overlay :text="progressText" />
@@ -21,9 +26,7 @@
                     id="tab-upload"
                     label="Upload"
                     :hide="!props.allowUpload"
-                    class="flex flex-1 flex-col flex-items-center flex-justify-center"
-                    @dragenter.prevent="handleDragEnter"
-                    @dragover.prevent="handleDragOver">
+                    class="flex flex-1 flex-col flex-items-center flex-justify-center">
                     <h2>Drop files to upload</h2>
                     <p class="text-sm my-2">or</p>
                     <button
@@ -136,7 +139,7 @@
                                             ]"
                                             :style="{
                                                 backgroundImage:
-                                                    item.status === 'OK'
+                                                    item.url.length > 0
                                                         ? `url('${mediaGetVariantUrl(
                                                               item,
                                                               'small',
@@ -148,8 +151,22 @@
                                                         : 'rgba(220,220,220,1)',
                                             }">
                                             <SMLoading
-                                                v-if="item.status !== 'OK'"
-                                                small />
+                                                v-if="
+                                                    item.status !== 'OK' &&
+                                                    item.status !== 'Failed'
+                                                "
+                                                small
+                                                class="bg-white bg-op-90 w-full h-full" />
+                                            <div v-if="item.status == 'Failed'">
+                                                <svg
+                                                    xmlns="http://www.w3.org/2000/svg"
+                                                    class="h-10 w-10"
+                                                    viewBox="0 0 24 24">
+                                                    <path
+                                                        d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
+                                                        fill="rgba(220,38,38,1)" />
+                                                </svg>
+                                            </div>
                                         </div>
                                     </li>
                                 </ul>
@@ -221,6 +238,11 @@
                                     </p>
                                     <p class="m-0">
                                         {{ bytesReadable(selected.size, 0) }}
+                                    </p>
+                                    <p
+                                        v-if="selected.status != 'OK'"
+                                        class="m-0 italic">
+                                        {{ selected.status }}
                                     </p>
                                 </div>
                                 <div class="py-2">
@@ -310,6 +332,7 @@ import { convertFileNameToTitle } from "../../helpers/utils";
 import { bytesReadable } from "../../helpers/types";
 import { SMDate } from "../../helpers/datetime";
 import { isUUID } from "../../helpers/uuid";
+import { useToastStore } from "../../store/ToastStore";
 
 const props = defineProps({
     mime: {
@@ -499,7 +522,6 @@ const handleChangeSelectFile = async () => {
 
 const handleFilesUpload = (files: FileList) => {
     Array.from(files).forEach((file, index) => {
-        console.log(index);
         mediaItems.value.unshift({
             id: (currentUploadFileNum.value + index + 1).toString(),
             user_id: "",
@@ -528,31 +550,106 @@ const handleFilesUpload = (files: FileList) => {
     startFilesUpload();
 };
 
-const startFilesUpload = () => {
+const startFilesUpload = async () => {
     if (uploadFileList.value != null) {
         if (currentUploadFileNum.value < 1) {
             currentUploadFileNum.value = 1;
 
             while (currentUploadFileNum.value <= uploadFileList.value.length) {
+                const file =
+                    uploadFileList.value[currentUploadFileNum.value - 1];
+
                 let submitFormData = new FormData();
-    submitFormData.append("file", file);
-    submitFormData.append("title", convertFileNameToTitle(file.name));
-    submitFormData.append("description", "");
-    try {
-        let result = await api.post({
-            url: "/media",
-            body: submitFormData,
-            headers: {
-                "Content-Type": "multipart/form-data",
+                submitFormData.append("file", file);
+                submitFormData.append(
+                    "title",
+                    convertFileNameToTitle(file.name),
+                );
+                submitFormData.append("description", "");
+                let result = await api.post({
+                    url: "/media",
+                    body: submitFormData,
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                });
+                if (result.data) {
+                    /* empty */
+                    const data = result.data as MediaResponse;
+
+                    const currentUploadFileNumStr =
+                        currentUploadFileNum.value.toString();
+                    mediaItems.value.every((item, index) => {
+                        if (item.id == currentUploadFileNumStr) {
+                            mediaItems.value[index] = data.medium;
+                            return false;
+                        }
+
+                        return true;
+                    });
+
+                    updateFiles();
+                    currentUploadFileNum.value++;
+                }
+            }
+
+            uploadFileList.value = null;
+            currentUploadFileNum.value = 0;
+        }
+    }
+};
+
+const updateFilesNonce = ref(null);
+
+const updateFiles = async () => {
+    if (updateFilesNonce.value == null) {
+        let remaining = false;
+
+        mediaItems.value.forEach((item, index) => {
+            if (
+                isUUID(item.id) &&
+                item.status != "OK" &&
+                item.status != "Failed"
+            ) {
+                remaining = true;
+
+                api.get({
+                    url: "/media/{id}",
+                    params: {
+                        id: item.id,
+                    },
+                })
+                    .then((updateResult) => {
+                        if (updateResult.data) {
+                            const updateData =
+                                updateResult.data as MediaResponse;
+                            if (updateData.medium.status == "OK") {
+                                mediaItems.value[index] = updateData.medium;
+                            } else if (updateData.medium.status == "Failed") {
+                                mediaItems.value[index] = updateData.medium;
+                                useToastStore().addToast({
+                                    title: "Upload failed",
+                                    type: "danger",
+                                    content: `${item.name} failed to be processed by the server.`,
+                                });
+                            }
+                        } else {
+                            throw "error";
+                        }
+                    })
+                    .catch(() => {
+                        /* empty */
+                    });
             }
         });
-        if(result.adata)
-    }
-    catch ((error) => {
-            /* empty */
-    });
 
-            }
+        if (remaining) {
+            updateFilesNonce.value = setTimeout(() => {
+                updateFilesNonce.value = null;
+                updateFiles();
+            }, 2000);
+        } else {
+            updateFilesNonce.value = null;
         }
     }
 };
@@ -771,7 +868,7 @@ watch(page, () => {
  */
 const computedSelectDisabled = computed(() => {
     if (selectedTab.value == "tab-browser") {
-        return selected.value == null;
+        return selected.value == null || selected.value.status !== "OK";
     }
 
     return true;

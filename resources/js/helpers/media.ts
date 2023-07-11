@@ -2,7 +2,7 @@ import { Media } from "./api.types";
 
 export const mediaGetVariantUrl = (
     media: Media,
-    variant = "scaled"
+    variant = "scaled",
 ): string => {
     if (!media) {
         return "";
