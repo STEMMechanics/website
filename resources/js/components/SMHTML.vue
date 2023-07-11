@@ -1,5 +1,5 @@
 <template>
-    <component :is="computedContent.template"></component>
+    <component :is="computedContent"></component>
 </template>
 
 <script setup lang="ts">
@@ -23,7 +23,10 @@ const computedContent = computed(() => {
     let html = "";
 
     // Sanitize HTML
-    html = DOMPurify.sanitize(html);
+    html = DOMPurify.sanitize(props.html);
+
+    // Convert nl to <br>
+    html = html.replaceAll("\n", "<br />");
 
     // Convert local links to router-links
     const regexHref = new RegExp(
@@ -32,7 +35,7 @@ const computedContent = computed(() => {
         }(.*?>.*?)</a>`,
         "ig",
     );
-    html = props.html.replace(regexHref, '<router-link $1to="$2</router-link>');
+    html = html.replace(regexHref, '<router-link $1to="$2</router-link>');
 
     // Convert image galleries to SMImageGallery component
     // const regexGallery =
@@ -64,16 +67,6 @@ const computedContent = computed(() => {
         }/uploads/$2?size=large"`,
     );
 
-    return {
-        template: `<div class="html">${html}</div>`,
-        ...{},
-    };
-
-    // return {
-    //     template: `<div class="html">${html}</div>`,
-    //     // components: {
-    //     // SMImageGallery,
-    //     // },
-    // };
+    return { template: `<div class="html">${html}</div>` };
 });
 </script>
