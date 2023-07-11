@@ -18,7 +18,7 @@ class InfoController extends ApiController
     {
         $info = [
             "version" => "1.0.0",
-            "max_file_size" => Media::getMaxUploadSize()
+            "max_upload_size" => Media::getMaxUploadSize()
         ];
 
         return $this->respondJson($info);
