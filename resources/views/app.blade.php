@@ -32,6 +32,7 @@
 		a:not([role="button"]) { color: #0284c7; }
 		a:not([role="button"]):hover { color: #0ea5e9; }
 		a[role="button"] { text-decoration: inherit; }
+		a{text-decoration: none;}
 		input:disabled { background-color: rgba(243, 244, 246); }
 		input[type="submit"]:disabled { background-color: rgba(209, 213, 219); }
 		input { font-family: Poppins, Roboto, "Open Sans", ui-sans-serif, system-ui, sans-serif; }
