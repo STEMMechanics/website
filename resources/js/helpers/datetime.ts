@@ -44,7 +44,7 @@ export class SMDate {
 
     constructor(
         dateOrString: string | Date = "",
-        options: { format?: string; utc?: boolean } = {}
+        options: { format?: string; utc?: boolean } = {},
     ) {
         this.date = null;
 
@@ -70,7 +70,7 @@ export class SMDate {
      */
     public parse(
         dateString: string,
-        { format = "dmy", utc = false } = {}
+        { format = "dmy", utc = false } = {},
     ): SMDate {
         const now = new Date();
         let time = "";
@@ -95,25 +95,6 @@ export class SMDate {
 
         // Split the date string into an array of components based on the length of each date component
         const components = dateString.split(/[ /-]/);
-
-        for (const component of components) {
-            if (isNaN(parseInt(component))) {
-                return this;
-            }
-            if (component.includes(":")) {
-                time = component;
-                const index = components.indexOf(component);
-                if (
-                    index < components.length - 1 &&
-                    /^(am?|a\.m\.|pm?|p\.m\.)$/i.test(components[index + 1])
-                ) {
-                    time += " " + components[index + 1].toUpperCase();
-                    components.splice(index + 1, 1);
-                }
-                components.splice(index, 1);
-                break;
-            }
-        }
 
         const [day, month, year] =
             format === "dmy"
@@ -140,6 +121,9 @@ export class SMDate {
             parsedMinutes: number = 0,
             parsedSeconds: number = 0;
 
+        if (time.length == 0 && components.length > 3) {
+            time = components.slice(3).join(" ");
+        }
         const parsedTime = timeRegex.exec(time);
         if (time && parsedTime) {
             const [_, hourStr, minuteStr, secondStr, ampm] = parsedTime;
@@ -185,8 +169,8 @@ export class SMDate {
                       parsedDay,
                       parsedHours,
                       parsedMinutes,
-                      parsedSeconds
-                  )
+                      parsedSeconds,
+                  ),
               )
             : new Date(
                   parsedYear,
@@ -194,7 +178,7 @@ export class SMDate {
                   parsedDay,
                   parsedHours,
                   parsedMinutes,
-                  parsedSeconds
+                  parsedSeconds,
               );
 
         if (isNaN(date.getTime())) {
@@ -296,11 +280,11 @@ export class SMDate {
         result = result.replace(/\bMM\b/g, (0 + month).slice(-2));
         result = result.replace(
             /\bMMM\b/g,
-            this.monthString[parseInt(month) - 1]
+            this.monthString[parseInt(month) - 1],
         );
         result = result.replace(
             /\bMMMM\b/g,
-            this.fullMonthString[parseInt(month) - 1]
+            this.fullMonthString[parseInt(month) - 1],
         );
 
         // day
@@ -446,7 +430,7 @@ export class SMDate {
      */
     private onlyFirstOccurrence(
         str: string,
-        characters: string = "dMy"
+        characters: string = "dMy",
     ): string {
         let findCharacters = characters.split("");
         const replaceRegex = new RegExp("[^" + characters + "]", "g");
@@ -462,7 +446,7 @@ export class SMDate {
                     result += strChar;
 
                     const index = findCharacters.findIndex(
-                        (findChar) => findChar === strChar
+                        (findChar) => findChar === strChar,
                     );
                     if (index !== -1) {
                         findCharacters = findCharacters
