@@ -5,6 +5,9 @@
                 v-for="tab in tabs"
                 :key="tab.id"
                 :class="[
+                    'flex',
+                    'flex-items-center',
+                    'text-center',
                     'px-4',
                     'py-2',
                     '-mb-1px',
