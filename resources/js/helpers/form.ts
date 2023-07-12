@@ -11,12 +11,12 @@ type FormObjectLoadingFunction = (state?: boolean) => boolean;
 type FormObjectMessageFunction = (
     message?: string,
     type?: string,
-    icon?: string
+    icon?: string,
 ) => void;
 type FormObjectErrorFunction = (message: string) => void;
 type FormObjectApiErrorsFunction = (
     apiErrors: ApiResponse,
-    callback?: (error: string, status: number) => void
+    callback?: (error: string, status: number) => void,
 ) => void;
 
 export interface FormObject {
@@ -52,7 +52,7 @@ const defaultFormObject: FormObject = {
                         valid = false;
                     }
                 }
-            })
+            }),
         );
 
         return valid;
@@ -83,7 +83,7 @@ const defaultFormObject: FormObject = {
     },
     apiErrors: function (
         apiResponse: ApiResponse,
-        callback?: (error: string, status: number) => void
+        callback?: (error: string, status: number) => void,
     ) {
         let foundKeys = false;
 
@@ -131,7 +131,7 @@ const defaultFormObject: FormObject = {
  * @returns {FormObject} Returns a form object.
  */
 export const Form = (
-    controls: Record<string, FormControlObject>
+    controls: Record<string, FormControlObject>,
 ): FormObject => {
     const form = { ...defaultFormObject };
     form.controls = controls;
@@ -172,8 +172,8 @@ const getDefaultFormControlValidation = (): FormControlValidation => {
 type FormControlClearValidations = () => void;
 type FormControlSetValidation = (
     valid: boolean,
-    message?: string | Array<string>
-) => ValidationResult;
+    message?: string | Array<string>,
+) => void;
 type FormControlIsValid = () => boolean;
 
 export interface FormControlObject {
@@ -193,7 +193,7 @@ export interface FormControlObject {
  */
 export const FormControl = (
     value: unknown = "",
-    validator: ValidationObject | null = null
+    validator: ValidationObject | null = null,
 ): FormControlObject => {
     return {
         value: value,
@@ -207,7 +207,12 @@ export const FormControl = (
         clearValidations: function () {
             this.validation.result = defaultValidationResult;
         },
-        setValidationResult: createValidationResult,
+        setValidationResult: function (
+            valid: boolean,
+            message?: string | Array<string>,
+        ) {
+            this.validation.result = createValidationResult(valid, message);
+        },
         validate: async function () {
             if (this.validation.validator) {
                 this.validation.result =
