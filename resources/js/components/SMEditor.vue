@@ -5,21 +5,10 @@
             :should-show="bubbleMenuShow"
             :tippy-options="{ hideOnClick: false }"
             v-if="editor">
-            <button
-                @click.prevent="runrun"
-                :class="{ 'is-active': editor.isActive('bold') }">
-                small
-            </button>
-            <button
-                @click.prevent="editor.chain().focus().toggleItalic().run()"
-                :class="{ 'is-active': editor.isActive('italic') }">
-                italic
-            </button>
-            <button
-                @click.prevent="editor.chain().focus().toggleStrike().run()"
-                :class="{ 'is-active': editor.isActive('strike') }">
-                strike
-            </button>
+            <button @click.prevent="setImageSize('small')">small</button>
+            <button @click.prevent="setImageSize('medium')">medium</button>
+            <button @click.prevent="setImageSize('large')">large</button>
+            <button @click.prevent="setImageSize('scaled')">original</button>
             <button @click.prevent="editor.commands.deleteSelection()">
                 remove
             </button>
@@ -799,7 +788,10 @@ const setLink = () => {
 };
 
 const setImage = async () => {
-    let result = await openDialog(SMDialogMedia, { allowUpload: true });
+    let result = await openDialog(SMDialogMedia, {
+        allowUpload: true,
+        allowUrl: true,
+    });
     if (result) {
         const mediaResult = result as Media;
         editor.value
@@ -876,7 +868,7 @@ const getImageSize = async () => {
     return size;
 };
 
-const runrun = () => {
+const setImageSize = (size: string): void => {
     const { selection } = editor.value.view.state;
     const src = editor.value.view.state.selection.node.attrs.src;
 
@@ -897,7 +889,7 @@ const runrun = () => {
             xlarge
             xxlarge
             */
-            const newSrc = mediaGetVariantUrl(result.data.media[0], "small");
+            const newSrc = mediaGetVariantUrl(result.data.media[0], size);
             const transaction = editor.value.view.state.tr.setNodeMarkup(
                 selection.from,
                 undefined,
@@ -940,18 +932,18 @@ const runrun = () => {
     }
 }
 
-.tippy-arrow {
-    height: 0.75rem;
-    width: 0.75rem;
-    z-index: -1;
+// .tippy-arrow {
+//     height: 0.75rem;
+//     width: 0.75rem;
+//     z-index: -1;
 
-    &::after {
-        display: block;
-        content: "";
-        background-color: rgba(0, 0, 0, 1);
-        height: 100%;
-        width: 100%;
-        transform: translateY(-50%) rotate(45deg);
-    }
-}
+//     &::after {
+//         display: block;
+//         content: "";
+//         background-color: rgba(0, 0, 0, 1);
+//         height: 100%;
+//         width: 100%;
+//         transform: translateY(-50%) rotate(45deg);
+//     }
+// }
 </style>
