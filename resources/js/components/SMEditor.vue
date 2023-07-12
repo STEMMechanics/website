@@ -6,9 +6,9 @@
             :tippy-options="{ hideOnClick: false }"
             v-if="editor">
             <button
-                @click.prevent="editor.chain().focus().toggleBold().run()"
+                @click.prevent="runrun"
                 :class="{ 'is-active': editor.isActive('bold') }">
-                bold
+                small
             </button>
             <button
                 @click.prevent="editor.chain().focus().toggleItalic().run()"
@@ -667,7 +667,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, watch } from "vue";
+import { computed, onBeforeUnmount, watch } from "vue";
 import { useEditor, EditorContent, BubbleMenu, isActive } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -683,7 +683,10 @@ import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
-import { Media } from "../helpers/api.types";
+import { Media, MediaCollection, MediaResponse } from "../helpers/api.types";
+import { api } from "../helpers/api";
+import { extractFileNameFromUrl } from "../helpers/url";
+import { mediaGetVariantUrl } from "../helpers/media";
 
 const props = defineProps({
     modelValue: {
@@ -827,6 +830,85 @@ watch(
         editor.value.commands.setContent(newValue, false);
     },
 );
+
+const getImageSize = async () => {
+    let size = "default";
+
+    if (!editor.value.view.state.selection.node) {
+        return "unknown";
+    }
+
+    const src = editor.value.view.state.selection.node.attrs.src;
+    const fileName = extractFileNameFromUrl(src);
+
+    let r = await api
+        .get({
+            url: "/media",
+            params: {
+                variants: extractFileNameFromUrl(src),
+            },
+        })
+        .then((result) => {
+            if (result.data) {
+                const data = result.data as MediaCollection;
+                if (data.media.length > 0 && data.media[0].variants) {
+                    for (const [key, value] of Object.entries(
+                        data.media[0].variants,
+                    )) {
+                        if (value === fileName) {
+                            size = key;
+                            console.log(size);
+                            break;
+                        }
+                    }
+                }
+            }
+            console.log("final", size);
+            return size;
+        })
+        .catch((error) => {
+            console.log(error);
+            return "xx";
+        });
+
+    console.log(r);
+
+    return size;
+};
+
+const runrun = () => {
+    const { selection } = editor.value.view.state;
+    const src = editor.value.view.state.selection.node.attrs.src;
+
+    api.get({
+        url: "/media",
+        params: {
+            variants: extractFileNameFromUrl(src),
+        },
+    })
+        .then((result) => {
+            console.log(result);
+            /*
+            large
+            medium
+            scaled
+            small,
+            thumb
+            xlarge
+            xxlarge
+            */
+            const newSrc = mediaGetVariantUrl(result.data.media[0], "small");
+            const transaction = editor.value.view.state.tr.setNodeMarkup(
+                selection.from,
+                undefined,
+                { src: newSrc },
+            );
+            editor.value.view.dispatch(transaction);
+        })
+        .catch((error) => {
+            console.log(error);
+        });
+};
 </script>
 
 <style lang="scss">
