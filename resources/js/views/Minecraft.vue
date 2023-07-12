@@ -1,48 +1,40 @@
 <template>
-    <SMMastHead title="Minecraft Server" />
+    <SMMastHead title="STEMCraft" />
     <div class="max-w-4xl mx-auto px-4">
-        <SMHeader
-            id="connect"
-            text="Connecting to our Minecraft Server"
-            class="pt-16 pb-2" />
-        <p>
-            By connecting to our Minecraft server, you agree to follow our
-            <router-link :to="{ name: 'code-of-conduct' }"
-                >Code of Conduct</router-link
-            >
-            and our
-            <router-link :to="{ name: 'rules' }">Server Rules</router-link>.
-        </p>
-        <ol class="list-decimal mt-8">
-            <li>
-                Open up your Minecraft on your computer and make sure you are
-                using version 1.19.3
-            </li>
-            <li>Click Multiplayer</li>
-            <li>Click Add Server</li>
-            <li>Enter Server Name STEMMechanics</li>
-            <li>Enter Server Address mc.stemmech.com.au</li>
-            <li>
-                We have a custom resourcepack which you can enable before
-                joining
-            </li>
-            <li>Click Done</li>
-            <li>Join the Server!</li>
-        </ol>
-        <SMHeader text="Java or Bedrock" class="pt-16 pb-2" />
-        <p>
-            Regrettably, our support is exclusively for the Java edition of
-            Minecraft. The reason for this is that we rely on the features
-            unique to the Java edition, such as Resource Packs, Custom Items,
-            and Modelling, which are not available in Bedrock (Tablet) edition.
-        </p>
-        <p>
-            It's worth noting that if you have the Bedrock version, you may be
-            eligible to acquire the Java version for free from
-            <a href="https://minecraft.net">Minecraft.net</a>. However, please
-            keep in mind that the Java version is solely compatible with Windows
-            or Mac operating systems.
-        </p>
+        <SMHeader id="connect" text="Join us on STEMCraft" class="pt-16 pb-2" />
+        <div class="flex flex-col md:flex-row gap-4 flex-items-center">
+            <div
+                class="h-75 w-full md:w-75 bg-norepeat bg-center bg-cover rounded-2 border-1"
+                style="
+                    background-image: url(&quot;/assets/vareal.webp&quot;);
+                "></div>
+            <div class="flex-1">
+                <p>
+                    Howdy Minecraft fans, we invite you to join us on our own
+                    Minecraft server,
+                    <a href="https://www.stemcraft.com.au/">STEMCraft</a>.
+                </p>
+                <p>
+                    STEMCraft offers a unique blend of survival gameplay,
+                    captivating mini-games, and an array of custom items and
+                    mobs that will keep you immersed in a thrilling gaming
+                    experience.
+                </p>
+                <p>
+                    And best of all, the server can be customized by YOU!
+                    STEMCraft goes beyond mere entertainment—it is designed with
+                    an educational focus. We have incorporated special features
+                    to support our workshops, from coding new in commands in
+                    Java, customized mobs using 3D editing tools such as Blender
+                    and designing unique items for players to interact with.
+                </p>
+                <p>
+                    Jump over to the
+                    <a href="https://www.stemcraft.com.au/">STEMCraft</a>
+                    website for more information.
+                </p>
+            </div>
+        </div>
         <SMHeader text="Goodbye Drustcraft" class="pt-16 pb-2" />
         <p>
             STEMMechanics launched the Drustcraft server three years ago and

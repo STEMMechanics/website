@@ -44,6 +44,11 @@
                             </a>
                         </li>
                         <li>
+                            <router-link :to="{ name: 'minecraft' }">
+                                Minecraft
+                            </router-link>
+                        </li>
+                        <li>
                             <a
                                 href="https://twitter.com/stemmechanics"
                                 target="_blank"
