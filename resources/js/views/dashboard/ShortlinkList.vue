@@ -6,17 +6,18 @@
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
         <div class="max-w-7xl mx-auto mt-8">
-            <div class="flex items-center flex-justify-between mb-8">
+            <div
+                class="flex flex-col md:flex-row gap-4 items-center flex-justify-between mb-4">
                 <router-link
                     role="button"
                     :to="{ name: 'dashboard-shortlink-create' }"
-                    class="font-medium px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    class="font-medium w-full md:w-auto text-center px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     >Create Link</router-link
                 >
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="max-w-xl ml-4"
+                    class="max-w-xl"
                     @keyup.enter="handleSearch">
                     <template #append>
                         <button
@@ -222,7 +223,7 @@ const handleEdit = (shortlink: Shortlink) => {
         params: { id: shortlink.id },
         query: {
             return: encodeURIComponent(
-                window.location.pathname + window.location.search
+                window.location.pathname + window.location.search,
             ),
         },
     });

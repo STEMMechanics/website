@@ -6,17 +6,18 @@
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
         <div class="max-w-7xl mx-auto mt-8 px-8">
-            <div class="flex items-center flex-justify-between mb-8">
+            <div
+                class="flex flex-col md:flex-row gap-4 items-center flex-justify-between mb-4">
                 <router-link
                     role="button"
                     :to="{ name: 'dashboard-media-create' }"
-                    class="font-medium px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    class="font-medium w-full md:w-auto text-center px-6 py-3.1 rounded-md hover:shadow-md transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     >Upload Media</router-link
                 >
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="max-w-xl ml-4"
+                    class="max-w-xl"
                     @keyup.enter="handleSearch">
                     <template #append>
                         <button
@@ -245,7 +246,7 @@ const handleLoad = async () => {
             if (
                 Object.prototype.hasOwnProperty.call(
                     itemsSelected.value,
-                    row.id
+                    row.id,
                 ) == false
             ) {
                 itemsSelected.value[row.id] = false;
@@ -287,7 +288,7 @@ const handleEdit = (item: Media) => {
         params: { id: item.id },
         query: {
             return: encodeURIComponent(
-                window.location.pathname + window.location.search
+                window.location.pathname + window.location.search,
             ),
         },
     });
@@ -360,7 +361,7 @@ const handleDeleteSelected = async () => {
         let successCount = 0;
 
         const deleteItems = Object.entries(itemsSelected.value).filter(
-            ([key, value]) => value === true
+            ([key, value]) => value === true,
         );
 
         await Promise.all(
@@ -380,7 +381,7 @@ const handleDeleteSelected = async () => {
                 } catch (error) {
                     errorCount++;
                 }
-            })
+            }),
         );
 
         if (errorCount === 0) {
@@ -421,7 +422,7 @@ const handleEditSelected = async () => {
         params: { id: editItems },
         query: {
             return: encodeURIComponent(
-                window.location.pathname + window.location.search
+                window.location.pathname + window.location.search,
             ),
         },
     });

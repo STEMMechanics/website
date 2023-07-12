@@ -6,11 +6,12 @@
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
         <div class="max-w-7xl mx-auto mt-8 px-4">
-            <div class="flex items-center flex-justify-between mb-8">
+            <div
+                class="flex flex-col md:flex-row gap-4 items-center flex-justify-between mb-4">
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="max-w-xl ml-4"
+                    class="max-w-xl"
                     @keyup.enter="handleSearch">
                     <template #append>
                         <button
@@ -186,7 +187,7 @@ const handleView = (item: Session) => {
         params: { id: item.id },
         query: {
             return: encodeURIComponent(
-                window.location.pathname + window.location.search
+                window.location.pathname + window.location.search,
             ),
         },
     });
