@@ -23,3 +23,17 @@ export const mediaGetVariantUrl = (
         ? media.url.replace(media.name, media.variants["scaled"])
         : media.url;
 };
+
+export const mimeMatches = (
+    mimeExpected: string,
+    mimeToCheck: string,
+): boolean => {
+    const escapedExpectation = mimeExpected.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
+    );
+    const pattern = escapedExpectation.replace(/\\\*/g, ".*");
+    const regex = new RegExp(`^${pattern}$`);
+
+    return regex.test(mimeToCheck);
+};
