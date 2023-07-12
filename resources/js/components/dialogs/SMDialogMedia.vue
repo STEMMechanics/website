@@ -120,7 +120,10 @@
                                             'flex-items-center',
                                             'flex-col',
                                             selected != null &&
-                                            item.id == selected.id
+                                            selected.filter(
+                                                (selectedItem) =>
+                                                    selectedItem.id == item.id,
+                                            ).length > 0
                                                 ? 'selected-checked'
                                                 : 'border-white',
                                         ]"
@@ -223,30 +226,44 @@
                                     }}
                                 </p>
                             </div>
-                            <div v-if="selected != null">
+                            <div v-if="lastSelected != null">
                                 <div
-                                    class="flex flex-col text-xs border-b border-gray-3 pb-4">
-                                    <p class="m-0 text-bold">
-                                        {{ selected.title }}
-                                    </p>
-                                    <p class="m-0">
-                                        {{ formatDate(selected.created_at) }}
-                                    </p>
-                                    <p class="m-0">
-                                        {{ bytesReadable(selected.size, 0) }}
-                                    </p>
-                                    <p
-                                        v-if="selected.status != 'OK'"
-                                        class="m-0 italic">
-                                        {{ selected.status }}
-                                    </p>
+                                    class="flex text-xs border-b border-gray-3 pb-4">
+                                    <img
+                                        :src="lastSelected.url"
+                                        class="max-h-20 max-w-20 mr-2" />
+                                    <div class="flex flex-col">
+                                        <p class="m-0 text-bold">
+                                            {{ lastSelected.title }}
+                                        </p>
+                                        <p class="m-0">
+                                            {{
+                                                formatDate(
+                                                    lastSelected.created_at,
+                                                )
+                                            }}
+                                        </p>
+                                        <p class="m-0">
+                                            {{
+                                                bytesReadable(
+                                                    lastSelected.size,
+                                                    0,
+                                                )
+                                            }}
+                                        </p>
+                                        <p
+                                            v-if="lastSelected.status != 'OK'"
+                                            class="m-0 italic">
+                                            {{ lastSelected.status }}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div class="py-2">
                                     <SMInput
                                         class="mb-2"
                                         label="Title"
                                         :disabled="!allowEditSelected"
-                                        v-model:modelValue="selected.title"
+                                        v-model:modelValue="lastSelected.title"
                                         @change="handleUpdate"
                                         :small="true" />
                                     <SMInput
@@ -255,7 +272,7 @@
                                         textarea
                                         :disabled="!allowEditSelected"
                                         v-model:modelValue="
-                                            selected.description
+                                            lastSelected.description
                                         "
                                         @change="handleUpdate"
                                         :small="true" />
@@ -264,39 +281,123 @@
                         </div>
                     </div>
                 </SMTab>
+                <SMTab
+                    id="tab-url"
+                    label="Insert from URL"
+                    :hide="!props.allowUrl"
+                    class="flex flex-1 flex-col flex-items-center flex-justify-center">
+                    <div>
+                        <h2>Insert image from URL</h2>
+                        <SMInput
+                            class="mb-2"
+                            label="Image URL"
+                            control="url"
+                            :form="form" />
+                        <SMInput
+                            class="mb-2"
+                            label="Title"
+                            control="title"
+                            :form="form" />
+                        <SMInput
+                            class="mb-2"
+                            label="Description"
+                            textarea
+                            control="description"
+                            :form="form" />
+                    </div>
+                </SMTab>
             </SMTabGroup>
-            <div class="flex flex-justify-end">
-                <button
-                    type="button"
-                    class="mr-4 font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    @click="handleClickCancel">
-                    Cancel
-                </button>
-                <button
-                    type="button"
-                    :disabled="computedSelectDisabled"
-                    :class="[
-                        'font-medium',
-                        'px-6',
-                        'py-1.5',
-                        'rounded-md',
-                        'hover:shadow-md',
-                        'transition',
-                        'text-sm',
-                        'bg-sky-600',
-                        'hover:bg-sky-500',
-                        'text-white',
-                        'cursor-pointer',
-                        [
-                            'disabled-bg-gray',
-                            'disabled-text-white',
-                            'hover-disabled-bg-gray',
-                            'disabled-cursor-not-allowed',
-                        ],
-                    ]"
-                    @click="handleClickSelect">
-                    Select
-                </button>
+            <div class="relative h-38 md:h-15">
+                <ul
+                    v-if="props.multiple && selected.length > 0"
+                    class="absolute top-0 left-0 right-0 md:right-60 overflow-auto flex p-0 gap-2 flex-row">
+                    <li
+                        v-for="item in selected"
+                        :key="item.id"
+                        :class="[
+                            'flex',
+                            'p-1px',
+                            'flex-justify-center',
+                            'flex-items-center',
+                            'flex-col',
+                        ]"
+                        @click="handleClickItem(item.id)">
+                        <div
+                            :class="[
+                                'flex',
+                                'flex-items-center',
+                                'flex-justify-center',
+                                'h-15',
+                                'w-20',
+                                'bg-contain',
+                                'bg-center',
+                                'bg-no-repeat',
+                            ]"
+                            :style="{
+                                backgroundImage:
+                                    item.url.length > 0
+                                        ? `url('${mediaGetVariantUrl(
+                                              item,
+                                              'small',
+                                          )}')`
+                                        : 'none',
+                                backgroundColor:
+                                    item.status === 'OK'
+                                        ? 'initial'
+                                        : 'rgba(220,220,220,1)',
+                            }">
+                            <SMLoading
+                                v-if="
+                                    item.status !== 'OK' &&
+                                    item.status !== 'Failed'
+                                "
+                                small
+                                class="bg-white bg-op-90 w-full h-full" />
+                        </div>
+                    </li>
+                </ul>
+                <div
+                    class="absolute bottom-0 left-0 right-0 md:left-a flex gap-2 flex-col md:flex-row">
+                    <button
+                        v-if="!formLoading"
+                        type="button"
+                        class="mr-4 font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        @click="handleClickCancel">
+                        Cancel
+                    </button>
+                    <button
+                        v-if="!formLoading"
+                        type="button"
+                        :disabled="computedSelectDisabled"
+                        :class="[
+                            'font-medium',
+                            'block',
+                            'md:inline-block',
+                            'w-full',
+                            'md:w-auto',
+                            'px-6',
+                            'py-1.5',
+                            'rounded-md',
+                            'hover:shadow-md',
+                            'transition',
+                            'text-sm',
+                            'bg-sky-600',
+                            'hover:bg-sky-500',
+                            'text-white',
+                            'cursor-pointer',
+                            [
+                                'disabled-bg-gray',
+                                'disabled-text-white',
+                                'hover-disabled-bg-gray',
+                                'disabled-cursor-not-allowed',
+                            ],
+                        ]"
+                        @click="handleClickSelect"
+                        :loading="true">
+                        Select
+                    </button>
+                    <SMLoading v-if="formLoading" small />
+                </div>
             </div>
         </div>
     </div>
@@ -321,13 +422,13 @@ import {
     MediaResponse,
 } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
-import { mediaGetVariantUrl } from "../../helpers/media";
+import { mediaGetVariantUrl, mimeMatches } from "../../helpers/media";
 import SMInput from "../SMInput.vue";
 import SMLoading from "../SMLoading.vue";
 import SMTabGroup from "../SMTabGroup.vue";
 import SMTab from "../SMTab.vue";
-import { Form, FormControl } from "../../helpers/form";
-import { And, Min, Required } from "../../helpers/validate";
+import { Form, FormControl, FormObject } from "../../helpers/form";
+import { And, Required, Url } from "../../helpers/validate";
 import { convertFileNameToTitle, userHasPermission } from "../../helpers/utils";
 import { bytesReadable } from "../../helpers/types";
 import { SMDate } from "../../helpers/datetime";
@@ -338,7 +439,7 @@ import { useUserStore } from "../../store/UserStore";
 const props = defineProps({
     mime: {
         type: String,
-        default: "image/",
+        default: "image/*",
         required: false,
     },
     accepts: {
@@ -347,6 +448,16 @@ const props = defineProps({
         required: false,
     },
     allowUpload: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
+    allowUrl: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
+    multiple: {
         type: Boolean,
         default: false,
         required: false,
@@ -363,6 +474,14 @@ const refMediaList = ref<HTMLUListElement | null>(null);
 const userStore = useUserStore();
 
 const allowUploads = ref(props.allowUpload && userStore.id);
+const formLoading = ref(false);
+const form: FormObject = reactive(
+    Form({
+        url: FormControl("", And([Required(), Url()])),
+        title: FormControl(""),
+        description: FormControl(""),
+    }),
+);
 
 /**
  * The selected tab
@@ -373,16 +492,6 @@ const selectedTab = ref("tab-browser");
  * Max upload size
  */
 const max_upload_size = ref(" ");
-
-/**
- * Upload form
- */
-let uploadForm = reactive(
-    Form({
-        title: FormControl("", And([Required(), Min(4)])),
-        description: FormControl(""),
-    }),
-);
 
 /**
  * Is the media loading/busy
@@ -407,7 +516,14 @@ const mediaItems: Ref<Media[]> = ref([]);
 /**
  * Selected media item id.
  */
-const selected: Ref<Media | null> = ref(null);
+const selected: Ref<Media[]> = ref([]);
+const lastSelected = computed(() => {
+    if (selected.value.length > 0) {
+        return selected.value[selected.value.length - 1];
+    }
+
+    return null;
+});
 
 /**
  * How many media items are we showing per page.
@@ -469,12 +585,67 @@ const handleClickCancel = () => {
  * Handle user clicking the select button.
  */
 const handleClickSelect = async () => {
+    forceUpdate();
+
     if (selectedTab.value == "tab-browser") {
-        if (selected.value != null) {
-            forceUpdate();
-            closeDialog(selected.value);
+        if (selected.value.length > 0) {
+            if (props.multiple) {
+                closeDialog(selected.value);
+            } else {
+                closeDialog(selected.value[0]);
+            }
             return;
         }
+    } else if (selectedTab.value == "tab-url") {
+        formLoading.value = true;
+        if (await form.validate()) {
+            const response = await fetch(form.controls.url.value, {
+                method: "HEAD",
+            });
+
+            if (response.status == 404) {
+                form.controls.url.setValidationResult(
+                    false,
+                    "File not found on server",
+                );
+            } else if (response.status != 200) {
+                form.controls.url.setValidationResult(
+                    false,
+                    "Error occurred retrieving file from server",
+                );
+            } else {
+                const mime = response.headers
+                    .get("Content-Type")
+                    .split(";")[0]
+                    .trim();
+                if (!mimeMatches(props.mime, mime)) {
+                    form.controls.url.setValidationResult(
+                        false,
+                        "Invalid file type",
+                    );
+                } else {
+                    closeDialog({
+                        id: "",
+                        user_id: "",
+                        title: form.controls.title.value,
+                        name: "",
+                        mime_type: mime,
+                        permission: "",
+                        size: -1,
+                        status: "OK",
+                        storage: "",
+                        url: form.controls.url.value,
+                        description: form.controls.description.value,
+                        dimensions: "",
+                        variants: {},
+                        created_at: "",
+                        updated_at: "",
+                    });
+                }
+            }
+        }
+
+        formLoading.value = false;
     }
 };
 
@@ -484,9 +655,21 @@ const handleClickSelect = async () => {
  */
 const handleClickItem = (item_id: string): void => {
     if (isUUID(item_id)) {
-        selected.value = getMediaItem(item_id);
+        if (props.multiple) {
+            if (
+                selected.value.filter((item) => item.id == item_id).length > 0
+            ) {
+                selected.value = selected.value.filter(
+                    (item) => item.id != item_id,
+                );
+            } else {
+                selected.value.push(getMediaItem(item_id));
+            }
+        } else {
+            selected.value[0] = getMediaItem(item_id);
+        }
     } else {
-        selected.value = null;
+        // selected.value = null;
     }
 };
 
@@ -495,14 +678,16 @@ const handleClickItem = (item_id: string): void => {
  * @param item_id The media id.
  */
 const handleDblClickItem = (item_id: string): void => {
-    if (isUUID(item_id)) {
-        const mediaItem = getMediaItem(item_id);
-        if (mediaItem != null) {
-            closeDialog(mediaItem);
-            return;
-        }
+    if (!props.multiple) {
+        if (isUUID(item_id)) {
+            const mediaItem = getMediaItem(item_id);
+            if (mediaItem != null) {
+                closeDialog(mediaItem);
+                return;
+            }
 
-        closeDialog(false);
+            closeDialog(false);
+        }
     }
 };
 
@@ -519,8 +704,6 @@ const handleClickSelectFile = async () => {
  * Upload the file to the server.
  */
 const handleChangeSelectFile = async () => {
-    uploadForm._message = "";
-
     if (refUploadInput.value != null && refUploadInput.value.files != null) {
         handleFilesUpload(refUploadInput.value.files);
         showFileBrowserTab();
@@ -712,8 +895,7 @@ const handleLoad = async () => {
             }
         })
         .catch((error) => {
-            uploadForm._message =
-                error?.data?.message || "An unexpected error occurred";
+            /* empty */
         })
         .finally(() => {
             mediaLoading.value = false;
@@ -730,7 +912,7 @@ const eventKeyPress = (event: KeyboardEvent): boolean => {
         handleClickCancel();
         return true;
     } else if (event.key === "Enter") {
-        if (selected.value != null) {
+        if (selected.value.length > 0) {
             handleClickSelect();
         }
 
@@ -757,7 +939,14 @@ watch(page, () => {
  */
 const computedSelectDisabled = computed(() => {
     if (selectedTab.value == "tab-browser") {
-        return selected.value == null || selected.value.status !== "OK";
+        return (
+            selected.value.length == 0 ||
+            selected.value.filter((item) => item.status !== "OK").length != 0
+        );
+    } else if (selectedTab.value == "tab-url") {
+        return (
+            !form.controls.url.isValid() || form.controls.url.value.length == 0
+        );
     }
 
     return true;
@@ -813,10 +1002,10 @@ const formatDate = (date) => {
 
 const allowEditSelected = computed(() => {
     return (
-        selected.value != null &&
+        lastSelected.value != null &&
         userStore.id &&
         (userHasPermission("admin/media") ||
-            selected.value.user_id == userStore.id)
+            lastSelected.value.user_id == userStore.id)
     );
 });
 
@@ -830,11 +1019,11 @@ interface MediaUpdate {
 const pendingUpdates = ref<MediaUpdate[]>([]);
 
 const handleUpdate = () => {
-    if (selected.value != null) {
+    if (lastSelected.value != null) {
         addUpdate(
-            selected.value.id,
-            selected.value.title,
-            selected.value.description,
+            lastSelected.value.id,
+            lastSelected.value.title,
+            lastSelected.value.description,
         );
     }
 };
@@ -895,6 +1084,7 @@ const postUpdate = (data: MediaUpdate): void => {
 };
 
 const forceUpdate = () => {
+    formLoading.value = true;
     pendingUpdates.value.forEach((item, index) => {
         if (pendingUpdates.value[index].timer != null) {
             clearTimeout(pendingUpdates.value[index].timer);
@@ -904,6 +1094,7 @@ const forceUpdate = () => {
     });
 
     pendingUpdates.value = [];
+    formLoading.value = false;
 };
 
 // Get max upload size
