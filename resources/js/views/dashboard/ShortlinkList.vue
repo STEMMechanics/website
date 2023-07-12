@@ -5,7 +5,7 @@
             title="Shortlinks"
             :back-link="{ name: 'dashboard' }"
             back-title="Return to Dashboard" />
-        <div class="max-w-7xl mx-auto mt-8">
+        <div class="max-w-7xl mx-auto mt-8 px-8">
             <div
                 class="flex flex-col md:flex-row gap-4 items-center flex-justify-between mb-4">
                 <router-link
