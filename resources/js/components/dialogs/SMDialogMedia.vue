@@ -245,15 +245,19 @@
                                     <SMInput
                                         class="mb-2"
                                         label="Title"
+                                        :disabled="!allowEditSelected"
                                         v-model:modelValue="selected.title"
+                                        @change="handleUpdate"
                                         :small="true" />
                                     <SMInput
                                         class="mb-2"
                                         label="Description"
                                         textarea
+                                        :disabled="!allowEditSelected"
                                         v-model:modelValue="
                                             selected.description
                                         "
+                                        @change="handleUpdate"
                                         :small="true" />
                                 </div>
                             </div>
@@ -324,7 +328,7 @@ import SMTabGroup from "../SMTabGroup.vue";
 import SMTab from "../SMTab.vue";
 import { Form, FormControl } from "../../helpers/form";
 import { And, Min, Required } from "../../helpers/validate";
-import { convertFileNameToTitle } from "../../helpers/utils";
+import { convertFileNameToTitle, userHasPermission } from "../../helpers/utils";
 import { bytesReadable } from "../../helpers/types";
 import { SMDate } from "../../helpers/datetime";
 import { isUUID } from "../../helpers/uuid";
@@ -457,6 +461,7 @@ const getMediaItem = (item_id: string): Media | null => {
  * Handle user clicking the cancel/close button.
  */
 const handleClickCancel = () => {
+    forceUpdate();
     closeDialog(false);
 };
 
@@ -466,6 +471,7 @@ const handleClickCancel = () => {
 const handleClickSelect = async () => {
     if (selectedTab.value == "tab-browser") {
         if (selected.value != null) {
+            forceUpdate();
             closeDialog(selected.value);
             return;
         }
@@ -625,6 +631,7 @@ const updateFiles = async () => {
                             const updateData =
                                 updateResult.data as MediaResponse;
                             if (updateData.medium.status == "OK") {
+                                totalItems.value++;
                                 mediaItems.value[index] = updateData.medium;
                             } else if (updateData.medium.status == "Failed") {
                                 mediaItems.value[index] = updateData.medium;
@@ -644,6 +651,10 @@ const updateFiles = async () => {
             }
         });
 
+        mediaItems.value = mediaItems.value.filter(
+            (item) => item.status !== "Failed",
+        );
+
         if (remaining) {
             updateFilesNonce.value = setTimeout(() => {
                 updateFilesNonce.value = null;
@@ -654,129 +665,6 @@ const updateFiles = async () => {
         }
     }
 };
-
-// const firstFile: File | undefined = refUploadInput.value.files[0];
-//     if (firstFile != null) {
-//         if (uploadForm.controls.title.value.length == 0) {
-//             uploadForm.controls.title.value = convertFileNameToTitle(
-//                 firstFile.name,
-//             );
-//         }
-//         const reader = new FileReader();
-//         reader.onload = (event) => {
-//             const imgSrc = event.target.result;
-//             uploadPreview.value = imgSrc as string;
-//         };
-//         reader.readAsDataURL(firstFile);
-//     }
-// } else if (selectedTab.value == "tab-upload") {
-//     if (
-//         refUploadInput.value != null &&
-//         refUploadInput.value.files != null
-//     ) {
-//         const firstFile: File | undefined = refUploadInput.value.files[0];
-//         if (firstFile != null) {
-//             let submitFormData = new FormData();
-//             submitFormData.append("file", firstFile);
-//             submitFormData.append("title", uploadForm.controls.title.value);
-//             submitFormData.append(
-//                 "description",
-//                 uploadForm.controls.description.value,
-//             );
-//             try {
-//                 let result = await api.post({
-//                     url: "/media",
-//                     body: submitFormData,
-//                     headers: {
-//                         "Content-Type": "multipart/form-data",
-//                     },
-//                     progress: (progressData) =>
-//                         (progressText.value = `Uploading File: ${Math.floor(
-//                             (progressData.loaded / progressData.total) *
-//                                 100,
-//                         )}%`),
-//                 });
-//                 if (result.data) {
-//                     const data = result.data as MediaResponse;
-//                     if (
-//                         data.medium.status != "OK" &&
-//                         data.medium.status.startsWith("Failed") == false
-//                     ) {
-//                         progressText.value = `${data.medium.status}...`;
-//                         let mediaProcessed = false;
-//                         let timeout = 0;
-//                         while (mediaProcessed == false) {
-//                             timeout++;
-//                             if (timeout >= 60) {
-//                                 mediaProcessed = true;
-//                                 uploadForm._message =
-//                                     "The server is taking longer then expected to process the file.\nOnce the file has been processed, select it from the media browser.";
-//                             } else {
-//                                 await new Promise((resolve) =>
-//                                     setTimeout(resolve, 500),
-//                                 );
-//                                 try {
-//                                     let updateResult = await api.get({
-//                                         url: "/media/{id}",
-//                                         params: {
-//                                             id: data.medium.id,
-//                                         },
-//                                     });
-//                                     if (updateResult.data) {
-//                                         const updateData =
-//                                             updateResult.data as MediaResponse;
-//                                         if (
-//                                             updateData.medium.status == "OK"
-//                                         ) {
-//                                             data.medium = updateData.medium;
-//                                             mediaProcessed = true;
-//                                         } else if (
-//                                             updateData.medium.status.startsWith(
-//                                                 "Failed",
-//                                             ) == true
-//                                         ) {
-//                                             throw "error";
-//                                         } else {
-//                                             progressText.value = `${updateData.medium.status}...`;
-//                                         }
-//                                     } else {
-//                                         throw "error";
-//                                     }
-//                                 } catch {
-//                                     mediaProcessed = true;
-//                                     uploadForm._message =
-//                                         "An server error occurred processing the file.";
-//                                 }
-//                             }
-//                         }
-//                         if (data.medium.status == "OK") {
-//                             closeDialog(data.medium);
-//                         } else {
-//                             return;
-//                         }
-//                     }
-//                 } else {
-//                     uploadForm._message =
-//                         "An unexpected response was received from the server";
-//                 }
-//             } catch (error) {
-//                 if (error.status === 413) {
-//                     uploadForm._message =
-//                         "The selected file is larger than the maximum size limit";
-//                 } else {
-//                     uploadForm._message =
-//                         error.response?.data?.message ||
-//                         "An unexpected error occurred";
-//                 }
-//             } finally {
-//                 progressText.value = "";
-//             }
-//         } else {
-//             uploadForm._message = "No file was selected to upload";
-//         }
-//     } else {
-//         uploadForm._message = "No file was selected to upload";
-//     }
 
 let prevItemSearch = "";
 const itemSearch = ref("");
@@ -921,6 +809,101 @@ const showFileBrowserTab = () => {
 const formatDate = (date) => {
     const smdate = new SMDate(date).format("MMM dd, yyyy");
     return smdate;
+};
+
+const allowEditSelected = computed(() => {
+    return (
+        selected.value != null &&
+        userStore.id &&
+        (userHasPermission("admin/media") ||
+            selected.value.user_id == userStore.id)
+    );
+});
+
+interface MediaUpdate {
+    id: string;
+    title: string;
+    description: string;
+    timer: any;
+}
+
+const pendingUpdates = ref<MediaUpdate[]>([]);
+
+const handleUpdate = () => {
+    if (selected.value != null) {
+        addUpdate(
+            selected.value.id,
+            selected.value.title,
+            selected.value.description,
+        );
+    }
+};
+
+const addUpdate = (id: string, title: string, description: string): void => {
+    let found = false;
+
+    pendingUpdates.value.every((item, index) => {
+        if (item.id == id) {
+            found = true;
+            pendingUpdates.value[index].title = title;
+            pendingUpdates.value[index].description = description;
+            if (pendingUpdates.value[index].timer != null) {
+                clearTimeout(pendingUpdates.value[index].timer);
+                pendingUpdates.value[index].timer = setTimeout(() => {
+                    const data = pendingUpdates.value[index];
+
+                    pendingUpdates.value.splice(index, 1);
+                    postUpdate(data);
+                }, 4000);
+            }
+            return false;
+        }
+
+        return true;
+    });
+
+    if (!found) {
+        const index = pendingUpdates.value.push({
+            id: id,
+            title: title,
+            description: description,
+            timer: null,
+        });
+
+        pendingUpdates.value[index - 1].timer = setTimeout(() => {
+            const data = pendingUpdates.value[index - 1];
+
+            pendingUpdates.value.splice(index - 1, 1);
+            postUpdate(data);
+        }, 4000);
+    }
+};
+
+const postUpdate = (data: MediaUpdate): void => {
+    api.put({
+        url: "/media/{id}",
+        params: {
+            id: data.id,
+        },
+        body: {
+            title: data.title,
+            description: data.description,
+        },
+    }).catch((error) => {
+        console.log(error);
+    });
+};
+
+const forceUpdate = () => {
+    pendingUpdates.value.forEach((item, index) => {
+        if (pendingUpdates.value[index].timer != null) {
+            clearTimeout(pendingUpdates.value[index].timer);
+            pendingUpdates.value[index].timer = null;
+            postUpdate(pendingUpdates.value[index]);
+        }
+    });
+
+    pendingUpdates.value = [];
 };
 
 // Get max upload size
