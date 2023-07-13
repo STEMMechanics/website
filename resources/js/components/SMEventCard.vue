@@ -8,7 +8,7 @@
             :style="{
                 backgroundImage: `url('${mediaGetVariantUrl(
                     props.event.hero,
-                    'medium'
+                    'medium',
                 )}')`,
             }">
             <div
@@ -141,7 +141,7 @@ const computedDate = (event: Event) => {
  * @returns The converted string.
  */
 const formatDateDay = (date: string) => {
-    return new SMDate(date, { format: "yMd" }).format("dd");
+    return new SMDate(date, { format: "yMd", utc: true }).format("dd");
 };
 
 /**
@@ -150,7 +150,7 @@ const formatDateDay = (date: string) => {
  * @returns The converted string.
  */
 const formatDateMonth = (date: string) => {
-    return new SMDate(date, { format: "yMd" }).format("MMM");
+    return new SMDate(date, { format: "yMd", utc: true }).format("MMM");
 };
 
 /**
