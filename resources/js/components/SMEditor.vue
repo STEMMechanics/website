@@ -33,6 +33,9 @@
                         :selected="editor.isActive('paragraph')">
                         Paragraph
                     </option>
+                    <option value="small" :selected="editor.isActive('small')">
+                        Small
+                    </option>
                     <option
                         value="h1"
                         :selected="editor.isActive('heading', { level: 1 })">
@@ -670,6 +673,7 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import { Small } from "../extensions/small";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 import { Media, MediaCollection, MediaResponse } from "../helpers/api.types";
@@ -706,6 +710,7 @@ const editor = useEditor({
         Success,
         Warning,
         Danger,
+        Small,
         Subscript,
         Superscript,
         Link.configure({
@@ -728,6 +733,9 @@ const updateNode = (event) => {
         switch (event.target.value) {
             case "paragraph":
                 editor.value.chain().focus().setParagraph().run();
+                break;
+            case "small":
+                editor.value.chain().focus().setSmall().run();
                 break;
             case "h1":
                 editor.value.chain().focus().setHeading({ level: 1 }).run();
