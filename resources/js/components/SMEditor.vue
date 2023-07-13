@@ -659,7 +659,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, watch } from "vue";
+import { onBeforeUnmount, watch } from "vue";
 import { useEditor, EditorContent, BubbleMenu, isActive } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -676,7 +676,7 @@ import Image from "@tiptap/extension-image";
 import { Small } from "../extensions/small";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
-import { Media, MediaCollection, MediaResponse } from "../helpers/api.types";
+import { Media, MediaCollection } from "../helpers/api.types";
 import { api } from "../helpers/api";
 import { extractFileNameFromUrl } from "../helpers/url";
 import { mediaGetVariantUrl } from "../helpers/media";

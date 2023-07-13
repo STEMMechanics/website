@@ -28,6 +28,7 @@
 		p + p, p + ul, ul + p { margin-top: 1rem; }
         ol, ul { list-style: none; margin: 0; padding: 0; }
 		small { display: inline-block; }
+		.small { font-size: smaller; }
 		.list-decimal, .list-disc, .list-circle { margin-left: 2.5rem; }
 		.list-decimal li, .list-disc li, .list-circle li { margin-top: 0.5rem; }
 		a:not([role="button"]) { color: #0284c7; }

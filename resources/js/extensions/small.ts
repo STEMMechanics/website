@@ -1,16 +1,19 @@
-import { Node } from "@tiptap/core";
+import { mergeAttributes, Node } from "@tiptap/core";
 
 export interface SmallOptions {
-    HTMLAttributes: Record<string, unknown>;
+    HTMLAttributes: Record<string, any>;
 }
 
 declare module "@tiptap/core" {
     interface Commands<ReturnType> {
         small: {
             /**
-             * Toggle a paragraph
+             * Set a small mark
              */
             setSmall: () => ReturnType;
+            /**
+             * Toggle a small mark
+             */
             toggleSmall: () => ReturnType;
         };
     }
@@ -20,11 +23,15 @@ export const Small = Node.create<SmallOptions>({
     name: "small",
     group: "block",
     content: "inline*",
-    defining: true,
-    priority: 100,
+
+    addOptions() {
+        return {
+            HTMLAttributes: { class: "small" },
+        };
+    },
 
     parseHTML() {
-        return [{ tag: "p", class: "small", priority: 51 }];
+        return [{ tag: "p.small", priority: 100 }];
     },
 
     renderHTML({ HTMLAttributes }) {
@@ -33,12 +40,6 @@ export const Small = Node.create<SmallOptions>({
             mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
             0,
         ];
-    },
-
-    addOptions() {
-        return {
-            HTMLAttributes: { class: "small" },
-        };
     },
 
     addCommands() {
@@ -56,14 +57,3 @@ export const Small = Node.create<SmallOptions>({
         };
     },
 });
-/**
- *
- * @param HTMLAttributes
- * @param HTMLAttributes1
- */
-function mergeAttributes(
-    HTMLAttributes: Record<string, unknown>,
-    HTMLAttributes1: Record<string, any>,
-): any | string {
-    throw new Error("Function not implemented.");
-}
