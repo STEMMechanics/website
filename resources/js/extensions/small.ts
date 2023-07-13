@@ -24,11 +24,15 @@ export const Small = Node.create<SmallOptions>({
     priority: 100,
 
     parseHTML() {
-        return [{ tag: "p.small", priority: 51 }];
+        return [{ tag: "p", class: "small", priority: 51 }];
     },
 
-    renderHTML() {
-        return ["p", { class: "small" }, ["small", 0]];
+    renderHTML({ HTMLAttributes }) {
+        return [
+            "p",
+            mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
+            0,
+        ];
     },
 
     addOptions() {
@@ -52,3 +56,14 @@ export const Small = Node.create<SmallOptions>({
         };
     },
 });
+/**
+ *
+ * @param HTMLAttributes
+ * @param HTMLAttributes1
+ */
+function mergeAttributes(
+    HTMLAttributes: Record<string, unknown>,
+    HTMLAttributes1: Record<string, any>,
+): any | string {
+    throw new Error("Function not implemented.");
+}
