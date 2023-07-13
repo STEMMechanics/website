@@ -120,10 +120,10 @@
                                             'flex-items-center',
                                             'flex-col',
                                             selected != null &&
-                                            selected.filter(
+                                            selected.findIndex(
                                                 (selectedItem) =>
-                                                    selectedItem.id == item.id,
-                                            ).length > 0
+                                                    selectedItem.id === item.id,
+                                            ) > -1
                                                 ? 'selected-checked'
                                                 : 'border-white',
                                         ]"
@@ -321,7 +321,7 @@
                             'flex-items-center',
                             'flex-col',
                         ]"
-                        @click="handleClickItem(item.id)">
+                        @click="handleShowFileItem(item.id)">
                         <div
                             :class="[
                                 'flex',
@@ -332,6 +332,10 @@
                                 'bg-contain',
                                 'bg-center',
                                 'bg-no-repeat',
+                                'border-3',
+                                'border-white',
+                                'relative',
+                                'media-selected-list-item',
                             ]"
                             :style="{
                                 backgroundImage:
@@ -353,6 +357,18 @@
                                 "
                                 small
                                 class="bg-white bg-op-90 w-full h-full" />
+                            <div
+                                class="absolute border-1 border-1 rounded-5 bg-white -top-1.5 -right-1.5 hidden item-delete"
+                                @click="handleRemoveItem(item.id)">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="h-6 w-6 block"
+                                    viewBox="0 0 24 24">
+                                    <path
+                                        d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"
+                                        fill="rgba(185,28,28,1)" />
+                                </svg>
+                            </div>
                         </div>
                     </li>
                 </ul>
@@ -517,13 +533,7 @@ const mediaItems: Ref<Media[]> = ref([]);
  * Selected media item id.
  */
 const selected: Ref<Media[]> = ref([]);
-const lastSelected = computed(() => {
-    if (selected.value.length > 0) {
-        return selected.value[selected.value.length - 1];
-    }
-
-    return null;
-});
+let lastSelected: Ref<Media | null> = ref(null);
 
 /**
  * How many media items are we showing per page.
@@ -655,18 +665,28 @@ const handleClickSelect = async () => {
  */
 const handleClickItem = (item_id: string): void => {
     if (isUUID(item_id)) {
+        const mediaItem = getMediaItem(item_id);
+
         if (props.multiple) {
-            if (
-                selected.value.filter((item) => item.id == item_id).length > 0
-            ) {
+            if (selected.value.findIndex((item) => item.id === item_id) > -1) {
                 selected.value = selected.value.filter(
                     (item) => item.id != item_id,
                 );
+
+                if (lastSelected.value.id === item_id) {
+                    if (selected.value.length > 0) {
+                        lastSelected.value = selected.value[0];
+                    } else {
+                        lastSelected.value = null;
+                    }
+                }
             } else {
-                selected.value.push(getMediaItem(item_id));
+                selected.value.push(mediaItem);
+                lastSelected.value = mediaItem;
             }
         } else {
             selected.value[0] = getMediaItem(item_id);
+            lastSelected.value = mediaItem;
         }
     } else {
         // selected.value = null;
@@ -687,6 +707,24 @@ const handleDblClickItem = (item_id: string): void => {
             }
 
             closeDialog(false);
+        }
+    }
+};
+
+const handleShowFileItem = (item_id: string): void => {
+    const index = selected.value.findIndex((item) => item.id === item_id);
+    if (index > -1) {
+        lastSelected.value = selected.value[index];
+    }
+};
+
+const handleRemoveItem = (item_id: string): void => {
+    selected.value = selected.value.filter((item) => item.id != item_id);
+    if (lastSelected.value.id === item_id) {
+        if (selected.value.length > 0) {
+            lastSelected.value = selected.value[0];
+        } else {
+            lastSelected.value = null;
         }
     }
 };
@@ -941,7 +979,7 @@ const computedSelectDisabled = computed(() => {
     if (selectedTab.value == "tab-browser") {
         return (
             selected.value.length == 0 ||
-            selected.value.filter((item) => item.status !== "OK").length != 0
+            selected.value.findIndex((item) => item.status !== "OK") > -1
         );
     } else if (selectedTab.value == "tab-url") {
         return (
@@ -1116,3 +1154,9 @@ api.get({
 
 handleLoad();
 </script>
+
+<style lang="scss">
+.media-selected-list-item:hover .item-delete {
+    display: block;
+}
+</style>
