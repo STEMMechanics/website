@@ -60,6 +60,9 @@
 		.sm-html p.danger { border: 1px solid rgba(220,38,38,1); background-color: rgba(220,38,38,0.25); }
 		.sm-html p.danger::before { color: rgba(220,38,38,1); content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' %3E%3Cpath d='M8.27,3L3,8.27V15.73L8.27,21H15.73L21,15.73V8.27L15.73,3M8.41,7L12,10.59L15.59,7L17,8.41L13.41,12L17,15.59L15.59,17L12,13.41L8.41,17L7,15.59L10.59,12L7,8.41' fill='rgba(220,38,38,1)' /%3E%3C/svg%3E"); }
 		.sm-html img { display: block; margin: 1rem auto; max-height: 100%; max-width: 100%; }
+		.sm-html ul { list-style: disc; margin: 1rem 2rem; }
+		.sm-html ol { list-style: decimal; margin: 1rem 2rem; }
+		.sm-html ul li, .sm-html ol li { margin-bottom: 0.25rem; }
 		.sm-editor::-webkit-scrollbar { background-color: transparent; width: 16px; }
 		.sm-editor::-webkit-scrollbar-thumb { background-color: #aaa; border: 4px solid transparent; border-radius: 8px; background-clip: padding-box; }
 		.selected-checked { border: 3px solid rgba(2,132,199,1); position: relative; }
