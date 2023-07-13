@@ -4,7 +4,6 @@
         <div v-if="mediaUrl?.length > 0" class="text-center">
             <img
                 class="max-w-48 max-h-48"
-                
                 :src="mediaGetVariantUrl(value, 'medium')" />
         </div>
         <svg
@@ -141,6 +140,11 @@ const props = defineProps({
         },
         required: false,
     },
+    allowUpload: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
 
 const slots = useSlots();
@@ -162,21 +166,21 @@ const label = ref(
         ? props.label
         : typeof props.control == "string"
         ? toTitleCase(props.control)
-        : ""
+        : "",
 );
 const value = ref(
     props.modelValue != undefined
         ? props.modelValue
         : control != null
         ? control.value
-        : ""
+        : "",
 );
 const id = ref(
     props.id != undefined
         ? props.id
         : typeof props.control == "string" && props.control.length > 0
         ? props.control
-        : generateRandomElementId()
+        : generateRandomElementId(),
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.toString().length ?? 0 > 0);
@@ -187,7 +191,7 @@ watch(
     () => value.value,
     (newValue) => {
         mediaUrl.value = value.value.url ?? "";
-    }
+    },
 );
 
 if (props.modelValue != undefined) {
@@ -195,7 +199,7 @@ if (props.modelValue != undefined) {
         () => props.modelValue,
         (newValue) => {
             value.value = newValue;
-        }
+        },
     );
 }
 
@@ -203,14 +207,14 @@ watch(
     () => props.feedbackInvalid,
     (newValue) => {
         feedbackInvalid.value = newValue;
-    }
+    },
 );
 
 watch(
     () => props.disabled,
     (newValue) => {
         disabled.value = newValue;
-    }
+    },
 );
 
 if (typeof control === "object" && control !== null) {
@@ -221,7 +225,7 @@ if (typeof control === "object" && control !== null) {
                 ? ""
                 : control.validation.result.invalidMessages[0];
         },
-        { deep: true }
+        { deep: true },
     );
 
     watch(
@@ -229,7 +233,7 @@ if (typeof control === "object" && control !== null) {
         (newValue) => {
             value.value = newValue;
         },
-        { deep: true }
+        { deep: true },
     );
 }
 
@@ -238,7 +242,7 @@ if (form) {
         () => form.loading(),
         (newValue) => {
             disabled.value = newValue;
-        }
+        },
     );
 }
 
@@ -299,7 +303,9 @@ const handleChange = (event) => {
 };
 
 const handleMediaSelect = async () => {
-    let result = await openDialog(SMDialogMedia);
+    let result = await openDialog(SMDialogMedia, {
+        allowUpload: props.allowUpload,
+    });
     if (result) {
         const mediaResult = result as Media;
         mediaUrl.value = mediaResult.url;
@@ -319,7 +325,7 @@ const computedAutocompleteItems = computed(() => {
             autocompleteList = props.autocomplete(value.value);
         } else {
             autocompleteList = props.autocomplete.filter((str) =>
-                str.includes(value.value)
+                str.includes(value.value),
             );
         }
 

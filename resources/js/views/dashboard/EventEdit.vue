@@ -82,7 +82,10 @@
                         :type="registration_data?.type" />
                 </div>
                 <div class="mb-8">
-                    <SMSelectImage control="hero" label="Hero image" />
+                    <SMSelectImage
+                        control="hero"
+                        label="Hero image"
+                        allow-upload />
                 </div>
                 <SMEditor
                     class="mb-8"
@@ -186,7 +189,7 @@ let form = reactive(
                 return address_data?.value.required && value.length == 0
                     ? "A venue address is required"
                     : true;
-            })
+            }),
         ),
         location_url: FormControl("", Url()),
         start_at: FormControl("", And([Required(), DateTime()])),
@@ -201,11 +204,11 @@ let form = reactive(
                     invalidAfterMessage:
                         "The ending date/time must be after the starting date/time.",
                 }),
-            ])
+            ]),
         ),
         publish_at: FormControl(
             route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
-            DateTime()
+            DateTime(),
         ),
         status: FormControl("draft"),
         registration_type: FormControl("none"),
@@ -228,13 +231,13 @@ let form = reactive(
                 }
 
                 return true;
-            })
+            }),
         ),
         hero: FormControl("", Required()),
         content: FormControl(),
         price: FormControl(),
         ages: FormControl(),
-    })
+    }),
 );
 
 const loadData = async () => {
@@ -282,11 +285,11 @@ const loadData = async () => {
             form.controls.price.value = data.event.price;
             form.controls.ages.value = data.event.ages;
 
-            attachments.value = (data.event.attachments || []).map(function (
-                attachment
-            ) {
-                return attachment.id.toString();
-            });
+            attachments.value = (data.event.attachments || []).map(
+                function (attachment) {
+                    return attachment.id.toString();
+                },
+            );
         } catch (err) {
             pageError.value = err.status;
         } finally {
