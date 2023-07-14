@@ -532,7 +532,7 @@ router.afterEach((to, from) => {
                     .reverse()
                     .reduce(
                         (acc, r) => acc || (r.meta && r.meta[tagHierarchy[0]]),
-                        null
+                        null,
                     );
                 if (nearestWithMeta) {
                     let result = nearestWithMeta;
@@ -563,8 +563,18 @@ router.afterEach((to, from) => {
             description: getMetaValue("description"),
             keywords: getMetaValue("keywords", []),
             robots: {
-                index: getMetaValue("robots.index", true),
-                follow: getMetaValue("robots.follow", true),
+                index: getMetaValue(
+                    "robots.index",
+                    !to.meta.middleware
+                        ? true
+                        : to.meta.middleware != "authenticated",
+                ),
+                follow: getMetaValue(
+                    "robots.follow",
+                    !to.meta.middleware
+                        ? true
+                        : to.meta.middleware != "authenticated",
+                ),
             },
             url: getMetaValue("url", to.path),
             image: getMetaValue("image", ""),
