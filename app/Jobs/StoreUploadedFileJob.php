@@ -9,6 +9,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use SplFileInfo;
@@ -71,6 +72,24 @@ class StoreUploadedFileJob implements ShouldQueue
         try {
             $this->media->status = "Uploading to CDN";
             $this->media->save();
+
+            // convert HEIC file
+            $fileExtension = File::extension($this->uploadedFilePath);
+            if ($fileExtension === 'heic') {
+                // Get the path without the file name
+                $uploadedFileDirectory = dirname($this->uploadedFilePath);
+                
+                // Convert the HEIC file to JPG
+                $jpgFileName = pathinfo($this->uploadedFilePath, PATHINFO_FILENAME) . '.jpg';
+                $jpgFilePath = $uploadedFileDirectory . '/' . $jpgFileName;
+                Image::make($this->uploadedFilePath)->save($jpgFilePath);
+                
+                // Update the uploaded file path and file name
+                $this->uploadedFilePath = $jpgFilePath;
+                $fileName = $jpgFileName;
+                $this->media->name = $fileName;
+                $this->media->save();
+            }
 
             if (strlen($this->uploadedFilePath) > 0) {
                 if (Storage::disk($storageDisk)->exists($fileName) === false || $this->replaceExisting === true) {
