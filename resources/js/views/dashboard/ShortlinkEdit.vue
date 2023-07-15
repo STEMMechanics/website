@@ -16,9 +16,9 @@
         <SMLoading v-if="form.loading()" />
         <div v-else class="max-w-4xl mx-auto px-4 mt-12">
             <SMForm :model-value="form" @submit="handleSubmit">
-                <SMInput class="mt-4" control="code" />
+                <SMInput class="mb-8" control="code" />
                 <SMInput
-                    class="mt-4"
+                    class="mb-8"
                     type="static"
                     v-model="used"
                     label="Times used" />

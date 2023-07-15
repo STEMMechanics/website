@@ -23,28 +23,32 @@
                         }" />
                 </div>
                 <div
-                    class="flex gap-4 mb-8"
+                    class="flex flex-col md:flex-row gap-4"
                     v-if="form.controls.location.value !== 'online'">
-                    <SMInput control="address" />
-                    <SMInput control="location_url" />
+                    <SMInput class="mb-4" control="address" />
+                    <SMInput class="mb-4" control="location_url" />
                 </div>
-                <div class="flex gap-4 mb-8">
+                <div class="flex flex-col md:flex-row gap-4">
                     <SMInput
                         type="datetime"
+						class="mb-4"
                         control="start_at"
                         label="Start Date/Time" />
                     <SMInput
                         type="datetime"
+						class="mb-4"
                         control="end_at"
                         label="End Date/Time" />
                 </div>
-                <div class="flex gap-4 mb-8">
+                <div class="flex flex-col md:flex-row gap-4">
                     <SMInput
                         type="datetime"
+						class="mb-4"
                         control="publish_at"
                         label="Publish Date/Time" />
                     <SMDropdown
                         type="select"
+						class="mb-4"
                         control="status"
                         :options="{
                             draft: 'Draft',
@@ -55,18 +59,19 @@
                             cancelled: 'Cancelled',
                         }" />
                 </div>
-                <div class="flex gap-4 mb-8">
-                    <SMInput control="price"
+                <div class="flex flex-col md:flex-row gap-4">
+                    <SMInput class="mb-4" control="price"
                         >Leave blank to hide from public. Also supports TBD and
                         TBC.</SMInput
                     >
-                    <SMInput control="ages"
+                    <SMInput class="mb-4" control="ages"
                         >Leave blank to hide from public.</SMInput
                     >
                 </div>
-                <div class="flex gap-4 mb-8">
+                <div class="flex flex-col md:flex-row gap-4">
                     <SMDropdown
                         type="select"
+						class="mb-4"
                         control="registration_type"
                         label="Registration"
                         :options="{
@@ -77,6 +82,7 @@
                         }" />
                     <SMInput
                         v-if="registration_data?.visible"
+						class="mb-4"
                         control="registration_data"
                         :label="registration_data?.title"
                         :type="registration_data?.type" />

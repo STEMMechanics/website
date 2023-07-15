@@ -16,17 +16,17 @@
                     : 'Back to Dashboard'
             " />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
+        <div v-else class="max-w-4xl mx-auto px-8 mb-8">
             <SMForm :model-value="form" @submit="handleSubmit">
-                <SMInput class="mt-4" control="display_name" autofocus />
-                <SMInput class="mt-4" control="email" type="email" />
-                <SMInput class="mt-4" control="first_name"
+                <SMInput class="mb-8" control="display_name" autofocus />
+                <SMInput class="mb-8" control="email" type="email" />
+                <SMInput class="mb-8" control="first_name"
                     >This field is optional</SMInput
                 >
-                <SMInput class="mt-4" control="last_name"
+                <SMInput class="mb-8" control="last_name"
                     >This field is optional</SMInput
                 >
-                <SMInput class="mt-4" control="phone"
+                <SMInput class="mb-8" control="phone"
                     >This field is optional</SMInput
                 >
                 <template v-if="userStore.permissions.includes('admin/users')">

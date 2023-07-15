@@ -5,35 +5,37 @@
             :title="pageHeading"
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
-        <div class="max-w-7xl mx-auto mt-8 px-8">
-            <SMLoading v-if="pageLoading" />
+        <SMLoading v-if="form.loading()" />
+		<div v-else class="max-w-7xl mx-auto px-8 mt-8">
             <SMForm
-                v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <div class="mb-8">
-                    <SMInput control="title" @blur="updateSlug()" />
+                <div>
+                    <SMInput class="mb-8" control="title" autofocus @blur="updateSlug()" />
                 </div>
-                <div class="flex gap-4 mb-8">
-                    <SMInput control="slug" />
+                <div class="flex flex-col md:flex-row gap-4">
+                    <SMInput class="mb-8" control="slug" />
                     <SMInput
+						class="mb-8"
                         type="datetime"
                         control="publish_at"
                         label="Publish Date" />
                 </div>
-                <div class="mb-8">
-                    <SMSelectImage control="hero" label="Hero image" required />
+                <div>
+                    <SMSelectImage class="mb-8" control="hero" label="Hero image" required />
                 </div>
-                <div class="mb-8">
+                <div>
                     <SMDropdown
+						class="mb-8"
                         control="user_id"
                         label="Created By"
                         type="select"
                         :options="authors" />
                 </div>
-                <div class="mb-8">
+                <div>
                     <SMEditor
+						class="mb-8"
                         v-model:model-value="form.controls.content.value" />
                 </div>
                 <SMInputAttachments v-model:model-value="attachments" />
@@ -73,7 +75,6 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 let pageError = ref(200);
-const pageLoading = ref(false);
 const authors = ref({});
 const attachments = ref([]);
 const pageHeading = route.params.id ? "Edit Article" : "Create Article";
@@ -136,7 +137,7 @@ const updateSlug = async () => {
 const loadData = async () => {
     try {
         if (route.params.id) {
-            pageLoading.value = true;
+            form.loading(true);
             let result = await api.get({
                 url: "/articles/{id}",
                 params: {
@@ -172,7 +173,7 @@ const loadData = async () => {
     } catch (error) {
         pageError.value = error.status;
     } finally {
-        pageLoading.value = false;
+        form.loading(false);
     }
 };
 

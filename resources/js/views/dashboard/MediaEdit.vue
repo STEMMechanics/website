@@ -6,49 +6,53 @@
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
+        <div v-else class="max-w-7xl mx-auto px-8 mt-8">
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
-                    <SMImage v-if="!editMultiple" :src="imageUrl" />
-                    <SMImageStack v-if="editMultiple" :src="imageStackUrls" />
+                    <SMImage v-if="!editMultiple" class="mb-8" :src="imageUrl" />
+                    <SMImageStack v-else class="mb-8" :src="imageStackUrls" />
                 </div>
                 <SMInputFile
                     v-if="!editMultiple"
                     control="file"
                     type="file"
-                    class="mt-4" />
-                <SMInput control="title" class="mt-4" />
-                <SMInput control="permission" class="mt-4" />
-                <div v-if="!editMultiple" class="mt-4 flex flex-cols gap-4">
+                    class="mb-8" />
+                <SMInput control="title" class="mb-8" />
+                <SMInput control="permission" class="mb-8" />
+                <div v-if="!editMultiple" class="flex flex-col md:flex-row gap-4">
                     <SMInput
+						class="mb-8"
                         v-model="computedFileSize"
                         type="static"
                         label="File Size" />
                     <SMInput
-                        v-model="fileData.mime_type"
+                        class="mb-8"
+						v-model="fileData.mime_type"
                         type="static"
                         label="File Mime Type" />
                 </div>
-                <div v-if="!editMultiple" class="mt-4 flex flex-cols gap-4">
+                <div v-if="!editMultiple" class="flex flex-col md:flex-row gap-4">
                     <SMInput
+						class="mb-8"
                         v-model="fileData.status"
                         type="static"
                         label="Status" />
                     <SMInput
+						class="mb-8"
                         v-model="fileData.dimensions"
                         type="static"
                         label="Dimensions" />
                 </div>
                 <SMInput
                     v-if="!editMultiple"
-                    class="mt-4"
+                    class="mb-8"
                     v-model="fileData.url"
                     type="static"
                     label="URL" />
-                <SMInput type="textarea" control="description" />
+                <SMInput class="mb-8" textarea control="description" />
                 <input
                     role="button"
                     type="submit"
