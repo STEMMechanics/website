@@ -44,10 +44,10 @@ Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
 Route::apiResource('articles', ArticleController::class);
-Route::apiAttachmentResource('articles', ArticleController::class);
+Route::apiAddendumResource('attachment', 'articles', ArticleController::class);
 
 Route::apiResource('events', EventController::class);
-Route::apiAttachmentResource('events', EventController::class);
+Route::apiAddendumResource('attachment', 'events', EventController::class);
 
 Route::get('/events/{event}/users', [EventController::class, 'userList']);
 Route::post('/events/{event}/users', [EventController::class, 'userAdd']);
