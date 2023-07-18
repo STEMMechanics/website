@@ -24,9 +24,13 @@ class ApiController extends Controller
      * @param array   $data        Response data.
      * @param integer $respondCode Response status code.
      * @param array   $headers     Response headers.
+     * @return JsonResponse
      */
-    public function respondJson(array $data, int $respondCode = HttpResponseCodes::HTTP_OK, array $headers = []): JsonResponse
-    {
+    public function respondJson(
+        array $data,
+        int $respondCode = HttpResponseCodes::HTTP_OK,
+        array $headers = []
+    ): JsonResponse {
         return response()->json($data, $respondCode, $headers);
     }
 
@@ -34,9 +38,11 @@ class ApiController extends Controller
      * Return forbidden message
      *
      * @param string $message Response message.
+     * @return JsonResponse
      */
-    public function respondForbidden(string $message = 'You do not have permission to access the resource.'): JsonResponse
-    {
+    public function respondForbidden(
+        string $message = 'You do not have permission to access the resource.'
+    ): JsonResponse {
         return response()->json(['message' => $message], HttpResponseCodes::HTTP_FORBIDDEN);
     }
 
@@ -44,6 +50,7 @@ class ApiController extends Controller
      * Return forbidden message
      *
      * @param string $message Response message.
+     * @return JsonResponse
      */
     public function respondNotFound(string $message = 'The resource was not found.'): JsonResponse
     {
@@ -54,6 +61,7 @@ class ApiController extends Controller
      * Return too large message
      *
      * @param string $message Response message.
+     * @return JsonResponse
      */
     public function respondTooLarge(string $message = 'The request entity is too large.'): JsonResponse
     {
@@ -61,7 +69,9 @@ class ApiController extends Controller
     }
 
     /**
-     * Return no content
+     * Return no content.
+     *
+     * @return JsonResponse
      */
     public function respondNoContent(): JsonResponse
     {
@@ -69,7 +79,19 @@ class ApiController extends Controller
     }
 
     /**
-     * Return created
+     * Return no content
+     *
+     * @return JsonResponse
+     */
+    public function respondNotImplmeneted(): JsonResponse
+    {
+        return response()->json([], HttpResponseCodes::HTTP_NOT_IMPLEMENTED);
+    }
+
+    /**
+     * Return created.
+     *
+     * @return JsonResponse
      */
     public function respondCreated(): JsonResponse
     {
@@ -77,7 +99,9 @@ class ApiController extends Controller
     }
 
     /**
-     * Return accepted
+     * Return accepted.
+     *
+     * @return JsonResponse
      */
     public function respondAccepted(): JsonResponse
     {
@@ -89,9 +113,12 @@ class ApiController extends Controller
      *
      * @param string  $message      Error message.
      * @param integer $responseCode Resource code.
+     * @return JsonResponse
      */
-    public function respondError(string $message, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
-    {
+    public function respondError(
+        string $message,
+        int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY
+    ): JsonResponse {
         return response()->json([
             'message' => $message
         ], $responseCode);
@@ -102,9 +129,12 @@ class ApiController extends Controller
      *
      * @param array   $errors       Error messages.
      * @param integer $responseCode Resource code.
+     * @return JsonResponse
      */
-    public function respondWithErrors(array $errors, int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY): JsonResponse
-    {
+    public function respondWithErrors(
+        array $errors,
+        int $responseCode = HttpResponseCodes::HTTP_UNPROCESSABLE_ENTITY
+    ): JsonResponse {
         $keys = array_keys($errors);
         $error = $errors[$keys[0]];
 
@@ -122,17 +152,20 @@ class ApiController extends Controller
     /**
      * Return resource data
      *
-     * @param array|Model|Collection $data    Resource data.
-     * @param array                  $options Respond options.
+     * @param array|Model|Collection $data         Resource data.
+     * @param array                  $options      Respond options.
+     * @param callable|null          $validationFn Optional validation function to check the data before responding.
+     * @return JsonResponse
      */
     protected function respondAsResource(
         mixed $data,
         array $options = [],
         $validationFn = null
     ): JsonResponse {
-        $isCollection = $options['isCollection'] ?? false;
-        $appendData = $options['appendData'] ?? null;
-        $resourceName = $options['resourceName'] ?? null;
+        $isCollection = ($options['isCollection'] ?? false);
+        $appendData = ($options['appendData'] ?? null);
+        $resourceName = ($options['resourceName'] ?? '');
+        $transformResourceName = ($options['transformResourceName'] ?? true);
         $respondCode = ($options['respondCode'] ?? HttpResponseCodes::HTTP_OK);
 
         if ($data === null || ($data instanceof Collection && $data->count() === 0)) {
@@ -146,11 +179,11 @@ class ApiController extends Controller
             }
         }
 
-        if (is_null($resourceName) === true || empty($resourceName) === true) {
+        if (empty($resourceName) === true) {
             $resourceName = $this->resourceName;
         }
 
-        if (is_null($resourceName) === true || empty($resourceName) === true) {
+        if (empty($resourceName) === true) {
             $resourceName = get_class($this);
             $resourceName = substr($resourceName, (strrpos($resourceName, '\\') + 1));
             $resourceName = substr($resourceName, 0, strpos($resourceName, 'Controller'));
@@ -163,15 +196,14 @@ class ApiController extends Controller
         } elseif (is_array($data) === true) {
             $dataArray = $data;
         } elseif ($data instanceof Model) {
-            $is_multiple = false;
             $dataArray = $data->toArray();
         }
 
         $resource = [];
         if ($isCollection === true) {
-            $resource = [Str::plural($resourceName) => $dataArray];
+            $resource = [$transformResourceName === true ? Str::plural($resourceName) : $resourceName => $dataArray];
         } else {
-            $resource = [Str::singular($resourceName) => $dataArray];
+            $resource = [$transformResourceName === true ? Str::singular($resourceName) : $resourceName => $dataArray];
         }
 
         if ($appendData !== null) {
@@ -179,5 +211,23 @@ class ApiController extends Controller
         }
 
         return response()->json($resource, $respondCode);
+    }
+
+    /**
+     * Get the Controller Model Class name.
+     *
+     * @return string
+     */
+    public function getModelClass(): string
+    {
+        $controllerClass = static::class;
+
+        $modelName = 'App\\Models\\' . Str::replaceLast('Controller', '', Str::afterLast($controllerClass, '\\'));
+
+        if (class_exists($modelName) === false) {
+            return $modelName;
+        }
+
+        return $modelName;
     }
 }

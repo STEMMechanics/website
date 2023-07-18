@@ -36,7 +36,12 @@
                 >
             </div>
             <SMHTML :html="article.content" />
-            <SMAttachments :attachments="article.attachments || []" />
+            <SMImageGallery
+                v-if="article.gallery.length > 0"
+                :model-value="article.gallery" />
+            <SMAttachments
+                v-if="article.attachments.length > 0"
+                :attachments="article.attachments || []" />
         </div>
     </template>
 </template>
@@ -54,6 +59,7 @@ import { userHasPermission } from "../helpers/utils";
 import SMLoading from "../components/SMLoading.vue";
 import SMPageStatus from "../components/SMPageStatus.vue";
 import SMHTML from "../components/SMHTML.vue";
+import SMImageGallery from "../components/SMImageGallery.vue";
 
 const applicationStore = useApplicationStore();
 
@@ -61,8 +67,18 @@ const applicationStore = useApplicationStore();
  * The article data.
  */
 let article: Ref<Article> = ref({
+    id: "",
+    created_at: "",
+    updated_at: "",
     title: "",
+    slug: "",
+    user_id: "",
     user: { display_name: "" },
+    content: "",
+    publish_at: "",
+    hero: {},
+    gallery: [],
+    attachments: [],
 });
 
 /**

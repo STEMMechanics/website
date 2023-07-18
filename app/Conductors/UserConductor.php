@@ -39,14 +39,17 @@ class UserConductor extends Conductor
     {
         $user = auth()->user();
         $data = $model->toArray();
+        $limit = $this->fields($model);
+
+        // echo 'USER--' . implode(',', $limit) . "\n";
 
         if ($user === null || ($user->hasPermission('admin/users') === false && strcasecmp($user->id, $model->id) !== 0)) {
-            $fields = ['id', 'display_name'];
-            $data = arrayLimitKeys($data, $fields);
+            $limit = ['id', 'display_name'];
         } else {
             $data['permissions'] = $user->permissions;
         }
 
+        $data = arrayLimitKeys($data, $limit);
         return $data;
     }
 

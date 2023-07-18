@@ -2,15 +2,18 @@
 
 namespace App\Models;
 
+use App\Traits\HasGallery;
 use App\Traits\Uuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Article extends Model
 {
     use HasFactory;
     use Uuids;
+    use HasGallery;
 
     /**
      * The attributes that are mass assignable.
@@ -29,6 +32,8 @@ class Article extends Model
 
     /**
      * Get the article user
+     *
+     * @return Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -37,6 +42,8 @@ class Article extends Model
 
     /**
      * Get all of the article's attachments.
+     *
+     * @return Illuminate\Database\Eloquent\Relations\MorphMany
      */
     public function attachments(): MorphMany
     {

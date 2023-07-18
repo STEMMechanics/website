@@ -38,6 +38,15 @@
 						class="mb-8"
                         v-model:model-value="form.controls.content.value" />
                 </div>
+                <div class="mb-8">
+                    <h3>Gallery</h3>
+                    <p class="small">
+                        {{ gallery.length }} image{{
+                            gallery.length != 1 ? "s" : ""
+                        }}
+                    </p>
+                    <SMImageGallery show-editor v-model:model-value="gallery" />
+                </div>
                 <SMInputAttachments v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">
                     <input
@@ -70,6 +79,7 @@ import SMPageStatus from "../../components/SMPageStatus.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMSelectImage from "../../components/SMSelectImage.vue";
 import SMLoading from "../../components/SMLoading.vue";
+import SMImageGallery from "../../components/SMImageGallery.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -78,6 +88,7 @@ let pageError = ref(200);
 const authors = ref({});
 const attachments = ref([]);
 const pageHeading = route.params.id ? "Edit Article" : "Create Article";
+const gallery = ref([]);
 
 const form = reactive(
     Form({
@@ -85,12 +96,12 @@ const form = reactive(
         slug: FormControl("", And([Required(), Min(6)])),
         publish_at: FormControl(
             route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
-            DateTime()
+            DateTime(),
         ),
         hero: FormControl(),
         user_id: FormControl(userStore.id),
         content: FormControl(),
-    })
+    }),
 );
 
 const updateSlug = async () => {
@@ -164,8 +175,10 @@ const loadData = async () => {
                 attachments.value = (data.article.attachments || []).map(
                     function (attachment) {
                         return attachment.id.toString();
-                    }
+                    },
                 );
+
+                gallery.value = data.article.gallery;
             } else {
                 pageError.value = 404;
             }
@@ -183,11 +196,12 @@ const handleSubmit = async () => {
             title: form.controls.title.value,
             slug: form.controls.slug.value,
             publish_at: new SMDate(
-                form.controls.publish_at.value as string
+                form.controls.publish_at.value as string,
             ).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
             user_id: form.controls.user_id.value,
             content: form.controls.content.value,
             hero: form.controls.hero.value.id,
+            gallery: gallery.value.map((item) => item.id),
         };
 
         let article_id = "";
@@ -280,7 +294,7 @@ const attachmentAdd = async (event) => {
                 },
                 progress: (progressEvent) =>
                     event.attachment.setUploadProgress(
-                        (progressEvent.loaded * progressEvent.total) / 100
+                        (progressEvent.loaded * progressEvent.total) / 100,
                     ),
             });
 
@@ -292,7 +306,7 @@ const attachmentAdd = async (event) => {
             event.preventDefault();
             alert(
                 err.response?.data?.message ||
-                    "An unexpected server error occurred"
+                    "An unexpected server error occurred",
             );
         }
     }

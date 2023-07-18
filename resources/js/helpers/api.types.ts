@@ -96,6 +96,7 @@ export interface Article {
     content: string;
     publish_at: string;
     hero: Media;
+    gallery: Array<Media>;
     attachments: Array<Media>;
 }
 

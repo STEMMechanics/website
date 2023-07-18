@@ -8,6 +8,8 @@ use App\Enum\HttpResponseCodes;
 use App\Http\Requests\ArticleRequest;
 use App\Models\Media;
 use App\Models\Article;
+use App\Models\Gallery;
+use App\Traits\HasGallery;
 use Illuminate\Http\JsonResponse;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -17,6 +19,9 @@ use Illuminate\Http\Request;
 
 class ArticleController extends ApiController
 {
+    use HasGallery;
+
+
     /**
      * ApplicationController constructor.
      */
@@ -73,14 +78,19 @@ class ArticleController extends ApiController
     public function store(ArticleRequest $request)
     {
         if (ArticleConductor::creatable() === true) {
-            $article = Article::create($request->all());
+            $article = Article::create($request->except('gallery'));
+
+            if ($request->has('gallery') === true) {
+                $article->galleryAddMany($request->get('gallery'));
+            }
+
             return $this->respondAsResource(
                 ArticleConductor::model($request, $article),
                 ['respondCode' => HttpResponseCodes::HTTP_CREATED]
             );
         } else {
             return $this->respondForbidden();
-        }
+        }//end if
     }
 
     /**
@@ -93,7 +103,12 @@ class ArticleController extends ApiController
     public function update(ArticleRequest $request, Article $article)
     {
         if (ArticleConductor::updatable($article) === true) {
-            $article->update($request->all());
+            if ($request->has('gallery') === true) {
+                $article->gallery()->delete();
+                $article->galleryAddMany($request->get('gallery'));
+            }
+
+            $article->update($request->except('gallery'));
             return $this->respondAsResource(ArticleConductor::model($request, $article));
         }
 
@@ -122,11 +137,8 @@ class ArticleController extends ApiController
      * @param Request $request The user request.
      * @param Article $article The article model.
      * @return JsonResponse Returns the article attachments.
-     * @throws InvalidFormatException
-     * @throws BindingResolutionException
-     * @throws InvalidCastException
      */
-    public function getAttachments(Request $request, Article $article): JsonResponse
+    public function attachmentIndex(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::viewable($article) === true) {
             $medium = $article->attachments->map(function ($attachment) {
@@ -145,13 +157,11 @@ class ArticleController extends ApiController
      * @param Request $request The user request.
      * @param Article $article The article model.
      * @return JsonResponse The response.
-     * @throws BindingResolutionException
-     * @throws MassAssignmentException
      */
-    public function storeAttachment(Request $request, Article $article): JsonResponse
+    public function attachmentStore(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
-            if ($request->has("medium") && Media::find($request->medium)) {
+            if ($request->has("medium") === true && Media::find($request->medium) !== null) {
                 $article->attachments()->create(['media_id' => $request->medium]);
                 return $this->respondCreated();
             }
@@ -167,10 +177,9 @@ class ArticleController extends ApiController
      *
      * @param Request $request The user request.
      * @param Article $article The related model.
-     * @throws BindingResolutionException
-     * @throws MassAssignmentException
+     * @return JsonResponse
      */
-    public function updateAttachments(Request $request, Article $article): JsonResponse
+    public function attachmentUpdate(Request $request, Article $article): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
             $mediaIds = $request->attachments;
@@ -183,7 +192,7 @@ class ArticleController extends ApiController
 
             // Delete attachments that are not in $mediaIds
             foreach ($attachments as $attachment) {
-                if (!in_array($attachment->media_id, $mediaIds)) {
+                if (in_array($attachment->media_id, $mediaIds) === false) {
                     $attachment->delete();
                 }
             }
@@ -193,13 +202,13 @@ class ArticleController extends ApiController
                 $found = false;
 
                 foreach ($attachments as $attachment) {
-                    if ($attachment->media_id == $mediaId) {
+                    if ($attachment->media_id === $mediaId) {
                         $found = true;
                         break;
                     }
                 }
 
-                if (!$found) {
+                if ($found === false) {
                     $article->attachments()->create(['media_id' => $mediaId]);
                 }
             }
@@ -215,9 +224,9 @@ class ArticleController extends ApiController
      * @param Request $request The user request.
      * @param Article $article The model.
      * @param Media   $medium  The attachment medium.
-     * @throws BindingResolutionException
+     * @return JsonResponse
      */
-    public function deleteAttachment(Request $request, Article $article, Media $medium): JsonResponse
+    public function attachmentDelete(Request $request, Article $article, Media $medium): JsonResponse
     {
         if (ArticleConductor::updatable($article) === true) {
             $attachments = $article->attachments;
@@ -231,7 +240,7 @@ class ArticleController extends ApiController
                 }
             }
 
-            if ($deleted) {
+            if ($deleted === true) {
                 // Attachment was deleted successfully
                 return $this->respondNoContent();
             } else {

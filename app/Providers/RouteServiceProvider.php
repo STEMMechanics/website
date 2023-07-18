@@ -61,28 +61,27 @@ class RouteServiceProvider extends ServiceProvider
 
         Route::macro('apiAddendumResource', function ($addendum, $uri, $controller) {
             $singularUri = Str::singular($uri);
-            $pluralAddendumLC = strtolower(Str::plural($addendum));
-            $pluralAddendumTC = ucfirst($pluralAddendumLC);
-            $singularAddendumTC = Str::singular($pluralAddendumTC);
+            $signularAddendum = Str::singular((strtolower($addendum)));
+            $pluralAddendum = Str::plural($signularAddendum);
 
-            Route::get("$uri/{{$singularUri}}/{{$pluralAddendumLC}}", [$controller, "get{{$pluralAddendumTC}}"])
-                ->name("{{$singularUri}}.{{$pluralAddendumLC}}.index");
+            Route::get("{$uri}/{{$singularUri}}/{$pluralAddendum}", [$controller, "{$signularAddendum}Index"])
+                ->name("{$singularUri}.{$signularAddendum}.index");
 
-            Route::post("$uri/{{$singularUri}}/{{$pluralAddendumLC}}", [$controller, "store{{$singularAddendumTC}}"])
-                ->name("{{$singularUri}}.{{$pluralAddendumLC}}.store");
+            Route::post("{$uri}/{{$singularUri}}/{$pluralAddendum}", [$controller, "{$signularAddendum}Store"])
+                ->name("{$singularUri}.{$signularAddendum}.store");
 
             Route::match(
                 ['put', 'patch'],
-                "$uri/{{$singularUri}}/{{$pluralAddendumLC}}",
-                [$controller, "update{{$pluralAddendumTC}}"]
+                "{$uri}/{{$singularUri}}/{$pluralAddendum}",
+                [$controller, "{$signularAddendum}Update"]
             )
-                ->name("{{$singularUri}}.{{$pluralAddendumLC}}.update");
+                ->name("{$singularUri}.{$signularAddendum}.update");
 
             Route::delete(
-                "$uri/{{$singularUri}}/{{$pluralAddendumLC}}/{medium}",
-                [$controller,"delete{{$singularAddendumTC}}"]
+                "{$uri}/{{$singularUri}}/{$pluralAddendum}/{medium}",
+                [$controller,"{$signularAddendum}Delete"]
             )
-                ->name("{{$singularUri}}.{{$pluralAddendumLC}}.destroy");
+                ->name("{$singularUri}.{$signularAddendum}.destroy");
         });
     }
 }

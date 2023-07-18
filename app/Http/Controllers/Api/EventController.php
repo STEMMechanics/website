@@ -117,7 +117,7 @@ class EventController extends ApiController
      * @param Event   $event   The event model.
      * @return JsonResponse Returns the event attachments.
      */
-    public function getAttachments(Request $request, Event $event): JsonResponse
+    public function attachmentIndex(Request $request, Event $event): JsonResponse
     {
         if (EventConductor::viewable($event) === true) {
             $medium = $event->attachments->map(function ($attachment) {
@@ -137,7 +137,7 @@ class EventController extends ApiController
      * @param Event   $event   The event model.
      * @return JsonResponse The response.
      */
-    public function storeAttachment(Request $request, Event $event): JsonResponse
+    public function attachmentStore(Request $request, Event $event): JsonResponse
     {
         if (EventConductor::updatable($event) === true) {
             if ($request->has("medium") === true && Media::find($request->medium) !== null) {
@@ -157,7 +157,7 @@ class EventController extends ApiController
      * @param Request $request The user request.
      * @param Event   $event   The related model.
      */
-    public function updateAttachments(Request $request, Event $event): JsonResponse
+    public function attachmentUpdate(Request $request, Event $event): JsonResponse
     {
         if (EventConductor::updatable($event) === true) {
             $mediaIds = $request->attachments;
@@ -204,7 +204,7 @@ class EventController extends ApiController
      * @param Event   $event   The model.
      * @param Media   $medium  The attachment medium.
      */
-    public function deleteAttachment(Request $request, Event $event, Media $medium): JsonResponse
+    public function attachmentDelete(Request $request, Event $event, Media $medium): JsonResponse
     {
         if (EventConductor::updatable($event) === true) {
             $attachments = $event->attachments;

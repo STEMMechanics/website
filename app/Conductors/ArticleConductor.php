@@ -32,13 +32,14 @@ class ArticleConductor extends Conductor
      *
      * @var string[]
      */
-    protected $includes = ['attachments', 'user'];
+    protected $includes = ['attachments', 'user', 'gallery'];
 
 
     /**
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
+     * @return void
      */
     public function scope(Builder $builder): void
     {
@@ -124,6 +125,19 @@ class ArticleConductor extends Conductor
     {
         return $model->attachments()->get()->map(function ($attachment) {
             return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
+        });
+    }
+
+    /**
+     * Include Gallery Field.
+     *
+     * @param Model $model Them model.
+     * @return mixed The model result.
+     */
+    public function includeGallery(Model $model)
+    {
+        return $model->gallery()->get()->map(function ($item) {
+            return MediaConductor::includeModel(request(), 'gallery', $item->media);
         });
     }
 

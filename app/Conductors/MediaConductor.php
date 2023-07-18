@@ -2,9 +2,9 @@
 
 namespace App\Conductors;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Auth\User;
 
 class MediaConductor extends Conductor
 {

@@ -137,7 +137,7 @@ watch(
     () => articlesPage.value,
     () => {
         handleLoad();
-    }
+    },
 );
 
 handleLoad();
