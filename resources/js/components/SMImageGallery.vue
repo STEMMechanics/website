@@ -18,6 +18,7 @@
                 class="max-h-40 max-w-40 cursor-pointer"
                 @click="showGalleryModal(index)" />
             <div
+                v-if="props.showEditor"
                 class="absolute rounded-5 bg-white -top-0.25 -right-0.25 hidden cursor-pointer item-delete"
                 @click="handleRemoveItem(image.id)">
                 <svg
