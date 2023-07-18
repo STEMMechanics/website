@@ -31,7 +31,7 @@
         "vitest": "^0.33.0"
     },
     "dependencies": {
-        "@tiptap/extension-highlight": "^2.0.3",
+        "@tiptap/extension-highlight": "^2.0.4",
         "@tiptap/extension-image": "^2.0.3",
         "@tiptap/extension-link": "^2.0.3",
         "@tiptap/extension-subscript": "^2.0.3",
