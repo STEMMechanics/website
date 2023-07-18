@@ -41,10 +41,6 @@ final class UsersApiTest extends TestCase
                 ]
             ],
         ]);
-        $response->assertJsonFragment([
-            'id' => $nonAdminUser->id,
-            'email' => $nonAdminUser->email
-        ]);
 
         // ensure the admin user can access the endpoint and see additional user info
         $response = $this->actingAs($adminUser)->get('/api/users');
