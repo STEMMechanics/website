@@ -6,28 +6,37 @@
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
         <SMLoading v-if="form.loading()" />
-		<div v-else class="max-w-7xl mx-auto px-8 mt-8">
+        <div v-else class="max-w-7xl mx-auto px-8 mt-8">
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
-                    <SMInput class="mb-8" control="title" autofocus @blur="updateSlug()" />
+                    <SMInput
+                        class="mb-8"
+                        control="title"
+                        autofocus
+                        @blur="updateSlug()" />
                 </div>
                 <div class="flex flex-col md:flex-row gap-4">
                     <SMInput class="mb-8" control="slug" />
                     <SMInput
-						class="mb-8"
+                        class="mb-8"
                         type="datetime"
                         control="publish_at"
                         label="Publish Date" />
                 </div>
                 <div>
-                    <SMSelectImage class="mb-8" control="hero" label="Hero image" required />
+                    <SMSelectImage
+                        class="mb-8"
+                        control="hero"
+                        label="Hero image"
+                        required
+                        allow-upload />
                 </div>
                 <div>
                     <SMDropdown
-						class="mb-8"
+                        class="mb-8"
                         control="user_id"
                         label="Created By"
                         type="select"
@@ -35,7 +44,7 @@
                 </div>
                 <div>
                     <SMEditor
-						class="mb-8"
+                        class="mb-8"
                         v-model:model-value="form.controls.content.value" />
                 </div>
                 <div class="mb-8">
