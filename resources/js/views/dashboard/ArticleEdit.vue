@@ -56,7 +56,10 @@
                     </p>
                     <SMImageGallery show-editor v-model:model-value="gallery" />
                 </div>
-                <SMInputAttachments v-model:model-value="attachments" />
+                <SMAttachments
+                    class="mb-8"
+                    show-editor
+                    v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">
                     <input
                         type="submit"
@@ -75,7 +78,7 @@ import SMEditor from "../../components/SMEditor.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
 import SMDropdown from "../../components/SMDropdown.vue";
-import SMInputAttachments from "../../components/SMInputAttachments.vue";
+import SMAttachments from "../../components/SMAttachments.vue";
 import { api } from "../../helpers/api";
 import { ArticleResponse, UserCollection } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
@@ -181,12 +184,7 @@ const loadData = async () => {
                 form.controls.content.value = data.article.content;
                 form.controls.hero.value = data.article.hero;
 
-                attachments.value = (data.article.attachments || []).map(
-                    function (attachment) {
-                        return attachment.id.toString();
-                    },
-                );
-
+                attachments.value = data.article.attachments;
                 gallery.value = data.article.gallery;
             } else {
                 pageError.value = 404;
@@ -211,6 +209,7 @@ const handleSubmit = async () => {
             content: form.controls.content.value,
             hero: form.controls.hero.value.id,
             gallery: gallery.value.map((item) => item.id),
+            attachments: attachments.value.map((item) => item.id),
         };
 
         let article_id = "";
@@ -235,13 +234,6 @@ const handleSubmit = async () => {
                 article_id = data.article.id;
             }
         }
-
-        await api.put({
-            url: `/articles/${article_id}/attachments`,
-            body: {
-                attachments: attachments.value,
-            },
-        });
 
         useToastStore().addToast({
             title: route.params.id ? "Article Updated" : "Article Created",

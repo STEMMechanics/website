@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasAttachments;
 use App\Traits\Uuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Event extends Model
 {
+    use HasAttachments;
     use HasFactory;
     use Uuids;
 
@@ -38,15 +40,9 @@ class Event extends Model
 
 
     /**
-     * Get all of the article's attachments.
-     */
-    public function attachments(): MorphMany
-    {
-        return $this->morphMany(\App\Models\Attachment::class, 'attachable');
-    }
-
-    /**
      * Get all the associated users.
+     *
+     * @return BelongsToMany
      */
     public function users(): BelongsToMany
     {

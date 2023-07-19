@@ -44,7 +44,7 @@ Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
 Route::apiResource('articles', ArticleController::class);
-Route::apiAddendumResource('attachments', 'articles', ArticleController::class);
+// Route::apiAddendumResource('attachments', 'articles', ArticleController::class);
 
 Route::apiResource('events', EventController::class);
 Route::apiAddendumResource('attachments', 'events', EventController::class);

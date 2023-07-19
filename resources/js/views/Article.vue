@@ -41,7 +41,7 @@
                 :model-value="article.gallery" />
             <SMAttachments
                 v-if="article.attachments.length > 0"
-                :attachments="article.attachments || []" />
+                :model-value="article.attachments || []" />
         </div>
     </template>
 </template>
@@ -136,6 +136,8 @@ const handleLoad = async () => {
                     "large",
                 );
                 applicationStore.setDynamicTitle(article.value.title);
+
+                console.log(article.value);
             } else {
                 pageStatus.value = 404;
             }

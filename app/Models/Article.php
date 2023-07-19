@@ -39,14 +39,4 @@ class Article extends Model
     {
         return $this->belongsTo(User::class);
     }
-
-    /**
-     * Get all of the article's attachments.
-     *
-     * @return Illuminate\Database\Eloquent\Relations\MorphMany
-     */
-    public function attachments(): MorphMany
-    {
-        return $this->morphMany(\App\Models\Attachment::class, 'attachable');
-    }
 }

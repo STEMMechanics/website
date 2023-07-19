@@ -1,28 +1,32 @@
 <template>
     <div>
         <SMHeader
-            v-if="props.attachments && props.attachments.length > 0"
+            v-if="showEditor || (modelValue && modelValue.length > 0)"
+            :no-copy="props.showEditor"
             text="Files" />
+        <p v-if="props.showEditor" class="small">
+            {{ modelValue.length }} file{{ modelValue.length != 1 ? "s" : "" }}
+        </p>
         <table
-            v-if="props.attachments && props.attachments.length > 0"
+            v-if="modelValue && modelValue.length > 0"
             class="w-full border-1 rounded-2 bg-white text-sm mt-2">
             <tbody>
-                <tr v-for="file of props.attachments" :key="file.id">
-                    <td class="py-2 pl-2">
+                <tr v-for="file of modelValue" :key="file.id">
+                    <td class="py-2 pl-2 hidden sm:block">
                         <img
                             :src="getFileIconImagePath(file.name || file.title)"
                             class="h-10 text-center" />
                     </td>
-                    <td class="">
+                    <td class="pl-2 py-4 w-full">
                         <a :href="file.url">{{ file.title || file.name }}</a>
                     </td>
-                    <td class="">
+                    <td class="pr-2">
                         <a :href="file.url + '?download=1'"
                             ><svg
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 xmlns="http://www.w3.org/2000/svg"
-                                class="h-5 text-gray">
+                                class="h-7 pt-1 text-gray">
                                 <path
                                     d="M12 10V20M12 20L9.5 17.5M12 20L14.5 17.5"
                                     stroke="currentColor"
@@ -37,12 +41,20 @@
                             </svg>
                         </a>
                     </td>
-                    <td class="text-xs text-gray">
+                    <td
+                        class="text-xs text-gray whitespace-nowrap pr-2 py-2 hidden sm:table-cell">
                         ({{ bytesReadable(file.size) }})
                     </td>
                 </tr>
             </tbody>
         </table>
+        <button
+            v-if="props.showEditor"
+            type="button"
+            class="font-medium mt-4 px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+            @click="handleClickAdd">
+            Add File
+        </button>
     </div>
 </template>
 
@@ -50,16 +62,53 @@
 import { bytesReadable } from "../helpers/types";
 import { getFileIconImagePath } from "../helpers/utils";
 import SMHeader from "../components/SMHeader.vue";
+import { openDialog } from "../components/SMDialog";
+import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
+import { Media } from "../helpers/api.types";
 
+const emits = defineEmits(["update:modelValue"]);
 const props = defineProps({
-    attachments: {
-        type: Object,
+    modelValue: {
+        type: Array,
+        default: () => [],
         required: true,
     },
+    showEditor: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
+
+/**
+ * Handle the user adding a new media item.
+ */
+const handleClickAdd = async () => {
+    let result = await openDialog(SMDialogMedia, {
+        mime: "",
+        accepts: "",
+        allowUpload: true,
+        multiple: true,
+    });
+
+    if (result) {
+        const mediaResult = result as Media[];
+        let newValue = props.modelValue;
+        let mediaIds = new Set(newValue.map((item) => item.id));
+
+        mediaResult.forEach((item) => {
+            if (!mediaIds.has(item.id)) {
+                newValue.push(item);
+                mediaIds.add(item.id);
+            }
+        });
+
+        emits("update:modelValue", newValue);
+    }
+};
 </script>
 
-<style lang="scss">
+<!-- <style lang="scss">
 .attachment-list {
     border: 1px solid var(--base-color);
     border-collapse: collapse;
@@ -154,4 +203,4 @@ const props = defineProps({
         }
     }
 }
-</style>
+</style> -->

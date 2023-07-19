@@ -1,6 +1,5 @@
 <template>
     <div class="input-attachments">
-        <label>Files</label>
         <ul>
             <li v-if="mediaItems.length == 0" class="attachments-none">
                 <ion-icon name="sad-outline"></ion-icon>
