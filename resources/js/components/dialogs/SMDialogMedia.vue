@@ -933,11 +933,18 @@ const handleLoad = async () => {
             if (result.data) {
                 const data = result.data as MediaCollection;
 
+                const mediaIds = new Set(
+                    mediaItems.value.map((item) => item.id),
+                );
+                const filteredItems = data.media.filter(
+                    (item) => !mediaIds.has(item.id),
+                );
+
                 totalItems.value = data.total;
-                mediaItems.value.push(...data.media);
+                mediaItems.value.push(...filteredItems);
             }
         })
-        .catch((error) => {
+        .catch(() => {
             /* empty */
         })
         .finally(() => {
