@@ -165,6 +165,7 @@ const handleAddToGallery = async () => {
     let result = await openDialog(SMDialogMedia, {
         allowUpload: true,
         multiple: true,
+        initial: props.modelValue,
     });
 
     if (result) {

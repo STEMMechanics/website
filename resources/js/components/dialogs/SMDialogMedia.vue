@@ -478,6 +478,11 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    initial: {
+        type: [Array, Object],
+        default: () => [],
+        required: false,
+    },
 });
 
 /**
@@ -1135,6 +1140,20 @@ const forceUpdate = () => {
     formLoading.value = false;
 };
 
+/**
+ * Load initial items
+ */
+const loadInitial = () => {
+    selected.value = Array.isArray(props.initial)
+        ? props.initial
+        : [props.initial];
+
+    totalItems.value = selected.value.length;
+    if (selected.value.length > 0) {
+        mediaItems.value.push(...selected.value);
+    }
+};
+
 // Get max upload size
 api.get({
     url: "",
@@ -1152,6 +1171,7 @@ api.get({
         /* empty */
     });
 
+loadInitial();
 handleLoad();
 </script>
 
