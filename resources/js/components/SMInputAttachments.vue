@@ -60,7 +60,7 @@ const mediaItems: Ref<Media[]> = ref([]);
  * Handle the user adding a new media item.
  */
 const handleClickAdd = async () => {
-    openDialog(SMDialogMedia, { mime: "", accepts: "" })
+    openDialog(SMDialogMedia, { mime: "", accepts: "", allowUpload: true })
         .then((result) => {
             const media = result as Media;
 
@@ -85,7 +85,7 @@ const handleClickRemove = (media_id: string) => {
     }
 
     const mediaIndex = mediaItems.value.findIndex(
-        (media) => media.id === media_id
+        (media) => media.id === media_id,
     );
     if (mediaIndex !== -1) {
         mediaItems.value.splice(mediaIndex, 1);
@@ -124,7 +124,7 @@ watch(
     (newValue) => {
         value.value = newValue;
         handleLoad();
-    }
+    },
 );
 
 handleLoad();
