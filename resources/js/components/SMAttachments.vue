@@ -41,6 +41,21 @@
                             </svg>
                         </a>
                     </td>
+                    <td v-if="props.showEditor" class="pr-2">
+                        <div
+                            class="cursor-pointer text-gray hover:text-red"
+                            @click.prevent="handleClickDelete(file.id)">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                class="h-7 pt-1"
+                                viewBox="0 0 24 24">
+                                <title>Delete</title>
+                                <path
+                                    d="M9,3V4H4V6H5V19A2,2 0 0,0 7,21H17A2,2 0 0,0 19,19V6H20V4H15V3H9M7,6H17V19H7V6M9,8V17H11V8H9M13,8V17H15V8H13Z"
+                                    fill="currentColor" />
+                            </svg>
+                        </div>
+                    </td>
                     <td
                         class="text-xs text-gray whitespace-nowrap pr-2 py-2 hidden sm:table-cell">
                         ({{ bytesReadable(file.size) }})
@@ -84,26 +99,35 @@ const props = defineProps({
  * Handle the user adding a new media item.
  */
 const handleClickAdd = async () => {
-    let result = await openDialog(SMDialogMedia, {
-        mime: "",
-        accepts: "",
-        allowUpload: true,
-        multiple: true,
-    });
-
-    if (result) {
-        const mediaResult = result as Media[];
-        let newValue = props.modelValue;
-        let mediaIds = new Set(newValue.map((item) => item.id));
-
-        mediaResult.forEach((item) => {
-            if (!mediaIds.has(item.id)) {
-                newValue.push(item);
-                mediaIds.add(item.id);
-            }
+    if (props.showEditor) {
+        let result = await openDialog(SMDialogMedia, {
+            mime: "",
+            accepts: "",
+            allowUpload: true,
+            multiple: true,
         });
 
-        emits("update:modelValue", newValue);
+        if (result) {
+            const mediaResult = result as Media[];
+            let newValue = props.modelValue;
+            let mediaIds = new Set(newValue.map((item) => item.id));
+
+            mediaResult.forEach((item) => {
+                if (!mediaIds.has(item.id)) {
+                    newValue.push(item);
+                    mediaIds.add(item.id);
+                }
+            });
+
+            emits("update:modelValue", newValue);
+        }
+    }
+};
+
+const handleClickDelete = (id: string) => {
+    if (props.showEditor == true) {
+        const newList = props.modelValue.filter((item) => item.id !== id);
+        emits("update:modelValue", newList);
     }
 };
 </script>
