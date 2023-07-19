@@ -13,6 +13,9 @@ return new class extends Migration
     {
         Schema::table('attachments', function (Blueprint $table) {
             $table->renameColumn('attachable_type', 'addendum_type');
+        });
+
+        Schema::table('attachments', function (Blueprint $table) {
             $table->renameColumn('attachable_id', 'addendum_id');
         });
     }
@@ -24,6 +27,9 @@ return new class extends Migration
     {
         Schema::table('attachments', function (Blueprint $table) {
             $table->renameColumn('addendum_type', 'attachable_type');
+        });
+
+        Schema::table('attachments', function (Blueprint $table) {
             $table->renameColumn('addendum_id', 'attachable_id');
         });
     }
