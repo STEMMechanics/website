@@ -230,7 +230,12 @@
                                 <div
                                     class="flex text-xs border-b border-gray-3 pb-4">
                                     <img
-                                        :src="lastSelected.url"
+                                        :src="
+                                            mediaGetVariantUrl(
+                                                lastSelected,
+                                                'thumb',
+                                            )
+                                        "
                                         class="max-h-20 max-w-20 mr-2" />
                                     <div class="flex flex-col">
                                         <p class="m-0 text-bold">
@@ -342,7 +347,7 @@
                                     item.url.length > 0
                                         ? `url('${mediaGetVariantUrl(
                                               item,
-                                              'small',
+                                              'thumb',
                                           )}')`
                                         : 'none',
                                 backgroundColor:
