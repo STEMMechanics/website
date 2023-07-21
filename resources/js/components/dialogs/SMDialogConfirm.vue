@@ -9,13 +9,13 @@
             <div class="flex flex-justify-between pt-4">
                 <button
                     type="button"
-                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :class="buttonClass(props.cancel.type)"
                     @click="handleClickCancel()">
                     {{ props.cancel.label }}
                 </button>
                 <button
                     type="button"
-                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :class="buttonClass(props.confirm.type)"
                     @click="handleClickConfirm()">
                     {{ props.confirm.label }}
                 </button>
@@ -89,6 +89,35 @@ const eventKeyUp = (event: KeyboardEvent): boolean => {
     }
 
     return false;
+};
+
+const buttonClass = (type: string): Array<string> => {
+    let baseClasses = [
+        "font-medium",
+        "px-6",
+        "py-1.5",
+        "rounded-md",
+        "hover:shadow-md",
+        "transition",
+        "text-sm",
+        "text-white",
+        "cursor-pointer",
+    ];
+
+    if (type === "secondary") {
+        baseClasses = baseClasses.concat(["bg-gray-400", "hover:bg-gray-300"]);
+    } else if (type === "danger") {
+        baseClasses = baseClasses.concat(["bg-red-600", "hover:bg-red-500"]);
+    } else if (type === "success") {
+        baseClasses = baseClasses.concat([
+            "bg-green-600",
+            "hover:bg-green-500",
+        ]);
+    } else {
+        baseClasses = baseClasses.concat(["bg-sky-600", "hover:bg-sky-500"]);
+    }
+
+    return baseClasses;
 };
 
 onMounted(() => {
