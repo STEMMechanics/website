@@ -31,24 +31,24 @@
                 <div class="flex flex-col md:flex-row gap-4">
                     <SMInput
                         type="datetime"
-						class="mb-4"
+                        class="mb-4"
                         control="start_at"
                         label="Start Date/Time" />
                     <SMInput
                         type="datetime"
-						class="mb-4"
+                        class="mb-4"
                         control="end_at"
                         label="End Date/Time" />
                 </div>
                 <div class="flex flex-col md:flex-row gap-4">
                     <SMInput
                         type="datetime"
-						class="mb-4"
+                        class="mb-4"
                         control="publish_at"
                         label="Publish Date/Time" />
                     <SMDropdown
                         type="select"
-						class="mb-4"
+                        class="mb-4"
                         control="status"
                         :options="{
                             draft: 'Draft',
@@ -71,7 +71,7 @@
                 <div class="flex flex-col md:flex-row gap-4">
                     <SMDropdown
                         type="select"
-						class="mb-4"
+                        class="mb-4"
                         control="registration_type"
                         label="Registration"
                         :options="{
@@ -82,7 +82,7 @@
                         }" />
                     <SMInput
                         v-if="registration_data?.visible"
-						class="mb-4"
+                        class="mb-4"
                         control="registration_data"
                         :label="registration_data?.title"
                         :type="registration_data?.type" />
@@ -96,7 +96,7 @@
                 <SMEditor
                     class="mb-8"
                     v-model:model-value="form.controls.content.value" />
-                <SMInputAttachments :model-value="attachments" />
+                <SMAttachments v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">
                     <input
                         type="submit"
@@ -125,7 +125,7 @@ import {
     Required,
     Url,
 } from "../../helpers/validate";
-import SMInputAttachments from "../../components/SMInputAttachments.vue";
+import SMAttachments from "../../components/SMAttachments.vue";
 import SMForm from "../../components/SMForm.vue";
 import { EventResponse } from "../../helpers/api.types";
 import { useToastStore } from "../../store/ToastStore";
@@ -291,11 +291,7 @@ const loadData = async () => {
             form.controls.price.value = data.event.price;
             form.controls.ages.value = data.event.ages;
 
-            attachments.value = (data.event.attachments || []).map(
-                function (attachment) {
-                    return attachment.id.toString();
-                },
-            );
+            attachments.value = data.event.attachments;
         } catch (err) {
             pageError.value = err.status;
         } finally {
@@ -330,6 +326,7 @@ const handleSubmit = async () => {
             hero: form.controls.hero.value.id,
             price: form.controls.price.value,
             ages: form.controls.ages.value,
+            attachments: attachments.value.map((item) => item.id),
         };
 
         let event_id = "";
@@ -354,13 +351,6 @@ const handleSubmit = async () => {
                 event_id = data.event.id;
             }
         }
-
-        await api.put({
-            url: `/events/${event_id}/attachments`,
-            body: {
-                attachments: attachments.value,
-            },
-        });
 
         useToastStore().addToast({
             title: route.params.id ? "Event Updated" : "Event Created",
