@@ -222,7 +222,7 @@ const handleLoad = async () => {
                 row.start_at = new SMDate(row.start_at, {
                     format: "ymd",
                     utc: true,
-                }).format("MMM d yyyy, H:mm aa");
+                }).format("MMM d yyyy, HH:mm aa");
             }
             if (row.end_at !== "undefined") {
                 row.end_at = new SMDate(row.end_at, {
@@ -296,7 +296,7 @@ const handleDuplicate = async (item: Event): Promise<void> => {
             end_at: new SMDate(item.end_at, {
                 format: "dmy",
             }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
-            status: item.status,
+            status: "Draft",
             publish_at:
                 item.publish_at == ""
                     ? ""
