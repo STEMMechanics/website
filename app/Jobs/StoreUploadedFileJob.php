@@ -78,12 +78,12 @@ class StoreUploadedFileJob implements ShouldQueue
             if ($fileExtension === 'heic') {
                 // Get the path without the file name
                 $uploadedFileDirectory = dirname($this->uploadedFilePath);
-                
+
                 // Convert the HEIC file to JPG
                 $jpgFileName = pathinfo($this->uploadedFilePath, PATHINFO_FILENAME) . '.jpg';
                 $jpgFilePath = $uploadedFileDirectory . '/' . $jpgFileName;
                 Image::make($this->uploadedFilePath)->save($jpgFilePath);
-                
+
                 // Update the uploaded file path and file name
                 $this->uploadedFilePath = $jpgFilePath;
                 $fileName = $jpgFileName;
@@ -155,6 +155,7 @@ class StoreUploadedFileJob implements ShouldQueue
                                 $image->resize($size['width'], $size['height'], function ($constraint) {
                                     $constraint->aspectRatio();
                                     $constraint->upsize();
+                                    $constraint->background('rgba(0,0,0,0)'); // Set transparent background
                                 });
                                 $image->resizeCanvas($size['width'], $size['height'], 'center', false, '#FFFFFF');
                             }
