@@ -149,7 +149,7 @@ const handleLoad = async () => {
             delete query["filter"];
         }
 
-        if (Object.keys(query).length == 0) {
+        if (!filterDateRange.value || filterDateRange.value.length === 0) {
             const now = new Date();
             const startingDate = new Date(now.setDate(now.getDate() - 14));
 
@@ -202,7 +202,7 @@ watch(
     () => postsPage.value,
     () => {
         handleLoad();
-    }
+    },
 );
 
 handleLoad();
