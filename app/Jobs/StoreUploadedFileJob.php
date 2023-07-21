@@ -126,6 +126,18 @@ class StoreUploadedFileJob implements ShouldQueue
 
                 $originalImage = Image::make($this->uploadedFilePath);
 
+                $imageSize = $originalImage->getSize();
+                $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
+
+                // Swap width and height values for portrait images
+                foreach ($sizes as $variantName => &$size) {
+                    if ($isPortrait === true) {
+                        $temp = $size['width'];
+                        $size['width'] = $size['height'];
+                        $size['height'] = $temp;
+                    }
+                }
+
                 $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
                 $this->media->dimensions = implode('x', $dimensions);
 
@@ -147,7 +159,8 @@ class StoreUploadedFileJob implements ShouldQueue
                             // Store the variant in the variants array
                             $variants[$variantName] = $newFilename;
 
-                            // Resize the image to the variant size if its dimensions are greater than the specified size
+                            // Resize the image to the variant size if its dimensions are greater than the
+                            // specified size
                             $image = clone $originalImage;
 
                             $imageSize = $image->getSize();
@@ -159,6 +172,8 @@ class StoreUploadedFileJob implements ShouldQueue
                                 });
                                 $image->resizeCanvas($size['width'], $size['height'], 'center', false, '#FFFFFF');
                             }
+
+                            $image->orientate();
 
                             // Optimize and store image
                             $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
