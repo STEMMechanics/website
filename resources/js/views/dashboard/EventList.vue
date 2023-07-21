@@ -284,26 +284,51 @@ const handleView = (item: Event): void => {
  * @param item
  */
 const handleDuplicate = async (item: Event): Promise<void> => {
-    // try {
-    //     let result = await api.post({
-    //         url: "/events",
-    //         body: item,
-    //     });
-    //     toastStore.addToast({
-    //         title: "Event Duplicated",
-    //         content:
-    //             "The event has been duplicated.",
-    //         type: "success",
-    //     });
-    //     router.push({ name: "dashboard-event-edit", params: { id: result.id } });
-    // } catch {
-    //     toastStore.addToast({
-    //         title: "Server Error",
-    //         content:
-    //             "An error occurred duplicating the event.",
-    //         type: "danger",
-    //     });
-    // }
+    try {
+        let data = {
+            title: `Copy of ${item.title}`,
+            location: item.location,
+            location_url: item.location_url,
+            address: item.address,
+            start_at: new SMDate(item.start_at, {
+                format: "dmy",
+            }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
+            end_at: new SMDate(item.end_at, {
+                format: "dmy",
+            }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
+            status: item.status,
+            publish_at:
+                item.publish_at == ""
+                    ? ""
+                    : new SMDate(item.publish_at, {
+                          format: "dmy",
+                      }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
+            registration_type: item.registration_type,
+            registration_data: item.registration_data,
+            content: item.content,
+            hero: item.hero.id,
+            price: item.price,
+            ages: item.ages,
+            attachments: item.attachments.map((item) => item.id),
+        };
+
+        await api.post({
+            url: "/events",
+            body: data,
+        });
+
+        useToastStore().addToast({
+            title: "Event Duplicated",
+            content: "The event has been duplicated.",
+            type: "success",
+        });
+    } catch (error) {
+        useToastStore().addToast({
+            title: "Server error",
+            content: "An error occurred duplicating the event.",
+            type: "danger",
+        });
+    }
 };
 
 /**
