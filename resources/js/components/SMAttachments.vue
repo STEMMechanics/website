@@ -18,7 +18,9 @@
                             class="h-10 text-center" />
                     </td>
                     <td class="pl-2 py-4 w-full">
-                        <a :href="file.url">{{ file.title || file.name }}</a>
+                        <a :href="file.url" target="_blank">{{
+                            file.title || file.name
+                        }}</a>
                     </td>
                     <td class="pr-2">
                         <a :href="file.url + '?download=1'"
