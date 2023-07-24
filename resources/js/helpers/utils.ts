@@ -119,15 +119,20 @@ export const userHasPermission = (permission: string): boolean => {
  */
 export const convertFileNameToTitle = (fileName: string): string => {
     // Remove file extension
-    const fileNameWithoutExtension = fileName.replace(/\.[^/.]+$/, "");
+    fileName = fileName.replace(/\.[^/.]+$/, "");
 
-    // Replace dash and underscore with space
-    const fileNameWithSpaces = fileNameWithoutExtension.replace(/[-_]/g, " ");
+    // Replace underscores with space
+    fileName = fileName.replace(/_/g, " ");
+
+    // Replace dashes that are not surrounded by spaces with space
+    fileName = fileName.replace(/(?<! )-(?! )/g, " ");
+
+    // Remove double spaces
+    fileName = fileName.replace(/\s{2,}/g, " ");
 
     // Capitalize the first letter and convert to lowercase
-    const capitalizedFileName =
-        fileNameWithSpaces.charAt(0).toUpperCase() +
-        fileNameWithSpaces.slice(1).toLowerCase();
+    fileName =
+        fileName.charAt(0).toUpperCase() + fileName.slice(1).toLowerCase();
 
-    return capitalizedFileName;
+    return fileName;
 };
