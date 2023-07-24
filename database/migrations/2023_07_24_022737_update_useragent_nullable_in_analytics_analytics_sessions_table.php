@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('analytics', function (Blueprint $table) {
+        Schema::table('analytics_sessions', function (Blueprint $table) {
             $table->text('useragent')->nullable()->change();
         });
     }
@@ -21,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('analytics', function (Blueprint $table) {
+        Schema::table('analytics_sessions', function (Blueprint $table) {
             $table->text('useragent')->change();
         });
     }
