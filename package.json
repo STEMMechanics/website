@@ -45,7 +45,7 @@
         "dompurify": "^3.0.4",
         "dotenv": "^16.0.3",
         "pinia": "^2.0.28",
-        "pinia-plugin-persistedstate": "^3.0.1",
+        "pinia-plugin-persistedstate": "^3.2.0",
         "sass": "^1.64.1",
         "vue": "^3.2.36",
         "vue-router": "^4.2.2"
