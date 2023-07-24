@@ -22,6 +22,17 @@ class AnalyticsSession extends Model
     ];
 
     /**
+     * Set the "useragent" attribute.
+     *
+     * @param  mixed  $value
+     * @return void
+     */
+    public function setUseragentAttribute($value)
+    {
+        $this->attributes['useragent'] = $value !== null ? $value : '';
+    }
+    
+    /**
      * Returns the related requests for this session.
      * 
      * @return Illuminate\Database\Eloquent\Relations\HasMany
