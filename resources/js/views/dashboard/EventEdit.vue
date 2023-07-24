@@ -96,7 +96,10 @@
                 <SMEditor
                     class="mb-8"
                     v-model:model-value="form.controls.content.value" />
-                <SMAttachments v-model:model-value="attachments" />
+                <SMAttachments
+                    class="mb-8"
+                    show-editor
+                    v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">
                     <input
                         type="submit"
