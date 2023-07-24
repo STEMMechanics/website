@@ -67,7 +67,12 @@ class EventController extends ApiController
     public function store(EventRequest $request)
     {
         if (EventConductor::creatable() === true) {
-            $event = Event::create($request->all());
+            $event = Event::create($request->except(['attachments']));
+
+            if ($request->has('attachments') === true) {
+                $event->attachmentsAddMany($request->get('attachments'));
+            }
+
             return $this->respondAsResource(
                 EventConductor::model($request, $event),
                 ['respondCode' => HttpResponseCodes::HTTP_CREATED]
@@ -87,7 +92,12 @@ class EventController extends ApiController
     public function update(EventRequest $request, Event $event)
     {
         if (EventConductor::updatable($event) === true) {
-            $event->update($request->all());
+            if ($request->has('attachments') === true) {
+                $event->attachments()->delete();
+                $event->attachmentsAddMany($request->get('attachments'));
+            }
+
+            $event->update($request->except(['attachments']));
             return $this->respondAsResource(EventConductor::model($request, $event));
         }
 
@@ -108,126 +118,6 @@ class EventController extends ApiController
         } else {
             return $this->respondForbidden();
         }
-    }
-
-    /**
-     * Get a list of attachments related to this model.
-     *
-     * @param Request $request The user request.
-     * @param Event   $event   The event model.
-     * @return JsonResponse Returns the event attachments.
-     */
-    public function attachmentIndex(Request $request, Event $event): JsonResponse
-    {
-        if (EventConductor::viewable($event) === true) {
-            $medium = $event->attachments->map(function ($attachment) {
-                return $attachment->media;
-            });
-
-            return $this->respondAsResource(MediaConductor::collection($request, $medium), ['isCollection' => true, 'resourceName' => 'attachment']);
-        }
-
-        return $this->respondForbidden();
-    }
-
-    /**
-     * Store an attachment related to this model.
-     *
-     * @param Request $request The user request.
-     * @param Event   $event   The event model.
-     * @return JsonResponse The response.
-     */
-    public function attachmentStore(Request $request, Event $event): JsonResponse
-    {
-        if (EventConductor::updatable($event) === true) {
-            if ($request->has("medium") === true && Media::find($request->medium) !== null) {
-                $event->attachments()->create(['media_id' => $request->medium]);
-                return $this->respondCreated();
-            }
-
-            return $this->respondWithErrors(['media' => 'The media ID was not found']);
-        }
-
-        return $this->respondForbidden();
-    }
-
-    /**
-     * Update/replace attachments related to this model.
-     *
-     * @param Request $request The user request.
-     * @param Event   $event   The related model.
-     */
-    public function attachmentUpdate(Request $request, Event $event): JsonResponse
-    {
-        if (EventConductor::updatable($event) === true) {
-            $mediaIds = $request->attachments;
-            if (is_array($mediaIds) === false) {
-                $mediaIds = explode(',', $request->attachments);
-            }
-
-            $mediaIds = array_map('trim', $mediaIds); // trim each media ID
-            $attachments = $event->attachments;
-
-            // Delete attachments that are not in $mediaIds
-            foreach ($attachments as $attachment) {
-                if (in_array($attachment->media_id, $mediaIds) === false) {
-                    $attachment->delete();
-                }
-            }
-
-            // Create new attachments for media IDs that are not already in $article->attachments()
-            foreach ($mediaIds as $mediaId) {
-                $found = false;
-
-                foreach ($attachments as $attachment) {
-                    if ($attachment->media_id === $mediaId) {
-                        $found = true;
-                        break;
-                    }
-                }
-
-                if ($found === false) {
-                    $event->attachments()->create(['media_id' => $mediaId]);
-                }
-            }
-
-            return $this->respondNoContent();
-        }//end if
-
-        return $this->respondForbidden();
-    }
-
-    /**
-     * Delete a specific related attachment.
-     *
-     * @param Request $request The user request.
-     * @param Event   $event   The model.
-     * @param Media   $medium  The attachment medium.
-     */
-    public function attachmentDelete(Request $request, Event $event, Media $medium): JsonResponse
-    {
-        if (EventConductor::updatable($event) === true) {
-            $attachments = $event->attachments;
-            $deleted = false;
-
-            foreach ($attachments as $attachment) {
-                if ($attachment->media_id === $medium->id) {
-                    $attachment->delete();
-                    $deleted = true;
-                    break;
-                }
-            }
-
-            if ($deleted === true) {
-                // Attachment was deleted successfully
-                return $this->respondNoContent();
-            } else {
-                // Attachment with matching media ID was not found
-                return $this->respondNotFound();
-            }
-        }
-
-        return $this->respondForbidden();
     }
 
     public function userList(Request $request, Event $event)
