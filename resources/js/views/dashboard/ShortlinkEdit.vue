@@ -22,7 +22,7 @@
                     type="static"
                     v-model="used"
                     label="Times used" />
-                <SMInput class="mt-4" control="url" />
+                <SMInput class="mb-8" control="url" />
 
                 <input
                     role="button"
