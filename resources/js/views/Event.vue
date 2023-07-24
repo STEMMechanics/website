@@ -23,8 +23,8 @@
                 class="max-w-4xl mx-auto px-4 flex flex-col-reverse sm:flex-row">
                 <div class="sm:pr-8 mt-4 sm:mt-0">
                     <h1 class="pb-6">{{ event.title }}</h1>
-                    <SMHTML :html="event.content" class="workshop-content" />
-                    <SMAttachments :attachments="event.attachments || []" />
+                    <SMHTML class="mb-8" :html="event.content" />
+                    <SMAttachments :model-value="event.attachments" />
                 </div>
                 <div class="sm:min-w-68">
                     <div
