@@ -57,15 +57,16 @@ let form = reactive(
     Form({
         code: FormControl("", And([Required(), Length(4)])),
         url: FormControl("", And([Required(), Min(4), Max(255)])),
-    })
+    }),
 );
 
 const used = ref(0);
 
 /**
  * Load the page data.
+ * @param enableFormCallBack
  */
-const loadData = async () => {
+const loadData = async (enableFormCallBack) => {
     if (route.params.id) {
         try {
             form.loading(true);
@@ -91,6 +92,8 @@ const loadData = async () => {
                     type: "danger",
                 });
             });
+
+            enableFormCallBack();
         } finally {
             form.loading(false);
         }

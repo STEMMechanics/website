@@ -12,7 +12,10 @@
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
-                    <SMImage v-if="!editMultiple" class="mb-8" :src="imageUrl" />
+                    <SMImage
+                        v-if="!editMultiple"
+                        class="mb-8"
+                        :src="imageUrl" />
                     <SMImageStack v-else class="mb-8" :src="imageStackUrls" />
                 </div>
                 <SMInputFile
@@ -22,26 +25,30 @@
                     class="mb-8" />
                 <SMInput control="title" class="mb-8" />
                 <SMInput control="permission" class="mb-8" />
-                <div v-if="!editMultiple" class="flex flex-col md:flex-row gap-4">
+                <div
+                    v-if="!editMultiple"
+                    class="flex flex-col md:flex-row gap-4">
                     <SMInput
-						class="mb-8"
+                        class="mb-8"
                         v-model="computedFileSize"
                         type="static"
                         label="File Size" />
                     <SMInput
                         class="mb-8"
-						v-model="fileData.mime_type"
+                        v-model="fileData.mime_type"
                         type="static"
                         label="File Mime Type" />
                 </div>
-                <div v-if="!editMultiple" class="flex flex-col md:flex-row gap-4">
+                <div
+                    v-if="!editMultiple"
+                    class="flex flex-col md:flex-row gap-4">
                     <SMInput
-						class="mb-8"
+                        class="mb-8"
                         v-model="fileData.status"
                         type="static"
                         label="Status" />
                     <SMInput
-						class="mb-8"
+                        class="mb-8"
                         v-model="fileData.dimensions"
                         type="static"
                         label="Dimensions" />
@@ -110,7 +117,7 @@ const form = reactive(
         title: FormControl(),
         description: FormControl(),
         permission: FormControl(),
-    })
+    }),
 );
 
 const fileData = reactive({
@@ -177,7 +184,7 @@ const handleLoad = async () => {
     pageLoading.value = false;
 };
 
-const handleSubmit = async () => {
+const handleSubmit = async (enableFormCallBack) => {
     try {
         form.loading(true);
         if (editMultiple === false) {
@@ -191,11 +198,11 @@ const handleSubmit = async () => {
             submitData.append("title", form.controls.title.value as string);
             submitData.append(
                 "permission",
-                form.controls.permission.value as string
+                form.controls.permission.value as string,
             );
             submitData.append(
                 "description",
-                form.controls.description.value as string
+                form.controls.description.value as string,
             );
 
             if (route.params.id) {
@@ -210,7 +217,7 @@ const handleSubmit = async () => {
                     },
                     progress: (progressEvent) =>
                         (progressText.value = `Uploading File: ${Math.floor(
-                            (progressEvent.loaded / progressEvent.total) * 100
+                            (progressEvent.loaded / progressEvent.total) * 100,
                         )}%`),
                 });
             } else {
@@ -222,7 +229,7 @@ const handleSubmit = async () => {
                     },
                     progress: (progressEvent) =>
                         (progressText.value = `Uploading File: ${Math.floor(
-                            (progressEvent.loaded / progressEvent.total) * 100
+                            (progressEvent.loaded / progressEvent.total) * 100,
                         )}%`),
                 });
             }
@@ -293,6 +300,8 @@ const handleSubmit = async () => {
             content: "An error occurred saving the media.",
             type: "danger",
         });
+
+        enableFormCallBack();
     } finally {
         progressText.value = "";
         form.loading(false);
@@ -364,7 +373,7 @@ watch(
                 .toLowerCase()
                 .replace(/\b\w/g, (c) => c.toUpperCase());
         }
-    }
+    },
 );
 
 handleLoad();

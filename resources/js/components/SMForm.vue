@@ -30,7 +30,7 @@ watch(
         if (!status) {
             enableFormInputs();
         }
-    }
+    },
 );
 
 /**
@@ -49,7 +49,9 @@ const handleSubmit = async function () {
     }
 
     if (await props.modelValue.validate()) {
-        emits("submit");
+        emits("submit", () => {
+            enableFormInputs();
+        });
     } else {
         emits("failedValidation");
         enableFormInputs();

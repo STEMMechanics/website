@@ -114,7 +114,7 @@ let form = reactive(
         last_name: FormControl("", Custom(customRequire)),
         email: FormControl("", And([Required(), Email()])),
         phone: FormControl("", Phone()),
-    })
+    }),
 );
 
 const permissions = ref({
@@ -168,8 +168,9 @@ const loadData = async () => {
 
 /**
  * Handle the user submitting the form.
+ * @param enableFormCallBack
  */
-const handleSubmit = async () => {
+const handleSubmit = async (enableFormCallBack) => {
     try {
         form.loading(true);
         const id = route.params.id ? route.params.id : userStore.id;
@@ -237,6 +238,8 @@ const handleSubmit = async () => {
                 type: "danger",
             });
         });
+
+        enableFormCallBack();
     } finally {
         form.loading(false);
     }

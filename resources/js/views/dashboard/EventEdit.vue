@@ -303,7 +303,7 @@ const loadData = async () => {
     }
 };
 
-const handleSubmit = async () => {
+const handleSubmit = async (enableFormCallBack) => {
     try {
         let data = {
             title: form.controls.title.value,
@@ -376,6 +376,7 @@ const handleSubmit = async () => {
             content: "An error occurred saving the event.",
             type: "danger",
         });
+        enableFormCallBack();
     }
 };
 
