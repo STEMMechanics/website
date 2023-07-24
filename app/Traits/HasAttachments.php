@@ -34,9 +34,9 @@ trait HasAttachments
         }
 
         $ids = array_map('trim', $ids);
-        $existingIds = $this->gallery()->pluck('media_id')->toArray();
+        $existingIds = $this->attachments()->pluck('media_id')->toArray();
 
-        $galleryItems = [];
+        $attachmentItems = [];
         foreach ($ids as $id) {
             if ($allowDuplicates === false && in_array($id, $existingIds) === true) {
                 continue;
@@ -44,11 +44,11 @@ trait HasAttachments
 
             $media = Media::find($id);
             if ($media !== null) {
-                $galleryItems[] = ['media_id' => $id];
+                $attachmentItems[] = ['media_id' => $id];
             }
         }
 
-        $this->attachments()->createMany($galleryItems);
+        $this->attachments()->createMany($attachmentItems);
     }
 
     /**
