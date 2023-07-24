@@ -168,9 +168,8 @@ class StoreUploadedFileJob implements ShouldQueue
                                 $image->resize($size['width'], $size['height'], function ($constraint) {
                                     $constraint->aspectRatio();
                                     $constraint->upsize();
-                                    $constraint->background('rgba(0,0,0,0)'); // Set transparent background
                                 });
-                                $image->resizeCanvas($size['width'], $size['height'], 'center', false, '#FFFFFF');
+                                $image->resizeCanvas($size['width'], $size['height'], 'center', false, 'rgba(0,0,0,0)');
                             }
 
                             $image->orientate();
