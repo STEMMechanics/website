@@ -63,6 +63,9 @@
                     class="sm-table-events"
                     :headers="headers"
                     :items="items">
+                    <template #item-start_at="item">{{
+                        formattedDate(item.start_at)
+                    }}</template>
                     <template #item-location="item"
                         >{{ parseEventLocation(item) }}
                     </template>
@@ -138,7 +141,7 @@ import { ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { openDialog } from "../../components/SMDialog";
 import { api } from "../../helpers/api";
-import { EventCollection, Event } from "../../helpers/api.types";
+import { EventCollection, Event, EventResponse } from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { updateRouterParams } from "../../helpers/url";
 import { useToastStore } from "../../store/ToastStore";
@@ -218,37 +221,6 @@ const handleLoad = async () => {
 
         const data = result.data as EventCollection;
         data.events.forEach(async (row) => {
-            if (row.start_at !== "undefined") {
-                row.start_at = new SMDate(row.start_at, {
-                    format: "ymd",
-                    utc: true,
-                }).format("MMM d yyyy, HH:mm aa");
-            }
-            if (row.end_at !== "undefined") {
-                row.end_at = new SMDate(row.end_at, {
-                    format: "ymd",
-                    utc: true,
-                }).relative();
-            }
-            if (row.publish_at !== "undefined") {
-                row.publish_at = new SMDate(row.publish_at, {
-                    format: "ymd",
-                    utc: true,
-                }).relative();
-            }
-            if (row.created_at !== "undefined") {
-                row.created_at = new SMDate(row.created_at, {
-                    format: "ymd",
-                    utc: true,
-                }).relative();
-            }
-            if (row.updated_at !== "undefined") {
-                row.updated_at = new SMDate(row.updated_at, {
-                    format: "ymd",
-                    utc: true,
-                }).relative();
-            }
-
             items.value.push(row);
         });
 
@@ -265,6 +237,13 @@ const handleLoad = async () => {
     } finally {
         itemsLoading.value = false;
     }
+};
+
+const formattedDate = (d: string): string => {
+    return new SMDate(d, {
+        format: "ymd",
+        utc: true,
+    }).format("MMM d yyyy, h:mm aa");
 };
 
 /**
@@ -290,39 +269,42 @@ const handleDuplicate = async (item: Event): Promise<void> => {
             location: item.location,
             location_url: item.location_url,
             address: item.address,
-            start_at: new SMDate(item.start_at, {
-                format: "dmy",
-            }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
-            end_at: new SMDate(item.end_at, {
-                format: "dmy",
-            }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
-            status: "Draft",
-            publish_at:
-                item.publish_at == ""
-                    ? ""
-                    : new SMDate(item.publish_at, {
-                          format: "dmy",
-                      }).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
+            start_at: item.start_at,
+            end_at: item.end_at,
+            status: "draft",
+            publish_at: item.publish_at,
             registration_type: item.registration_type,
             registration_data: item.registration_data,
             content: item.content,
             hero: item.hero.id,
             price: item.price,
             ages: item.ages,
-            attachments: item.attachments.map((item) => item.id),
+            attachments: item.attachments.map((item) => item.id).join(","),
         };
 
-        await api.post({
+        let result = await api.post({
             url: "/events",
             body: data,
         });
 
+        let event = result.data as EventResponse;
         useToastStore().addToast({
             title: "Event Duplicated",
             content: "The event has been duplicated.",
             type: "success",
         });
+
+        router.push({
+            name: "dashboard-event-edit",
+            params: { id: event.event.id },
+            query: {
+                return: encodeURIComponent(
+                    window.location.pathname + window.location.search,
+                ),
+            },
+        });
     } catch (error) {
+        console.log(error);
         useToastStore().addToast({
             title: "Server error",
             content: "An error occurred duplicating the event.",
@@ -353,7 +335,7 @@ const handleEdit = (item: Event) => {
  */
 const handleDelete = async (item: Event) => {
     let result = await openDialog(SMDialogConfirm, {
-        title: "Delete File?",
+        title: "Delete Event?",
         text: `Are you sure you want to delete the event <strong>${item.title}</strong>?`,
         cancel: {
             type: "secondary",
@@ -361,7 +343,7 @@ const handleDelete = async (item: Event) => {
         },
         confirm: {
             type: "danger",
-            label: "Delete File",
+            label: "Delete",
         },
     });
 
@@ -374,12 +356,18 @@ const handleDelete = async (item: Event) => {
                 },
             });
 
+            const index = items.value.findIndex(
+                (lookupItem) => item.id === lookupItem.id,
+            );
+            if (index !== -1) {
+                items.value.splice(index, 1);
+            }
+
             toastStore.addToast({
                 title: "Event Deleted",
                 content: `The event ${item.title} has been deleted.`,
                 type: "success",
             });
-            handleLoad();
         } catch (error) {
             toastStore.addToast({
                 title: "Error Deleting Event",
