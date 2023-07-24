@@ -50,7 +50,7 @@
 		.sm-html pre { padding: 0 1rem; line-height: 1rem; }
 		.sm-html blockquote { border-left: 4px solid #ddd; margin-left: 1rem; padding-left: 1rem; }
 		.sm-html p.info, .sm-html p.success, .sm-html p.warning, .sm-html p.danger { display: flex; border-radius: 0.5rem; padding: 0.5rem 1rem 0.5rem 0.75rem; margin: 0.5rem; font-size: 80%; }
-		.sm-html p.info::before, .sm-html p.success::before, .sm-html p.warning::before, .sm-html p.danger::before { display: inline-block; width: 1.5rem; height: 1.5rem; margin-right: 0.5rem; margin-top: 0.1rem; }
+		.sm-html p.info::before, .sm-html p.success::before, .sm-html p.warning::before, .sm-html p.danger::before { display: inline-block; width: 1.5rem; height: 1.5rem; margin-right: 0.5rem; margin-top: 0.1rem; flex-shrink: 0; }
 		.sm-html p.info { border: 1px solid rgba(14,165,233,1); background-color: rgba(14,165,233,0.25); }
 		.sm-html p.info::before { color: rgba(14,165,233,1); content: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' %3E%3Cpath d='M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z' fill='rgba(14,165,233,1)' /%3E%3C/svg%3E"); }
 		.sm-html p.success { border: 1px solid rgba(22,163,74,1); background-color: rgba(22,163,74,0.25); }
