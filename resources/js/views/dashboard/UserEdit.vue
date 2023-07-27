@@ -16,17 +16,17 @@
                     : 'Back to Dashboard'
             " />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-4xl mx-auto px-8 mb-8">
+        <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm :model-value="form" @submit="handleSubmit">
-                <SMInput class="mb-8" control="display_name" autofocus />
-                <SMInput class="mb-8" control="email" type="email" />
-                <SMInput class="mb-8" control="first_name"
+                <SMInput class="mb-4" control="display_name" autofocus />
+                <SMInput class="mb-4" control="email" type="email" />
+                <SMInput class="mb-4" control="first_name"
                     >This field is optional</SMInput
                 >
-                <SMInput class="mb-8" control="last_name"
+                <SMInput class="mb-4" control="last_name"
                     >This field is optional</SMInput
                 >
-                <SMInput class="mb-8" control="phone"
+                <SMInput class="mb-4" control="phone"
                     >This field is optional</SMInput
                 >
                 <template v-if="userStore.permissions.includes('admin/users')">
@@ -79,7 +79,6 @@ import { userHasPermission } from "../../helpers/utils";
 import SMLoading from "../../components/SMLoading.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMCheckbox from "../../components/SMCheckbox.vue";
-import { initCard } from "../../helpers/square";
 
 const route = useRoute();
 const router = useRouter();
@@ -258,8 +257,6 @@ const pageHeading = computed(() => {
 const computedSubmitLabel = computed(() => {
     return isCreating ? "Create" : "Update";
 });
-
-const refPaymentForm = ref(null);
 
 loadData();
 // initCard();

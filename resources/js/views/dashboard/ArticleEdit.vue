@@ -6,29 +6,29 @@
             :back-link="{ name: 'dashboard-article-list' }"
             back-title="Back to Articles" />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-7xl mx-auto px-8 mt-8">
+        <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         control="title"
                         autofocus
                         @blur="updateSlug()" />
                 </div>
                 <div class="flex flex-col md:flex-row gap-4">
-                    <SMInput class="mb-8" control="slug" />
+                    <SMInput class="mb-4" control="slug" />
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         type="datetime"
                         control="publish_at"
                         label="Publish Date" />
                 </div>
                 <div>
                     <SMSelectImage
-                        class="mb-8"
+                        class="mb-4"
                         control="hero"
                         label="Hero image"
                         required
@@ -36,7 +36,7 @@
                 </div>
                 <div>
                     <SMDropdown
-                        class="mb-8"
+                        class="mb-4"
                         control="user_id"
                         label="Created By"
                         type="select"
@@ -44,20 +44,18 @@
                 </div>
                 <div>
                     <SMEditor
-                        class="mb-8"
+                        class="mb-4"
                         v-model:model-value="form.controls.content.value" />
                 </div>
-                <div class="mb-8">
-                    <h3>Gallery</h3>
-                    <p class="small">
-                        {{ gallery.length }} image{{
-                            gallery.length != 1 ? "s" : ""
-                        }}
-                    </p>
-                    <SMImageGallery show-editor v-model:model-value="gallery" />
-                </div>
+                <h2 class="mt-8">Gallery</h2>
+                <p class="small">
+                    {{ gallery.length }} image{{
+                        gallery.length != 1 ? "s" : ""
+                    }}
+                </p>
+                <SMImageGallery show-editor v-model:model-value="gallery" />
                 <SMAttachments
-                    class="mb-8"
+                    class="mb-4"
                     show-editor
                     v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">

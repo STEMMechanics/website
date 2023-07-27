@@ -6,7 +6,7 @@
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-7xl mx-auto px-8 mt-8">
+        <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm
                 :model-value="form"
                 @submit="handleSubmit"

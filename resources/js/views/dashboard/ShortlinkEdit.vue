@@ -14,15 +14,15 @@
                     : 'Back to Dashboard'
             " />
         <SMLoading v-if="form.loading()" />
-        <div v-else class="max-w-4xl mx-auto px-4 mt-12">
+        <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm :model-value="form" @submit="handleSubmit">
-                <SMInput class="mb-8" control="code" />
+                <SMInput class="mb-4" control="code" />
                 <SMInput
-                    class="mb-8"
+                    class="mb-4"
                     type="static"
                     v-model="used"
                     label="Times used" />
-                <SMInput class="mb-8" control="url" />
+                <SMInput class="mb-4" control="url" />
 
                 <input
                     role="button"

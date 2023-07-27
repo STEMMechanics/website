@@ -5,16 +5,17 @@
             :title="pageHeading"
             :back-link="{ name: 'dashboard-event-list' }"
             back-title="Back to Events" />
-        <div class="max-w-7xl mx-auto mt-8 px-8">
+        <div class="max-w-4xl mx-auto px-4 mt-8">
             <SMLoading v-if="pageLoading" />
             <SMForm
                 v-else
                 :model-value="form"
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
-                <div class="flex gap-4 mb-8">
-                    <SMInput control="title" />
+                <div class="flex gap-4">
+                    <SMInput class="mb-4" control="title" />
                     <SMDropdown
+                        class="mb-4"
                         control="location"
                         type="select"
                         :options="{
@@ -87,17 +88,17 @@
                         :label="registration_data?.title"
                         :type="registration_data?.type" />
                 </div>
-                <div class="mb-8">
+                <div class="mb-4">
                     <SMSelectImage
                         control="hero"
                         label="Hero image"
                         allow-upload />
                 </div>
                 <SMEditor
-                    class="mb-8"
+                    class="mb-4"
                     v-model:model-value="form.controls.content.value" />
                 <SMAttachments
-                    class="mb-8"
+                    class="mb-4"
                     show-editor
                     v-model:model-value="attachments" />
                 <div class="flex flex-justify-end">
