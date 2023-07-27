@@ -14,13 +14,13 @@
             class="flex flex-col flex-justify-center relative sm-gallery-item p-1"
             :key="index">
             <img
-                :src="mediaGetVariantUrl(image as Media, 'small')"
+                :src="mediaGetThumbnail(image as Media, 'small')"
                 class="max-h-40 max-w-40 cursor-pointer"
                 @click="showGalleryModal(index)" />
             <div
                 v-if="props.showEditor"
                 class="absolute rounded-5 bg-white -top-0.25 -right-0.25 hidden cursor-pointer item-delete"
-                @click="handleRemoveItem(image.id)">
+                @click="handleRemoveItem((image as Media).id)">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     class="h-6 w-6 block"
@@ -82,7 +82,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { Media } from "../helpers/api.types";
-import { mediaGetVariantUrl } from "../helpers/media";
+import { mediaGetThumbnail, mediaGetVariantUrl } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 

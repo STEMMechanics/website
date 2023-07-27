@@ -12,11 +12,7 @@
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
-                    <SMImage
-                        v-if="!editMultiple"
-                        class="mb-8"
-                        :src="imageUrl" />
-                    <SMImageStack v-else class="mb-8" :src="imageStackUrls" />
+                    <SMImageGallery class="mb-8" :model-value="galleryItems" />
                 </div>
                 <SMSelectImage
                     v-if="!editMultiple"
@@ -61,17 +57,20 @@
                     type="static"
                     label="URL" />
                 <SMInput class="mb-8" textarea control="description" />
-                <input
-                    role="button"
-                    type="submit"
-                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    :value="editMultiple ? 'Save All' : 'Save'" />
-                <button
-                    v-if="route.params.id"
-                    type="button"
-                    @click="handleDelete">
-                    {{ editMultiple ? "Delete All" : "Delete" }}
-                </button>
+                <div class="flex flex-justify-end gap-4">
+                    <button
+                        v-if="route.params.id"
+                        type="button"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-red-600 hover:bg-red-500 text-white cursor-pointer"
+                        @click="handleDelete">
+                        {{ editMultiple ? "Delete All" : "Delete" }}
+                    </button>
+                    <input
+                        role="button"
+                        type="submit"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        :value="editMultiple ? 'Save All' : 'Save'" />
+                </div>
             </SMForm>
         </div>
     </template>
@@ -83,7 +82,7 @@ import { useRoute, useRouter } from "vue-router";
 import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
-import { And, FileSize, Required } from "../../helpers/validate";
+import { And, Required } from "../../helpers/validate";
 import { MediaResponse } from "../../helpers/api.types";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
@@ -92,17 +91,15 @@ import SMInput from "../../components/SMInput.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { useToastStore } from "../../store/ToastStore";
-import SMImage from "../../components/SMImage.vue";
-import SMImageStack from "../../components/SMImageStack.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMSelectImage from "../../components/SMSelectImage.vue";
 import { userHasPermission } from "../../helpers/utils";
+import SMImageGallery from "../../components/SMImageGallery.vue";
 
 const route = useRoute();
 const router = useRouter();
 
 const pageError = ref(200);
-const pageLoading = ref(true);
 const editMultiple = "id" in route.params && route.params.id.includes(",");
 const pageHeading = route.params.id
     ? editMultiple
@@ -110,7 +107,7 @@ const pageHeading = route.params.id
         : "Edit Media"
     : "Upload Media";
 const progressText = ref("");
-const imageStackUrls = ref([]);
+const galleryItems = ref([]);
 
 const form = reactive(
     Form({
@@ -124,7 +121,7 @@ const form = reactive(
 const fileData = reactive({
     url: "Not available",
     mime_type: "--",
-    size: "--",
+    size: 0,
     storage: "--",
     status: "--",
     dimensions: "--",
@@ -137,6 +134,8 @@ const handleLoad = async () => {
     if (route.params.id) {
         if (editMultiple === false) {
             try {
+                form.loading(true);
+
                 let result = await api.get({
                     url: "/media/{id}",
                     params: {
@@ -146,7 +145,7 @@ const handleLoad = async () => {
 
                 const data = result.data as MediaResponse;
 
-                form.controls.file.value = data.medium.name;
+                form.controls.file.value = data.medium;
                 form.controls.title.value = data.medium.title;
                 form.controls.description.value = data.medium.description;
                 form.controls.permission.value = data.medium.permission;
@@ -162,10 +161,14 @@ const handleLoad = async () => {
                 imageUrl.value = fileData.url;
             } catch (err) {
                 pageError.value = err.status;
+            } finally {
+                form.loading(false);
             }
         } else {
             (route.params.id as string).split(",").forEach(async (id) => {
                 try {
+                    form.loading(true);
+
                     let result = await api.get({
                         url: "/media/{id}",
                         params: {
@@ -174,15 +177,15 @@ const handleLoad = async () => {
                     });
 
                     const data = result.data as MediaResponse;
-                    imageStackUrls.value.push(data.medium.url);
+                    galleryItems.value.push(data.medium);
                 } catch (err) {
                     pageError.value = err.status;
+                } finally {
+                    form.loading(false);
                 }
             });
         }
     }
-
-    pageLoading.value = false;
 };
 
 const handleSubmit = async (enableFormCallBack) => {

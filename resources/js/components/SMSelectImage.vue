@@ -1,10 +1,10 @@
 <template>
     <div class="flex flex-col flex-1 flex-align-center">
         <label class="control-label" v-bind="{ for: id }">{{ label }}</label>
-        <div v-if="mediaUrl?.length > 0" class="text-center">
+        <div v-if="mediaUrl?.length > 0" class="text-center mb-4">
             <img
                 class="max-w-48 max-h-48"
-                :src="mediaGetVariantUrl(value, 'medium')" />
+                :src="mediaGetThumbnail(value, 'medium')" />
         </div>
         <svg
             v-else
@@ -32,7 +32,7 @@
 import { inject, watch, ref, useSlots, computed } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
-import { mediaGetVariantUrl } from "../helpers/media";
+import { mediaGetThumbnail } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 import { Media } from "../helpers/api.types";

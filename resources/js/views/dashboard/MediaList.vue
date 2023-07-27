@@ -62,7 +62,7 @@
                 <SMTable
                     :headers="headers"
                     :items="items"
-                    class="sm-table-media">
+                    class="sm-table-media mb-4">
                     <template #item-select="item">
                         <SMCheckbox
                             v-model="itemsSelected[item.id]"
@@ -121,22 +121,24 @@
                         </button>
                     </template>
                 </SMTable>
-                <div class="align-items-center">
-                    <div>
-                        <button
-                            type="button"
-                            :disabled="computedSelectedCount == 0"
-                            @click="handleDeleteSelected">
-                            Delete Selected
-                        </button>
-                        <button
-                            type="button"
-                            :disabled="computedSelectedCount == 0"
-                            @click="handleEditSelected">
-                            Edit Selected
-                        </button>
+                <div class="flex flex-justify-start gap-4 flex-items-center">
+                    <button
+                        type="button"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer disabled:bg-gray-3 disabled:text-white disabled:cursor-not-allowed disabled:hover:shadow-none"
+                        :disabled="computedSelectedCount == 0"
+                        @click="handleEditSelected">
+                        Edit Selected
+                    </button>
+                    <button
+                        type="button"
+                        class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-red-600 hover:bg-red-500 text-white cursor-pointer disabled:bg-gray-3 disabled:text-white disabled:cursor-not-allowed disabled:hover:shadow-none"
+                        :disabled="computedSelectedCount == 0"
+                        @click="handleDeleteSelected">
+                        Delete Selected
+                    </button>
+                    <div class="small">
+                        {{ computedSelectedCount }} selected
                     </div>
-                    <div>{{ computedSelectedCount }} selected</div>
                 </div>
             </template>
         </div>
