@@ -38,14 +38,30 @@ export const mimeMatches = (
     return regex.test(mimeToCheck);
 };
 
-export const mediaGetThumbnail = (media: Media): string => {
+export const mediaGetThumbnail = (
+    media: Media,
+    useVariant: string = "",
+): string => {
     if (!media) {
         return "";
+    }
+
+    if (
+        useVariant &&
+        useVariant != "" &&
+        media.variants &&
+        media.variants[useVariant]
+    ) {
+        return media.url.replace(media.name, media.variants[useVariant]);
     }
 
     if (media.thumbnail && media.thumbnail.length > 0) {
         return media.thumbnail;
     }
 
-    return mediaGetVariantUrl(media, "thumb");
+    if (media.variants && media.variants["thumb"]) {
+        return media.url.replace(media.name, media.variants["thumb"]);
+    }
+
+    return "/assets/fileicons/unknown.webp";
 };
