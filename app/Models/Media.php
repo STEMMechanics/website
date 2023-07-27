@@ -71,6 +71,7 @@ class Media extends Model
         'description' => '',
         'dimensions' => '',
         'permission' => '',
+        'thumbnail' => '',
     ];
 
     /**

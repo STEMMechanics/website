@@ -131,28 +131,28 @@
                                         @dblclick="handleDblClickItem(item.id)">
                                         <div
                                             :class="[
-                                                'flex',
-                                                'flex-items-center',
-                                                'flex-justify-center',
                                                 'h-30',
                                                 'w-40',
                                                 'bg-contain',
                                                 'bg-center',
                                                 'bg-no-repeat',
+                                                'relative',
+                                                { 'mb-6': showMediaName(item) },
                                             ]"
                                             :style="{
-                                                backgroundImage:
-                                                    item.url.length > 0
-                                                        ? `url('${mediaGetVariantUrl(
-                                                              item,
-                                                              'small',
-                                                          )}')`
-                                                        : 'none',
+                                                backgroundImage: `url('${mediaGetThumbnail(
+                                                    item,
+                                                )}')`,
                                                 backgroundColor:
                                                     item.status === 'OK'
                                                         ? 'initial'
                                                         : 'rgba(220,220,220,1)',
                                             }">
+                                            <div
+                                                v-if="showMediaName(item)"
+                                                class="absolute -bottom-6 small w-full text-ellipsis overflow-hidden whitespace-nowrap">
+                                                {{ item.title }}
+                                            </div>
                                             <SMLoading
                                                 v-if="
                                                     item.status !== 'OK' &&
@@ -230,12 +230,7 @@
                                 <div
                                     class="flex text-xs border-b border-gray-3 pb-4">
                                     <img
-                                        :src="
-                                            mediaGetVariantUrl(
-                                                lastSelected,
-                                                'thumb',
-                                            )
-                                        "
+                                        :src="mediaGetThumbnail(lastSelected)"
                                         class="max-h-20 max-w-20 mr-2" />
                                     <div class="flex flex-col">
                                         <p class="m-0 text-bold">
@@ -343,13 +338,9 @@
                                 'media-selected-list-item',
                             ]"
                             :style="{
-                                backgroundImage:
-                                    item.url.length > 0
-                                        ? `url('${mediaGetVariantUrl(
-                                              item,
-                                              'thumb',
-                                          )}')`
-                                        : 'none',
+                                backgroundImage: `url('${mediaGetThumbnail(
+                                    item,
+                                )}')`,
                                 backgroundColor:
                                     item.status === 'OK'
                                         ? 'initial'
@@ -443,7 +434,7 @@ import {
     MediaResponse,
 } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
-import { mediaGetVariantUrl, mimeMatches } from "../../helpers/media";
+import { mediaGetThumbnail, mimeMatches } from "../../helpers/media";
 import SMInput from "../SMInput.vue";
 import SMLoading from "../SMLoading.vue";
 import SMTabGroup from "../SMTabGroup.vue";
@@ -591,6 +582,13 @@ const getMediaItem = (item_id: string): Media | null => {
     });
 
     return found;
+};
+
+const showMediaName = (media: Media): boolean => {
+    return !(
+        media.mime_type.startsWith("image/") ||
+        media.mime_type.startsWith("video/")
+    );
 };
 
 /**

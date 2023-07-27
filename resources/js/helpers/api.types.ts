@@ -71,6 +71,7 @@ export interface Media {
     status: string;
     storage: string;
     url: string;
+    thumbnail: string;
     description: string;
     dimensions: string;
     variants: { [key: string]: string };

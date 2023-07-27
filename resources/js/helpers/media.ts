@@ -37,3 +37,15 @@ export const mimeMatches = (
 
     return regex.test(mimeToCheck);
 };
+
+export const mediaGetThumbnail = (media: Media): string => {
+    if (!media) {
+        return "";
+    }
+
+    if (media.thumbnail && media.thumbnail.length > 0) {
+        return media.thumbnail;
+    }
+
+    return mediaGetVariantUrl(media, "thumb");
+};
