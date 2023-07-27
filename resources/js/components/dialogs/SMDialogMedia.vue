@@ -936,17 +936,26 @@ const handleLoad = async () => {
     mediaLoading.value = true;
 
     const mimeTypes = props.accepts.replaceAll("*", "").split(/\s*,\s*/);
-    const mimeTypesFilter = mimeTypes
-        .map((type) => `mime_type:${type}`)
-        .join(",OR,");
+
+    let mimeTypesFilter = "";
+    if (mimeTypes.length > 0) {
+        const validMimeTypes = mimeTypes.filter((type) => type.length > 1);
+        if (validMimeTypes.length > 0) {
+            mimeTypesFilter = validMimeTypes
+                .map((type) => `mime_type:${type}`)
+                .join(",OR,");
+        }
+    }
 
     let params = {
         page: page.value,
         limit: perPage.value,
         status: "!Failed",
-        filter: `(${mimeTypesFilter})`,
     };
 
+    if (mimeTypesFilter) {
+        params.filter = `(${mimeTypesFilter})`;
+    }
     if (itemSearch.value.length > 0) {
         let value = itemSearch.value.replace(/"/g, '\\"');
         if (params.filter.length > 0) {
