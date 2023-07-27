@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import SMForm from "../components/SMForm.vue";
 import SMInput from "../components/SMInput.vue";
@@ -83,18 +83,20 @@ const handleSubmit = async () => {
     }
 };
 
-if (useRoute().query.code !== undefined) {
-    const code = useRoute().query.code;
+onMounted(() => {
+    if (useRoute().query.code !== undefined) {
+        const code = useRoute().query.code;
 
-    if (Array.isArray(code)) {
-        if (code.length > 0) {
-            form.controls.code.value = code[0];
+        if (Array.isArray(code)) {
+            if (code.length > 0) {
+                form.controls.code.value = code[0];
+            }
+        } else {
+            form.controls.code.value = code;
         }
-    } else {
-        form.controls.code.value = code;
-    }
 
-    // handleSubmit();
-    formObject.value.handleSubmit();
-}
+        // handleSubmit();
+        formObject.value.handleSubmit();
+    }
+});
 </script>
