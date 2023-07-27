@@ -62,18 +62,6 @@ class Handler extends ExceptionHandler
             }
         });
 
-        $this->renderable(
-            function (Throwable $exception, $request) {
-                if ($exception instanceof \Illuminate\Session\TokenMismatchException) {
-                    return redirect()
-                    ->back()
-                    ->withInput($request->except('password'))
-                    ->with('errorMessage', 'This form has expired due to inactivity. Please try again.');
-                }
-            }
-        );
-
-
         $this->reportable(function (Throwable $e) {
             if ($this->shouldReport($e) === true) {
                 $this->sendEmail($e);
@@ -85,14 +73,14 @@ class Handler extends ExceptionHandler
     public function sendEmail(Throwable $exception)
     {
         try {
-            $e = FlattenException::create($exception);
+            $e = FlattenException::createFromThrowable($exception);
             $handler = new HtmlErrorRenderer(true);
             $css = $handler->getStylesheet();
             $content = $handler->getBody($e);
 
             Mail::send('emails.exception', compact('css', 'content'), function ($message) {
                 $message
-                ->to('youremailhere@gmail.com')
+                ->to('webmaster@stemmechanics.com.au')
                 ->subject('Exception Generated')
                 ;
             });
