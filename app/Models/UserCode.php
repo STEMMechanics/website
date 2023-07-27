@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class UserCode extends Model
 {
@@ -23,6 +24,8 @@ class UserCode extends Model
 
     /**
      * Boot function from Laravel.
+     *
+     * @return void
      */
     protected static function boot(): void
     {
@@ -44,6 +47,8 @@ class UserCode extends Model
 
     /**
      * Generate new code
+     *
+     * @return void
      */
     public function regenerate(): void
     {
@@ -58,6 +63,8 @@ class UserCode extends Model
 
     /**
      * Clear expired user codes
+     *
+     * @return void
      */
     public static function clearExpired(): void
     {
@@ -66,6 +73,8 @@ class UserCode extends Model
 
     /**
      * Get associated user
+     *
+     * @return Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {
