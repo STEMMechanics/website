@@ -1,7 +1,7 @@
 <template>
     <div
-        class="fixed top-0 left-0 w-full h-full z-2 bg-black bg-op-20 backdrop-blur"></div>
-    <div class="fixed top-0 left-0 w-full flex-justify-center flex z-3 pt-36">
+        class="fixed top-0 left-0 w-full h-full bg-black bg-op-20 backdrop-blur"></div>
+    <div class="fixed top-0 left-0 w-full flex-justify-center flex pt-36">
         <div
             class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
             <h1 class="mb-4">{{ props.title }}</h1>
