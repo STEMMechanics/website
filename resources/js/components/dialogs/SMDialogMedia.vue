@@ -831,6 +831,11 @@ const startFilesUpload = async () => {
                     mediaItems.value.every((item, index) => {
                         if (item.id == currentUploadFileNumStr) {
                             mediaItems.value[index] = data.medium;
+                            if (!selected.value) {
+                                selected.value.push(data.medium);
+                            } else if (props.multiple) {
+                                selected.value.push(data.medium);
+                            }
                             return false;
                         }
 
