@@ -769,6 +769,7 @@ const handleFilesUpload = (files: FileList) => {
             status: "",
             storage: "",
             url: "",
+            thumbnail: "",
             description: "",
             dimensions: "",
             variants: {},
@@ -985,6 +986,22 @@ onUnmounted(() => {
 
 watch(page, () => {
     handleLoad();
+});
+
+watch(mediaItems, () => {
+    selected.value = selected.value.map((selectedItem) => {
+        const matchingMediaItem = mediaItems.value.find(
+            (mediaItem) => mediaItem.id === selectedItem.id,
+        );
+        return matchingMediaItem || selectedItem;
+    });
+
+    if (lastSelected.value) {
+        lastSelected.value =
+            mediaItems.value.find(
+                (mediaItem) => mediaItem.id === lastSelected.value.id,
+            ) || lastSelected.value;
+    }
 });
 
 /**
