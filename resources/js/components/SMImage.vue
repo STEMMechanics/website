@@ -1,8 +1,9 @@
 <template>
     <div class="image">
-        <SMLoading v-if="imgLoaded == false && imgError == false" />
+        <SMLoading
+            v-if="props.src != '' && imgLoaded == false && imgError == false" />
         <img
-            v-if="imgError == false"
+            v-if="props.src != '' && imgError == false"
             :src="src"
             @load="imgLoaded = true"
             @error="imgError = true" />
@@ -17,7 +18,7 @@
 import { ref } from "vue";
 import SMLoading from "./SMLoading.vue";
 
-defineProps({
+const props = defineProps({
     src: {
         type: String,
         required: true,
