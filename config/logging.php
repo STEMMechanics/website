@@ -54,7 +54,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single'],
+            'channels' => ['single', 'email'],
             'ignore_exceptions' => false,
         ],
 
@@ -135,6 +135,7 @@ return [
                 'subject' => 'Laravel Error',
             ],
             'level' => 'info', // Set the log level you want to be emailed (e.g., 'error', 'warning', 'info', etc.).
+            'replace_placeholders' => true,
         ],
     ],
 
