@@ -181,7 +181,9 @@
                                     class="mt-4 text-center">
                                     <p class="text-xs text-black mb-4">
                                         Showing {{ mediaItems.length }} of
-                                        {{ totalItems }} media items
+                                        {{ totalItems }} media item{{
+                                            totalItems == 1 ? "" : "s"
+                                        }}
                                     </p>
                                     <button
                                         v-if="mediaItems.length < totalItems"
@@ -933,17 +935,24 @@ const handleSearch = () => {
 const handleLoad = async () => {
     mediaLoading.value = true;
 
+    const mimeTypes = props.accepts.replaceAll("*", "").split(/\s*,\s*/);
+    const mimeTypesFilter = mimeTypes
+        .map((type) => `mime_type:${type}`)
+        .join(",OR,");
+
     let params = {
         page: page.value,
         limit: perPage.value,
         status: "!Failed",
+        filter: `(${mimeTypesFilter})`,
     };
 
     if (itemSearch.value.length > 0) {
         let value = itemSearch.value.replace(/"/g, '\\"');
-        params[
-            "filter"
-        ] = `(title:"${value}",OR,name:"${value}",OR,description:"${value}")`;
+        if (params.filter.length > 0) {
+            params.filter += ",AND,";
+        }
+        params.filter += `(title:"${value}",OR,name:"${value}",OR,description:"${value}")`;
     }
 
     api.get({
