@@ -57,13 +57,13 @@ const formDone = ref(false);
 let form = reactive(
     Form({
         email: FormControl("", And([Required(), Email()])),
-    })
+    }),
 );
 
 const handleSubmit = async () => {
-    form.loading(true);
-
     try {
+        form.loading(true);
+
         await api.post({
             url: "/users/resendVerifyEmailCode",
             body: {

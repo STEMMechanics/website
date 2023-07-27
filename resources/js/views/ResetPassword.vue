@@ -53,7 +53,7 @@ let form = reactive(
     Form({
         code: FormControl("", And([Required(), Min(6), Max(6)])),
         password: FormControl("", And([Required(), Password()])),
-    })
+    }),
 );
 
 if (useRoute().query.code !== undefined) {
@@ -66,9 +66,8 @@ if (useRoute().query.code !== undefined) {
 }
 
 const handleSubmit = async () => {
-    form.loading(true);
-
     try {
+        form.loading(true);
         await api.post({
             url: "/users/resetPassword",
             body: {

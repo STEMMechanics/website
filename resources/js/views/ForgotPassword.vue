@@ -53,26 +53,21 @@ import { And, Email, Required } from "../helpers/validate";
 import { useToastStore } from "../store/ToastStore";
 import SMLoading from "../components/SMLoading.vue";
 
-// const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
 let form = reactive(
     Form({
         email: FormControl("", And([Required(), Email()])),
-    })
+    }),
 );
 
 const handleSubmit = async () => {
-    form.loading(true);
-
     try {
-        // await recaptchaLoaded();
-        // const captcha = await executeRecaptcha("submit");
+        form.loading(true);
 
         await api.post({
             url: "/users/forgotPassword",
             body: {
                 email: form.controls.email.value,
-                // captcha_token: captcha,
             },
         });
 
