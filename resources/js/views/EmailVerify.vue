@@ -95,7 +95,6 @@ onMounted(() => {
             form.controls.code.value = code;
         }
 
-        // handleSubmit();
         formObject.value.submit();
     }
 });
