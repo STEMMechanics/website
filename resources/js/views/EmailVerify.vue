@@ -1,7 +1,7 @@
 <template>
     <div
         class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
-        <template v-if="formDone">
+        <template v-if="!formDone">
             <SMForm v-model="form" @submit="handleSubmit">
                 <h1 class="mb-4">Email Verify</h1>
                 <p class="mb-4">
@@ -73,11 +73,8 @@ let form = reactive(
 );
 
 const handleSubmit = async () => {
-    form.loading(true);
-
     try {
-        // await recaptchaLoaded();
-        // const captcha = await executeRecaptcha("submit");
+        form.loading(true);
 
         await api.post({
             url: "/users/verifyEmail",
