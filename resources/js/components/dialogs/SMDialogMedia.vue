@@ -12,9 +12,9 @@
         </h2>
     </div>
     <div
-        class="fixed top-0 left-0 w-full h-full z-2 bg-black bg-op-20 backdrop-blur"></div>
+        class="fixed top-0 left-0 w-full h-full bg-black bg-op-20 backdrop-blur"></div>
     <div
-        class="fixed top-0 left-0 right-0 bottom-0 flex-justify-center flex z-3"
+        class="fixed top-0 left-0 right-0 bottom-0 flex-justify-center flex"
         @dragenter.prevent="handleDragEnter"
         @dragover.prevent="handleDragOver">
         <div
@@ -256,6 +256,16 @@
                                             class="m-0 italic">
                                             {{ lastSelected.status }}
                                         </p>
+                                        <p
+                                            v-if="allowEditSelected"
+                                            class="m-0 italic text-red-6 small cursor-pointer hover:underline">
+                                            <span
+                                                @click="
+                                                    handleDelete(lastSelected)
+                                                "
+                                                >Delete Permanently</span
+                                            >
+                                        </p>
                                     </div>
                                 </div>
                                 <div class="py-2">
@@ -447,6 +457,8 @@ import { SMDate } from "../../helpers/datetime";
 import { isUUID } from "../../helpers/uuid";
 import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
+import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
+import { openDialog } from "../../components/SMDialog";
 
 const props = defineProps({
     mime: {
@@ -681,7 +693,7 @@ const handleClickItem = (item_id: string): void => {
                     (item) => item.id != item_id,
                 );
 
-                if (lastSelected.value.id === item_id) {
+                if (lastSelected.value && lastSelected.value.id === item_id) {
                     if (selected.value.length > 0) {
                         lastSelected.value = selected.value[0];
                     } else {
@@ -728,7 +740,7 @@ const handleShowFileItem = (item_id: string): void => {
 
 const handleRemoveItem = (item_id: string): void => {
     selected.value = selected.value.filter((item) => item.id != item_id);
-    if (lastSelected.value.id === item_id) {
+    if (lastSelected.value && lastSelected.value.id === item_id) {
         if (selected.value.length > 0) {
             lastSelected.value = selected.value[0];
         } else {
@@ -1095,6 +1107,48 @@ const handleUpdate = () => {
             lastSelected.value.title,
             lastSelected.value.description,
         );
+    }
+};
+
+const handleDelete = async (item: Media) => {
+    let result = await openDialog(SMDialogConfirm, {
+        title: "Delete File?",
+        text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
+        cancel: {
+            type: "secondary",
+            label: "Cancel",
+        },
+        confirm: {
+            type: "danger",
+            label: "Delete File",
+        },
+    });
+
+    if (result == true) {
+        api.delete({
+            url: "/media/{id}",
+            params: {
+                id: item.id,
+            },
+        })
+            .then(() => {
+                if (lastSelected.value && lastSelected.value.id === item.id) {
+                    lastSelected.value = null;
+                }
+
+                // Remove the item with matching id from selected array
+                selected.value = selected.value.filter(
+                    (selectedItem) => selectedItem.id !== item.id,
+                );
+
+                // Remove the item with matching id from mediaItems array
+                mediaItems.value = mediaItems.value.filter(
+                    (mediaItem) => mediaItem.id !== item.id,
+                );
+            })
+            .catch((error) => {
+                console.log(error);
+            });
     }
 };
 
