@@ -27,6 +27,7 @@ const props = defineProps({
     animation: spinner-rotation 8s ease-in-out infinite;
     margin-top: 2rem;
     margin-bottom: 2rem;
+    flex-shrink: 0;
 
     &.small {
         width: 2rem;
