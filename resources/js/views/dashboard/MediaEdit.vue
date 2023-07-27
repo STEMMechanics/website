@@ -12,51 +12,51 @@
                 @submit="handleSubmit"
                 @failed-validation="handleFailValidation">
                 <div>
-                    <SMImageGallery class="mb-8" :model-value="galleryItems" />
+                    <SMImageGallery class="mb-4" :model-value="galleryItems" />
                 </div>
                 <SMSelectImage
                     v-if="!editMultiple"
                     control="file"
                     allow-upload
                     accepts="*"
-                    class="mb-8" />
-                <SMInput control="title" class="mb-8" />
-                <SMInput control="permission" class="mb-8" />
+                    class="mb-4" />
+                <SMInput control="title" class="mb-4" />
+                <SMInput control="permission" class="mb-4" />
                 <div
                     v-if="!editMultiple"
                     class="flex flex-col md:flex-row gap-4">
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         v-model="computedFileSize"
-                        type="static"
+                        disabled
                         label="File Size" />
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         v-model="fileData.mime_type"
-                        type="static"
+                        disabled
                         label="File Mime Type" />
                 </div>
                 <div
                     v-if="!editMultiple"
                     class="flex flex-col md:flex-row gap-4">
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         v-model="fileData.status"
-                        type="static"
+                        disabled
                         label="Status" />
                     <SMInput
-                        class="mb-8"
+                        class="mb-4"
                         v-model="fileData.dimensions"
-                        type="static"
+                        disabled
                         label="Dimensions" />
                 </div>
                 <SMInput
                     v-if="!editMultiple"
-                    class="mb-8"
+                    class="mb-4"
                     v-model="fileData.url"
-                    type="static"
+                    disabled
                     label="URL" />
-                <SMInput class="mb-8" textarea control="description" />
+                <SMInput class="mb-4" textarea control="description" />
                 <div class="flex flex-justify-end gap-4">
                     <button
                         v-if="route.params.id"
@@ -83,7 +83,7 @@ import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
 import { And, Required } from "../../helpers/validate";
-import { MediaResponse } from "../../helpers/api.types";
+import { Media, MediaResponse } from "../../helpers/api.types";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMForm from "../../components/SMForm.vue";
@@ -367,7 +367,22 @@ const computedFileSize = computed(() => {
 watch(
     () => form.controls.file.value,
     (newValue) => {
-        fileData.mime_type = (newValue as File).type;
+        if (typeof newValue === "object" && newValue !== null) {
+            if ("type" in newValue && typeof newValue.type === "string") {
+                fileData.mime_type = newValue.type;
+            } else if (
+                "mime_type" in newValue &&
+                typeof newValue.mime_type === "string"
+            ) {
+                fileData.mime_type = newValue.mime_type;
+            }
+
+            if ("size" in newValue && typeof newValue.size === "number") {
+                fileData.size = newValue.size;
+            }
+        }
+        fileData.mime_type =
+            (newValue as File).type || (newValue as Media).mime_type;
         fileData.size = (newValue as File).size;
 
         if ((form.controls.title.value as string).length == 0) {
