@@ -54,7 +54,7 @@ return [
     'channels' => [
         'stack' => [
             'driver' => 'stack',
-            'channels' => ['single', 'email'],
+            'channels' => ['single'],
             'ignore_exceptions' => false,
         ],
 
@@ -125,17 +125,6 @@ return [
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),
-        ],
-
-        'email' => [
-            'driver' => 'monolog',
-            'handler' => Monolog\Handler\NativeMailerHandler::class,
-            'with' => [
-                'to' => 'webmaster@stemmechanics.com.au',
-                'subject' => 'Laravel Error',
-            ],
-            'level' => 'info', // Set the log level you want to be emailed (e.g., 'error', 'warning', 'info', etc.).
-            'replace_placeholders' => true,
         ],
     ],
 
