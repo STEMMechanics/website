@@ -93,9 +93,9 @@ const props = defineProps({
         default: false,
         required: false,
     },
-    accept: {
+    accepts: {
         type: String,
-        default: "",
+        default: "image/*",
         required: false,
     },
     options: {
@@ -305,6 +305,7 @@ const handleChange = (event) => {
 const handleMediaSelect = async () => {
     let result = await openDialog(SMDialogMedia, {
         allowUpload: props.allowUpload,
+        accepts: props.accepts,
     });
     if (result) {
         const mediaResult = result as Media;

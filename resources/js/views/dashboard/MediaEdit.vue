@@ -18,10 +18,11 @@
                         :src="imageUrl" />
                     <SMImageStack v-else class="mb-8" :src="imageStackUrls" />
                 </div>
-                <SMInputFile
+                <SMSelectImage
                     v-if="!editMultiple"
                     control="file"
-                    type="file"
+                    allow-upload
+                    accepts="*"
                     class="mb-8" />
                 <SMInput control="title" class="mb-8" />
                 <SMInput control="permission" class="mb-8" />
@@ -94,7 +95,7 @@ import { useToastStore } from "../../store/ToastStore";
 import SMImage from "../../components/SMImage.vue";
 import SMImageStack from "../../components/SMImageStack.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
-import SMInputFile from "../../components/SMInputFile.vue";
+import SMSelectImage from "../../components/SMSelectImage.vue";
 import { userHasPermission } from "../../helpers/utils";
 
 const route = useRoute();
