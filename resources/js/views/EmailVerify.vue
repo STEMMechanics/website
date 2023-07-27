@@ -22,9 +22,24 @@
                 </div>
             </SMForm>
         </template>
-        <template v-else>
+        <template v-else-if="!formError">
             <h1 class="mb-4">Email Verified!</h1>
             <p class="mb-4">Hurrah, Your email has been verified!</p>
+            <div class="flex flex-justify-center items-center pt-4">
+                <router-link
+                    role="button"
+                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    :to="{ name: 'login' }"
+                    >Login</router-link
+                >
+            </div>
+        </template>
+        <template v-else>
+            <h1 class="mb-4">Verification Error</h1>
+            <p class="mb-4">
+                A server error occurred verifying your email. The STEMMechanics
+                team have been notified and will fix the issue soon!
+            </p>
             <div class="flex flex-justify-center items-center pt-4">
                 <router-link
                     role="button"
@@ -50,10 +65,11 @@ import SMLoading from "../components/SMLoading.vue";
 
 // const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
+const formError = ref(false);
 let form = reactive(
     Form({
         code: FormControl("", And([Required(), Min(6), Max(6)])),
-    })
+    }),
 );
 
 const handleSubmit = async () => {
@@ -73,6 +89,7 @@ const handleSubmit = async () => {
 
         formDone.value = true;
     } catch (error) {
+        formError.value = true;
         form.apiErrors(error, (message) => {
             useToastStore().addToast({
                 title: "An error occurred",
