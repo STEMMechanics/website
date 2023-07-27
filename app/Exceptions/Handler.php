@@ -2,13 +2,17 @@
 
 namespace App\Exceptions;
 
-use App\Enum\HttpResponseCodes;
-use Exception;
+use App\Mail\ExceptionMail;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 use PDOException;
-use Symfony\Component\HttpKernel\Exception\HttpException;
+use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
+use Exception;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Symfony\Component\ErrorHandler\Exception\FlattenException;
 
 class Handler extends ExceptionHandler
 {
@@ -58,8 +62,42 @@ class Handler extends ExceptionHandler
             }
         });
 
+        $this->renderable(
+            function (Throwable $exception, $request) {
+                if ($exception instanceof \Illuminate\Session\TokenMismatchException) {
+                    return redirect()
+                    ->back()
+                    ->withInput($request->except('password'))
+                    ->with('errorMessage', 'This form has expired due to inactivity. Please try again.');
+                }
+            }
+        );
+
+
         $this->reportable(function (Throwable $e) {
-            //
+            if ($this->shouldReport($e) === true) {
+                $this->sendEmail($e);
+            }
         });
+    }
+
+
+    public function sendEmail(Throwable $exception)
+    {
+        try {
+            $e = FlattenException::create($exception);
+            $handler = new HtmlErrorRenderer(true);
+            $css = $handler->getStylesheet();
+            $content = $handler->getBody($e);
+
+            Mail::send('emails.exception', compact('css', 'content'), function ($message) {
+                $message
+                ->to('youremailhere@gmail.com')
+                ->subject('Exception Generated')
+                ;
+            });
+        } catch (Throwable $ex) {
+            Log::error($ex);
+        }
     }
 }
