@@ -2,7 +2,7 @@
     <div
         class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
         <template v-if="!formDone">
-            <SMForm v-model="form" @submit="handleSubmit">
+            <SMForm ref="formObject" v-model="form" @submit="handleSubmit">
                 <h1 class="mb-4">Email Verify</h1>
                 <p class="mb-4">
                     Enter your verification code below. If you have not yet
@@ -22,24 +22,9 @@
                 </div>
             </SMForm>
         </template>
-        <template v-else-if="!formError">
+        <template v-else>
             <h1 class="mb-4">Email Verified!</h1>
             <p class="mb-4">Hurrah, Your email has been verified!</p>
-            <div class="flex flex-justify-center items-center pt-4">
-                <router-link
-                    role="button"
-                    class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    :to="{ name: 'login' }"
-                    >Login</router-link
-                >
-            </div>
-        </template>
-        <template v-else>
-            <h1 class="mb-4">Verification Error</h1>
-            <p class="mb-4">
-                A server error occurred verifying your email. The STEMMechanics
-                team have been notified and will fix the issue soon!
-            </p>
             <div class="flex flex-justify-center items-center pt-4">
                 <router-link
                     role="button"
@@ -65,7 +50,7 @@ import SMLoading from "../components/SMLoading.vue";
 
 // const { executeRecaptcha, recaptchaLoaded } = useReCaptcha();
 const formDone = ref(false);
-const formError = ref(false);
+const formObject = ref(null);
 let form = reactive(
     Form({
         code: FormControl("", And([Required(), Min(6), Max(6)])),
@@ -86,7 +71,6 @@ const handleSubmit = async () => {
 
         formDone.value = true;
     } catch (error) {
-        formError.value = true;
         form.apiErrors(error, (message) => {
             useToastStore().addToast({
                 title: "An error occurred",
@@ -110,6 +94,7 @@ if (useRoute().query.code !== undefined) {
         form.controls.code.value = code;
     }
 
-    handleSubmit();
+    // handleSubmit();
+    formObject.value.handleSubmit();
 }
 </script>
