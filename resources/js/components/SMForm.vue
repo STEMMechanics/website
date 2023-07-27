@@ -71,4 +71,5 @@ const enableFormInputs = () => {
 };
 
 provide(props.formId, props.modelValue);
+defineExpose({ handleSubmit });
 </script>
