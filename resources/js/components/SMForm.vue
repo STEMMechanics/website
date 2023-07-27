@@ -1,5 +1,5 @@
 <template>
-    <form :id="id" @submit.prevent="handleSubmit">
+    <form :id="id" @submit.prevent="submit">
         <slot></slot>
     </form>
 </template>
@@ -36,7 +36,7 @@ watch(
 /**
  * Handle the user submitting the form.
  */
-const handleSubmit = async function () {
+const submit = async function () {
     inputs = Array.from(document.querySelectorAll(`#${id} input`));
 
     for (let i = inputs.length - 1; i >= 0; i--) {
@@ -71,5 +71,5 @@ const enableFormInputs = () => {
 };
 
 provide(props.formId, props.modelValue);
-defineExpose({ handleSubmit });
+defineExpose({ submit });
 </script>

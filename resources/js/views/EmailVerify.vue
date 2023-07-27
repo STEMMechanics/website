@@ -96,7 +96,7 @@ onMounted(() => {
         }
 
         // handleSubmit();
-        formObject.value.handleSubmit();
+        formObject.value.submit();
     }
 });
 </script>
