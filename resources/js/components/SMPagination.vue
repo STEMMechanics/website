@@ -27,14 +27,14 @@
             ]"
             @click="handleClickPrev">
             <svg
+                viewBox="0 0 960 960"
                 xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 -960 960 960"
                 :class="[small ? 'h-4' : 'h-6']">
                 <path
-                    d="M400-80 0-480l400-400 56 57-343 343 343 343-56 57Z"
+                    d="M648,78l56,57l-343,343l343,343l-56,57l-400,-400l400,-400Z"
                     fill="currentColor" />
             </svg>
-            <span class="text">Prev</span>
+            <span class="hidden sm:inline-block">Prev</span>
         </div>
         <div
             :class="[
@@ -82,7 +82,7 @@
                 ,
             ]"
             @click="handleClickNext">
-            <span class="text">Next</span>
+            <span class="hidden sm:inline-block">Next</span>
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 -960 960 960"
