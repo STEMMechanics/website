@@ -117,79 +117,8 @@ const hasClassLong = (text: unknown): boolean => {
     }
 }
 
-.table {
-    border-spacing: 0;
-    margin-bottom: 32px;
-    border-radius: 50px;
-    width: 100%;
-
-    thead tr {
-        font-size: 90%;
-        white-space: nowrap;
-
-        &:first-child th {
-            border-top: 1px solid var(--table-color-border);
-
-            &:first-child {
-                border-top-left-radius: 8px;
-            }
-
-            &:last-child {
-                border-top-right-radius: 8px;
-            }
-        }
-    }
-
-    tbody {
-        tr {
-            td {
-                font-size: 85%;
-                background-color: var(--table-color);
-
-                &.long {
-                    font-size: 75%;
-                }
-            }
-
-            &:hover {
-                td {
-                    background-color: var(--table-color-hover);
-                    cursor: pointer;
-                }
-            }
-
-            &:last-child {
-                td {
-                    &:first-child {
-                        border-bottom-left-radius: 8px;
-                    }
-
-                    &:last-child {
-                        border-bottom-right-radius: 8px;
-                    }
-                }
-            }
-        }
-    }
-
-    td,
-    th {
-        padding: 24px 16px;
-        text-align: left;
-        border-bottom: 1px solid var(--table-color-border);
-
-        &:first-child {
-            border-left: 1px solid var(--table-color-border);
-        }
-
-        &:last-child {
-            border-right: 1px solid var(--table-color-border);
-        }
-    }
-}
-
 @media only screen and (max-width: 800px) {
-    .table {
+    .sm-table {
         display: block;
 
         thead,
@@ -207,11 +136,11 @@ const hasClassLong = (text: unknown): boolean => {
         }
 
         tbody tr {
-            border-bottom: 1px solid var(--table-color-border);
+            border-bottom: 1px solid rgba(209, 213, 219);
 
             &:first-child {
                 td:first-child {
-                    border-top: 1px solid var(--table-color-border);
+                    border-top: 1px solid rgba(209, 213, 219);
                     border-radius: 8px 8px 0 0;
                 }
             }
@@ -225,7 +154,7 @@ const hasClassLong = (text: unknown): boolean => {
                     }
 
                     &:last-child {
-                        border-bottom: 1px solid var(--table-color-border);
+                        border-bottom: 1px solid rgba(209, 213, 219);
                         border-radius: 0 0 8px 8px;
                     }
                 }
@@ -233,11 +162,10 @@ const hasClassLong = (text: unknown): boolean => {
 
             td {
                 border-bottom: 0;
-                border-left: 1px solid var(--table-color-border);
-                border-right: 1px solid var(--table-color-border);
                 position: relative;
-                padding: 8px 12px 8px 40%;
+                padding: 8px 12px 8px 140px;
                 white-space: normal;
+                word-wrap: break-word;
                 text-align: left;
 
                 &:before {
@@ -248,7 +176,7 @@ const hasClassLong = (text: unknown): boolean => {
                     top: 0;
                     bottom: 0;
                     left: 0;
-                    width: 35%;
+                    width: 125px;
                     white-space: nowrap;
                     text-align: left;
                     font-weight: 600;
@@ -257,7 +185,7 @@ const hasClassLong = (text: unknown): boolean => {
             }
 
             &:nth-child(even) td {
-                background-color: var(--table-color-even);
+                background-color: rgba(250, 250, 250);
             }
         }
     }
