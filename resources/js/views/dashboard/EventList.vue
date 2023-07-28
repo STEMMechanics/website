@@ -17,7 +17,7 @@
                 <SMInput
                     v-model="itemSearch"
                     label="Search"
-                    class="max-w-xl"
+                    class="w-full md:max-w-xl"
                     @keyup.enter="handleSearch">
                     <template #append>
                         <button
