@@ -33,9 +33,15 @@
                         'rotate-45',
                         disabled ? 'border-gray' : 'border-sky-5',
                     ]"></span> </span
-            ><span :class="['pl-8', disabled ? 'text-gray' : 'text-black']">{{
-                label
-            }}</span></label
+            ><span
+                :class="[
+                    'pl-8',
+                    'pt-0.5',
+                    'inline-block',
+                    disabled ? 'text-gray' : 'text-black',
+                ]"
+                >{{ label }}</span
+            ></label
         >
         <p v-if="slots.default" class="px-2 pt-2 text-xs text-gray-5">
             <slot></slot>
@@ -125,21 +131,21 @@ const label = ref(
         ? props.label
         : typeof props.control == "string"
         ? toTitleCase(props.control)
-        : ""
+        : "",
 );
 const value = ref(
     props.modelValue != undefined
         ? props.modelValue
         : control != null
         ? control.value
-        : ""
+        : "",
 );
 const id = ref(
     props.id != undefined
         ? props.id
         : typeof props.control == "string" && props.control.length > 0
         ? props.control
-        : generateRandomElementId()
+        : generateRandomElementId(),
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
 const active = ref(value.value?.toString().length ?? 0 > 0);
@@ -161,7 +167,7 @@ watch(
     () => value.value,
     (newValue) => {
         active.value = newValue.toString().length > 0 || focused.value == true;
-    }
+    },
 );
 
 if (props.modelValue != undefined) {
@@ -169,7 +175,7 @@ if (props.modelValue != undefined) {
         () => props.modelValue,
         (newValue) => {
             value.value = newValue;
-        }
+        },
     );
 }
 
@@ -177,14 +183,14 @@ watch(
     () => props.feedbackInvalid,
     (newValue) => {
         feedbackInvalid.value = newValue;
-    }
+    },
 );
 
 watch(
     () => props.disabled,
     (newValue) => {
         disabled.value = newValue;
-    }
+    },
 );
 
 if (typeof control === "object" && control !== null) {
@@ -195,7 +201,7 @@ if (typeof control === "object" && control !== null) {
                 ? ""
                 : control.validation.result.invalidMessages[0];
         },
-        { deep: true }
+        { deep: true },
     );
 
     watch(
@@ -203,7 +209,7 @@ if (typeof control === "object" && control !== null) {
         (newValue) => {
             value.value = newValue;
         },
-        { deep: true }
+        { deep: true },
     );
 }
 
