@@ -1,9 +1,22 @@
 <template>
     <div class="flex flex-col flex-1 flex-align-center">
         <label class="control-label" v-bind="{ for: id }">{{ label }}</label>
-        <div v-if="mediaUrl?.length > 0" class="text-center mb-4">
+        <div v-if="value" class="flex flex-justify-center mb-4">
+            <SMLoading v-if="!imgError && !imgLoaded" class="w-48 h-48" small />
+            <svg
+                v-if="imgError"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                class="h-48 text-gray">
+                <path
+                    d="M20 17H22V15H20V17M20 7V13H22V7M6 16H11V18H6M6 12H14V14H6M4 2C2.89 2 2 2.89 2 4V20C2 21.11 2.89 22 4 22H16C17.11 22 18 21.11 18 20V8L12 2M4 4H11V9H16V20H4Z"
+                    fill="currentColor" />
+            </svg>
             <img
+                v-if="!imgError"
                 class="max-w-48 max-h-48"
+                @load="imgLoaded = true"
+                @error="imgError = true"
                 :src="mediaGetThumbnail(value, 'medium')" />
         </div>
         <svg
@@ -29,13 +42,14 @@
 </template>
 
 <script setup lang="ts">
-import { inject, watch, ref, useSlots, computed } from "vue";
+import { inject, watch, ref, useSlots } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 import { mediaGetThumbnail } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 import { Media } from "../helpers/api.types";
+import SMLoading from "./SMLoading.vue";
 
 const emits = defineEmits(["update:modelValue", "blur", "keyup"]);
 const props = defineProps({
@@ -183,21 +197,16 @@ const id = ref(
         : generateRandomElementId(),
 );
 const feedbackInvalid = ref(props.feedbackInvalid);
-const active = ref(value.value?.toString().length ?? 0 > 0);
-const focused = ref(false);
 const disabled = ref(props.disabled);
-
-watch(
-    () => value.value,
-    (newValue) => {
-        mediaUrl.value = value.value.url ?? "";
-    },
-);
+const imgLoaded = ref(false);
+const imgError = ref(false);
 
 if (props.modelValue != undefined) {
     watch(
         () => props.modelValue,
         (newValue) => {
+            imgLoaded.value = false;
+            imgError.value = false;
             value.value = newValue;
         },
     );
@@ -246,62 +255,6 @@ if (form) {
     );
 }
 
-const mediaUrl = ref(value.value.url ?? "");
-
-const handleFocus = () => {
-    active.value = true;
-    focused.value = true;
-};
-
-const handleBlur = async () => {
-    active.value = value.value?.length ?? 0 > 0;
-    focused.value = false;
-    emits("blur");
-
-    if (control) {
-        await control.validate();
-        control.isValid();
-    }
-};
-
-const handleCheckbox = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    value.value = target.checked;
-    emits("update:modelValue", target.checked);
-
-    if (control) {
-        control.value = target.checked;
-        feedbackInvalid.value = "";
-    }
-};
-
-const handleInput = (event: Event) => {
-    const target = event.target as HTMLInputElement;
-    value.value = target.value;
-    emits("update:modelValue", target.value);
-
-    if (control) {
-        control.value = target.value;
-        feedbackInvalid.value = "";
-    }
-};
-
-const handleKeyup = (event: Event) => {
-    emits("keyup", event);
-};
-
-const handleClear = () => {
-    value.value = "";
-    emits("update:modelValue", "");
-};
-
-const handleChange = (event) => {
-    if (control) {
-        control.value = event.target.files[0];
-        feedbackInvalid.value = "";
-    }
-};
-
 const handleMediaSelect = async () => {
     let result = await openDialog(SMDialogMedia, {
         allowUpload: props.allowUpload,
@@ -309,36 +262,12 @@ const handleMediaSelect = async () => {
     });
     if (result) {
         const mediaResult = result as Media;
-        mediaUrl.value = mediaResult.url;
         emits("update:modelValue", mediaResult);
         if (control) {
             control.value = mediaResult;
             feedbackInvalid.value = "";
         }
     }
-};
-
-const computedAutocompleteItems = computed(() => {
-    let autocompleteList = [];
-
-    if (props.autocomplete) {
-        if (typeof props.autocomplete === "function") {
-            autocompleteList = props.autocomplete(value.value);
-        } else {
-            autocompleteList = props.autocomplete.filter((str) =>
-                str.includes(value.value),
-            );
-        }
-
-        return autocompleteList.sort((a, b) => a.localeCompare(b));
-    }
-
-    return autocompleteList;
-});
-
-const handleAutocompleteClick = (item) => {
-    value.value = item;
-    emits("update:modelValue", item);
 };
 </script>
 
