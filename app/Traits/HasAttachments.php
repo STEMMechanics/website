@@ -48,7 +48,7 @@ trait HasAttachments
         }
 
         $ids = array_map('trim', $ids);
-        $existingIds = $this->attachmentsGet()->pluck('media_id')->toArray();
+        $existingIds = $this->getAttachments()->pluck('media_id')->toArray();
 
         $attachmentItems = [];
         foreach ($ids as $id) {
