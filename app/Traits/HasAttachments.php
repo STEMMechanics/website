@@ -3,7 +3,9 @@
 namespace App\Traits;
 
 use App\Models\Media;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Cache;
 
 trait HasAttachments
 {
@@ -15,7 +17,19 @@ trait HasAttachments
     protected static function bootHasAttachments(): void
     {
         static::deleting(function ($model) {
-            $model->attachments()->delete();
+            $model->deleteAttachments();
+        });
+    }
+
+    /**
+     * Get the attachments associated to this item.
+     *
+     * @return Collection
+     */
+    public function getAttachments(): Collection
+    {
+        return Cache::remember($this->cacheKey(), now()->addDays(28), function () {
+            return $this->attachments()->get();
         });
     }
 
@@ -27,14 +41,14 @@ trait HasAttachments
      * @param boolean      $allowDuplicates Whether to allow duplicate media IDs or not.
      * @return void
      */
-    public function attachmentsAddMany(array|string $ids, string $delimiter = ',', bool $allowDuplicates = false): void
+    public function addAttachments(array|string $ids, string $delimiter = ',', bool $allowDuplicates = false): void
     {
         if (is_array($ids) === false) {
             $ids = explode($delimiter, $ids);
         }
 
         $ids = array_map('trim', $ids);
-        $existingIds = $this->attachments()->pluck('media_id')->toArray();
+        $existingIds = $this->attachmentsGet()->pluck('media_id')->toArray();
 
         $attachmentItems = [];
         foreach ($ids as $id) {
@@ -42,13 +56,24 @@ trait HasAttachments
                 continue;
             }
 
-            $media = Media::find($id);
-            if ($media !== null) {
+            if (Media::where('id', $id)->exists() === true) {
                 $attachmentItems[] = ['media_id' => $id];
             }
         }
 
+        Cache::forget($this->cacheKey());
         $this->attachments()->createMany($attachmentItems);
+    }
+
+    /**
+     * Delete associated attachments.
+     *
+     * @return void
+     */
+    public function deleteAttachments(): void
+    {
+        Cache::forget($this->cacheKey());
+        $this->morphMany(\App\Models\Attachment::class, 'addendum')->delete();
     }
 
     /**
@@ -59,5 +84,15 @@ trait HasAttachments
     public function attachments(): MorphMany
     {
         return $this->morphMany(\App\Models\Attachment::class, 'addendum');
+    }
+
+    /**
+     * Return the attachment cache key.
+     *
+     * @return string
+     */
+    private function cacheKey(): string
+    {
+        return "attachments:{$this->getTable()}:{$this->id}";
     }
 }

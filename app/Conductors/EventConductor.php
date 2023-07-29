@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class EventConductor extends Conductor
 {
@@ -107,9 +108,9 @@ class EventConductor extends Conductor
     {
         $user = auth()->user();
 
-        return $model->attachments()->get()->map(function ($attachment) use ($user) {
+        return $model->getAttachments()->map(function ($attachment) use ($user) {
             if ($attachment->private === false || ($user !== null && $user->hasPermission('admin/events') === true)) {
-                return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
+                return MediaConductor::includeModel(request(), 'attachments', $attachment->getMedia());
             }
         });
     }
@@ -122,6 +123,11 @@ class EventConductor extends Conductor
      */
     public function transformHero(mixed $value): array|null
     {
-        return MediaConductor::includeModel(request(), 'hero', Media::find($value));
+        $cacheKey = "media:{$value}";
+        $media = Cache::remember($cacheKey, now()->addDays(28), function () use ($value) {
+            return Media::find($value);
+        });
+
+        return MediaConductor::includeModel(request(), 'hero', $media);
     }
 }

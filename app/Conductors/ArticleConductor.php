@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\MissingAttributeException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use LogicException;
 
 class ArticleConductor extends Conductor
@@ -123,8 +124,8 @@ class ArticleConductor extends Conductor
      */
     public function includeAttachments(Model $model)
     {
-        return $model->attachments()->get()->map(function ($attachment) {
-            return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
+        return $model->getAttachments()->map(function ($attachment) {
+            return MediaConductor::includeModel(request(), 'attachments', $attachment->getMedia());
         });
     }
 
@@ -136,8 +137,8 @@ class ArticleConductor extends Conductor
      */
     public function includeGallery(Model $model)
     {
-        return $model->gallery()->get()->map(function ($item) {
-            return MediaConductor::includeModel(request(), 'gallery', $item->media);
+        return $model->getGallery()->map(function ($item) {
+            return MediaConductor::includeModel(request(), 'gallery', $item->getMedia());
         });
     }
 
@@ -149,7 +150,12 @@ class ArticleConductor extends Conductor
      */
     public function includeUser(Model $model)
     {
-        return UserConductor::includeModel(request(), 'user', User::find($model['user_id']));
+        $cacheKey = "user:{$model['user_id']}";
+        $user = Cache::remember($cacheKey, now()->addDays(28), function () use ($model) {
+            return User::find($model['user_id']);
+        });
+
+        return UserConductor::includeModel(request(), 'user', $user);
     }
 
     /**
@@ -160,6 +166,11 @@ class ArticleConductor extends Conductor
      */
     public function transformHero(mixed $value): array|null
     {
-        return MediaConductor::includeModel(request(), 'hero', Media::find($value));
+        $cacheKey = "media:{$value}";
+        $media = Cache::remember($cacheKey, now()->addDays(28), function () use ($value) {
+            return Media::find($value);
+        });
+
+        return MediaConductor::includeModel(request(), 'hero', $media);
     }
 }

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
@@ -101,12 +102,23 @@ class Media extends Model
 
     /**
      * Model Boot
+     *
+     * @return void
      */
     protected static function boot(): void
     {
         parent::boot();
 
-        static::updating(function ($media) {
+        $clearCache = function ($media) {
+            $cacheKeys = [
+                "media:{$media->id}",
+            ];
+            Cache::forget($cacheKeys);
+        };
+
+        static::updating(function ($media) use ($clearCache) {
+            $clearCache($media);
+
             if (array_key_exists('permission', $media->getChanges()) === true) {
                 $origPermission = $media->getOriginal()['permission'];
                 $newPermission = $media->permission;
@@ -123,11 +135,11 @@ class Media extends Model
             }
         });
 
-        static::deleting(function ($media) {
+        static::deleting(function ($media) use ($clearCache) {
+            $clearCache($media);
             $media->deleteFile();
         });
     }
-
 
     /**
      * Get Type Variants.
@@ -163,6 +175,7 @@ class Media extends Model
      * Variants Set Mutator.
      *
      * @param mixed $value The value to mutate.
+     * @return void
      */
     public function setVariantsAttribute(mixed $value): void
     {
@@ -249,11 +262,10 @@ class Media extends Model
         return '';
     }
 
-
-
-
     /**
      * Delete file and associated files with the modal.
+     *
+     * @return void
      */
     public function deleteFile(): void
     {
@@ -275,7 +287,7 @@ class Media extends Model
     /**
      * Invalidate Cloudflare Cache.
      *
-     * @throws InvalidArgumentException Exception.
+     * @return void
      */
     private function invalidateCFCache(): void
     {
@@ -306,6 +318,8 @@ class Media extends Model
 
     /**
      * Get URL path
+     *
+     * @return string
      */
     public function getUrlPath(): string
     {
@@ -315,6 +329,8 @@ class Media extends Model
 
     /**
      * Return the file URL
+     *
+     * @return string
      */
     public function getUrlAttribute(): string
     {
@@ -327,6 +343,8 @@ class Media extends Model
 
     /**
      * Return the file owner
+     *
+     * @return BelongsTo
      */
     public function user(): BelongsTo
     {
@@ -337,6 +355,7 @@ class Media extends Model
      * Move files to new storage device.
      *
      * @param string $storage The storage ID to move to.
+     * @return void
      */
     public function moveToStorage(string $storage): void
     {
@@ -482,6 +501,8 @@ class Media extends Model
 
     /**
      * Get the server maximum upload size
+     *
+     * @return integer
      */
     public static function getMaxUploadSize(): int
     {
@@ -606,6 +627,7 @@ class Media extends Model
      * Sanitize fileName for upload
      *
      * @param string $fileName Filename to sanitize.
+     * @return string
      */
     private static function sanitizeFilename(string $fileName): string
     {

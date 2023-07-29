@@ -78,7 +78,7 @@ class ArticleController extends ApiController
             $article = Article::create($request->except(['attachments', 'gallery']));
 
             if ($request->has('attachments') === true) {
-                $article->attachmentsAddMany($request->get('attachments'));
+                $article->addAttachments($request->get('attachments'));
             }
 
             if ($request->has('gallery') === true) {
@@ -105,8 +105,8 @@ class ArticleController extends ApiController
     {
         if (ArticleConductor::updatable($article) === true) {
             if ($request->has('attachments') === true) {
-                $article->attachments()->delete();
-                $article->attachmentsAddMany($request->get('attachments'));
+                $article->deleteAttachments();
+                $article->addAttachments($request->get('attachments'));
             }
 
             if ($request->has('gallery') === true) {

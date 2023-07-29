@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class Conductor
@@ -446,7 +447,7 @@ class Conductor
                 return substr($field, 0, strpos($field, '.'));
             }
             return $field;
-        }, explode(',', $request->input('fields')));
+        }, explode(',', $request->input('fields', '')));
         if ($limitFields === null) {
             $limitFields = $fields;
         } else {
@@ -531,6 +532,7 @@ class Conductor
      * @param Builder    $query       The custom query.
      * @param Request    $request     The request.
      * @param array|null $limitFields Limit the request to these fields.
+     * @return Builder
      */
     public static function filterQuery(Builder $query, Request $request, array|null $limitFields = null): Builder
     {
@@ -890,9 +892,11 @@ class Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
+     * @return void
      */
     public function scope(Builder $builder): void
     {
+        // empty
     }
 
     /**
@@ -903,12 +907,18 @@ class Conductor
      */
     public function fields(Model $model): array
     {
-        $visibleFields = $model->getVisible();
-        if (empty($visibleFields) === true) {
-            $visibleFields = $model->getConnection()
-                ->getSchemaBuilder()
-                ->getColumnListing($model->getTable());
-        }
+        $visibleFields = Cache::remember("model:{$model->getTable()}:visible", now()->addDays(28), function () use ($model) {
+            $fields = $model->getVisible();
+            if (empty($fields) === true) {
+                $fields = Cache::remember("schema:{$model->getTable()}:columns", now()->addDays(28), function () use ($model) {
+                    return $model->getConnection()
+                    ->getSchemaBuilder()
+                    ->getColumnListing($model->getTable());
+                });
+            }
+
+            return $fields;
+        });
 
         $appends = $model->getAppends();
         if (is_array($appends) === true) {

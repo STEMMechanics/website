@@ -5,6 +5,7 @@ namespace App\Conductors;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class MediaConductor extends Conductor
 {
@@ -143,6 +144,10 @@ class MediaConductor extends Conductor
      */
     public function includeUser(Model $model)
     {
-        return UserConductor::includeModel(request(), 'user', User::find($model['user_id']));
+        $user = Cache::remember("user:{$model['user_id']}", now()->addDays(28), function () use ($model) {
+            return User::find($model['user_id']);
+        });
+
+        return UserConductor::includeModel(request(), 'user', $user);
     }
 }

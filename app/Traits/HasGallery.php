@@ -3,7 +3,9 @@
 namespace App\Traits;
 
 use App\Models\Media;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Facades\Cache;
 
 trait HasGallery
 {
@@ -59,5 +61,17 @@ trait HasGallery
     public function gallery(): MorphMany
     {
         return $this->morphMany(\App\Models\Gallery::class, 'addendum');
+    }
+
+    public function getGallery(): Collection
+    {
+        $cacheKey = 'gallery:' . $this->getTable() . ':' . $this->id;
+        if (Cache::has($cacheKey) === true) {
+            return Cache::get($cacheKey);
+        }
+
+        $gallery = $this->morphMany(\App\Models\Gallery::class, 'addendum')->get();
+        Cache::put($cacheKey, $gallery, now()->addDays(14));
+        return $gallery;
     }
 }

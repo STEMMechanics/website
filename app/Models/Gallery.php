@@ -3,10 +3,12 @@
 namespace App\Models;
 
 use App\Traits\Uuids;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Cache;
 
 class Gallery extends Model
 {
@@ -22,6 +24,26 @@ class Gallery extends Model
         'media_id',
     ];
 
+
+    /**
+     * Boot the model.
+     *
+     * @return void
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        $clearCache = function ($gallery) {
+            $cacheKeys = [
+                "gallery:{$gallery->id}:media",
+            ];
+            Cache::forget($cacheKeys);
+        };
+
+        static::saving($clearCache);
+        static::deleting($clearCache);
+    }
 
     /**
      * Get gallery addendum model.
@@ -41,5 +63,36 @@ class Gallery extends Model
     public function media(): BelongsTo
     {
         return $this->belongsTo(Media::class);
+    }
+
+    /**
+     * Get the media for this item.
+     *
+     * @return null|Media The media model.
+     */
+    public function getMedia(): ?Media
+    {
+        $mediaId = '0';
+        $media = null;
+
+        if (Cache::has("gallery:{$this->id}:media") === true) {
+            $mediaId = Cache::get("gallery:{$this->id}:media");
+        } else {
+            $media = $this->media()->first();
+            if ($media === null) {
+                return null;
+            }
+
+            $mediaId = $media->id;
+            Cache::put("gallery:{$this->id}:media", $mediaId, now()->addDays(28));
+        }
+
+        return Cache::remember("media:{$mediaId}", now()->addDays(28), function () use ($media) {
+            if ($media !== null) {
+                return $media;
+            }
+
+            return $this->media()->first();
+        });
     }
 }

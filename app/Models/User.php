@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\HasApiTokens;
 use OwenIt\Auditing\Contracts\Auditable;
 
@@ -80,13 +81,37 @@ class User extends Authenticatable implements Auditable
 
 
     /**
-     * Get the list of files of the user
+     * Boot the model.
      *
-     * @return Illuminate\Database\Eloquent\Relations\HasMany
+     * @return void
      */
-    public function permissions(): HasMany
+    protected static function boot(): void
     {
-        return $this->hasMany(Permission::class);
+        parent::boot();
+
+        $clearCache = function ($user) {
+            $cacheKeys = [
+                "user:{$user->id}",
+                "user:{$user->id}:permissions",
+            ];
+            Cache::forget($cacheKeys);
+        };
+
+        static::saving($clearCache);
+        static::deleting($clearCache);
+    }
+
+    /**
+     * Get the list of permissions of the user
+     *
+     * @return Illuminate\Database\Eloquent\Collection
+     */
+    public function permissions(): array
+    {
+        $cacheKey = "user:{$this->id}:permissions";
+        return Cache::remember($cacheKey, now()->addDays(28), function () {
+            return $this->hasMany(Permission::class)->pluck('permission')->toArray();
+        });
     }
 
     /**
@@ -96,7 +121,7 @@ class User extends Authenticatable implements Auditable
      */
     public function getPermissionsAttribute(): array
     {
-        return $this->permissions()->pluck('permission')->toArray();
+        return $this->permissions();
     }
 
     /**
@@ -107,7 +132,7 @@ class User extends Authenticatable implements Auditable
      */
     public function hasPermission(string $permission): bool
     {
-        return ($this->permissions()->where('permission', $permission)->first() !== null);
+        return in_array($permission, $this->permissions());
     }
 
     /**
@@ -131,6 +156,9 @@ class User extends Authenticatable implements Auditable
             return $existingPermissions->contains('permission', $permission['permission']);
         });
 
+        $cacheKey = "user:{$this->id}:permissions";
+        Cache::forget($cacheKey);
+
         return $this->permissions()->createMany($newPermissions->toArray());
     }
 
@@ -139,12 +167,16 @@ class User extends Authenticatable implements Auditable
      * Revoke permissions from the user
      *
      * @param string|array $permissions The permission(s) to revoke.
+     * @return integer
      */
     public function revokePermission($permissions): int
     {
         if (is_array($permissions) === false) {
             $permissions = [$permissions];
         }
+
+        $cacheKey = "user:{$this->id}:permissions";
+        Cache::forget($cacheKey);
 
         return $this->permissions()
             ->whereIn('permission', $permissions)
@@ -153,6 +185,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
+     *
+     * @return HasMany
      */
     public function media(): HasMany
     {
@@ -161,6 +195,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of files of the user
+     *
+     * @return HasMany
      */
     public function articles(): HasMany
     {
@@ -169,6 +205,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get associated user codes
+     *
+     * @return HasMany
      */
     public function codes(): HasMany
     {
@@ -177,6 +215,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the list of logins of the user
+     *
+     * @return HasMany
      */
     public function logins(): HasMany
     {
@@ -185,6 +225,8 @@ class User extends Authenticatable implements Auditable
 
     /**
      * Get the events associated with the user.
+     *
+     * @return BelongsToMany
      */
     public function events(): BelongsToMany
     {

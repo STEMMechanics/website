@@ -70,7 +70,7 @@ class EventController extends ApiController
             $event = Event::create($request->except(['attachments']));
 
             if ($request->has('attachments') === true) {
-                $event->attachmentsAddMany($request->get('attachments'));
+                $event->addAttachments($request->get('attachments'));
             }
 
             return $this->respondAsResource(
@@ -93,8 +93,8 @@ class EventController extends ApiController
     {
         if (EventConductor::updatable($event) === true) {
             if ($request->has('attachments') === true) {
-                $event->attachments()->delete();
-                $event->attachmentsAddMany($request->get('attachments'));
+                $event->deleteAttachments();
+                $event->addAttachments($request->get('attachments'));
             }
 
             $event->update($request->except(['attachments']));
