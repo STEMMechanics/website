@@ -35,10 +35,7 @@ class Gallery extends Model
         parent::boot();
 
         $clearCache = function ($gallery) {
-            $cacheKeys = [
-                "gallery:{$gallery->id}:media",
-            ];
-            Cache::forget($cacheKeys);
+            Cache::forget("gallery:{$gallery->id}:media");
         };
 
         static::saving($clearCache);

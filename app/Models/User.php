@@ -90,11 +90,10 @@ class User extends Authenticatable implements Auditable
         parent::boot();
 
         $clearCache = function ($user) {
-            $cacheKeys = [
+            Cache::forget(
                 "user:{$user->id}",
-                "user:{$user->id}:permissions",
-            ];
-            Cache::forget($cacheKeys);
+                "user:{$user->id}:permissions"
+            );
         };
 
         static::saving($clearCache);

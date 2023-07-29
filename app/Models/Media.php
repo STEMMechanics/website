@@ -110,10 +110,7 @@ class Media extends Model
         parent::boot();
 
         $clearCache = function ($media) {
-            $cacheKeys = [
-                "media:{$media->id}",
-            ];
-            Cache::forget($cacheKeys);
+            Cache::forget("media:{$media->id}");
         };
 
         static::updating(function ($media) use ($clearCache) {
