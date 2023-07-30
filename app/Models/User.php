@@ -105,12 +105,9 @@ class User extends Authenticatable implements Auditable
      *
      * @return Illuminate\Database\Eloquent\Collection
      */
-    public function permissions(): array
+    public function permissions(): Collection
     {
-        $cacheKey = "user:{$this->id}:permissions";
-        return Cache::remember($cacheKey, now()->addDays(28), function () {
-            return $this->hasMany(Permission::class)->pluck('permission')->toArray();
-        });
+        return $this->hasMany(Permission::class);
     }
 
     /**
@@ -120,7 +117,10 @@ class User extends Authenticatable implements Auditable
      */
     public function getPermissionsAttribute(): array
     {
-        return $this->permissions();
+        $cacheKey = "user:{$this->id}:permissions";
+        return Cache::remember($cacheKey, now()->addDays(28), function () {
+            return $this->permissions()->pluck('permission')->toArray();
+        });
     }
 
     /**
@@ -131,7 +131,7 @@ class User extends Authenticatable implements Auditable
      */
     public function hasPermission(string $permission): bool
     {
-        return in_array($permission, $this->permissions());
+        return in_array($permission, $this->permissions);
     }
 
     /**
@@ -150,7 +150,7 @@ class User extends Authenticatable implements Auditable
             return ['permission' => $permission];
         });
 
-        $existingPermissions = $this->permissions()->whereIn('permission', $permissions->pluck('permission'))->get();
+        $existingPermissions = $this->permissions;
         $newPermissions = $permissions->reject(function ($permission) use ($existingPermissions) {
             return $existingPermissions->contains('permission', $permission['permission']);
         });
