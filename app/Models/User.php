@@ -103,9 +103,9 @@ class User extends Authenticatable implements Auditable
     /**
      * Get the list of permissions of the user
      *
-     * @return Illuminate\Database\Eloquent\Collection
+     * @return Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function permissions(): Collection
+    public function permissions(): HasMany
     {
         return $this->hasMany(Permission::class);
     }
@@ -121,6 +121,23 @@ class User extends Authenticatable implements Auditable
         return Cache::remember($cacheKey, now()->addDays(28), function () {
             return $this->permissions()->pluck('permission')->toArray();
         });
+    }
+
+    /**
+     * Set the permission attribute
+     *
+     * @param array $newPermissions The new permissions to set to the user.
+     * @return void
+     */
+    public function setPermissionsAttribute(array $newPermissions): void
+    {
+        $existingPermissions = $this->permissions->pluck('permission')->toArray();
+
+        $this->revokePermission(array_diff($this->permissions, $newPermissions));
+        $this->givePermission(array_diff($newPermissions, $this->permissions));
+
+        $cacheKey = "user:{$this->id}:permissions";
+        Cache::delete($cacheKey);
     }
 
     /**
@@ -146,19 +163,14 @@ class User extends Authenticatable implements Auditable
             $permissions = [$permissions];
         }
 
-        $permissions = collect($permissions)->map(function ($permission) {
+        $newPermissions = array_map(function ($permission) {
             return ['permission' => $permission];
-        });
-
-        $existingPermissions = $this->permissions;
-        $newPermissions = $permissions->reject(function ($permission) use ($existingPermissions) {
-            return $existingPermissions->contains('permission', $permission['permission']);
-        });
+        }, array_diff($permissions, $this->permissions));
 
         $cacheKey = "user:{$this->id}:permissions";
         Cache::forget($cacheKey);
 
-        return $this->permissions()->createMany($newPermissions->toArray());
+        return $this->permissions()->createMany($newPermissions);
     }
 
 

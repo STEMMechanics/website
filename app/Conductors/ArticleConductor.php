@@ -125,7 +125,7 @@ class ArticleConductor extends Conductor
     public function includeAttachments(Model $model)
     {
         return $model->getAttachments()->map(function ($attachment) {
-            return MediaConductor::includeModel(request(), 'attachments', $attachment->getMedia());
+            return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
         });
     }
 
@@ -138,7 +138,7 @@ class ArticleConductor extends Conductor
     public function includeGallery(Model $model)
     {
         return $model->getGallery()->map(function ($item) {
-            return MediaConductor::includeModel(request(), 'gallery', $item->getMedia());
+            return MediaConductor::includeModel(request(), 'gallery', $item->media);
         });
     }
 

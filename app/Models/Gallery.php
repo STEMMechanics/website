@@ -67,7 +67,7 @@ class Gallery extends Model
      *
      * @return null|Media The media model.
      */
-    public function getMedia(): ?Media
+    public function getMediaAttribute(): ?Media
     {
         $mediaId = '0';
         $media = null;
@@ -91,5 +91,17 @@ class Gallery extends Model
 
             return $this->media()->first();
         });
+    }
+
+    /**
+     * Set the media for this item.
+     *
+     * @param Media $media The media model.
+     * @return void
+     */
+    public function setMediaAttribute(Media $media): void
+    {
+        $this->media()->associate($media)->save();
+        Cache::put("gallery:{$this->id}:media", $media->id, now()->addDays(28));
     }
 }

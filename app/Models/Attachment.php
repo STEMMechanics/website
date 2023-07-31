@@ -46,10 +46,41 @@ class Attachment extends Model
      *
      * @return null|Media
      */
-    public function getMedia(): ?Media
+    public function getMediaAttribute(): ?Media
     {
-        return Cache::remember("attachment:{$this->id}:media", now()->addDays(28), function () {
+        $mediaId = '0';
+        $media = null;
+
+        if (Cache::has("attachment:{$this->id}:media") === true) {
+            $mediaId = Cache::get("attachment:{$this->id}:media");
+        } else {
+            $media = $this->media()->first();
+            if ($media === null) {
+                return null;
+            }
+
+            $mediaId = $media->id;
+            Cache::put("attachment:{$this->id}:media", $mediaId, now()->addDays(28));
+        }
+
+        return Cache::remember("media:{$mediaId}", now()->addDays(28), function () use ($media) {
+            if ($media !== null) {
+                return $media;
+            }
+
             return $this->media()->first();
         });
+    }
+
+    /**
+     * Set the media for this item.
+     *
+     * @param Media $media The media model.
+     * @return void
+     */
+    public function setMediaAttribute(Media $media): void
+    {
+        $this->media()->associate($media)->save();
+        Cache::put("attachment:{$this->id}:media", $media->id, now()->addDays(28));
     }
 }

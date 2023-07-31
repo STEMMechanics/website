@@ -110,7 +110,7 @@ class EventConductor extends Conductor
 
         return $model->getAttachments()->map(function ($attachment) use ($user) {
             if ($attachment->private === false || ($user !== null && $user->hasPermission('admin/events') === true)) {
-                return MediaConductor::includeModel(request(), 'attachments', $attachment->getMedia());
+                return MediaConductor::includeModel(request(), 'attachments', $attachment->media);
             }
         });
     }
