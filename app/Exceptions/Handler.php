@@ -10,6 +10,7 @@ use PDOException;
 use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
 use Exception;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\ErrorHandler\Exception\FlattenException;
@@ -64,7 +65,9 @@ class Handler extends ExceptionHandler
 
         $this->reportable(function (Throwable $e) {
             if ($this->shouldReport($e) === true) {
-                $this->sendEmail($e);
+                if(App::runningUnitTests() === false) {
+                    $this->sendEmail($e);
+                }
             }
         });
     }
