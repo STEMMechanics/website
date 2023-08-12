@@ -796,7 +796,9 @@ class Media extends Model
         }//end if
 
         if ($success === true && file_exists($tempImagePath) === true) {
-            Storage::disk($this->storage)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
+            /** @var Illuminate\Filesystem\FilesystemAdapter */
+            $fileSystem = Storage::disk($this->storageDisk);
+            $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
             unlink($tempImagePath);
 
             $this->thumbnail = $this->getUrlPath() . $newFilename;
@@ -806,5 +808,106 @@ class Media extends Model
         }
 
         return $success;
+    }
+
+    /**
+     * Generate variants for this media.
+     * @param string $uploadedFilePath The local file, if present (else download from storage).
+     *
+     * @return void
+     */
+    public function generateVariants(string $uploadedFilePath = ""): void
+    {
+        if (strpos($this->media->mime_type, 'image/') === 0) {
+            // Generate additional image sizes
+            $sizes = Media::getTypeVariants('image');
+
+            // download original from CDN if no local file
+            $filePath = $uploadedFilePath;
+            if ($uploadedFilePath === "") {
+                $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
+                $filePath = tempnam(sys_get_temp_dir(), 'download-');
+                $writeStream = fopen($filePath, 'w');
+                while (feof($readStream) !== true) {
+                    fwrite($writeStream, fread($readStream, 8192));
+                }
+                fclose($readStream);
+                fclose($writeStream);
+            }
+
+            // delete existing variants
+            if (is_array($this->variants) === true) {
+                foreach ($this->variants as $variantName => $variantFile) {
+                    if (Storage::disk($this->storageDisk)->exists($variantFile) === true) {
+                        Storage::disk($this->storageDisk)->delete($variantFile);
+                    }
+                }
+            }
+            $this->variants = [];
+
+            $originalImage = Image::make($sizes);
+
+            $imageSize = $originalImage->getSize();
+            $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
+
+            // Swap width and height values for portrait images
+            foreach ($sizes as $variantName => &$size) {
+                if ($isPortrait === true) {
+                    $temp = $size['width'];
+                    $size['width'] = $size['height'];
+                    $size['height'] = $temp;
+                }
+            }
+
+            $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
+            $this->dimensions = implode('x', $dimensions);
+
+            foreach ($sizes as $variantName => $size) {
+                $postfix = "{$size['width']}x{$size['height']}";
+                if ($variantName === 'scaled') {
+                    $postfix = 'scaled';
+                }
+
+                $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-$postfix.webp";
+
+                // Get the largest available variant
+                if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {
+                    // Store the variant in the variants array
+                    $variants[$variantName] = $newFilename;
+
+                    // Resize the image to the variant size if its dimensions are greater than the
+                    // specified size
+                    $image = clone $originalImage;
+
+                    $imageSize = $image->getSize();
+                    if ($imageSize->getWidth() > $size['width'] || $imageSize->getHeight() > $size['height']) {
+                        $image->resize($size['width'], $size['height'], function ($constraint) {
+                            $constraint->aspectRatio();
+                            $constraint->upsize();
+                        });
+                        $image->resizeCanvas($size['width'], $size['height'], 'center', false, 'rgba(0,0,0,0)');
+                    }
+
+                    $image->orientate();
+
+                    // Optimize and store image
+                    $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
+                    $image->encode('webp', 75)->save($tempImagePath);
+                    /** @var Illuminate\Filesystem\FilesystemAdapter */
+                    $fileSystem = Storage::disk($this->storageDisk);
+                    $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
+                    unlink($tempImagePath);
+                }//end if
+            }//end foreach
+
+            // Set missing variants to the largest available variant
+            foreach ($sizes as $variantName => $size) {
+                if (isset($variants[$variantName]) === false) {
+                    $variants[$variantName] = $this->name;
+                }
+            }
+
+            $this->variants = $variants;
+        }//end if
     }
 }
