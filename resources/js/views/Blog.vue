@@ -26,6 +26,7 @@
         </div>
         <SMPagination
             v-if="articlesTotal > articlesPerPage"
+            class="mb-4"
             v-model="articlesPage"
             :total="articlesTotal"
             :per-page="articlesPerPage" />
