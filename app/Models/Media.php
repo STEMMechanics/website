@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Enum\HttpResponseCodes;
 use App\Jobs\MoveMediaJob;
-use App\Jobs\OptimizeMediaJob;
 use App\Jobs\StoreUploadedFileJob;
 use App\Traits\Uuids;
 use Illuminate\Contracts\Container\BindingResolutionException;
@@ -17,10 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -471,7 +467,10 @@ class Media extends Model
             if (array_key_exists($variant, $this->variant) === true) {
                 $path = $this->variant[$variant];
             } else {
-                return response()->json(['message' => 'The resource was not found.'], HttpResponseCodes::HTTP_NOT_FOUND);
+                return response()->json(
+                    ['message' => 'The resource was not found.'],
+                    HttpResponseCodes::HTTP_NOT_FOUND
+                );
             }
         }
 
@@ -541,11 +540,20 @@ class Media extends Model
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
         $fileName = static::sanitizeFilename(pathinfo($fileName, PATHINFO_FILENAME));
 
-        if (static::fileNameHasSuffix($fileName) === true || static::fileExistsInStorage("$fileName.$extension") === true || Media::where('name', "$fileName.$extension")->where('status', 'not like', 'failed%')->exists() === true) {
+        if (
+            static::fileNameHasSuffix($fileName) === true ||
+            static::fileExistsInStorage("$fileName.$extension") === true ||
+            Media::where('name', "$fileName.$extension")->where('status', 'not like', 'failed%')->exists() === true
+        ) {
             $fileName .= '-';
             for ($i = 1; $i < $maxTries; $i++) {
                 $fileNameIndex = $fileName . $index;
-                if (static::fileExistsInStorage("$fileNameIndex.$extension") !== true && Media::where('name', "$fileNameIndex.$extension")->where('status', 'not like', 'Failed%')->exists() !== true) {
+                if (
+                    static::fileExistsInStorage("$fileNameIndex.$extension") !== true &&
+                    Media::where('name', "$fileNameIndex.$extension")
+                        ->where('status', 'not like', 'Failed%')
+                        ->exists() !== true
+                ) {
                     return "$fileNameIndex.$extension";
                 }
 
