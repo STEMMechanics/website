@@ -15,8 +15,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Facades\Image;
+use SplFileInfo;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -694,5 +697,111 @@ class Media extends Model
             mb_detect_encoding($fileName)
         ) . ($ext !== '' ? '.' . $ext : '');
         return $fileName;
+    }
+
+    /**
+     * Generate a Thumbnail for this media.
+     * @param string $uploadedFilePath The local file, if present (else download from storage).
+     *
+     * @return boolean If generation was successful.
+     */
+    public function generateThumbnail(string $uploadedFilePath = ""): bool
+    {
+        $thumbnailWidth = 200;
+        $thumbnailHeight = 200;
+
+        // delete existing thumbnail
+        if (strlen($this->thumbnail) !== 0) {
+            $path = substr($this->thumbnail, strlen($this->getUrlPath()));
+            if (strlen($path) > 0 && Storage::disk($this->storageDisk)->exists($path) === true) {
+                Storage::disk($this->storageDisk)->delete($path);
+            }
+        }
+
+        // download original from CDN if no local file
+        $filePath = $uploadedFilePath;
+        if ($uploadedFilePath === "") {
+            $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
+            $filePath = tempnam(sys_get_temp_dir(), 'download-');
+            $writeStream = fopen($filePath, 'w');
+            while (feof($readStream) !== true) {
+                fwrite($writeStream, fread($readStream, 8192));
+            }
+            fclose($readStream);
+            fclose($writeStream);
+        }
+
+        $fileExtension = File::extension($this->name);
+        $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
+        $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-thumb.webp";
+        $success = false;
+
+        $ffmpegPath = env('FFMPEG_PATH', '/usr/bin/ffmpeg');
+
+        if (strpos($this->mime_type, 'image/') === 0) {
+            $image = Image::make($filePath);
+            $image->fit($thumbnailWidth, $thumbnailHeight);
+            $image->encode('webp', 75)->save($tempImagePath);
+            $success = true;
+        } elseif ($this->mime_type === 'application/pdf' && extension_loaded('imagick') === true) {
+            $pdfPreview = new \Imagick();
+            $pdfPreview->setResolution(300, 300);
+            $pdfPreview->readImage($filePath . '[0]');
+            $pdfPreview->setImageFormat('webp');
+            $pdfPreview->thumbnailImage($thumbnailWidth, $thumbnailHeight, true);
+            file_put_contents($tempImagePath, $pdfPreview);
+
+            $success = true;
+        } elseif ($this->mime_type === 'text/plain') {
+            $image = Image::canvas($thumbnailWidth, $thumbnailHeight, '#FFFFFF');
+
+            // Read the first few lines of the text file
+            $numLines = 5;
+            $text = file_get_contents($filePath);
+            $lines = explode("\n", $text);
+            $previewText = implode("\n", array_slice($lines, 0, $numLines));
+
+            // Center the text on the image
+            $fontSize = 8;
+            $textColor = '#000000'; // Black text color
+
+            // Calculate the position to start drawing the text
+            $x = 10; // Left padding
+            $y = 10; // Top padding
+
+            // Draw the text on the canvas with text wrapping
+            $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
+            foreach ($lines as $line) {
+                $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
+                    $font->file(1);
+                    $font->size($fontSize);
+                    $font->color($textColor);
+                });
+
+                // Move to the next line
+                $y += ($fontSize + 4); // Add some vertical spacing between lines (adjust as needed)
+            }
+
+            $image->encode('webp', 75)->save($tempImagePath);
+
+            $success = true;
+        } elseif (file_exists($ffmpegPath) === true && strpos($this->mime_type, 'video/') === 0) {
+            $tempImagePath .= '.webp';
+            exec("$ffmpegPath -i $filePath -ss 00:00:05 -vframes 1 -s {$thumbnailWidth}x{$thumbnailHeight} -c:v webp {$tempImagePath}");
+
+            $success = true;
+        }//end if
+
+        if ($success === true && file_exists($tempImagePath) === true) {
+            Storage::disk($this->storage)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
+            unlink($tempImagePath);
+
+            $this->thumbnail = $this->getUrlPath() . $newFilename;
+        } else {
+            $fileIconPath = '/assets/fileicons/' . ($fileExtension !== '' && file_exists(public_path('assets/fileicons/' . $fileExtension . '.webp')) ? $fileExtension : 'unknown') . '.webp';
+            $this->thumbnail = asset($fileIconPath);
+        }
+
+        return $success;
     }
 }

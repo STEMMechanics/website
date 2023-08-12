@@ -200,7 +200,7 @@ class StoreUploadedFileJob implements ShouldQueue
                 $this->media->variants = $variants;
             }//end if
 
-            $this->generateThumbnail();
+            $this->media->generateThumbnail($this->uploadedFilePath);
 
             if (strlen($this->uploadedFilePath) > 0) {
                 unlink($this->uploadedFilePath);
@@ -214,93 +214,5 @@ class StoreUploadedFileJob implements ShouldQueue
             $this->media->save();
             $this->fail($e);
         }//end try
-    }
-
-
-    /**
-     * Generate a Thumbnail for this media.
-     *
-     * @return void
-     */
-    public function generateThumbnail(): void
-    {
-        $thumbnailWidth = 200;
-        $thumbnailHeight = 200;
-
-        $storageDisk = $this->media->storage;
-        $fileName = $this->media->name;
-        $filePath = $this->uploadedFilePath;
-        $fileExtension = File::extension($fileName);
-        $mimeType = $this->media->mime_type;
-        $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
-        $newFilename = pathinfo($fileName, PATHINFO_FILENAME) . "-thumb.webp";
-        $success = false;
-
-        // $ffmpegPath = '/usr/bin/ffmpeg';
-        $ffmpegPath = '/opt/homebrew/bin/ffmpeg';
-
-        if (strpos($mimeType, 'image/') === 0) {
-            $image = Image::make($filePath);
-            $image->fit($thumbnailWidth, $thumbnailHeight);
-            $image->encode('webp', 75)->save($tempImagePath);
-            $success = true;
-        } elseif ($mimeType === 'application/pdf' && extension_loaded('imagick') === true) {
-            $pdfPreview = new \Imagick();
-            $pdfPreview->setResolution(300, 300);
-            $pdfPreview->readImage($filePath . '[0]');
-            $pdfPreview->setImageFormat('webp');
-            $pdfPreview->thumbnailImage($thumbnailWidth, $thumbnailHeight, true);
-            file_put_contents($tempImagePath, $pdfPreview);
-
-            $success = true;
-        } elseif ($mimeType === 'text/plain') {
-            $image = Image::canvas($thumbnailWidth, $thumbnailHeight, '#FFFFFF');
-
-            // Read the first few lines of the text file
-            $numLines = 5;
-            $text = file_get_contents($filePath);
-            $lines = explode("\n", $text);
-            $previewText = implode("\n", array_slice($lines, 0, $numLines));
-
-            // Center the text on the image
-            $fontSize = 8;
-            $textColor = '#000000'; // Black text color
-
-            // Calculate the position to start drawing the text
-            $x = 10; // Left padding
-            $y = 10; // Top padding
-
-            // Draw the text on the canvas with text wrapping
-            $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
-            foreach ($lines as $line) {
-                $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
-                    $font->file(1);
-                    $font->size($fontSize);
-                    $font->color($textColor);
-                });
-
-                // Move to the next line
-                $y += ($fontSize + 4); // Add some vertical spacing between lines (adjust as needed)
-            }
-
-            $image->encode('webp', 75)->save($tempImagePath);
-
-            $success = true;
-        } elseif (file_exists($ffmpegPath) === true && strpos($mimeType, 'video/') === 0) {
-            $tempImagePath .= '.webp';
-            exec("$ffmpegPath -i $filePath -ss 00:00:05 -vframes 1 -s {$thumbnailWidth}x{$thumbnailHeight} -c:v webp {$tempImagePath}");
-
-            $success = true;
-        }//end if
-
-        if ($success === true && file_exists($tempImagePath) === true) {
-            Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
-            unlink($tempImagePath);
-
-            $this->media->thumbnail = $this->media->getUrlPath() . $newFilename;
-        } else {
-            $fileIconPath = '/assets/fileicons/' . ($fileExtension !== '' && file_exists(public_path('assets/fileicons/' . $fileExtension . '.webp')) ? $fileExtension : 'unknown') . '.webp';
-            $this->media->thumbnail = asset($fileIconPath);
-        }
     }
 }
