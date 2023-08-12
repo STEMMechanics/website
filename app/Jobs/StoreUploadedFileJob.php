@@ -122,84 +122,12 @@ class StoreUploadedFileJob implements ShouldQueue
                 }
             }//end if
 
-            if (strpos($this->media->mime_type, 'image/') === 0) {
-                $this->media->status = "Optimizing image";
-                $this->media->save();
+            $this->media->status = "Optimizing image";
+            $this->media->save();
+            $this->media->generateVariants($this->uploadedFilePath);
 
-                // Generate additional image sizes
-                $sizes = Media::getTypeVariants('image');
-
-                $originalImage = Image::make($this->uploadedFilePath);
-
-                $imageSize = $originalImage->getSize();
-                $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
-
-                // Swap width and height values for portrait images
-                foreach ($sizes as $variantName => &$size) {
-                    if ($isPortrait === true) {
-                        $temp = $size['width'];
-                        $size['width'] = $size['height'];
-                        $size['height'] = $temp;
-                    }
-                }
-
-                $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
-                $this->media->dimensions = implode('x', $dimensions);
-
-                foreach ($sizes as $variantName => $size) {
-                    $postfix = "{$size['width']}x{$size['height']}";
-                    if ($variantName === 'scaled') {
-                        $postfix = 'scaled';
-                    }
-
-                    if (is_array($this->media->variants) === true && array_key_exists($postfix, $this->media->variants) === true && Storage::disk($storageDisk)->exists($this->media->variants[$postfix]) === true && $this->replaceExisting === true) {
-                        Storage::disk($storageDisk)->delete($this->media->variants[$postfix]);
-                    }
-
-                    $newFilename = pathinfo($this->media->name, PATHINFO_FILENAME) . "-$postfix.webp";
-
-                    if (Storage::disk($storageDisk)->exists($newFilename) === false || $this->replaceExisting === true) {
-                        // Get the largest available variant
-                        if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {
-                            // Store the variant in the variants array
-                            $variants[$variantName] = $newFilename;
-
-                            // Resize the image to the variant size if its dimensions are greater than the
-                            // specified size
-                            $image = clone $originalImage;
-
-                            $imageSize = $image->getSize();
-                            if ($imageSize->getWidth() > $size['width'] || $imageSize->getHeight() > $size['height']) {
-                                $image->resize($size['width'], $size['height'], function ($constraint) {
-                                    $constraint->aspectRatio();
-                                    $constraint->upsize();
-                                });
-                                $image->resizeCanvas($size['width'], $size['height'], 'center', false, 'rgba(0,0,0,0)');
-                            }
-
-                            $image->orientate();
-
-                            // Optimize and store image
-                            $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
-                            $image->encode('webp', 75)->save($tempImagePath);
-                            Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
-                            unlink($tempImagePath);
-                        }//end if
-                    } else {
-                        Log::info("variant {$variantName} already exists for file {$fileName}");
-                    }//end if
-                }//end foreach
-
-                // Set missing variants to the largest available variant
-                foreach ($sizes as $variantName => $size) {
-                    if (isset($variants[$variantName]) === false) {
-                        $variants[$variantName] = $this->media->name;
-                    }
-                }
-
-                $this->media->variants = $variants;
-            }//end if
-
+            $this->media->status = "Generating Thumbnail";
+            $this->media->save();
             $this->media->generateThumbnail($this->uploadedFilePath);
 
             if (strlen($this->uploadedFilePath) > 0) {
