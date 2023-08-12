@@ -740,6 +740,9 @@ class Media extends Model
 
         if (strpos($this->mime_type, 'image/') === 0) {
             $image = Image::make($filePath);
+            $image->resize($thumbnailWidth, $thumbnailHeight, function ($constraint) {
+                $constraint->aspectRatio();
+            });
             $image->fit($thumbnailWidth, $thumbnailHeight);
             $image->encode('webp', 75)->save($tempImagePath);
             $success = true;
