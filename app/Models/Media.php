@@ -700,6 +700,25 @@ class Media extends Model
     }
 
     /**
+     * Download temporary copy of the storage file.
+     *
+     * @return string File path
+     */
+    private function downloadTempFile(): string
+    {
+        $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
+        $filePath = tempnam(sys_get_temp_dir(), 'download-');
+        $writeStream = fopen($filePath, 'w');
+        while (feof($readStream) !== true) {
+            fwrite($writeStream, fread($readStream, 8192));
+        }
+        fclose($readStream);
+        fclose($writeStream);
+
+        return $filePath;
+    }
+
+    /**
      * Generate a Thumbnail for this media.
      * @param string $uploadedFilePath The local file, if present (else download from storage).
      *
@@ -721,14 +740,7 @@ class Media extends Model
         // download original from CDN if no local file
         $filePath = $uploadedFilePath;
         if ($uploadedFilePath === "") {
-            $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
-            $filePath = tempnam(sys_get_temp_dir(), 'download-');
-            $writeStream = fopen($filePath, 'w');
-            while (feof($readStream) !== true) {
-                fwrite($writeStream, fread($readStream, 8192));
-            }
-            fclose($readStream);
-            fclose($writeStream);
+            $filePath = $this->downloadTempFile();
         }
 
         $fileExtension = File::extension($this->name);
@@ -790,7 +802,9 @@ class Media extends Model
             $success = true;
         } elseif (file_exists($ffmpegPath) === true && strpos($this->mime_type, 'video/') === 0) {
             $tempImagePath .= '.webp';
-            exec("$ffmpegPath -i $filePath -ss 00:00:05 -vframes 1 -s {$thumbnailWidth}x{$thumbnailHeight} -c:v webp {$tempImagePath}");
+            $command = "$ffmpegPath -i $filePath -ss 00:00:05 -vframes 1 " . // phpcs:ignore
+            "-s {$thumbnailWidth}x{$thumbnailHeight} -c:v webp {$tempImagePath}";
+            exec($command);
 
             $success = true;
         }//end if
@@ -803,8 +817,15 @@ class Media extends Model
 
             $this->thumbnail = $this->getUrlPath() . $newFilename;
         } else {
-            $fileIconPath = '/assets/fileicons/' . ($fileExtension !== '' && file_exists(public_path('assets/fileicons/' . $fileExtension . '.webp')) ? $fileExtension : 'unknown') . '.webp';
-            $this->thumbnail = asset($fileIconPath);
+            $iconExtension = 'unknown';
+            if ($fileExtension !== '') {
+                $iconPath = public_path('assets/fileicons/' . $fileExtension . '.webp');
+                if (file_exists($iconPath) === true) {
+                    $iconExtension = $fileExtension;
+                }
+            }
+
+            $this->thumbnail = asset('/assets/fileicons/' . $iconExtension . '.webp');
         }
 
         return $success;
@@ -825,14 +846,7 @@ class Media extends Model
             // download original from CDN if no local file
             $filePath = $uploadedFilePath;
             if ($uploadedFilePath === "") {
-                $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
-                $filePath = tempnam(sys_get_temp_dir(), 'download-');
-                $writeStream = fopen($filePath, 'w');
-                while (feof($readStream) !== true) {
-                    fwrite($writeStream, fread($readStream, 8192));
-                }
-                fclose($readStream);
-                fclose($writeStream);
+                $filePath = $this->downloadTempFile();
             }
 
             // delete existing variants
@@ -845,7 +859,7 @@ class Media extends Model
             }
             $this->variants = [];
 
-            $originalImage = Image::make($sizes);
+            $originalImage = Image::make($filePath);
 
             $imageSize = $originalImage->getSize();
             $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
