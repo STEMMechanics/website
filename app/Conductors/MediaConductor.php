@@ -48,6 +48,7 @@ class MediaConductor extends Conductor
     {
         $fields = parent::fields($model);
 
+        /** @var \App\Models\User */
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/media') === false) {
             $fields = arrayRemoveItem($fields, ['permission', 'storage']);
@@ -60,6 +61,7 @@ class MediaConductor extends Conductor
      * Run a scope query on the collection before anything else.
      *
      * @param Builder $builder The builder in use.
+     * @return void
      */
     public function scope(Builder $builder): void
     {
@@ -80,6 +82,7 @@ class MediaConductor extends Conductor
     public static function viewable(Model $model): bool
     {
         if ($model->permission !== '') {
+            /** @var \App\Models\User */
             $user = auth()->user();
             if ($user === null || $user->hasPermission($model->permission) === false) {
                 return false;
@@ -108,8 +111,10 @@ class MediaConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
-        return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 || $user->hasPermission('admin/media') === true));
+        return ($user !== null && (strcasecmp($model->user_id, $user->id) === 0 ||
+            $user->hasPermission('admin/media') === true));
     }
 
     /**
@@ -120,6 +125,7 @@ class MediaConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && ($model->user_id === $user->id || $user->hasPermission('admin/media') === true));
     }
