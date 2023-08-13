@@ -98,14 +98,18 @@ class StoreUploadedFileJob implements ShouldQueue
 
             if (strlen($this->uploadedFilePath) > 0) {
                 if (Storage::disk($storageDisk)->exists($fileName) === false || $this->replaceExisting === true) {
-                    Storage::disk($storageDisk)->putFileAs('/', new SplFileInfo($this->uploadedFilePath), $fileName);
+                    /** @var Illuminate\Filesystem\FilesystemAdapter */
+                    $fileSystem = Storage::disk($storageDisk);
+                    $fileSystem->putFileAs('/', new SplFileInfo($this->uploadedFilePath), $fileName);
                     Log::info("uploading file {$storageDisk} / {$fileName} / {$this->uploadedFilePath}");
                 } else {
-                    Log::info("file {$fileName} already exists in {$storageDisk} / {$this->uploadedFilePath}. Not replacing file and using local {$fileName} for variants.");
+                    Log::info("file {$fileName} already exists in {$storageDisk} / " . // phpcs:ignore
+                    "{$this->uploadedFilePath}. Not replacing file and using local {$fileName} for variants.");
                 }
             } else {
                 if (Storage::disk($storageDisk)->exists($fileName) === true) {
-                    Log::info("file {$fileName} already exists in {$storageDisk} / {$this->uploadedFilePath}. No local {$fileName} for variants, downloading from CDN.");
+                    Log::info("file {$fileName} already exists in {$storageDisk} / " . // phpcs:ignore
+                    "{$this->uploadedFilePath}. No local {$fileName} for variants, downloading from CDN.");
                     $readStream = Storage::disk($storageDisk)->readStream($fileName);
                     $tempFilePath = tempnam(sys_get_temp_dir(), 'download-');
                     $writeStream = fopen($tempFilePath, 'w');
@@ -116,7 +120,8 @@ class StoreUploadedFileJob implements ShouldQueue
                     fclose($writeStream);
                     $this->uploadedFilePath = $tempFilePath;
                 } else {
-                    $errorStr = "cannot upload file {$storageDisk} / {$fileName} / {$this->uploadedFilePath} as temp file is empty";
+                    $errorStr = "cannot upload file {$storageDisk} " . // phpcs:ignore
+                    "/ {$fileName} / {$this->uploadedFilePath} as temp file is empty";
                     Log::info($errorStr);
                     throw new \Exception($errorStr);
                 }
