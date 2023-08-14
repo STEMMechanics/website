@@ -4,6 +4,7 @@ import piniaPluginPersistedstate from "pinia-plugin-persistedstate";
 import { createApp } from "vue";
 import App from "./views/App.vue";
 import "uno.css";
+import "../css/app.scss";
 
 const pinia = createPinia();
 pinia.use(piniaPluginPersistedstate);
