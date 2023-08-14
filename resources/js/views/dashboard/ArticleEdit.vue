@@ -119,7 +119,8 @@ const updateSlug = async () => {
         let idx = 0;
         let pre_slug = (form.controls.title.value as string)
             .toLowerCase()
-            .replace(/[^a-z0-9]/gim, "-")
+            .replace(/[^a-z0-9 ]/gim, "")
+            .replace(/ +/g, "-")
             .replace(/-+/g, "-")
             .replace(/^-*(.+?)-*$/, "$1");
 
