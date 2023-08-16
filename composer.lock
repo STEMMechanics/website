@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0e044ab0ad7def62762df86bb2e54671",
+    "content-hash": "2ab8c05e6b2a49d97f274c71ca55aa43",
     "packages": [
         {
             "name": "apimatic/core",
@@ -4417,16 +4417,16 @@
         },
         {
             "name": "square/square",
-            "version": "29.0.0.20230720",
+            "version": "30.0.0.20230816",
             "source": {
                 "type": "git",
                 "url": "https://github.com/square/square-php-sdk.git",
-                "reference": "6b8fab31298e785c5c41a39e877b5480679fcc9f"
+                "reference": "fedfea8b6c6f16b6a90ef0d629743ae9ae25e13d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/square/square-php-sdk/zipball/6b8fab31298e785c5c41a39e877b5480679fcc9f",
-                "reference": "6b8fab31298e785c5c41a39e877b5480679fcc9f",
+                "url": "https://api.github.com/repos/square/square-php-sdk/zipball/fedfea8b6c6f16b6a90ef0d629743ae9ae25e13d",
+                "reference": "fedfea8b6c6f16b6a90ef0d629743ae9ae25e13d",
                 "shasum": ""
             },
             "require": {
@@ -4467,9 +4467,9 @@
             ],
             "support": {
                 "issues": "https://github.com/square/square-php-sdk/issues",
-                "source": "https://github.com/square/square-php-sdk/tree/29.0.0.20230720"
+                "source": "https://github.com/square/square-php-sdk/tree/30.0.0.20230816"
             },
-            "time": "2023-07-19T21:18:52+00:00"
+            "time": "2023-08-15T21:45:55+00:00"
         },
         {
             "name": "sunspikes/clamav-validator",
