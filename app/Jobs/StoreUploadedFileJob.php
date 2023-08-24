@@ -48,6 +48,13 @@ class StoreUploadedFileJob implements ShouldQueue
      */
     protected $replaceExisting;
 
+    /**
+     * Modifications to make on the Media
+     *
+     * @var array
+     */
+    protected $modifications;
+
 
     /**
      * Create a new job instance.
@@ -55,13 +62,15 @@ class StoreUploadedFileJob implements ShouldQueue
      * @param Media   $media           The media model.
      * @param string  $filePath        The uploaded file.
      * @param boolean $replaceExisting Replace existing files.
+     * @param array   $modifications   The modifications to make on the media.
      * @return void
      */
-    public function __construct(Media $media, string $filePath, bool $replaceExisting = true)
+    public function __construct(Media $media, string $filePath, bool $replaceExisting = true, array $modifications = [])
     {
         $this->media = $media;
         $this->uploadedFilePath = $filePath;
         $this->replaceExisting = $replaceExisting;
+        $this->modifications = $modifications;
     }
 
     /**

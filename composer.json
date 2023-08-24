@@ -36,7 +36,8 @@
     "autoload": {
         "files": [
             "app/Helpers/Array.php",
-            "app/Helpers/Temp.php"
+            "app/Helpers/Temp.php",
+            "app/Helpers/TypeValue.php"
         ],
         "psr-4": {
             "App\\": "app/",

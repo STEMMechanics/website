@@ -6,9 +6,10 @@ use App\Conductors\MediaConductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\MediaRequest;
 use App\Models\Media;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MediaController extends ApiController
@@ -67,45 +68,62 @@ class MediaController extends ApiController
      */
     public function store(MediaRequest $request)
     {
-        if (MediaConductor::creatable() === true) {
-            $file = $request->file('file');
-            if ($file === null) {
-                return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
+        if (MediaConductor::creatable() === false) {
+            return $this->respondForbidden();
+        }
+
+        $file = $request->file('file');
+        if ($file === null) {
+            return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
+        }
+
+        $jsonResult = $this->validateFileItem($file);
+        if ($jsonResult !== null) {
+            return $jsonResult;
+        }
+
+        $request->merge([
+            'title' => $request->get('title', ''),
+            'name' => '',
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'status' => '',
+        ]);
+
+        // We store images by default locally
+        if ($request->get('storage') === null) {
+            if (strpos($file->getMimeType(), 'image/') === 0) {
+                $request->merge([
+                    'storage' => 'local',
+                ]);
+            } else {
+                $request->merge([
+                    'storage' => 'cdn',
+                ]);
             }
+        }
 
-            if ($file->isValid() !== true) {
-                switch ($file->getError()) {
-                    case UPLOAD_ERR_INI_SIZE:
-                    case UPLOAD_ERR_FORM_SIZE:
-                        return $this->respondTooLarge();
-                    case UPLOAD_ERR_PARTIAL:
-                        return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
-                    default:
-                        return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
-                }
-            }
+        $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
 
-            if ($file->getSize() > Media::getMaxUploadSize()) {
-                return $this->respondTooLarge();
-            }
+        $temporaryFilePath = generateTempFilePath();
+        copy($file->path(), $temporaryFilePath);
 
-            try {
-                $media = Media::createFromUploadedFile($request, $file);
-            } catch (\Exception $e) {
-                if ($e->getCode() === Media::FILE_SIZE_EXCEEDED_ERROR) {
-                    return $this->respondTooLarge();
-                } else {
-                    return $this->respondWithErrors(['file' => $e->getMessage()]);
-                }
-            }
+        $transformData = ['file' => [
+            'path' => $temporaryFilePath,
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+        ]
+        ];
+        if ($request->has('transform') === true) {
+            $transformData = array_merge($transformData, array_map('trim', explode(',', $request->get('transform'))));
+        }
 
-            return $this->respondAsResource(
-                MediaConductor::model($request, $media),
-                ['respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
-            );
-        }//end if
+        $mediaItem->transform($transformData);
 
-        return $this->respondForbidden();
+        return $this->respondAsResource(
+            MediaConductor::model($request, $mediaItem),
+            ['respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
+        );
     }
 
     /**
@@ -117,43 +135,42 @@ class MediaController extends ApiController
      */
     public function update(MediaRequest $request, Media $medium)
     {
-        if (MediaConductor::updatable($medium) === true) {
-            $file = $request->file('file');
-            if ($file !== null) {
-                if ($file->isValid() !== true) {
-                    switch ($file->getError()) {
-                        case UPLOAD_ERR_INI_SIZE:
-                        case UPLOAD_ERR_FORM_SIZE:
-                            return $this->respondTooLarge();
-                        case UPLOAD_ERR_PARTIAL:
-                            return $this->respondWithErrors(['file' => 'The file upload was interrupted.']);
-                        default:
-                            return $this->respondWithErrors(['file' => 'An error occurred uploading the file to the server.']);
-                    }
-                }
+        if (MediaConductor::updatable($medium) === false) {
+            return $this->respondForbidden();
+        }
 
-                if ($file->getSize() > Media::getMaxUploadSize()) {
-                    return $this->respondTooLarge();
-                }
+        $file = $request->file('file');
+        if ($file !== null) {
+            $jsonResult = $this->validateFileItem($file);
+            if ($jsonResult !== null) {
+                return $jsonResult;
             }
+        }
 
-            $medium->update($request->all());
+        $medium->update($request->except(['file','transform']));
 
-            if ($file !== null) {
-                try {
-                    $medium->updateWithUploadedFile($file);
-                } catch (\Exception $e) {
-                    return $this->respondWithErrors(
-                        ['file' => $e->getMessage()],
-                        HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR
-                    );
-                }
-            }
+        $transformData = [];
+        if ($file !== null) {
+            $temporaryFilePath = generateTempFilePath();
+            copy($file->path(), $temporaryFilePath);
 
-            return $this->respondAsResource(MediaConductor::model($request, $medium));
-        }//end if
+            $transformData = array_merge($transformData, ['file' => [
+                'path' => $temporaryFilePath,
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+            ]
+            ]);
+        }
 
-        return $this->respondForbidden();
+        if ($request->has('transform') === true) {
+            $transformData = array_merge($transformData, array_map('trim', explode(',', $request->get('transform'))));
+        }
+
+        if (count($transformData) > 0) {
+            $medium->transform($transformData);
+        }
+
+        return $this->respondAsResource(MediaConductor::model($request, $medium));
     }
 
     /**
@@ -250,5 +267,33 @@ class MediaController extends ApiController
         }
 
         return response()->file($path, $headers);
+    }
+
+    /**
+     * Validate a File item in a request is valid
+     *
+     * @param UploadedFile $file     The file to validate.
+     * @param string       $errorKey The error key to use.
+     * @return JsonResponse|null
+     */
+    private function validateFileItem(UploadedFile $file, string $errorKey = 'file'): JsonResponse|null
+    {
+        if ($file->isValid() !== true) {
+            switch ($file->getError()) {
+                case UPLOAD_ERR_INI_SIZE:
+                case UPLOAD_ERR_FORM_SIZE:
+                    return $this->respondTooLarge();
+                case UPLOAD_ERR_PARTIAL:
+                    return $this->respondWithErrors([$errorKey => 'The file upload was interrupted.']);
+                default:
+                    return $this->respondWithErrors([$errorKey => 'An error occurred uploading the file to the server.']);
+            }
+        }
+
+        if ($file->getSize() > Media::getMaxUploadSize()) {
+            return $this->respondTooLarge();
+        }
+
+        return null;
     }
 }

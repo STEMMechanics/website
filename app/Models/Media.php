@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enum\HttpResponseCodes;
+use App\Jobs\MediaJob;
 use App\Jobs\MoveMediaJob;
 use App\Jobs\StoreUploadedFileJob;
 use App\Traits\Uuids;
+use Exception;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Bus\DispatchesJobs;
@@ -18,7 +21,13 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Exception\NotSupportedException;
+use Intervention\Image\Exception\NotWritableException;
+use ImagickException;
 use Intervention\Image\Facades\Image;
+use InvalidArgumentException;
+use Psr\Container\NotFoundExceptionInterface;
+use Psr\Container\ContainerExceptionInterface;
 use SplFileInfo;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -82,13 +91,12 @@ class Media extends Model
     protected static $storageFileListCache = [];
 
     /**
-     * The variant types.
+     * Object variant details.
      *
      * @var int[][][]
      */
-    protected static $variantTypes = [
+    protected static $objectVariants = [
         'image' => [
-            'thumb'     => ['width' => 150, 'height' => 150],
             'small'     => ['width' => 300, 'height' => 225],
             'medium'    => ['width' => 768, 'height' => 576],
             'large'     => ['width' => 1024, 'height' => 768],
@@ -97,6 +105,13 @@ class Media extends Model
             'scaled'    => ['width' => 2560, 'height' => 1920]
         ]
     ];
+
+    /**
+     * Staging file path of asset for processing.
+     *
+     * @var string
+     */
+    private $stagingFilePath = "";
 
 
     /**
@@ -138,15 +153,15 @@ class Media extends Model
     }
 
     /**
-     * Get Type Variants.
+     * Get Object Variants.
      *
-     * @param string $type The variant type to get.
+     * @param string $type The variant object to get.
      * @return array The variant data.
      */
-    public static function getTypeVariants(string $type): array
+    public static function getObjectVariants(string $type): array
     {
-        if (isset(self::$variantTypes[$type]) === true) {
-            return self::$variantTypes[$type];
+        if (isset(self::$objectVariants[$type]) === true) {
+            return self::$objectVariants[$type];
         }
 
         return [];
@@ -191,11 +206,11 @@ class Media extends Model
      */
     public function getPreviousVariant(string $type, string $variant): string
     {
-        if (isset(self::$variantTypes[$type]) === false) {
+        if (isset(self::$objectVariants[$type]) === false) {
             return '';
         }
 
-        $variants = self::$variantTypes[$type];
+        $variants = self::$objectVariants[$type];
         $keys = array_keys($variants);
 
         $currentIndex = array_search($variant, $keys);
@@ -215,11 +230,11 @@ class Media extends Model
      */
     public function getNextVariant(string $type, string $variant): string
     {
-        if (isset(self::$variantTypes[$type]) === false) {
+        if (isset(self::$objectVariants[$type]) === false) {
             return '';
         }
 
-        $variants = self::$variantTypes[$type];
+        $variants = self::$objectVariants[$type];
         $keys = array_keys($variants);
 
         $currentIndex = array_search($variant, $keys);
@@ -265,18 +280,12 @@ class Media extends Model
      */
     public function deleteFile(): void
     {
-        $fileName = $this->name;
-        $baseName = pathinfo($fileName, PATHINFO_FILENAME);
-        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
-
-        $files = Storage::disk($this->storage)->files();
-
-        foreach ($files as $file) {
-            if (preg_match("/{$baseName}(-[a-zA-Z0-9]+)?\.{$extension}/", $file) === 1) {
-                Storage::disk($this->storage)->delete($file);
-            }
+        if (strlen($this->storage) > 0 && strlen($this->name) > 0 && Storage::disk($this->storage)->exists($this->name) === true) {
+            Storage::disk($this->storage)->delete($this->name);
         }
 
+        $this->deleteThumbnail();
+        $this->deleteVariants();
         $this->invalidateCFCache();
     }
 
@@ -363,96 +372,37 @@ class Media extends Model
     }
 
     /**
-     * Create new Media from UploadedFile data.
+     * Transform the media through the Media Job Queue
      *
-     * @param App\Models\Request           $request The request data.
-     * @param Illuminate\Http\UploadedFile $file    The file.
-     * @return null|Media The result or null if not successful.
+     * @param array $transform The transform data.
+     * @return void
      */
-    public static function createFromUploadedFile(Request $request, UploadedFile $file): ?Media
+    public function transform(array $transform): void
     {
-        $request->merge([
-            'title' => $request->get('title', ''),
-            'name' => '',
-            'size' => 0,
-            'mime_type' => '',
-            'status' => '',
-        ]);
-
-        if ($request->get('storage') === null) {
-            // We store images by default locally
-            if (strpos($file->getMimeType(), 'image/') === 0) {
-                $request->merge([
-                    'storage' => 'local',
-                ]);
-            } else {
-                $request->merge([
-                    'storage' => 'cdn',
-                ]);
+        foreach ($transform as $key => $value) {
+            if (is_string($value) === true) {
+                if (preg_match('/^rotate-(-?\d+)$/', $value, $matches) !== false) {
+                    unset($transform[$key]);
+                    $transform['rotate'] = $matches[1];
+                } elseif (preg_match('/^flip-([vh]|vh|hv)$/', $value, $matches) !== false) {
+                    unset($transform[$key]);
+                    $transform['flip'] = $matches[1];
+                } elseif (preg_match('/^crop-(\d+)-(\d+)$/', $value, $matches) !== false) {
+                    unset($transform[$key]);
+                    $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2]];
+                } elseif (preg_match('/^crop-(\d+)-(\d+)-(\d+)-(\d+)$/', $value, $matches) !== false) {
+                    unset($transform[$key]);
+                    $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2], 'x' => $matches[3], 'y' => $matches[4]];
+                }
             }
         }
-
-        $mediaItem = $request->user()->media()->create($request->all());
-        $mediaItem->updateWithUploadedFile($file);
-
-        return $mediaItem;
-    }
-
-    /**
-     * Update Media with UploadedFile data.
-     *
-     * @param Illuminate\Http\UploadedFile $file The file.
-     * @return null|Media The media item.
-     */
-    public function updateWithUploadedFile(UploadedFile $file): ?Media
-    {
-        if ($file === null || $file->isValid() !== true) {
-            throw new \Exception('The file is invalid.', self::INVALID_FILE_ERROR);
-        }
-
-        if ($file->getSize() > static::getMaxUploadSize()) {
-            throw new \Exception('The file size is larger then permitted.', self::FILE_SIZE_EXCEEDED_ERROR);
-        }
-
-        $name = static::generateUniqueFileName($file->getClientOriginalName());
-        if ($name === false) {
-            throw new \Exception('The file name already exists in storage.', self::FILE_NAME_EXISTS_ERROR);
-        }
-
-        // remove file if there is an existing entry in this medium item
-        if (strlen($this->name) > 0 && strlen($this->storage) > 0) {
-            Storage::disk($this->storage)->delete($this->name);
-            foreach ($this->variants as $variantName => $fileName) {
-                Storage::disk($this->storage)->delete($fileName);
-            }
-
-            $this->name = '';
-            $this->variants = [];
-        }
-
-        if (strlen($this->title) === 0) {
-            $this->title = $name;
-        }
-
-        $this->name = $name;
-        $this->size = $file->getSize();
-        $this->mime_type = $file->getMimeType();
-        $this->status = 'Processing media';
-        $this->save();
-
-        $temporaryFilePath = generateTempFilePath();
-        copy($file->path(), $temporaryFilePath);
 
         try {
-            StoreUploadedFileJob::dispatch($this, $temporaryFilePath)->onQueue('media');
+            MediaJob::dispatch($this, $transform)->onQueue('media');
         } catch (\Exception $e) {
-            $this->status = 'Error';
-            $this->save();
-
+            $this->error('Failed to transform media');
             throw $e;
         }//end try
-
-        return $this;
     }
 
     /**
@@ -625,7 +575,7 @@ class Media extends Model
      */
     public static function fileNameHasSuffix(string $fileName): bool
     {
-        $suffix = '/(-\d+x\d+|-scaled)$/i';
+        $suffix = '/(-\d+x\d+|-scaled|-thumb)$/i';
         $fileNameWithoutExtension = pathinfo($fileName, PATHINFO_FILENAME);
 
         return preg_match($suffix, $fileNameWithoutExtension) === 1;
@@ -700,31 +650,124 @@ class Media extends Model
     }
 
     /**
-     * Download temporary copy of the storage file.
+     * Get the Staging File path.
      *
-     * @return string File path
+     * @param boolean $create Create staging file if doesn't exist.
+     * @return string
      */
-    private function downloadTempFile(): string
+    public function getStagingFilePath(bool $create = true): string
     {
-        $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
-        $filePath = tempnam(sys_get_temp_dir(), 'download-');
-        $writeStream = fopen($filePath, 'w');
-        while (feof($readStream) !== true) {
-            fwrite($writeStream, fread($readStream, 8192));
+        if ($this->stagingFilePath === "" && $create === true) {
+            $this->createStagingFile();
         }
-        fclose($readStream);
-        fclose($writeStream);
 
-        return $filePath;
+        return $this->stagingFilePath;
+    }
+
+    /**
+     * Set the Staging File for processing.
+     *
+     * @param string  $path      The path if the new staging file.
+     * @param boolean $overwrite Overwrite existing file.
+     * @return void
+     */
+    public function setStagingFile(string $path, bool $overwrite = false): void
+    {
+        if ($this->stagingFilePath !== "") {
+            if ($overwrite === true) {
+                unlink($this->stagingFilePath);
+            } else {
+                // ignore request
+                return;
+            }
+        }
+
+        $this->stagingFilePath = $path;
+    }
+
+    /**
+     * Download temporary copy of the storage file for staging.
+     *
+     * @return boolean If download was successful.
+     */
+    public function createStagingFile(): bool
+    {
+        if ($this->stagingFilePath !== "") {
+            $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
+            $filePath = tempnam(sys_get_temp_dir(), 'download-');
+            $writeStream = fopen($filePath, 'w');
+            while (feof($readStream) !== true) {
+                fwrite($writeStream, fread($readStream, 8192));
+            }
+            fclose($readStream);
+            fclose($writeStream);
+
+            $this->stagingFilePath = $filePath;
+        }
+
+        return $this->stagingFilePath !== "";
+    }
+
+    /**
+     * Save the Staging File to storage
+     *
+     * @param boolean $delete Delete the existing staging file.
+     * @return void
+     */
+    public function saveStagingFile(bool $delete = true): void
+    {
+        if (strlen($this->storage) > 0 && strlen($this->name) > 0) {
+            if (Storage::disk($this->storage)->exists($this->name) === true) {
+                Storage::disk($this->storage)->delete($this->name);
+            }
+
+            /** @var Illuminate\Filesystem\FilesystemAdapter */
+            $fileSystem = Storage::disk($this->storage);
+            $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
+        }
+
+        $this->generateThumbnail();
+        $this->generateVariants();
+
+        if ($delete === true) {
+            $this->deleteStagingFile();
+        }
+    }
+
+    /**
+     * Clean up temporary file.
+     *
+     * @return void
+     */
+    public function deleteStagingFile(): void
+    {
+        if ($this->stagingFilePath !== "") {
+            unlink($this->stagingFilePath);
+            $this->stagingFilePath = "";
+        }
+    }
+
+    /**
+     * Change staging file, removing the old file if present
+     *
+     * @param string $newFile The new staging file.
+     * @return void
+     */
+    public function changeStagingFile(string $newFile): void
+    {
+        if ($this->stagingFilePath !== "") {
+            unlink($this->stagingFilePath);
+        }
+
+        $this->stagingFilePath = $newFile;
     }
 
     /**
      * Generate a Thumbnail for this media.
-     * @param string $uploadedFilePath The local file, if present (else download from storage).
      *
      * @return boolean If generation was successful.
      */
-    public function generateThumbnail(string $uploadedFilePath = ""): bool
+    public function generateThumbnail(): bool
     {
         $thumbnailWidth = 200;
         $thumbnailHeight = 200;
@@ -737,11 +780,7 @@ class Media extends Model
             }
         }
 
-        // download original from CDN if no local file
-        $filePath = $uploadedFilePath;
-        if ($uploadedFilePath === "") {
-            $filePath = $this->downloadTempFile();
-        }
+        $filePath = $this->createStagingFile();
 
         $fileExtension = File::extension($this->name);
         $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
@@ -832,22 +871,35 @@ class Media extends Model
     }
 
     /**
-     * Generate variants for this media.
-     * @param string $uploadedFilePath The local file, if present (else download from storage).
+     * Delete Media Thumbnail from storage.
      *
      * @return void
      */
-    public function generateVariants(string $uploadedFilePath = ""): void
+    public function deleteThumbnail(): void
+    {
+        if (strlen($this->thumbnail) > 0) {
+            $path = substr($this->thumbnail, strlen($this->getUrlPath()));
+
+            if (strlen($path) > 0 && Storage::disk($this->storageDisk)->exists($path) === true) {
+                Storage::disk($this->storageDisk)->delete($path);
+                $this->thumbnail = ''; // Clear the thumbnail property
+            }
+        }
+    }
+
+    /**
+     * Generate variants for this media.
+     *
+     * @return void
+     */
+    public function generateVariants(): void
     {
         if (strpos($this->media->mime_type, 'image/') === 0) {
             // Generate additional image sizes
-            $sizes = Media::getTypeVariants('image');
+            $sizes = Media::getObjectVariants('image');
 
             // download original from CDN if no local file
-            $filePath = $uploadedFilePath;
-            if ($uploadedFilePath === "") {
-                $filePath = $this->downloadTempFile();
-            }
+            $filePath = $this->createStagingFile();
 
             // delete existing variants
             if (is_array($this->variants) === true) {
@@ -923,5 +975,54 @@ class Media extends Model
 
             $this->variants = $variants;
         }//end if
+    }
+
+    /**
+     * Delete the Media variants from storage.
+     *
+     * @return void
+     */
+    public function deleteVariants(): void
+    {
+        if (strlen($this->name) > 0 && strlen($this->storage) > 0) {
+            foreach ($this->variants as $variantName => $fileName) {
+                Storage::disk($this->storage)->delete($fileName);
+            }
+
+            $this->variants = [];
+        }
+    }
+
+    /**
+     * Set Media status to OK
+     *
+     * @return void
+     */
+    public function ok(): void
+    {
+        $this->status = "OK";
+        $this->save();
+    }
+
+    /**
+     * Set Media status to an error
+     * @param string $error The error to set.
+     * @return void
+     */
+    public function error(string $error = ""): void
+    {
+        $this->status = "Error" . ($error !== "" ? ": {$error}" : "");
+        $this->save();
+    }
+
+    /**
+     * Set Media status
+     * @param string $status The status to set.
+     * @return void
+     */
+    public function status(string $status = ""): void
+    {
+        $this->status = "Info: " . $status;
+        $this->save();
     }
 }

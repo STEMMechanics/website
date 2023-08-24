@@ -38,3 +38,20 @@ function arrayLimitKeys(array $arr, array $keys): array
 {
     return array_intersect_key($arr, array_flip($keys));
 }
+
+/**
+ * Return an array value or default value if it does not exist
+ *
+ * @param string $key   The key value to return if exists.
+ * @param array  $arr   The array to check.
+ * @param mixed  $value The value to return if key does not exist.
+ * @return mixed
+ */
+function arrayDefaultValue(string $key, array $arr, mixed $value): mixed
+{
+    if (array_key_exists($key, $arr) === true) {
+        return $arr[$key];
+    }
+
+    return $value;
+}
