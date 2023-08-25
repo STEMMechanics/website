@@ -1027,6 +1027,7 @@ const handleLoad = async () => {
         page: page.value,
         limit: perPage.value,
         status: "!Error",
+        filter: "",
     };
 
     if (mimeTypesFilter) {
