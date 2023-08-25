@@ -40,8 +40,11 @@ export const mimeMatches = (
 
 export const mediaGetThumbnail = (
     media: Media,
-    useVariant: string = "",
+    useVariant: string | null = "",
+    forceRefresh: boolean = false,
 ): string => {
+    let url: string = "";
+
     if (!media) {
         return "";
     }
@@ -49,19 +52,35 @@ export const mediaGetThumbnail = (
     if (
         useVariant &&
         useVariant != "" &&
+        useVariant != null &&
         media.variants &&
         media.variants[useVariant]
     ) {
-        return media.url.replace(media.name, media.variants[useVariant]);
+        url = media.url.replace(media.name, media.variants[useVariant]);
     }
 
     if (media.thumbnail && media.thumbnail.length > 0) {
-        return media.thumbnail;
+        url = media.thumbnail;
     }
 
     if (media.variants && media.variants["thumb"]) {
-        return media.url.replace(media.name, media.variants["thumb"]);
+        url = media.url.replace(media.name, media.variants["thumb"]);
     }
 
-    return "/assets/fileicons/unknown.webp";
+    if (url === "") {
+        return "/assets/fileicons/unknown.webp";
+    }
+
+    if (forceRefresh == true) {
+        // Generate a random string
+        const randomString = Math.random().toString(36).substring(7);
+
+        // Check if the URL already has query parameters
+        const separator = url.includes("?") ? "&" : "?";
+
+        // Append the random string as a query parameter
+        url = `${url}${separator}_random=${randomString}`;
+    }
+
+    return url;
 };

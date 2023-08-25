@@ -142,6 +142,8 @@
                                             :style="{
                                                 backgroundImage: `url('${mediaGetThumbnail(
                                                     item,
+                                                    null,
+                                                    true,
                                                 )}')`,
                                                 backgroundColor:
                                                     item.status === 'OK'
@@ -156,11 +158,18 @@
                                             <SMLoading
                                                 v-if="
                                                     item.status !== 'OK' &&
-                                                    item.status !== 'Failed'
+                                                    item.status.startsWith(
+                                                        'Error',
+                                                    ) === false
                                                 "
                                                 small
                                                 class="bg-white bg-op-90 w-full h-full" />
-                                            <div v-if="item.status == 'Failed'">
+                                            <div
+                                                v-if="
+                                                    item.status.startsWith(
+                                                        'Error',
+                                                    ) === true
+                                                ">
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
                                                     class="h-10 w-10"
@@ -232,7 +241,13 @@
                                 <div
                                     class="flex text-xs border-b border-gray-3 pb-4">
                                     <img
-                                        :src="mediaGetThumbnail(lastSelected)"
+                                        :src="
+                                            mediaGetThumbnail(
+                                                lastSelected,
+                                                null,
+                                                true,
+                                            )
+                                        "
                                         class="max-h-20 max-w-20 mr-2" />
                                     <div class="flex flex-col w-100">
                                         <p class="m-0 text-bold">
@@ -256,7 +271,14 @@
                                         <p
                                             v-if="lastSelected.status != 'OK'"
                                             class="m-0 italic">
-                                            {{ lastSelected.status }}
+                                            {{
+                                                lastSelected.status.split(":")
+                                                    .length > 1
+                                                    ? lastSelected.status
+                                                          .split(":")[1]
+                                                          .trim()
+                                                    : lastSelected.status
+                                            }}
                                         </p>
                                         <p
                                             v-if="allowEditSelected"
@@ -388,6 +410,8 @@
                             :style="{
                                 backgroundImage: `url('${mediaGetThumbnail(
                                     item,
+                                    null,
+                                    true,
                                 )}')`,
                                 backgroundColor:
                                     item.status === 'OK'
@@ -397,7 +421,7 @@
                             <SMLoading
                                 v-if="
                                     item.status !== 'OK' &&
-                                    item.status !== 'Failed'
+                                    item.status.startsWith('Error') === false
                                 "
                                 small
                                 class="bg-white bg-op-90 w-full h-full" />
@@ -804,6 +828,7 @@ const handleChangeSelectFile = async () => {
         handleFilesUpload(refUploadInput.value.files);
         showFileBrowserTab();
     }
+    refUploadInput.value.value = "";
 };
 
 const handleFilesUpload = (files: FileList) => {
@@ -861,7 +886,6 @@ const startFilesUpload = async () => {
                     },
                 });
                 if (result.data) {
-                    /* empty */
                     const data = result.data as MediaResponse;
 
                     const currentUploadFileNumStr =
@@ -901,7 +925,7 @@ const updateFiles = async () => {
             if (
                 isUUID(item.id) &&
                 item.status != "OK" &&
-                item.status != "Failed"
+                item.status.startsWith("Error") == false
             ) {
                 remaining = true;
 
@@ -916,10 +940,23 @@ const updateFiles = async () => {
                             const updateData =
                                 updateResult.data as MediaResponse;
                             if (updateData.medium.status == "OK") {
-                                totalItems.value++;
                                 mediaItems.value[index] = updateData.medium;
-                            } else if (updateData.medium.status == "Failed") {
-                                mediaItems.value[index] = updateData.medium;
+                                if (
+                                    lastSelected.value &&
+                                    lastSelected.value.id ==
+                                        updateData.medium.id
+                                ) {
+                                    lastSelected.value = updateData.medium;
+                                }
+                            } else if (
+                                updateData.medium.status.startsWith("Error") ===
+                                true
+                            ) {
+                                mediaItems.value = mediaItems.value.filter(
+                                    (mediaItem) =>
+                                        mediaItem.id !== updateData.medium.id,
+                                );
+
                                 useToastStore().addToast({
                                     title: "Upload failed",
                                     type: "danger",
@@ -931,13 +968,16 @@ const updateFiles = async () => {
                         }
                     })
                     .catch(() => {
-                        /* empty */
+                        /* error retreiving data */
+                        mediaItems.value = mediaItems.value.filter(
+                            (mediaItem) => mediaItem.id !== item.id,
+                        );
                     });
             }
         });
 
         mediaItems.value = mediaItems.value.filter(
-            (item) => item.status !== "Failed",
+            (item) => item.status.startsWith("Error") === false,
         );
 
         if (remaining) {
@@ -986,7 +1026,7 @@ const handleLoad = async () => {
     let params = {
         page: page.value,
         limit: perPage.value,
-        status: "!Failed",
+        status: "!Error",
     };
 
     if (mimeTypesFilter) {
@@ -1144,6 +1184,7 @@ const formatDate = (date) => {
 const allowEditSelected = computed(() => {
     return (
         lastSelected.value != null &&
+        lastSelected.value.status === "OK" &&
         userStore.id &&
         (userHasPermission("admin/media") ||
             lastSelected.value.user_id == userStore.id)
@@ -1176,7 +1217,7 @@ const handleRotateLeft = async (item: Media) => {
             id: item.id,
         },
         body: {
-            transform: "rotate-270",
+            transform: "rotate-90",
         },
     })
         .then((result) => {
@@ -1189,6 +1230,8 @@ const handleRotateLeft = async (item: Media) => {
                 if (index !== -1) {
                     mediaItems.value[index] = data.medium;
                 }
+
+                updateFiles();
             }
         })
         .catch(() => {
@@ -1203,7 +1246,7 @@ const handleRotateRight = async (item: Media) => {
             id: item.id,
         },
         body: {
-            transform: "rotate-90",
+            transform: "rotate-270",
         },
     })
         .then((result) => {
@@ -1216,6 +1259,8 @@ const handleRotateRight = async (item: Media) => {
                 if (index !== -1) {
                     mediaItems.value[index] = data.medium;
                 }
+
+                updateFiles();
             }
         })
         .catch(() => {

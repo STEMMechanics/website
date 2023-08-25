@@ -374,10 +374,11 @@ class Media extends Model
     /**
      * Transform the media through the Media Job Queue
      *
-     * @param array $transform The transform data.
+     * @param array   $transform The transform data.
+     * @param boolean $silent    Update the medium progress through its status field.
      * @return void
      */
-    public function transform(array $transform): void
+    public function transform(array $transform, bool $silent = false): void
     {
         foreach ($transform as $key => $value) {
             if (is_string($value) === true) {
@@ -398,7 +399,7 @@ class Media extends Model
         }
 
         try {
-            MediaJob::dispatch($this, $transform)->onQueue('media');
+            MediaJob::dispatch($this, $transform, $silent)->onQueue('media');
         } catch (\Exception $e) {
             $this->error('Failed to transform media');
             throw $e;
@@ -692,9 +693,10 @@ class Media extends Model
      */
     public function createStagingFile(): bool
     {
-        if ($this->stagingFilePath !== "") {
+        if ($this->stagingFilePath === "") {
             $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
-            $filePath = tempnam(sys_get_temp_dir(), 'download-');
+            $filePath = generateTempFilePath(pathinfo($this->name, PATHINFO_EXTENSION));
+
             $writeStream = fopen($filePath, 'w');
             while (feof($readStream) !== true) {
                 fwrite($writeStream, fread($readStream, 8192));
@@ -703,7 +705,7 @@ class Media extends Model
             fclose($writeStream);
 
             $this->stagingFilePath = $filePath;
-        }
+        }//end if
 
         return $this->stagingFilePath !== "";
     }
@@ -712,9 +714,10 @@ class Media extends Model
      * Save the Staging File to storage
      *
      * @param boolean $delete Delete the existing staging file.
+     * @param boolean $silent Update the status field with the progress.
      * @return void
      */
-    public function saveStagingFile(bool $delete = true): void
+    public function saveStagingFile(bool $delete = true, bool $silent = false): void
     {
         if (strlen($this->storage) > 0 && strlen($this->name) > 0) {
             if (Storage::disk($this->storage)->exists($this->name) === true) {
@@ -723,10 +726,20 @@ class Media extends Model
 
             /** @var Illuminate\Filesystem\FilesystemAdapter */
             $fileSystem = Storage::disk($this->storage);
+            if ($silent === false) {
+                $this->status('Uploading to CDN');
+            }
             $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
         }
 
+        if ($silent === false) {
+            $this->status('Generating Thumbnail');
+        }
         $this->generateThumbnail();
+
+        if ($silent === false) {
+            $this->status('Generating Variants');
+        }
         $this->generateVariants();
 
         if ($delete === true) {
@@ -780,7 +793,7 @@ class Media extends Model
             }
         }
 
-        $filePath = $this->createStagingFile();
+        $filePath = $this->getStagingFilePath();
 
         $fileExtension = File::extension($this->name);
         $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
@@ -894,12 +907,12 @@ class Media extends Model
      */
     public function generateVariants(): void
     {
-        if (strpos($this->media->mime_type, 'image/') === 0) {
+        if (strpos($this->mime_type, 'image/') === 0) {
             // Generate additional image sizes
             $sizes = Media::getObjectVariants('image');
 
             // download original from CDN if no local file
-            $filePath = $this->createStagingFile();
+            $filePath = $this->getStagingFilePath();
 
             // delete existing variants
             if (is_array($this->variants) === true) {

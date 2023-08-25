@@ -84,10 +84,10 @@ class MediaController extends ApiController
 
         $request->merge([
             'title' => $request->get('title', ''),
-            'name' => '',
+            'name' => $file->getClientOriginalName(),
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
-            'status' => '',
+            'status' => 'Creating Media',
         ]);
 
         // We store images by default locally
@@ -147,6 +147,7 @@ class MediaController extends ApiController
             }
         }
 
+        $medium->status('Updating Media');
         $medium->update($request->except(['file','transform']));
 
         $transformData = [];
@@ -168,6 +169,8 @@ class MediaController extends ApiController
 
         if (count($transformData) > 0) {
             $medium->transform($transformData);
+        } else {
+            $medium->ok();
         }
 
         return $this->respondAsResource(MediaConductor::model($request, $medium));

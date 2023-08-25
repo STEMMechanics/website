@@ -30,6 +30,13 @@ class MediaJob implements ShouldQueue
     protected $media;
 
     /**
+     * Actions should be silent (not update the status field)
+     *
+     * @var boolean
+     */
+    protected $silent;
+
+    /**
      * Actions to make on the Media
      *
      * @var array
@@ -40,13 +47,15 @@ class MediaJob implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param Media $media   The media model.
-     * @param array $actions The media actions to make.
+     * @param Media   $media   The media model.
+     * @param array   $actions The media actions to make.
+     * @param boolean $silent  Update the media status with progress.
      * @return void
      */
-    public function __construct(Media $media, array $actions)
+    public function __construct(Media $media, array $actions, bool $silent = false)
     {
         $this->media = $media;
+        $this->silent = $silent;
         $this->actions = $actions;
     }
 
@@ -72,6 +81,10 @@ class MediaJob implements ShouldQueue
                 // convert HEIC files to JPG
                 $fileExtension = File::extension($filePath);
                 if ($fileExtension === 'heic') {
+                    if ($this->silent === false) {
+                        $this->media->status('Converting image');
+                    }
+
                     // Get the path without the file name
                     $uploadedFileDirectory = dirname($filePath);
 
@@ -90,11 +103,12 @@ class MediaJob implements ShouldQueue
                     $filePath = $jpgFilePath;
                     $this->media->name = $jpgFileName;
                     $this->media->save();
-                }
+                }//end if
 
                 // Check if file already exists
                 if (Storage::disk($this->media->storage)->exists($this->media->name) === true) {
                     if (array_key_exists('replace', $uploadData) === false || isTrue($uploadData['replace']) === false) {
+                        $this->media->error("File already exists in storage");
                         $errorStr = "cannot upload file {$this->media->storage} " . // phpcs:ignore
                         "/ {$this->media->name} as it already exists";
                         Log::info($errorStr);
@@ -110,24 +124,37 @@ class MediaJob implements ShouldQueue
 
             // Modifications
             if (strpos($this->media->mime_type, 'image/') === 0) {
-                $image = Image::make($filePath);
+                $modified = false;
+                $image = Image::make($this->media->getStagingFilePath());
 
                 // ROTATE
                 if (array_key_exists("rotate", $this->actions) === true) {
                     $rotate = intval($this->actions["rotate"]);
                     if ($rotate !== 0) {
+                        if ($this->silent === false) {
+                            $this->media->status('Rotating image');
+                        }
                         $image = $image->rotate($rotate);
+                        $modified = true;
                     }
                 }
 
                 // FLIP-H/V
                 if (array_key_exists('flip', $this->actions) === true) {
                     if (stripos($this->actions['flip'], 'h') !== false) {
+                        if ($this->silent === false) {
+                            $this->media->status('Flipping image');
+                        }
                         $image = $image->flip('h');
+                        $modified = true;
                     }
 
                     if (stripos($this->actions['flip'], 'v') !== false) {
+                        if ($this->silent === false) {
+                            $this->media->status('Flipping image');
+                        }
                         $image = $image->flip('v');
+                        $modified = true;
                     }
                 }
 
@@ -139,10 +166,16 @@ class MediaJob implements ShouldQueue
                     $x = intval(arrayDefaultValue("x", $cropData, 0));
                     $y = intval(arrayDefaultValue("y", $cropData, 0));
 
+                    if ($this->silent === false) {
+                        $this->media->status('Cropping image');
+                    }
                     $image = $image->crop($width, $height, $x, $y);
+                    $modified = true;
                 }//end if
 
-                $image->save($filePath);
+                if ($modified === true) {
+                    $image->save();
+                }
             } elseif (strpos($this->media->mime_type, 'video/') === 0) {
                 $ffmpeg = FFMpeg\FFMpeg::create();
                 $video = $ffmpeg->open($this->media->getStagingFilePath());
@@ -157,6 +190,10 @@ class MediaJob implements ShouldQueue
                     $rotate = (round($rotate / 90) * 90); // round to nearest 90%
 
                     if ($rotate > 0) {
+                        if ($this->silent === false) {
+                            $this->media->status('Rotating video');
+                        }
+
                         if ($rotate === 90) {
                             $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
                         } elseif ($rotate === 190) {
@@ -170,10 +207,16 @@ class MediaJob implements ShouldQueue
                 // FLIP-H/V
                 if (array_key_exists('flip', $this->actions) === true) {
                     if (stripos($this->actions['flip'], 'h') !== false) {
+                        if ($this->silent === false) {
+                            $this->media->status('Flipping video');
+                        }
                         $filters->hflip()->synchronize();
                     }
 
                     if (stripos($this->actions['flip'], 'v') !== false) {
+                        if ($this->silent === false) {
+                            $this->media->status('Flipping video');
+                        }
                         $filters->vflip()->synchronize();
                     }
                 }
@@ -190,6 +233,9 @@ class MediaJob implements ShouldQueue
 
                     $cropDimension = new Dimension($width, $height);
 
+                    if ($this->silent === false) {
+                        $this->media->status('Cropping video');
+                    }
                     $filters->crop($cropDimension, $x, $y)->synchronize();
                 }//end if
 
@@ -213,11 +259,17 @@ class MediaJob implements ShouldQueue
             }
 
             // Finish media object
-            $this->media->saveStagingFile();
+            $this->media->saveStagingFile(true, $this->silent);
             $this->media->ok();
+            $this->media->save();
         } catch (\Exception $e) {
+            $this->media->deleteStagingFile();
+
+            if (strpos($this->media->status, 'Error') !== 0) {
+                $this->media->error('Failed to process');
+            }
+
             Log::error($e->getMessage());
-            $this->media->error("Failed");
             $this->fail($e);
         }//end try
     }
