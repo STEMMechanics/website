@@ -143,7 +143,9 @@
                                                 backgroundImage: `url('${mediaGetThumbnail(
                                                     item,
                                                     null,
-                                                    true,
+                                                    itemRequiresRefresh(
+                                                        item.id,
+                                                    ),
                                                 )}')`,
                                                 backgroundColor:
                                                     item.status === 'OK'
@@ -245,7 +247,9 @@
                                             mediaGetThumbnail(
                                                 lastSelected,
                                                 null,
-                                                true,
+                                                itemRequiresRefresh(
+                                                    lastSelected.id,
+                                                ),
                                             )
                                         "
                                         class="max-h-20 max-w-20 mr-2" />
@@ -563,6 +567,8 @@ const refUploadInput = ref<HTMLInputElement | null>(null);
 const refMediaList = ref<HTMLUListElement | null>(null);
 
 const userStore = useUserStore();
+
+const forceRefresh = [];
 
 const allowUploads = ref(props.allowUpload && userStore.id);
 const formLoading = ref(false);
@@ -941,6 +947,7 @@ const updateFiles = async () => {
                                 updateResult.data as MediaResponse;
                             if (updateData.medium.status == "OK") {
                                 mediaItems.value[index] = updateData.medium;
+                                forceRefresh.push(updateData.medium.id);
                                 if (
                                     lastSelected.value &&
                                     lastSelected.value.id ==
@@ -1392,6 +1399,17 @@ const loadInitial = () => {
     if (selected.value.length > 0) {
         mediaItems.value.push(...selected.value);
     }
+};
+
+const itemRequiresRefresh = (id) => {
+    const index = forceRefresh.indexOf(id);
+
+    if (index !== -1) {
+        forceRefresh.splice(index, 1); // Remove the item at the found index
+        return true;
+    }
+
+    return false;
 };
 
 // Get max upload size
