@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Media;
+use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -13,6 +14,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use FFMpeg;
 use FFMpeg\Coordinate\Dimension;
+use FFMpeg\Exception\ExecutableNotFoundException;
+use FFMpeg\Exception\InvalidArgumentException;
+use FFMpeg\Exception\RuntimeException;
+use FFMpeg\FFProbe;
+use FFMpeg\Format\FormatInterface;
 use Intervention\Image\Facades\Image;
 
 class MediaJob implements ShouldQueue
@@ -177,8 +183,15 @@ class MediaJob implements ShouldQueue
                     $image->save();
                 }
             } elseif (strpos($this->media->mime_type, 'video/') === 0) {
+                $stagingFilePath = $this->media->getStagingFilePath();
                 $ffmpeg = FFMpeg\FFMpeg::create();
-                $video = $ffmpeg->open($this->media->getStagingFilePath());
+                $video = $ffmpeg->open($stagingFilePath);
+                $format = $this->detectVideoFormat($stagingFilePath);
+
+                if ($format === null) {
+                    $this->media->error('Unsupported video format');
+                    return;
+                }
 
                 /** @var FFMpeg\Media\Video::filters */
                 $filters = $video->filters();
@@ -240,7 +253,7 @@ class MediaJob implements ShouldQueue
                 }//end if
 
                 $tempFilePath = tempnam(sys_get_temp_dir(), 'video-');
-                $video->save(null, $tempFilePath);
+                $video->save($format, $tempFilePath);
                 $this->media->changeStagingFile($tempFilePath);
             }//end if
 
@@ -272,5 +285,46 @@ class MediaJob implements ShouldQueue
             Log::error($e->getMessage());
             $this->fail($e);
         }//end try
+    }
+
+    /**
+     * Detects the format of a video using FFProbe
+     *
+     * @param string $videoPath The video file path.
+     * @return FormatInterface | null
+     */
+    public function detectVideoFormat(string $videoPath): FormatInterface | null
+    {
+        $ffprobe = FFProbe::create();
+
+        $videoStream = $ffprobe
+            ->streams($videoPath)  // Provide the path to the video file
+            ->videos()             // Filter video streams
+            ->first();
+
+        $codecName = $videoStream->get('codec_name');
+
+        $codecToFormatClass = [
+            'h264' => 'FFMpeg\Format\Video\X264',
+            'wmv2' => 'FFMpeg\Format\Video\WMV',
+            'vp9'  => 'FFMpeg\Format\Video\WebM',
+            'theora' => 'FFMpeg\Format\Video\Ogg',
+            'mpeg4' => 'FFMpeg\Format\Video\Mpeg4',
+            // Add more mappings as needed
+        ];
+
+        if (isset($codecToFormatClass[$codecName]) === false) {
+            Log::info("Unsupported codec: $codecName");
+            return null;
+        }
+
+        $formatClassName = $codecToFormatClass[$codecName];
+
+        if (class_exists($formatClassName) === false) {
+            Log::info("Format class does not exist: $formatClassName");
+            return null;
+        }
+
+        return new $formatClassName();
     }
 }
