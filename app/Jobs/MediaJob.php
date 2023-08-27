@@ -3,7 +3,6 @@
 namespace App\Jobs;
 
 use App\Models\Media;
-use Exception;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -14,11 +13,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use FFMpeg;
 use FFMpeg\Coordinate\Dimension;
-use FFMpeg\Exception\ExecutableNotFoundException;
-use FFMpeg\Exception\InvalidArgumentException;
-use FFMpeg\Exception\RuntimeException;
 use FFMpeg\FFProbe;
-use FFMpeg\Format\FormatInterface;
+use FFMpeg\Format\VideoInterface;
 use Intervention\Image\Facades\Image;
 
 class MediaJob implements ShouldQueue
@@ -252,7 +248,14 @@ class MediaJob implements ShouldQueue
                     $filters->crop($cropDimension, $x, $y)->synchronize();
                 }//end if
 
-                $tempFilePath = tempnam(sys_get_temp_dir(), 'video-');
+                $tempFilePath = generateTempFilePath(pathinfo($stagingFilePath, PATHINFO_EXTENSION));
+                if (method_exists($format, 'on') === true) {
+                    $media = $this->media;
+                    $format->on('progress', function ($video, $format, $percentage) use ($media) {
+                        $media->status("{$percentage}% transcoded");
+                    });
+                }
+
                 $video->save($format, $tempFilePath);
                 $this->media->changeStagingFile($tempFilePath);
             }//end if
@@ -291,9 +294,9 @@ class MediaJob implements ShouldQueue
      * Detects the format of a video using FFProbe
      *
      * @param string $videoPath The video file path.
-     * @return FormatInterface | null
+     * @return VideoInterface | null
      */
-    public function detectVideoFormat(string $videoPath): FormatInterface | null
+    public function detectVideoFormat(string $videoPath): VideoInterface | null
     {
         $ffprobe = FFProbe::create();
 
