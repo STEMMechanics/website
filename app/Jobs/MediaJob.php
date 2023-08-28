@@ -196,7 +196,7 @@ class MediaJob implements ShouldQueue
                 if (array_key_exists("rotate", $this->actions) === true) {
                     $rotate = intval($this->actions["rotate"]);
                     $rotate = (($rotate % 360 + 360) % 360); // remove excess rotations
-                    $rotate = (round($rotate / 90) * 90); // round to nearest 90%
+                    $rotate = intval(round($rotate / 90) * 90); // round to nearest 90%
 
                     if ($rotate > 0) {
                         if ($this->silent === false) {
