@@ -204,11 +204,11 @@ class MediaJob implements ShouldQueue
                         }
 
                         if ($rotate === 90) {
-                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
-                        } elseif ($rotate === 190) {
+                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
+                        } elseif ($rotate === 180) {
                             $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_180);
                         } elseif ($rotate === 270) {
-                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
+                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
                         }
                     }
                 }

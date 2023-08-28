@@ -799,7 +799,7 @@ class Media extends Model
 
         $fileExtension = File::extension($this->name);
         $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
-        $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-thumb.webp";
+        $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-thumb.webp";
         $success = false;
 
         if (strpos($this->mime_type, 'image/') === 0) {
@@ -953,7 +953,7 @@ class Media extends Model
                     $postfix = 'scaled';
                 }
 
-                $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-$postfix.webp";
+                $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-$postfix.webp";
 
                 // Get the largest available variant
                 if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {

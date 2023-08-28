@@ -36,7 +36,7 @@
                         Select Files
                     </button>
                     <p class="text-sm mt-4">
-                        {{ max_upload_size }}
+                        Maximum upload file size: {{ max_upload_size }}
                     </p>
                     <input
                         v-if="allowUploads"
@@ -144,10 +144,6 @@
                                                     item.status === 'OK'
                                                         ? `url('${mediaGetThumbnail(
                                                               item,
-                                                              null,
-                                                              itemRequiresRefresh(
-                                                                  item.id,
-                                                              ),
                                                           )}')`
                                                         : 'initial',
                                                 backgroundColor:
@@ -260,10 +256,6 @@
                                         :style="{
                                             backgroundImage: `url('${mediaGetThumbnail(
                                                 lastSelected,
-                                                null,
-                                                itemRequiresRefresh(
-                                                    lastSelected.id,
-                                                ),
                                             )}')`,
                                         }"></div>
                                     <div class="flex flex-col w-100">
@@ -427,8 +419,6 @@
                             :style="{
                                 backgroundImage: `url('${mediaGetThumbnail(
                                     item,
-                                    null,
-                                    true,
                                 )}')`,
                                 backgroundColor:
                                     item.status === 'OK'
@@ -897,33 +887,77 @@ const startFilesUpload = async () => {
                     convertFileNameToTitle(file.name),
                 );
                 submitFormData.append("description", "");
-                let result = await api.post({
-                    url: "/media",
-                    body: submitFormData,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                });
-                if (result.data) {
-                    const data = result.data as MediaResponse;
+                try {
+                    let result = await api.post({
+                        url: "/media",
+                        body: submitFormData,
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                        progress: (progressEvent) => {
+                            const currentUploadFileNumStr =
+                                currentUploadFileNum.value.toString();
+                            mediaItems.value.every((item, index) => {
+                                if (item.id == currentUploadFileNumStr) {
+                                    mediaItems.value[
+                                        index
+                                    ].status = `${Math.floor(
+                                        (progressEvent.loaded /
+                                            progressEvent.total) *
+                                            100,
+                                    )}% Uploaded`;
+                                    return false;
+                                }
 
+                                return true;
+                            });
+                        },
+                    });
+                    if (result.data) {
+                        const data = result.data as MediaResponse;
+
+                        const currentUploadFileNumStr =
+                            currentUploadFileNum.value.toString();
+                        mediaItems.value.every((item, index) => {
+                            if (item.id == currentUploadFileNumStr) {
+                                mediaItems.value[index] = data.medium;
+                                if (!selected.value) {
+                                    selected.value.push(data.medium);
+                                } else if (props.multiple) {
+                                    selected.value.push(data.medium);
+                                }
+                                return false;
+                            }
+
+                            return true;
+                        });
+
+                        totalItems.value++;
+                    }
+                } catch (error) {
                     const currentUploadFileNumStr =
                         currentUploadFileNum.value.toString();
                     mediaItems.value.every((item, index) => {
                         if (item.id == currentUploadFileNumStr) {
-                            mediaItems.value[index] = data.medium;
-                            if (!selected.value) {
-                                selected.value.push(data.medium);
-                            } else if (props.multiple) {
-                                selected.value.push(data.medium);
-                            }
+                            mediaItems.value[index].status = "Error";
                             return false;
                         }
 
                         return true;
                     });
 
-                    totalItems.value++;
+                    let errorString = "A server error occurred";
+
+                    if (error.status == 413) {
+                        errorString = `The file is larger than ${max_upload_size.value}`;
+                    }
+
+                    useToastStore().addToast({
+                        title: "Upload failed",
+                        type: "danger",
+                        content: errorString,
+                    });
+                } finally {
                     updateFiles();
                     currentUploadFileNum.value++;
                 }
@@ -1330,6 +1364,8 @@ const handleDelete = async (item: Media) => {
                 mediaItems.value = mediaItems.value.filter(
                     (mediaItem) => mediaItem.id !== item.id,
                 );
+
+                totalItems.value--;
             })
             .catch((error) => {
                 console.log(error);
@@ -1439,9 +1475,7 @@ api.get({
         if (result.data) {
             const data = result.data as ApiInfo;
 
-            max_upload_size.value = `Maximum upload file size: ${bytesReadable(
-                data.max_upload_size,
-            )}.`;
+            max_upload_size.value = bytesReadable(data.max_upload_size);
         }
     })
     .catch(() => {
