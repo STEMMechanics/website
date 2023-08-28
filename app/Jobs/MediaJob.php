@@ -183,6 +183,7 @@ class MediaJob implements ShouldQueue
                 $ffmpeg = FFMpeg\FFMpeg::create();
                 $video = $ffmpeg->open($stagingFilePath);
                 $format = $this->detectVideoFormat($stagingFilePath);
+                $modified = false;
 
                 if ($format === null) {
                     $this->media->error('Unsupported video format');
@@ -205,10 +206,13 @@ class MediaJob implements ShouldQueue
 
                         if ($rotate === 90) {
                             $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
+                            $modified = true;
                         } elseif ($rotate === 180) {
                             $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_180);
+                            $modified = true;
                         } elseif ($rotate === 270) {
                             $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
+                            $modified = true;
                         }
                     }
                 }
@@ -220,6 +224,7 @@ class MediaJob implements ShouldQueue
                             $this->media->status('Flipping video');
                         }
                         $filters->hflip()->synchronize();
+                        $modified = true;
                     }
 
                     if (stripos($this->actions['flip'], 'v') !== false) {
@@ -227,6 +232,7 @@ class MediaJob implements ShouldQueue
                             $this->media->status('Flipping video');
                         }
                         $filters->vflip()->synchronize();
+                        $modified = true;
                     }
                 }
 
@@ -246,6 +252,7 @@ class MediaJob implements ShouldQueue
                         $this->media->status('Cropping video');
                     }
                     $filters->crop($cropDimension, $x, $y)->synchronize();
+                    $modified = true;
                 }//end if
 
                 $tempFilePath = generateTempFilePath(pathinfo($stagingFilePath, PATHINFO_EXTENSION));
@@ -256,8 +263,10 @@ class MediaJob implements ShouldQueue
                     });
                 }
 
-                $video->save($format, $tempFilePath);
-                $this->media->changeStagingFile($tempFilePath);
+                if($modified === true) {
+                    $video->save($format, $tempFilePath);
+                    $this->media->changeStagingFile($tempFilePath);
+                }
             }//end if
 
             // Move file
