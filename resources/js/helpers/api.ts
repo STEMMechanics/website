@@ -1,5 +1,6 @@
 import { useUserStore } from "../store/UserStore";
 import { useApplicationStore } from "../store/ApplicationStore";
+import { useCacheStore } from "../store/CacheStore";
 import { ImportMetaExtras } from "../../../import-meta";
 
 interface ApiProgressData {
@@ -7,7 +8,16 @@ interface ApiProgressData {
     total: number;
 }
 
+interface ApiCallbackData {
+    status: number;
+    statusText: string;
+    url: string;
+    headers: unknown;
+    data: unknown;
+}
+
 type ApiProgressCallback = (progress: ApiProgressData) => void;
+type ApiResultCallback = (data: ApiCallbackData) => void;
 
 interface ApiOptions {
     url: string;
@@ -17,6 +27,7 @@ interface ApiOptions {
     body?: string | object | FormData | ArrayBuffer | Blob;
     signal?: AbortSignal | null;
     progress?: ApiProgressCallback;
+    callback?: ApiResultCallback;
 }
 
 export interface ApiResponse {
@@ -47,11 +58,11 @@ export const api = {
                     if (url.includes(placeholder)) {
                         url = url.replace(
                             placeholder,
-                            encodeURIComponent(value)
+                            encodeURIComponent(value),
                         );
                     } else {
                         params += `&${encodeURIComponent(
-                            key
+                            key,
                         )}=${encodeURIComponent(value)}`;
                     }
                 }
@@ -79,7 +90,7 @@ export const api = {
                     if (
                         Object.prototype.hasOwnProperty.call(
                             options.headers,
-                            "Content-Type"
+                            "Content-Type",
                         )
                     ) {
                         // remove the "Content-Type" key from the headers object
@@ -155,12 +166,25 @@ export const api = {
 
                     useApplicationStore().unavailable = false;
                     if (xhr.status < 300) {
-                        resolve(result);
+                        if (options.callback) {
+                            options.callback(result);
+                        } else {
+                            resolve(result);
+                        }
+
+                        return;
                     } else {
                         if (xhr.status == 503) {
                             useApplicationStore().unavailable = true;
                         }
-                        reject(result);
+
+                        if (options.callback) {
+                            options.callback(result);
+                        } else {
+                            reject(result);
+                        }
+
+                        return;
                     }
                 };
             } else {
@@ -176,6 +200,13 @@ export const api = {
                     options.body instanceof FormData
                 ) {
                     fetchOptions.body = options.body;
+                }
+
+                if (fetchOptions.method == "GET" && options.callback) {
+                    const cache = useCacheStore().getCacheByUrl(url);
+                    if (cache != null) {
+                        options.callback(cache);
+                    }
                 }
 
                 fetch(url, fetchOptions)
@@ -220,7 +251,30 @@ export const api = {
                             if (response.status === 503) {
                                 useApplicationStore().unavailable = true;
                             }
-                            reject(result);
+
+                            if (options.callback) {
+                                options.callback(result);
+                            } else {
+                                reject(result);
+                            }
+
+                            return;
+                        }
+
+                        if (options.callback) {
+                            if (fetchOptions.method == "GET") {
+                                const modified = useCacheStore().updateCache(
+                                    url,
+                                    result,
+                                );
+
+                                if (modified == false) {
+                                    return;
+                                }
+                            }
+
+                            options.callback(result);
+                            return;
                         }
 
                         resolve(result);
@@ -228,10 +282,18 @@ export const api = {
                     .catch((error) => {
                         // Handle any errors thrown during the fetch process
                         const { response, ...rest } = error;
-                        reject({
+                        const result = {
                             ...rest,
                             response: response && response.json(),
-                        });
+                        };
+
+                        if (options.callback) {
+                            options.callback(result);
+                        } else {
+                            reject(result);
+                        }
+
+                        return;
                     });
             }
         });
@@ -277,7 +339,7 @@ export const api = {
     },
 
     delete: async function (
-        options: ApiOptions | string
+        options: ApiOptions | string,
     ): Promise<ApiResponse> {
         let apiOptions = {} as ApiOptions;
 
@@ -301,7 +363,7 @@ export const api = {
 export function getApiResultData<T>(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     result: any,
-    defaultValue: T | null = null
+    defaultValue: T | null = null,
 ): T | null {
     if (!result || !Object.prototype.hasOwnProperty.call(result, "data")) {
         return defaultValue;
