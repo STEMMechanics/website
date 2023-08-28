@@ -35,7 +35,7 @@
                         type="button"
                         class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                         @click="handleClickSelectFile">
-                        Select Files
+                        Select File{{ props.multiple ? "s" : "" }}
                     </button>
                     <p class="text-sm mt-4">
                         Maximum upload file size: {{ max_upload_size }}
@@ -848,7 +848,15 @@ const handleChangeSelectFile = async () => {
 };
 
 const handleFilesUpload = (files: FileList) => {
-    Array.from(files).forEach((file, index) => {
+    const fileList = [];
+
+    if (props.multiple == false && fileList.length > 1) {
+        fileList.push(Array.from(files)[0]);
+    } else {
+        fileList.push(...Array.from(files));
+    }
+
+    Array.from(fileList).forEach((file, index) => {
         mediaItems.value.unshift({
             id: (currentUploadFileNum.value + index + 1).toString(),
             user_id: "",
@@ -870,9 +878,9 @@ const handleFilesUpload = (files: FileList) => {
     });
 
     if (uploadFileList.value != null) {
-        uploadFileList.value.push(...Array.from(files));
+        uploadFileList.value.push(...Array.from(fileList));
     } else {
-        uploadFileList.value = Array.from(files);
+        uploadFileList.value = Array.from(fileList);
     }
 
     startFilesUpload();
