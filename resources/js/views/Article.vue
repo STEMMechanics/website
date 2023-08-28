@@ -136,8 +136,6 @@ const handleLoad = async () => {
                     "large",
                 );
                 applicationStore.setDynamicTitle(article.value.title);
-
-                console.log(article.value);
             } else {
                 pageStatus.value = 404;
             }
