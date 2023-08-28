@@ -850,7 +850,7 @@ const handleChangeSelectFile = async () => {
 const handleFilesUpload = (files: FileList) => {
     const fileList = [];
 
-    if (props.multiple == false && fileList.length > 1) {
+    if (props.multiple == false && files.length > 1) {
         fileList.push(Array.from(files)[0]);
     } else {
         fileList.push(...Array.from(files));
