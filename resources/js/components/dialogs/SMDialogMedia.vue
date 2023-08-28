@@ -965,8 +965,8 @@ const startFilesUpload = async () => {
                         content: errorString,
                     });
                 } finally {
-                    updateFiles();
                     currentUploadFileNum.value++;
+                    updateFiles();
                 }
             }
 
