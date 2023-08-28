@@ -1,10 +1,17 @@
 <template>
-    <div class="flex flex-items-center justify-center">
+    <div class="flex flex-col flex-items-center justify-center">
         <div :class="['spinner', { small: props.small }]"></div>
+        <div v-if="slots.default" :class="['mt-3', { small: props.small }]">
+            <slot name="default"></slot>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
+import { useSlots } from "vue";
+
+const slots = useSlots();
+
 const props = defineProps({
     small: {
         type: Boolean,

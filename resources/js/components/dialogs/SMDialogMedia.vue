@@ -140,13 +140,16 @@
                                                 { 'mb-6': showMediaName(item) },
                                             ]"
                                             :style="{
-                                                backgroundImage: `url('${mediaGetThumbnail(
-                                                    item,
-                                                    null,
-                                                    itemRequiresRefresh(
-                                                        item.id,
-                                                    ),
-                                                )}')`,
+                                                backgroundImage:
+                                                    item.status === 'OK'
+                                                        ? `url('${mediaGetThumbnail(
+                                                              item,
+                                                              null,
+                                                              itemRequiresRefresh(
+                                                                  item.id,
+                                                              ),
+                                                          )}')`
+                                                        : 'initial',
                                                 backgroundColor:
                                                     item.status === 'OK'
                                                         ? 'initial'
@@ -165,7 +168,16 @@
                                                     ) === false
                                                 "
                                                 small
-                                                class="bg-white bg-op-90 w-full h-full" />
+                                                class="bg-white bg-op-90 w-full h-full"
+                                                >{{
+                                                    item.status.split(":")
+                                                        .length > 1
+                                                        ? item.status
+                                                              .split(":")[1]
+                                                              .trim()
+                                                        : item.status
+                                                }}</SMLoading
+                                            >
                                             <div
                                                 v-if="
                                                     item.status.startsWith(
@@ -947,6 +959,8 @@ const updateFiles = async () => {
                         if (updateResult.data) {
                             const updateData =
                                 updateResult.data as MediaResponse;
+                            mediaItems.value[index].status =
+                                updateData.medium.status;
                             if (updateData.medium.status == "OK") {
                                 mediaItems.value[index] = updateData.medium;
                                 forceRefresh.push(updateData.medium.id);
@@ -996,7 +1010,7 @@ const updateFiles = async () => {
             updateFilesNonce.value = setTimeout(() => {
                 updateFilesNonce.value = null;
                 updateFiles();
-            }, 2000);
+            }, 1000);
         } else {
             updateFilesNonce.value = null;
         }

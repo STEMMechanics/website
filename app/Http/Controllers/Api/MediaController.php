@@ -87,7 +87,7 @@ class MediaController extends ApiController
             'name' => $file->getClientOriginalName(),
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
-            'status' => 'Creating Media',
+            'status' => 'Processing Media',
         ]);
 
         // We store images by default locally
