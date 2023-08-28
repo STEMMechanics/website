@@ -221,74 +221,135 @@ const viewLoad = async () => {
     articlesLoading.value = true;
     articlesError.value = "";
 
-    try {
-        await Promise.all([
-            api
-                .get({
-                    url: "/events",
-                    params: {
-                        limit: 10,
-                        sort: "start_at",
-                        start_at: `>${new SMDate("now").format(
-                            "yyyy-MM-dd hh:mm:ss",
-                        )}`,
-                    },
-                })
-                .then((eventsResult) => {
-                    const eventsData =
-                        getApiResultData<EventCollection>(eventsResult);
+    api.get({
+        url: "/events",
+        params: {
+            limit: 10,
+            sort: "start_at",
+            start_at: `>${new SMDate("now").format("yyyy-MM-dd hh:mm:ss")}`,
+        },
+        callback: (eventsResult) => {
+            if (eventsResult.status < 300) {
+                const eventsData =
+                    getApiResultData<EventCollection>(eventsResult);
 
-                    if (eventsData && eventsData.events) {
-                        events.value = [];
+                if (eventsData && eventsData.events) {
+                    events.value = [];
 
-                        for (const event of eventsData.events) {
-                            if (
-                                event.status === "open" ||
-                                event.status === "soon"
-                            ) {
-                                events.value.push(event);
-                                if (events.value.length === 4) break;
-                            }
+                    for (const event of eventsData.events) {
+                        if (
+                            event.status === "open" ||
+                            event.status === "soon"
+                        ) {
+                            events.value.push(event);
+                            if (events.value.length === 4) break;
                         }
                     }
-                })
-                .catch((error) => {
-                    if (error.status != 404) {
-                        eventsError.value =
-                            "An error occured retrieving the events";
-                    }
-                })
-                .finally(() => {
-                    eventsLoading.value = false;
-                }),
-            api
-                .get({
-                    url: "/articles",
-                    params: {
-                        limit: 4,
-                    },
-                })
-                .then((articlesResult) => {
-                    const articlesData =
-                        getApiResultData<ArticleCollection>(articlesResult);
+                }
+            } else {
+                if (eventsResult.status != 404) {
+                    eventsError.value =
+                        "An error occured retrieving the events";
+                }
+            }
 
-                    if (articlesData && articlesData.articles) {
-                        articles.value = articlesData.articles;
-                    }
-                })
-                .catch((error) => {
-                    if (error.status != 404) {
-                        articlesError.value =
-                            "An error occured retrieving the posts";
-                    }
-                })
-                .finally(() => {
-                    articlesLoading.value = false;
-                }),
-        ]);
-    } catch {
-        /* empty */
-    }
+            eventsLoading.value = false;
+        },
+    });
+
+    api.get({
+        url: "/articles",
+        params: {
+            limit: 4,
+        },
+
+        callback: (articlesResult) => {
+            if (articlesResult.status < 300) {
+                const articlesData =
+                    getApiResultData<ArticleCollection>(articlesResult);
+
+                if (articlesData && articlesData.articles) {
+                    articles.value = articlesData.articles;
+                }
+            } else {
+                if (articlesResult.status != 404) {
+                    articlesError.value =
+                        "An error occured retrieving the posts";
+                }
+            }
+
+            articlesLoading.value = false;
+        },
+    });
+
+    // try {
+    //     await Promise.all([
+    //         api
+    //             .get({
+    //                 url: "/events",
+    //                 params: {
+    //                     limit: 10,
+    //                     sort: "start_at",
+    //                     start_at: `>${new SMDate("now").format(
+    //                         "yyyy-MM-dd hh:mm:ss",
+    //                     )}`,
+    //                 },
+    //             })
+    //             .then((eventsResult) => {
+    //                 const eventsData =
+    //                     getApiResultData<EventCollection>(eventsResult);
+
+    //                 if (eventsData && eventsData.events) {
+    //                     events.value = [];
+
+    //                     for (const event of eventsData.events) {
+    //                         if (
+    //                             event.status === "open" ||
+    //                             event.status === "soon"
+    //                         ) {
+    //                             events.value.push(event);
+    //                             if (events.value.length === 4) break;
+    //                         }
+    //                     }
+    //                 }
+    //             })
+    //             .catch((error) => {
+    //                 if (error.status != 404) {
+    //                     eventsError.value =
+    //                         "An error occured retrieving the events";
+    //                 }
+    //             })
+    //             .finally(() => {
+    //                 eventsLoading.value = false;
+    //             }),
+    //         api
+    //             .get({
+    //                 url: "/articles",
+    //                 params: {
+    //                     limit: 4,
+    //                 },
+    //             })
+    //             .then((articlesResult) => {
+    //                 const articlesData =
+    //                     getApiResultData<ArticleCollection>(articlesResult);
+
+    //                 if (articlesData && articlesData.articles) {
+    //                     articles.value = articlesData.articles;
+    //                 }
+    //             })
+    //             .catch((error) => {
+    //                 if (error.status != 404) {
+    //                     articlesError.value =
+    //                         "An error occured retrieving the posts";
+    //                 }
+    //             })
+    //             .finally(() => {
+    //                 articlesLoading.value = false;
+    //             }),
+    //     ]);
+    // } catch {
+    //     /* empty */
+    // }
 };
 
 viewLoad();

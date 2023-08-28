@@ -108,44 +108,43 @@ const handleLoad = async () => {
     let slug = useRoute().params.slug || "";
     pageLoading.value = true;
 
-    try {
-        if (slug.length > 0) {
-            let result = await api.get({
-                url: "/articles",
-                params: {
-                    slug: `=${slug}`,
-                    limit: 1,
-                },
-            });
+    if (slug.length > 0) {
+        let result = await api.get({
+            url: "/articles",
+            params: {
+                slug: `=${slug}`,
+                limit: 1,
+            },
+            callback: (result) => {
+                if (result.status < 300) {
+                    const data = result.data as ArticleCollection;
 
-            const data = result.data as ArticleCollection;
+                    if (data && data.articles && data.total && data.total > 0) {
+                        article.value = data.articles[0];
 
-            if (data && data.articles && data.total && data.total > 0) {
-                article.value = data.articles[0];
+                        article.value.publish_at = new SMDate(
+                            article.value.publish_at,
+                            {
+                                format: "ymd",
+                                utc: true,
+                            },
+                        ).format("yyyy/MM/dd HH:mm:ss");
 
-                article.value.publish_at = new SMDate(
-                    article.value.publish_at,
-                    {
-                        format: "ymd",
-                        utc: true,
-                    },
-                ).format("yyyy/MM/dd HH:mm:ss");
+                        backgroundImageUrl.value = mediaGetVariantUrl(
+                            article.value.hero,
+                            "large",
+                        );
+                        applicationStore.setDynamicTitle(article.value.title);
+                    } else {
+                        pageStatus.value = 404;
+                    }
+                }
 
-                backgroundImageUrl.value = mediaGetVariantUrl(
-                    article.value.hero,
-                    "large",
-                );
-                applicationStore.setDynamicTitle(article.value.title);
-            } else {
-                pageStatus.value = 404;
-            }
-        } else {
-            pageStatus.value = 404;
-        }
-    } catch (error) {
-        /* empty */
-    } finally {
-        pageLoading.value = false;
+                pageLoading.value = false;
+            },
+        });
+    } else {
+        pageStatus.value = 404;
     }
 };
 
