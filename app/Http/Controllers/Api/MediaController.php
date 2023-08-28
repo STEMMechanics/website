@@ -105,7 +105,7 @@ class MediaController extends ApiController
 
         $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
 
-        $temporaryFilePath = generateTempFilePath();
+        $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION));
         copy($file->path(), $temporaryFilePath);
 
         $transformData = ['file' => [

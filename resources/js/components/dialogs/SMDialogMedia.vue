@@ -192,7 +192,8 @@
                                     class="mt-4 text-center">
                                     <p class="text-xs text-black mb-4">
                                         Showing {{ mediaItems.length }} of
-                                        {{ totalItems }} media item{{
+                                        {{ totalItems }}
+                                        media item{{
                                             totalItems == 1 ? "" : "s"
                                         }}
                                     </p>
@@ -242,17 +243,17 @@
                             <div v-if="lastSelected != null">
                                 <div
                                     class="flex text-xs border-b border-gray-3 pb-4">
-                                    <img
-                                        :src="
-                                            mediaGetThumbnail(
+                                    <div
+                                        class="w-100 h-100 max-h-20 max-w-20 mr-2 bg-contain bg-no-repeat bg-center"
+                                        :style="{
+                                            backgroundImage: `url('${mediaGetThumbnail(
                                                 lastSelected,
                                                 null,
                                                 itemRequiresRefresh(
                                                     lastSelected.id,
                                                 ),
-                                            )
-                                        "
-                                        class="max-h-20 max-w-20 mr-2" />
+                                            )}')`,
+                                        }"></div>
                                     <div class="flex flex-col w-100">
                                         <p class="m-0 text-bold">
                                             {{ lastSelected.title }}
@@ -910,6 +911,7 @@ const startFilesUpload = async () => {
                         return true;
                     });
 
+                    totalItems.value++;
                     updateFiles();
                     currentUploadFileNum.value++;
                 }
@@ -963,11 +965,14 @@ const updateFiles = async () => {
                                     (mediaItem) =>
                                         mediaItem.id !== updateData.medium.id,
                                 );
+                                lastSelected.value = null;
+                                totalItems.value--;
 
                                 useToastStore().addToast({
                                     title: "Upload failed",
                                     type: "danger",
-                                    content: `${item.name} failed to be processed by the server.`,
+                                    content: updateData.medium.status,
+                                    // content: `${item.name} failed to be processed by the server.`,
                                 });
                             }
                         } else {

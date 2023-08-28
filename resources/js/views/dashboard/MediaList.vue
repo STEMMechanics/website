@@ -71,11 +71,21 @@
                     <template #item-size="item">
                         {{ bytesReadable(item.size) }}
                     </template>
-                    <template #item-title="item"
-                        >{{ item.title }}<br /><span class="small"
-                            >({{ item.name }})</span
-                        ></template
-                    >
+                    <template #item-title="item">
+                        <div class="flex gap-2">
+                            <div
+                                class="w-100 h-100 max-h-15 max-w-20 mr-2 bg-contain bg-no-repeat bg-center"
+                                :style="{
+                                    backgroundImage: `url('${mediaGetThumbnail(
+                                        item,
+                                    )}')`,
+                                }"></div>
+                            <div class="flex flex-col flex-justify-center">
+                                <span>{{ item.title }}</span>
+                                <span class="small">({{ item.name }})</span>
+                            </div>
+                        </div>
+                    </template>
                     <template #item-actions="item">
                         <button
                             type="button"
@@ -164,6 +174,7 @@ import { updateRouterParams } from "../../helpers/url";
 import { userHasPermission } from "../../helpers/utils";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMCheckbox from "../../components/SMCheckbox.vue";
+import { mediaGetThumbnail } from "../../helpers/media";
 
 const route = useRoute();
 const router = useRouter();

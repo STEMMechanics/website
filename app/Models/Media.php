@@ -8,6 +8,8 @@ use App\Jobs\MoveMediaJob;
 use App\Jobs\StoreUploadedFileJob;
 use App\Traits\Uuids;
 use Exception;
+use FFMpeg\Coordinate\TimeCode;
+use FFMpeg\FFMpeg;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\InvalidCastException;
@@ -694,7 +696,7 @@ class Media extends Model
     public function createStagingFile(): bool
     {
         if ($this->stagingFilePath === "") {
-            $readStream = Storage::disk($this->storageDisk)->readStream($this->name);
+            $readStream = Storage::disk($this->storage)->readStream($this->name);
             $filePath = generateTempFilePath(pathinfo($this->name, PATHINFO_EXTENSION));
 
             $writeStream = fopen($filePath, 'w');
@@ -788,8 +790,8 @@ class Media extends Model
         // delete existing thumbnail
         if (strlen($this->thumbnail) !== 0) {
             $path = substr($this->thumbnail, strlen($this->getUrlPath()));
-            if (strlen($path) > 0 && Storage::disk($this->storageDisk)->exists($path) === true) {
-                Storage::disk($this->storageDisk)->delete($path);
+            if (strlen($path) > 0 && Storage::disk($this->storage)->exists($path) === true) {
+                Storage::disk($this->storage)->delete($path);
             }
         }
 
@@ -799,8 +801,6 @@ class Media extends Model
         $tempImagePath = tempnam(sys_get_temp_dir(), 'thumb');
         $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-thumb.webp";
         $success = false;
-
-        $ffmpegPath = env('FFMPEG_PATH', '/usr/bin/ffmpeg');
 
         if (strpos($this->mime_type, 'image/') === 0) {
             $image = Image::make($filePath);
@@ -852,18 +852,24 @@ class Media extends Model
             $image->encode('webp', 75)->save($tempImagePath);
 
             $success = true;
-        } elseif (file_exists($ffmpegPath) === true && strpos($this->mime_type, 'video/') === 0) {
+        } elseif (strpos($this->mime_type, 'video/') === 0) {
             $tempImagePath .= '.webp';
-            $command = "$ffmpegPath -i $filePath -ss 00:00:05 -vframes 1 " . // phpcs:ignore
-            "-s {$thumbnailWidth}x{$thumbnailHeight} -c:v webp {$tempImagePath}";
-            exec($command);
+
+            try {
+                $ffmpeg = FFMpeg::create();
+                $video = $ffmpeg->open($filePath);
+                $frame = $video->frame(TimeCode::fromSeconds(5));
+                $frame->save($tempImagePath);
+            } catch(\Exception $e) {
+                Log::error($e);
+            }
 
             $success = true;
         }//end if
 
         if ($success === true && file_exists($tempImagePath) === true) {
             /** @var Illuminate\Filesystem\FilesystemAdapter */
-            $fileSystem = Storage::disk($this->storageDisk);
+            $fileSystem = Storage::disk($this->storage);
             $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
             unlink($tempImagePath);
 
@@ -893,8 +899,8 @@ class Media extends Model
         if (strlen($this->thumbnail) > 0) {
             $path = substr($this->thumbnail, strlen($this->getUrlPath()));
 
-            if (strlen($path) > 0 && Storage::disk($this->storageDisk)->exists($path) === true) {
-                Storage::disk($this->storageDisk)->delete($path);
+            if (strlen($path) > 0 && Storage::disk($this->storage)->exists($path) === true) {
+                Storage::disk($this->storage)->delete($path);
                 $this->thumbnail = ''; // Clear the thumbnail property
             }
         }
@@ -917,8 +923,8 @@ class Media extends Model
             // delete existing variants
             if (is_array($this->variants) === true) {
                 foreach ($this->variants as $variantName => $variantFile) {
-                    if (Storage::disk($this->storageDisk)->exists($variantFile) === true) {
-                        Storage::disk($this->storageDisk)->delete($variantFile);
+                    if (Storage::disk($this->storage)->exists($variantFile) === true) {
+                        Storage::disk($this->storage)->delete($variantFile);
                     }
                 }
             }
@@ -973,7 +979,7 @@ class Media extends Model
                     $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
                     $image->encode('webp', 75)->save($tempImagePath);
                     /** @var Illuminate\Filesystem\FilesystemAdapter */
-                    $fileSystem = Storage::disk($this->storageDisk);
+                    $fileSystem = Storage::disk($this->storage);
                     $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
                     unlink($tempImagePath);
                 }//end if

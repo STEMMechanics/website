@@ -94,7 +94,7 @@ class MediaJob implements ShouldQueue
                     $jpgFileName = pathinfo($filePath, PATHINFO_FILENAME) . '.jpg';
                     $jpgFilePath = $uploadedFileDirectory . '/' . $jpgFileName;
                     if (file_exists($jpgFilePath) === true) {
-                        $this->media->error("File already exists in storage");
+                        $this->media->error("File already exists on server");
                         return;
                     }
 
@@ -110,9 +110,9 @@ class MediaJob implements ShouldQueue
                 // Check if file already exists
                 if (Storage::disk($this->media->storage)->exists($this->media->name) === true) {
                     if (array_key_exists('replace', $uploadData) === false || isTrue($uploadData['replace']) === false) {
-                        $this->media->error("File already exists in storage");
-                        $errorStr = "cannot upload file {$this->media->storage} " . // phpcs:ignore
-                        "/ {$this->media->name} as it already exists";
+                        $this->media->error("File already exists on server");
+                        $errorStr = "cannot upload file " . $this->media->storage . " " . // phpcs:ignore
+                        "/ " . $this->media->name . " as it already exists";
                         Log::info($errorStr);
                         throw new \Exception($errorStr);
                     }
@@ -282,10 +282,10 @@ class MediaJob implements ShouldQueue
             $this->media->deleteStagingFile();
 
             if (strpos($this->media->status, 'Error') !== 0) {
-                $this->media->error('Failed to process');
+                $this->media->error('Failed to process the file');
             }
 
-            Log::error($e->getMessage());
+            Log::error($e->getMessage() . "\n" . $e->getFile() . " - " . $e->getLine() . "\n" . $e->getTraceAsString());
             $this->fail($e);
         }//end try
     }
