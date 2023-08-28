@@ -133,6 +133,7 @@
                                         @dblclick="handleDblClickItem(item.id)">
                                         <div
                                             :class="[
+                                                'my-1',
                                                 'h-30',
                                                 'w-40',
                                                 'bg-contain',
@@ -258,7 +259,7 @@
                                 <div
                                     class="flex text-xs border-b border-gray-3 pb-4">
                                     <div
-                                        class="w-100 h-100 max-h-20 max-w-20 mr-2 bg-contain bg-no-repeat bg-center"
+                                        class="w-100 h-100 max-h-15 max-w-15 mr-2 bg-contain bg-no-repeat bg-center"
                                         :style="{
                                             backgroundImage: `url('${mediaGetThumbnail(
                                                 lastSelected,
@@ -274,6 +275,9 @@
                                                     lastSelected.created_at,
                                                 )
                                             }}
+                                        </p>
+                                        <p class="m-0">
+                                            {{ lastSelected.mime_type }}
                                         </p>
                                         <p class="m-0">
                                             {{
@@ -675,10 +679,11 @@ const getMediaItem = (item_id: string): Media | null => {
 };
 
 const showMediaName = (media: Media): boolean => {
-    return !(
-        media.mime_type.startsWith("image/") ||
-        media.mime_type.startsWith("video/")
-    );
+    return true;
+    // return !(
+    //     media.mime_type.startsWith("image/") ||
+    //     media.mime_type.startsWith("video/")
+    // );
 };
 
 /**
