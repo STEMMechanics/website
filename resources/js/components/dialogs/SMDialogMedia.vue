@@ -19,7 +19,9 @@
         @dragover.prevent="handleDragOver">
         <div
             class="flex flex-col m-4 border-1 bg-white rounded-xl text-gray-5 px-4 md:px-12 py-4 md:py-8 w-full overflow-hidden">
-            <SMLoading v-if="progressText" overlay :text="progressText" />
+            <SMLoading v-if="progressText" overlay>{{
+                progressText
+            }}</SMLoading>
             <h2 class="mb-4">Select or Upload Media</h2>
             <SMTabGroup v-model="selectedTab" class="flex flex-col flex-1">
                 <SMTab
@@ -227,7 +229,11 @@
                                         :style="{
                                             width: `${
                                                 (100 / uploadFileList.length) *
-                                                (currentUploadFileNum - 1)
+                                                    (currentUploadFileNum - 1) +
+                                                (100 /
+                                                    uploadFileList.length /
+                                                    100) *
+                                                    currentUploadFileProgress
                                             }%`,
                                         }"></div>
                                 </div>
@@ -630,6 +636,7 @@ const applicationStore = useApplicationStore();
 const progressText = ref("");
 
 const currentUploadFileNum = ref(0);
+const currentUploadFileProgress = ref(0);
 const uploadFileList: Ref<File[]> = ref(null);
 
 /**
@@ -897,15 +904,15 @@ const startFilesUpload = async () => {
                         progress: (progressEvent) => {
                             const currentUploadFileNumStr =
                                 currentUploadFileNum.value.toString();
+                            currentUploadFileProgress.value = Math.floor(
+                                (progressEvent.loaded / progressEvent.total) *
+                                    100,
+                            );
                             mediaItems.value.every((item, index) => {
                                 if (item.id == currentUploadFileNumStr) {
                                     mediaItems.value[
                                         index
-                                    ].status = `${Math.floor(
-                                        (progressEvent.loaded /
-                                            progressEvent.total) *
-                                            100,
-                                    )}% Uploaded`;
+                                    ].status = `${currentUploadFileProgress.value}% Uploaded`;
                                     return false;
                                 }
 
