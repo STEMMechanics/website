@@ -1,4 +1,4 @@
-import { defineStore } from "pinia";
+import { DefineStoreOptions, defineStore } from "pinia";
 
 interface CacheItem {
     url: string;
@@ -54,4 +54,8 @@ export const useCacheStore = defineStore({
             this.cache = [];
         },
     },
+
+    persist: true,
+} as DefineStoreOptions<string, unknown, unknown, unknown> & {
+    persist?: boolean;
 });
