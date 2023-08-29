@@ -56,6 +56,7 @@
                             soon: 'Opening Soon',
                             open: 'Open',
                             scheduled: 'Scheduled',
+                            full: 'Full',
                             closed: 'Closed',
                             cancelled: 'Cancelled',
                         }" />

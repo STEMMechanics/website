@@ -218,11 +218,19 @@ const computedBanner = (event: Event): EventBanner => {
 
     if (
         (parsedEndAt.isBefore(new SMDate("now")) &&
-            (event.status == "open" || event.status == "soon")) ||
+            (event.status == "open" ||
+                event.status == "soon" ||
+                event.status == "full")) ||
         event.status == "closed"
     ) {
         return {
             banner: "closed",
+            "bg-class": "bg-purple-800",
+            "font-class": "text-white",
+        };
+    } else if (event.status == "full") {
+        return {
+            banner: "full",
             "bg-class": "bg-purple-800",
             "font-class": "text-white",
         };
