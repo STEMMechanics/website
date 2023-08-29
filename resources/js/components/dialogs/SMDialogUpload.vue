@@ -45,22 +45,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, Ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, Ref } from "vue";
 import { closeDialog } from "../SMDialog";
 import { api } from "../../helpers/api";
-import {
-    ApiInfo,
-    Media,
-    MediaCollection,
-    MediaResponse,
-} from "../../helpers/api.types";
-import { useApplicationStore } from "../../store/ApplicationStore";
-import { mimeMatches } from "../../helpers/media";
-import SMLoading from "../SMLoading.vue";
-import { Form, FormControl, FormObject } from "../../helpers/form";
-import { And, Required, Url } from "../../helpers/validate";
-import { convertFileNameToTitle, userHasPermission } from "../../helpers/utils";
-import { SMDate } from "../../helpers/datetime";
+import { ApiInfo, Media, MediaResponse } from "../../helpers/api.types";
+import { convertFileNameToTitle } from "../../helpers/utils";
 import { isUUID } from "../../helpers/uuid";
 import { useToastStore } from "../../store/ToastStore";
 import { bytesReadable } from "../../helpers/types";
