@@ -175,7 +175,9 @@ const handleChangeSelectFile = async () => {
                 } else {
                     const offset = chunk * chunkSize;
                     const fileChunk = file.slice(offset, offset + chunkSize);
-                    submitFormData.append("id", resultMedia.id);
+                    if (resultMedia !== null) {
+                        submitFormData.append("id", resultMedia.id);
+                    }
                     submitFormData.append("file", fileChunk);
                     submitFormData.append("chunk", (chunk + 1).toString());
                     submitFormData.append("chunk_count", chunkCount.toString());
