@@ -145,7 +145,7 @@ class MediaController extends ApiController
         if($request->has('chunk') == true) {
             if($temporaryFilePath === '') {
                 return response()->json([
-                    'message' => 'A server error occurred. Please try again later'
+                    'message' => 'A server error occurred. Please try again later - temporaryFilePath'
                 ], 500);
             }
 
@@ -165,14 +165,14 @@ class MediaController extends ApiController
                     $tempFileName = constructTempFileName($tempInfo['dirname'], $tempInfo['filename'], $tempInfo['extension'], $i);
                     if(file_exists($tempFileName) === false) {
                         return response()->json([
-                            'message' => 'A server error occurred. Please try again later'
+                            'message' => 'A server error occurred. Please try again later - tempFileName no exist'
                         ], 500);
                     }
 
                     $chunkContents = file_get_contents($tempFileName);
                     if ($chunkContents === false) {
                         return response()->json([
-                            'message' => 'A server error occurred. Please try again later'
+                            'message' => 'A server error occurred. Please try again later - chunkContents empty'
                         ], 500);
                     }
 
