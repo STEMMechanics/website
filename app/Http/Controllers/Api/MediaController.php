@@ -68,6 +68,9 @@ class MediaController extends ApiController
      */
     public function store(MediaRequest $request)
     {
+        $temporaryFilePath = '';
+        $transformData = [];
+
         if (MediaConductor::creatable() === false) {
             return $this->respondForbidden();
         }
@@ -82,43 +85,117 @@ class MediaController extends ApiController
             return $jsonResult;
         }
 
-        $request->merge([
-            'title' => $request->get('title', ''),
-            'name' => $file->getClientOriginalName(),
-            'size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-            'status' => 'Processing Media',
-        ]);
+        if($request->has('chunk') === true && $request->has('transform') === true) {
+            return $this->respondWithErrors(['transform' => 'Transforms cannot be applied when uploading a file in chunks']);
+        }
 
-        // We store images by default locally
-        if ($request->get('storage') === null) {
-            if (strpos($file->getMimeType(), 'image/') === 0) {
-                $request->merge([
-                    'storage' => 'local',
-                ]);
+        if($request->has('chunk') === false || $request->get('chunk') === '1') {
+            $request->merge([
+                'title' => $request->get('title', ''),
+                'name' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+                'status' => 'Processing Media',
+            ]);
+
+            // We store images by default locally
+            if ($request->get('storage') === null) {
+                if (strpos($file->getMimeType(), 'image/') === 0) {
+                    $request->merge([
+                        'storage' => 'local',
+                    ]);
+                } else {
+                    $request->merge([
+                        'storage' => 'cdn',
+                    ]);
+                }
+            }
+
+            $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
+
+            $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION), $request->get('chunk', ''));
+            copy($file->path(), $temporaryFilePath);
+
+            $transformData = ['file' => [
+                'path' => $temporaryFilePath,
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType(),
+            ]
+            ];
+
+            if ($request->has('transform') === true) {
+                $transformData = array_merge($transformData, array_map('trim', explode(',', $request->get('transform'))));
+            }
+        } else {
+            if($request->has('id')) {
+                $mediaItem = Media::find($request->get('id'));
+                if($mediaItem && $mediaItem->exists()) {
+                    $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION), $request->get('chunk', ''));
+                    copy($file->path(), $temporaryFilePath);
+                } else {
+                    return $this->respondNotFound();
+                }
             } else {
-                $request->merge([
-                    'storage' => 'cdn',
-                ]);
+                return $this->respondWithErrors(['id' => 'Media ID is required']);
             }
         }
 
-        $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
+        $finalize = true;
 
-        $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION));
-        copy($file->path(), $temporaryFilePath);
+        if($request->has('chunk') == true) {
+            if($temporaryFilePath === '') {
+                return response()->json([
+                    'message' => 'A server error occurred. Please try again later'
+                ], 500);
+            }
 
-        $transformData = ['file' => [
-            'path' => $temporaryFilePath,
-            'size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-        ]
-        ];
-        if ($request->has('transform') === true) {
-            $transformData = array_merge($transformData, array_map('trim', explode(',', $request->get('transform'))));
+            $tempInfo = tempFileInfo($temporaryFilePath);
+
+            for($i = 1; $i <= intval($request->get('chunk_count', '1')); $i++) {
+                if(tempFileExists($tempInfo['dir'], $tempInfo['filename'], $tempInfo['extension'], $i) === false) {
+                    $finalize = false;
+                    break;
+                }
+            }
+
+            if($finalize === true) {
+                $newTempFile = generateTempFilePath($tempInfo['extension']);
+
+                for($i = 1; $i <= intval($request->get('chunk_count', '1')); $i++) {
+                    $tempFileName = constructTempFileName($tempInfo['dir'], $tempInfo['filename'], $tempInfo['extension'], $i);
+                    if(file_exists($tempFileName) === false) {
+                        return response()->json([
+                            'message' => 'A server error occurred. Please try again later'
+                        ], 500);
+                    }
+
+                    $chunkContents = file_get_contents($tempFileName);
+                    if ($chunkContents === false) {
+                        return response()->json([
+                            'message' => 'A server error occurred. Please try again later'
+                        ], 500);
+                    }
+
+                    file_put_contents($newTempFile, $chunkContents, FILE_APPEND);
+                    unlink($tempFileName);
+                }
+
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mime = finfo_file($finfo, $newTempFile);
+                finfo_close($finfo);
+
+                $transformData = ['file' => [
+                    'path' => $newTempFile,
+                    'size' => filesize($newTempFile),
+                    'mime_type' => $mime,
+                ]
+                ];
+            }
         }
-
-        $mediaItem->transform($transformData);
+        
+        if($finalize === true) {
+            $mediaItem->transform($transformData);
+        }
 
         return $this->respondAsResource(
             MediaConductor::model($request, $mediaItem),
