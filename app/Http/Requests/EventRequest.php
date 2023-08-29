@@ -34,6 +34,7 @@ class EventRequest extends BaseRequest
                 Rule::when(strcasecmp('message', $this->attributes->get('registration_type')) == 0, 'required|message'),
             ],
             'hero'              => 'uuid|exists:media,id',
+            'location_url'      => 'sometimes|string|max:255',
         ];
     }
 
