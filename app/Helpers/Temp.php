@@ -2,6 +2,7 @@
 
 /* Temp File Helper Functions */
 
+use Illuminate\Support\Facades\Log;
 
 /**
  * Generate a temporary file path.
@@ -67,7 +68,8 @@ function tempFileInfo(string $filePath): array
  */
 function tempFileExists(string $dir, string $name, string $extension = '', string $part = ''): string
 {
-    $filename = $dir . DIRECTORY_SEPARATOR . $name . ($extension !== '' ? ".{$extension}" : '') . ($part !== "" ? ".part={$part}" : '');
+    $filename = constructTempFileName($dir, $name, $extension, $part);
+    Log::Info($filename);
 
     return file_exists($filename);
 }
