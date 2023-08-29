@@ -156,43 +156,76 @@ const handleChangeSelectFile = async () => {
         ) {
             const file = fileList[uploadFileNum.value];
 
-            let submitFormData = new FormData();
-            submitFormData.append("file", file);
-            submitFormData.append("title", convertFileNameToTitle(file.name));
-            submitFormData.append("description", "");
-            try {
-                uploadFileName.value = file.name;
-                uploadFileProgress.value = 0;
+            const chunkSize = 50 * 1024 * 1024;
+            let chunk = 0;
+            let chunkCount = 1;
+            let resultMedia = null;
 
-                let result = await api.post({
-                    url: "/media",
-                    body: submitFormData,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    progress: (progressEvent) => {
-                        uploadFileProgress.value = Math.floor(
-                            (progressEvent.loaded / progressEvent.total) * 100,
-                        );
-                    },
-                });
-                if (result.data) {
-                    const data = result.data as MediaResponse;
-                    processingItems.value.push(data.medium);
-                }
-            } catch (error) {
-                let errorString = "A server error occurred";
+            if (file.size > chunkSize) {
+                chunkCount = Math.ceil(file.size / chunkSize);
+            }
 
-                if (error.status == 413) {
-                    errorString = `The file is larger than ${max_upload_size.value}`;
+            uploadFileName.value = file.name;
+            uploadFileProgress.value = 0;
+
+            while (chunk < chunkCount) {
+                let submitFormData = new FormData();
+                if (chunkCount == 1) {
+                    submitFormData.append("file", file);
+                } else {
+                    const offset = chunk * chunkSize;
+                    const fileChunk = file.slice(offset, offset + chunkSize);
+                    submitFormData.append("file", fileChunk);
+                    submitFormData.append("chunk", (chunk + 1).toString());
+                    submitFormData.append("chunk_count", chunkCount.toString());
                 }
 
-                useToastStore().addToast({
-                    title: "Upload failed",
-                    type: "danger",
-                    content: errorString,
-                });
-            } finally {
+                submitFormData.append(
+                    "title",
+                    convertFileNameToTitle(file.name),
+                );
+                submitFormData.append("description", "");
+
+                try {
+                    let result = await api.post({
+                        url: "/media",
+                        body: submitFormData,
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                        progress: (progressEvent) => {
+                            uploadFileProgress.value = Math.floor(
+                                ((chunk * chunkSize + progressEvent.loaded) /
+                                    file.size) *
+                                    100,
+                            );
+                        },
+                    });
+                    if (result.data) {
+                        resultMedia = (result.data as MediaResponse).medium;
+                    }
+                } catch (error) {
+                    let errorString = "A server error occurred";
+
+                    if (error.status == 413) {
+                        errorString = `The file is larger than ${max_upload_size.value}`;
+                    }
+
+                    useToastStore().addToast({
+                        title: "Upload failed",
+                        type: "danger",
+                        content: errorString,
+                    });
+
+                    resultMedia = null;
+                    break;
+                }
+
+                chunk++;
+            }
+
+            if (resultMedia != null) {
+                processingItems.value.push(resultMedia);
                 processFiles();
             }
         }
