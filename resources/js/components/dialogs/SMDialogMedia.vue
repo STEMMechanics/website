@@ -601,7 +601,7 @@ const selectedTab = ref("tab-browser");
 /**
  * Max upload size
  */
-const max_upload_size = ref(" ");
+const max_upload_size = ref("");
 
 /**
  * Is the media loading/busy

@@ -14,7 +14,7 @@
             </svg>
             <img
                 v-if="!imgError"
-                class="max-w-48 max-h-48"
+                class="max-w-48 max-h-48 w-full h-full"
                 @load="imgLoaded = true"
                 @error="imgError = true"
                 :src="mediaGetThumbnail(value, 'medium')" />
@@ -48,6 +48,7 @@ import { toTitleCase } from "../helpers/string";
 import { mediaGetThumbnail } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
+import SMDialogUpload from "./dialogs/SMDialogUpload.vue";
 import { Media } from "../helpers/api.types";
 import SMLoading from "./SMLoading.vue";
 
@@ -159,6 +160,11 @@ const props = defineProps({
         default: false,
         required: false,
     },
+    uploadOnly: {
+        type: Boolean,
+        default: false,
+        required: false,
+    },
 });
 
 const slots = useSlots();
@@ -256,10 +262,19 @@ if (form) {
 }
 
 const handleMediaSelect = async () => {
-    let result = await openDialog(SMDialogMedia, {
-        allowUpload: props.allowUpload,
-        accepts: props.accepts,
-    });
+    let result = null;
+
+    if (props.uploadOnly == false) {
+        result = await openDialog(SMDialogMedia, {
+            allowUpload: props.allowUpload,
+            accepts: props.accepts,
+        });
+    } else {
+        result = await openDialog(SMDialogUpload, {
+            accepts: props.accepts,
+        });
+    }
+
     if (result) {
         const mediaResult = result as Media;
         emits("update:modelValue", mediaResult);

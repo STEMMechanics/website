@@ -89,7 +89,7 @@
                         :type="registration_data?.type" />
                 </div>
                 <div class="mb-4">
-                    <SMSelectImage
+                    <SMSelectFile
                         control="hero"
                         label="Hero image"
                         allow-upload />
@@ -138,7 +138,7 @@ import SMLoading from "../../components/SMLoading.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMDropdown from "../../components/SMDropdown.vue";
-import SMSelectImage from "../../components/SMSelectImage.vue";
+import SMSelectFile from "../../components/SMSelectFile.vue";
 
 const route = useRoute();
 const router = useRouter();

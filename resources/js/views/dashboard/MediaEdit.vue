@@ -14,10 +14,11 @@
                 <div>
                     <SMImageGallery class="mb-4" :model-value="galleryItems" />
                 </div>
-                <SMSelectImage
+                <SMSelectFile
                     v-if="!editMultiple"
                     control="file"
                     allow-upload
+                    upload-only
                     accepts="*"
                     class="mb-4" />
                 <SMInput control="title" class="mb-4" />
@@ -92,7 +93,7 @@ import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { useToastStore } from "../../store/ToastStore";
 import SMPageStatus from "../../components/SMPageStatus.vue";
-import SMSelectImage from "../../components/SMSelectImage.vue";
+import SMSelectFile from "../../components/SMSelectFile.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMImageGallery from "../../components/SMImageGallery.vue";
 

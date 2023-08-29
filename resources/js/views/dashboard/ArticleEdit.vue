@@ -27,7 +27,7 @@
                         label="Publish Date" />
                 </div>
                 <div>
-                    <SMSelectImage
+                    <SMSelectFile
                         class="mb-4"
                         control="hero"
                         label="Hero image"
@@ -87,7 +87,7 @@ import { useUserStore } from "../../store/UserStore";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import { userHasPermission } from "../../helpers/utils";
-import SMSelectImage from "../../components/SMSelectImage.vue";
+import SMSelectFile from "../../components/SMSelectFile.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import SMImageGallery from "../../components/SMImageGallery.vue";
 
