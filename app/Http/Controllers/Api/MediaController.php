@@ -165,7 +165,7 @@ class MediaController extends ApiController
                     $tempFileName = constructTempFileName($tempInfo['dirname'], $tempInfo['filename'], $tempInfo['extension'], $i);
                     if(file_exists($tempFileName) === false) {
                         return response()->json([
-                            'message' => 'A server error occurred. Please try again later - tempFileName no exist'
+                            'message' => 'A server error occurred. Please try again later - tempFileName no exist - ' . $request->get('chunk_count', '1')
                         ], 500);
                     }
 
