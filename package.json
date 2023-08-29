@@ -11,7 +11,7 @@
     },
     "devDependencies": {
         "@ls-lint/ls-lint": "^2.0.0",
-        "@typescript-eslint/eslint-plugin": "^6.2.1",
+        "@typescript-eslint/eslint-plugin": "^6.5.0",
         "@typescript-eslint/parser": "^6.2.1",
         "eslint": "^8.31.0",
         "eslint-config-prettier": "^9.0.0",
