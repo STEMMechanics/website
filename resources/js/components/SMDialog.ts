@@ -43,7 +43,6 @@ export default defineComponent({
 /**
  * Closes last opened dialog, resolving the promise with the return value of the dialog, or with the given
  * data if any.
- *
  * @param {unknown} data The dialog return value.
  */
 export function closeDialog(data?: unknown) {
@@ -53,7 +52,7 @@ export function closeDialog(data?: unknown) {
     }
 
     const lastDialog = dialogRefs.pop();
-    if (data === undefined) {
+    if (data === undefined && lastDialog.comp) {
         data = lastDialog.comp.returnValue();
     }
     if (lastDialog) {
@@ -89,7 +88,6 @@ type ReturnType<C extends Component> = BindingReturnType<C>;
 
 /**
  * Opens a dialog.
- *
  * @param {Component} dialog The dialog you want to open.
  * @param {PropsType} props The props to be passed to the dialog.
  * @param {string} wrapper The dialog wrapper you want the dialog to open into.
@@ -98,7 +96,7 @@ type ReturnType<C extends Component> = BindingReturnType<C>;
 export function openDialog<C extends Component>(
     dialog: C,
     props?: PropsType<C>,
-    wrapper: string = "default"
+    wrapper: string = "default",
 ): Promise<ReturnType<C>> {
     if (dialogRefs.length === 0) {
         document.getElementsByTagName("html")[0].style.overflow = "hidden";
