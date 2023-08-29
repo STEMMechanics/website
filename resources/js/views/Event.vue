@@ -30,11 +30,17 @@
                     <div
                         v-if="
                             event.status == 'closed' ||
-                            event.status == 'full' ||
-                            (event.status == 'open' && expired)
+                            ((event.status == 'open' ||
+                                event.status == 'full') &&
+                                expired)
                         "
                         class="text-xs px-4 py-2 b-1 border-red-400 bg-red-100 text-red-900 text-center rounded">
                         Registration for this event has closed.
+                    </div>
+                    <div
+                        v-if="event.status == 'full' && expired == false"
+                        class="text-xs px-4 py-2 b-1 border-red-400 bg-red-100 text-red-900 text-center rounded">
+                        This event is at capacity.
                     </div>
                     <div
                         v-if="event.status == 'soon'"
