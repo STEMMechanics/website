@@ -66,12 +66,10 @@ function tempFileInfo(string $filePath): array
  * @param string $part      The file part number.
  * @return bool If the file exists.
  */
-function tempFileExists(string $dir, string $name, string $extension = '', string $part = ''): string
+function tempFileExists(string $dir, string $name, string $extension = '', string $part = ''): bool
 {
     $filename = constructTempFileName($dir, $name, $extension, $part);
-    
     $exists = file_exists($filename);
-    Log::Info($filename . ' ' . ($exists ? 'true' : 'false'));
     
     return $exists;
 }
