@@ -91,13 +91,23 @@ class MediaController extends ApiController
         }
 
         if($request->has('chunk') === false || $request->get('chunk') === '1') {
-            $request->merge([
-                'title' => $request->get('title', ''),
-                'name' => $file->getClientOriginalName(),
-                'size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-                'status' => 'Processing Media',
-            ]);
+            if($request->has('chunk')) {
+                $request->merge([
+                    'title' => $request->get('title', ''),
+                    'name' => $request->get('name'),
+                    'size' => 0,
+                    'mime_type' => '',
+                    'status' => 'Processing Media',
+                ]);
+            } else {
+                $request->merge([
+                    'title' => $request->get('title', ''),
+                    'name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize(),
+                    'mime_type' => $file->getMimeType(),
+                    'status' => 'Processing Media',
+                ]);
+            }
 
             // We store images by default locally
             if ($request->get('storage') === null) {
@@ -114,6 +124,7 @@ class MediaController extends ApiController
 
             $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
 
+            Log::info($file->getClientOriginalName());
             Log::info($mediaItem->name);
             Log::info(pathinfo($mediaItem->name, PATHINFO_EXTENSION));
 
