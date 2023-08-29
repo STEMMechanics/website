@@ -85,7 +85,7 @@ function tempFileExists(string $dir, string $name, string $extension = '', strin
  */
 function constructTempFileName(string $dir, string $name, string $extension = '', string $part = ''): string
 {
-    $filename = $dir . DIRECTORY_SEPARATOR . $name . ($extension !== '' ? ".{$extension}" : '') . ($part !== "" ? ".part={$part}" : '');
+    $filename = $dir . DIRECTORY_SEPARATOR . $name . ($extension !== '' ? ".{$extension}" : '') . ($part !== "" ? ".part-{$part}" : '');
 
     return $filename;
 }
