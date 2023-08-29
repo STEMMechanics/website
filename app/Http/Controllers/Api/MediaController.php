@@ -152,7 +152,7 @@ class MediaController extends ApiController
             $tempInfo = tempFileInfo($temporaryFilePath);
 
             for($i = 1; $i <= intval($request->get('chunk_count', '1')); $i++) {
-                if(tempFileExists($tempInfo['dir'], $tempInfo['filename'], $tempInfo['extension'], $i) === false) {
+                if(tempFileExists($tempInfo['dirname'], $tempInfo['filename'], $tempInfo['extension'], $i) === false) {
                     $finalize = false;
                     break;
                 }
@@ -162,7 +162,7 @@ class MediaController extends ApiController
                 $newTempFile = generateTempFilePath($tempInfo['extension']);
 
                 for($i = 1; $i <= intval($request->get('chunk_count', '1')); $i++) {
-                    $tempFileName = constructTempFileName($tempInfo['dir'], $tempInfo['filename'], $tempInfo['extension'], $i);
+                    $tempFileName = constructTempFileName($tempInfo['dirname'], $tempInfo['filename'], $tempInfo['extension'], $i);
                     if(file_exists($tempFileName) === false) {
                         return response()->json([
                             'message' => 'A server error occurred. Please try again later'
