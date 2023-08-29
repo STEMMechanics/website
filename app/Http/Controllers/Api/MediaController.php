@@ -157,11 +157,13 @@ class MediaController extends ApiController
 
             for($i = 1; $i <= intval($request->get('chunk_count', '1')); $i++) {
                 if(tempFileExists($tempInfo['dirname'], $tempInfo['filename'], $tempInfo['extension'], $i) === false) {
+                    Log::info("TEMP FILE NOT FOUND");
                     $finalize = false;
                     break;
                 }
             }
 
+            Log::info("FINALIZE?? " . ($finalize ? 'true':"false"));
             if($finalize === true) {
                 $newTempFile = generateTempFilePath($tempInfo['extension']);
 
