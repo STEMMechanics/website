@@ -183,6 +183,7 @@ const handleChangeSelectFile = async () => {
                     submitFormData.append("chunk_count", chunkCount.toString());
                 }
 
+                submitFormData.append("name", file.name);
                 submitFormData.append(
                     "title",
                     convertFileNameToTitle(file.name),
@@ -229,8 +230,8 @@ const handleChangeSelectFile = async () => {
 
             if (resultMedia != null) {
                 processingItems.value.push(resultMedia);
-                processFiles();
             }
+            processFiles();
         }
     } else {
         closeDialog(false);
