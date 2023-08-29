@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MediaController extends ApiController
@@ -112,6 +113,9 @@ class MediaController extends ApiController
             }
 
             $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
+
+            Log::info($mediaItem->name);
+            Log::info(pathinfo($mediaItem->name, PATHINFO_EXTENSION));
 
             $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION), $request->get('chunk', ''));
             copy($file->path(), $temporaryFilePath);

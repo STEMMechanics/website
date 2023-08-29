@@ -69,9 +69,11 @@ function tempFileInfo(string $filePath): array
 function tempFileExists(string $dir, string $name, string $extension = '', string $part = ''): string
 {
     $filename = constructTempFileName($dir, $name, $extension, $part);
-    Log::Info($filename);
-
-    return file_exists($filename);
+    
+    $exists = file_exists($filename);
+    Log::Info($filename . ' ' . ($exists ? 'true' : 'false'));
+    
+    return $exists;
 }
 
 /**
