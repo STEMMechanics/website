@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Conductors\MediaConductor;
 use App\Enum\HttpResponseCodes;
 use App\Http\Requests\MediaRequest;
+use App\Jobs\MediaJob;
 use App\Models\Media;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -69,9 +70,6 @@ class MediaController extends ApiController
      */
     public function store(MediaRequest $request)
     {
-        $temporaryFilePath = '';
-        $transformData = [];
-
         if (MediaConductor::creatable() === false) {
             return $this->respondForbidden();
         }
@@ -86,9 +84,84 @@ class MediaController extends ApiController
             return $jsonResult;
         }
 
-        if($request->has('chunk') === true && $request->has('transform') === true) {
-            return $this->respondWithErrors(['transform' => 'Transforms cannot be applied when uploading a file in chunks']);
+        if($request->has('chunk') === false || $request->get('chunk') === '1') {
+            /** @var \App\Models\User */
+            $user = auth()->user();
+
+            $mediaJob = new MediaJob();
+            $mediaJob->user_id = $user->id;
+
+            $data = [
+                'title' => $request->get('title', ''),
+                'name' => $request->has('chunk') === true ? $request->get('name') : $file->getClientOriginalName(),
+                'size' => $request->has('chunk') === true ? 0 : $file->getSize(),
+                'mime_type' => $request->has('chunk') === true ? '' : $file->getMimeType(),
+                'transform' => $request->get('transform', '')
+            ];
+
+            $temporaryFilePath = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION), $request->get('chunk', ''));
+            copy($file->path(), $temporaryFilePath);
+
+            if($request->has('chunk') === true) {
+                $data['chunks'] = [$request->get('chunk', '1') => $temporaryFilePath];
+            } else {
+                $data['file'] = $temporaryFilePath;
+            }
+
+            $mediaJob->data = json_encode($data);
+            $mediaJob->save();
+
+            return $this->respondAsResource(
+                MediaJobConductor::model($request, $mediaJob),
+                ['respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
+            );    
+        } else if($request->has('job_id')) {
+            $mediaJob = MediaJob::find($request->get('job_id'));
+            if($mediaJob !== null && $mediaJob->exists()) {
+                $data = json_decode($mediaJob->data, true);
+
+                $temporaryFilePath = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION), $request->get('chunk', ''));
+                copy($file->path(), $temporaryFilePath);
+
+                $data['chunks'][$request->get('chunk', '1')] = $temporaryFilePath;
+
+                $maxSize = Media::getMaxUploadSize();
+                $size = 0;
+                foreach($data['chunks'] as $num => $path) {
+                    if(file_exists($path) === true) {
+                        $size += filesize($path);
+                    }
+                }
+
+                // check if file uploads are larger than allowed
+                if($size > $maxSize) {
+                    $mediaJob->fail('File size is larger than the maximum allowed');
+
+                    return $this->respondAsResource(
+                        MediaJobConductor::model($request, $mediaJob),
+                        ['respondCode' => HttpResponseCodes::HTTP_REQUEST_ENTITY_TOO_LARGE]
+                    );
+                }
+
+                // check that upload chunking is finished
+                if(count($data['chunks']) >= intval($request->get('chunk_count'))) {
+                    $part = 1;
+                    for($part = 1; $part <= intval($request->get('chunk_count')); $part++) {
+
+                    }
+                }
+            } else {
+                return $this->respondNotFound();
+            }
         }
+
+        // $temporaryFilePath = '';
+        // $transformData = [];
+
+
+        // if($request->has('chunk') === true && $request->has('transform') === true) {
+        //     return $this->respondWithErrors(['transform' => 'Transforms cannot be applied when uploading a file in chunks']);
+        // }
 
         if($request->has('chunk') === false || $request->get('chunk') === '1') {
             if($request->has('chunk')) {
@@ -123,10 +196,6 @@ class MediaController extends ApiController
             }
 
             $mediaItem = $request->user()->media()->create($request->except(['file','transform']));
-
-            Log::info($file->getClientOriginalName());
-            Log::info($mediaItem->name);
-            Log::info(pathinfo($mediaItem->name, PATHINFO_EXTENSION));
 
             $temporaryFilePath = generateTempFilePath(pathinfo($mediaItem->name, PATHINFO_EXTENSION), $request->get('chunk', ''));
             copy($file->path(), $temporaryFilePath);
