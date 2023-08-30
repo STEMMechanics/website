@@ -17,7 +17,7 @@ use FFMpeg\FFProbe;
 use FFMpeg\Format\VideoInterface;
 use Intervention\Image\Facades\Image;
 
-class MediaJob implements ShouldQueue
+class MediaWorkerJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
