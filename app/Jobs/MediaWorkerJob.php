@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\Media;
+use App\Models\MediaJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -25,11 +26,11 @@ class MediaWorkerJob implements ShouldQueue
     use SerializesModels;
 
     /**
-     * Media item
+     * MediaJob item
      *
-     * @var Media
+     * @var MediaJob
      */
-    protected $media;
+    protected $mediaJob;
 
     /**
      * Actions should be silent (not update the status field)
@@ -39,26 +40,17 @@ class MediaWorkerJob implements ShouldQueue
     protected $silent;
 
     /**
-     * Actions to make on the Media
-     *
-     * @var array
-     */
-    protected $actions;
-
-
-    /**
      * Create a new job instance.
      *
-     * @param Media   $media   The media model.
+     * @param MediaJob   $mediaJob   The mediaJob model.
      * @param array   $actions The media actions to make.
      * @param boolean $silent  Update the media status with progress.
      * @return void
      */
-    public function __construct(Media $media, array $actions, bool $silent = false)
+    public function __construct(MediaJob $mediaJob, bool $silent = false)
     {
-        $this->media = $media;
+        $mediaJob = $mediaJob;
         $this->silent = $silent;
-        $this->actions = $actions;
     }
 
     /**
@@ -68,231 +60,273 @@ class MediaWorkerJob implements ShouldQueue
      */
     public function handle(): void
     {
+        $media = null;
+        $data = json_decode($this->mediaJob->data, true);
+
+        // new Media();
+        // $this->mediaJob->media_id = $media->id;
+
+
         try {
             // FILE
-            if (array_key_exists("file", $this->actions) === true) {
-                $uploadData = $this->actions["file"];
-
-                if (array_key_exists("path", $uploadData) === false || file_exists($uploadData["path"]) === false) {
-                    $this->media->error("Upload file does not exist");
-                    return;
+            if (array_key_exists('file', $data) === true) {
+                if(file_exists($data['file']) === false) {
+                    $errorStr = 'temporary upload file no longer exists';
+                    $this->mediaJob->setStatusFailed($errorStr);
+                    Log::info($errorStr);
+                    throw new \Exception($errorStr);
                 }
 
-                $filePath = $uploadData["path"];
-
                 // convert HEIC files to JPG
-                $fileExtension = File::extension($filePath);
+                $fileExtension = File::extension($data['file']);
                 if ($fileExtension === 'heic') {
                     if ($this->silent === false) {
-                        $this->media->status('Converting image');
+                        $this->mediaJob->setStatusProcessing(0, 'converting image');
                     }
 
                     // Get the path without the file name
-                    $uploadedFileDirectory = dirname($filePath);
+                    $uploadedFileDirectory = dirname($data['file']);
 
                     // Convert the HEIC file to JPG
-                    $jpgFileName = pathinfo($filePath, PATHINFO_FILENAME) . '.jpg';
+                    $jpgFileName = pathinfo($data['file'], PATHINFO_FILENAME) . '.jpg';
                     $jpgFilePath = $uploadedFileDirectory . '/' . $jpgFileName;
                     if (file_exists($jpgFilePath) === true) {
-                        $this->media->error("File already exists on server");
-                        return;
+                        $errorStr = 'file already exists on server';
+                        $this->mediaJob->setStatusFailed($errorStr);
+                        Log::info($errorStr);
+                        throw new \Exception($errorStr);
                     }
 
-                    Image::make($filePath)->save($jpgFilePath);
+                    Image::make($data['file'])->save($jpgFilePath);
 
                     // Update the uploaded file path and file name
-                    unlink($filePath);
+                    unlink($data['file']);
                     $filePath = $jpgFilePath;
-                    $this->media->name = $jpgFileName;
-                    $this->media->save();
+                    $data['file'] = $jpgFileName;
                 }//end if
 
+                // get storage
+                $storage = $data['storage'];
+                if ($storage === '') {
+                    if (strpos($data['mime_type'], 'image/') === 0) {
+                        $storage = 'local';
+                    } else {
+                        $storage = 'cdn';
+                    }
+                }
+
                 // Check if file already exists
-                if (Storage::disk($this->media->storage)->exists($this->media->name) === true) {
-                    if (array_key_exists('replace', $uploadData) === false || isTrue($uploadData['replace']) === false) {
-                        $this->media->error("File already exists on server");
-                        $errorStr = "cannot upload file " . $this->media->storage . " " . // phpcs:ignore
-                        "/ " . $this->media->name . " as it already exists";
+                if (Storage::disk($storage)->exists($data['name']) === true) {
+                    if (array_key_exists('replace', $data) === false || isTrue($data['replace']) === false) {
+                        $this->mediaJob->setStatusFailed('file already exists on server');
+                        $errorStr = "cannot upload file " . $storage . " " . // phpcs:ignore
+                        "/ " . $data['name'] . " as it already exists";
                         Log::info($errorStr);
                         throw new \Exception($errorStr);
                     }
                 }
 
-                $this->media->setStagingFile($filePath);
-            }//end if
+                $media = new Media([
+                    'user_id' => $this->mediaJob->user_id,
+                    'title' => $data['title'],
+                    'name' => $data['name'],
+                    'mime_type' => $data['mime_type'],
+                    'size' => $data['size'],
+                    'storage' => $storage
+                ]);
 
-            $this->media->createStagingFile();
-            $this->media->deleteFile();
-
-            // Modifications
-            if (strpos($this->media->mime_type, 'image/') === 0) {
-                $modified = false;
-                $image = Image::make($this->media->getStagingFilePath());
-
-                // ROTATE
-                if (array_key_exists("rotate", $this->actions) === true) {
-                    $rotate = intval($this->actions["rotate"]);
-                    if ($rotate !== 0) {
-                        if ($this->silent === false) {
-                            $this->media->status('Rotating image');
-                        }
-                        $image = $image->rotate($rotate);
-                        $modified = true;
-                    }
+                $media->setStagingFile($filePath);
+            } else {
+                $media = $this->mediaJob->media()->first();
+                if($media === null || $media->exists() === false) {
+                    $errorStr = 'The media item no longer exists';
+                    $this->mediaJob->setStatusFailed($errorStr);
+                    Log::info($errorStr);
+                    throw new \Exception($errorStr);
                 }
+            }
 
-                // FLIP-H/V
-                if (array_key_exists('flip', $this->actions) === true) {
-                    if (stripos($this->actions['flip'], 'h') !== false) {
-                        if ($this->silent === false) {
-                            $this->media->status('Flipping image');
+            // TODO:
+            // mime_type may not be in data if we are just doing a transform...
+            // if fails, need to delete the staging file
+            // do not delete the file straight away incase we fail the transform
+            // delete the media object if we fail and it is a new media object
+            // UPDATE IN CONTROLLER NEEDS TO BE FIXED
+            // STATUS field can be removed in Media object
+            // Front end needs to support non status field and media jobs
+
+            if(array_key_exists('transform', $data) === true) {
+                $media->createStagingFile();
+                $media->deleteFile();
+
+                // Modifications
+                if (strpos($media->mime_type, 'image/') === 0) {
+                    $modified = false;
+                    $image = Image::make($media->getStagingFilePath());
+
+                    // ROTATE
+                    if (array_key_exists("rotate", $data['transform']) === true) {
+                        $rotate = intval($data['transform']['rotate']);
+                        if ($rotate !== 0) {
+                            if ($this->silent === false) {
+                                $this->mediaJob->setStatusProcessing(0, 'rotating image');
+                            }
+                            $image = $image->rotate($rotate);
+                            $modified = true;
                         }
-                        $image = $image->flip('h');
-                        $modified = true;
                     }
 
-                    if (stripos($this->actions['flip'], 'v') !== false) {
-                        if ($this->silent === false) {
-                            $this->media->status('Flipping image');
+                    // FLIP-H/V
+                    if (array_key_exists('flip', $data['transform']) === true) {
+                        if (stripos($data['transform']['flip'], 'h') !== false) {
+                            if ($this->silent === false) {
+                                $this->mediaJob->setStatusProcessing(0, 'flipping image');
+                            }
+                            $image = $image->flip('h');
+                            $modified = true;
                         }
-                        $image = $image->flip('v');
+
+                        if (stripos($data['transform']['flip'], 'v') !== false) {
+                            if ($this->silent === false) {
+                                $this->mediaJob->setStatusProcessing(0, 'flipping image');
+                            }
+                            $image = $image->flip('v');
+                            $modified = true;
+                        }
+                    }
+
+                    // CROP
+                    if (array_key_exists("crop", $data['transform']) === true) {
+                        $cropData = $data['transform']['crop'];
+                        $width = intval(arrayDefaultValue("width", $cropData, $image->getWidth()));
+                        $height = intval(arrayDefaultValue("height", $cropData, $image->getHeight()));
+                        $x = intval(arrayDefaultValue("x", $cropData, 0));
+                        $y = intval(arrayDefaultValue("y", $cropData, 0));
+
+                        if ($this->silent === false) {
+                            $this->mediaJob->setStatusProcessing(0, 'cropping image');
+                        }
+                        $image = $image->crop($width, $height, $x, $y);
                         $modified = true;
-                    }
-                }
+                    }//end if
 
-                // CROP
-                if (array_key_exists("crop", $this->actions) === true) {
-                    $cropData = $this->actions["crop"];
-                    $width = intval(arrayDefaultValue("width", $cropData, $image->getWidth()));
-                    $height = intval(arrayDefaultValue("height", $cropData, $image->getHeight()));
-                    $x = intval(arrayDefaultValue("x", $cropData, 0));
-                    $y = intval(arrayDefaultValue("y", $cropData, 0));
-
-                    if ($this->silent === false) {
-                        $this->media->status('Cropping image');
+                    if ($modified === true) {
+                        $image->save();
                     }
-                    $image = $image->crop($width, $height, $x, $y);
-                    $modified = true;
+                } elseif (strpos($data['mime_type'], 'video/') === 0) {
+                    $stagingFilePath = $media->getStagingFilePath();
+                    $ffmpeg = FFMpeg\FFMpeg::create();
+                    $video = $ffmpeg->open($stagingFilePath);
+                    $format = $this->detectVideoFormat($stagingFilePath);
+                    $modified = false;
+
+                    if ($format === null) {
+                        $this->mediaJob->setStatusFailed('Unsupported video format');
+                        return;
+                    }
+
+                    /** @var FFMpeg\Media\Video::filters */
+                    $filters = $video->filters();
+
+                    // ROTATE
+                    if (array_key_exists("rotate", $data['transform']) === true) {
+                        $rotate = intval($data['transform']['rotate']);
+                        $rotate = (($rotate % 360 + 360) % 360); // remove excess rotations
+                        $rotate = intval(round($rotate / 90) * 90); // round to nearest 90%
+
+                        if ($rotate > 0) {
+                            $this->mediaJob->setStatusProcessing(0, 'rotating video');
+
+                            if ($rotate === 90) {
+                                $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
+                                $modified = true;
+                            } elseif ($rotate === 180) {
+                                $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_180);
+                                $modified = true;
+                            } elseif ($rotate === 270) {
+                                $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
+                                $modified = true;
+                            }
+                        }
+                    }
+
+                    // FLIP-H/V
+                    if (array_key_exists('flip', $data['transform']) === true) {
+                        if (stripos($data['transform']['flip'], 'h') !== false) {
+                            if ($this->silent === false) {
+                                $media->status('Flipping video');
+                            }
+                            $filters->hflip()->synchronize();
+                            $modified = true;
+                        }
+
+                        if (stripos($data['transform']['flip'], 'v') !== false) {
+                            if ($this->silent === false) {
+                                $media->status('Flipping video');
+                            }
+                            $filters->vflip()->synchronize();
+                            $modified = true;
+                        }
+                    }
+
+                    // CROP
+                    if (array_key_exists("crop", $data['transform']) === true) {
+                        $cropData = $data['transform']['crop'];
+                        $videoStream = $video->getStreams()->videos()->first();
+
+                        $width = intval(arrayDefaultValue("width", $cropData, $videoStream->get('width')));
+                        $height = intval(arrayDefaultValue("height", $cropData, $videoStream->get('height')));
+                        $x = intval(arrayDefaultValue("x", $cropData, 0));
+                        $y = intval(arrayDefaultValue("y", $cropData, 0));
+
+                        $cropDimension = new Dimension($width, $height);
+
+                        if ($this->silent === false) {
+                            $media->status('Cropping video');
+                        }
+                        $filters->crop($cropDimension, $x, $y)->synchronize();
+                        $modified = true;
+                    }//end if
+
+                    $tempFilePath = generateTempFilePath(pathinfo($stagingFilePath, PATHINFO_EXTENSION));
+                    if (method_exists($format, 'on') === true) {
+                        $media = $media;
+                        $format->on('progress', function ($video, $format, $percentage) use ($media) {
+                            $media->status("{$percentage}% transcoded");
+                        });
+                    }
+
+                    if($modified === true) {
+                        $video->save($format, $tempFilePath);
+                        $media->changeStagingFile($tempFilePath);
+                    }
                 }//end if
 
-                if ($modified === true) {
-                    $image->save();
-                }
-            } elseif (strpos($this->media->mime_type, 'video/') === 0) {
-                $stagingFilePath = $this->media->getStagingFilePath();
-                $ffmpeg = FFMpeg\FFMpeg::create();
-                $video = $ffmpeg->open($stagingFilePath);
-                $format = $this->detectVideoFormat($stagingFilePath);
-                $modified = false;
-
-                if ($format === null) {
-                    $this->media->error('Unsupported video format');
-                    return;
-                }
-
-                /** @var FFMpeg\Media\Video::filters */
-                $filters = $video->filters();
-
-                // ROTATE
-                if (array_key_exists("rotate", $this->actions) === true) {
-                    $rotate = intval($this->actions["rotate"]);
-                    $rotate = (($rotate % 360 + 360) % 360); // remove excess rotations
-                    $rotate = intval(round($rotate / 90) * 90); // round to nearest 90%
-
-                    if ($rotate > 0) {
-                        if ($this->silent === false) {
-                            $this->media->status('Rotating video');
-                        }
-
-                        if ($rotate === 90) {
-                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
-                            $modified = true;
-                        } elseif ($rotate === 180) {
-                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_180);
-                            $modified = true;
-                        } elseif ($rotate === 270) {
-                            $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_90);
-                            $modified = true;
-                        }
-                    }
-                }
-
-                // FLIP-H/V
-                if (array_key_exists('flip', $this->actions) === true) {
-                    if (stripos($this->actions['flip'], 'h') !== false) {
-                        if ($this->silent === false) {
-                            $this->media->status('Flipping video');
-                        }
-                        $filters->hflip()->synchronize();
-                        $modified = true;
-                    }
-
-                    if (stripos($this->actions['flip'], 'v') !== false) {
-                        if ($this->silent === false) {
-                            $this->media->status('Flipping video');
-                        }
-                        $filters->vflip()->synchronize();
-                        $modified = true;
-                    }
-                }
-
-                // CROP
-                if (array_key_exists("crop", $this->actions) === true) {
-                    $cropData = $this->actions["crop"];
-                    $videoStream = $video->getStreams()->videos()->first();
-
-                    $width = intval(arrayDefaultValue("width", $cropData, $videoStream->get('width')));
-                    $height = intval(arrayDefaultValue("height", $cropData, $videoStream->get('height')));
-                    $x = intval(arrayDefaultValue("x", $cropData, 0));
-                    $y = intval(arrayDefaultValue("y", $cropData, 0));
-
-                    $cropDimension = new Dimension($width, $height);
-
-                    if ($this->silent === false) {
-                        $this->media->status('Cropping video');
-                    }
-                    $filters->crop($cropDimension, $x, $y)->synchronize();
-                    $modified = true;
-                }//end if
-
-                $tempFilePath = generateTempFilePath(pathinfo($stagingFilePath, PATHINFO_EXTENSION));
-                if (method_exists($format, 'on') === true) {
-                    $media = $this->media;
-                    $format->on('progress', function ($video, $format, $percentage) use ($media) {
-                        $media->status("{$percentage}% transcoded");
-                    });
-                }
-
-                if($modified === true) {
-                    $video->save($format, $tempFilePath);
-                    $this->media->changeStagingFile($tempFilePath);
-                }
-            }//end if
-
-            // Move file
-            if (array_key_exists("move", $this->actions) === true) {
-                if (array_key_exists("storage", $this->actions["move"]) === true) {
-                    $newStorage = $this->actions["move"]["storage"];
-                    if ($this->media->storage !== $newStorage) {
-                        if (Storage::has($newStorage) === true) {
-                            $this->media->storage = $newStorage;
-                        } else {
-                            $this->media->error("Cannot move file to '{$newStorage}' as it does not exist");
+                // Move file
+                if (array_key_exists("move", $data['transform']) === true) {
+                    if (array_key_exists("storage", $data['transform']['move']) === true) {
+                        $newStorage = $data['transform']['move"]["storage'];
+                        if ($media->storage !== $newStorage) {
+                            if (Storage::has($newStorage) === true) {
+                                $media->storage = $newStorage;
+                            } else {
+                                $media->error("Cannot move file to '{$newStorage}' as it does not exist");
+                            }
                         }
                     }
                 }
             }
 
             // Finish media object
-            $this->media->saveStagingFile(true, $this->silent);
-            $this->media->ok();
-            $this->media->save();
+            $media->saveStagingFile(true);
+            $media->save();
+            $this->mediaJob->setStatusComplete();
         } catch (\Exception $e) {
-            $this->media->deleteStagingFile();
+            $media->deleteStagingFile();
 
-            if (strpos($this->media->status, 'Error') !== 0) {
-                $this->media->error('Failed to process the file');
-            }
+            // if (strpos($media->status, 'Error') !== 0) {
+            //     $media->error('Failed to process the file');
+            // }
 
             Log::error($e->getMessage() . "\n" . $e->getFile() . " - " . $e->getLine() . "\n" . $e->getTraceAsString());
             $this->fail($e);

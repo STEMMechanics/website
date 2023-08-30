@@ -115,7 +115,8 @@ class MediaController extends ApiController
             $data['name'] = $request->has('chunk') === true ? $request->get('name', '') : $file->getClientOriginalName();
             $data['size'] = $request->has('chunk') === true ? 0 : $file->getSize();
             $data['mime_type'] = $request->has('chunk') === true ? '' : $file->getMimeType();
-            
+            $data['storage'] = $request->get('storage', '');
+
             if($request->has('transform') === true) {
                 $data['transform'] = $request->get('transform');
             }
