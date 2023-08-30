@@ -13,6 +13,9 @@ class MediaRequest extends BaseRequest
                 Rule::requiredIf(function () {
                     return request()->has('chunk') && request('chunk') != 1;
                 }),
+                Rule::forbiddenUnless(function () {
+                    return request()->has('chunk') && request('chunk') != 1;
+                }),
                 'string',
             ],
             'name' => [
@@ -21,7 +24,16 @@ class MediaRequest extends BaseRequest
                 }),
                 'string',
             ],
-            'chunk' => 'required_with:chunk_count|integer|min:1|max:99',
+            'chunk' => [
+                'required_with:chunk_count',
+                'integer',
+                'min:1',
+                'max:99',
+                Rule::passes(function ($attribute, $value) {
+                    $chunkCount = request('chunk_count');
+                    return $value <= $chunkCount;
+                })->withMessage('The chunk must be less than or equal to chunk_count.'),
+            ],
             'chunk_count' => 'required_with:chunk|integer|min:1',
         ];
     }
