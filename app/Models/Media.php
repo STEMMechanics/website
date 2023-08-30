@@ -860,7 +860,7 @@ class Media extends Model
                 $video = $ffmpeg->open($filePath);
                 $frame = $video->frame(TimeCode::fromSeconds(5));
                 $frame->save($tempImagePath);
-            } catch(\Exception $e) {
+            } catch (\Exception $e) {
                 Log::error($e);
             }
 
