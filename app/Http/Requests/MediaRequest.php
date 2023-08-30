@@ -9,7 +9,7 @@ class MediaRequest extends BaseRequest
     public function postRules(): array
     {
         return [
-            'id' => [
+            'job_id' => [
                 Rule::requiredIf(function () {
                     return request()->has('chunk') && request('chunk') != 1;
                 }),
