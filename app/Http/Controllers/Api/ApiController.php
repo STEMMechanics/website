@@ -83,7 +83,7 @@ class ApiController extends Controller
      *
      * @return JsonResponse
      */
-    public function respondNotImplmeneted(): JsonResponse
+    public function respondNotImplemented(): JsonResponse
     {
         return response()->json([], HttpResponseCodes::HTTP_NOT_IMPLEMENTED);
     }
@@ -106,6 +106,16 @@ class ApiController extends Controller
     public function respondAccepted(): JsonResponse
     {
         return response()->json([], HttpResponseCodes::HTTP_ACCEPTED);
+    }
+
+    /**
+     * Return server error.
+     *
+     * @return JsonResponse
+     */
+    public function respondServerError(): JsonResponse
+    {
+        return response()->json([], HttpResponseCodes::HTTP_INTERNAL_SERVER_ERROR);
     }
 
     /**
