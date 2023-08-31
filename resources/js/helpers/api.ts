@@ -28,6 +28,7 @@ interface ApiOptions {
     signal?: AbortSignal | null;
     progress?: ApiProgressCallback;
     callback?: ApiResultCallback;
+    chunk?: string;
 }
 
 export interface ApiResponse {
@@ -322,7 +323,7 @@ export const api = {
         }
 
         apiOptions.method = "POST";
-        return await this.send(options);
+        return await this.send(apiOptions);
     },
 
     put: async function (options: ApiOptions | string): Promise<ApiResponse> {
@@ -335,7 +336,7 @@ export const api = {
         }
 
         apiOptions.method = "PUT";
-        return await this.send(options);
+        return await this.send(apiOptions);
     },
 
     delete: async function (
@@ -350,7 +351,104 @@ export const api = {
         }
 
         apiOptions.method = "DELETE";
-        return await this.send(options);
+        return await this.send(apiOptions);
+    },
+
+    chunk: async function (options: ApiOptions | string): Promise<ApiResponse> {
+        let apiOptions = {} as ApiOptions;
+
+        // setup api options
+        if (typeof options == "string") {
+            apiOptions.url = options;
+        } else {
+            apiOptions = options;
+        }
+
+        // set method to post by default
+        if (!Object.prototype.hasOwnProperty.call(apiOptions, "method")) {
+            apiOptions.method = "POST";
+        }
+
+        // check for chunk option
+        if (
+            Object.prototype.hasOwnProperty.call(apiOptions, "chunk") &&
+            Object.prototype.hasOwnProperty.call(apiOptions, "body") &&
+            apiOptions.body instanceof FormData
+        ) {
+            if (apiOptions.body.has(apiOptions.chunk)) {
+                const file = apiOptions.body.get(apiOptions.chunk);
+
+                if (file instanceof File) {
+                    const chunkSize = 50 * 1024 * 1024;
+                    let chunk = 0;
+                    let chunkCount = 1;
+                    let job_id = -1;
+
+                    if (file.size > chunkSize) {
+                        chunkCount = Math.ceil(file.size / chunkSize);
+                    }
+
+                    let result = null;
+                    for (chunk = 0; chunk < chunkCount; chunk++) {
+                        const offset = chunk * chunkSize;
+                        const fileChunk = file.slice(
+                            offset,
+                            offset + chunkSize,
+                        );
+
+                        const chunkFormData = new FormData();
+                        if (job_id == -1) {
+                            for (const [field, value] of apiOptions.body) {
+                                chunkFormData.append(field, value);
+                            }
+
+                            chunkFormData.append("name", file.name);
+                            chunkFormData.append("size", file.size.toString());
+                            chunkFormData.append("mime_type", file.type);
+                        } else {
+                            chunkFormData.append("job_id", job_id.toString());
+                        }
+
+                        chunkFormData.set(apiOptions.chunk, fileChunk);
+                        chunkFormData.append("chunk", (chunk + 1).toString());
+                        chunkFormData.append(
+                            "chunk_count",
+                            chunkCount.toString(),
+                        );
+
+                        const chunkOptions = {
+                            method: apiOptions.method,
+                            url: apiOptions.url,
+                            params: apiOptions.params || {},
+                            body: chunkFormData,
+                            headers: apiOptions.headers || {},
+                            progress: (progressEvent) => {
+                                if (
+                                    Object.prototype.hasOwnProperty.call(
+                                        apiOptions,
+                                        "progress",
+                                    )
+                                ) {
+                                    apiOptions.progress({
+                                        loaded:
+                                            chunk * chunkSize +
+                                            progressEvent.loaded,
+                                        total: file.size,
+                                    });
+                                }
+                            },
+                        };
+
+                        result = await this.send(chunkOptions);
+                        job_id = result.data.media_job.id;
+                    }
+
+                    return result;
+                }
+            }
+        }
+
+        return await this.send(apiOptions);
     },
 };
 

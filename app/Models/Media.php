@@ -3,35 +3,24 @@
 namespace App\Models;
 
 use App\Enum\HttpResponseCodes;
-use App\Jobs\MediaJob;
+use App\Jobs\MediaWorkerJob;
 use App\Jobs\MoveMediaJob;
-use App\Jobs\StoreUploadedFileJob;
 use App\Traits\Uuids;
-use Exception;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\InvalidCastException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\Exception\NotSupportedException;
-use Intervention\Image\Exception\NotWritableException;
-use ImagickException;
 use Intervention\Image\Facades\Image;
-use InvalidArgumentException;
-use Psr\Container\NotFoundExceptionInterface;
-use Psr\Container\ContainerExceptionInterface;
 use SplFileInfo;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class Media extends Model
@@ -59,7 +48,6 @@ class Media extends Model
         'description',
         'name',
         'size',
-        'status',
     ];
 
     /**
@@ -367,7 +355,7 @@ class Media extends Model
     public function moveToStorage(string $storage): void
     {
         if ($storage !== $this->storage && Config::has("filesystems.disks.$storage") === true) {
-            $this->status = "Processing media";
+            // $this->status = "Processing media";
             MoveMediaJob::dispatch($this, $storage)->onQueue('media');
             $this->save();
         }
@@ -376,36 +364,26 @@ class Media extends Model
     /**
      * Transform the media through the Media Job Queue
      *
-     * @param array   $transform The transform data.
-     * @param boolean $silent    Update the medium progress through its status field.
-     * @return void
+     * @param array $transform The transform data.
+     * @return MediaJob
      */
-    public function transform(array $transform, bool $silent = false): void
+    public function transform(array $transform): MediaJob
     {
-        foreach ($transform as $key => $value) {
-            if (is_string($value) === true) {
-                if (preg_match('/^rotate-(-?\d+)$/', $value, $matches) !== false) {
-                    unset($transform[$key]);
-                    $transform['rotate'] = $matches[1];
-                } elseif (preg_match('/^flip-([vh]|vh|hv)$/', $value, $matches) !== false) {
-                    unset($transform[$key]);
-                    $transform['flip'] = $matches[1];
-                } elseif (preg_match('/^crop-(\d+)-(\d+)$/', $value, $matches) !== false) {
-                    unset($transform[$key]);
-                    $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2]];
-                } elseif (preg_match('/^crop-(\d+)-(\d+)-(\d+)-(\d+)$/', $value, $matches) !== false) {
-                    unset($transform[$key]);
-                    $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2], 'x' => $matches[3], 'y' => $matches[4]];
-                }
-            }
-        }
+        $mediaJob = new MediaJob([
+            'media_id' => $this->media,
+            'user_id' => auth()->user()?->id,
+            'data' => json_encode(['transform' => $transform]),
+        ]);
 
         try {
-            MediaJob::dispatch($this, $transform, $silent)->onQueue('media');
+            MediaWorkerJob::dispatch($mediaJob)->onQueue('media');
+            return $mediaJob;
         } catch (\Exception $e) {
             $this->error('Failed to transform media');
             throw $e;
         }//end try
+
+        return null;
     }
 
     /**
@@ -498,8 +476,8 @@ class Media extends Model
 
         if (
             static::fileNameHasSuffix($fileName) === true ||
-            static::fileExistsInStorage("$fileName.$extension") === true ||
-            Media::where('name', "$fileName.$extension")->where('status', 'not like', 'failed%')->exists() === true
+            static::fileExistsInStorage("$fileName.$extension") === true //||
+            // Media::where('name', "$fileName.$extension")->where('status', 'not like', 'failed%')->exists() === true
         ) {
             $fileName .= '-';
             for ($i = 1; $i < $maxTries; $i++) {
@@ -507,7 +485,7 @@ class Media extends Model
                 if (
                     static::fileExistsInStorage("$fileNameIndex.$extension") !== true &&
                     Media::where('name', "$fileNameIndex.$extension")
-                        ->where('status', 'not like', 'Failed%')
+                        // ->where('status', 'not like', 'Failed%')
                         ->exists() !== true
                 ) {
                     return "$fileNameIndex.$extension";
@@ -721,32 +699,34 @@ class Media extends Model
      */
     public function saveStagingFile(bool $delete = true, bool $silent = false): void
     {
-        if (strlen($this->storage) > 0 && strlen($this->name) > 0) {
-            if (Storage::disk($this->storage)->exists($this->name) === true) {
-                Storage::disk($this->storage)->delete($this->name);
+        if ($this->stagingFilePath !== '') {
+            if (strlen($this->storage) > 0 && strlen($this->name) > 0) {
+                if (Storage::disk($this->storage)->exists($this->name) === true) {
+                    Storage::disk($this->storage)->delete($this->name);
+                }
+
+                /** @var Illuminate\Filesystem\FilesystemAdapter */
+                $fileSystem = Storage::disk($this->storage);
+                // if ($silent === false) {
+                //     $this->status('Uploading to CDN');
+                // }
+                $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
             }
 
-            /** @var Illuminate\Filesystem\FilesystemAdapter */
-            $fileSystem = Storage::disk($this->storage);
-            if ($silent === false) {
-                $this->status('Uploading to CDN');
+            // if ($silent === false) {
+            //     $this->status('Generating Thumbnail');
+            // }
+            $this->generateThumbnail();
+
+            // if ($silent === false) {
+            //     $this->status('Generating Variants');
+            // }
+            $this->generateVariants();
+
+            if ($delete === true) {
+                $this->deleteStagingFile();
             }
-            $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
-        }
-
-        if ($silent === false) {
-            $this->status('Generating Thumbnail');
-        }
-        $this->generateThumbnail();
-
-        if ($silent === false) {
-            $this->status('Generating Variants');
-        }
-        $this->generateVariants();
-
-        if ($delete === true) {
-            $this->deleteStagingFile();
-        }
+        }//end if
     }
 
     /**
@@ -775,6 +755,16 @@ class Media extends Model
         }
 
         $this->stagingFilePath = $newFile;
+    }
+
+    /**
+     * Is a staging file present
+     *
+     * @return boolean
+     */
+    public function hasStagingFile(): bool
+    {
+        return $this->stagingFilePath !== "";
     }
 
     /**
@@ -1019,7 +1009,7 @@ class Media extends Model
      */
     public function ok(): void
     {
-        $this->status = "OK";
+        // $this->status = "OK";
         $this->save();
     }
 
@@ -1030,7 +1020,7 @@ class Media extends Model
      */
     public function error(string $error = ""): void
     {
-        $this->status = "Error" . ($error !== "" ? ": {$error}" : "");
+        // $this->status = "Error" . ($error !== "" ? ": {$error}" : "");
         $this->save();
     }
 
@@ -1041,7 +1031,7 @@ class Media extends Model
      */
     public function status(string $status = ""): void
     {
-        $this->status = "Info: " . $status;
+        // $this->status = "Info: " . $status;
         $this->save();
     }
 }

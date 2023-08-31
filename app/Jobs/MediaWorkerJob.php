@@ -18,6 +18,7 @@ use FFMpeg\FFProbe;
 use FFMpeg\Format\VideoInterface;
 use Intervention\Image\Facades\Image;
 
+/** @property on $format */
 class MediaWorkerJob implements ShouldQueue
 {
     use Dispatchable;
@@ -32,25 +33,16 @@ class MediaWorkerJob implements ShouldQueue
      */
     protected $mediaJob;
 
-    /**
-     * Actions should be silent (not update the status field)
-     *
-     * @var boolean
-     */
-    protected $silent;
 
     /**
      * Create a new job instance.
      *
-     * @param MediaJob   $mediaJob   The mediaJob model.
-     * @param array   $actions The media actions to make.
-     * @param boolean $silent  Update the media status with progress.
+     * @param MediaJob $mediaJob The mediaJob model.
      * @return void
      */
-    public function __construct(MediaJob $mediaJob, bool $silent = false)
+    public function __construct(MediaJob $mediaJob)
     {
-        $mediaJob = $mediaJob;
-        $this->silent = $silent;
+        $this->mediaJob = $mediaJob;
     }
 
     /**
@@ -60,29 +52,21 @@ class MediaWorkerJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $media = null;
+        $media = $this->mediaJob->media()->first();
+        $newMedia = false;
         $data = json_decode($this->mediaJob->data, true);
-
-        // new Media();
-        // $this->mediaJob->media_id = $media->id;
-
 
         try {
             // FILE
             if (array_key_exists('file', $data) === true) {
-                if(file_exists($data['file']) === false) {
-                    $errorStr = 'temporary upload file no longer exists';
-                    $this->mediaJob->setStatusFailed($errorStr);
-                    Log::info($errorStr);
-                    throw new \Exception($errorStr);
+                if (file_exists($data['file']) === false) {
+                    $this->throwMediaJobFailure('temporary upload file no longer exists');
                 }
 
                 // convert HEIC files to JPG
                 $fileExtension = File::extension($data['file']);
                 if ($fileExtension === 'heic') {
-                    if ($this->silent === false) {
-                        $this->mediaJob->setStatusProcessing(0, 'converting image');
-                    }
+                    $this->mediaJob->setStatusProcessing(0, 'converting image');
 
                     // Get the path without the file name
                     $uploadedFileDirectory = dirname($data['file']);
@@ -91,22 +75,26 @@ class MediaWorkerJob implements ShouldQueue
                     $jpgFileName = pathinfo($data['file'], PATHINFO_FILENAME) . '.jpg';
                     $jpgFilePath = $uploadedFileDirectory . '/' . $jpgFileName;
                     if (file_exists($jpgFilePath) === true) {
-                        $errorStr = 'file already exists on server';
-                        $this->mediaJob->setStatusFailed($errorStr);
-                        Log::info($errorStr);
-                        throw new \Exception($errorStr);
+                        $this->throwMediaJobFailure('file already exists on server');
                     }
 
                     Image::make($data['file'])->save($jpgFilePath);
 
                     // Update the uploaded file path and file name
                     unlink($data['file']);
-                    $filePath = $jpgFilePath;
                     $data['file'] = $jpgFileName;
                 }//end if
 
                 // get storage
-                $storage = $data['storage'];
+                $storage = '';
+                if ($media === null) {
+                    if (array_key_exists('storage', $data) === true) {
+                        $storage = $data['storage'];
+                    }
+                } else {
+                    $storage = $media->storage;
+                }
+
                 if ($storage === '') {
                     if (strpos($data['mime_type'], 'image/') === 0) {
                         $storage = 'local';
@@ -118,46 +106,31 @@ class MediaWorkerJob implements ShouldQueue
                 // Check if file already exists
                 if (Storage::disk($storage)->exists($data['name']) === true) {
                     if (array_key_exists('replace', $data) === false || isTrue($data['replace']) === false) {
-                        $this->mediaJob->setStatusFailed('file already exists on server');
-                        $errorStr = "cannot upload file " . $storage . " " . // phpcs:ignore
-                        "/ " . $data['name'] . " as it already exists";
-                        Log::info($errorStr);
-                        throw new \Exception($errorStr);
+                        $this->throwMediaJobFailure('file already exists on server');
                     }
                 }
 
-                $media = new Media([
-                    'user_id' => $this->mediaJob->user_id,
-                    'title' => $data['title'],
-                    'name' => $data['name'],
-                    'mime_type' => $data['mime_type'],
-                    'size' => $data['size'],
-                    'storage' => $storage
-                ]);
+                if ($media === null) {
+                    $newMedia = true;
+                    $media = new Media([
+                        'user_id' => $this->mediaJob->user_id,
+                        'title' => $data['title'],
+                        'name' => $data['name'],
+                        'mime_type' => $data['mime_type'],
+                        'size' => $data['size'],
+                        'storage' => $storage
+                    ]);
+                }//end if
 
-                $media->setStagingFile($filePath);
+                $media->setStagingFile($data['file']);
             } else {
-                $media = $this->mediaJob->media()->first();
-                if($media === null || $media->exists() === false) {
-                    $errorStr = 'The media item no longer exists';
-                    $this->mediaJob->setStatusFailed($errorStr);
-                    Log::info($errorStr);
-                    throw new \Exception($errorStr);
+                if ($media === null) {
+                    $this->throwMediaJobFailure('The media item no longer exists');
                 }
-            }
+            }//end if
 
-            // TODO:
-            // mime_type may not be in data if we are just doing a transform...
-            // if fails, need to delete the staging file
-            // do not delete the file straight away incase we fail the transform
-            // delete the media object if we fail and it is a new media object
-            // UPDATE IN CONTROLLER NEEDS TO BE FIXED
-            // STATUS field can be removed in Media object
-            // Front end needs to support non status field and media jobs
-
-            if(array_key_exists('transform', $data) === true) {
+            if (array_key_exists('transform', $data) === true) {
                 $media->createStagingFile();
-                $media->deleteFile();
 
                 // Modifications
                 if (strpos($media->mime_type, 'image/') === 0) {
@@ -168,9 +141,7 @@ class MediaWorkerJob implements ShouldQueue
                     if (array_key_exists("rotate", $data['transform']) === true) {
                         $rotate = intval($data['transform']['rotate']);
                         if ($rotate !== 0) {
-                            if ($this->silent === false) {
-                                $this->mediaJob->setStatusProcessing(0, 'rotating image');
-                            }
+                            $this->mediaJob->setStatusProcessing(0, 'rotating image');
                             $image = $image->rotate($rotate);
                             $modified = true;
                         }
@@ -179,17 +150,13 @@ class MediaWorkerJob implements ShouldQueue
                     // FLIP-H/V
                     if (array_key_exists('flip', $data['transform']) === true) {
                         if (stripos($data['transform']['flip'], 'h') !== false) {
-                            if ($this->silent === false) {
-                                $this->mediaJob->setStatusProcessing(0, 'flipping image');
-                            }
+                            $this->mediaJob->setStatusProcessing(0, 'flipping image');
                             $image = $image->flip('h');
                             $modified = true;
                         }
 
                         if (stripos($data['transform']['flip'], 'v') !== false) {
-                            if ($this->silent === false) {
-                                $this->mediaJob->setStatusProcessing(0, 'flipping image');
-                            }
+                            $this->mediaJob->setStatusProcessing(0, 'flipping image');
                             $image = $image->flip('v');
                             $modified = true;
                         }
@@ -203,9 +170,7 @@ class MediaWorkerJob implements ShouldQueue
                         $x = intval(arrayDefaultValue("x", $cropData, 0));
                         $y = intval(arrayDefaultValue("y", $cropData, 0));
 
-                        if ($this->silent === false) {
-                            $this->mediaJob->setStatusProcessing(0, 'cropping image');
-                        }
+                        $this->mediaJob->setStatusProcessing(0, 'cropping image');
                         $image = $image->crop($width, $height, $x, $y);
                         $modified = true;
                     }//end if
@@ -253,17 +218,13 @@ class MediaWorkerJob implements ShouldQueue
                     // FLIP-H/V
                     if (array_key_exists('flip', $data['transform']) === true) {
                         if (stripos($data['transform']['flip'], 'h') !== false) {
-                            if ($this->silent === false) {
-                                $media->status('Flipping video');
-                            }
+                            $this->mediaJob->setStatusProcessing(0, 'flipping video');
                             $filters->hflip()->synchronize();
                             $modified = true;
                         }
 
                         if (stripos($data['transform']['flip'], 'v') !== false) {
-                            if ($this->silent === false) {
-                                $media->status('Flipping video');
-                            }
+                            $this->mediaJob->setStatusProcessing(0, 'flipping video');
                             $filters->vflip()->synchronize();
                             $modified = true;
                         }
@@ -281,52 +242,67 @@ class MediaWorkerJob implements ShouldQueue
 
                         $cropDimension = new Dimension($width, $height);
 
-                        if ($this->silent === false) {
-                            $media->status('Cropping video');
-                        }
+                        $this->mediaJob->setStatusProcessing(0, 'cropping video');
                         $filters->crop($cropDimension, $x, $y)->synchronize();
                         $modified = true;
                     }//end if
 
                     $tempFilePath = generateTempFilePath(pathinfo($stagingFilePath, PATHINFO_EXTENSION));
                     if (method_exists($format, 'on') === true) {
-                        $media = $media;
-                        $format->on('progress', function ($video, $format, $percentage) use ($media) {
-                            $media->status("{$percentage}% transcoded");
+                        $mediaJob = $this->mediaJob;
+                        $format->on('progress', function ($video, $format, $percentage) use ($mediaJob) {
+                            $mediaJob->setStatusProcessing($percentage, 'transcoded');
                         });
                     }
 
-                    if($modified === true) {
+                    if ($modified === true) {
                         $video->save($format, $tempFilePath);
                         $media->changeStagingFile($tempFilePath);
                     }
                 }//end if
 
                 // Move file
-                if (array_key_exists("move", $data['transform']) === true) {
-                    if (array_key_exists("storage", $data['transform']['move']) === true) {
-                        $newStorage = $data['transform']['move"]["storage'];
+                if (array_key_exists('move', $data['transform']) === true) {
+                    if (array_key_exists('storage', $data['transform']['move']) === true) {
+                        $newStorage = $data['transform']['move']['storage'];
                         if ($media->storage !== $newStorage) {
                             if (Storage::has($newStorage) === true) {
+                                $media->createStagingFile();
                                 $media->storage = $newStorage;
                             } else {
-                                $media->error("Cannot move file to '{$newStorage}' as it does not exist");
+                                $this->throwMediaJobFailure("Cannot move file to '{$newStorage}' as it does not exist");
                             }
                         }
                     }
                 }
+            }//end if
+
+            // Update attributes
+            if (array_key_exists('title', $data) === true) {
+                $media->title = $data['title'];
             }
 
             // Finish media object
-            $media->saveStagingFile(true);
+            if ($media->hasStagingFile() === true) {
+                $this->mediaJob->setStatusProcessing(-1, 'uploading to cdn');
+                $media->deleteFile();
+                $media->saveStagingFile(true);
+            }
+
             $media->save();
+            $this->mediaJob->media_id = $media->id;
             $this->mediaJob->setStatusComplete();
         } catch (\Exception $e) {
-            $media->deleteStagingFile();
+            if ($this->mediaJob->status !== 'failed') {
+                $this->mediaJob->setStatusFailed('Unexpected server error occurred');
+            }
 
-            // if (strpos($media->status, 'Error') !== 0) {
-            //     $media->error('Failed to process the file');
-            // }
+            if ($media !== null) {
+                $media->deleteStagingFile();
+                if ($newMedia === true) {
+                    $media->delete();
+                }
+            }
 
             Log::error($e->getMessage() . "\n" . $e->getFile() . " - " . $e->getLine() . "\n" . $e->getTraceAsString());
             $this->fail($e);
@@ -372,5 +348,17 @@ class MediaWorkerJob implements ShouldQueue
         }
 
         return new $formatClassName();
+    }
+
+    /**
+     * Set failure status of MediaJob and throw exception.
+     *
+     * @param string $error The failure message.
+     * @return void
+     */
+    private function throwMediaJobFailure(string $error): void
+    {
+        $this->mediaJob->setStatusFailed($error);
+        throw new \Exception($error);
     }
 }

@@ -5,7 +5,7 @@
             :title="pageHeading"
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
-        <SMLoading v-if="form.loading()" />
+        <SMLoading v-if="form.loading()">{{ progressText }}</SMLoading>
         <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm
                 :model-value="form"
@@ -17,7 +17,6 @@
                 <SMSelectFile
                     v-if="!editMultiple"
                     control="file"
-                    allow-upload
                     upload-only
                     accepts="*"
                     class="mb-4" />
@@ -84,7 +83,11 @@ import { api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
 import { And, Required } from "../../helpers/validate";
-import { Media, MediaResponse } from "../../helpers/api.types";
+import {
+    Media,
+    MediaJobResponse,
+    MediaResponse,
+} from "../../helpers/api.types";
 import { openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMForm from "../../components/SMForm.vue";
@@ -96,6 +99,7 @@ import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMSelectFile from "../../components/SMSelectFile.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMImageGallery from "../../components/SMImageGallery.vue";
+import { toTitleCase } from "../../helpers/string";
 
 const route = useRoute();
 const router = useRouter();
@@ -190,8 +194,10 @@ const handleLoad = async () => {
 };
 
 const handleSubmit = async (enableFormCallBack) => {
+    let processing = false;
+    form.loading(true);
+
     try {
-        form.loading(true);
         if (editMultiple === false) {
             let submitData = new FormData();
 
@@ -210,8 +216,9 @@ const handleSubmit = async (enableFormCallBack) => {
                 form.controls.description.value as string,
             );
 
+            let result = null;
             if (route.params.id) {
-                await api.put({
+                result = await api.put({
                     url: "/media/{id}",
                     params: {
                         id: route.params.id,
@@ -226,12 +233,13 @@ const handleSubmit = async (enableFormCallBack) => {
                         )}%`),
                 });
             } else {
-                await api.post({
+                result = await api.chunk({
                     url: "/media",
                     body: submitData,
                     headers: {
                         "Content-Type": "multipart/form-data",
                     },
+                    chunk: "file",
                     progress: (progressEvent) =>
                         (progressText.value = `Uploading File: ${Math.floor(
                             (progressEvent.loaded / progressEvent.total) * 100,
@@ -239,13 +247,79 @@ const handleSubmit = async (enableFormCallBack) => {
                 });
             }
 
-            useToastStore().addToast({
-                title: route.params.id ? "Media Updated" : "Media Created",
-                content: route.params.id
-                    ? "The media item has been updated."
-                    : "The media item been created.",
-                type: "success",
-            });
+            const mediaJobId = result.data.media_job.id;
+            const mediaJobUpdate = async () => {
+                api.get({
+                    url: "/media/job/{id}",
+                    params: {
+                        id: mediaJobId,
+                    },
+                })
+                    .then((result) => {
+                        const data = result.data as MediaJobResponse;
+
+                        // queued
+                        // complete
+                        // waiting
+                        // processing - txt - prog
+
+                        // invalid - err
+                        // failed - err
+
+                        if (data.media_job.status != "complete") {
+                            if (data.media_job.status == "queued") {
+                                progressText.value = "Queued for processing";
+                            } else if (data.media_job.status == "processing") {
+                                if (data.media_job.progress != -1) {
+                                    progressText.value = `${toTitleCase(
+                                        data.media_job.status_text,
+                                    )} ${data.media_job.progress}%`;
+                                } else {
+                                    progressText.value = `${toTitleCase(
+                                        data.media_job.status_text,
+                                    )}`;
+                                }
+                            } else if (
+                                data.media_job.status == "invalid" ||
+                                data.media_job.status == "failed"
+                            ) {
+                                useToastStore().addToast({
+                                    title: "Error Processing Media",
+                                    content: toTitleCase(
+                                        data.media_job.status_text,
+                                    ),
+                                    type: "danger",
+                                });
+
+                                progressText.value = "";
+                                form.loading(false);
+                                return;
+                            }
+
+                            window.setTimeout(mediaJobUpdate, 500);
+                        } else {
+                            useToastStore().addToast({
+                                title: route.params.id
+                                    ? "Media Updated"
+                                    : "Media Created",
+                                content: route.params.id
+                                    ? "The media item has been updated."
+                                    : "The media item been created.",
+                                type: "success",
+                            });
+
+                            progressText.value = "";
+                            form.loading(false);
+                            return;
+                        }
+                    })
+                    .catch((e) => {
+                        console.log("error", e);
+                    });
+            };
+
+            processing = true;
+            mediaJobUpdate();
         } else {
             let successCount = 0;
             let errorCount = 0;
@@ -292,14 +366,16 @@ const handleSubmit = async (enableFormCallBack) => {
             }
         }
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const returnUrl = urlParams.get("return");
-        if (returnUrl) {
-            router.push(decodeURIComponent(returnUrl));
-        } else {
-            router.push({ name: "dashboard-media-list" });
-        }
+        // const urlParams = new URLSearchParams(window.location.search);
+        // const returnUrl = urlParams.get("return");
+        // if (returnUrl) {
+        //     router.push(decodeURIComponent(returnUrl));
+        // } else {
+        //     router.push({ name: "dashboard-media-list" });
+        // }
     } catch (error) {
+        processing = false;
+
         useToastStore().addToast({
             title: "Server error",
             content: "An error occurred saving the media.",
@@ -308,8 +384,10 @@ const handleSubmit = async (enableFormCallBack) => {
 
         enableFormCallBack();
     } finally {
-        progressText.value = "";
-        form.loading(false);
+        if (processing == false) {
+            progressText.value = "";
+            form.loading(false);
+        }
     }
 };
 

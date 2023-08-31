@@ -82,88 +82,7 @@ class MediaController extends ApiController
             return $this->respondWithErrors(['file' => 'The browser did not upload the file correctly to the server.']);
         }
 
-        // validate file object
-        if ($file->isValid() !== true) {
-            switch ($file->getError()) {
-                case UPLOAD_ERR_INI_SIZE:
-                case UPLOAD_ERR_FORM_SIZE:
-                    return $this->respondTooLarge();
-                case UPLOAD_ERR_PARTIAL:
-                    return $this->respondWithErrors([$file => 'The file upload was interrupted.']);
-                default:
-                    return $this->respondWithErrors([$file => 'An error occurred uploading the file to the server.']);
-            }
-        }
-
-        if ($file->getSize() > Media::getMaxUploadSize()) {
-            return $this->respondTooLarge();
-        }
-
-        // create/get media job
-        $mediaJob = null;
-        $filename = '';
-        $data = [];
-
-        if($request->missing('job_id') === true) {
-            /** @var \App\Models\User */
-            $user = auth()->user();
-
-            $mediaJob = new MediaJob();
-            $mediaJob->user_id = $user->id;
-
-            $data['title'] = $request->get('title', '');
-            $data['name'] = $request->has('chunk') === true ? $request->get('name', '') : $file->getClientOriginalName();
-            $data['size'] = $request->has('chunk') === true ? 0 : $file->getSize();
-            $data['mime_type'] = $request->has('chunk') === true ? '' : $file->getMimeType();
-            $data['storage'] = $request->get('storage', '');
-
-            if($request->has('transform') === true) {
-                $data['transform'] = $request->get('transform');
-            }
-
-            $filename = $request->get('name', '');
-            $mediaJob->setStatusWaiting();
-        } else {
-            $mediaJob = MediaJob::find($request->get('job_id'));
-            if($mediaJob === null || $mediaJob->exists() === false) {
-                $this->respondNotFound();
-            }
-
-            $data = json_decode($mediaJob->data);
-            if($data === null) {
-                Log::error(`{$mediaJob->id} contains no data`);
-                return $this->respondServerError();
-            }
-
-            if(array_key_exists('name', $data) === false) {
-                Log::error(`{$mediaJob->id} data does not contain the name key`);
-                return $this->respondServerError();
-            }
-        }
-
-        if($mediaJob === null || $filename === '') {
-            Log::error(`media job or filename does not exist`);
-            return $this->respondServerError();
-        }
-
-        // save uploaded file
-        $temporaryFilePath = generateTempFilePath(pathinfo($filename, PATHINFO_EXTENSION), $request->get('chunk', ''));
-        copy($file->path(), $temporaryFilePath);
-
-        if($request->has('chunk') === true) {
-            $data['chunks'][$request->get('chunk', '1')] = $temporaryFilePath;
-        } else {
-            $data['file'] = $temporaryFilePath;
-        }
-
-        $mediaJob->data = json_encode($data, true);
-        $mediaJob->save();
-        $mediaJob->process();
-
-        return $this->respondAsResource(
-            MediaJobConductor::model($request, $mediaJob),
-            ['respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
-        );
+        return $this->storeOrUpdate($request, null);
     }
 
     /**
@@ -175,45 +94,150 @@ class MediaController extends ApiController
      */
     public function update(MediaRequest $request, Media $medium)
     {
+        // allowed to update a media item
         if (MediaConductor::updatable($medium) === false) {
             return $this->respondForbidden();
         }
 
+        return $this->storeOrUpdate($request, $medium);
+    }
+
+    /**
+     * Store a new media resource
+     *
+     * @param  \App\Http\Requests\MediaRequest $request The uploaded media.
+     * @param  \App\Models\Media|null          $medium  The specified media.
+     * @return \Illuminate\Http\Response
+     */
+    public function storeOrUpdate(MediaRequest $request, Media|null $medium)
+    {
         $file = $request->file('file');
         if ($file !== null) {
-            $jsonResult = $this->validateFileItem($file);
-            if ($jsonResult !== null) {
-                return $jsonResult;
+            // validate file object
+            if ($file->isValid() !== true) {
+                switch ($file->getError()) {
+                    case UPLOAD_ERR_INI_SIZE:
+                    case UPLOAD_ERR_FORM_SIZE:
+                        return $this->respondTooLarge();
+                    case UPLOAD_ERR_PARTIAL:
+                        return $this->respondWithErrors([$file => 'The file upload was interrupted.']);
+                    default:
+                        return $this->respondWithErrors([$file => 'An error occurred uploading the file to the server.']);
+                }
+            }
+
+            if ($file->getSize() > Media::getMaxUploadSize()) {
+                return $this->respondTooLarge();
             }
         }
 
-        $medium->status('Updating Media');
-        $medium->update($request->except(['file','transform']));
+        // create/get media job
+        $mediaJob = null;
+        $data = [];
 
-        $transformData = [];
+        if ($request->missing('job_id') === true) {
+            /** @var \App\Models\User */
+            $user = auth()->user();
+
+            $mediaJob = new MediaJob();
+            $mediaJob->user_id = $user->id;
+            if ($medium !== null) {
+                $mediaJob->media_id = $medium->id;
+            }
+
+            if ($request->has('title') === true || $file !== null) {
+                $data['title'] = $request->get('title', '');
+            }
+
+            if ($request->has('name') === true || $file !== null) {
+                $data['name'] = $request->has('chunk') === true ? $request->get('name', '') : $file->getClientOriginalName();
+            }
+
+            if ($file !== null) {
+                $data['size'] = $request->has('chunk') === true ? 0 : $file->getSize();
+                $data['mime_type'] = $request->has('chunk') === true ? '' : $file->getMimeType();
+            }
+
+            if ($request->has('storage') === true || $file !== null) {
+                $data['storage'] = $request->get('storage', '');
+            }
+
+            if ($request->has('transform') === true) {
+                $transform = [];
+
+                foreach ($request->get('transform') as $key => $value) {
+                    if (is_string($value) === true) {
+                        if (preg_match('/^rotate-(-?\d+)$/', $value, $matches) !== false) {
+                            unset($transform[$key]);
+                            $transform['rotate'] = $matches[1];
+                        } elseif (preg_match('/^flip-([vh]|vh|hv)$/', $value, $matches) !== false) {
+                            unset($transform[$key]);
+                            $transform['flip'] = $matches[1];
+                        } elseif (preg_match('/^crop-(\d+)-(\d+)$/', $value, $matches) !== false) {
+                            unset($transform[$key]);
+                            $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2]];
+                        } elseif (preg_match('/^crop-(\d+)-(\d+)-(\d+)-(\d+)$/', $value, $matches) !== false) {
+                            unset($transform[$key]);
+                            $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2], 'x' => $matches[3], 'y' => $matches[4]];
+                        }
+                    }
+                }
+
+                if (count($transform) > 0) {
+                    $data['transform'] = $transform;
+                }
+            }//end if
+
+            $mediaJob->setStatusWaiting();
+        } else {
+            $mediaJob = MediaJob::find($request->get('job_id'));
+            if ($mediaJob === null || $mediaJob->exists() === false) {
+                $this->respondNotFound();
+            }
+
+            $data = json_decode($mediaJob->data, true);
+            if ($data === null) {
+                Log::error(`{$mediaJob->id} contains no data`);
+                return $this->respondServerError();
+            }
+
+            if (array_key_exists('name', $data) === false) {
+                Log::error(`{$mediaJob->id} data does not contain the name key`);
+                return $this->respondServerError();
+            }
+        }//end if
+
+        if ($mediaJob === null) {
+            Log::error(`media job does not exist`);
+            return $this->respondServerError();
+        }
+
+        // save uploaded file
         if ($file !== null) {
-            $temporaryFilePath = generateTempFilePath();
+            if ($data['name'] === '') {
+                Log::error(`filename does not exist`);
+                return $this->respondServerError();
+            }
+
+            $temporaryFilePath = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION), $request->get('chunk', ''));
             copy($file->path(), $temporaryFilePath);
 
-            $transformData = array_merge($transformData, ['file' => [
-                'path' => $temporaryFilePath,
-                'size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-            ]
-            ]);
+            if ($request->has('chunk') === true) {
+                $data['chunks'][$request->get('chunk', '1')] = $temporaryFilePath;
+                $data['chunk_count'] = $request->get('chunk_count', 1);
+            } else {
+                $data['file'] = $temporaryFilePath;
+            }
         }
 
-        if ($request->has('transform') === true) {
-            $transformData = array_merge($transformData, array_map('trim', explode(',', $request->get('transform'))));
-        }
+        $mediaJob->data = json_encode($data, true);
+        $mediaJob->save();
+        $mediaJob->process();
 
-        if (count($transformData) > 0) {
-            $medium->transform($transformData);
-        } else {
-            $medium->ok();
-        }
-
-        return $this->respondAsResource(MediaConductor::model($request, $medium));
+        return $this->respondAsResource(
+            MediaJobConductor::model($request, $mediaJob),
+            ['resourceName' => 'media_job', 'respondCode' => HttpResponseCodes::HTTP_ACCEPTED]
+        );
     }
 
     /**

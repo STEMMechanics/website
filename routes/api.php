@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\InfoController;
 use App\Http\Controllers\Api\LogController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\MediaJobController;
 use App\Http\Controllers\Api\OCRController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\ShortlinkController;
@@ -40,6 +41,7 @@ Route::post('/users/resendVerifyEmailCode', [UserController::class, 'resendVerif
 Route::post('/users/verifyEmail', [UserController::class, 'verifyEmail']);
 Route::get('/users/{user}/events', [UserController::class, 'eventList']);
 
+Route::get('media/job/{mediaJob}', [MediaJobController::class, 'show']);
 Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 

@@ -13,73 +13,147 @@ class MediaJob extends Model
     use HasFactory;
     use Uuids;
 
-    public function setStatusFailed(string $statusText = ''): void {
+
+    /**
+     * The default attributes.
+     *
+     * @var string[]
+     */
+    protected $attributes = [
+        'user_id' => null,
+        'media_id' => null,
+        'status' => '',
+        'status_text' => '',
+        'progress' => 0,
+        'data' => '',
+    ];
+
+
+    /**
+     * Set MediaJob status to failed.
+     *
+     * @param string $statusText The failed reason.
+     * @return void
+     */
+    public function setStatusFailed(string $statusText = ''): void
+    {
         $this->setStatus('failed', $statusText, 0);
     }
 
-    public function setStatusQueued(): void {
+    /**
+     * Set MediaJob status to queued.
+     *
+     * @return void
+     */
+    public function setStatusQueued(): void
+    {
         $this->setStatus('queued', '', 0);
     }
 
-    public function setStatusWaiting(): void {
+    /**
+     * Set MediaJob status to waiting.
+     *
+     * @return void
+     */
+    public function setStatusWaiting(): void
+    {
         $this->setStatus('waiting', '', 0);
     }
 
-    public function setStatusProcessing(int $progress = 0, string $statusText = ''): void {
-        if($statusText === '') {
+    /**
+     * Set MediaJob status to processing.
+     *
+     * @param integer $progress   The processing percentage.
+     * @param string  $statusText The processing status text.
+     * @return void
+     */
+    public function setStatusProcessing(int $progress = 0, string $statusText = ''): void
+    {
+        if ($statusText === '') {
             $statusText = $this->status_text;
         }
 
         $this->setStatus('processing', $statusText, $progress);
     }
 
-    public function setStatusComplete(): void {
+    /**
+     * Set MediaJob status to complete.
+     *
+     * @return void
+     */
+    public function setStatusComplete(): void
+    {
         $this->setStatus('complete');
     }
 
-    public function setStatusInvalid(): void {
-        $this->setStatus('invalid');
+    /**
+     * Set MediaJon status to invalid.
+     *
+     * @param string $text The status text.
+     * @return void
+     */
+    public function setStatusInvalid(string $text = ''): void
+    {
+        $this->setStatus('invalid', $text);
     }
 
-    public function setStatus(string $status, string $text = '', int $progress = 0): void {
+    /**
+     * Set MediaJob status details.
+     *
+     * @param string  $status   The status string.
+     * @param string  $text     The status text.
+     * @param integer $progress The status percentage.
+     * @return void
+     */
+    protected function setStatus(string $status, string $text = '', int $progress = 0): void
+    {
         $this->status = $status;
         $this->status_text = $text;
         $this->progress = $progress;
         $this->save();
     }
 
-
+    /**
+     * Process the MediaJob.
+     *
+     * @return void
+     */
     public function process(): void
     {
         $data = json_decode($this->data, true);
-        if($data !== null) {
-            if(array_key_exists('chunks', $data) === true) {
-                if(array_key_exists('chunk_count', $data) === false || array_key_exists('name', $data) === false) {
-                    $this->setStatusInvalid();
+        if ($data !== null) {
+            if (array_key_exists('chunks', $data) === true) {
+                if (array_key_exists('chunk_count', $data) === false) {
+                    $this->setStatusInvalid('chunk_count is missing');
+                    return;
+                }
+
+                if (array_key_exists('name', $data) === false) {
+                    $this->setStatusInvalid('name is missing');
                     return;
                 }
 
                 $numChunks = count($data['chunks']);
                 $maxChunks = intval($data['chunk_count']);
-                if($numChunks >= $maxChunks) {
+                if ($numChunks >= $maxChunks) {
                     // merge file and dispatch
                     $percentage = 0;
-                    $percentageStep = 100 / $maxChunks;
+                    $percentageStep = (100 / $maxChunks);
                     $this->setStatusProcessing($percentage, 'combining chunks');
 
                     $newFile = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION));
                     $failed = false;
-                    
-                    for($index = 1; $index <= $maxChunks; $index++) {
-                        if(array_key_exists($index, $data['chunks']) === false) {
-                            $failed = true;
+
+                    for ($index = 1; $index <= $maxChunks; $index++) {
+                        if (array_key_exists($index, $data['chunks']) === false) {
+                            $failed = `{$index} chunk is missing`;
                         } else {
                             $tempFileName = $data['chunks'][$index];
 
-                            if($failed === false) {
+                            if ($failed === false) {
                                 $chunkContents = file_get_contents($tempFileName);
-                                if($chunkContents === false) {
-                                    $failed = true;
+                                if ($chunkContents === false) {
+                                    $failed = `{$index} chunk is empty`;
                                 } else {
                                     file_put_contents($newFile, $chunkContents, FILE_APPEND);
                                 }
@@ -93,66 +167,28 @@ class MediaJob extends Model
                     unset($data['chunks']);
                     $this->data = json_encode($data);
 
-                    if($failed === false) {
-                        $this->setStatusInvalid();
+                    if ($failed !== false) {
+                        $this->setStatusInvalid($failed);
                     } else {
                         $finfo = finfo_open(FILEINFO_MIME_TYPE);
                         $mime = finfo_file($finfo, $newFile);
                         finfo_close($finfo);
-        
-                        $data['file']['path'] = $newFile;
-                        $data['file']['size'] = filesize($newFile);
-                        $data['file']['mime_type'] = $mime;
- 
+
+                        $data['file'] = $newFile;
+                        $data['size'] = filesize($newFile);
+                        $data['mime_type'] = $mime;
+
+                        $this->data = json_encode($data);
                         $this->setStatusQueued();
-                        MediaWorkerJob::dispatch($this);
+                        MediaWorkerJob::dispatch($this)->onQueue('media');
                     }
-                }
-            } else if(array_key_exists('file', $data) || array_key_exists('transform', $data)) {
+                }//end if
+            } else {
                 $this->setStatusQueued();
-                MediaWorkerJob::dispatch($this);
-            }
-        }
+                MediaWorkerJob::dispatch($this)->onQueue('media');
+            }//end if
+        }//end if
     }
-
-    // public const INVALID_FILE_ERROR         = 1;
-    // public const FILE_SIZE_EXCEEDED_ERROR   = 2;
-    // public const FILE_NAME_EXISTS_ERROR     = 3;
-    // public const TEMP_FILE_ERROR            = 4;
-
-    // /**
-    //  * Set the Media Job to failed
-    //  * 
-    //  * @var string $msg The status message to save.
-    //  * @return void
-    //  */
-    // public function failed(string $msg = ''): void
-    // {
-    //     $data = [];
-
-    //     try {
-    //         $data = json_decode($this->data, true);
-    //     } catch(\Exception $e) {
-    //         /* empty */
-    //     }
-
-    //     if(array_key_exists('chunks', $data) === true) {
-    //         foreach($data['chunks'] as $num => $path) {
-    //             if(file_exists($path) === true) {
-    //                 unlink($path);
-    //             }
-    //         }
-
-    //         unset($data['chunks']);
-    //         $this->data = json_encode($data);
-    //     }
-
-    //     $this->status = 'failed';
-    //     $this->status_text = $msg;
-    //     $this->progress = 0;
-    //     $this->save();
-    // }
-
 
     /**
      * Return the job owner

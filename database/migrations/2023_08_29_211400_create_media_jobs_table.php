@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('media_jobs', function (Blueprint $table) {
-            $table->uuid()->primary();
+            $table->uuid('id')->primary();
             $table->timestamps();
-            $table->uuid('user_id');
-            $table->uuid('media_id'); // Add a foreign key for the media model
+            $table->uuid('user_id')->nullable();
+            $table->uuid('media_id')->nullable(); // Add a foreign key for the media model
             $table->string('status');
             $table->string('status_text');
             $table->text('data');

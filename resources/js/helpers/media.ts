@@ -39,47 +39,54 @@ export const mimeMatches = (
 };
 
 export const mediaGetThumbnail = (
-    media: Media,
+    media: Media | File,
     useVariant: string | null = "",
-    forceRefresh: boolean = false,
+    callback = null,
 ): string => {
     let url: string = "";
 
-    if (!media) {
+    if (media) {
+        if (media instanceof File) {
+            if (callback != null) {
+                if (mimeMatches("image/*", media.type) == true) {
+                    const reader = new FileReader();
+
+                    reader.onload = function (e) {
+                        callback(e.target.result.toString());
+                    };
+
+                    reader.readAsDataURL(media);
+                    return "";
+                }
+            }
+        } else {
+            if (
+                useVariant &&
+                useVariant != "" &&
+                useVariant != null &&
+                media.variants &&
+                media.variants[useVariant]
+            ) {
+                url = media.url.replace(media.name, media.variants[useVariant]);
+            }
+
+            if (media.thumbnail && media.thumbnail.length > 0) {
+                url = media.thumbnail;
+            }
+
+            if (media.variants && media.variants["thumb"]) {
+                url = media.url.replace(media.name, media.variants["thumb"]);
+            }
+        }
+
+        if (url === "") {
+            url = "/assets/fileicons/unknown.webp";
+        }
+    }
+
+    if (callback != null) {
+        callback(url);
         return "";
-    }
-
-    if (
-        useVariant &&
-        useVariant != "" &&
-        useVariant != null &&
-        media.variants &&
-        media.variants[useVariant]
-    ) {
-        url = media.url.replace(media.name, media.variants[useVariant]);
-    }
-
-    if (media.thumbnail && media.thumbnail.length > 0) {
-        url = media.thumbnail;
-    }
-
-    if (media.variants && media.variants["thumb"]) {
-        url = media.url.replace(media.name, media.variants["thumb"]);
-    }
-
-    if (url === "") {
-        return "/assets/fileicons/unknown.webp";
-    }
-
-    if (forceRefresh == true) {
-        // Generate a random string
-        const randomString = Math.random().toString(36).substring(7);
-
-        // Check if the URL already has query parameters
-        const separator = url.includes("?") ? "&" : "?";
-
-        // Append the random string as a query parameter
-        url = `${url}${separator}_random=${randomString}`;
     }
 
     return url;

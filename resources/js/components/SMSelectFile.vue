@@ -4,7 +4,7 @@
         <div v-if="value" class="flex flex-justify-center mb-4">
             <SMLoading v-if="!imgError && !imgLoaded" class="w-48 h-48" small />
             <svg
-                v-if="imgError"
+                v-if="imgError && imgLoaded"
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 class="h-48 text-gray">
@@ -13,11 +13,11 @@
                     fill="currentColor" />
             </svg>
             <img
-                v-if="!imgError"
                 class="max-w-48 max-h-48 w-full h-full"
-                @load="imgLoaded = true"
-                @error="imgError = true"
-                :src="mediaGetThumbnail(value, 'medium')" />
+                @load="handleImageLoaded"
+                @error="handleImageError"
+                :style="{ display: image == '' ? 'none' : 'block' }"
+                :src="image" />
         </div>
         <svg
             v-else
@@ -38,17 +38,24 @@
             </button>
         </div>
         <template v-if="slots.help"><slot name="help"></slot></template>
+        <input
+            id="file"
+            ref="refUploadInput"
+            type="file"
+            style="display: none"
+            :accept="props.accepts"
+            @change="handleChangeSelectFile" />
     </div>
 </template>
 
 <script setup lang="ts">
-import { inject, watch, ref, useSlots } from "vue";
+import { inject, watch, ref, useSlots, onMounted } from "vue";
 import { isEmpty, generateRandomElementId } from "../helpers/utils";
 import { toTitleCase } from "../helpers/string";
 import { mediaGetThumbnail } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
-import SMDialogUpload from "./dialogs/SMDialogUpload.vue";
+// import SMDialogUpload from "./dialogs/SMDialogUpload.vue";
 import { Media } from "../helpers/api.types";
 import SMLoading from "./SMLoading.vue";
 
@@ -168,6 +175,8 @@ const props = defineProps({
 });
 
 const slots = useSlots();
+const refUploadInput = ref(null);
+const image = ref("");
 
 const form = inject(props.formId, props.form);
 const control =
@@ -232,6 +241,16 @@ watch(
     },
 );
 
+watch(
+    () => value.value,
+    (newValue) => {
+        mediaGetThumbnail(newValue, "medium", (e) => {
+            image.value = e;
+            imgLoaded.value = true;
+        });
+    },
+);
+
 if (typeof control === "object" && control !== null) {
     watch(
         () => control.validation.result.valid,
@@ -269,19 +288,56 @@ const handleMediaSelect = async () => {
             allowUpload: props.allowUpload,
             accepts: props.accepts,
         });
-    } else {
-        result = await openDialog(SMDialogUpload, {
-            accepts: props.accepts,
-        });
-    }
 
-    if (result) {
-        const mediaResult = result as Media;
-        emits("update:modelValue", mediaResult);
+        if (result) {
+            const mediaResult = result as Media;
+            emits("update:modelValue", mediaResult);
+            if (control) {
+                control.value = mediaResult;
+                feedbackInvalid.value = "";
+            }
+        }
+    } else {
+        if (refUploadInput.value != null) {
+            refUploadInput.value.click();
+        }
+    }
+};
+
+const handleChangeSelectFile = async () => {
+    if (refUploadInput.value != null && refUploadInput.value.files != null) {
+        imgLoaded.value = false;
+        imgError.value = false;
+
+        const fileList = Array.from(refUploadInput.value.files);
+
+        let file = fileList.length > 0 ? fileList[0] : null;
+
+        emits("update:modelValue", file);
         if (control) {
-            control.value = mediaResult;
+            control.value = file;
             feedbackInvalid.value = "";
         }
+    }
+};
+
+onMounted(() => {
+    window.setTimeout(() => {
+        mediaGetThumbnail(value.value, "medium", (e) => {
+            image.value = e;
+        });
+    }, 500);
+});
+
+const handleImageLoaded = () => {
+    imgLoaded.value = true;
+    imgError.value = false;
+};
+
+const handleImageError = () => {
+    if (image.value !== "") {
+        imgLoaded.value = true;
+        imgError.value = true;
     }
 };
 </script>

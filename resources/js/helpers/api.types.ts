@@ -88,6 +88,19 @@ export interface MediaCollection {
     total: number;
 }
 
+export interface MediaJob {
+    id: string;
+    media_id: string;
+    user_id: string;
+    status: string;
+    status_text: string;
+    progress: number;
+}
+
+export interface MediaJobResponse {
+    media_job: MediaJob;
+}
+
 export interface Article {
     id: string;
     title: string;
