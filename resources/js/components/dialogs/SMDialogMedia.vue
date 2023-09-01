@@ -143,16 +143,10 @@
                                                 { 'mb-6': showMediaName(item) },
                                             ]"
                                             :style="{
-                                                backgroundImage:
-                                                    item.status === 'OK'
-                                                        ? `url('${mediaGetThumbnail(
-                                                              item,
-                                                          )}')`
-                                                        : 'initial',
-                                                backgroundColor:
-                                                    item.status === 'OK'
-                                                        ? 'initial'
-                                                        : 'rgba(220,220,220,1)',
+                                                backgroundImage: `url('${mediaGetThumbnail(
+                                                    item,
+                                                )}')`,
+                                                backgroundColor: 'initial',
                                             }">
                                             <div
                                                 v-if="showMediaName(item)"
@@ -160,38 +154,11 @@
                                                 {{ item.title }}
                                             </div>
                                             <SMLoading
-                                                v-if="
-                                                    item.status !== 'OK' &&
-                                                    item.status.startsWith(
-                                                        'Error',
-                                                    ) === false
-                                                "
+                                                v-if="false"
                                                 small
                                                 class="bg-white bg-op-90 w-full h-full"
-                                                >{{
-                                                    item.status.split(":")
-                                                        .length > 1
-                                                        ? item.status
-                                                              .split(":")[1]
-                                                              .trim()
-                                                        : item.status
-                                                }}</SMLoading
+                                                >NONE</SMLoading
                                             >
-                                            <div
-                                                v-if="
-                                                    item.status.startsWith(
-                                                        'Error',
-                                                    ) === true
-                                                ">
-                                                <svg
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    class="h-10 w-10"
-                                                    viewBox="0 0 24 24">
-                                                    <path
-                                                        d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z"
-                                                        fill="rgba(220,38,38,1)" />
-                                                </svg>
-                                            </div>
                                         </div>
                                     </li>
                                 </ul>
@@ -430,16 +397,9 @@
                                 backgroundImage: `url('${mediaGetThumbnail(
                                     item,
                                 )}')`,
-                                backgroundColor:
-                                    item.status === 'OK'
-                                        ? 'initial'
-                                        : 'rgba(220,220,220,1)',
                             }">
                             <SMLoading
-                                v-if="
-                                    item.status !== 'OK' &&
-                                    item.status.startsWith('Error') === false
-                                "
+                                v-if="false"
                                 small
                                 class="bg-white bg-op-90 w-full h-full" />
                             <div
@@ -996,11 +956,7 @@ const updateFiles = async () => {
         let remaining = false;
 
         mediaItems.value.forEach((item, index) => {
-            if (
-                isUUID(item.id) &&
-                item.status != "OK" &&
-                item.status.startsWith("Error") == false
-            ) {
+            if (isUUID(item.id)) {
                 remaining = true;
 
                 api.get({
@@ -1056,9 +1012,9 @@ const updateFiles = async () => {
             }
         });
 
-        mediaItems.value = mediaItems.value.filter(
-            (item) => item.status.startsWith("Error") === false,
-        );
+        // mediaItems.value = mediaItems.value.filter(
+        //     (item) => item.status.startsWith("Error") === false,
+        // );
 
         if (remaining) {
             updateFilesNonce.value = setTimeout(() => {
@@ -1106,7 +1062,6 @@ const handleLoad = async () => {
     let params = {
         page: page.value,
         limit: perPage.value,
-        status: "!Error",
         filter: "",
     };
 
@@ -1202,8 +1157,8 @@ watch(mediaItems, () => {
 const computedSelectDisabled = computed(() => {
     if (selectedTab.value == "tab-browser") {
         return (
-            selected.value.length == 0 ||
-            selected.value.findIndex((item) => item.status !== "OK") > -1
+            selected.value.length == 0 // ||
+            // selected.value.findIndex((item) => item.status !== "OK") > -1
         );
     } else if (selectedTab.value == "tab-url") {
         return (

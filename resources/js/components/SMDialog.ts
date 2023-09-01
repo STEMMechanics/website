@@ -5,6 +5,7 @@ import {
     defineComponent,
     shallowReactive,
     VNodeProps,
+    watch,
 } from "vue";
 
 export interface DialogInstance {
@@ -52,10 +53,10 @@ export function closeDialog(data?: unknown) {
     }
 
     const lastDialog = dialogRefs.pop();
-    if (data === undefined && lastDialog.comp) {
+    if (data === undefined && lastDialog.comp && lastDialog.comp.returnValue) {
         data = lastDialog.comp.returnValue();
     }
-    if (lastDialog) {
+    if (lastDialog && data !== undefined) {
         lastDialog.resolve(data);
     }
 }
@@ -112,7 +113,9 @@ export function openDialog<C extends Component>(
         });
 
         window.setTimeout(() => {
-            const autofocusElement = document.querySelector("[autofocus]");
+            const autofocusElement = document.querySelector(
+                "[autofocus]",
+            ) as HTMLInputElement;
             if (autofocusElement) {
                 autofocusElement.focus();
             }

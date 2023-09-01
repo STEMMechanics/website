@@ -5,7 +5,7 @@
             :title="pageHeading"
             :back-link="{ name: 'dashboard-media-list' }"
             back-title="Back to Media" />
-        <SMLoading v-if="form.loading()">{{ progressText }}</SMLoading>
+        <SMLoading v-if="form.loading()" />
         <div v-else class="max-w-4xl mx-auto px-4 mt-8">
             <SMForm
                 :model-value="form"
@@ -77,9 +77,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { api } from "../../helpers/api";
+import { ApiOptions, api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
 import { bytesReadable } from "../../helpers/types";
 import { And, Required } from "../../helpers/validate";
@@ -88,7 +88,7 @@ import {
     MediaJobResponse,
     MediaResponse,
 } from "../../helpers/api.types";
-import { openDialog } from "../../components/SMDialog";
+import { closeDialog, openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
@@ -100,6 +100,7 @@ import SMSelectFile from "../../components/SMSelectFile.vue";
 import { userHasPermission } from "../../helpers/utils";
 import SMImageGallery from "../../components/SMImageGallery.vue";
 import { toTitleCase } from "../../helpers/string";
+import SMDialogProgress from "../../components/dialogs/SMDialogProgress.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -111,13 +112,12 @@ const pageHeading = route.params.id
         ? "Edit Multiple Media"
         : "Edit Media"
     : "Upload Media";
-const progressText = ref("");
 const galleryItems = ref([]);
 
 const form = reactive(
     Form({
         file: FormControl("", And([Required()])),
-        title: FormControl(),
+        title: FormControl("", Required()),
         description: FormControl(),
         permission: FormControl(),
     }),
@@ -193,202 +193,269 @@ const handleLoad = async () => {
     }
 };
 
-const handleSubmit = async (enableFormCallBack) => {
-    let processing = false;
-    form.loading(true);
-
-    try {
-        if (editMultiple === false) {
-            let submitData = new FormData();
-
-            // add file if there is one
-            if (form.controls.file.value instanceof File) {
-                submitData.append("file", form.controls.file.value);
-            }
-
-            submitData.append("title", form.controls.title.value as string);
-            submitData.append(
-                "permission",
-                form.controls.permission.value as string,
-            );
-            submitData.append(
-                "description",
-                form.controls.description.value as string,
-            );
-
-            let result = null;
-            if (route.params.id) {
-                result = await api.put({
-                    url: "/media/{id}",
-                    params: {
-                        id: route.params.id,
-                    },
-                    body: submitData,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    progress: (progressEvent) =>
-                        (progressText.value = `Uploading File: ${Math.floor(
-                            (progressEvent.loaded / progressEvent.total) * 100,
-                        )}%`),
-                });
-            } else {
-                result = await api.chunk({
-                    url: "/media",
-                    body: submitData,
-                    headers: {
-                        "Content-Type": "multipart/form-data",
-                    },
-                    chunk: "file",
-                    progress: (progressEvent) =>
-                        (progressText.value = `Uploading File: ${Math.floor(
-                            (progressEvent.loaded / progressEvent.total) * 100,
-                        )}%`),
-                });
-            }
-
-            const mediaJobId = result.data.media_job.id;
-            const mediaJobUpdate = async () => {
-                api.get({
-                    url: "/media/job/{id}",
-                    params: {
-                        id: mediaJobId,
-                    },
-                })
-                    .then((result) => {
-                        const data = result.data as MediaJobResponse;
-
-                        // queued
-                        // complete
-                        // waiting
-                        // processing - txt - prog
-
-                        // invalid - err
-                        // failed - err
-
-                        if (data.media_job.status != "complete") {
-                            if (data.media_job.status == "queued") {
-                                progressText.value = "Queued for processing";
-                            } else if (data.media_job.status == "processing") {
-                                if (data.media_job.progress != -1) {
-                                    progressText.value = `${toTitleCase(
-                                        data.media_job.status_text,
-                                    )} ${data.media_job.progress}%`;
-                                } else {
-                                    progressText.value = `${toTitleCase(
-                                        data.media_job.status_text,
-                                    )}`;
-                                }
-                            } else if (
-                                data.media_job.status == "invalid" ||
-                                data.media_job.status == "failed"
-                            ) {
-                                useToastStore().addToast({
-                                    title: "Error Processing Media",
-                                    content: toTitleCase(
-                                        data.media_job.status_text,
-                                    ),
-                                    type: "danger",
-                                });
-
-                                progressText.value = "";
-                                form.loading(false);
-                                return;
-                            }
-
-                            window.setTimeout(mediaJobUpdate, 500);
-                        } else {
-                            useToastStore().addToast({
-                                title: route.params.id
-                                    ? "Media Updated"
-                                    : "Media Created",
-                                content: route.params.id
-                                    ? "The media item has been updated."
-                                    : "The media item been created.",
-                                type: "success",
-                            });
-
-                            progressText.value = "";
-                            form.loading(false);
-                            return;
-                        }
-                    })
-                    .catch((e) => {
-                        console.log("error", e);
-                    });
-            };
-
-            processing = true;
-            mediaJobUpdate();
-        } else {
-            let successCount = 0;
-            let errorCount = 0;
-
-            (route.params.id as string).split(",").forEach(async (id) => {
-                try {
-                    let data = {
-                        title: form.controls.title.value,
-                        content: form.controls.content.value,
-                    };
-
-                    await api.put({
-                        url: "/media/{id}",
-                        params: {
-                            id: id,
-                        },
-                        body: data,
-                    });
-
-                    successCount++;
-                } catch (err) {
-                    errorCount++;
-                }
-            });
-
-            if (errorCount === 0) {
-                useToastStore().addToast({
-                    title: "Media Updated",
-                    content: `The selected media have been updated.`,
-                    type: "success",
-                });
-            } else if (successCount === 0) {
-                useToastStore().addToast({
-                    title: "Error Updating Media",
-                    content: "An unexpected server error occurred.",
-                    type: "danger",
-                });
-            } else {
-                useToastStore().addToast({
-                    title: "Some Media Updated",
-                    content: `Only ${successCount} media items where updated. ${errorCount} could not because of an unexpected error.`,
-                    type: "warning",
-                });
-            }
+const dialogDataSetStatus = (dialogData, status, progress, add) => {
+    if (add) {
+        dialogData.rows.push(status);
+        dialogData.progress.push(progress);
+    } else {
+        const index = dialogData.rows.length - 1;
+        if (status.length > 0) {
+            dialogData.rows[index] = status;
         }
-
-        // const urlParams = new URLSearchParams(window.location.search);
-        // const returnUrl = urlParams.get("return");
-        // if (returnUrl) {
-        //     router.push(decodeURIComponent(returnUrl));
-        // } else {
-        //     router.push({ name: "dashboard-media-list" });
-        // }
-    } catch (error) {
-        processing = false;
-
-        useToastStore().addToast({
-            title: "Server error",
-            content: "An error occurred saving the media.",
-            type: "danger",
-        });
-
-        enableFormCallBack();
-    } finally {
-        if (processing == false) {
-            progressText.value = "";
-            form.loading(false);
+        if (progress > -1) {
+            dialogData.progress[index] = progress;
         }
     }
+};
+
+const handleSubmit = async (enableFormCallBack) => {
+    if (editMultiple === false) {
+        let dialogData = ref({
+            title: "Upload Media",
+            rows: [],
+            progress: [],
+        });
+
+        openDialog(SMDialogProgress, dialogData.value);
+        let submitData = new FormData();
+
+        // add file if there is one
+        if (form.controls.file.value instanceof File) {
+            submitData.append("file", form.controls.file.value);
+            dialogDataSetStatus(
+                dialogData.value,
+                `Uploading File: ${form.controls.file.value.name}`,
+                0,
+                true,
+            );
+        }
+
+        submitData.append("title", form.controls.title.value as string);
+        submitData.append(
+            "permission",
+            form.controls.permission.value as string,
+        );
+        submitData.append(
+            "description",
+            form.controls.description.value as string,
+        );
+
+        let apiRequest: ApiOptions = {
+            url: "/media",
+            body: submitData,
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+            progress: (progressEvent) => {
+                dialogDataSetStatus(
+                    dialogData.value,
+                    "",
+                    Math.floor(
+                        (progressEvent.loaded / progressEvent.total) * 100,
+                    ),
+                    false,
+                );
+            },
+        };
+
+        if (submitData.has("file") == true) {
+            apiRequest.chunk = "file";
+        }
+
+        if (route.params.id) {
+            apiRequest.url = "/media/{id}";
+            apiRequest.method = "PUT";
+            apiRequest.params = {
+                id: route.params.id,
+            };
+        }
+
+        api.chunk(apiRequest)
+            .then((result) => {
+                if (submitData.has("file") == true) {
+                    dialogDataSetStatus(
+                        dialogData.value,
+                        "Upload Complete",
+                        100,
+                        false,
+                    );
+                }
+
+                dialogDataSetStatus(dialogData.value, "Processing", 0, true);
+
+                const mediaJobId = (result.data as MediaJobResponse).media_job
+                    .id;
+                const mediaJobUpdate = async () => {
+                    api.get({
+                        url: "/media/job/{id}",
+                        params: {
+                            id: mediaJobId,
+                        },
+                    })
+                        .then((result) => {
+                            const data = result.data as MediaJobResponse;
+
+                            const statusText = toTitleCase(
+                                data.media_job.status_text,
+                            );
+
+                            if (data.media_job.status != "complete") {
+                                if (data.media_job.status == "queued") {
+                                    dialogDataSetStatus(
+                                        dialogData.value,
+                                        "Queued for processing",
+                                        0,
+                                        false,
+                                    );
+                                } else if (
+                                    data.media_job.status == "processing"
+                                ) {
+                                    dialogDataSetStatus(
+                                        dialogData.value,
+                                        statusText,
+                                        data.media_job.progress,
+                                        false,
+                                    );
+                                } else if (
+                                    data.media_job.status == "invalid" ||
+                                    data.media_job.status == "failed"
+                                ) {
+                                    useToastStore().addToast({
+                                        title: "Error Processing Media",
+                                        content: statusText,
+                                        type: "danger",
+                                    });
+
+                                    form.controls.file.setValidationResult(
+                                        false,
+                                        statusText,
+                                    );
+
+                                    closeDialog();
+                                    enableFormCallBack();
+                                    return;
+                                }
+
+                                window.setTimeout(mediaJobUpdate, 500);
+                            } else {
+                                useToastStore().addToast({
+                                    title: route.params.id
+                                        ? "Media Updated"
+                                        : "Media Created",
+                                    content: route.params.id
+                                        ? "The media item has been updated."
+                                        : "The media item been created.",
+                                    type: "success",
+                                });
+
+                                closeDialog();
+                                enableFormCallBack();
+
+                                // return to dashboard
+                                const urlParams = new URLSearchParams(
+                                    window.location.search,
+                                );
+                                const returnUrl = urlParams.get("return");
+                                if (returnUrl) {
+                                    router.push(decodeURIComponent(returnUrl));
+                                } else {
+                                    router.push({
+                                        name: "dashboard-media-list",
+                                    });
+                                }
+                                return;
+                            }
+                        })
+                        .catch(() => {
+                            useToastStore().addToast({
+                                title: "Error Uploading Media",
+                                content: "A server error occurred.",
+                                type: "danger",
+                            });
+
+                            closeDialog();
+                            enableFormCallBack();
+                        });
+                };
+
+                mediaJobUpdate();
+            })
+            .catch((error) => {
+                if (error.status == 413) {
+                    form.controls.file.setValidationResult(
+                        false,
+                        "The file size is too large",
+                    );
+
+                    useToastStore().addToast({
+                        title: "Error Uploading Media",
+                        content: "The file size is too large.",
+                        type: "danger",
+                    });
+                } else {
+                    useToastStore().addToast({
+                        title: "Error Uploading Media",
+                        content: "A server error occurred.",
+                        type: "danger",
+                    });
+                }
+
+                closeDialog();
+                enableFormCallBack();
+            });
+    } else {
+        let successCount = 0;
+        let errorCount = 0;
+
+        (route.params.id as string).split(",").forEach(async (id) => {
+            try {
+                let data = {
+                    title: form.controls.title.value,
+                    content: form.controls.content.value,
+                };
+
+                await api.put({
+                    url: "/media/{id}",
+                    params: {
+                        id: id,
+                    },
+                    body: data,
+                });
+
+                successCount++;
+            } catch (err) {
+                errorCount++;
+            }
+        });
+
+        if (errorCount === 0) {
+            useToastStore().addToast({
+                title: "Media Updated",
+                content: `The selected media have been updated.`,
+                type: "success",
+            });
+        } else if (successCount === 0) {
+            useToastStore().addToast({
+                title: "Error Updating Media",
+                content: "An unexpected server error occurred.",
+                type: "danger",
+            });
+        } else {
+            useToastStore().addToast({
+                title: "Some Media Updated",
+                content: `Only ${successCount} media items where updated. ${errorCount} could not because of an unexpected error.`,
+                type: "warning",
+            });
+        }
+    }
+
+    // const urlParams = new URLSearchParams(window.location.search);
+    // const returnUrl = urlParams.get("return");
+    // if (returnUrl) {
+    //     router.push(decodeURIComponent(returnUrl));
+    // } else {
+    //     router.push({ name: "dashboard-media-list" });
+    // }
 };
 
 const handleFailValidation = () => {

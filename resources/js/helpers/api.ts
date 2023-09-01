@@ -19,7 +19,7 @@ interface ApiCallbackData {
 type ApiProgressCallback = (progress: ApiProgressData) => void;
 type ApiResultCallback = (data: ApiCallbackData) => void;
 
-interface ApiOptions {
+export interface ApiOptions {
     url: string;
     params?: object;
     method?: string;

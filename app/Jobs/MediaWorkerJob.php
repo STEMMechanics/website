@@ -104,10 +104,23 @@ class MediaWorkerJob implements ShouldQueue
                 }
 
                 // Check if file already exists
-                if (Storage::disk($storage)->exists($data['name']) === true) {
-                    if (array_key_exists('replace', $data) === false || isTrue($data['replace']) === false) {
+                $exists = Storage::disk($storage)->exists($data['name']);
+                if ($exists === true) {
+                    if (array_key_exists('noreplace', $data) === true && isTrue($data['noreplace']) === true) {
                         $this->throwMediaJobFailure('file already exists on server');
                     }
+                }
+
+                if($exists === true) {
+                    $pathInfo = pathinfo($data['name']);
+                    $basename = $pathInfo['filename'];
+                    $extension = $pathInfo['extension'];
+                    $index = 0;
+
+                    do {
+                        $index++;
+                        $data['name'] = $basename . '-' . $index . '.' . $extension;
+                    } while (Storage::disk($storage)->exists($data['name']) === true);
                 }
 
                 if ($media === null) {

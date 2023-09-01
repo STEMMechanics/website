@@ -13,7 +13,17 @@
                     fill="currentColor" />
             </svg>
             <img
-                class="max-w-48 max-h-48 w-full h-full"
+                :class="[
+                    'max-w-48',
+                    'max-h-48',
+                    'p-2',
+                    'w-full',
+                    'h-full',
+                    {
+                        'border-red-6': feedbackInvalid,
+                        'border-2': feedbackInvalid,
+                    },
+                ]"
                 @load="handleImageLoaded"
                 @error="handleImageError"
                 :style="{ display: image == '' ? 'none' : 'block' }"
@@ -29,6 +39,11 @@
                 fill="currentColor" />
         </svg>
         <div class="text-center">
+            <p
+                v-if="feedbackInvalid"
+                class="px-2 -mt-2 pb-2 text-xs text-red-6">
+                {{ feedbackInvalid }}
+            </p>
             <button
                 type="button"
                 class="font-medium px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
@@ -55,7 +70,6 @@ import { toTitleCase } from "../helpers/string";
 import { mediaGetThumbnail } from "../helpers/media";
 import { openDialog } from "./SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
-// import SMDialogUpload from "./dialogs/SMDialogUpload.vue";
 import { Media } from "../helpers/api.types";
 import SMLoading from "./SMLoading.vue";
 
