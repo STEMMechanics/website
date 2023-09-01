@@ -24,6 +24,12 @@ export const mediaGetVariantUrl = (
         : media.url;
 };
 
+/**
+ * Check if a mime matches.
+ * @param {string} mimeExpected The mime expected.
+ * @param {string} mimeToCheck The mime to check.
+ * @returns {boolean} The mimeToCheck matches mimeExpected.
+ */
 export const mimeMatches = (
     mimeExpected: string,
     mimeToCheck: string,
@@ -38,10 +44,22 @@ export const mimeMatches = (
     return regex.test(mimeToCheck);
 };
 
+/**
+ * MediaGetThumbnailCallback Type
+ */
+export type mediaGetThumbnailCallback = (url: string) => void;
+
+/**
+ * Get Media/File Thumbnail.
+ * @param {Media|File} media The Media/File object.
+ * @param {string|null} useVariant The variable to use.
+ * @param {mediaGetThumbnailCallback|null} callback Callback with the thumbnail. Required when passing File.
+ * @returns {string} The thumbnail url.
+ */
 export const mediaGetThumbnail = (
     media: Media | File,
     useVariant: string | null = "",
-    callback = null,
+    callback: mediaGetThumbnailCallback | null = null,
 ): string => {
     let url: string = "";
 
@@ -90,4 +108,66 @@ export const mediaGetThumbnail = (
     }
 
     return url;
+};
+
+/**
+ * Check if the media is currently busy.
+ * @param {Media} media The media item to check.
+ * @returns {boolean} If the media is busy.
+ */
+export const mediaIsBusy = (media: Media): boolean => {
+    let busy = false;
+
+    if (media.jobs) {
+        media.jobs.forEach((item) => {
+            if (
+                item.status != "invalid" &&
+                item.status != "complete" &&
+                item.status != "failed"
+            ) {
+                busy = true;
+            }
+        });
+    }
+
+    return busy;
+};
+
+interface MediaStatus {
+    busy: boolean;
+    status: string;
+    status_text: string;
+    progress: number;
+}
+
+/**
+ * Get the current Media status
+ * @param {Media} media The media item to check.
+ * @returns {MediaStatus} The media status.
+ */
+export const mediaStatus = (media: Media): MediaStatus => {
+    const status = {
+        busy: false,
+        status: "",
+        status_text: "",
+        progress: 0,
+    };
+
+    if (media.jobs) {
+        for (const item of media.jobs) {
+            if (
+                item.status != "invalid" &&
+                item.status != "complete" &&
+                item.status != "failed"
+            ) {
+                status.busy = true;
+                status.status = item.status;
+                status.status_text = item.status_text;
+                status.progress = item.progress;
+                break;
+            }
+        }
+    }
+
+    return status;
 };

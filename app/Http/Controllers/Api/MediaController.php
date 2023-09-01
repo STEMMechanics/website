@@ -165,19 +165,15 @@ class MediaController extends ApiController
             if ($request->has('transform') === true) {
                 $transform = [];
 
-                foreach ($request->get('transform') as $key => $value) {
+                foreach (explode(',', $request->get('transform', '')) as $value) {
                     if (is_string($value) === true) {
                         if (preg_match('/^rotate-(-?\d+)$/', $value, $matches) !== false) {
-                            unset($transform[$key]);
                             $transform['rotate'] = $matches[1];
                         } elseif (preg_match('/^flip-([vh]|vh|hv)$/', $value, $matches) !== false) {
-                            unset($transform[$key]);
                             $transform['flip'] = $matches[1];
                         } elseif (preg_match('/^crop-(\d+)-(\d+)$/', $value, $matches) !== false) {
-                            unset($transform[$key]);
                             $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2]];
                         } elseif (preg_match('/^crop-(\d+)-(\d+)-(\d+)-(\d+)$/', $value, $matches) !== false) {
-                            unset($transform[$key]);
                             $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2], 'x' => $matches[3], 'y' => $matches[4]];
                         }
                     }

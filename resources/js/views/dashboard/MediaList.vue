@@ -370,6 +370,8 @@ const handleDeleteSelected = async () => {
     });
 
     if (result == true) {
+        itemsLoading.value = true;
+
         let errorCount = 0;
         let successCount = 0;
 

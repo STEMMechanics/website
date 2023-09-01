@@ -2,6 +2,7 @@
 
 namespace App\Conductors;
 
+use App\Models\MediaJob;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,7 @@ class MediaConductor extends Conductor
      *
      * @var string[]
      */
-    protected $includes = ['user'];
+    protected $includes = ['user', 'jobs'];
 
     /**
      * The default filters to use in a request.
@@ -155,5 +156,10 @@ class MediaConductor extends Conductor
         });
 
         return UserConductor::includeModel(request(), 'user', $user);
+    }
+
+    public function includeJobs(Model $model) {
+        $jobs = $model->jobs()->select(['id','created_at','updated_at','user_id','status','status_text','progress'])->orderBy('created_at', 'desc')->get();
+        return $jobs;
     }
 }

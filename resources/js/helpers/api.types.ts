@@ -68,7 +68,6 @@ export interface Media {
     mime_type: string;
     permission: string;
     size: number;
-    status: string;
     storage: string;
     url: string;
     thumbnail: string;
@@ -77,6 +76,7 @@ export interface Media {
     variants: { [key: string]: string };
     created_at: string;
     updated_at: string;
+    jobs: Array<MediaJob>;
 }
 
 export interface MediaResponse {

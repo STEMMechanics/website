@@ -140,24 +140,22 @@
                                                 'bg-center',
                                                 'bg-no-repeat',
                                                 'relative',
-                                                { 'mb-6': showMediaName(item) },
+                                                'mb-6',
                                             ]"
                                             :style="{
                                                 backgroundImage: `url('${mediaGetThumbnail(
                                                     item,
                                                 )}')`,
-                                                backgroundColor: 'initial',
                                             }">
                                             <div
-                                                v-if="showMediaName(item)"
                                                 class="absolute -bottom-6 small w-full text-ellipsis overflow-hidden whitespace-nowrap">
                                                 {{ item.title }}
                                             </div>
                                             <SMLoading
-                                                v-if="false"
+                                                v-if="item.status"
                                                 small
                                                 class="bg-white bg-op-90 w-full h-full"
-                                                >NONE</SMLoading
+                                                >{{ item.status }}</SMLoading
                                             >
                                         </div>
                                     </li>
@@ -257,17 +255,13 @@
                                         <p
                                             v-if="lastSelected.status != 'OK'"
                                             class="m-0 italic">
-                                            {{
-                                                lastSelected.status.split(":")
-                                                    .length > 1
-                                                    ? lastSelected.status
-                                                          .split(":")[1]
-                                                          .trim()
-                                                    : lastSelected.status
-                                            }}
+                                            {{ lastSelected.status }}
                                         </p>
                                         <p
-                                            v-if="allowEditSelected"
+                                            v-if="
+                                                allowEditSelected &&
+                                                !mediaIsBusy(lastSelected)
+                                            "
                                             class="flex gap-1">
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
@@ -399,7 +393,7 @@
                                 )}')`,
                             }">
                             <SMLoading
-                                v-if="false"
+                                v-if="true"
                                 small
                                 class="bg-white bg-op-90 w-full h-full" />
                             <div
@@ -483,7 +477,12 @@ import {
     MediaResponse,
 } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
-import { mediaGetThumbnail, mimeMatches } from "../../helpers/media";
+import {
+    mediaGetThumbnail,
+    mimeMatches,
+    mediaIsBusy,
+    mediaStatus,
+} from "../../helpers/media";
 import SMInput from "../SMInput.vue";
 import SMLoading from "../SMLoading.vue";
 import SMTabGroup from "../SMTabGroup.vue";
@@ -498,6 +497,11 @@ import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "../../components/SMDialog";
+
+/* Extended Media Interface */
+interface ExtendedMedia extends Media {
+    status: string;
+}
 
 const props = defineProps({
     mime: {
@@ -581,13 +585,13 @@ const totalItems = ref(0);
 /**
  * List of current media items.
  */
-const mediaItems: Ref<Media[]> = ref([]);
+const mediaItems: Ref<ExtendedMedia[]> = ref([]);
 
 /**
  * Selected media item id.
  */
-const selected: Ref<Media[]> = ref([]);
-let lastSelected: Ref<Media | null> = ref(null);
+const selected: Ref<ExtendedMedia[]> = ref([]);
+let lastSelected: Ref<ExtendedMedia | null> = ref(null);
 
 /**
  * How many media items are we showing per page.
@@ -621,10 +625,10 @@ const computedAccepts = computed(() => {
 /**
  * Get the media item by id.
  * @param {string} item_id The media item id.
- * @returns {Media | null} The media object or null.
+ * @returns {ExtendedMedia | null} The media object or null.
  */
-const getMediaItem = (item_id: string): Media | null => {
-    let found: Media | null = null;
+const getMediaItem = (item_id: string): ExtendedMedia | null => {
+    let found: ExtendedMedia | null = null;
 
     mediaItems.value.every((item) => {
         if (item.id == item_id) {
@@ -636,14 +640,6 @@ const getMediaItem = (item_id: string): Media | null => {
     });
 
     return found;
-};
-
-const showMediaName = (media: Media): boolean => {
-    return true;
-    // return !(
-    //     media.mime_type.startsWith("image/") ||
-    //     media.mime_type.startsWith("video/")
-    // );
 };
 
 /**
@@ -758,7 +754,7 @@ const handleClickItem = (item_id: string): void => {
 
 /**
  * Handle user double clicking a media item.
- * @param item_id The media id.
+ * @param {string} item_id The media id.
  */
 const handleDblClickItem = (item_id: string): void => {
     if (!props.multiple) {
@@ -839,6 +835,7 @@ const handleFilesUpload = (files: FileList) => {
             variants: {},
             created_at: "",
             updated_at: "",
+            jobs: [],
         });
     });
 
@@ -868,7 +865,7 @@ const startFilesUpload = async () => {
                 );
                 submitFormData.append("description", "");
                 try {
-                    let result = await api.post({
+                    let result = await api.chunk({
                         url: "/media",
                         body: submitFormData,
                         headers: {
@@ -895,16 +892,20 @@ const startFilesUpload = async () => {
                     });
                     if (result.data) {
                         const data = result.data as MediaResponse;
+                        const extendedMedium: ExtendedMedia = {
+                            ...data.medium,
+                            status: "",
+                        };
 
                         const currentUploadFileNumStr =
                             currentUploadFileNum.value.toString();
                         mediaItems.value.every((item, index) => {
                             if (item.id == currentUploadFileNumStr) {
-                                mediaItems.value[index] = data.medium;
+                                mediaItems.value[index] = extendedMedium;
                                 if (!selected.value) {
-                                    selected.value.push(data.medium);
+                                    selected.value.push(extendedMedium);
                                 } else if (props.multiple) {
-                                    selected.value.push(data.medium);
+                                    selected.value.push(extendedMedium);
                                 }
                                 return false;
                             }
@@ -955,72 +956,47 @@ const updateFiles = async () => {
     if (updateFilesNonce.value == null) {
         let remaining = false;
 
-        mediaItems.value.forEach((item, index) => {
+        for (const [index, item] of mediaItems.value.entries()) {
             if (isUUID(item.id)) {
-                remaining = true;
-
-                api.get({
+                let updateResult = await api.get({
                     url: "/media/{id}",
                     params: {
                         id: item.id,
                     },
-                })
-                    .then((updateResult) => {
-                        if (updateResult.data) {
-                            const updateData =
-                                updateResult.data as MediaResponse;
-                            mediaItems.value[index].status =
-                                updateData.medium.status;
-                            if (updateData.medium.status == "OK") {
-                                mediaItems.value[index] = updateData.medium;
-                                forceRefresh.push(updateData.medium.id);
-                                if (
-                                    lastSelected.value &&
-                                    lastSelected.value.id ==
-                                        updateData.medium.id
-                                ) {
-                                    lastSelected.value = updateData.medium;
-                                }
-                            } else if (
-                                updateData.medium.status.startsWith("Error") ===
-                                true
-                            ) {
-                                mediaItems.value = mediaItems.value.filter(
-                                    (mediaItem) =>
-                                        mediaItem.id !== updateData.medium.id,
-                                );
-                                lastSelected.value = null;
-                                totalItems.value--;
+                });
 
-                                useToastStore().addToast({
-                                    title: "Upload failed",
-                                    type: "danger",
-                                    content: updateData.medium.status,
-                                    // content: `${item.name} failed to be processed by the server.`,
-                                });
-                            }
-                        } else {
-                            throw "error";
-                        }
-                    })
-                    .catch(() => {
-                        /* error retreiving data */
-                        mediaItems.value = mediaItems.value.filter(
-                            (mediaItem) => mediaItem.id !== item.id,
-                        );
-                    });
+                if (updateResult.data) {
+                    const updateData = updateResult.data as MediaResponse;
+                    const statusData = mediaStatus(updateData.medium);
+                    console.log(item.id, statusData);
+
+                    if (updateData.medium.thumbnail != item.thumbnail) {
+                        mediaItems.value[index] = {
+                            ...updateData.medium,
+                            status: "",
+                        };
+                    }
+
+                    if (statusData.busy == false) {
+                        mediaItems.value[index].status = "";
+                    } else {
+                        remaining = true;
+                        mediaItems.value[index].status =
+                            statusData.status +
+                            " " +
+                            statusData.status_text +
+                            " " +
+                            statusData.progress;
+                    }
+                }
             }
-        });
-
-        // mediaItems.value = mediaItems.value.filter(
-        //     (item) => item.status.startsWith("Error") === false,
-        // );
+        }
 
         if (remaining) {
             updateFilesNonce.value = setTimeout(() => {
                 updateFilesNonce.value = null;
                 updateFiles();
-            }, 1000);
+            }, 500);
         } else {
             updateFilesNonce.value = null;
         }
@@ -1084,15 +1060,18 @@ const handleLoad = async () => {
             if (result.data) {
                 const data = result.data as MediaCollection;
 
-                const mediaIds = new Set(
-                    mediaItems.value.map((item) => item.id),
-                );
-                const filteredItems = data.media.filter(
-                    (item) => !mediaIds.has(item.id),
-                );
+                // const mediaIds = new Set(
+                //     mediaItems.value.map((item) => item.id),
+                // );
+                // const filteredItems = data.media.filter(
+                //     (item) => !mediaIds.has(item.id),
+                // );
 
                 totalItems.value = data.total;
-                mediaItems.value.push(...filteredItems);
+                mediaItems.value = data.media.map((item) => ({
+                    ...item,
+                    status: mediaStatus(item).status_text,
+                }));
             }
         })
         .catch(() => {
@@ -1220,7 +1199,8 @@ const formatDate = (date) => {
 const allowEditSelected = computed(() => {
     return (
         lastSelected.value != null &&
-        lastSelected.value.status === "OK" &&
+        lastSelected.value.jobs.length > 0 &&
+        lastSelected.value.jobs[0].status == "complete" &&
         userStore.id &&
         (userHasPermission("admin/media") ||
             lastSelected.value.user_id == userStore.id)
@@ -1259,13 +1239,13 @@ const handleRotateLeft = async (item: Media) => {
         .then((result) => {
             if (result.data) {
                 const data = result.data as MediaResponse;
-                const index = mediaItems.value.findIndex(
-                    (mediaItem) => mediaItem.id === item.id,
-                );
+                // const index = mediaItems.value.findIndex(
+                //     (mediaItem) => mediaItem.id === item.id,
+                // );
 
-                if (index !== -1) {
-                    mediaItems.value[index] = data.medium;
-                }
+                // if (index !== -1) {
+                //     mediaItems.value[index] = data.medium;
+                // }
 
                 updateFiles();
             }
@@ -1288,13 +1268,13 @@ const handleRotateRight = async (item: Media) => {
         .then((result) => {
             if (result.data) {
                 const data = result.data as MediaResponse;
-                const index = mediaItems.value.findIndex(
-                    (mediaItem) => mediaItem.id === item.id,
-                );
+                // const index = mediaItems.value.findIndex(
+                //     (mediaItem) => mediaItem.id === item.id,
+                // );
 
-                if (index !== -1) {
-                    mediaItems.value[index] = data.medium;
-                }
+                // if (index !== -1) {
+                //     mediaItems.value[index] = data.medium;
+                // }
 
                 updateFiles();
             }

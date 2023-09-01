@@ -12,6 +12,7 @@ use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Bus\DispatchesJobs;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
@@ -794,6 +795,7 @@ class Media extends Model
 
         if (strpos($this->mime_type, 'image/') === 0) {
             $image = Image::make($filePath);
+            $image->orientate();
             $image->resize($thumbnailWidth, $thumbnailHeight, function ($constraint) {
                 $constraint->aspectRatio();
             });
@@ -1033,5 +1035,9 @@ class Media extends Model
     {
         // $this->status = "Info: " . $status;
         $this->save();
+    }
+
+    public function jobs(): HasMany {
+        return $this->hasMany(MediaJob::class, 'media_id');
     }
 }

@@ -591,6 +591,7 @@ class Conductor
         $conductor_class = get_called_class();
         $conductor = new $conductor_class();
 
+        $requestIncludes = [];
         $modelFields = $conductor->fields(new $conductor->class());
 
         // Limit fields
