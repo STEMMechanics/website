@@ -6,7 +6,7 @@ import {
     ValidationResult,
 } from "./validate";
 
-type FormObjectValidateFunction = (item: string | null) => Promise<boolean>;
+type FormObjectValidateFunction = (item?: string | null) => Promise<boolean>;
 type FormObjectLoadingFunction = (state?: boolean) => boolean;
 type FormObjectMessageFunction = (
     message?: string,
@@ -148,15 +148,6 @@ interface FormControlValidation {
     validator: ValidationObject;
     result: ValidationResult;
 }
-
-const defaultFormControlValidation: FormControlValidation = {
-    validator: {
-        validate: async (): Promise<ValidationResult> => {
-            return defaultValidationResult;
-        },
-    },
-    result: defaultValidationResult,
-};
 
 const getDefaultFormControlValidation = (): FormControlValidation => {
     return {

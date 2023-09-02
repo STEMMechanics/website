@@ -19,9 +19,6 @@
         @dragover.prevent="handleDragOver">
         <div
             class="flex flex-col m-4 border-1 bg-white rounded-xl text-gray-5 px-4 md:px-12 py-4 md:py-8 w-full overflow-hidden">
-            <SMLoading v-if="progressText" overlay>{{
-                progressText
-            }}</SMLoading>
             <h2 class="mb-4">Select or Upload Media</h2>
             <SMTabGroup v-model="selectedTab" class="flex flex-col flex-1">
                 <SMTab
@@ -152,10 +149,12 @@
                                                 {{ item.title }}
                                             </div>
                                             <SMLoading
-                                                v-if="item.status"
+                                                v-if="getMediaStatus(item).busy"
                                                 small
                                                 class="bg-white bg-op-90 w-full h-full"
-                                                >{{ item.status }}</SMLoading
+                                                >{{
+                                                    getMediaStatusText(item)
+                                                }}</SMLoading
                                             >
                                         </div>
                                     </li>
@@ -185,40 +184,19 @@
                         <div
                             class="absolute top-0 right-0 bottom-0 w-60 p-4 border-l border-gray-3 bg-gray-1 rounded-r-2 overflow-auto hidden md:block">
                             <div
-                                v-if="uploadFileList"
+                                v-if="getUploadingMediaItems().length > 0"
                                 class="flex flex-col text-xs border-b border-gray-3 pb-4 mb-4">
-                                <h3 class="text-xs mb-2">Uploading</h3>
+                                <h3 class="text-xs mb-2">
+                                    {{ computedUploadMediaTitle }}
+                                </h3>
                                 <div
                                     class="w-full bg-gray-3 h-3 mb-2 rounded-2">
                                     <div
                                         class="bg-sky-600 h-3 rounded-2"
                                         :style="{
-                                            width: `${
-                                                (100 / uploadFileList.length) *
-                                                    (currentUploadFileNum - 1) +
-                                                (100 /
-                                                    uploadFileList.length /
-                                                    100) *
-                                                    currentUploadFileProgress
-                                            }%`,
+                                            width: `${computedUploadProgress}%`,
                                         }"></div>
                                 </div>
-                                <p class="m-0">
-                                    {{ currentUploadFileNum }} /
-                                    {{
-                                        uploadFileList && uploadFileList.length
-                                    }}
-                                    -
-                                    {{
-                                        uploadFileList &&
-                                        uploadFileList.length >=
-                                            currentUploadFileNum
-                                            ? uploadFileList[
-                                                  currentUploadFileNum - 1
-                                              ].name
-                                            : ""
-                                    }}
-                                </p>
                             </div>
                             <div v-if="lastSelected != null">
                                 <div
@@ -253,9 +231,15 @@
                                             }}
                                         </p>
                                         <p
-                                            v-if="lastSelected.status != 'OK'"
+                                            v-if="
+                                                getMediaStatusText(
+                                                    lastSelected,
+                                                ) != ''
+                                            "
                                             class="m-0 italic">
-                                            {{ lastSelected.status }}
+                                            {{
+                                                getMediaStatusText(lastSelected)
+                                            }}
                                         </p>
                                         <p
                                             v-if="
@@ -371,7 +355,7 @@
                             'flex-items-center',
                             'flex-col',
                         ]"
-                        @click="handleShowFileItem(item.id)">
+                        @click="handleChangeLastSelected(item.id)">
                         <div
                             :class="[
                                 'flex',
@@ -398,7 +382,7 @@
                                 class="bg-white bg-op-90 w-full h-full" />
                             <div
                                 class="absolute rounded-5 bg-white -top-1.5 -right-1.5 hidden item-delete"
-                                @click="handleRemoveItem(item.id)">
+                                @click="handleRemoveItemFromSelection(item.id)">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     class="h-6 w-6 block"
@@ -474,6 +458,7 @@ import {
     ApiInfo,
     Media,
     MediaCollection,
+    MediaJobResponse,
     MediaResponse,
 } from "../../helpers/api.types";
 import { useApplicationStore } from "../../store/ApplicationStore";
@@ -481,7 +466,10 @@ import {
     mediaGetThumbnail,
     mimeMatches,
     mediaIsBusy,
-    mediaStatus,
+    getMediaStatus,
+    createMediaItem,
+    createMediaJobItem,
+    getMediaStatusText,
 } from "../../helpers/media";
 import SMInput from "../SMInput.vue";
 import SMLoading from "../SMLoading.vue";
@@ -489,7 +477,11 @@ import SMTabGroup from "../SMTabGroup.vue";
 import SMTab from "../SMTab.vue";
 import { Form, FormControl, FormObject } from "../../helpers/form";
 import { And, Required, Url } from "../../helpers/validate";
-import { convertFileNameToTitle, userHasPermission } from "../../helpers/utils";
+import {
+    convertFileNameToTitle,
+    generateRandomId,
+    userHasPermission,
+} from "../../helpers/utils";
 import { bytesReadable } from "../../helpers/types";
 import { SMDate } from "../../helpers/datetime";
 import { isUUID } from "../../helpers/uuid";
@@ -497,11 +489,6 @@ import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMDialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import { openDialog } from "../../components/SMDialog";
-
-/* Extended Media Interface */
-interface ExtendedMedia extends Media {
-    status: string;
-}
 
 const props = defineProps({
     mime: {
@@ -540,13 +527,8 @@ const props = defineProps({
  * Reference to the File Upload Input element.
  */
 const refUploadInput = ref<HTMLInputElement | null>(null);
-
 const refMediaList = ref<HTMLUListElement | null>(null);
-
 const userStore = useUserStore();
-
-const forceRefresh = [];
-
 const allowUploads = ref(props.allowUpload && userStore.id);
 const formLoading = ref(false);
 const form: FormObject = reactive(
@@ -585,13 +567,13 @@ const totalItems = ref(0);
 /**
  * List of current media items.
  */
-const mediaItems: Ref<ExtendedMedia[]> = ref([]);
+const mediaItems: Ref<Media[]> = ref([]);
 
 /**
  * Selected media item id.
  */
-const selected: Ref<ExtendedMedia[]> = ref([]);
-let lastSelected: Ref<ExtendedMedia | null> = ref(null);
+const selected: Ref<Media[]> = ref([]);
+let lastSelected: Ref<Media | null> = ref(null);
 
 /**
  * How many media items are we showing per page.
@@ -601,11 +583,6 @@ const perPage = ref(24);
 const showFileDrop = ref(false);
 
 const applicationStore = useApplicationStore();
-const progressText = ref("");
-
-const currentUploadFileNum = ref(0);
-const currentUploadFileProgress = ref(0);
-const uploadFileList: Ref<File[]> = ref(null);
 
 /**
  * Returns the file types accepted.
@@ -625,10 +602,10 @@ const computedAccepts = computed(() => {
 /**
  * Get the media item by id.
  * @param {string} item_id The media item id.
- * @returns {ExtendedMedia | null} The media object or null.
+ * @returns {Media | null} The media object or null.
  */
-const getMediaItem = (item_id: string): ExtendedMedia | null => {
-    let found: ExtendedMedia | null = null;
+const getMediaItemById = (item_id: string): Media | null => {
+    let found: Media | null = null;
 
     mediaItems.value.every((item) => {
         if (item.id == item_id) {
@@ -640,6 +617,17 @@ const getMediaItem = (item_id: string): ExtendedMedia | null => {
     });
 
     return found;
+};
+
+const setMediaItemById = (item_id: string, updatedMedia: Media): Media => {
+    const index = mediaItems.value.findIndex((item) => item.id === item_id);
+
+    if (index !== -1) {
+        // Replace the existing media item with the updated one
+        mediaItems.value.splice(index, 1, updatedMedia);
+    }
+
+    return updatedMedia;
 };
 
 /**
@@ -668,7 +656,7 @@ const handleClickSelect = async () => {
     } else if (selectedTab.value == "tab-url") {
         formLoading.value = true;
         if (await form.validate()) {
-            const response = await fetch(form.controls.url.value, {
+            const response = await fetch(form.controls.url.value as string, {
                 method: "HEAD",
             });
 
@@ -693,23 +681,16 @@ const handleClickSelect = async () => {
                         "Invalid file type",
                     );
                 } else {
-                    closeDialog({
-                        id: "",
-                        user_id: "",
-                        title: form.controls.title.value,
-                        name: "",
-                        mime_type: mime,
-                        permission: "",
-                        size: -1,
-                        status: "OK",
-                        storage: "",
-                        url: form.controls.url.value,
-                        description: form.controls.description.value,
-                        dimensions: "",
-                        variants: {},
-                        created_at: "",
-                        updated_at: "",
-                    });
+                    closeDialog(
+                        createMediaItem({
+                            title: form.controls.title.value as string,
+                            mime_type: mime,
+                            size: -1,
+                            url: form.controls.url.value as string,
+                            description: form.controls.description
+                                .value as string,
+                        }),
+                    );
                 }
             }
         }
@@ -723,8 +704,9 @@ const handleClickSelect = async () => {
  * @param {string} item_id The media id.
  */
 const handleClickItem = (item_id: string): void => {
+    // only allow selecting of items that have a UUID (ie not items being uploaded)
     if (isUUID(item_id)) {
-        const mediaItem = getMediaItem(item_id);
+        const mediaItem = getMediaItemById(item_id);
 
         if (props.multiple) {
             if (selected.value.findIndex((item) => item.id === item_id) > -1) {
@@ -744,11 +726,9 @@ const handleClickItem = (item_id: string): void => {
                 lastSelected.value = mediaItem;
             }
         } else {
-            selected.value[0] = getMediaItem(item_id);
+            selected.value[0] = getMediaItemById(item_id);
             lastSelected.value = mediaItem;
         }
-    } else {
-        // selected.value = null;
     }
 };
 
@@ -759,25 +739,32 @@ const handleClickItem = (item_id: string): void => {
 const handleDblClickItem = (item_id: string): void => {
     if (!props.multiple) {
         if (isUUID(item_id)) {
-            const mediaItem = getMediaItem(item_id);
+            const mediaItem = getMediaItemById(item_id);
             if (mediaItem != null) {
                 closeDialog(mediaItem);
-                return;
+            } else {
+                closeDialog(false);
             }
-
-            closeDialog(false);
         }
     }
 };
 
-const handleShowFileItem = (item_id: string): void => {
+/**
+ * Change last selected item.
+ * @param {string} item_id The item id to make the last selected.
+ */
+const handleChangeLastSelected = (item_id: string): void => {
     const index = selected.value.findIndex((item) => item.id === item_id);
     if (index > -1) {
         lastSelected.value = selected.value[index];
     }
 };
 
-const handleRemoveItem = (item_id: string): void => {
+/**
+ * Remove an item from the selection list.
+ * @param {string} item_id The item id to remove.
+ */
+const handleRemoveItemFromSelection = (item_id: string): void => {
     selected.value = selected.value.filter((item) => item.id != item_id);
     if (lastSelected.value && lastSelected.value.id === item_id) {
         if (selected.value.length > 0) {
@@ -808,197 +795,174 @@ const handleChangeSelectFile = async () => {
     refUploadInput.value.value = "";
 };
 
+/**
+ * Process the file list, uploading to the server.
+ * @param {FileList} files The list of files to upload to the server.
+ */
 const handleFilesUpload = (files: FileList) => {
     const fileList = [];
 
-    if (props.multiple == false && files.length > 1) {
-        fileList.push(Array.from(files)[0]);
-    } else {
-        fileList.push(...Array.from(files));
-    }
+    fileList.push(...Array.from(files));
 
-    Array.from(fileList).forEach((file, index) => {
-        mediaItems.value.unshift({
-            id: (currentUploadFileNum.value + index + 1).toString(),
-            user_id: "",
-            title: "",
-            name: file.name,
-            mime_type: "",
-            permission: "",
-            size: 0,
-            status: "",
-            storage: "",
-            url: "",
-            thumbnail: "",
-            description: "",
-            dimensions: "",
-            variants: {},
-            created_at: "",
-            updated_at: "",
-            jobs: [],
-        });
-    });
+    Array.from(fileList).forEach((file: File) => {
+        if (mimeMatches(props.mime, file.type) == true) {
+            const uploadId = generateRandomId("upload_", 8, (s) => {
+                return getMediaItemById(s) != null;
+            });
 
-    if (uploadFileList.value != null) {
-        uploadFileList.value.push(...Array.from(fileList));
-    } else {
-        uploadFileList.value = Array.from(fileList);
-    }
+            mediaItems.value.unshift(
+                createMediaItem({
+                    id: uploadId,
+                }),
+            );
 
-    startFilesUpload();
-};
-
-const startFilesUpload = async () => {
-    if (uploadFileList.value != null) {
-        if (currentUploadFileNum.value < 1) {
-            currentUploadFileNum.value = 1;
-
-            while (currentUploadFileNum.value <= uploadFileList.value.length) {
-                const file =
-                    uploadFileList.value[currentUploadFileNum.value - 1];
-
-                let submitFormData = new FormData();
-                submitFormData.append("file", file);
-                submitFormData.append(
-                    "title",
-                    convertFileNameToTitle(file.name),
-                );
-                submitFormData.append("description", "");
-                try {
-                    let result = await api.chunk({
-                        url: "/media",
-                        body: submitFormData,
-                        headers: {
-                            "Content-Type": "multipart/form-data",
-                        },
-                        progress: (progressEvent) => {
-                            const currentUploadFileNumStr =
-                                currentUploadFileNum.value.toString();
-                            currentUploadFileProgress.value = Math.floor(
-                                (progressEvent.loaded / progressEvent.total) *
-                                    100,
-                            );
-                            mediaItems.value.every((item, index) => {
-                                if (item.id == currentUploadFileNumStr) {
-                                    mediaItems.value[
-                                        index
-                                    ].status = `${currentUploadFileProgress.value}% Uploaded`;
-                                    return false;
-                                }
-
-                                return true;
-                            });
-                        },
-                    });
-                    if (result.data) {
-                        const data = result.data as MediaResponse;
-                        const extendedMedium: ExtendedMedia = {
-                            ...data.medium,
-                            status: "",
-                        };
-
-                        const currentUploadFileNumStr =
-                            currentUploadFileNum.value.toString();
-                        mediaItems.value.every((item, index) => {
-                            if (item.id == currentUploadFileNumStr) {
-                                mediaItems.value[index] = extendedMedium;
-                                if (!selected.value) {
-                                    selected.value.push(extendedMedium);
-                                } else if (props.multiple) {
-                                    selected.value.push(extendedMedium);
-                                }
-                                return false;
-                            }
-
-                            return true;
-                        });
-
-                        totalItems.value++;
-                    }
-                } catch (error) {
-                    const currentUploadFileNumStr =
-                        currentUploadFileNum.value.toString();
-                    mediaItems.value.every((item, index) => {
-                        if (item.id == currentUploadFileNumStr) {
-                            mediaItems.value[index].status = "Error";
-                            return false;
-                        }
-
-                        return true;
-                    });
-
-                    let errorString = "A server error occurred";
-
-                    if (error.status == 413) {
-                        errorString = `The file is larger than ${max_upload_size.value}`;
-                    }
-
-                    useToastStore().addToast({
-                        title: "Upload failed",
-                        type: "danger",
-                        content: errorString,
-                    });
-                } finally {
-                    currentUploadFileNum.value++;
-                    updateFiles();
-                }
-            }
-
-            uploadFileList.value = null;
-            currentUploadFileNum.value = 0;
-        }
-    }
-};
-
-const updateFilesNonce = ref(null);
-
-const updateFiles = async () => {
-    if (updateFilesNonce.value == null) {
-        let remaining = false;
-
-        for (const [index, item] of mediaItems.value.entries()) {
-            if (isUUID(item.id)) {
-                let updateResult = await api.get({
-                    url: "/media/{id}",
-                    params: {
-                        id: item.id,
-                    },
-                });
-
-                if (updateResult.data) {
-                    const updateData = updateResult.data as MediaResponse;
-                    const statusData = mediaStatus(updateData.medium);
-                    console.log(item.id, statusData);
-
-                    if (updateData.medium.thumbnail != item.thumbnail) {
-                        mediaItems.value[index] = {
-                            ...updateData.medium,
-                            status: "",
-                        };
-                    }
-
-                    if (statusData.busy == false) {
-                        mediaItems.value[index].status = "";
-                    } else {
-                        remaining = true;
-                        mediaItems.value[index].status =
-                            statusData.status +
-                            " " +
-                            statusData.status_text +
-                            " " +
-                            statusData.progress;
-                    }
-                }
-            }
-        }
-
-        if (remaining) {
-            updateFilesNonce.value = setTimeout(() => {
-                updateFilesNonce.value = null;
-                updateFiles();
-            }, 500);
+            window.setTimeout(() => {
+                uploadFileById(uploadId, file);
+            }, 50);
         } else {
-            updateFilesNonce.value = null;
+            useToastStore().addToast({
+                title: "Incorrect File",
+                type: "danger",
+                content: `Cannot upload the file ${file.name} as the file type is not supported.`,
+            });
+        }
+    });
+};
+
+const getUploadingMediaItems = (): Media[] => {
+    return mediaItems.value.filter((item) => item.id.startsWith("upload_"));
+};
+
+const computedUploadMediaTitle = computed(() => {
+    const items = getUploadingMediaItems();
+    return `Uploading ${items.length} File${items.length == 1 ? "" : "s"}`;
+});
+
+const computedUploadProgress = computed(() => {
+    const items = getUploadingMediaItems();
+    if (items.length === 0) {
+        return 100;
+    }
+
+    const totalProgress = items.reduce((accumulator, item) => {
+        if (item.jobs.length > 0) {
+            accumulator += item.jobs[0].progress || 0;
+        }
+        return accumulator;
+    }, 0);
+
+    return Math.floor(totalProgress / items.length);
+});
+
+/**
+ * Upload a File to the server.
+ * @param {string} uploadId The ID of the new media item.
+ * @param {File} file The file object.
+ * @returns {void}
+ */
+const uploadFileById = (uploadId: string, file: File): void => {
+    let submitFormData = new FormData();
+    submitFormData.append("file", file);
+    submitFormData.append("title", convertFileNameToTitle(file.name));
+    submitFormData.append("description", "");
+
+    api.chunk({
+        url: "/media",
+        body: submitFormData,
+        headers: {
+            "Content-Type": "multipart/form-data",
+        },
+        progress: (progressEvent) => {
+            const mediaItem = getMediaItemById(uploadId);
+            if (mediaItem != null) {
+                mediaItem.jobs[0] = createMediaJobItem({
+                    status: "uploading",
+                    progress: Math.floor(
+                        (progressEvent.loaded / progressEvent.total) * 100,
+                    ),
+                });
+            }
+        },
+    })
+        .then((result) => {
+            if (result.data) {
+                const mediaItem = getMediaItemById(uploadId);
+                if (mediaItem != null) {
+                    mediaItem.jobs[0] = (
+                        result.data as MediaJobResponse
+                    ).media_job;
+                }
+
+                updateMediaItem(uploadId);
+            }
+        })
+        .catch((error) => {
+            //             let errorString = "A server error occurred";
+            // if (error.status == 413) {
+            //     errorString = `The file is larger than ${max_upload_size.value}`;
+            // }
+            console.log(error);
+        });
+};
+
+/**
+ * Update media item.
+ * @param {string} id The media item id.
+ * @returns {void}
+ */
+const updateMediaItem = (id: string): void => {
+    let media = getMediaItemById(id);
+    if (media != null && media.jobs.length > 0) {
+        if (id.startsWith("upload_")) {
+            api.get({
+                url: "/media/job/{id}",
+                params: {
+                    id: media.jobs[0].id,
+                },
+            })
+                .then((result) => {
+                    const data = result.data as MediaJobResponse;
+                    if (data.media_job.media_id != null) {
+                        media.id = data.media_job.media_id;
+                    }
+
+                    setTimeout(() => {
+                        updateMediaItem(media.id);
+                    }, 50);
+                })
+                .catch((error) => {
+                    /* error */
+                    console.log(error);
+                });
+        } else {
+            api.get({
+                url: "/media/{id}",
+                params: {
+                    id: id,
+                },
+            })
+                .then((result) => {
+                    const data = result.data as MediaResponse;
+                    media = setMediaItemById(id, data.medium);
+
+                    const activeJobs = media.jobs.filter(
+                        (job) =>
+                            !["complete", "invalid", "failed"].includes(
+                                job.status,
+                            ),
+                    );
+
+                    selectedMediaUpdateId(media);
+                    if (activeJobs.length > 0) {
+                        setTimeout(() => {
+                            updateMediaItem(id);
+                        }, 50);
+                    }
+                })
+                .catch((error) => {
+                    /* error */
+                    console.log(error);
+                });
         }
     }
 };
@@ -1070,7 +1034,7 @@ const handleLoad = async () => {
                 totalItems.value = data.total;
                 mediaItems.value = data.media.map((item) => ({
                     ...item,
-                    status: mediaStatus(item).status_text,
+                    status: getMediaStatus(item).status_text,
                 }));
             }
         })
@@ -1141,7 +1105,8 @@ const computedSelectDisabled = computed(() => {
         );
     } else if (selectedTab.value == "tab-url") {
         return (
-            !form.controls.url.isValid() || form.controls.url.value.length == 0
+            !form.controls.url.isValid() ||
+            (form.controls.url.value as string).length == 0
         );
     }
 
@@ -1211,7 +1176,7 @@ interface MediaUpdate {
     id: string;
     title: string;
     description: string;
-    timer: any;
+    timer: string | number;
 }
 
 const pendingUpdates = ref<MediaUpdate[]>([]);
@@ -1226,7 +1191,12 @@ const handleUpdate = () => {
     }
 };
 
-const handleRotateLeft = async (item: Media) => {
+/**
+ * Rotate a Media Item to the left.
+ * @param {Media} item The media item to rotate from the server.
+ * @returns {void}
+ */
+const handleRotateLeft = (item: Media): void => {
     api.put({
         url: "/media/{id}",
         params: {
@@ -1236,26 +1206,21 @@ const handleRotateLeft = async (item: Media) => {
             transform: "rotate-90",
         },
     })
-        .then((result) => {
-            if (result.data) {
-                const data = result.data as MediaResponse;
-                // const index = mediaItems.value.findIndex(
-                //     (mediaItem) => mediaItem.id === item.id,
-                // );
-
-                // if (index !== -1) {
-                //     mediaItems.value[index] = data.medium;
-                // }
-
-                updateFiles();
-            }
+        .then(() => {
+            updateMediaItem(item.id);
         })
-        .catch(() => {
-            /* empty */
+        .catch((error) => {
+            /* error */
+            console.log(error);
         });
 };
 
-const handleRotateRight = async (item: Media) => {
+/**
+ * Rotate a Media Item to the right.
+ * @param {Media} item The media item to rotate from the server.
+ * @returns {void}
+ */
+const handleRotateRight = (item: Media): void => {
     api.put({
         url: "/media/{id}",
         params: {
@@ -1265,26 +1230,21 @@ const handleRotateRight = async (item: Media) => {
             transform: "rotate-270",
         },
     })
-        .then((result) => {
-            if (result.data) {
-                const data = result.data as MediaResponse;
-                // const index = mediaItems.value.findIndex(
-                //     (mediaItem) => mediaItem.id === item.id,
-                // );
-
-                // if (index !== -1) {
-                //     mediaItems.value[index] = data.medium;
-                // }
-
-                updateFiles();
-            }
+        .then(() => {
+            updateMediaItem(item.id);
         })
-        .catch(() => {
-            /* empty */
+        .catch((error) => {
+            /* error */
+            console.log(error);
         });
 };
 
-const handleDelete = async (item: Media) => {
+/**
+ * Delete a Media item from the server.
+ * @param {Media} item The media item to delete from the server.
+ * @returns {Promise<void>}
+ */
+const handleDelete = async (item: Media): Promise<void> => {
     let result = await openDialog(SMDialogConfirm, {
         title: "Delete File?",
         text: `Are you sure you want to delete the file <strong>${item.title}</strong>?`,
@@ -1323,8 +1283,20 @@ const handleDelete = async (item: Media) => {
                 totalItems.value--;
             })
             .catch((error) => {
+                /* error */
                 console.log(error);
             });
+    }
+};
+
+const selectedMediaUpdateId = (media: Media): void => {
+    if (lastSelected.value.id == media.id) {
+        lastSelected.value = media;
+    }
+
+    const index = selected.value.findIndex((item) => item.id === media.id);
+    if (index !== -1) {
+        selected.value[index] = media;
     }
 };
 
@@ -1338,7 +1310,7 @@ const addUpdate = (id: string, title: string, description: string): void => {
             pendingUpdates.value[index].description = description;
             if (pendingUpdates.value[index].timer != null) {
                 clearTimeout(pendingUpdates.value[index].timer);
-                pendingUpdates.value[index].timer = setTimeout(() => {
+                pendingUpdates.value[index].timer = window.setTimeout(() => {
                     const data = pendingUpdates.value[index];
 
                     pendingUpdates.value.splice(index, 1);
@@ -1359,7 +1331,7 @@ const addUpdate = (id: string, title: string, description: string): void => {
             timer: null,
         });
 
-        pendingUpdates.value[index - 1].timer = setTimeout(() => {
+        pendingUpdates.value[index - 1].timer = window.setTimeout(() => {
             const data = pendingUpdates.value[index - 1];
 
             pendingUpdates.value.splice(index - 1, 1);
@@ -1409,17 +1381,6 @@ const loadInitial = () => {
     if (selected.value.length > 0) {
         mediaItems.value.push(...selected.value);
     }
-};
-
-const itemRequiresRefresh = (id) => {
-    const index = forceRefresh.indexOf(id);
-
-    if (index !== -1) {
-        forceRefresh.splice(index, 1); // Remove the item at the found index
-        return true;
-    }
-
-    return false;
 };
 
 // Get max upload size

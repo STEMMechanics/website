@@ -1,4 +1,5 @@
-import { Media } from "./api.types";
+import { Media, MediaJob } from "./api.types";
+import { toTitleCase } from "./string";
 
 export const mediaGetVariantUrl = (
     media: Media,
@@ -145,7 +146,7 @@ interface MediaStatus {
  * @param {Media} media The media item to check.
  * @returns {MediaStatus} The media status.
  */
-export const mediaStatus = (media: Media): MediaStatus => {
+export const getMediaStatus = (media: Media): MediaStatus => {
     const status = {
         busy: false,
         status: "",
@@ -170,4 +171,99 @@ export const mediaStatus = (media: Media): MediaStatus => {
     }
 
     return status;
+};
+
+/**
+ * Get the current Media status Text
+ * @param {Media} media The media item to check.
+ * @returns {string} Human readable string.
+ */
+export const getMediaStatusText = (media: Media): string => {
+    let status = "";
+
+    if (media.jobs.length > 0) {
+        if (
+            media.jobs[0].status != "invalid" &&
+            media.jobs[0].status != "failed" &&
+            media.jobs[0].status != "complete"
+        ) {
+            if (media.jobs[0].status_text != "") {
+                status = toTitleCase(media.jobs[0].status_text);
+                if (
+                    media.jobs[0].status == "processing" &&
+                    media.jobs[0].progress > -1
+                ) {
+                    status += ` ${media.jobs[0].progress}%`;
+                }
+            } else {
+                status = toTitleCase(media.jobs[0].status);
+            }
+        }
+    }
+
+    return status;
+};
+
+export interface MediaParams {
+    id?: string;
+    user_id?: string;
+    title?: string;
+    name?: string;
+    mime_type?: string;
+    permission?: string;
+    size?: number;
+    storage?: string;
+    url?: string;
+    thumbnail?: string;
+    description?: string;
+    dimensions?: string;
+    variants?: { [key: string]: string };
+    created_at?: string;
+    updated_at?: string;
+    jobs?: Array<MediaJob>;
+}
+
+export interface MediaJobParams {
+    id?: string;
+    media_id?: string;
+    user_id?: string;
+    status?: string;
+    status_text?: string;
+    progress?: number;
+}
+
+export const createMediaItem = (params?: MediaParams): Media => {
+    const media = {
+        id: params.id || "",
+        user_id: params.user_id || "",
+        title: params.title || "",
+        name: params.name || "",
+        mime_type: params.mime_type || "",
+        permission: params.permission || "",
+        size: params.size !== undefined ? params.size : 0,
+        storage: params.storage || "",
+        url: params.url || "",
+        thumbnail: params.thumbnail || "",
+        description: params.description || "",
+        dimensions: params.dimensions || "",
+        variants: params.variants || {},
+        created_at: params.created_at || "",
+        updated_at: params.updated_at || "",
+        jobs: params.jobs || [],
+    };
+
+    return media;
+};
+
+export const createMediaJobItem = (params?: MediaJobParams): MediaJob => {
+    const job = {
+        id: params.id || "",
+        media_id: params.media_id || "",
+        user_id: params.user_id || "",
+        status: params.status || "",
+        status_text: params.status_text || "",
+        progress: params.progress || 0,
+    };
+
+    return job;
 };

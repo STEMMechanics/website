@@ -83,23 +83,49 @@ export const clamp = (n: number, min: number, max: number): number => {
     return n;
 };
 
+type RandomIDVerifyCallback = (id: string) => boolean;
+
+/**
+ * Generate a random ID.
+ * @param {string} prefix Any prefix to add to the ID.
+ * @param {number} length The length of the ID string (default = 6).
+ * @param {RandomIDVerifyCallback|null} callback Callback that if returns true generates a ID string.
+ * @returns {string} A random string.
+ */
+export const generateRandomId = (
+    prefix: string = "",
+    length: number = 6,
+    callback: RandomIDVerifyCallback | null = null,
+): string => {
+    let randomId = "";
+    const letters =
+        "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+
+    do {
+        randomId = prefix;
+        for (let i = 0; i < length; i++) {
+            randomId += letters.charAt(
+                Math.floor(Math.random() * letters.length),
+            );
+        }
+    } while (callback != null ? callback(randomId) : false);
+
+    return randomId;
+};
+
 /**
  * Generate a random element ID.
  * @param {string} prefix Any prefix to add to the ID.
+ * @param {number} length The length of the ID string (default = 6).
  * @returns {string} A random string non-existent in the document.
  */
-export const generateRandomElementId = (prefix: string = ""): string => {
-    let randomId = "";
-    const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-    do {
-        randomId =
-            prefix +
-            letters.charAt(Math.floor(Math.random() * letters.length)) +
-            Math.random().toString(36).substring(2, 9);
-    } while (document.getElementById(randomId));
-
-    return randomId;
+export const generateRandomElementId = (
+    prefix: string = "",
+    length: number = 6,
+): string => {
+    return generateRandomId(prefix, length, (s) => {
+        return document.getElementById(s) != null;
+    });
 };
 
 /**
