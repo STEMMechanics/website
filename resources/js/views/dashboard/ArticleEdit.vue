@@ -78,7 +78,11 @@ import SMInput from "../../components/SMInput.vue";
 import SMDropdown from "../../components/SMDropdown.vue";
 import SMAttachments from "../../components/SMAttachments.vue";
 import { api } from "../../helpers/api";
-import { ArticleResponse, UserCollection } from "../../helpers/api.types";
+import {
+    ArticleResponse,
+    Media,
+    UserCollection,
+} from "../../helpers/api.types";
 import { SMDate } from "../../helpers/datetime";
 import { Form, FormControl } from "../../helpers/form";
 import { And, DateTime, Min, Required } from "../../helpers/validate";
@@ -108,7 +112,7 @@ const form = reactive(
             route.params.id ? "" : new SMDate("now").format("d/M/yy h:mm aa"),
             DateTime(),
         ),
-        hero: FormControl(),
+        hero: FormControl("", Required()),
         user_id: FormControl(userStore.id),
         content: FormControl(),
     }),
@@ -206,15 +210,12 @@ const handleSubmit = async (enableFormCallBack) => {
             ).format("yyyy/MM/dd HH:mm:ss", { utc: true }),
             user_id: form.controls.user_id.value,
             content: form.controls.content.value,
-            hero: form.controls.hero.value.id,
+            hero: (form.controls.hero.value as Media).id,
             gallery: gallery.value.map((item) => item.id),
             attachments: attachments.value.map((item) => item.id),
         };
 
-        let article_id = "";
-
         if (route.params.id) {
-            article_id = route.params.id as string;
             await api.put({
                 url: `/articles/{id}`,
                 params: {
@@ -223,15 +224,10 @@ const handleSubmit = async (enableFormCallBack) => {
                 body: data,
             });
         } else {
-            let result = await api.post({
+            await api.post({
                 url: "/articles",
                 body: data,
             });
-
-            if (result.data) {
-                const data = result.data as ArticleResponse;
-                article_id = data.article.id;
-            }
         }
 
         useToastStore().addToast({
@@ -250,6 +246,7 @@ const handleSubmit = async (enableFormCallBack) => {
             router.push({ name: "dashboard-article-list" });
         }
     } catch (error) {
+        console.log(error);
         form.apiErrors(error, (message) => {
             useToastStore().addToast({
                 title: "An error occurred",

@@ -50,6 +50,7 @@ trait HasGallery
             }
         }
 
+        Cache::forget($this->galleryCacheKey());
         $this->gallery()->createMany($galleryItems);
     }
 
@@ -65,13 +66,18 @@ trait HasGallery
 
     public function getGallery(): Collection
     {
-        $cacheKey = 'gallery:' . $this->getTable() . ':' . $this->id;
-        if (Cache::has($cacheKey) === true) {
-            return Cache::get($cacheKey);
-        }
+        return Cache::remember($this->galleryCacheKey(), now()->addDays(28), function () {
+            return $this->gallery()->get();
+        });
+    }
 
-        $gallery = $this->morphMany(\App\Models\Gallery::class, 'addendum')->get();
-        Cache::put($cacheKey, $gallery, now()->addDays(14));
-        return $gallery;
+    /**
+     * Return the attachment cache key.
+     *
+     * @return string
+     */
+    private function galleryCacheKey(): string
+    {
+        return "gallery:{$this->getTable()}:{$this->id}";
     }
 }

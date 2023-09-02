@@ -175,7 +175,7 @@ const handleAddToGallery = async () => {
     if (result) {
         const mediaResult = result as Media[];
         let newValue = props.modelValue;
-        let galleryIds = new Set(newValue.map((item) => item.id));
+        let galleryIds = new Set(mediaResult.map((item) => (item as Media).id));
 
         mediaResult.forEach((item) => {
             if (!galleryIds.has(item.id)) {
@@ -184,7 +184,7 @@ const handleAddToGallery = async () => {
             }
         });
 
-        emits("update:modelValue", newValue);
+        emits("update:modelValue", mediaResult);
     }
 };
 

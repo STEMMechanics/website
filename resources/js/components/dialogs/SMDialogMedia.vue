@@ -377,7 +377,7 @@
                                 )}')`,
                             }">
                             <SMLoading
-                                v-if="true"
+                                v-if="getMediaStatus(item).busy"
                                 small
                                 class="bg-white bg-op-90 w-full h-full" />
                             <div

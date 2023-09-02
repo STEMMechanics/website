@@ -28,7 +28,7 @@ trait HasAttachments
      */
     public function getAttachments(): Collection
     {
-        return Cache::remember($this->cacheKey(), now()->addDays(28), function () {
+        return Cache::remember($this->attachmentsCacheKey(), now()->addDays(28), function () {
             return $this->attachments()->get();
         });
     }
@@ -61,7 +61,7 @@ trait HasAttachments
             }
         }
 
-        Cache::forget($this->cacheKey());
+        Cache::forget($this->attachmentsCacheKey());
         $this->attachments()->createMany($attachmentItems);
     }
 
@@ -72,7 +72,7 @@ trait HasAttachments
      */
     public function deleteAttachments(): void
     {
-        Cache::forget($this->cacheKey());
+        Cache::forget($this->attachmentsCacheKey());
         $this->morphMany(\App\Models\Attachment::class, 'addendum')->delete();
     }
 
@@ -91,7 +91,7 @@ trait HasAttachments
      *
      * @return string
      */
-    private function cacheKey(): string
+    private function attachmentsCacheKey(): string
     {
         return "attachments:{$this->getTable()}:{$this->id}";
     }
