@@ -1,18 +1,23 @@
 /**
  * Transforms a string to title case.
- *
  * @param {string} str The string to transform.
  * @returns {string} A string transformed to title case.
  */
 export const toTitleCase = (str: string): string => {
-    return str.replace(/[_-]+/g, " ").replace(/\b\w+\b/g, function (txt) {
+    // Replace underscores and hyphens with spaces
+    str = str.replace(/[_-]+/g, " ");
+
+    // Replace "Cdn" with "CDN"
+    str = str.replace(/\bCdn\b/g, "CDN");
+
+    // Capitalize the first letter of each word and make the rest lowercase
+    return str.replace(/\b\w+\b/g, (txt) => {
         return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
     });
 };
 
 /**
  * Convert a string to a excerpt.
- *
  * @param {string} txt The text to convert.
  * @param {number} maxLen (optional) The maximum length of the excerpt.
  * @param {boolean} strip (optional) Strip HTML tags from the text.
@@ -22,7 +27,7 @@ export const toTitleCase = (str: string): string => {
 export function excerpt(
     txt: string,
     maxLen: number = 150,
-    stripHtml: boolean = true
+    stripHtml: boolean = true,
 ): string {
     if (stripHtml) {
         txt = txt.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ");
@@ -50,7 +55,6 @@ export function excerpt(
 
 /**
  * String HTML tags from text.
- *
  * @param {string} txt The text to strip tags.
  * @returns {string} The stripped text.
  */
@@ -60,7 +64,6 @@ export const stripHtmlTags = (txt: string): string => {
 
 /**
  * Replace HTML entities with real characters.
- *
  * @param {string} txt The text to transform.
  * @returns {string} Transformed text
  */
@@ -87,7 +90,6 @@ export const replaceHtmlEntities = (txt: string): string => {
 
 /**
  * Convert a string to a number, ignoring items like dollar signs, etc.
- *
  * @param {string} str The string to convert to a number
  * @returns {number} A number with the minimum amount of decimal places (or 0)
  */
@@ -99,7 +101,6 @@ export const stringToNumber = (str: string): number => {
 
 /**
  * Convert a number or string to a price (0 or 0.00).
- *
  * @param {number|string} numOrString The number of string to convert to a price.
  * @returns {string} The converted result.
  */
