@@ -817,24 +817,39 @@ const handleChangeSelectFile = async () => {
  */
 const handleFilesUpload = (files: FileList) => {
     const fileList = [];
+    let count = 0;
+    let warnedUser = false;
 
     fileList.push(...Array.from(files));
 
     Array.from(fileList).forEach((file: File) => {
         if (mimeMatches(props.mime, file.type) == true) {
-            const uploadId = generateRandomId("upload_", 8, (s) => {
-                return getMediaItemById(s) != null;
-            });
+            count = getUploadingMediaItems().length;
 
-            mediaItems.value.unshift(
-                createMediaItem({
-                    id: uploadId,
-                }),
-            );
+            if (count < 5) {
+                const uploadId = generateRandomId("upload_", 8, (s) => {
+                    return getMediaItemById(s) != null;
+                });
 
-            window.setTimeout(() => {
-                uploadFileById(uploadId, file);
-            }, 50);
+                mediaItems.value.unshift(
+                    createMediaItem({
+                        id: uploadId,
+                    }),
+                );
+
+                window.setTimeout(() => {
+                    uploadFileById(uploadId, file);
+                }, 50);
+            } else if (count >= 5 && warnedUser == false) {
+                warnedUser = true;
+                useToastStore().addToast({
+                    title: "Maximum Files",
+                    type: "warning",
+                    content: "You cannot upload more than 5 files at a time",
+                });
+
+                return;
+            }
         } else {
             useToastStore().addToast({
                 title: "Incorrect File",
@@ -851,7 +866,13 @@ const getUploadingMediaItems = (): Media[] => {
 
 const computedUploadMediaTitle = computed(() => {
     const items = getUploadingMediaItems();
-    return `Uploading ${items.length} File${items.length == 1 ? "" : "s"}`;
+    let prefix = "Uploading";
+
+    if (computedUploadProgress.value >= 100) {
+        prefix = "Processing";
+    }
+
+    return `${prefix} ${items.length} File${items.length == 1 ? "" : "s"}`;
 });
 
 const computedUploadProgress = computed(() => {
@@ -862,7 +883,7 @@ const computedUploadProgress = computed(() => {
 
     const totalProgress = items.reduce((accumulator, item) => {
         if (item.jobs.length > 0) {
-            accumulator += item.jobs[0].progress || 0;
+            accumulator += item.jobs[0].progress || 100;
         }
         return accumulator;
     }, 0);
@@ -928,6 +949,7 @@ const uploadFileById = (uploadId: string, file: File): void => {
  */
 const updateMediaItem = (id: string): void => {
     let media = getMediaItemById(id);
+    let timeout = 50;
 
     if (media != null && media.jobs.length > 0) {
         if (id.startsWith("upload_")) {
@@ -942,14 +964,19 @@ const updateMediaItem = (id: string): void => {
                     if (data.media_job.media_id != null) {
                         media.id = data.media_job.media_id;
                     }
-
-                    setTimeout(() => {
-                        updateMediaItem(media.id);
-                    }, 50);
                 })
                 .catch((error) => {
+                    if (error.status == 429) {
+                        timeout = 500;
+                    }
+
                     /* error */
                     console.log(error);
+                })
+                .finally(() => {
+                    setTimeout(() => {
+                        updateMediaItem(media.id);
+                    }, timeout);
                 });
         } else {
             api.get({
@@ -973,10 +1000,16 @@ const updateMediaItem = (id: string): void => {
                     if (activeJobs.length > 0) {
                         setTimeout(() => {
                             updateMediaItem(id);
-                        }, 50);
+                        }, 100);
                     }
                 })
                 .catch((error) => {
+                    if (error.status == 429) {
+                        setTimeout(() => {
+                            updateMediaItem(id);
+                        }, 500);
+                    }
+
                     /* error */
                     console.log(error);
                 });
@@ -1304,7 +1337,7 @@ const handleDelete = async (item: Media): Promise<void> => {
 };
 
 const selectedMediaUpdateId = (media: Media): void => {
-    if (lastSelected.value.id == media.id) {
+    if (lastSelected.value && lastSelected.value.id == media.id) {
         lastSelected.value = media;
     }
 
