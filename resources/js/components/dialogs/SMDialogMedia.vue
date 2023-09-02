@@ -1020,6 +1020,7 @@ const handleLoad = async () => {
         page: page.value,
         limit: perPage.value,
         filter: "",
+        sort: "-created_at",
     };
 
     if (mimeTypesFilter) {
@@ -1049,10 +1050,7 @@ const handleLoad = async () => {
                 // );
 
                 totalItems.value = data.total;
-                mediaItems.value = data.media.map((item) => ({
-                    ...item,
-                    status: getMediaStatus(item).status_text,
-                }));
+                mediaItems.value.push(...data.media);
             }
         })
         .catch(() => {
