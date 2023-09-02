@@ -35,6 +35,10 @@ export const mimeMatches = (
     mimeExpected: string,
     mimeToCheck: string,
 ): boolean => {
+    if (mimeExpected.length == 0) {
+        mimeExpected = "*";
+    }
+
     const escapedExpectation = mimeExpected.replace(
         /[.*+?^${}()|[\]\\]/g,
         "\\$&",
