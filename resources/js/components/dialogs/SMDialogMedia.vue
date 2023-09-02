@@ -242,10 +242,7 @@
                                             }}
                                         </p>
                                         <p
-                                            v-if="
-                                                allowEditSelected &&
-                                                !mediaIsBusy(lastSelected)
-                                            "
+                                            v-if="allowEditSelected"
                                             class="flex gap-1">
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
@@ -1164,7 +1161,6 @@ const formatDate = (date) => {
 const allowEditSelected = computed(() => {
     return (
         lastSelected.value != null &&
-        lastSelected.value.jobs.length > 0 &&
         mediaIsBusy(lastSelected.value) == false &&
         userStore.id &&
         (userHasPermission("admin/media") ||
