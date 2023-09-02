@@ -7,13 +7,15 @@ export const toTitleCase = (str: string): string => {
     // Replace underscores and hyphens with spaces
     str = str.replace(/[_-]+/g, " ");
 
-    // Replace "Cdn" with "CDN"
-    str = str.replace(/\bCdn\b/g, "CDN");
-
     // Capitalize the first letter of each word and make the rest lowercase
-    return str.replace(/\b\w+\b/g, (txt) => {
+    str = str.replace(/\b\w+\b/g, (txt) => {
         return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
     });
+
+    // Replace "cdn" with "CDN"
+    str = str.replace(/\bCdn\b/gi, "CDN");
+
+    return str;
 };
 
 /**
