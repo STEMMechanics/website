@@ -207,7 +207,15 @@
                                             backgroundImage: `url('${mediaGetThumbnail(
                                                 lastSelected,
                                             )}')`,
-                                        }"></div>
+                                        }">
+                                        <SMLoading
+                                            v-if="
+                                                getMediaStatus(lastSelected)
+                                                    .busy
+                                            "
+                                            small
+                                            class="bg-white bg-op-90 w-full h-full" />
+                                    </div>
                                     <div class="flex flex-col w-100">
                                         <p class="m-0 text-bold">
                                             {{ lastSelected.title }}
@@ -613,6 +621,17 @@ const getMediaItemById = (item_id: string): Media | null => {
         return true;
     });
 
+    if (found == null) {
+        selected.value.every((item) => {
+            if (item.id == item_id) {
+                found = item;
+                return false;
+            }
+
+            return true;
+        });
+    }
+
     return found;
 };
 
@@ -909,6 +928,7 @@ const uploadFileById = (uploadId: string, file: File): void => {
  */
 const updateMediaItem = (id: string): void => {
     let media = getMediaItemById(id);
+
     if (media != null && media.jobs.length > 0) {
         if (id.startsWith("upload_")) {
             api.get({
