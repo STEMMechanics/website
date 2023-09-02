@@ -1165,7 +1165,7 @@ const allowEditSelected = computed(() => {
     return (
         lastSelected.value != null &&
         lastSelected.value.jobs.length > 0 &&
-        lastSelected.value.jobs[0].status == "complete" &&
+        mediaIsBusy(lastSelected.value) == false &&
         userStore.id &&
         (userHasPermission("admin/media") ||
             lastSelected.value.user_id == userStore.id)
