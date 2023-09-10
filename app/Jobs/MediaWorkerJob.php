@@ -66,7 +66,7 @@ class MediaWorkerJob implements ShouldQueue
                 // convert HEIC files to JPG
                 $fileExtension = File::extension($data['file']);
                 if ($fileExtension === 'heic') {
-                    $this->mediaJob->setStatusProcessing(0, 'converting image');
+                    $this->mediaJob->setStatusProcessing(0, 0, 'converting image');
 
                     // Get the path without the file name
                     $uploadedFileDirectory = dirname($data['file']);
@@ -154,7 +154,7 @@ class MediaWorkerJob implements ShouldQueue
                     if (array_key_exists("rotate", $data['transform']) === true) {
                         $rotate = intval($data['transform']['rotate']);
                         if ($rotate !== 0) {
-                            $this->mediaJob->setStatusProcessing(0, 'rotating image');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'rotating image');
                             $image = $image->rotate($rotate);
                             $modified = true;
                         }
@@ -163,13 +163,13 @@ class MediaWorkerJob implements ShouldQueue
                     // FLIP-H/V
                     if (array_key_exists('flip', $data['transform']) === true) {
                         if (stripos($data['transform']['flip'], 'h') !== false) {
-                            $this->mediaJob->setStatusProcessing(0, 'flipping image');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'flipping image');
                             $image = $image->flip('h');
                             $modified = true;
                         }
 
                         if (stripos($data['transform']['flip'], 'v') !== false) {
-                            $this->mediaJob->setStatusProcessing(0, 'flipping image');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'flipping image');
                             $image = $image->flip('v');
                             $modified = true;
                         }
@@ -183,7 +183,7 @@ class MediaWorkerJob implements ShouldQueue
                         $x = intval(arrayDefaultValue("x", $cropData, 0));
                         $y = intval(arrayDefaultValue("y", $cropData, 0));
 
-                        $this->mediaJob->setStatusProcessing(0, 'cropping image');
+                        $this->mediaJob->setStatusProcessing(0, 0, 'cropping image');
                         $image = $image->crop($width, $height, $x, $y);
                         $modified = true;
                     }//end if
@@ -213,7 +213,7 @@ class MediaWorkerJob implements ShouldQueue
                         $rotate = intval(round($rotate / 90) * 90); // round to nearest 90%
 
                         if ($rotate > 0) {
-                            $this->mediaJob->setStatusProcessing(0, 'rotating video');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'rotating video');
 
                             if ($rotate === 90) {
                                 $filters->rotate(FFMpeg\Filters\Video\RotateFilter::ROTATE_270);
@@ -231,13 +231,13 @@ class MediaWorkerJob implements ShouldQueue
                     // FLIP-H/V
                     if (array_key_exists('flip', $data['transform']) === true) {
                         if (stripos($data['transform']['flip'], 'h') !== false) {
-                            $this->mediaJob->setStatusProcessing(0, 'flipping video');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'flipping video');
                             $filters->hflip()->synchronize();
                             $modified = true;
                         }
 
                         if (stripos($data['transform']['flip'], 'v') !== false) {
-                            $this->mediaJob->setStatusProcessing(0, 'flipping video');
+                            $this->mediaJob->setStatusProcessing(0, 0, 'flipping video');
                             $filters->vflip()->synchronize();
                             $modified = true;
                         }
@@ -255,7 +255,7 @@ class MediaWorkerJob implements ShouldQueue
 
                         $cropDimension = new Dimension($width, $height);
 
-                        $this->mediaJob->setStatusProcessing(0, 'cropping video');
+                        $this->mediaJob->setStatusProcessing(0, 0, 'cropping video');
                         $filters->crop($cropDimension, $x, $y)->synchronize();
                         $modified = true;
                     }//end if
@@ -264,7 +264,7 @@ class MediaWorkerJob implements ShouldQueue
                     if (method_exists($format, 'on') === true) {
                         $mediaJob = $this->mediaJob;
                         $format->on('progress', function ($video, $format, $percentage) use ($mediaJob) {
-                            $mediaJob->setStatusProcessing($percentage, 'transcoded');
+                            $mediaJob->setStatusProcessing($percentage, 100, 'transcoded');
                         });
                     }
 
@@ -297,7 +297,7 @@ class MediaWorkerJob implements ShouldQueue
 
             // Finish media object
             if ($media->hasStagingFile() === true) {
-                $this->mediaJob->setStatusProcessing(-1, 'uploading to cdn');
+                $this->mediaJob->setStatusProcessing(0, 0, 'uploading to cdn');
                 $media->deleteFile();
                 $media->saveStagingFile(true);
             }

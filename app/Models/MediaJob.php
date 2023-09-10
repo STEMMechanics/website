@@ -25,6 +25,7 @@ class MediaJob extends Model
         'status' => '',
         'status_text' => '',
         'progress' => 0,
+        'progress_max' => 0,
         'data' => '',
     ];
 
@@ -63,17 +64,18 @@ class MediaJob extends Model
     /**
      * Set MediaJob status to processing.
      *
-     * @param integer $progress   The processing percentage.
-     * @param string  $statusText The processing status text.
+     * @param integer $progress    The processing progress value.
+     * @param integer $progressMax The processing progress maximum value.
+     * @param string  $statusText  The processing status text.
      * @return void
      */
-    public function setStatusProcessing(int $progress = 0, string $statusText = ''): void
+    public function setStatusProcessing(int $progress = 0, int $progressMax = 0, string $statusText = ''): void
     {
         if ($statusText === '') {
             $statusText = $this->status_text;
         }
 
-        $this->setStatus('processing', $statusText, $progress);
+        $this->setStatus('processing', $statusText, $progress, $progressMax);
     }
 
     /**
@@ -102,14 +104,16 @@ class MediaJob extends Model
      *
      * @param string  $status   The status string.
      * @param string  $text     The status text.
-     * @param integer $progress The status percentage.
+     * @param integer $progress The status progress value.
+     * @param integer $progress_max The status progress maximum value.
      * @return void
      */
-    protected function setStatus(string $status, string $text = '', int $progress = 0): void
+    protected function setStatus(string $status, string $text = '', int $progress = 0, int $progress_max = 0): void
     {
         $this->status = $status;
         $this->status_text = $text;
         $this->progress = $progress;
+        $this->progress_max = $progress_max;
         $this->save();
     }
 
@@ -137,9 +141,7 @@ class MediaJob extends Model
                 $maxChunks = intval($data['chunk_count']);
                 if ($numChunks >= $maxChunks) {
                     // merge file and dispatch
-                    $percentage = 0;
-                    $percentageStep = (100 / $maxChunks);
-                    $this->setStatusProcessing($percentage, 'combining chunks');
+                    $this->setStatusProcessing(0, $maxChunks, 'combining chunks');
 
                     $newFile = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION));
                     $failed = false;
@@ -160,7 +162,7 @@ class MediaJob extends Model
                             }
 
                             unlink($tempFileName);
-                            $this->setStatusProcessing($percentage += $percentageStep);
+                            $this->setStatusProcessing($index, $maxChunks);
                         }
                     }
 
