@@ -921,17 +921,17 @@ const computedUploadProgress = computed(() => {
         return 100;
     }
 
-    const totalProgress = items.reduce((accumulator, item) => {
-        if (item.jobs.length > 0) {
-            accumulator +=
-                Math.floor(
-                    (item.jobs[0].progress / item.jobs[0].progress_max) * 100,
-                ) || 100;
-        }
-        return accumulator;
-    }, 0);
+    let bytes = 0;
+    let maxBytes = 0;
 
-    return Math.floor(totalProgress / items.length);
+    items.forEach((item) => {
+        if (item.jobs.length > 0) {
+            bytes += item.jobs[0].progress;
+            maxBytes += item.jobs[0].progress_max;
+        }
+    });
+
+    return Math.floor((bytes / maxBytes) * 100);
 });
 
 const getProcessingMediaItems = (): Media[] => {
