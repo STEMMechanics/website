@@ -275,6 +275,7 @@
                                             class="flex gap-1">
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
+                                                v-if="allowRotateSelected"
                                                 class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
                                                 viewBox="0 0 24 24"
                                                 @click="
@@ -289,6 +290,7 @@
                                             </svg>
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
+                                                v-if="allowRotateSelected"
                                                 class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
                                                 viewBox="0 0 24 24"
                                                 @click="
@@ -1321,6 +1323,18 @@ const formatDate = (date) => {
     const smdate = new SMDate(date).format("MMM dd, yyyy");
     return smdate;
 };
+
+const allowRotateSelected = computed(() => {
+    return (
+        lastSelected.value != null &&
+        mediaIsBusy(lastSelected.value) == false &&
+        (mimeMatches("image/*", lastSelected.value.mime_type) ||
+            mimeMatches("video/*", lastSelected.value.mime_type)) &&
+        userStore.id &&
+        (userHasPermission("admin/media") ||
+            lastSelected.value.user_id == userStore.id)
+    );
+});
 
 const allowEditSelected = computed(() => {
     return (
