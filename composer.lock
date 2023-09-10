@@ -277,16 +277,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.281.2",
+            "version": "3.281.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "5b33690b4ebc32a75164be0d6805d393a3ca9df9"
+                "reference": "a3cfb20dbfb11117b7174b2594fc597745252e0c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/5b33690b4ebc32a75164be0d6805d393a3ca9df9",
-                "reference": "5b33690b4ebc32a75164be0d6805d393a3ca9df9",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a3cfb20dbfb11117b7174b2594fc597745252e0c",
+                "reference": "a3cfb20dbfb11117b7174b2594fc597745252e0c",
                 "shasum": ""
             },
             "require": {
@@ -366,9 +366,9 @@
             "support": {
                 "forum": "https://forums.aws.amazon.com/forum.jspa?forumID=80",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.281.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.281.3"
             },
-            "time": "2023-09-07T18:06:59+00:00"
+            "time": "2023-09-08T18:06:26+00:00"
         },
         {
             "name": "brick/math",
@@ -2950,16 +2950,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "2.69.0",
+            "version": "2.70.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/briannesbitt/Carbon.git",
-                "reference": "4308217830e4ca445583a37d1bf4aff4153fa81c"
+                "reference": "d3298b38ea8612e5f77d38d1a99438e42f70341d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/4308217830e4ca445583a37d1bf4aff4153fa81c",
-                "reference": "4308217830e4ca445583a37d1bf4aff4153fa81c",
+                "url": "https://api.github.com/repos/briannesbitt/Carbon/zipball/d3298b38ea8612e5f77d38d1a99438e42f70341d",
+                "reference": "d3298b38ea8612e5f77d38d1a99438e42f70341d",
                 "shasum": ""
             },
             "require": {
@@ -3052,7 +3052,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2023-08-03T09:00:52+00:00"
+            "time": "2023-09-07T16:43:50+00:00"
         },
         {
             "name": "nette/schema",
@@ -9052,16 +9052,16 @@
         },
         {
             "name": "sebastian/exporter",
-            "version": "5.0.0",
+            "version": "5.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/exporter.git",
-                "reference": "f3ec4bf931c0b31e5b413f5b4fc970a7d03338c0"
+                "reference": "32ff03d078fed1279c4ec9a407d08c5e9febb480"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/exporter/zipball/f3ec4bf931c0b31e5b413f5b4fc970a7d03338c0",
-                "reference": "f3ec4bf931c0b31e5b413f5b4fc970a7d03338c0",
+                "url": "https://api.github.com/repos/sebastianbergmann/exporter/zipball/32ff03d078fed1279c4ec9a407d08c5e9febb480",
+                "reference": "32ff03d078fed1279c4ec9a407d08c5e9febb480",
                 "shasum": ""
             },
             "require": {
@@ -9117,7 +9117,8 @@
             ],
             "support": {
                 "issues": "https://github.com/sebastianbergmann/exporter/issues",
-                "source": "https://github.com/sebastianbergmann/exporter/tree/5.0.0"
+                "security": "https://github.com/sebastianbergmann/exporter/security/policy",
+                "source": "https://github.com/sebastianbergmann/exporter/tree/5.0.1"
             },
             "funding": [
                 {
@@ -9125,7 +9126,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2023-02-03T07:06:49+00:00"
+            "time": "2023-09-08T04:46:58+00:00"
         },
         {
             "name": "sebastian/global-state",
@@ -9970,5 +9971,5 @@
         "php": "^8.1"
     },
     "platform-dev": [],
-    "plugin-api-version": "2.3.0"
+    "plugin-api-version": "2.6.0"
 }
