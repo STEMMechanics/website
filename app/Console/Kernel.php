@@ -15,7 +15,8 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
-        $schedule->command('app:cleanup-temp-files')->everySecond();
+        $schedule->command('app:cleanup-temp-files')->everyThirtyMinutes();
+        $schedule->command('app:remove-stale-media-jobs')->everyThirtyMinutes();
     }
 
     /**
