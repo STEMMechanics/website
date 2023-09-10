@@ -134,8 +134,6 @@ export const api = {
                 for (const header in options.headers) {
                     xhr.setRequestHeader(header, options.headers[header]);
                 }
-                xhr.send(options.body as XMLHttpRequestBodyInit);
-
                 xhr.onload = function () {
                     const result = {
                         status: xhr.status,
@@ -188,6 +186,12 @@ export const api = {
                         return;
                     }
                 };
+
+                try {
+                    xhr.send(options.body as XMLHttpRequestBodyInit);
+                } catch (e) {
+                    console.log(e);
+                }
             } else {
                 const fetchOptions: RequestInit = {
                     method: options.method.toUpperCase() || "GET",
@@ -379,7 +383,7 @@ export const api = {
                 const file = apiOptions.body.get(apiOptions.chunk);
 
                 if (file instanceof File) {
-                    const chunkSize = 50 * 1024 * 1024;
+                    const chunkSize = 2 * 1024 * 1024;
                     let chunk = 0;
                     let chunkCount = 1;
                     let job_id = -1;

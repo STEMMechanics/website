@@ -95,6 +95,7 @@ export interface MediaJob {
     status: string;
     status_text: string;
     progress: number;
+    progress_max: number;
 }
 
 export interface MediaJobResponse {

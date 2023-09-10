@@ -2,6 +2,7 @@
 
 namespace App\Conductors;
 
+use App\Models\MediaJob;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;

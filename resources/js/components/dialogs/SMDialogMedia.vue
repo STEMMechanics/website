@@ -151,8 +151,8 @@
                                             <SMLoading
                                                 v-if="getMediaStatus(item).busy"
                                                 small
-                                                class="bg-white bg-op-90 w-full h-full"
-                                                >{{
+                                                class="bg-white bg-op-90 w-full h-full">
+                                                {{
                                                     getMediaStatusText(item)
                                                 }}</SMLoading
                                             >
@@ -197,6 +197,27 @@
                                             width: `${computedUploadProgress}%`,
                                         }"></div>
                                 </div>
+                                <p class="m-0">
+                                    {{ computedUploadMediaStatus }}
+                                </p>
+                            </div>
+                            <div
+                                v-if="getProcessingMediaItems().length > 0"
+                                class="flex flex-col text-xs border-b border-gray-3 pb-4 mb-4">
+                                <h3 class="text-xs mb-2">
+                                    {{ computedProcessingMediaTitle }}
+                                </h3>
+                                <div
+                                    class="w-full bg-gray-3 h-3 mb-2 rounded-2">
+                                    <div
+                                        class="bg-sky-600 h-3 rounded-2"
+                                        :style="{
+                                            width: `${computedProcessingProgress}%`,
+                                        }"></div>
+                                </div>
+                                <p class="m-0">
+                                    {{ computedProcessingMediaStatus }}
+                                </p>
                             </div>
                             <div v-if="lastSelected != null">
                                 <div
@@ -818,6 +839,7 @@ const handleChangeSelectFile = async () => {
 const handleFilesUpload = (files: FileList) => {
     const fileList = [];
     let count = 0;
+    let maxCount = 15;
     let warnedUser = false;
 
     fileList.push(...Array.from(files));
@@ -826,7 +848,7 @@ const handleFilesUpload = (files: FileList) => {
         if (mimeMatches(props.mime, file.type) == true) {
             count = getUploadingMediaItems().length;
 
-            if (count < 5) {
+            if (count <= maxCount) {
                 const uploadId = generateRandomId("upload_", 8, (s) => {
                     return getMediaItemById(s) != null;
                 });
@@ -834,18 +856,19 @@ const handleFilesUpload = (files: FileList) => {
                 mediaItems.value.unshift(
                     createMediaItem({
                         id: uploadId,
+                        name: convertFileNameToTitle(file.name),
                     }),
                 );
 
                 window.setTimeout(() => {
                     uploadFileById(uploadId, file);
                 }, 50);
-            } else if (count >= 5 && warnedUser == false) {
+            } else if (count > maxCount && warnedUser == false) {
                 warnedUser = true;
                 useToastStore().addToast({
                     title: "Maximum Files",
                     type: "warning",
-                    content: "You cannot upload more than 5 files at a time",
+                    content: `You cannot upload more than ${maxCount} files at a time`,
                 });
 
                 return;
@@ -861,18 +884,33 @@ const handleFilesUpload = (files: FileList) => {
 };
 
 const getUploadingMediaItems = (): Media[] => {
-    return mediaItems.value.filter((item) => item.id.startsWith("upload_"));
+    return mediaItems.value.filter((item) => {
+        return (
+            item.id.startsWith("upload_") &&
+            item.jobs.length > 0 &&
+            item.jobs[0].status === "uploading"
+        );
+    });
 };
 
 const computedUploadMediaTitle = computed(() => {
     const items = getUploadingMediaItems();
-    let prefix = "Uploading";
+    return `Uploading ${items.length} File${items.length == 1 ? "" : "s"}`;
+});
 
-    if (computedUploadProgress.value >= 100) {
-        prefix = "Processing";
-    }
+const computedUploadMediaStatus = computed(() => {
+    const items = getUploadingMediaItems();
+    let bytes = 0;
+    let maxBytes = 0;
 
-    return `${prefix} ${items.length} File${items.length == 1 ? "" : "s"}`;
+    items.forEach((item) => {
+        if (item.jobs.length > 0) {
+            bytes += item.jobs[0].progress;
+            maxBytes += item.jobs[0].progress_max;
+        }
+    });
+
+    return `${bytesReadable(bytes)} of ${bytesReadable(maxBytes)}`;
 });
 
 const computedUploadProgress = computed(() => {
@@ -883,12 +921,74 @@ const computedUploadProgress = computed(() => {
 
     const totalProgress = items.reduce((accumulator, item) => {
         if (item.jobs.length > 0) {
-            accumulator += item.jobs[0].progress || 100;
+            accumulator +=
+                Math.floor(
+                    (item.jobs[0].progress / item.jobs[0].progress_max) * 100,
+                ) || 100;
         }
         return accumulator;
     }, 0);
 
     return Math.floor(totalProgress / items.length);
+});
+
+const getProcessingMediaItems = (): Media[] => {
+    return mediaItems.value.filter((item) => {
+        return (
+            item.id.startsWith("upload_") &&
+            item.jobs.length > 0 &&
+            item.jobs[0].status !== "uploading"
+        );
+    });
+};
+
+const computedProcessingMediaTitle = computed(() => {
+    const items = getProcessingMediaItems();
+    return `Processing ${items.length} File${items.length == 1 ? "" : "s"}`;
+});
+
+const computedProcessingProgress = computed(() => {
+    const items = getProcessingMediaItems();
+    if (items.length === 0) {
+        return 100;
+    }
+
+    const totalProgress = items.reduce((accumulator, item) => {
+        if (item.jobs.length > 0) {
+            if (item.jobs[0].progress_max != 0) {
+                accumulator +=
+                    Math.floor(
+                        (item.jobs[0].progress / item.jobs[0].progress_max) *
+                            100,
+                    ) || 100;
+            }
+        }
+        return accumulator;
+    }, 0);
+
+    return Math.floor(totalProgress / items.length);
+});
+
+const computedProcessingMediaStatus = computed(() => {
+    const items = getProcessingMediaItems();
+    let status = "";
+
+    items.every((item) => {
+        let itemStatus = getMediaStatusText(item);
+        if (status == "" || (itemStatus != "" && itemStatus != "Queued")) {
+            const endLoop = !(status == "");
+            status = `${item.name}: ${itemStatus}`;
+
+            if (endLoop == true) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    return status;
+    // return `${bytesReadable(bytes)} of ${bytesReadable(maxBytes)}`;
 });
 
 /**
@@ -909,14 +1009,14 @@ const uploadFileById = (uploadId: string, file: File): void => {
         headers: {
             "Content-Type": "multipart/form-data",
         },
+        chunk: "file",
         progress: (progressEvent) => {
             const mediaItem = getMediaItemById(uploadId);
             if (mediaItem != null) {
                 mediaItem.jobs[0] = createMediaJobItem({
                     status: "uploading",
-                    progress: Math.floor(
-                        (progressEvent.loaded / progressEvent.total) * 100,
-                    ),
+                    progress: progressEvent.loaded,
+                    progress_max: progressEvent.total,
                 });
             }
         },
@@ -934,10 +1034,20 @@ const uploadFileById = (uploadId: string, file: File): void => {
             }
         })
         .catch((error) => {
-            //             let errorString = "A server error occurred";
-            // if (error.status == 413) {
-            //     errorString = `The file is larger than ${max_upload_size.value}`;
-            // }
+            if (error.status == 413) {
+                useToastStore().addToast({
+                    title: "File too large",
+                    type: "danger",
+                    content: `Cannot upload the file ${file.name} as it larger than ${max_upload_size.value}.`,
+                });
+            } else {
+                useToastStore().addToast({
+                    title: "File upload error",
+                    type: "danger",
+                    content: `Cannot upload the file ${file.name} as a server error occurred.`,
+                });
+            }
+
             console.log(error);
         });
 };
@@ -949,7 +1059,7 @@ const uploadFileById = (uploadId: string, file: File): void => {
  */
 const updateMediaItem = (id: string): void => {
     let media = getMediaItemById(id);
-    let timeout = 50;
+    let timeout = 200;
 
     if (media != null && media.jobs.length > 0) {
         if (id.startsWith("upload_")) {
@@ -964,10 +1074,13 @@ const updateMediaItem = (id: string): void => {
                     if (data.media_job.media_id != null) {
                         media.id = data.media_job.media_id;
                     }
+                    if (data.media_job.id == media.jobs[0].id) {
+                        media.jobs[0] = data.media_job;
+                    }
                 })
                 .catch((error) => {
                     if (error.status == 429) {
-                        timeout = 500;
+                        timeout = 1000;
                     }
 
                     /* error */
@@ -1398,7 +1511,7 @@ const postUpdate = (data: MediaUpdate): void => {
             description: data.description,
         },
     }).catch((error) => {
-        console.log(error);
+        console.log("postupdate: " + error);
     });
 };
 

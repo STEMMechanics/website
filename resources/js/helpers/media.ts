@@ -193,14 +193,14 @@ export const getMediaStatusText = (media: Media): string => {
         ) {
             if (media.jobs[0].status_text != "") {
                 status = toTitleCase(media.jobs[0].status_text);
-                if (
-                    media.jobs[0].status == "processing" &&
-                    media.jobs[0].progress > -1
-                ) {
-                    status += ` ${media.jobs[0].progress}%`;
-                }
             } else {
                 status = toTitleCase(media.jobs[0].status);
+            }
+
+            if (media.jobs[0].progress_max != 0) {
+                status += ` ${Math.floor(
+                    (media.jobs[0].progress / media.jobs[0].progress_max) * 100,
+                )}%`;
             }
         }
     }
@@ -234,6 +234,7 @@ export interface MediaJobParams {
     status?: string;
     status_text?: string;
     progress?: number;
+    progress_max?: number;
 }
 
 export const createMediaItem = (params?: MediaParams): Media => {
@@ -267,6 +268,7 @@ export const createMediaJobItem = (params?: MediaJobParams): MediaJob => {
         status: params.status || "",
         status_text: params.status_text || "",
         progress: params.progress || 0,
+        progress_max: params.progress_max || 0,
     };
 
     return job;

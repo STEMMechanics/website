@@ -593,7 +593,7 @@ class Conductor
 
         $requestIncludes = [];
         $modelFields = $conductor->fields(new $conductor->class());
-
+        
         // Limit fields
         $limitFields = $modelFields;
         if ($fields instanceof Request) {
