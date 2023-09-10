@@ -21,7 +21,7 @@ class MediaRequest extends BaseRequest
                 }),
                 'string',
             ],
-            'chunk' => 'required_with:chunk_count|integer|min:1|max:99|lte:chunk_count',
+            'chunk' => 'required_with:chunk_count|integer|min:1|max:999|lte:chunk_count',
             'chunk_count' => 'required_with:chunk|integer|min:1',
         ];
     }
