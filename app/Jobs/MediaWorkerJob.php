@@ -297,7 +297,7 @@ class MediaWorkerJob implements ShouldQueue
 
             // Finish media object
             if ($media->hasStagingFile() === true) {
-                $this->mediaJob->setStatusProcessing(0, 0, 'uploading to cdn');
+                $this->mediaJob->setStatusProcessing(0, 0, 'transferring to cdn');
                 $media->deleteFile();
                 $media->saveStagingFile(true);
             }
