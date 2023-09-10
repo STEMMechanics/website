@@ -249,6 +249,9 @@
                                             }}
                                         </p>
                                         <p class="m-0">
+                                            {{ lastSelected.name }}
+                                        </p>
+                                        <p class="m-0">
                                             {{ lastSelected.mime_type }}
                                         </p>
                                         <p class="m-0">
@@ -669,6 +672,12 @@ const setMediaItemById = (item_id: string, updatedMedia: Media): Media => {
     return updatedMedia;
 };
 
+const removeMediaItem = (item_id: string): void => {
+    mediaItems.value = mediaItems.value.filter(
+        (mediaItem) => mediaItem.id !== item_id,
+    );
+};
+
 /**
  * Handle user clicking the cancel/close button.
  */
@@ -1050,7 +1059,7 @@ const uploadFileById = (uploadId: string, file: File): void => {
                 });
             }
 
-            console.log(error);
+            removeMediaItem(uploadId);
         });
 };
 
