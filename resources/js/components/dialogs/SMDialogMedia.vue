@@ -221,106 +221,116 @@
                             </div>
                             <div v-if="lastSelected != null">
                                 <div
-                                    class="flex text-xs border-b border-gray-3 pb-4">
-                                    <div
-                                        class="w-100 h-100 max-h-15 max-w-15 mr-2 bg-contain bg-no-repeat bg-center"
-                                        :style="{
-                                            backgroundImage: `url('${mediaGetThumbnail(
-                                                lastSelected,
-                                            )}')`,
-                                        }">
-                                        <SMLoading
-                                            v-if="
-                                                getMediaStatus(lastSelected)
-                                                    .busy
-                                            "
-                                            small
-                                            class="bg-white bg-op-90 w-full h-full" />
-                                    </div>
-                                    <div class="flex flex-col w-100">
-                                        <p class="m-0 text-bold">
-                                            {{ lastSelected.title }}
-                                        </p>
-                                        <p class="m-0">
-                                            {{
-                                                formatDate(
-                                                    lastSelected.created_at,
-                                                )
-                                            }}
-                                        </p>
-                                        <p class="m-0">
-                                            {{ lastSelected.name }}
-                                        </p>
-                                        <p class="m-0">
-                                            {{ lastSelected.mime_type }}
-                                        </p>
-                                        <p class="m-0">
-                                            {{
-                                                bytesReadable(
-                                                    lastSelected.size,
-                                                    0,
-                                                )
-                                            }}
-                                        </p>
-                                        <p
-                                            v-if="
-                                                getMediaStatusText(
+                                    class="flex flex-col text-xs border-b border-gray-3 pb-4">
+                                    <div class="flex">
+                                        <div
+                                            class="w-100 h-100 max-h-15 max-w-15 mr-2 bg-contain bg-no-repeat bg-center"
+                                            :style="{
+                                                backgroundImage: `url('${mediaGetThumbnail(
                                                     lastSelected,
-                                                ) != ''
-                                            "
-                                            class="m-0 italic">
-                                            {{
-                                                getMediaStatusText(lastSelected)
-                                            }}
-                                        </p>
-                                        <p
-                                            v-if="allowEditSelected"
-                                            class="flex gap-1">
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                v-if="allowRotateSelected"
-                                                class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
-                                                viewBox="0 0 24 24"
-                                                @click="
-                                                    handleRotateLeft(
+                                                )}')`,
+                                            }">
+                                            <SMLoading
+                                                v-if="
+                                                    getMediaStatus(lastSelected)
+                                                        .busy
+                                                "
+                                                small
+                                                class="bg-white bg-op-90 w-full h-full" />
+                                        </div>
+                                        <div class="flex flex-col w-100">
+                                            <p class="m-0 text-bold">
+                                                {{ lastSelected.title }}
+                                            </p>
+                                            <p class="m-0">
+                                                {{
+                                                    formatDate(
+                                                        lastSelected.created_at,
+                                                    )
+                                                }}
+                                            </p>
+                                            <p class="m-0">
+                                                {{
+                                                    bytesReadable(
+                                                        lastSelected.size,
+                                                        0,
+                                                    )
+                                                }}
+                                            </p>
+                                            <p
+                                                v-if="
+                                                    getMediaStatusText(
+                                                        lastSelected,
+                                                    ) != ''
+                                                "
+                                                class="m-0 italic">
+                                                {{
+                                                    getMediaStatusText(
                                                         lastSelected,
                                                     )
-                                                ">
-                                                <title>Rotate Left</title>
-                                                <path
-                                                    d="M4 11C4 6.58 7.58 3 12 3L13 3.06V5.08L12 5C8.69 5 6 7.69 6 11H9L5 15L1 11H4M17 7H13C11.9 7 11 7.9 11 9V18C11 19.11 11.9 20 13 20H19C20.11 20 21 19.11 21 18V11L17 7M19 18H13V9H16V12H19V18Z"
-                                                    fill="currentColor" />
-                                            </svg>
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                v-if="allowRotateSelected"
-                                                class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
-                                                viewBox="0 0 24 24"
-                                                @click="
-                                                    handleRotateRight(
-                                                        lastSelected,
-                                                    )
-                                                ">
-                                                <title>Rotate Right</title>
-                                                <path
-                                                    d="M20 11H23L19 15L15 11H18C18 7.69 15.31 5 12 5L11 5.08V3.06L12 3C16.42 3 20 6.58 20 11M9 7H5C3.9 7 3 7.9 3 9V18C3 19.11 3.9 20 5 20H11C12.11 20 13 19.11 13 18V11L9 7M11 18H5V9H8V12H11V18Z"
-                                                    fill="currentColor" />
-                                            </svg>
-                                            <svg
-                                                xmlns="http://www.w3.org/2000/svg"
-                                                class="h-5 w-5 cursor-pointer text-red-6 hover:text-red-4 ml-auto"
-                                                viewBox="0 0 24 24"
-                                                @click="
-                                                    handleDelete(lastSelected)
-                                                ">
-                                                <title>
-                                                    Delete Permanently
-                                                </title>
-                                                <path
-                                                    d="M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z"
-                                                    fill="currentColor" />
-                                            </svg>
-                                        </p>
+                                                }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <table>
+                                            <tr>
+                                                <th
+                                                    class="text-left vertical-top">
+                                                    File
+                                                </th>
+                                                <td>{{ lastSelected.name }}</td>
+                                            </tr>
+                                            <tr>
+                                                <th
+                                                    class="text-left vertical-top">
+                                                    Type
+                                                </th>
+                                                <td>
+                                                    {{ lastSelected.mime_type }}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div
+                                        v-if="allowEditSelected"
+                                        class="flex mt-2 gap-1">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            v-if="allowRotateSelected"
+                                            class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
+                                            viewBox="0 0 24 24"
+                                            @click="
+                                                handleRotateLeft(lastSelected)
+                                            ">
+                                            <title>Rotate Left</title>
+                                            <path
+                                                d="M4 11C4 6.58 7.58 3 12 3L13 3.06V5.08L12 5C8.69 5 6 7.69 6 11H9L5 15L1 11H4M17 7H13C11.9 7 11 7.9 11 9V18C11 19.11 11.9 20 13 20H19C20.11 20 21 19.11 21 18V11L17 7M19 18H13V9H16V12H19V18Z"
+                                                fill="currentColor" />
+                                        </svg>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            v-if="allowRotateSelected"
+                                            class="h-5 w-5 cursor-pointer text-gray-6 hover:text-gray-4"
+                                            viewBox="0 0 24 24"
+                                            @click="
+                                                handleRotateRight(lastSelected)
+                                            ">
+                                            <title>Rotate Right</title>
+                                            <path
+                                                d="M20 11H23L19 15L15 11H18C18 7.69 15.31 5 12 5L11 5.08V3.06L12 3C16.42 3 20 6.58 20 11M9 7H5C3.9 7 3 7.9 3 9V18C3 19.11 3.9 20 5 20H11C12.11 20 13 19.11 13 18V11L9 7M11 18H5V9H8V12H11V18Z"
+                                                fill="currentColor" />
+                                        </svg>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            class="h-5 w-5 cursor-pointer text-red-6 hover:text-red-4 ml-auto"
+                                            viewBox="0 0 24 24"
+                                            @click="handleDelete(lastSelected)">
+                                            <title>Delete Permanently</title>
+                                            <path
+                                                d="M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19M8,9H16V19H8V9M15.5,4L14.5,3H9.5L8.5,4H5V6H19V4H15.5Z"
+                                                fill="currentColor" />
+                                        </svg>
                                     </div>
                                 </div>
                                 <div class="py-2">
