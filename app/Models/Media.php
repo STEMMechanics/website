@@ -709,7 +709,7 @@ class Media extends Model
                 /** @var Illuminate\Filesystem\FilesystemAdapter */
                 $fileSystem = Storage::disk($this->storage);
                 // if ($silent === false) {
-                //     $this->status('Uploading to CDN');
+                //     $this->status('Transferring to CDN');
                 // }
                 $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
             }

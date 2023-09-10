@@ -84,7 +84,7 @@ class StoreUploadedFileJob implements ShouldQueue
         $fileName = $this->media->name;
 
         try {
-            $this->media->status = "Uploading to CDN";
+            $this->media->status = "Transferring to CDN";
             $this->media->save();
 
             // convert HEIC file
