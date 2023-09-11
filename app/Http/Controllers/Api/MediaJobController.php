@@ -10,6 +10,28 @@ use Illuminate\Http\Request;
 class MediaJobController extends ApiController
 {
     /**
+     * Display a listing of the resource.
+     *
+     * @param \Illuminate\Http\Request $request The endpoint request.
+     * @return \Illuminate\Http\Response
+     */
+    public function index(Request $request)
+    {
+        list($collection, $total) = MediaJobConductor::request($request);
+
+        return $this->respondAsResource(
+            $collection,
+            ['isCollection' => true,
+                'appendData' => ['total' => $total],
+                'resourceName' => 'media_job'
+            ],
+            function ($options) {
+                return $options['total'] === 0;
+            }
+        );
+    }
+
+    /**
      * Display the specified resource.
      *
      * @param \Illuminate\Http\Request $request  The endpoint request.
