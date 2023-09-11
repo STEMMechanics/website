@@ -1085,7 +1085,7 @@ const updateMediaItem = (id: string): void => {
     if (media != null && media.jobs.length > 0) {
         if (id.startsWith("upload_")) {
             api.get({
-                url: "/media/job/{id}",
+                url: "/media/jobs/{id}",
                 params: {
                     id: media.jobs[0].id,
                 },
