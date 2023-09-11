@@ -287,7 +287,7 @@ const handleSubmit = async (enableFormCallBack) => {
                     .id;
                 const mediaJobUpdate = async () => {
                     api.get({
-                        url: "/media/job/{id}",
+                        url: "/media/jobs/{id}",
                         params: {
                             id: mediaJobId,
                         },
