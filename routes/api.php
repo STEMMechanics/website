@@ -41,7 +41,8 @@ Route::post('/users/resendVerifyEmailCode', [UserController::class, 'resendVerif
 Route::post('/users/verifyEmail', [UserController::class, 'verifyEmail']);
 Route::get('/users/{user}/events', [UserController::class, 'eventList']);
 
-Route::get('media/job/{mediaJob}', [MediaJobController::class, 'show']);
+Route::get('media/jobs', [MediaJobController::class, 'index']);
+Route::get('media/jobs/{mediaJob}', [MediaJobController::class, 'show']);
 Route::apiResource('media', MediaController::class);
 Route::get('media/{medium}/download', [MediaController::class, 'download']);
 
