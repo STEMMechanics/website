@@ -157,7 +157,6 @@ class Conductor
         }
         $filterFields += $this->defaultFilters;
 
-
         foreach ($filterFields as $field => $value) {
             if (
                 is_array($limitFields) === false ||
@@ -168,7 +167,7 @@ class Conductor
                 $join = 'AND';
 
                 // Check if value has a operator and remove it if it's a number
-                if (preg_match('/^(!?=|[<>]=?|<>|!)([^=!<>].*)*$/', $value, $matches) > 0) {
+                if (preg_match('/^(!?=|[<>]=?|<>|!|\|)([^=!<>].*)*$/', $value, $matches) > 0) {
                     $operator = $matches[1];
                     $value = ($matches[2] ?? '');
                 }
@@ -187,15 +186,23 @@ class Conductor
                         break;
                     case '>':
                     case '<':
+                    case '|':
+                        $operator = '=';
+                        $separatorPos = strpos($value, '|');
+                        if ($separatorPos !== false) {
+                            $valueList = explode('|', $value);
+                            foreach($valueList as $valueItem) {
+                                $this->appendFilter($field, $operator, $valueItem, 'OR');
+                            }
+                            continue 2;
+                        }
+                        break;
                     case '>=':
                     case '<=':
                     case '!=':
                         break;
                     case '<>':
-                        $separatorPos = strpos($value, '|');
-                        if ($separatorPos === false) {
-                            $operator = '!=';
-                        }
+                        $operator = '!=';
                         break;
                     default:
                         $operator = 'LIKE';
