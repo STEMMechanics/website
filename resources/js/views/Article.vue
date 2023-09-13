@@ -138,6 +138,8 @@ const handleLoad = async () => {
                     } else {
                         pageStatus.value = 404;
                     }
+                } else {
+                    pageStatus.value = result.status;
                 }
 
                 pageLoading.value = false;
