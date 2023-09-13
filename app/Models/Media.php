@@ -162,12 +162,25 @@ class Media extends Model
      * Variants Get Mutator.
      *
      * @param mixed $value The value to mutate.
+     * @param bool $raw Values are not run through urlencode.
      * @return array|null The mutated value.
      */
-    public function getVariantsAttribute(mixed $value): array|null
+    public function getVariantsAttribute(mixed $value, bool $raw = false): array|null
     {
         if (is_string($value) === true) {
-            return json_decode($value, true);
+            $decodedValue = json_decode($value, true);
+
+            // Check if the decoded value is an array
+            if ($raw == false && is_array($decodedValue)) {
+                // Loop through the array and encode each value
+                foreach ($decodedValue as &$item) {
+                    if (is_string($item)) {
+                        $item = urlencode($item);
+                    }
+                }
+            }
+    
+            return $decodedValue;
         }
 
         return [];
