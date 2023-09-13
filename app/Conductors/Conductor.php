@@ -187,9 +187,9 @@ class Conductor
                     case '>':
                     case '<':
                     case '|':
-                        $operator = '=';
                         $separatorPos = strpos($value, '|');
                         if ($separatorPos !== false) {
+                            $operator = '==';
                             $valueList = explode('|', $value);
                             foreach($valueList as $valueItem) {
                                 $this->appendFilter($field, $operator, $valueItem, 'OR');
