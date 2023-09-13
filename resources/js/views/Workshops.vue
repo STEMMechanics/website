@@ -150,7 +150,7 @@ const handleLoad = async () => {
 
         if (
             (!filterDateRange.value || filterDateRange.value.length === 0) &&
-            query["filter"].length == 0
+            (!query["filter"] || query["filter"].length === 0)
         ) {
             const now = new Date();
             const startingDate = new Date(now.setDate(now.getDate() - 8));
