@@ -175,7 +175,7 @@ class Media extends Model
                 // Loop through the array and encode each value
                 foreach ($decodedValue as &$item) {
                     if (is_string($item)) {
-                        $item = customUrlEncode($item);
+                        $item = rawurlencode($item);
                     }
                 }
             }
