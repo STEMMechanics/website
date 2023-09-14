@@ -1,4 +1,4 @@
-import { Router } from "vue-router";
+import { RouteLocationNormalizedLoaded, Router } from "vue-router";
 
 export const urlStripAttributes = (url: string): string => {
     const urlObject = new URL(url);
@@ -9,7 +9,7 @@ export const urlStripAttributes = (url: string): string => {
 
 export const urlMatches = (
     fullUrl: string,
-    testPath: string | string[]
+    testPath: string | string[],
 ): boolean | number => {
     // Remove query string and fragment identifier from both URLs
     const urlWithoutParams = fullUrl.split(/[?#]/)[0];
@@ -35,11 +35,11 @@ export const urlMatches = (
                 // Remove the domain and test the paths
                 const urlWithoutDomain = trimmedUrl.replace(
                     /^https?:\/\/[^/]+/,
-                    ""
+                    "",
                 );
                 const pathWithoutDomain = trimmedPath.replace(
                     /^https?:\/\/[^/]+/,
-                    ""
+                    "",
                 );
                 if (urlWithoutDomain === pathWithoutDomain) {
                     return i;
@@ -65,11 +65,11 @@ export const urlMatches = (
             // Remove the domain and test the paths
             const urlWithoutDomain = trimmedUrl.replace(
                 /^https?:\/\/[^/]+/,
-                ""
+                "",
             );
             const pathWithoutDomain = trimmedPath.replace(
                 /^https?:\/\/[^/]+/,
-                ""
+                "",
             );
             return urlWithoutDomain === pathWithoutDomain;
         }
@@ -94,6 +94,28 @@ export const updateRouterParams = (router: Router, params: Params): void => {
     });
 
     router.push({ query });
+};
+
+export const getRouterParam = (
+    route: RouteLocationNormalizedLoaded,
+    param: string,
+    defaultValue: string = "",
+): string => {
+    if (route.query[param] !== undefined) {
+        const val = route.query[param];
+
+        if (Array.isArray(val) == true) {
+            if (val.length > 0) {
+                return val[0];
+            }
+
+            return defaultValue;
+        }
+
+        return val.toString();
+    }
+
+    return defaultValue;
 };
 
 export const extractFileNameFromUrl = (url: string): string => {
