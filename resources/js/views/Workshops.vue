@@ -48,6 +48,12 @@
                 {{ eventsError || "No workshops where found" }}
             </p>
         </div>
+        <SMPagination
+            v-if="postsTotal > postsPerPage"
+            class="mb-4"
+            v-model="postsPage"
+            :total="postsTotal"
+            :per-page="postsPerPage" />
     </div>
 </template>
 
