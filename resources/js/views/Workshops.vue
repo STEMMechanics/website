@@ -50,7 +50,7 @@
         </div>
         <SMPagination
             v-if="postsTotal > postsPerPage"
-            class="mb-4"
+            class="mt-4"
             v-model="postsPage"
             :total="postsTotal"
             :per-page="postsPerPage" />
