@@ -67,12 +67,13 @@ import { SMDate } from "../helpers/datetime";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMLoading from "../components/SMLoading.vue";
 import SMEventCard from "../components/SMEventCard.vue";
-import { useRoute } from "vue-router";
-import { getRouterParam } from "../helpers/url";
+import { useRoute, useRouter } from "vue-router";
+import { getRouterParam, updateRouterParams } from "../helpers/url";
 
 const pageLoading = ref(true);
 let events: Event[] = reactive([]);
 const dateRangeError = ref("");
+const router = useRouter();
 
 const filterKeywords = ref("");
 const filterLocation = ref("");
@@ -173,6 +174,12 @@ const handleLoad = async () => {
         query["limit"] = postsPerPage;
         query["page"] = postsPage.value;
         query["sort"] = "start_at";
+
+        updateRouterParams(router, {
+            keywords: filterKeywords.value,
+            location: filterLocation.value,
+            "date-range": filterDateRange.value,
+        });
 
         let result = await api.get({
             url: "/events",
