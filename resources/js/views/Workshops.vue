@@ -67,6 +67,8 @@ import { SMDate } from "../helpers/datetime";
 import SMMastHead from "../components/SMMastHead.vue";
 import SMLoading from "../components/SMLoading.vue";
 import SMEventCard from "../components/SMEventCard.vue";
+import { useRoute } from "vue-router";
+import { getRouterParam } from "../helpers/url";
 
 const pageLoading = ref(true);
 let events: Event[] = reactive([]);
@@ -213,6 +215,9 @@ watch(
     },
 );
 
+filterKeywords.value = getRouterParam(useRoute(), "keywords");
+filterLocation.value = getRouterParam(useRoute(), "location");
+filterDateRange.value = getRouterParam(useRoute(), "date-range");
 handleLoad();
 </script>
 
