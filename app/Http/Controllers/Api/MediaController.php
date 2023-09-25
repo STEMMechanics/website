@@ -154,12 +154,35 @@ class MediaController extends ApiController
             }
 
             if ($file !== null) {
-                $data['size'] = $request->has('chunk') === true ? 0 : $file->getSize();
-                $data['mime_type'] = $request->has('chunk') === true ? '' : $file->getMimeType();
+                $data['size'] = $request->has('chunk') === true ? intval($request->get('size', 0)) : $file->getSize();
+                $data['mime_type'] = $request->has('chunk') === true ? $request->get('mime_type', '') : $file->getMimeType();
             }
 
             if ($request->has('storage') === true || $file !== null) {
                 $data['storage'] = $request->get('storage', '');
+            }
+
+            if ($request->has('security') === true || $file !== null) {
+                $data['security'] = $request->get('security', '');
+            }
+
+            if(array_key_exists('storage', $data) === true && 
+                array_key_exists('security', $data) === true && 
+                array_key_exists('mime_type', $data) === true && 
+                $data['mime_type'] !== "") {
+                    $error = Media::verifyStorage($data['mime_type'], $data['security'], $data['storage']);
+                    switch($error) {
+                        case Media::STORAGE_VALID:
+                            break;
+                        case Media::STORAGE_MIME_MISSING:
+                            return $this->respondWithErrors(['mime_type' => 'The file type is required.']);
+                        case Media::STORAGE_NOT_FOUND:
+                            return $this->respondWithErrors(['storage' => 'Storage was not found.']);
+                        case Media::STORAGE_INVALID_SECURITY:
+                            return $this->respondWithErrors(['storage' => 'Storage invalid for security value.']);
+                        default:
+                            return $this->respondWithErrors(['storage' => 'Storage verification error occurred.']);
+                    }
             }
 
             if ($request->has('transform') === true) {

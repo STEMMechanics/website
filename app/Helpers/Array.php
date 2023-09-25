@@ -55,3 +55,24 @@ function arrayDefaultValue(string $key, array $arr, mixed $value): mixed
 
     return $value;
 }
+
+/**
+ * Return if an item exists in an array, case insensitive
+ * 
+ * @param string $val The value to check.
+ * @param array  $arr The array to check.
+ * @return bool
+ */
+function existsInArray(string $val, array $arr): bool
+{
+    $exists = false;
+
+    foreach ($arr as $el) {
+        if (strcasecmp($val, $el) === 0) {
+            $exists = true;
+            break;
+        }
+    }
+
+    return $exists;
+}

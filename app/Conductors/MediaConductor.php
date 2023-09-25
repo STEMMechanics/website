@@ -52,7 +52,7 @@ class MediaConductor extends Conductor
         /** @var \App\Models\User */
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/media') === false) {
-            $fields = arrayRemoveItem($fields, ['permission', 'storage']);
+            $fields = arrayRemoveItem($fields, ['security', 'storage']);
         }
 
         return $fields;
@@ -68,9 +68,15 @@ class MediaConductor extends Conductor
     {
         $user = auth()->user();
         if ($user === null) {
-            $builder->where('permission', '');
+            $builder->where('security', '');
         } else {
-            $builder->where('permission', '')->orWhereIn('permission', $user->permissions);
+            $builder->where(function ($query) use ($user) {
+                $query->where('security', '')
+                    ->orWhere(function ($subquery) use ($user) {
+                        $subquery->where('security', 'LIKE', 'permission:%')
+                            ->whereIn(DB::raw("SUBSTRING(security, 11)"), $user->permissions);
+                    });
+            });
         }
     }
 

@@ -180,6 +180,29 @@ class MediaJob extends Model
                         $data['size'] = filesize($newFile);
                         $data['mime_type'] = $mime;
 
+                        if(array_key_exists('storage', $data) === true && 
+                        array_key_exists('security', $data) === true && 
+                        array_key_exists('mime_type', $data) === true && 
+                        $data['mime_type'] !== "") {
+                            $error = Media::verifyStorage($data['mime_type'], $data['security'], $data['storage']);
+                            switch($error) {
+                                case Media::STORAGE_VALID:
+                                    break;
+                                case Media::STORAGE_MIME_MISSING:
+                                    $this->setStatusInvalid('The file type cannot be determined.');
+                                    return;
+                                case Media::STORAGE_NOT_FOUND:
+                                    $this->setStatusInvalid('Storage was not found.');
+                                    return;
+                                case Media::STORAGE_INVALID_SECURITY:
+                                    $this->setStatusInvalid('Storage invalid for security value.');
+                                    return;
+                                default:
+                                    $this->setStatusInvalid('Storage verification error occurred.');
+                                    return;
+                            }
+                        }
+                        
                         $this->data = json_encode($data);
                         $this->setStatusQueued();
                         MediaWorkerJob::dispatch($this)->onQueue('media');

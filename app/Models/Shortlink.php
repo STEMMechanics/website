@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use App\Enum\HttpResponseCodes;
-use App\Jobs\MoveMediaJob;
 use App\Jobs\OptimizeMediaJob;
-use App\Jobs\StoreUploadedFileJob;
 use App\Traits\Uuids;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

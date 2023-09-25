@@ -30,10 +30,17 @@ class Media extends Model
     use Uuids;
     use DispatchesJobs;
 
+    public const NO_ERROR                   = 0;
+
     public const INVALID_FILE_ERROR         = 1;
     public const FILE_SIZE_EXCEEDED_ERROR   = 2;
     public const FILE_NAME_EXISTS_ERROR     = 3;
     public const TEMP_FILE_ERROR            = 4;
+
+    public const STORAGE_VALID              = 0;
+    public const STORAGE_MIME_MISSING       = 10;   // Mime type is missing and cannot verify
+    public const STORAGE_NOT_FOUND          = 11;   // Storage name is not found
+    public const STORAGE_INVALID_SECURITY   = 12;   // Security setting invalid for storage
 
     /**
      * The attributes that are mass assignable.
@@ -44,7 +51,7 @@ class Media extends Model
         'title',
         'user_id',
         'mime_type',
-        'permission',
+        'security',
         'storage',
         'description',
         'name',
@@ -70,7 +77,7 @@ class Media extends Model
         'variants' => '[]',
         'description' => '',
         'dimensions' => '',
-        'permission' => '',
+        'security' => '',
         'thumbnail' => '',
     ];
 
@@ -120,21 +127,6 @@ class Media extends Model
 
         static::updating(function ($media) use ($clearCache) {
             $clearCache($media);
-
-            if (array_key_exists('permission', $media->getChanges()) === true) {
-                $origPermission = $media->getOriginal()['permission'];
-                $newPermission = $media->permission;
-
-                $newPermissionLen = strlen($newPermission);
-
-                if ($newPermissionLen !== strlen($origPermission)) {
-                    if ($newPermissionLen === 0) {
-                        $this->moveToStorage('cdn');
-                    } else {
-                        $this->moveToStorage('private');
-                    }
-                }
-            }
         });
 
         static::deleting(function ($media) use ($clearCache) {
@@ -358,21 +350,6 @@ class Media extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    /**
-     * Move files to new storage device.
-     *
-     * @param string $storage The storage ID to move to.
-     * @return void
-     */
-    public function moveToStorage(string $storage): void
-    {
-        if ($storage !== $this->storage && Config::has("filesystems.disks.$storage") === true) {
-            // $this->status = "Processing media";
-            MoveMediaJob::dispatch($this, $storage)->onQueue('media');
-            $this->save();
-        }
     }
 
     /**
@@ -1052,5 +1029,33 @@ class Media extends Model
 
     public function jobs(): HasMany {
         return $this->hasMany(MediaJob::class, 'media_id');
+    }
+
+    public static function verifyStorage($mime_type, $security, &$storage): int {
+        if($mime_type === '') {
+            return Media::STORAGE_MIME_MISSING;
+        }
+
+        if($storage === '') {
+            if($security === '') {
+                if (strpos($mime_type, 'image/') === 0) {
+                    $storage = 'local';
+                } else {
+                    $storage = 'cdn';
+                }
+            } else {
+                $storage = 'private';
+            }
+        } else {
+            if(Storage::has($storage) === false) {
+                return Media::STORAGE_NOT_FOUND;
+            }
+
+            if(strcasecmp($storage, 'private') !== 0) {
+                return Media::STORAGE_INVALID_SECURITY;
+            }
+        }
+
+        return Media::STORAGE_VALID;
     }
 }

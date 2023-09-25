@@ -85,6 +85,16 @@ class MediaWorkerJob implements ShouldQueue
                     $data['file'] = $jpgFileName;
                 }//end if
 
+                // get security
+                $security = '';
+                if ($media === null) {
+                    if (array_key_exists('security', $data) === true) {
+                        $security = $data['security'];
+                    }
+                } else {
+                    $security = $media->security;
+                }
+
                 // get storage
                 $storage = '';
                 if ($media === null) {
@@ -96,10 +106,14 @@ class MediaWorkerJob implements ShouldQueue
                 }
 
                 if ($storage === '') {
-                    if (strpos($data['mime_type'], 'image/') === 0) {
-                        $storage = 'local';
+                    if(strlen($security) === 0) {
+                        if (strpos($data['mime_type'], 'image/') === 0) {
+                            $storage = 'local';
+                        } else {
+                            $storage = 'cdn';
+                        }
                     } else {
-                        $storage = 'cdn';
+                        $storage = 'private';
                     }
                 }
 
@@ -131,7 +145,8 @@ class MediaWorkerJob implements ShouldQueue
                         'name' => $data['name'],
                         'mime_type' => $data['mime_type'],
                         'size' => $data['size'],
-                        'storage' => $storage
+                        'security' => $data['security'],
+                        'storage' => $storage,
                     ]);
                 }//end if
 
@@ -273,26 +288,24 @@ class MediaWorkerJob implements ShouldQueue
                         $media->changeStagingFile($tempFilePath);
                     }
                 }//end if
-
-                // Move file
-                if (array_key_exists('move', $data['transform']) === true) {
-                    if (array_key_exists('storage', $data['transform']['move']) === true) {
-                        $newStorage = $data['transform']['move']['storage'];
-                        if ($media->storage !== $newStorage) {
-                            if (Storage::has($newStorage) === true) {
-                                $media->createStagingFile();
-                                $media->storage = $newStorage;
-                            } else {
-                                $this->throwMediaJobFailure("Cannot move file to '{$newStorage}' as it does not exist");
-                            }
-                        }
-                    }
-                }
             }//end if
 
             // Update attributes
             if (array_key_exists('title', $data) === true) {
                 $media->title = $data['title'];
+            }
+
+            // Relocate file (if requested)
+            if (array_key_exists('security', $data) === true) {
+                $media->security = $data['security'];
+            }
+            
+            if (array_key_exists('storage', $data) === true) {
+                if ($media->storage !== $data['storage']) {
+                    $media->createStagingFile();
+                    Storage::disk($media->storage)->delete($media->name);
+                    $media->storage = $data['storage'];
+                }
             }
 
             // Finish media object
