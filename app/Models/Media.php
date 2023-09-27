@@ -698,20 +698,10 @@ class Media extends Model
 
                 /** @var Illuminate\Filesystem\FilesystemAdapter */
                 $fileSystem = Storage::disk($this->storage);
-                // if ($silent === false) {
-                //     $this->status('Transferring to CDN');
-                // }
                 $fileSystem->putFileAs('/', $this->stagingFilePath, $this->name);
             }
 
-            // if ($silent === false) {
-            //     $this->status('Generating Thumbnail');
-            // }
             $this->generateThumbnail();
-
-            // if ($silent === false) {
-            //     $this->status('Generating Variants');
-            // }
             $this->generateVariants();
 
             if ($delete === true) {
@@ -783,70 +773,72 @@ class Media extends Model
         $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-thumb.webp";
         $success = false;
 
-        if (strpos($this->mime_type, 'image/') === 0) {
-            $image = Image::make($filePath);
-            $image->orientate();
-            $image->resize($thumbnailWidth, $thumbnailHeight, function ($constraint) {
-                $constraint->aspectRatio();
-            });
-            $image->fit($thumbnailWidth, $thumbnailHeight);
-            $image->encode('webp', 75)->save($tempImagePath);
-            $success = true;
-        } elseif ($this->mime_type === 'application/pdf' && extension_loaded('imagick') === true) {
-            $pdfPreview = new \Imagick();
-            $pdfPreview->setResolution(300, 300);
-            $pdfPreview->readImage($filePath . '[0]');
-            $pdfPreview->setImageFormat('webp');
-            $pdfPreview->thumbnailImage($thumbnailWidth, $thumbnailHeight, true);
-            file_put_contents($tempImagePath, $pdfPreview);
-
-            $success = true;
-        } elseif ($this->mime_type === 'text/plain') {
-            $image = Image::canvas($thumbnailWidth, $thumbnailHeight, '#FFFFFF');
-
-            // Read the first few lines of the text file
-            $numLines = 5;
-            $text = file_get_contents($filePath);
-            $lines = explode("\n", $text);
-            $previewText = implode("\n", array_slice($lines, 0, $numLines));
-
-            // Center the text on the image
-            $fontSize = 8;
-            $textColor = '#000000'; // Black text color
-
-            // Calculate the position to start drawing the text
-            $x = 10; // Left padding
-            $y = 10; // Top padding
-
-            // Draw the text on the canvas with text wrapping
-            $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
-            foreach ($lines as $line) {
-                $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
-                    $font->file(1);
-                    $font->size($fontSize);
-                    $font->color($textColor);
+        if ($this->security === '') {
+            if (strpos($this->mime_type, 'image/') === 0) {
+                $image = Image::make($filePath);
+                $image->orientate();
+                $image->resize($thumbnailWidth, $thumbnailHeight, function ($constraint) {
+                    $constraint->aspectRatio();
                 });
+                $image->fit($thumbnailWidth, $thumbnailHeight);
+                $image->encode('webp', 75)->save($tempImagePath);
+                $success = true;
+            } elseif ($this->mime_type === 'application/pdf' && extension_loaded('imagick') === true) {
+                $pdfPreview = new \Imagick();
+                $pdfPreview->setResolution(300, 300);
+                $pdfPreview->readImage($filePath . '[0]');
+                $pdfPreview->setImageFormat('webp');
+                $pdfPreview->thumbnailImage($thumbnailWidth, $thumbnailHeight, true);
+                file_put_contents($tempImagePath, $pdfPreview);
 
-                // Move to the next line
-                $y += ($fontSize + 4); // Add some vertical spacing between lines (adjust as needed)
-            }
+                $success = true;
+            } elseif ($this->mime_type === 'text/plain') {
+                $image = Image::canvas($thumbnailWidth, $thumbnailHeight, '#FFFFFF');
 
-            $image->encode('webp', 75)->save($tempImagePath);
+                // Read the first few lines of the text file
+                $numLines = 5;
+                $text = file_get_contents($filePath);
+                $lines = explode("\n", $text);
+                $previewText = implode("\n", array_slice($lines, 0, $numLines));
 
-            $success = true;
-        } elseif (strpos($this->mime_type, 'video/') === 0) {
-            $tempImagePath .= '.webp';
+                // Center the text on the image
+                $fontSize = 8;
+                $textColor = '#000000'; // Black text color
 
-            try {
-                $ffmpeg = FFMpeg::create();
-                $video = $ffmpeg->open($filePath);
-                $frame = $video->frame(TimeCode::fromSeconds(5));
-                $frame->save($tempImagePath);
-            } catch (\Exception $e) {
-                Log::error($e);
-            }
+                // Calculate the position to start drawing the text
+                $x = 10; // Left padding
+                $y = 10; // Top padding
 
-            $success = true;
+                // Draw the text on the canvas with text wrapping
+                $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
+                foreach ($lines as $line) {
+                    $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
+                        $font->file(1);
+                        $font->size($fontSize);
+                        $font->color($textColor);
+                    });
+
+                    // Move to the next line
+                    $y += ($fontSize + 4); // Add some vertical spacing between lines (adjust as needed)
+                }
+
+                $image->encode('webp', 75)->save($tempImagePath);
+
+                $success = true;
+            } elseif (strpos($this->mime_type, 'video/') === 0) {
+                $tempImagePath .= '.webp';
+
+                try {
+                    $ffmpeg = FFMpeg::create();
+                    $video = $ffmpeg->open($filePath);
+                    $frame = $video->frame(TimeCode::fromSeconds(5));
+                    $frame->save($tempImagePath);
+                } catch (\Exception $e) {
+                    Log::error($e);
+                }
+
+                $success = true;
+            }//end if
         }//end if
 
         if ($success === true && file_exists($tempImagePath) === true) {
@@ -895,86 +887,88 @@ class Media extends Model
      */
     public function generateVariants(): void
     {
-        if (strpos($this->mime_type, 'image/') === 0) {
-            // Generate additional image sizes
-            $sizes = Media::getObjectVariants('image');
+        // delete existing variants
+        if (is_array($this->variants) === true) {
+            foreach ($this->variants as $variantName => $variantFile) {
+                if (Storage::disk($this->storage)->exists($variantFile) === true) {
+                    Storage::disk($this->storage)->delete($variantFile);
+                }
+            }
+        }
+        $this->variants = [];
 
-            // download original from CDN if no local file
-            $filePath = $this->getStagingFilePath();
+        if ($this->security === '') {
+            if (strpos($this->mime_type, 'image/') === 0) {
+                // Generate additional image sizes
+                $sizes = Media::getObjectVariants('image');
 
-            // delete existing variants
-            if (is_array($this->variants) === true) {
-                foreach ($this->variants as $variantName => $variantFile) {
-                    if (Storage::disk($this->storage)->exists($variantFile) === true) {
-                        Storage::disk($this->storage)->delete($variantFile);
+                // download original from CDN if no local file
+                $filePath = $this->getStagingFilePath();
+
+                $originalImage = Image::make($filePath);
+
+                $imageSize = $originalImage->getSize();
+                $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
+
+                // Swap width and height values for portrait images
+                foreach ($sizes as $variantName => &$size) {
+                    if ($isPortrait === true) {
+                        $temp = $size['width'];
+                        $size['width'] = $size['height'];
+                        $size['height'] = $temp;
                     }
                 }
-            }
-            $this->variants = [];
 
-            $originalImage = Image::make($filePath);
+                $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
+                $this->dimensions = implode('x', $dimensions);
 
-            $imageSize = $originalImage->getSize();
-            $isPortrait = $imageSize->getHeight() > $imageSize->getWidth();
-
-            // Swap width and height values for portrait images
-            foreach ($sizes as $variantName => &$size) {
-                if ($isPortrait === true) {
-                    $temp = $size['width'];
-                    $size['width'] = $size['height'];
-                    $size['height'] = $temp;
-                }
-            }
-
-            $dimensions = [$originalImage->getWidth(), $originalImage->getHeight()];
-            $this->dimensions = implode('x', $dimensions);
-
-            foreach ($sizes as $variantName => $size) {
-                $postfix = "{$size['width']}x{$size['height']}";
-                if ($variantName === 'scaled') {
-                    $postfix = 'scaled';
-                }
-
-                $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-$postfix.webp";
-
-                // Get the largest available variant
-                if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {
-                    // Store the variant in the variants array
-                    $variants[$variantName] = $newFilename;
-
-                    // Resize the image to the variant size if its dimensions are greater than the
-                    // specified size
-                    $image = clone $originalImage;
-
-                    $imageSize = $image->getSize();
-                    if ($imageSize->getWidth() > $size['width'] || $imageSize->getHeight() > $size['height']) {
-                        $image->resize($size['width'], $size['height'], function ($constraint) {
-                            $constraint->aspectRatio();
-                            $constraint->upsize();
-                        });
-                        $image->resizeCanvas($size['width'], $size['height'], 'center', false, 'rgba(0,0,0,0)');
+                foreach ($sizes as $variantName => $size) {
+                    $postfix = "{$size['width']}x{$size['height']}";
+                    if ($variantName === 'scaled') {
+                        $postfix = 'scaled';
                     }
 
-                    $image->orientate();
+                    $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-$postfix.webp";
 
-                    // Optimize and store image
-                    $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
-                    $image->encode('webp', 75)->save($tempImagePath);
-                    /** @var Illuminate\Filesystem\FilesystemAdapter */
-                    $fileSystem = Storage::disk($this->storage);
-                    $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
-                    unlink($tempImagePath);
-                }//end if
-            }//end foreach
+                    // Get the largest available variant
+                    if ($dimensions[0] >= $size['width'] && $dimensions[1] >= $size['height']) {
+                        // Store the variant in the variants array
+                        $variants[$variantName] = $newFilename;
 
-            // Set missing variants to the largest available variant
-            foreach ($sizes as $variantName => $size) {
-                if (isset($variants[$variantName]) === false) {
-                    $variants[$variantName] = $this->name;
+                        // Resize the image to the variant size if its dimensions are greater than the
+                        // specified size
+                        $image = clone $originalImage;
+
+                        $imageSize = $image->getSize();
+                        if ($imageSize->getWidth() > $size['width'] || $imageSize->getHeight() > $size['height']) {
+                            $image->resize($size['width'], $size['height'], function ($constraint) {
+                                $constraint->aspectRatio();
+                                $constraint->upsize();
+                            });
+                            $image->resizeCanvas($size['width'], $size['height'], 'center', false, 'rgba(0,0,0,0)');
+                        }
+
+                        $image->orientate();
+
+                        // Optimize and store image
+                        $tempImagePath = tempnam(sys_get_temp_dir(), 'optimize');
+                        $image->encode('webp', 75)->save($tempImagePath);
+                        /** @var Illuminate\Filesystem\FilesystemAdapter */
+                        $fileSystem = Storage::disk($this->storage);
+                        $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
+                        unlink($tempImagePath);
+                    }//end if
+                }//end foreach
+
+                // Set missing variants to the largest available variant
+                foreach ($sizes as $variantName => $size) {
+                    if (isset($variants[$variantName]) === false) {
+                        $variants[$variantName] = $this->name;
+                    }
                 }
-            }
 
-            $this->variants = $variants;
+                $this->variants = $variants;
+            }//end if
         }//end if
     }
 
