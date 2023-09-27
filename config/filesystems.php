@@ -44,7 +44,7 @@ return [
             'secret' => env('AWS_PUBLIC_SECRET_ACCESS_KEY'),
             'region' => env('AWS_PUBLIC_DEFAULT_REGION'),
             'bucket' => env('AWS_PUBLIC_BUCKET'),
-            'url' => env('AWS_PUBLIC_URL'),
+            'url' => env('AWS_PUBLIC_URL') . '/{name}',
             'endpoint' => env('AWS_PUBLIC_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_PUBLIC_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
@@ -55,25 +55,18 @@ return [
         ],
 
         'private' => [
-            'driver' => 's3',
-            'key' => env('AWS_PRIVATE_ACCESS_KEY_ID'),
-            'secret' => env('AWS_PRIVATE_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_PRIVATE_DEFAULT_REGION'),
-            'bucket' => env('AWS_PRIVATE_BUCKET'),
-            'url' => env('AWS_PRIVATE_URL'),
-            'endpoint' => env('AWS_PRIVATE_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_PRIVATE_USE_PATH_STYLE_ENDPOINT', false),
+            'driver' => 'local',
+            'root' => storage_path('app/private'),
+            // 'url' => env('APP_URL') . '/file',
+            'url' => env('APP_URL_API') . '/media/{id}/download',
+            'visibility' => 'private',
             'throw' => false,
-            'public' => false,
-            'options' => [
-                'ACL' => '',
-            ]
         ],
 
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL') . '/storage',
+            'url' => env('APP_URL') . '/storage/{name}',
             'visibility' => 'public',
             'throw' => false,
         ],

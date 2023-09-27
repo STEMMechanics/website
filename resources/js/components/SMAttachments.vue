@@ -11,7 +11,7 @@
             v-if="modelValue && modelValue.length > 0"
             class="w-full border-1 rounded-2 bg-white text-sm mt-2">
             <tbody>
-                <tr v-for="file of modelValue" :key="file.id">
+                <tr v-for="file of fileList" :key="file.id">
                     <td class="py-2 pl-2 hidden sm:block">
                         <img
                             :src="getFileIconImagePath(file.name || file.title)"
@@ -82,6 +82,9 @@ import SMHeader from "../components/SMHeader.vue";
 import { openDialog } from "../components/SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
 import { Media } from "../helpers/api.types";
+import { onMounted, ref, watch } from "vue";
+import { ImportMetaExtras } from "../../../import-meta";
+import { strCaseCmp } from "../helpers/string";
 
 const emits = defineEmits(["update:modelValue"]);
 const props = defineProps({
@@ -96,6 +99,8 @@ const props = defineProps({
         required: false,
     },
 });
+
+const fileList = ref([]);
 
 /**
  * Handle the user adding a new media item.
@@ -112,7 +117,7 @@ const handleClickAdd = async () => {
         if (result) {
             const mediaResult = result as Media[];
             let newValue = props.modelValue;
-            let mediaIds = new Set(newValue.map((item) => item.id));
+            let mediaIds = new Set(newValue.map((item) => (item as Media).id));
 
             mediaResult.forEach((item) => {
                 if (!mediaIds.has(item.id)) {
@@ -128,105 +133,50 @@ const handleClickAdd = async () => {
 
 const handleClickDelete = (id: string) => {
     if (props.showEditor == true) {
-        const newList = props.modelValue.filter((item) => item.id !== id);
+        const newList = props.modelValue.filter(
+            (item) => (item as Media).id !== id,
+        );
         emits("update:modelValue", newList);
     }
 };
+
+watch(
+    () => props.modelValue,
+    (newValue) => {
+        updateFileList(newValue as Array<Media>);
+    },
+);
+
+onMounted(() => {
+    if (props.modelValue !== undefined) {
+        updateFileList(props.modelValue as Array<Media>);
+    }
+});
+
+const updateFileList = (newFileList: Array<Media>) => {
+    fileList.value = [];
+
+    for (const mediaItem of newFileList) {
+        const webUrl = (import.meta as ImportMetaExtras).env.APP_URL;
+        const apiUrl = (import.meta as ImportMetaExtras).env.APP_URL_API;
+
+        // Is the URL a API request?
+        if (mediaItem.url.startsWith(apiUrl)) {
+            const fileUrlPath = mediaItem.url.substring(apiUrl.length);
+            const fileUrlParts = fileUrlPath.split("/");
+
+            if (
+                fileUrlParts.length === 4 &&
+                fileUrlParts[0].length === 0 &&
+                strCaseCmp("media", fileUrlParts[1]) === true &&
+                strCaseCmp("download", fileUrlParts[3]) === true
+            ) {
+                mediaItem.url = webUrl + "/file/" + fileUrlParts[2];
+                fileList.value.push(mediaItem);
+            }
+        } else {
+            fileList.value.push(mediaItem);
+        }
+    }
+};
 </script>
-
-<!-- <style lang="scss">
-.attachment-list {
-    border: 1px solid var(--base-color);
-    border-collapse: collapse;
-    table-layout: fixed;
-    width: 100%;
-    // max-width: 580px;
-    margin-top: 12px;
-    background-color: var(--base-color-light);
-
-    .attachment-row {
-        td {
-            padding: 8px 0;
-        }
-
-        &:last-child td {
-            border-bottom: 0;
-        }
-
-        .attachment-file-icon {
-            width: 56px;
-            padding-left: 8px;
-
-            img {
-                display: block;
-            }
-        }
-
-        .attachment-file-name {
-            font-size: 80%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-
-            a {
-                text-decoration: none;
-
-                &:hover {
-                    text-decoration: underline;
-                }
-            }
-        }
-
-        .attachment-download {
-            width: 28px;
-            text-align: center;
-
-            a {
-                display: block;
-                color: var(--base-color-dark);
-                transition: color 0.2s ease-in-out;
-
-                &:hover {
-                    color: var(--primary-color);
-                }
-
-                svg {
-                    margin-top: 4px;
-                    width: 24px;
-                    height: 24px;
-                }
-            }
-        }
-
-        .attachment-file-size {
-            width: 80px;
-            font-size: 75%;
-            color: var(--base-color-dark);
-            white-space: nowrap;
-            text-align: right;
-            padding-right: 8px;
-        }
-    }
-}
-
-@media only screen and (max-width: 640px) {
-    .attachment-list {
-        .attachment-file-icon img {
-            margin: 0 4px;
-        }
-
-        .attachment-download a,
-        .attachment-file-size {
-            padding-left: 8px;
-        }
-    }
-}
-
-@media only screen and (max-width: 440px) {
-    .attachment-list {
-        .attachment-file-icon {
-            display: none;
-        }
-    }
-}
-</style> -->

@@ -66,7 +66,7 @@ export interface Media {
     title: string;
     name: string;
     mime_type: string;
-    permission: string;
+    security_type: string;
     size: number;
     storage: string;
     url: string;

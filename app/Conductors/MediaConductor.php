@@ -51,8 +51,9 @@ class MediaConductor extends Conductor
 
         /** @var \App\Models\User */
         $user = auth()->user();
+        $fields = arrayRemoveItem($fields, 'security_data');
         if ($user === null || $user->hasPermission('admin/media') === false) {
-            $fields = arrayRemoveItem($fields, ['security', 'storage']);
+            $fields = arrayRemoveItem($fields, 'storage');
         }
 
         return $fields;
@@ -68,13 +69,13 @@ class MediaConductor extends Conductor
     {
         $user = auth()->user();
         if ($user === null) {
-            $builder->where('security', '');
+            $builder->where('security_type', '');
         } else {
             $builder->where(function ($query) use ($user) {
-                $query->where('security', '')
+                $query->where('security_type', '')
                     ->orWhere(function ($subquery) use ($user) {
-                        $subquery->where('security', 'LIKE', 'permission:%')
-                            ->whereIn(DB::raw("SUBSTRING(security, 11)"), $user->permissions);
+                        $subquery->where('security_type', 'permission')
+                            ->whereIn('security_data', $user->permissions);
                     });
             });
         }

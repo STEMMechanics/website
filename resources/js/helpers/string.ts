@@ -113,3 +113,13 @@ export const toPrice = (numOrString: number | string): string => {
             : numOrString;
     return num.toFixed(num % 1 === 0 ? 0 : 2);
 };
+
+/**
+ * Compare 2 strings case insensitive
+ * @param {string} string1 The first string for comparison.
+ * @param {string} string2 The second string for comparison.
+ * @returns {boolean} If the strings match.
+ */
+export const strCaseCmp = (string1: string, string2: string): boolean => {
+    return string1.toLowerCase() === string2.toLowerCase();
+};

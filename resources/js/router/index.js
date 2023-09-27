@@ -427,6 +427,14 @@ export const routes = [
         component: () => import("@/views/ForgotPassword.vue"),
     },
     {
+        path: "/file/:id",
+        name: "file",
+        meta: {
+            title: "File",
+        },
+        component: () => import("@/views/File.vue"),
+    },
+    {
         path: "/cart",
         name: "cart",
         meta: {
@@ -448,8 +456,7 @@ export const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes,
-    scrollBehavior(to, from, savedPosition) {
-        // always scroll to top
+    scrollBehavior() {
         return { top: 0 };
     },
 });

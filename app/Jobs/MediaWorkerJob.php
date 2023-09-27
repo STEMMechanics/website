@@ -86,13 +86,14 @@ class MediaWorkerJob implements ShouldQueue
                 }//end if
 
                 // get security
-                $security = '';
+                $security = [];
                 if ($media === null) {
                     if (array_key_exists('security', $data) === true) {
                         $security = $data['security'];
                     }
                 } else {
-                    $security = $media->security;
+                    $security['type'] = $media->security_type;
+                    $security['data'] = $media->security_data;
                 }
 
                 // get storage
@@ -106,7 +107,7 @@ class MediaWorkerJob implements ShouldQueue
                 }
 
                 if ($storage === '') {
-                    if(strlen($security) === 0) {
+                    if(count($security) === 0 || $security['type'] === '') {
                         if (strpos($data['mime_type'], 'image/') === 0) {
                             $storage = 'local';
                         } else {
@@ -145,7 +146,8 @@ class MediaWorkerJob implements ShouldQueue
                         'name' => $data['name'],
                         'mime_type' => $data['mime_type'],
                         'size' => $data['size'],
-                        'security' => $data['security'],
+                        'security_type' => $data['security']['type'],
+                        'security_data' => $data['security']['data'],
                         'storage' => $storage,
                     ]);
                 }//end if
@@ -296,8 +298,9 @@ class MediaWorkerJob implements ShouldQueue
             }
 
             // Relocate file (if requested)
-            if (array_key_exists('security', $data) === true) {
-                $media->security = $data['security'];
+            if (array_key_exists('security', $data) === true && array_key_exists('type', $data['security']) === true) {
+                $media->security_type = $data['security']['type'];
+                $media->security_data = $data['security']['data'];
             }
             
             if (array_key_exists('storage', $data) === true) {

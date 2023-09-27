@@ -21,7 +21,26 @@
                     accepts="*"
                     class="mb-4" />
                 <SMInput control="title" class="mb-4" />
-                <SMInput control="permission" class="mb-4" />
+                <div class="flex flex-col md:flex-row gap-4">
+                    <SMDropdown
+                        class="mb-4"
+                        control="security_type"
+                        type="select"
+                        :options="{
+                            '': 'None',
+                            permission: 'Permission',
+                            password: 'Password',
+                        }" />
+                    <SMInput
+                        v-if="form.controls.security_type.value != ''"
+                        class="mb-4"
+                        control="security_data"
+                        :label="
+                            toTitleCase(
+                                form.controls.security_type.value.toString(),
+                            )
+                        " />
+                </div>
                 <div
                     v-if="!editMultiple"
                     class="flex flex-col md:flex-row gap-4">
@@ -77,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ApiOptions, api } from "../../helpers/api";
 import { Form, FormControl } from "../../helpers/form";
@@ -92,6 +111,7 @@ import { closeDialog, openDialog } from "../../components/SMDialog";
 import DialogConfirm from "../../components/dialogs/SMDialogConfirm.vue";
 import SMForm from "../../components/SMForm.vue";
 import SMInput from "../../components/SMInput.vue";
+import SMDropdown from "../../components/SMDropdown.vue";
 import SMMastHead from "../../components/SMMastHead.vue";
 import SMLoading from "../../components/SMLoading.vue";
 import { useToastStore } from "../../store/ToastStore";
@@ -119,7 +139,8 @@ const form = reactive(
         file: FormControl("", And([Required()])),
         title: FormControl("", Required()),
         description: FormControl(),
-        permission: FormControl(),
+        security_type: FormControl(),
+        security_data: FormControl(),
     }),
 );
 
@@ -153,7 +174,8 @@ const handleLoad = async () => {
                 form.controls.file.value = data.medium;
                 form.controls.title.value = data.medium.title;
                 form.controls.description.value = data.medium.description;
-                form.controls.permission.value = data.medium.permission;
+                form.controls.security_type.value = data.medium.security_type;
+                form.controls.security_data.value = data.medium.security_data;
                 fileData.url = data.medium.url;
                 fileData.mime_type = data.medium.mime_type;
                 fileData.size = data.medium.size;
@@ -232,8 +254,14 @@ const handleSubmit = async (enableFormCallBack) => {
 
         submitData.append("title", form.controls.title.value as string);
         submitData.append(
-            "permission",
-            form.controls.permission.value as string,
+            "security_type",
+            form.controls.security_type.value as string,
+        );
+        submitData.append(
+            "security_data",
+            form.controls.security_type.value == ""
+                ? ""
+                : (form.controls.security_data.value as string),
         );
         submitData.append(
             "description",

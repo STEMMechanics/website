@@ -12,12 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('media', function (Blueprint $table) {
-            $table->renameColumn('permission', 'security');
+            $table->string('security_type');
+            $table->renameColumn('permission', 'security_data');
         });
 
         DB::table('media')
-            ->where('security', '!=', '')
-            ->update(['security' => DB::raw("CONCAT('permission:', security)")]);
+            ->where('security_data', '!=', '')
+            ->update(['security_type' => 'permission']);
     }
 
     /**
@@ -26,17 +27,12 @@ return new class extends Migration
     public function down(): void
     {
         DB::table('media')
-        ->where(function ($query) {
-            $query->where('security', 'NOT LIKE', 'permission:%');
-        })
-        ->update(['security' => '']);
-
-        DB::table('media')
-        ->where('security', 'LIKE', 'permission:%')
-        ->update(['security' => DB::raw("SUBSTRING(security, 11)")]);
+        ->where('security_type', '!=', 'permission')
+        ->update(['security_data' => '']);
 
         Schema::table('media', function (Blueprint $table) {
-            $table->renameColumn('security', 'permission');
+            $table->renameColumn('security_data', 'permission');
+            $table->dropColumn('security_type');
         });
     }
 };

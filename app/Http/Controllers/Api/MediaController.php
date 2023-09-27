@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class MediaController extends ApiController
@@ -162,15 +163,20 @@ class MediaController extends ApiController
                 $data['storage'] = $request->get('storage', '');
             }
 
-            if ($request->has('security') === true || $file !== null) {
-                $data['security'] = $request->get('security', '');
+            if ($request->has('security_type') === true || $file !== null) {
+                $data['security']['type'] = $request->get('security_type', '');
+                $data['security']['data'] = $request->get('security_data', '');
+
+                if($data['security']['type'] === '') {
+                    $data['security']['data'] = '';
+                }
             }
 
             if(array_key_exists('storage', $data) === true && 
-                array_key_exists('security', $data) === true && 
+                (array_key_exists('security', $data) === true && array_key_exists('type', $data['security']) === true) && 
                 array_key_exists('mime_type', $data) === true && 
                 $data['mime_type'] !== "") {
-                    $error = Media::verifyStorage($data['mime_type'], $data['security'], $data['storage']);
+                    $error = Media::verifyStorage($data['mime_type'], $data['security']['type'], $data['storage']);
                     switch($error) {
                         case Media::STORAGE_VALID:
                             break;
@@ -284,47 +290,49 @@ class MediaController extends ApiController
      */
     public function download(Request $request, Media $medium)
     {
-        $respondJson = in_array('application/json', explode(',', $request->header('Accept', 'application/json')));
-
         $headers = [];
-        $path = $medium->path();
-
-        /* File exists */
-        if (file_exists($path) === false) {
-            if ($respondJson === false) {
-                return redirect('/not-found');
-            } else {
-                return $this->respondNotFound();
-            }
+        
+        /* Check file exists */
+        if(Storage::disk($medium->storage)->exists($medium->name) === true) {
+            return $this->respondNotFound();
         }
-
-        $updated_at = Carbon::parse(filemtime($path));
+        
+        $updated_at = Carbon::parse(Storage::disk($medium->storage)->lastModified($medium->name));
 
         $headerPragma = 'no-cache';
         $headerCacheControl = 'max-age=0, must-revalidate';
         $headerExpires = $updated_at->toRfc2822String();
 
-        if (empty($medium->permission) === true) {
-            if ($request->user() === null && $request->has('token') === true) {
-                $accessToken = PersonalAccessToken::findToken(urldecode($request->input('token')));
+        /* construct user if can */
+        $user = $request->user();
+        if ($user === null && $request->has('token') === true) {
+            $accessToken = PersonalAccessToken::findToken(urldecode($request->input('token')));
 
-                if (
-                    $accessToken !== null && (config('sanctum.expiration') === null ||
-                    $accessToken->created_at->lte(now()->subMinutes(config('sanctum.expiration'))) === false)
-                ) {
-                    $user = $accessToken->tokenable;
-                }
+            if (
+                $accessToken !== null && (config('sanctum.expiration') === null ||
+                $accessToken->created_at->lte(now()->subMinutes(config('sanctum.expiration'))) === false)
+            ) {
+                $user = $accessToken->tokenable;
             }
-            if ($request->user() === null || $user->hasPermission($medium->permission) === false) {
-                if ($respondJson === false) {
-                    return redirect('/login?redirect=' . $request->path());
-                } else {
-                    return $this->respondForbidden();
-                }
-            }
-        } else {
+        }
+
+        if ($medium->security_type === '') {
+            /* no security */
             $headerPragma = 'public';
             $headerExpires = $updated_at->addMonth()->toRfc2822String();
+        } else if (strcasecmp('password', $medium->security_type) === 0) {
+            /* password */
+            if(
+                ($user === null || $user->hasPermission('admin/media') === false) && 
+                ($request->has('password') === false || $request->get('password') !== $medium->security_data)) {
+                    return $this->respondForbidden();
+            }
+        } else if (strcasecmp('permission', $medium->security_type) === 0) {
+            /* permission */
+            if(
+                $user === null || ($user->hasPermission('admin/media') === false && $user->hasPermission($medium->security_data) === false)) {
+                    return $this->respondForbidden();
+            }
         }//end if
 
         // deepcode ignore InsecureHash: Browsers expect Etag to be a md5 hash
@@ -333,7 +341,7 @@ class MediaController extends ApiController
 
         $headers = [
             'Cache-Control' => $headerCacheControl,
-            'Content-Disposition' => sprintf('inline; filename="%s"', basename($path)),
+            'Content-Disposition' => sprintf('inline; filename="%s"', basename($medium->name)),
             'Etag' => $headerEtag,
             'Expires' => $headerExpires,
             'Last-Modified' => $headerLastModified,
@@ -352,7 +360,18 @@ class MediaController extends ApiController
             return response()->make('', 304, $headers);
         }
 
-        return response()->file($path, $headers);
+        $headers['Content-Type'] = Storage::disk($medium->storage)->mimeType($medium->name);
+        $headers['Content-Length'] = Storage::disk($medium->storage)->size($medium->name);
+        $headers['Content-Disposition'] = 'inline; filename="' . basename($medium->name) . '"';
+
+        $stream = Storage::disk($medium->storage)->readStream($medium->name);
+        return response()->stream(
+            function () use ($stream) {
+                fclose($stream);
+            },
+            200,
+            $headers
+        );
     }
 
     /**

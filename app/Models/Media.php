@@ -51,7 +51,8 @@ class Media extends Model
         'title',
         'user_id',
         'mime_type',
-        'security',
+        'security_type',
+        'security_data',
         'storage',
         'description',
         'name',
@@ -77,7 +78,8 @@ class Media extends Model
         'variants' => '[]',
         'description' => '',
         'dimensions' => '',
-        'security' => '',
+        'security_type' => '',
+        'security_data' => '',
         'thumbnail' => '',
     ];
 
@@ -335,11 +337,12 @@ class Media extends Model
      */
     public function getUrlAttribute(): string
     {
-        if (isset($this->attributes['name']) === true) {
-            return self::getUrlPath() . $this->name;
-        }
+        $url = self::getUrlPath();
 
-        return '';
+        $url = str_replace('{id}', $this->id, $url);
+        $url = str_replace('{name}', $this->name, $url);
+
+        return $url;
     }
 
     /**
@@ -375,49 +378,6 @@ class Media extends Model
         }//end try
 
         return null;
-    }
-
-    /**
-     * Download the file from the storage to the user.
-     *
-     * @param string  $variant  The variant to download or null if none.
-     * @param boolean $fallback Fallback to the original file if the variant is not found.
-     * @return JsonResponse|StreamedResponse The response.
-     * @throws BindingResolutionException The Exception.
-     */
-    public function download(string $variant = null, bool $fallback = true)
-    {
-        $path = $this->name;
-        if ($variant !== null) {
-            if (array_key_exists($variant, $this->variant) === true) {
-                $path = $this->variant[$variant];
-            } else {
-                return response()->json(
-                    ['message' => 'The resource was not found.'],
-                    HttpResponseCodes::HTTP_NOT_FOUND
-                );
-            }
-        }
-
-        $disk = Storage::disk($this->storage);
-        if ($disk->exists($path) === true) {
-            $stream = $disk->readStream($path);
-            $response = response()->stream(
-                function () use ($stream) {
-                    fpassthru($stream);
-                },
-                200,
-                [
-                    'Content-Type' => $this->mime_type,
-                    'Content-Length' => $disk->size($path),
-                    'Content-Disposition' => 'attachment; filename="' . basename($path) . '"',
-                ]
-            );
-
-            return $response;
-        }
-
-        return response()->json(['message' => 'The resource was not found.'], HttpResponseCodes::HTTP_NOT_FOUND);
     }
 
     /**
@@ -773,7 +733,7 @@ class Media extends Model
         $newFilename = pathinfo($this->name, PATHINFO_FILENAME) . "-" . uniqid() . "-thumb.webp";
         $success = false;
 
-        if ($this->security === '') {
+        if ($this->security_type === '') {
             if (strpos($this->mime_type, 'image/') === 0) {
                 $image = Image::make($filePath);
                 $image->orientate();
@@ -897,7 +857,7 @@ class Media extends Model
         }
         $this->variants = [];
 
-        if ($this->security === '') {
+        if ($this->security_type === '') {
             if (strpos($this->mime_type, 'image/') === 0) {
                 // Generate additional image sizes
                 $sizes = Media::getObjectVariants('image');
@@ -1025,13 +985,13 @@ class Media extends Model
         return $this->hasMany(MediaJob::class, 'media_id');
     }
 
-    public static function verifyStorage($mime_type, $security, &$storage): int {
+    public static function verifyStorage($mime_type, $security_type, &$storage): int {
         if($mime_type === '') {
             return Media::STORAGE_MIME_MISSING;
         }
 
         if($storage === '') {
-            if($security === '') {
+            if($security_type === '') {
                 if (strpos($mime_type, 'image/') === 0) {
                     $storage = 'local';
                 } else {

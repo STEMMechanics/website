@@ -181,10 +181,10 @@ class MediaJob extends Model
                         $data['mime_type'] = $mime;
 
                         if(array_key_exists('storage', $data) === true && 
-                        array_key_exists('security', $data) === true && 
+                        array_key_exists('security_type', $data) === true && 
                         array_key_exists('mime_type', $data) === true && 
                         $data['mime_type'] !== "") {
-                            $error = Media::verifyStorage($data['mime_type'], $data['security'], $data['storage']);
+                            $error = Media::verifyStorage($data['mime_type'], $data['security_type'], $data['storage']);
                             switch($error) {
                                 case Media::STORAGE_VALID:
                                     break;
