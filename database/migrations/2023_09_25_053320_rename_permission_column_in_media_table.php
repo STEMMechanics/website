@@ -12,8 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('media', function (Blueprint $table) {
-            $table->string('security_type');
             $table->renameColumn('permission', 'security_data');
+        });
+
+        Schema::table('media', function (Blueprint $table) {
+            $table->string('security_type')->default("");
         });
 
         DB::table('media')
@@ -32,6 +35,9 @@ return new class extends Migration
 
         Schema::table('media', function (Blueprint $table) {
             $table->renameColumn('security_data', 'permission');
+        });
+
+        Schema::table('media', function (Blueprint $table) {
             $table->dropColumn('security_type');
         });
     }
