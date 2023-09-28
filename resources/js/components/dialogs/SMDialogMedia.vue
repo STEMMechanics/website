@@ -146,7 +146,7 @@
                                             }">
                                             <div
                                                 v-if="item.security_type != ''"
-                                                class="absolute right--1 top--1 h-4 w-4">
+                                                class="absolute right-5 top-1 h-6 w-6">
                                                 <svg
                                                     xmlns="http://www.w3.org/2000/svg"
                                                     viewBox="0 0 24 24">
@@ -299,6 +299,21 @@
                                                 </th>
                                                 <td>
                                                     {{ lastSelected.mime_type }}
+                                                </td>
+                                            </tr>
+                                            <tr
+                                                v-if="
+                                                    lastSelected.security_type !==
+                                                    ''
+                                                ">
+                                                <td colspan="2">
+                                                    <div
+                                                        class="warning p-1 mt-2 small line-height-3">
+                                                        This file has a security
+                                                        policy applied and may
+                                                        not be viewable by
+                                                        everyone
+                                                    </div>
                                                 </td>
                                             </tr>
                                         </table>
