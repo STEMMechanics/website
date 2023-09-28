@@ -1227,7 +1227,7 @@ const handleLoad = async () => {
                 // );
 
                 totalItems.value = data.total;
-                mediaItems.value.push(...data.media);
+                addMediaItems(data.media);
             }
         })
         .catch(() => {
@@ -1582,8 +1582,18 @@ const loadInitial = () => {
 
     totalItems.value = selected.value.length;
     if (selected.value.length > 0) {
-        mediaItems.value.push(...selected.value);
+        addMediaItems(selected.value);
     }
+};
+
+/**
+ * Add Media items to Media List in dialog
+ * @param {Array<Media>} items The media items to add
+ */
+const addMediaItems = (items: Array<Media>) => {
+    const existingIds = mediaItems.value.map((item) => item.id);
+    const uniqueMedia = items.filter((item) => !existingIds.includes(item.id));
+    mediaItems.value.push(...uniqueMedia);
 };
 
 // Get max upload size
