@@ -1,23 +1,33 @@
 <template>
-    <SMForm :model-value="form" @submit="handleSubmit">
-        <SMCard :loading="dialogLoading">
-            <template #header>
-                <h3>Change Password</h3>
-                <p>Enter your new password below</p>
-            </template>
-            <template #body>
+    <div
+        class="fixed top-0 left-0 w-full h-full bg-black bg-op-20 backdrop-blur"></div>
+    <div class="fixed top-0 left-0 w-full flex-justify-center flex pt-36">
+        <div
+            class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
+            <SMForm :model-value="form" @submit="handleSubmit">
+                <h3 class="mb-2">Change Password</h3>
+                <p class="mb-4">Enter your new password below</p>
                 <SMInput
                     control="password"
                     type="password"
                     label="New Password"
                     autofocus />
-            </template>
-            <template #footer-space-between>
-                <button type="button" @click="handleClickCancel">Cancel</button>
-                <input role="button" type="submit" value="Update" />
-            </template>
-        </SMCard>
-    </SMForm>
+                <div class="flex flex-justify-between pt-4">
+                    <button
+                        class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        type="button"
+                        @click="handleClickCancel">
+                        Cancel
+                    </button>
+                    <input
+                        class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                        role="button"
+                        type="submit"
+                        value="Update" />
+                </div>
+            </SMForm>
+        </div>
+    </div>
 </template>
 
 <script setup lang="ts">
@@ -31,7 +41,6 @@ import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMForm from "../SMForm.vue";
 import SMInput from "../SMInput.vue";
-import SMCard from "../SMCard.vue";
 
 const form: FormObject = reactive(
     Form({
