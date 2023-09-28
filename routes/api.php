@@ -44,7 +44,7 @@ Route::get('/users/{user}/events', [UserController::class, 'eventList']);
 Route::get('media/jobs', [MediaJobController::class, 'index']);
 Route::get('media/jobs/{mediaJob}', [MediaJobController::class, 'show']);
 Route::apiResource('media', MediaController::class);
-Route::get('media/{medium}/download', [MediaController::class, 'download']);
+Route::get('media/{media}/download', [MediaController::class, 'download']);
 
 Route::apiResource('articles', ArticleController::class);
 // Route::apiAddendumResource('attachments', 'articles', ArticleController::class);

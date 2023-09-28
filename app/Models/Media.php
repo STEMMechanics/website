@@ -327,7 +327,7 @@ class Media extends Model
     public function getUrlPath(): string
     {
         $url = config("filesystems.disks.$this->storage.url");
-        return "$url/";
+        return "$url";
     }
 
     /**
@@ -985,11 +985,28 @@ class Media extends Model
         return $this->hasMany(MediaJob::class, 'media_id');
     }
 
+    public static function recommendedStorage(string $mime_type, string $security_type): string {
+        if($mime_type === '') {
+            return 'cdn';
+        }
+
+        if($security_type === '') {
+            if (strpos($mime_type, 'image/') === 0) {
+                return('local');
+            } else {
+                return('cdn');
+            }
+        }
+
+        return('private');
+    }
+
     public static function verifyStorage($mime_type, $security_type, &$storage): int {
         if($mime_type === '') {
             return Media::STORAGE_MIME_MISSING;
         }
 
+        Log::info('verify: ' . $storage);
         if($storage === '') {
             if($security_type === '') {
                 if (strpos($mime_type, 'image/') === 0) {

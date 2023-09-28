@@ -74,12 +74,24 @@
                     <template #item-title="item">
                         <div class="flex gap-2">
                             <div
-                                class="w-100 h-100 max-h-15 max-w-20 mr-2 bg-contain bg-no-repeat bg-center"
+                                class="w-100 h-100 max-h-15 max-w-20 mr-2 bg-contain bg-no-repeat bg-center relative"
                                 :style="{
                                     backgroundImage: `url('${mediaGetThumbnail(
                                         item,
                                     )}')`,
-                                }"></div>
+                                }">
+                                <div
+                                    v-if="item.security_type != ''"
+                                    class="absolute right--1 top--1 h-4 w-4">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        viewBox="0 0 24 24">
+                                        <title>locked</title>
+                                        <path
+                                            d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+                                    </svg>
+                                </div>
+                            </div>
                             <div class="flex flex-col flex-justify-center">
                                 <span>{{ item.title }}</span>
                                 <span class="small">({{ item.name }})</span>
@@ -101,11 +113,11 @@
                                     fill="currentColor" />
                             </svg>
                         </button>
-                        <button
-                            type="button"
+                        <a
+                            :href="mediaGetWebURL(item)"
                             class="bg-transparent cursor-pointer hover:text-sky-5"
                             title="Download"
-                            @click="handleDownload(item)">
+                            target="_blank">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 -960 960 960"
@@ -114,7 +126,7 @@
                                     d="M220-160q-24 0-42-18t-18-42v-143h60v143h520v-143h60v143q0 24-18 42t-42 18H220Zm260-153L287-506l43-43 120 120v-371h60v371l120-120 43 43-193 193Z"
                                     fill="currrentColor" />
                             </svg>
-                        </button>
+                        </a>
                         <button
                             type="button"
                             class="bg-transparent cursor-pointer hover:text-red-7"
@@ -170,11 +182,11 @@ import SMMastHead from "../../components/SMMastHead.vue";
 import SMTable from "../../components/SMTable.vue";
 import SMPagination from "../../components/SMPagination.vue";
 import SMLoading from "../../components/SMLoading.vue";
-import { updateRouterParams } from "../../helpers/url";
+import { addQueryParam, updateRouterParams } from "../../helpers/url";
 import { userHasPermission } from "../../helpers/utils";
 import SMPageStatus from "../../components/SMPageStatus.vue";
 import SMCheckbox from "../../components/SMCheckbox.vue";
-import { mediaGetThumbnail } from "../../helpers/media";
+import { mediaGetThumbnail, mediaGetWebURL } from "../../helpers/media";
 
 const route = useRoute();
 const router = useRouter();
@@ -448,7 +460,9 @@ const handleEditSelected = async () => {
  * @param {Media} item The media item.
  */
 const handleDownload = (item: Media) => {
-    window.open(`${item.url}?download=1`, "_blank");
+    // window.open(`${item.url}?download=1`, "_blank");
+    // window.open(addQueryParam(mediaGetWebURL(item), "download", "1"), "_blank");
+    window.open(mediaGetWebURL(item), "_blank");
 };
 
 const computedSelectedCount = computed(() => {

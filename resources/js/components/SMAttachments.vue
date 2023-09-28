@@ -85,6 +85,7 @@ import { Media } from "../helpers/api.types";
 import { onMounted, ref, watch } from "vue";
 import { ImportMetaExtras } from "../../../import-meta";
 import { strCaseCmp } from "../helpers/string";
+import { mediaGetWebURL } from "../helpers/media";
 
 const emits = defineEmits(["update:modelValue"]);
 const props = defineProps({
@@ -157,24 +158,8 @@ const updateFileList = (newFileList: Array<Media>) => {
     fileList.value = [];
 
     for (const mediaItem of newFileList) {
-        const webUrl = (import.meta as ImportMetaExtras).env.APP_URL;
-        const apiUrl = (import.meta as ImportMetaExtras).env.APP_URL_API;
-
-        // Is the URL a API request?
-        if (mediaItem.url.startsWith(apiUrl)) {
-            const fileUrlPath = mediaItem.url.substring(apiUrl.length);
-            const fileUrlParts = fileUrlPath.split("/");
-
-            if (
-                fileUrlParts.length === 4 &&
-                fileUrlParts[0].length === 0 &&
-                strCaseCmp("media", fileUrlParts[1]) === true &&
-                strCaseCmp("download", fileUrlParts[3]) === true
-            ) {
-                mediaItem.url = webUrl + "/file/" + fileUrlParts[2];
-                fileList.value.push(mediaItem);
-            }
-        } else {
+        mediaItem.url = mediaGetWebURL(mediaItem);
+        if (mediaItem.url != "") {
             fileList.value.push(mediaItem);
         }
     }

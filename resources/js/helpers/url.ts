@@ -126,3 +126,22 @@ export const extractFileNameFromUrl = (url: string): string => {
     const fileName = matches[1];
     return fileName;
 };
+
+export const addQueryParam = (
+    url: string,
+    name: string,
+    value: string,
+): string => {
+    const urlObject = new URL(url);
+    const queryParams = new URLSearchParams(urlObject.search);
+
+    if (queryParams.has(name)) {
+        queryParams.set(name, value);
+    } else {
+        // Add the new query parameter
+        queryParams.append(name, value);
+    }
+
+    urlObject.search = queryParams.toString();
+    return urlObject.toString();
+};

@@ -69,10 +69,12 @@ class MediaConductor extends Conductor
     {
         $user = auth()->user();
         if ($user === null) {
-            $builder->where('security_type', '');
+            $builder->where('security_type', '')
+            ->orWhere('security_type', 'password');
         } else {
             $builder->where(function ($query) use ($user) {
                 $query->where('security_type', '')
+                    ->orWhere('security_type', 'password')
                     ->orWhere(function ($subquery) use ($user) {
                         $subquery->where('security_type', 'permission')
                             ->whereIn('security_data', $user->permissions);
@@ -89,12 +91,14 @@ class MediaConductor extends Conductor
      */
     public static function viewable(Model $model): bool
     {
-        if ($model->permission !== '') {
+        if (strcasecmp('permission', $model->security_type) === 0) {
             /** @var \App\Models\User */
             $user = auth()->user();
-            if ($user === null || $user->hasPermission($model->permission) === false) {
+            if ($user === null || $user->hasPermission($model->security_data) === false) {
                 return false;
             }
+        } else if($model->security_type !== '' && strcasecmp('password', $model->security_type) !== 0) {
+            return false;
         }
 
         return true;

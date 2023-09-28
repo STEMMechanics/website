@@ -4,25 +4,49 @@
         :status="pageStatus" />
     <SMLoading v-else-if="pageLoading == true"></SMLoading>
     <SMForm
-        v-else-if="showPasswordForm == true"
+        v-else-if="showForm == 'password'"
         :model-value="form"
         @submit="handleSubmit">
-        <SMFormCard>
-            <template #header>
-                <h3>Password Required</h3>
-                <p>This file requires a password before it can be viewed</p>
-            </template>
-            <template #body>
-                <SMInput
-                    control="password"
-                    type="password"
-                    label="File Password"
-                    autofocus />
-            </template>
-            <template #footer-space-between>
-                <input role="button" type="submit" value="OK" />
-            </template>
-        </SMFormCard>
+        <div
+            class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
+            <h3 class="mb-4">Password Required</h3>
+            <p class="mb-2">
+                This file requires a password before it can be viewed
+            </p>
+            <SMInput
+                class="mb-4"
+                control="password"
+                type="password"
+                label="File Password"
+                autofocus />
+            <div class="flex flex-justify-end">
+                <input
+                    type="submit"
+                    class="font-medium px-6 py-3.1 rounded-2 hover:shadow-md text-lg transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    value="Submit" />
+            </div>
+        </div>
+    </SMForm>
+    <SMForm
+        v-else-if="showForm == 'complete'"
+        :model-value="form"
+        @submit="handleSubmit">
+        <div
+            class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
+            <h3 class="mb-4">Download Complete</h3>
+            <p class="mb-2">
+                If you have permission to view this document, your download
+                should now begin.
+            </p>
+            <div class="flex flex-justify-end">
+                <button
+                    role="button"
+                    class="font-medium px-6 py-3.1 rounded-2 hover:shadow-md text-lg transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    @click="handleClose()">
+                    Close
+                </button>
+            </div>
+        </div>
     </SMForm>
 </template>
 
@@ -30,8 +54,11 @@
 import { reactive, ref } from "vue";
 import { api } from "../helpers/api";
 import { useRoute } from "vue-router";
-import { Media } from "../helpers/api.types";
+import { Media, MediaResponse } from "../helpers/api.types";
+import SMForm from "../components/SMForm.vue";
+import SMInput from "../components/SMInput.vue";
 import SMLoading from "../components/SMLoading.vue";
+import SMPageStatus from "../components/SMPageStatus.vue";
 import { strCaseCmp } from "../helpers/string";
 import { useUserStore } from "../store/UserStore";
 import { Form, FormControl, FormObject } from "../helpers/form";
@@ -39,7 +66,7 @@ import { Required } from "../helpers/validate";
 
 const pageStatus = ref(200);
 const pageLoading = ref(true);
-const showPasswordForm = ref(false);
+const showForm = ref("");
 const fileUrl = ref("");
 const userStore = useUserStore();
 
@@ -71,6 +98,9 @@ const downloadFile = (params = {}) => {
     }
 
     window.location.href = url;
+    window.setTimeout(() => {
+        showForm.value = "complete";
+    }, 1500);
 };
 
 /*
@@ -82,6 +112,10 @@ const handleSubmit = () => {
     };
 
     downloadFile(params);
+};
+
+const handleClose = () => {
+    window.close();
 };
 
 /**
@@ -96,34 +130,45 @@ const handleLoad = async () => {
             id: route.params.id,
         };
 
-        let result = await api.get({
-            url: "/media/:id",
-            params: params,
-        });
+        try {
+            let result = await api.get({
+                url: "/media/{id}",
+                params: params,
+            });
 
-        if (result.status === 200) {
-            const medium = result.data as Media;
-            fileUrl.value = medium.url;
+            if (result.status === 200) {
+                const data = result.data as MediaResponse;
+                const medium = data.medium as Media;
+                fileUrl.value = medium.url;
 
-            if (medium.security_type === "") {
-                downloadFile();
-            } else if (
-                strCaseCmp("permission", medium.security_type) === true &&
-                userStore.id
-            ) {
-                const params = {
-                    token: userStore.token,
-                };
+                if (medium.security_type === "") {
+                    downloadFile();
+                } else if (
+                    strCaseCmp("permission", medium.security_type) === true &&
+                    userStore.id
+                ) {
+                    const params = {
+                        token: userStore.token,
+                    };
 
-                downloadFile(params);
-            } else if (strCaseCmp("password", medium.security_type) === true) {
-                showPasswordForm.value = true;
+                    downloadFile(params);
+                } else if (
+                    strCaseCmp("password", medium.security_type) === true
+                ) {
+                    showForm.value = "password";
+                } else {
+                    /* unknown security type */
+                    pageStatus.value = 403;
+                }
+
+                pageLoading.value = false;
             } else {
-                /* unknown security type */
-                pageStatus.value = 403;
+                pageStatus.value = result.status;
+                pageLoading.value = false;
             }
-        } else {
-            pageStatus.value = result.status;
+        } catch (error) {
+            pageStatus.value = error.status;
+            pageLoading.value = false;
         }
     }
 };

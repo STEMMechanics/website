@@ -121,5 +121,9 @@ export const toPrice = (numOrString: number | string): string => {
  * @returns {boolean} If the strings match.
  */
 export const strCaseCmp = (string1: string, string2: string): boolean => {
-    return string1.toLowerCase() === string2.toLowerCase();
+    if (string1 !== undefined && string2 !== undefined) {
+        return string1.toLowerCase() === string2.toLowerCase();
+    }
+
+    return false;
 };

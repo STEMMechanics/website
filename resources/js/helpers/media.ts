@@ -1,5 +1,6 @@
+import { ImportMetaExtras } from "../../../import-meta";
 import { Media, MediaJob } from "./api.types";
-import { toTitleCase } from "./string";
+import { strCaseCmp, toTitleCase } from "./string";
 
 export const mediaGetVariantUrl = (
     media: Media,
@@ -23,6 +24,30 @@ export const mediaGetVariantUrl = (
     return media.variants && media.variants["scaled"]
         ? media.url.replace(media.name, media.variants["scaled"])
         : media.url;
+};
+
+export const mediaGetWebURL = (media: Media): string => {
+    const webUrl = (import.meta as ImportMetaExtras).env.APP_URL;
+    const apiUrl = (import.meta as ImportMetaExtras).env.APP_URL_API;
+
+    let url = media.url;
+
+    // Is the URL a API request?
+    if (media.url.startsWith(apiUrl)) {
+        const fileUrlPath = media.url.substring(apiUrl.length);
+        const fileUrlParts = fileUrlPath.split("/");
+
+        if (
+            fileUrlParts.length >= 4 &&
+            fileUrlParts[0].length === 0 &&
+            strCaseCmp("media", fileUrlParts[1]) === true &&
+            strCaseCmp("download", fileUrlParts[3]) === true
+        ) {
+            url = webUrl + "/file/" + fileUrlParts[2];
+        }
+    }
+
+    return url;
 };
 
 /**

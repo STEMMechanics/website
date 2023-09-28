@@ -170,6 +170,13 @@ class MediaController extends ApiController
                 if($data['security']['type'] === '') {
                     $data['security']['data'] = '';
                 }
+
+                if(strcasecmp($data['security']['type'], $medium->security_type) !== 0) {
+                    if($request->has('storage') === false) {
+                        $mime_type = $request->get('mime_type', $medium->mime_type);
+                        $data['storage'] = Media::recommendedStorage($mime_type, $data['security']['type']);
+                    }
+                }
             }
 
             if(array_key_exists('storage', $data) === true && 
@@ -288,16 +295,16 @@ class MediaController extends ApiController
      * @param  \App\Models\Media        $medium  Specified media.
      * @return \Illuminate\Http\Response
      */
-    public function download(Request $request, Media $medium)
+    public function download(Request $request, Media $media)
     {
         $headers = [];
         
         /* Check file exists */
-        if(Storage::disk($medium->storage)->exists($medium->name) === true) {
+        if(Storage::disk($media->storage)->exists($media->name) === false) {
             return $this->respondNotFound();
         }
         
-        $updated_at = Carbon::parse(Storage::disk($medium->storage)->lastModified($medium->name));
+        $updated_at = Carbon::parse(Storage::disk($media->storage)->lastModified($media->name));
 
         $headerPragma = 'no-cache';
         $headerCacheControl = 'max-age=0, must-revalidate';
@@ -316,21 +323,21 @@ class MediaController extends ApiController
             }
         }
 
-        if ($medium->security_type === '') {
+        if ($media->security_type === '') {
             /* no security */
             $headerPragma = 'public';
             $headerExpires = $updated_at->addMonth()->toRfc2822String();
-        } else if (strcasecmp('password', $medium->security_type) === 0) {
+        } else if (strcasecmp('password', $media->security_type) === 0) {
             /* password */
             if(
                 ($user === null || $user->hasPermission('admin/media') === false) && 
-                ($request->has('password') === false || $request->get('password') !== $medium->security_data)) {
+                ($request->has('password') === false || $request->get('password') !== $media->security_data)) {
                     return $this->respondForbidden();
             }
-        } else if (strcasecmp('permission', $medium->security_type) === 0) {
+        } else if (strcasecmp('permission', $media->security_type) === 0) {
             /* permission */
             if(
-                $user === null || ($user->hasPermission('admin/media') === false && $user->hasPermission($medium->security_data) === false)) {
+                $user === null || ($user->hasPermission('admin/media') === false && $user->hasPermission($media->security_data) === false)) {
                     return $this->respondForbidden();
             }
         }//end if
@@ -341,7 +348,7 @@ class MediaController extends ApiController
 
         $headers = [
             'Cache-Control' => $headerCacheControl,
-            'Content-Disposition' => sprintf('inline; filename="%s"', basename($medium->name)),
+            'Content-Disposition' => sprintf('inline; filename="%s"', basename($media->name)),
             'Etag' => $headerEtag,
             'Expires' => $headerExpires,
             'Last-Modified' => $headerLastModified,
@@ -360,15 +367,16 @@ class MediaController extends ApiController
             return response()->make('', 304, $headers);
         }
 
-        $headers['Content-Type'] = Storage::disk($medium->storage)->mimeType($medium->name);
-        $headers['Content-Length'] = Storage::disk($medium->storage)->size($medium->name);
-        $headers['Content-Disposition'] = 'inline; filename="' . basename($medium->name) . '"';
+        $headers['Content-Type'] = Storage::disk($media->storage)->mimeType($media->name);
+        $headers['Content-Length'] = Storage::disk($media->storage)->size($media->name);
+        $headers['Content-Disposition'] = 'attachment; filename="' . basename($media->name) . '"';
 
-        $stream = Storage::disk($medium->storage)->readStream($medium->name);
+        $stream = Storage::disk($media->storage)->readStream($media->name);
         return response()->stream(
-            function () use ($stream) {
-                fclose($stream);
-            },
+            function() use($stream) {
+                while(ob_get_level() > 0) ob_end_flush();
+                fpassthru($stream);
+            }, 
             200,
             $headers
         );

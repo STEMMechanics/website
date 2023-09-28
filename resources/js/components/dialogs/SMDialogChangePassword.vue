@@ -1,6 +1,6 @@
 <template>
     <SMForm :model-value="form" @submit="handleSubmit">
-        <SMFormCard :loading="dialogLoading">
+        <SMCard :loading="dialogLoading">
             <template #header>
                 <h3>Change Password</h3>
                 <p>Enter your new password below</p>
@@ -16,7 +16,7 @@
                 <button type="button" @click="handleClickCancel">Cancel</button>
                 <input role="button" type="submit" value="Update" />
             </template>
-        </SMFormCard>
+        </SMCard>
     </SMForm>
 </template>
 
@@ -31,11 +31,12 @@ import { useToastStore } from "../../store/ToastStore";
 import { useUserStore } from "../../store/UserStore";
 import SMForm from "../SMForm.vue";
 import SMInput from "../SMInput.vue";
+import SMCard from "../SMCard.vue";
 
 const form: FormObject = reactive(
     Form({
         password: FormControl("", And([Required(), Password()])),
-    })
+    }),
 );
 
 const applicationStore = useApplicationStore();
