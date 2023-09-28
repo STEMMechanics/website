@@ -289,65 +289,74 @@ class Conductor
                             }
                         }
                     } else {
-                        list($field, $operator, $value) = $condition;
+                        if(count($condition) < 3 && $condition[0] !== '') {
+                            if(count($condition) < 2) {
+                                $condition[1] = 'LIKE';
+                            }
+                            $condition[2] = '%';
+                        }
+                        
+                        if(count($condition) === 3) {
+                            list($field, $operator, $value) = $condition;
 
-                        if ($item !== null) {
-                            if (array_key_exists($field, $item) === true) {
-                                switch ($operator) {
-                                    case '==':
-                                        $currentResult = ($item[$field] == $value);
-                                        break;
-                                    case 'NOT LIKE':
-                                        $currentResult = (stripos($item[$field], substr($value, 1, -1)) === false);
-                                        break;
-                                    case '>':
-                                        $currentResult = ($item[$field] > $value);
-                                        break;
-                                    case '<':
-                                        $currentResult = ($item[$field] < $value);
-                                        break;
-                                    case '>=':
-                                        $currentResult = ($item[$field] >= $value);
-                                        break;
-                                    case '<=':
-                                        $currentResult = ($item[$field] <= $value);
-                                        break;
-                                    case '!=':
-                                        $currentResult = ($item[$field] != $value);
-                                        break;
-                                    case '<>':
-                                        $separatorPos = strpos($value, '|');
-                                        if ($separatorPos !== false) {
-                                            $fieldInt = intval($item[$field]);
-                                            $currentResult = (
-                                                $fieldInt > intVal(
-                                                    substr($value, 0, $separatorPos)
-                                                ) && $fieldInt < intVal(substr($value, ($separatorPos + 1))));
-                                        } else {
+                            if ($item !== null) {
+                                if (array_key_exists($field, $item) === true) {
+                                    switch ($operator) {
+                                        case '==':
+                                            $currentResult = ($item[$field] == $value);
+                                            break;
+                                        case 'NOT LIKE':
+                                            $currentResult = (stripos($item[$field], substr($value, 1, -1)) === false);
+                                            break;
+                                        case '>':
+                                            $currentResult = ($item[$field] > $value);
+                                            break;
+                                        case '<':
+                                            $currentResult = ($item[$field] < $value);
+                                            break;
+                                        case '>=':
+                                            $currentResult = ($item[$field] >= $value);
+                                            break;
+                                        case '<=':
+                                            $currentResult = ($item[$field] <= $value);
+                                            break;
+                                        case '!=':
                                             $currentResult = ($item[$field] != $value);
-                                        }
-                                        break;
-                                    case 'LIKE':
-                                        $currentResult = (stripos($item[$field], substr($value, 1, -1)) !== false);
-                                        break;
-                                }//end switch
-                            }//end if
-                        } else {
-                            if ($operator === '==') {
-                                $operator = '=';
-                            }
-
-                            $relationSplit = strpos($field, '.');
-                            if ($relationSplit !== false) {
-                                $relation = substr($field, 0, $relationSplit);
-                                $field = substr($field, ($relationSplit + 1));
-
-                                if (method_exists($this->class, $relation) === true) {
-                                    $relationFilter[$relation][] = [$field, $operator, $value, $join];
-                                }
+                                            break;
+                                        case '<>':
+                                            $separatorPos = strpos($value, '|');
+                                            if ($separatorPos !== false) {
+                                                $fieldInt = intval($item[$field]);
+                                                $currentResult = (
+                                                    $fieldInt > intVal(
+                                                        substr($value, 0, $separatorPos)
+                                                    ) && $fieldInt < intVal(substr($value, ($separatorPos + 1))));
+                                            } else {
+                                                $currentResult = ($item[$field] != $value);
+                                            }
+                                            break;
+                                        case 'LIKE':
+                                            $currentResult = (stripos($item[$field], substr($value, 1, -1)) !== false);
+                                            break;
+                                    }//end switch
+                                }//end if
                             } else {
-                                $buildWhereFunc($query, $field, $operator, $value, $join);
-                            }
+                                if ($operator === '==') {
+                                    $operator = '=';
+                                }
+
+                                $relationSplit = strpos($field, '.');
+                                if ($relationSplit !== false) {
+                                    $relation = substr($field, 0, $relationSplit);
+                                    $field = substr($field, ($relationSplit + 1));
+
+                                    if (method_exists($this->class, $relation) === true) {
+                                        $relationFilter[$relation][] = [$field, $operator, $value, $join];
+                                    }
+                                } else {
+                                    $buildWhereFunc($query, $field, $operator, $value, $join);
+                                }
+                            }//end if
                         }//end if
                     }//end if
 
