@@ -818,7 +818,7 @@ class Media extends Model
             $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
             unlink($tempImagePath);
 
-            $this->thumbnail = $this->getUrlPath(['name', $newFilename]);
+            $this->thumbnail = $this->getUrlPath(['name' => $newFilename]);
         } else {
             $iconExtension = 'unknown';
             if ($fileExtension !== '') {
