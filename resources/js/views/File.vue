@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import { api } from "../helpers/api";
 import { useRoute } from "vue-router";
 import { Media, MediaResponse } from "../helpers/api.types";
@@ -176,5 +176,7 @@ const handleLoad = async () => {
     }
 };
 
-handleLoad();
+onMounted(() => {
+    handleLoad();
+});
 </script>
