@@ -20,7 +20,7 @@
         "knip": "^2.22.0",
         "laravel-vite-plugin": "^0.8.0",
         "lodash": "^4.17.19",
-        "postcss": "^8.4.27",
+        "postcss": "^8.4.31",
         "prettier": "3.0.3",
         "rollup-plugin-analyzer": "^4.0.0",
         "ts-node": "^10.9.1",
