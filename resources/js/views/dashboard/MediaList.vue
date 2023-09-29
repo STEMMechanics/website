@@ -240,6 +240,7 @@ const handleLoad = async () => {
         let params = {
             page: itemsPage.value,
             limit: itemsPerPage,
+            sort: "-created_at",
         };
 
         if (itemSearch.value.length > 0) {
