@@ -116,13 +116,9 @@ export const mediaGetThumbnail = (
                 media.variants[useVariant]
             ) {
                 url = media.url.replace(media.name, media.variants[useVariant]);
-            }
-
-            if (media.thumbnail && media.thumbnail.length > 0) {
+            } else if (media.thumbnail && media.thumbnail.length > 0) {
                 url = media.thumbnail;
-            }
-
-            if (media.variants && media.variants["thumb"]) {
+            } else if (media.variants && media.variants["thumb"]) {
                 url = media.url.replace(media.name, media.variants["thumb"]);
             }
         }
