@@ -57,7 +57,6 @@ return [
         'private' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            // 'url' => env('APP_URL') . '/file',
             'url' => env('APP_URL_API') . '/media/{id}/download',
             'visibility' => 'private',
             'throw' => false,
