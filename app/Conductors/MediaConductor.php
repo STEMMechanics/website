@@ -51,9 +51,8 @@ class MediaConductor extends Conductor
 
         /** @var \App\Models\User */
         $user = auth()->user();
-        $fields = arrayRemoveItem($fields, 'security_data');
         if ($user === null || $user->hasPermission('admin/media') === false) {
-            $fields = arrayRemoveItem($fields, 'storage');
+            $fields = arrayRemoveItem($fields, ['security_data', 'storage']);
         }
 
         return $fields;
