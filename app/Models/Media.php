@@ -998,11 +998,6 @@ class Media extends Model
     }
 
     public static function verifyStorage($mime_type, $security_type, &$storage): int {
-        if($mime_type === '') {
-            return Media::STORAGE_MIME_MISSING;
-        }
-
-        Log::info('verify: ' . $storage);
         if($storage === '') {
             if($security_type === '') {
                 if (strpos($mime_type, 'image/') === 0) {
