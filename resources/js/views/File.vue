@@ -43,12 +43,12 @@
                     @click="handleReload()">
                     Retry
                 </button>
-                <button
+                <router-link
+                    :to="{ name: 'home' }"
                     role="button"
-                    class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    @click="handleClose()">
-                    Close
-                </button>
+                    class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer">
+                    Home
+                </router-link>
             </div>
         </div>
     </div>
