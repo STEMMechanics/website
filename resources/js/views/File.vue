@@ -176,21 +176,22 @@ const handleLoad = async () => {
     }
 };
 
-window.onpopstate = function (event) {
-    alert(
-        "location: " +
-            document.location +
-            ", state: " +
-            JSON.stringify(event.state),
-    );
+const handlePopstate = () => {
+    // This function will be called when the user presses the back button
+    // or navigates through their history.
+    console.log("User has returned to the page");
+
+    // You can perform any necessary actions here.
 };
 
 onMounted(() => {
     console.log("mounted");
+    window.addEventListener("popstate", handlePopstate);
     handleLoad();
 });
 
 onUnmounted(() => {
     console.log("unmounted");
+    window.removeEventListener("popstate", handlePopstate);
 });
 </script>
