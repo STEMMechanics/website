@@ -141,6 +141,7 @@ const handleLoad = async () => {
         route.params.id === undefined
     ) {
         pageStatus.value = 404;
+        pageLoading.value = false;
     } else {
         const params = {
             id: route.params.id,
