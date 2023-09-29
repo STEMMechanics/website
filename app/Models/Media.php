@@ -254,7 +254,7 @@ class Media extends Model
     {
         $variants = $this->variants;
         if (isset($variants[$variant]) === true) {
-            return self::getUrlPath() . $variants[$variant];
+            return self::getUrlPath(['name' => $variants[$variant]]);
         }
 
         if ($returnNearest === true) {
@@ -263,7 +263,7 @@ class Media extends Model
             while (empty($previousVariant) === false) {
                 $previousVariant = $this->getPreviousVariant($variantType, $previousVariant);
                 if (empty($previousVariant) === false && isset($variants[$previousVariant]) === true) {
-                    return self::getUrlPath() . $variants[$previousVariant];
+                    return self::getUrlPath(['name' => $variants[$previousVariant]]);
                 }
             }
         }
@@ -324,9 +324,20 @@ class Media extends Model
      *
      * @return string
      */
-    public function getUrlPath(): string
+    public function getUrlPath(array $replacements = []): string
     {
         $url = config("filesystems.disks.$this->storage.url");
+        
+        if (!empty($replacements)) {
+            foreach ($replacements as $key => $value) {
+                $placeholder = '{' . $key . '}';
+                $url = str_replace($placeholder, $value, $url);
+            }
+        }
+    
+        // Remove any remaining {x} placeholders
+        $url = preg_replace('/\{[^}]+\}/', '', $url);
+
         return "$url";
     }
 
@@ -337,10 +348,10 @@ class Media extends Model
      */
     public function getUrlAttribute(): string
     {
-        $url = self::getUrlPath();
-
-        $url = str_replace('{id}', rawurlencode($this->id), $url);
-        $url = str_replace('{name}', rawurlencode($this->name), $url);
+        $url = self::getUrlPath([
+            'id' => rawurlencode($this->id),
+            'name' => rawurlencode($this->name)
+        ]);
 
         return $url;
     }
@@ -720,7 +731,7 @@ class Media extends Model
 
         // delete existing thumbnail
         if (strlen($this->thumbnail) !== 0) {
-            $path = substr($this->thumbnail, strlen($this->getUrlPath()));
+            $path = pathinfo($this->thumbnail, PATHINFO_BASENAME);
             if (strlen($path) > 0 && Storage::disk($this->storage)->exists($path) === true) {
                 Storage::disk($this->storage)->delete($path);
             }
@@ -807,7 +818,7 @@ class Media extends Model
             $fileSystem->putFileAs('/', new SplFileInfo($tempImagePath), $newFilename);
             unlink($tempImagePath);
 
-            $this->thumbnail = $this->getUrlPath() . $newFilename;
+            $this->thumbnail = $this->getUrlPath(['name', $newFilename]);
         } else {
             $iconExtension = 'unknown';
             if ($fileExtension !== '') {
@@ -831,7 +842,7 @@ class Media extends Model
     public function deleteThumbnail(): void
     {
         if (strlen($this->thumbnail) > 0) {
-            $path = substr($this->thumbnail, strlen($this->getUrlPath()));
+            $path = pathinfo($this->thumbnail, PATHINFO_BASENAME);
 
             if (strlen($path) > 0 && Storage::disk($this->storage)->exists($path) === true) {
                 Storage::disk($this->storage)->delete($path);
