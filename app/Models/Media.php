@@ -986,10 +986,6 @@ class Media extends Model
     }
 
     public static function recommendedStorage(string $mime_type, string $security_type): string {
-        if($mime_type === '') {
-            return 'cdn';
-        }
-
         if($security_type === '') {
             if (strpos($mime_type, 'image/') === 0) {
                 return('local');
