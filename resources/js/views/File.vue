@@ -1,5 +1,4 @@
 <template>
-    <div>{{ reloadUrl }}</div>
     <SMPageStatus
         v-if="pageLoading == false && pageStatus != 200"
         :status="pageStatus" />
@@ -41,7 +40,7 @@
                 <button
                     role="button"
                     class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    @click="handleReload()">
+                    @click="handleLoad()">
                     Retry
                 </button>
                 <button
@@ -71,9 +70,8 @@ import { Required } from "../helpers/validate";
 
 const pageStatus = ref(200);
 const pageLoading = ref(true);
-const showForm = ref("complete");
+const showForm = ref("");
 const fileUrl = ref("");
-const reloadUrl = ref("");
 const fileName = ref("");
 const userStore = useUserStore();
 
@@ -129,11 +127,13 @@ const handleClose = () => {
  * Handle page loading
  */
 const handleLoad = async () => {
-    const route = useRoute();
+    pageStatus.value = 200;
+    pageLoading.value = true;
+    showForm.value = "";
+    fileUrl.value = "";
+    fileName.value = "";
 
-    if (reloadUrl.value === "") {
-        reloadUrl.value = window.location.href;
-    }
+    const route = useRoute();
 
     if (
         route === undefined ||
@@ -188,10 +188,6 @@ const handleLoad = async () => {
             pageLoading.value = false;
         }
     }
-};
-
-const handleReload = () => {
-    console.log(reloadUrl.value);
 };
 
 handleLoad();
