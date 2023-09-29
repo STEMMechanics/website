@@ -34,7 +34,7 @@
                         }}</a>
                     </td>
                     <td class="pr-2">
-                        <a :href="file.url"
+                        <a :href="addQueryParam(file.url, 'download', '1')"
                             ><svg
                                 viewBox="0 0 24 24"
                                 fill="none"
@@ -89,6 +89,7 @@
 <script setup lang="ts">
 import { bytesReadable } from "../helpers/types";
 import { getFileIconImagePath } from "../helpers/utils";
+import { addQueryParam } from "../helpers/url";
 import SMHeader from "../components/SMHeader.vue";
 import { openDialog } from "../components/SMDialog";
 import SMDialogMedia from "./dialogs/SMDialogMedia.vue";
