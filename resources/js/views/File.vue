@@ -29,10 +29,7 @@
             </div>
         </div>
     </SMForm>
-    <SMForm
-        v-else-if="showForm == 'complete'"
-        :model-value="form"
-        @submit="handleSubmit">
+    <div v-else-if="showForm == 'complete'">
         <div
             class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
             <h3 class="mb-4">Download Requested</h3>
@@ -55,7 +52,7 @@
                 </button>
             </div>
         </div>
-    </SMForm>
+    </div>
 </template>
 
 <script setup lang="ts">
