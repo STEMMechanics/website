@@ -1017,7 +1017,7 @@ class Media extends Model
                 return Media::STORAGE_NOT_FOUND;
             }
 
-            if(strcasecmp($storage, 'private') !== 0) {
+            if($security_type !== '' && strcasecmp($storage, 'private') !== 0) {
                 return Media::STORAGE_INVALID_SECURITY;
             }
         }
