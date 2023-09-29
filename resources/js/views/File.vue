@@ -34,7 +34,7 @@
         @submit="handleSubmit">
         <div
             class="max-w-2xl mx-auto border-1 bg-white rounded-xl mt-7xl text-gray-5 px-12 py-8">
-            <h3 class="mb-4">Download Complete</h3>
+            <h3 class="mb-4">Download Requested</h3>
             <p class="mb-2">
                 If you have permission to view this document, your download
                 should now begin.
@@ -43,7 +43,7 @@
                 <button
                     role="button"
                     class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    @click="handleLoad()">
+                    @click="handleReload()">
                     Retry
                 </button>
                 <button
@@ -184,6 +184,10 @@ const handleLoad = async () => {
             pageLoading.value = false;
         }
     }
+};
+
+const handleReload = () => {
+    window.location.reload();
 };
 
 handleLoad();
