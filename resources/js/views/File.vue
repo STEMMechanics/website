@@ -176,6 +176,15 @@ const handleLoad = async () => {
     }
 };
 
+window.onpopstate = function (event) {
+    alert(
+        "location: " +
+            document.location +
+            ", state: " +
+            JSON.stringify(event.state),
+    );
+};
+
 onMounted(() => {
     console.log("mounted");
     handleLoad();
@@ -184,8 +193,4 @@ onMounted(() => {
 onUnmounted(() => {
     console.log("unmounted");
 });
-
-// window.onpopstate = function(event) {
-//      alert("location: " + document.location + ", state: " + JSON.stringify(event.state));
-//    };
 </script>
