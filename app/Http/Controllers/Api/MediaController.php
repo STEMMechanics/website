@@ -171,9 +171,9 @@ class MediaController extends ApiController
                     $data['security']['data'] = '';
                 }
 
-                if($medium->security_type === null || $medium->security_type === '' || strcasecmp($data['security']['type'], $medium->security_type) !== 0) {
+                if($medium === null || strcasecmp($data['security']['type'], $medium->security_type) !== 0) {
                     if($request->has('storage') === false) {
-                        $mime_type = $request->get('mime_type', $medium->mime_type);
+                        $mime_type = $request->get('mime_type', $medium === null ? '' : $medium->mime_type);
                         $data['storage'] = Media::recommendedStorage($mime_type, $data['security']['type']);
                     }
                 }
