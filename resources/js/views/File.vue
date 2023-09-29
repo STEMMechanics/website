@@ -194,7 +194,7 @@ const handleLoad = async () => {
 };
 
 const handleReload = () => {
-    window.location.href = reloadUrl.value;
+    console.log(reloadUrl.value);
 };
 
 handleLoad();
