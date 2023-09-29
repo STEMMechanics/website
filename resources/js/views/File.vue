@@ -186,6 +186,5 @@ const handleLoad = async () => {
     }
 };
 
-pageLoading.value = false;
-// handleLoad();
+handleLoad();
 </script>
