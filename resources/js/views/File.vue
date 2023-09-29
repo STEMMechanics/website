@@ -42,7 +42,7 @@
             <div class="flex flex-justify-end">
                 <button
                     role="button"
-                    class="font-medium px-6 py-3.1 rounded-2 hover:shadow-md text-lg transition bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
                     @click="handleClose()">
                     Close
                 </button>
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, onUnmounted, reactive, ref } from "vue";
 import { api } from "../helpers/api";
 import { useRoute } from "vue-router";
 import { Media, MediaResponse } from "../helpers/api.types";
@@ -177,6 +177,15 @@ const handleLoad = async () => {
 };
 
 onMounted(() => {
+    console.log("mounted");
     handleLoad();
 });
+
+onUnmounted(() => {
+    console.log("unmounted");
+});
+
+// window.onpopstate = function(event) {
+//      alert("location: " + document.location + ", state: " + JSON.stringify(event.state));
+//    };
 </script>
