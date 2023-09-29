@@ -184,7 +184,6 @@ const updateFileList = (newFileList: Array<Media>) => {
     fileList.value = [];
 
     for (const mediaItem of newFileList) {
-        console.log(mediaItem.url);
         mediaItem.url = mediaGetWebURL(mediaItem);
         if (mediaItem.url != "") {
             fileList.value.push(mediaItem);
