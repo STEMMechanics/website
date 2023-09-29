@@ -234,7 +234,7 @@ const dialogDataSetStatus = (dialogData, status, progress, add) => {
 const handleSubmit = async (enableFormCallBack) => {
     if (editMultiple === false) {
         let dialogData = ref({
-            title: "Upload Media",
+            title: "Saving Media",
             rows: [],
             progress: [],
         });
