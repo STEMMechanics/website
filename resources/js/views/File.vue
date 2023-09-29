@@ -127,12 +127,6 @@ const handleClose = () => {
  * Handle page loading
  */
 const handleLoad = async () => {
-    pageStatus.value = 200;
-    pageLoading.value = true;
-    showForm.value = "";
-    fileUrl.value = "";
-    fileName.value = "";
-
     const route = useRoute();
 
     if (
