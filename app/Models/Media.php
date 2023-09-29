@@ -339,8 +339,8 @@ class Media extends Model
     {
         $url = self::getUrlPath();
 
-        $url = str_replace('{id}', $this->id, $url);
-        $url = str_replace('{name}', $this->name, $url);
+        $url = str_replace('{id}', rawurlencode($this->id), $url);
+        $url = str_replace('{name}', rawurlencode($this->name), $url);
 
         return $url;
     }
