@@ -121,6 +121,7 @@ import { userHasPermission } from "../../helpers/utils";
 import SMImageGallery from "../../components/SMImageGallery.vue";
 import { toTitleCase } from "../../helpers/string";
 import SMDialogProgress from "../../components/dialogs/SMDialogProgress.vue";
+import { mediaGetWebURL } from "../../helpers/media";
 
 const route = useRoute();
 const router = useRouter();
@@ -176,7 +177,7 @@ const handleLoad = async () => {
                 form.controls.description.value = data.medium.description;
                 form.controls.security_type.value = data.medium.security_type;
                 form.controls.security_data.value = data.medium.security_data;
-                fileData.url = data.medium.url;
+                fileData.url = mediaGetWebURL(data.medium);
                 fileData.mime_type = data.medium.mime_type;
                 fileData.size = data.medium.size;
                 fileData.storage = data.medium.storage;
@@ -476,14 +477,6 @@ const handleSubmit = async (enableFormCallBack) => {
             });
         }
     }
-
-    // const urlParams = new URLSearchParams(window.location.search);
-    // const returnUrl = urlParams.get("return");
-    // if (returnUrl) {
-    //     router.push(decodeURIComponent(returnUrl));
-    // } else {
-    //     router.push({ name: "dashboard-media-list" });
-    // }
 };
 
 const handleFailValidation = () => {
