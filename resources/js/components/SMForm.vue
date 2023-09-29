@@ -37,15 +37,19 @@ watch(
  * Handle the user submitting the form.
  */
 const submit = async function () {
-    inputs = Array.from(document.querySelectorAll(`#${id} input`));
+    try {
+        inputs = Array.from(document.querySelectorAll(`#${id} input`));
 
-    for (let i = inputs.length - 1; i >= 0; i--) {
-        const input = inputs[i] as HTMLInputElement;
-        if (!input.disabled) {
-            input.disabled = true;
-        } else {
-            inputs.splice(i, 1);
+        for (let i = inputs.length - 1; i >= 0; i--) {
+            const input = inputs[i] as HTMLInputElement;
+            if (!input.disabled) {
+                input.disabled = true;
+            } else {
+                inputs.splice(i, 1);
+            }
         }
+    } catch {
+        /* empty */
     }
 
     if (await props.modelValue.validate()) {
