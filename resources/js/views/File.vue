@@ -1,4 +1,5 @@
 <template>
+    <div>{{ reloadUrl }}</div>
     <SMPageStatus
         v-if="pageLoading == false && pageStatus != 200"
         :status="pageStatus" />
@@ -75,6 +76,7 @@ const pageStatus = ref(200);
 const pageLoading = ref(true);
 const showForm = ref("complete");
 const fileUrl = ref("");
+const reloadUrl = ref("");
 const fileName = ref("");
 const userStore = useUserStore();
 
@@ -131,6 +133,11 @@ const handleClose = () => {
  */
 const handleLoad = async () => {
     const route = useRoute();
+
+    if (reloadUrl.value === "") {
+        reloadUrl.value = window.location.href;
+    }
+
     if (
         route === undefined ||
         route.params === undefined ||
@@ -187,7 +194,7 @@ const handleLoad = async () => {
 };
 
 const handleReload = () => {
-    window.location.reload();
+    window.location.href = reloadUrl.value;
 };
 
 handleLoad();
