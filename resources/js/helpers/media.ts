@@ -26,15 +26,28 @@ export const mediaGetVariantUrl = (
         : media.url;
 };
 
-export const mediaGetWebURL = (media: Media): string => {
+/**
+ * Convert a Media URL to a user friendly URL
+ * @param {Media|string} mediaOrString Media object or URL string
+ * @returns {string} User friendly URL
+ */
+export const mediaGetWebURL = (mediaOrString: Media | string): string => {
     const webUrl = (import.meta as ImportMetaExtras).env.APP_URL;
     const apiUrl = (import.meta as ImportMetaExtras).env.APP_URL_API;
 
-    let url = media.url;
+    let url =
+        typeof mediaOrString === "string"
+            ? mediaOrString
+            : (mediaOrString as Media).url;
 
-    // Is the URL a API request?
-    if (media.url.startsWith(apiUrl)) {
-        const fileUrlPath = media.url.substring(apiUrl.length);
+    // If the input is a string, use it as the URL directly
+    if (typeof mediaOrString === "string") {
+        return url;
+    }
+
+    // Is the URL an API request?
+    if (url.startsWith(apiUrl)) {
+        const fileUrlPath = url.substring(apiUrl.length);
         const fileUrlParts = fileUrlPath.split("/");
 
         if (
