@@ -40,7 +40,7 @@
                 <button
                     role="button"
                     class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
-                    @click="handleLoad()">
+                    @click="handleReload()">
                     Retry
                 </button>
                 <button
@@ -189,6 +189,10 @@ const handleLoad = async () => {
             pageLoading.value = false;
         }
     }
+};
+
+const handleReload = () => {
+    window.location.reload();
 };
 
 handleLoad();
