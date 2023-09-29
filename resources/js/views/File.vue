@@ -39,7 +39,13 @@
                 If you have permission to view this document, your download
                 should now begin.
             </p>
-            <div class="flex flex-justify-end">
+            <div class="flex flex-justify-between">
+                <button
+                    role="button"
+                    class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
+                    @click="handleLoad()">
+                    Retry
+                </button>
                 <button
                     role="button"
                     class="font-medium block w-full md:inline-block md:w-auto px-6 py-1.5 rounded-md hover:shadow-md transition text-sm bg-sky-600 hover:bg-sky-500 text-white cursor-pointer"
@@ -52,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from "vue";
+import { reactive, ref } from "vue";
 import { api } from "../helpers/api";
 import { useRoute } from "vue-router";
 import { Media, MediaResponse } from "../helpers/api.types";
@@ -67,7 +73,7 @@ import { Required } from "../helpers/validate";
 
 const pageStatus = ref(200);
 const pageLoading = ref(true);
-const showForm = ref("");
+const showForm = ref("complete");
 const fileUrl = ref("");
 const fileName = ref("");
 const userStore = useUserStore();
@@ -125,8 +131,12 @@ const handleClose = () => {
  */
 const handleLoad = async () => {
     const route = useRoute();
-    if (route.params.id === undefined) {
-        pageStatus.value = 403;
+    if (
+        route === undefined ||
+        route.params === undefined ||
+        route.params.id === undefined
+    ) {
+        pageStatus.value = 404;
     } else {
         const params = {
             id: route.params.id,
@@ -176,22 +186,6 @@ const handleLoad = async () => {
     }
 };
 
-const handlePopstate = () => {
-    // This function will be called when the user presses the back button
-    // or navigates through their history.
-    console.log("User has returned to the page");
-
-    // You can perform any necessary actions here.
-};
-
-onMounted(() => {
-    console.log("mounted");
-    window.addEventListener("popstate", handlePopstate);
-    handleLoad();
-});
-
-onUnmounted(() => {
-    console.log("unmounted");
-    window.removeEventListener("popstate", handlePopstate);
-});
+pageLoading.value = false;
+// handleLoad();
 </script>
