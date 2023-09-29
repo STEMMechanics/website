@@ -24,7 +24,7 @@
                                 viewBox="0 0 24 24">
                                 <title>locked</title>
                                 <path
-                                    d="M12,17A2,2 0 0,0 14,15C14,13.89 13.1,13 12,13A2,2 0 0,0 10,15A2,2 0 0,0 12,17M18,8A2,2 0 0,1 20,10V20A2,2 0 0,1 18,22H6A2,2 0 0,1 4,20V10C4,8.89 4.9,8 6,8H7V6A5,5 0 0,1 12,1A5,5 0 0,1 17,6V8H18M12,3A3,3 0 0,0 9,6V8H15V6A3,3 0 0,0 12,3Z" />
+                                    d="M18,8C19.097,8 20,8.903 20,10L20,20C20,21.097 19.097,22 18,22L6,22C4.903,22 4,21.097 4,20L4,10C4,8.89 4.9,8 6,8L7,8L7,6C7,3.257 9.257,1 12,1C14.743,1 17,3.257 17,6L17,8L18,8M12,3C10.354,3 9,4.354 9,6L9,8L15,8L15,6C15,4.354 13.646,3 12,3Z" />
                             </svg>
                         </div>
                     </td>
@@ -32,6 +32,21 @@
                         <a :href="file.url" target="_blank">{{
                             file.title || file.name
                         }}</a>
+                        <p
+                            v-if="file.security_type != ''"
+                            class="text-xs color-gray">
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                class="sm:hidden h-3.5 w-3.5 mb--0.5">
+                                <title>locked</title>
+                                <path
+                                    d="M18,8C19.097,8 20,8.903 20,10L20,20C20,21.097 19.097,22 18,22L6,22C4.903,22 4,21.097 4,20L4,10C4,8.89 4.9,8 6,8L7,8L7,6C7,3.257 9.257,1 12,1C14.743,1 17,3.257 17,6L17,8L18,8M12,3C10.354,3 9,4.354 9,6L9,8L15,8L15,6C15,4.354 13.646,3 12,3Z"
+                                    fill="currentColor" />
+                            </svg>
+                            This file requires additional permission or a
+                            password to view
+                        </p>
                     </td>
                     <td class="pr-2">
                         <a :href="addQueryParam(file.url, 'download', '1')"
