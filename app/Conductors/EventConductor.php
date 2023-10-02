@@ -37,6 +37,7 @@ class EventConductor extends Conductor
      */
     public function scope(Builder $builder): void
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/events') === false) {
             $builder
@@ -54,6 +55,7 @@ class EventConductor extends Conductor
     public static function viewable(Model $model): bool
     {
         if (strtolower($model->status) === 'draft' || Carbon::parse($model->publish_at)->isFuture() === true) {
+            /** @var \App\Models\User */
             $user = auth()->user();
             if ($user === null || $user->hasPermission('admin/events') === false) {
                 return false;
@@ -70,6 +72,7 @@ class EventConductor extends Conductor
      */
     public static function creatable(): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/events') === true);
     }
@@ -82,6 +85,7 @@ class EventConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/events') === true);
     }
@@ -94,6 +98,7 @@ class EventConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/events') === true);
     }
@@ -106,6 +111,7 @@ class EventConductor extends Conductor
      */
     public function includeAttachments(Model $model)
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
 
         return $model->getAttachments()->map(function ($attachment) use ($user) {

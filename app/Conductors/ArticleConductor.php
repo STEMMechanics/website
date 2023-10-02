@@ -44,6 +44,7 @@ class ArticleConductor extends Conductor
      */
     public function scope(Builder $builder): void
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/articles') === false) {
             $builder
@@ -60,6 +61,7 @@ class ArticleConductor extends Conductor
     public static function viewable(Model $model): bool
     {
         if (Carbon::parse($model->publish_at)->isFuture() === true) {
+            /** @var \App\Models\User */
             $user = auth()->user();
             if ($user === null || $user->hasPermission('admin/articles') === false) {
                 return false;
@@ -76,6 +78,7 @@ class ArticleConductor extends Conductor
      */
     public static function creatable(): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
     }
@@ -88,6 +91,7 @@ class ArticleConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
     }
@@ -100,6 +104,7 @@ class ArticleConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/articles') === true);
     }

@@ -28,6 +28,7 @@ class AnalyticsConductor extends Conductor
      */
     public static function viewable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);
     }
@@ -50,6 +51,7 @@ class AnalyticsConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);
     }
@@ -62,6 +64,7 @@ class AnalyticsConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/analytics') === true);
     }

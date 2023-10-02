@@ -21,6 +21,7 @@ class UserConductor extends Conductor
      */
     public function fields(Model $model): array
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         if ($user === null || $user->hasPermission('admin/users') === false) {
             return ['id', 'display_name'];
@@ -37,11 +38,10 @@ class UserConductor extends Conductor
      */
     public function transform(Model $model): array
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         $data = $model->toArray();
         $limit = $this->fields($model);
-
-        // echo 'USER--' . implode(',', $limit) . "\n";
 
         if ($user === null || ($user->hasPermission('admin/users') === false && strcasecmp($user->id, $model->id) !== 0)) {
             $limit = ['id', 'display_name'];
@@ -61,6 +61,7 @@ class UserConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         if ($user !== null) {
             return ($user->hasPermission('admin/users') === true || strcasecmp($user->id, $model->id) === 0);
@@ -77,6 +78,7 @@ class UserConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/users') === true);
     }

@@ -2,9 +2,7 @@
 
 namespace App\Conductors;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Foundation\Auth\User;
 
 class ShortlinkConductor extends Conductor
 {
@@ -28,6 +26,7 @@ class ShortlinkConductor extends Conductor
      */
     public static function creatable(): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);
     }
@@ -40,6 +39,7 @@ class ShortlinkConductor extends Conductor
      */
     public static function updatable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);
     }
@@ -52,6 +52,7 @@ class ShortlinkConductor extends Conductor
      */
     public static function destroyable(Model $model): bool
     {
+        /** @var \App\Models\User */
         $user = auth()->user();
         return ($user !== null && $user->hasPermission('admin/shortlinks') === true);
     }
