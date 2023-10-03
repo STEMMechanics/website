@@ -56,6 +56,14 @@
                                 Twitter
                             </a>
                         </li>
+                        <li>
+                            <a
+                                href="https://youtube.com/@STEMMechanics"
+                                target="_blank"
+                                rel="noreferrer">
+                                YouTube
+                            </a>
+                        </li>
                     </ul>
                 </div>
                 <div>
