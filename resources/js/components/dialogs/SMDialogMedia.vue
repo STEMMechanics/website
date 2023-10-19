@@ -1095,6 +1095,7 @@ const uploadFileById = (uploadId: string, file: File): void => {
                 });
             }
 
+            console.log(error);
             removeMediaItem(uploadId);
         });
 };
