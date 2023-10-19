@@ -252,3 +252,7 @@ tempCodeRunnerFile.*
 ### PHPUnit ###
 .phpunit.result.cache
 .gitignore
+
+### Codesniffer ###
+phpcs.phar
+phpcbf.phar
