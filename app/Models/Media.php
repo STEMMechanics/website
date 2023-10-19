@@ -1020,11 +1020,8 @@ class Media extends Model
                 $storage = 'private';
             }
         } else {
-            try {
-                if(Storage::disk($storage)->exists('') === false) {
-                    return Media::STORAGE_NOT_FOUND;
-                }
-            } catch(\Exception $e) {
+            $disks = config('filesystems.disks');
+            if(array_key_exists($storage, $disks) === false) {
                 return Media::STORAGE_NOT_FOUND;
             }
 

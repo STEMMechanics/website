@@ -184,6 +184,7 @@ class MediaController extends ApiController
                 array_key_exists('mime_type', $data) === true && 
                 $data['mime_type'] !== "") {
                     $error = Media::verifyStorage($data['mime_type'], $data['security']['type'], $data['storage']);
+                    // Log::error($data['mime_type'] . ' - ' . $data['security']['type'] . ' - ' . $data['storage']);
                     switch($error) {
                         case Media::STORAGE_VALID:
                             break;
@@ -192,7 +193,7 @@ class MediaController extends ApiController
                         case Media::STORAGE_NOT_FOUND:
                             return $this->respondWithErrors(['storage' => 'Storage was not found.']);
                         case Media::STORAGE_INVALID_SECURITY:
-                            return $this->respondWithErrors(['storage' => 'Storage invalid for security value.']);
+                            return $this->respondWithErrors(['storage' => 'Storage invalid for this security requirement.']);
                         default:
                             return $this->respondWithErrors(['storage' => 'Storage verification error occurred.']);
                     }

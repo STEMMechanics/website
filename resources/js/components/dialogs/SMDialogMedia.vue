@@ -1088,14 +1088,17 @@ const uploadFileById = (uploadId: string, file: File): void => {
                     content: `Cannot upload the file ${file.name} as it larger than ${max_upload_size.value}.`,
                 });
             } else {
+                const message = error.data.message
+                    ? " " + error.data.message
+                    : "";
+
                 useToastStore().addToast({
                     title: "File upload error",
                     type: "danger",
-                    content: `Cannot upload the file ${file.name} as a server error occurred.`,
+                    content: `Cannot upload the file ${file.name} as a server error occurred.${message}`,
                 });
             }
 
-            console.log(error);
             removeMediaItem(uploadId);
         });
 };
