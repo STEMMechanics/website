@@ -12,7 +12,9 @@ class UseSanctumGuard
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next
+     * @param Request  $request Request object.
+     * @param  \Closure $next    Closure object.
+     * @return Response
      */
     public function handle(Request $request, Closure $next): Response
     {

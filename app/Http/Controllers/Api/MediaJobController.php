@@ -41,7 +41,10 @@ class MediaJobController extends ApiController
     public function show(Request $request, MediaJob $mediaJob)
     {
         if (MediaJobConductor::viewable($mediaJob) === true) {
-            return $this->respondAsResource(MediaJobConductor::model($request, $mediaJob), ['resourceName' => 'media_job']);
+            return $this->respondAsResource(
+                MediaJobConductor::model($request, $mediaJob),
+                ['resourceName' => 'media_job']
+            );
         }
 
         return $this->respondForbidden();

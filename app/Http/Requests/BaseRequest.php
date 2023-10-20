@@ -9,12 +9,18 @@ class BaseRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * @return boolean
      */
     public function authorize(): bool
     {
         if (request()->isMethod('post') === true && method_exists($this, 'postAuthorize') === true) {
             return $this->postAuthorize();
-        } elseif ((request()->isMethod('put') === true || request()->isMethod('patch') === true) && method_exists($this, 'putAuthorize') === true) {
+        } elseif (
+            (
+            request()->isMethod('put') === true || request()->isMethod('patch') === true
+            ) && method_exists($this, 'putAuthorize') === true
+        ) {
             return $this->putAuthorize();
         } elseif (request()->isMethod('delete') === true && method_exists($this, 'destroyAuthorize') === true) {
             return $this->deleteAuthorize();
@@ -38,7 +44,11 @@ class BaseRequest extends FormRequest
 
         if (method_exists($this, 'postRules') === true && request()->isMethod('post') === true) {
             $rules = $this->mergeRules($rules, $this->postRules());
-        } elseif (method_exists($this, 'putRules') === true && (request()->isMethod('put') === true || request()->isMethod('patch') === true)) {
+        } elseif (
+            method_exists($this, 'putRules') === true && (
+            request()->isMethod('put') === true || request()->isMethod('patch') === true
+            )
+        ) {
             $rules = $this->mergeRules($rules, $this->putRules());
         } elseif (method_exists($this, 'destroyRules') === true && request()->isMethod('delete') === true) {
             $rules = $this->mergeRules($rules, $this->destroyRules());
@@ -52,6 +62,7 @@ class BaseRequest extends FormRequest
      *
      * @param array $collection1 The first collection of rules.
      * @param array $collection2 The second collection of rules to merge.
+     * @return array
      */
     private function mergeRules(array $collection1, array $collection2): array
     {

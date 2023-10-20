@@ -2,14 +2,11 @@
 
 namespace App\Exceptions;
 
-use App\Mail\ExceptionMail;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
 use PDOException;
 use Symfony\Component\ErrorHandler\ErrorRenderer\HtmlErrorRenderer;
-use Exception;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -31,6 +28,8 @@ class Handler extends ExceptionHandler
 
     /**
      * Register the exception handling callbacks for the application.
+     *
+     * @return void
      */
     public function register(): void
     {
@@ -65,14 +64,19 @@ class Handler extends ExceptionHandler
 
         $this->reportable(function (Throwable $e) {
             if ($this->shouldReport($e) === true) {
-                if(App::runningUnitTests() === false) {
+                if (App::runningUnitTests() === false) {
                     $this->sendEmail($e);
                 }
             }
         });
     }
 
-
+    /**
+     * Send email
+     *
+     * @param Throwable $exception Throwable object.
+     * @return void
+     */
     public function sendEmail(Throwable $exception)
     {
         try {

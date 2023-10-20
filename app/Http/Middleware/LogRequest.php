@@ -12,8 +12,8 @@ class LogRequest
     /**
      * Handle an incoming request.
      *
-     * @param Illuminate\Http\Request                                                                           $request HTTP Request.
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next    Closure.
+     * @param Illuminate\Http\Request $request HTTP Request.
+     * @param  \Closure                $next    Closure.
      * @return Symfony\Component\HttpFoundation\Response
      */
     public function handle(Request $request, Closure $next): Response

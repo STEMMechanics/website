@@ -23,7 +23,10 @@ class SubscriptionConductor extends Conductor
     {
         /** @var \App\Models\User */
         $user = auth()->user();
-        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
+        return ($user !== null && (
+            (strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) ||
+            $user->hasPermission('admin/subscriptions') === true
+        ));
     }
 
     /**
@@ -36,6 +39,7 @@ class SubscriptionConductor extends Conductor
     {
         /** @var \App\Models\User */
         $user = auth()->user();
-        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 && $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
+        return ($user !== null && ((strcasecmp($model->email, $user->email) === 0 &&
+        $user->email_verified_at !== null) || $user->hasPermission('admin/subscriptions') === true));
     }
 }

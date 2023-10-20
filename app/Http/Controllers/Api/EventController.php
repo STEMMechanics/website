@@ -10,8 +10,10 @@ use App\Conductors\UserConductor;
 use App\Http\Requests\EventRequest;
 use App\Models\Media;
 use App\Models\User;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 
 class EventController extends ApiController
 {
@@ -120,7 +122,13 @@ class EventController extends ApiController
         }
     }
 
-    public function userList(Request $request, Event $event)
+    /**
+     * List users of Event
+     * @param Request $request The HTTP request.
+     * @param Event   $event   Event model.
+     * @return JsonResponse
+     */
+    public function userList(Request $request, Event $event): JsonResponse
     {
         $authUser = $request->user();
         $eventUsers = $event->users;
@@ -136,16 +144,28 @@ class EventController extends ApiController
                     });
                 }
 
-                return $this->respondAsResource(UserConductor::collection($request, $eventUsers), ['isCollection' => true, 'resourceName' => 'users']);
+                return $this->respondAsResource(
+                    UserConductor::collection($request, $eventUsers),
+                    [
+                        'isCollection' => true,
+                        'resourceName' => 'users'
+                    ]
+                );
             }
 
             return $this->respondNotFound();
-        }
+        }//end if
 
         return $this->respondForbidden();
     }
 
-    public function userAdd(Request $request, Event $event)
+    /**
+     * Add user to Event
+     * @param Request $request The HTTP request.
+     * @param Event   $event   Event model.
+     * @return JsonResponse
+     */
+    public function userAdd(Request $request, Event $event): JsonResponse
     {
         $authUser = $request->user();
         if ($authUser !== null && $authUser->hasPermission('admin/events') === true) {
@@ -177,12 +197,26 @@ class EventController extends ApiController
         return $this->respondForbidden();
     }
 
-    public function userUpdate(Request $request, Event $event)
+    /**
+     * Update user
+     * @param Request $request The HTTP request.
+     * @param Event   $event   Event model.
+     * @return void
+     */
+    public function userUpdate(Request $request, Event $event): void
     {
         // only admin/events permitted
     }
 
-    public function userDelete(Request $request, Event $event, User $user)
+    /**
+     * Delete user from event
+     *
+     * @param Request $request The HTTP request.
+     * @param Event   $event   Event model.
+     * @param User    $user    User model.
+     * @return JsonResponse
+     */
+    public function userDelete(Request $request, Event $event, User $user): JsonResponse
     {
         $authUser = $request->user();
         if ($authUser !== null && $authUser->hasPermission('admin/events') === true) {

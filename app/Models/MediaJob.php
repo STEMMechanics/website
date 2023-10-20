@@ -102,9 +102,9 @@ class MediaJob extends Model
     /**
      * Set MediaJob status details.
      *
-     * @param string  $status   The status string.
-     * @param string  $text     The status text.
-     * @param integer $progress The status progress value.
+     * @param string  $status       The status string.
+     * @param string  $text         The status text.
+     * @param integer $progress     The status progress value.
      * @param integer $progress_max The status progress maximum value.
      * @return void
      */
@@ -180,12 +180,14 @@ class MediaJob extends Model
                         $data['size'] = filesize($newFile);
                         $data['mime_type'] = $mime;
 
-                        if(array_key_exists('storage', $data) === true && 
-                        array_key_exists('security_type', $data) === true && 
-                        array_key_exists('mime_type', $data) === true && 
-                        $data['mime_type'] !== "") {
+                        if (
+                            array_key_exists('storage', $data) === true &&
+                            array_key_exists('security_type', $data) === true &&
+                            array_key_exists('mime_type', $data) === true &&
+                            $data['mime_type'] !== ""
+                        ) {
                             $error = Media::verifyStorage($data['mime_type'], $data['security_type'], $data['storage']);
-                            switch($error) {
+                            switch ($error) {
                                 case Media::STORAGE_VALID:
                                     break;
                                 case Media::STORAGE_MIME_MISSING:
@@ -202,11 +204,11 @@ class MediaJob extends Model
                                     return;
                             }
                         }
-                        
+
                         $this->data = json_encode($data);
                         $this->setStatusQueued();
                         MediaWorkerJob::dispatch($this)->onQueue('media');
-                    }
+                    }//end if
                 }//end if
             } else {
                 $this->setStatusQueued();

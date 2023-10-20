@@ -96,7 +96,7 @@ class MediaConductor extends Conductor
             if ($user === null || $user->hasPermission($model->security_data) === false) {
                 return false;
             }
-        } else if($model->security_type !== '' && strcasecmp('password', $model->security_type) !== 0) {
+        } elseif ($model->security_type !== '' && strcasecmp('password', $model->security_type) !== 0) {
             return false;
         }
 
@@ -168,8 +168,17 @@ class MediaConductor extends Conductor
         return UserConductor::includeModel(request(), 'user', $user);
     }
 
-    public function includeJobs(Model $model) {
-        $jobs = $model->jobs()->select(['id','created_at','updated_at','user_id','status','status_text','progress'])->orderBy('created_at', 'desc')->get();
+    /**
+     * Include job models in Media
+     *
+     * @param Model $model The reference model.
+     * @return mixed
+     */
+    public function includeJobs(Model $model)
+    {
+        $jobs = $model->jobs()
+            ->select(['id','created_at','updated_at','user_id','status','status_text','progress'])
+            ->orderBy('created_at', 'desc')->get();
         return $jobs;
     }
 }

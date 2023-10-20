@@ -23,6 +23,8 @@ class RouteServiceProvider extends ServiceProvider
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.
+     *
+     * @return void
      */
     public function boot(): void
     {
@@ -31,9 +33,10 @@ class RouteServiceProvider extends ServiceProvider
         // });
 
         $rateLimitEnabled = true;
+        /** @var \App\Models\User */
         $user = auth()->user();
 
-        if (app()->environment('testing')) {
+        if (app()->environment('testing') === true) {
             $rateLimitEnabled = false;
         } elseif ($user !== null && $user->hasPermission('admin/ratelimit') === true) {
             // Admin users with the "admin/ratelimit" permission are not rate limited
@@ -42,7 +45,7 @@ class RouteServiceProvider extends ServiceProvider
 
         if ($rateLimitEnabled === true) {
             RateLimiter::for('api', function (Request $request) {
-                return Limit::perMinute(800)->by($request->user()?->id ?: $request->ip());
+                return Limit::perMinute(800)->by(isset($request->user()->id) === true ?: $request->ip());
             });
         } else {
             RateLimiter::for('api', function () {

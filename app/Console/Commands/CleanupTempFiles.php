@@ -21,23 +21,26 @@ class CleanupTempFiles extends Command
      */
     protected $description = 'Delete temporary files that are older that 1 day';
 
+
     /**
      * Execute the console command.
+     *
+     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
-        $keepTime = 1 * 24 * 60 * 60; // 1 Day
+        $keepTime = (1 * 24 * 60 * 60); // 1 Day
         $currentTimeStamp = time();
         $deletedFileCount = 0;
 
         foreach (glob(storage_path('app/tmp/*')) as $filename) {
             $fileModifiedTimeStamp = filemtime($filename);
-            if($currentTimeStamp - $fileModifiedTimeStamp > $keepTime) {
+            if (($currentTimeStamp - $fileModifiedTimeStamp) > $keepTime) {
                 unlink($filename);
                 $deletedFileCount++;
             }
         }
-        
+
         $this->comment('Deleted ' . $deletedFileCount . ' files');
     }
 }

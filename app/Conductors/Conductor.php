@@ -191,7 +191,7 @@ class Conductor
                         if ($separatorPos !== false) {
                             $operator = '==';
                             $valueList = explode('|', $value);
-                            foreach($valueList as $valueItem) {
+                            foreach ($valueList as $valueItem) {
                                 $this->appendFilter($field, $operator, $valueItem, 'OR');
                             }
                             continue 2;
@@ -289,14 +289,14 @@ class Conductor
                             }
                         }
                     } else {
-                        if(count($condition) < 3 && $condition[0] !== '') {
-                            if(count($condition) < 2) {
+                        if (count($condition) < 3 && $condition[0] !== '') {
+                            if (count($condition) < 2) {
                                 $condition[1] = 'LIKE';
                             }
                             $condition[2] = '%';
                         }
-                        
-                        if(count($condition) === 3) {
+
+                        if (count($condition) === 3) {
                             list($field, $operator, $value) = $condition;
 
                             if ($item !== null) {
@@ -609,7 +609,7 @@ class Conductor
 
         $requestIncludes = [];
         $modelFields = $conductor->fields(new $conductor->class());
-        
+
         // Limit fields
         $limitFields = $modelFields;
         if ($fields instanceof Request) {
@@ -781,8 +781,11 @@ class Conductor
      * @param string     $outerJoin   The join for this filter group.
      * @return void
      */
-    final public function appendFilterString(string $rawFilter, array|null $limitFields = null, string $outerJoin = 'AND'): void
-    {
+    final public function appendFilterString(
+        string $rawFilter,
+        array|null $limitFields = null,
+        string $outerJoin = 'AND'
+    ): void {
         if ($rawFilter === '') {
             return;
         }
@@ -924,18 +927,26 @@ class Conductor
      */
     public function fields(Model $model): array
     {
-        $visibleFields = Cache::remember("model:{$model->getTable()}:visible", now()->addDays(28), function () use ($model) {
-            $fields = $model->getVisible();
-            if (empty($fields) === true) {
-                $fields = Cache::remember("schema:{$model->getTable()}:columns", now()->addDays(28), function () use ($model) {
-                    return $model->getConnection()
-                    ->getSchemaBuilder()
-                    ->getColumnListing($model->getTable());
-                });
-            }
+        $visibleFields = Cache::remember(
+            "model:{$model->getTable()}:visible",
+            now()->addDays(28),
+            function () use ($model) {
+                $fields = $model->getVisible();
+                if (empty($fields) === true) {
+                    $fields = Cache::remember(
+                        "schema:{$model->getTable()}:columns",
+                        now()->addDays(28),
+                        function () use ($model) {
+                            return $model->getConnection()
+                            ->getSchemaBuilder()
+                            ->getColumnListing($model->getTable());
+                        }
+                    );
+                }
 
-            return $fields;
-        });
+                return $fields;
+            }
+        );
 
         $appends = $model->getAppends();
         if (is_array($appends) === true) {

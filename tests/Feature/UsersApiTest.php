@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
@@ -10,6 +12,11 @@ final class UsersApiTest extends TestCase
     use RefreshDatabase;
 
 
+    /**
+     * Tests that non-admin users can only view basic user info.
+     *
+     * @return void
+     */
     public function testNonAdminUsersCanOnlyViewBasicUserInfo(): void
     {
         // create a non-admin user
@@ -67,6 +74,11 @@ final class UsersApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that guests cannot create a user via the API.
+     *
+     * @return void
+     */
     public function testGuestCannotCreateUser(): void
     {
         $userData = [
@@ -81,6 +93,11 @@ final class UsersApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that guests can register a user via the API.
+     *
+     * @return void
+     */
     public function testGuestCanRegisterUser(): void
     {
         $userData = [
@@ -98,6 +115,11 @@ final class UsersApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that duplicate email or display name entries cannot be created.
+     *
+     * @return void
+     */
     public function testCannotCreateDuplicateEmailOrDisplayName(): void
     {
         $userData = [
@@ -121,6 +143,11 @@ final class UsersApiTest extends TestCase
         $response->assertJsonValidationErrors(['display_name', 'email']);
     }
 
+    /**
+     * Tests that a user can only update their own user info.
+     *
+     * @return void
+     */
     public function testUserCanOnlyUpdateOwnUser(): void
     {
         $user = User::factory()->create();
@@ -149,6 +176,11 @@ final class UsersApiTest extends TestCase
         $response->assertStatus(403);
     }
 
+    /**
+     * Tests that a user cannot delete users via the API.
+     *
+     * @return void
+     */
     public function testUserCannotDeleteUsers(): void
     {
         $user = User::factory()->create();
@@ -165,6 +197,11 @@ final class UsersApiTest extends TestCase
         $this->assertDatabaseHas('users', ['id' => $otherUser->id]);
     }
 
+    /**
+     * Tests that an admin can update any user's info.
+     *
+     * @return void
+     */
     public function testAdminCanUpdateAnyUser(): void
     {
         $admin = User::factory()->create();
@@ -200,6 +237,11 @@ final class UsersApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that an admin can delete any user via the API.
+     *
+     * @return void
+     */
     public function testAdminCanDeleteAnyUser(): void
     {
         $admin = User::factory()->create();

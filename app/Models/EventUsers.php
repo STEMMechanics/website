@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\Uuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EventUser extends Model
 {
@@ -24,6 +25,8 @@ class EventUser extends Model
 
     /**
      * Get the event for this attachment.
+     *
+     * @return Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function event(): BelongsTo
     {
@@ -32,6 +35,8 @@ class EventUser extends Model
 
     /**
      * Get the user for this attachment.
+     *
+     * @return Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function user(): BelongsTo
     {

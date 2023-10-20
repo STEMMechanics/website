@@ -47,6 +47,7 @@ class Uniqueish implements Rule
      * Set the ID of the record to be ignored.
      *
      * @param  mixed $id The ID to ignore.
+     * @return App\Rules\Uniqueish
      */
     public function ignore(mixed $id): static
     {
@@ -59,6 +60,7 @@ class Uniqueish implements Rule
      *
      * @param  mixed $attribute Not used.
      * @param  mixed $value     The value to compare.
+     * @return boolean
      */
     public function passes(mixed $attribute, mixed $value): bool
     {
@@ -83,7 +85,7 @@ class Uniqueish implements Rule
 
             foreach ($results as $result) {
                 $resultValue = preg_replace('/[^A-Za-z0-9]/', '', strtolower($result->{$columnName}));
-                if ($resultValue === $similarValue && $result->id != $this->ignoreId) {
+                if ($resultValue === $similarValue && $result->id !== $this->ignoreId) {
                     return false; // Value already exists in the table
                 }
             }
@@ -95,6 +97,8 @@ class Uniqueish implements Rule
 
     /**
      * Get the validation error message.
+     *
+     * @return string
      */
     public function message(): string
     {

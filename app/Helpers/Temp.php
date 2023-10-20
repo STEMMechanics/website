@@ -2,7 +2,6 @@
 
 /* Temp File Helper Functions */
 
-use Illuminate\Support\Facades\Log;
 
 /**
  * Generate a temporary file path.
@@ -18,7 +17,8 @@ function generateTempFilePath(string $extension = '', string $part = ''): string
         mkdir($temporaryDir, 0777, true);
     }
 
-    return $temporaryDir . DIRECTORY_SEPARATOR . uniqid('upload_', true) . ($extension !== '' ? ".{$extension}" : '') . ($part !== '' ? ".part-{$part}" : '');
+    return $temporaryDir . DIRECTORY_SEPARATOR . uniqid('upload_', true) . ($extension !== '' ? ".{$extension}" : '') .
+    ($part !== '' ? ".part-{$part}" : '');
 }
 
 /**
@@ -32,7 +32,7 @@ function tempFileInfo(string $filePath): array
     $part = '';
 
     // Extract the part if it's present
-    if (preg_match('/\.part-(\d+)$/', $filePath, $matches)) {
+    if (preg_match('/\.part-(\d+)$/', $filePath, $matches) !== false) {
         $part = $matches[1];
         $filePath = substr($filePath, 0, -strlen($matches[0]));
     }
@@ -44,7 +44,7 @@ function tempFileInfo(string $filePath): array
     $extension = '';
 
     // If there's an extension, separate it
-    if (isset($info['extension'])) {
+    if (isset($info['extension']) === true) {
         $extension = $info['extension'];
     }
 
@@ -64,13 +64,13 @@ function tempFileInfo(string $filePath): array
  * @param string $name      The file name.
  * @param string $extension The file extension to use.
  * @param string $part      The file part number.
- * @return bool If the file exists.
+ * @return boolean If the file exists.
  */
 function tempFileExists(string $dir, string $name, string $extension = '', string $part = ''): bool
 {
     $filename = constructTempFileName($dir, $name, $extension, $part);
     $exists = file_exists($filename);
-    
+
     return $exists;
 }
 
@@ -85,7 +85,8 @@ function tempFileExists(string $dir, string $name, string $extension = '', strin
  */
 function constructTempFileName(string $dir, string $name, string $extension = '', string $part = ''): string
 {
-    $filename = $dir . DIRECTORY_SEPARATOR . $name . ($extension !== '' ? ".{$extension}" : '') . ($part !== "" ? ".part-{$part}" : '');
+    $filename = $dir . DIRECTORY_SEPARATOR . $name . ($extension !== '' ? ".{$extension}" : '') .
+    ($part !== "" ? ".part-{$part}" : '');
 
     return $filename;
 }

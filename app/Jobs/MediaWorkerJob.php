@@ -107,7 +107,7 @@ class MediaWorkerJob implements ShouldQueue
                 }
 
                 if ($storage === '') {
-                    if(count($security) === 0 || $security['type'] === '') {
+                    if (count($security) === 0 || $security['type'] === '') {
                         if (strpos($data['mime_type'], 'image/') === 0) {
                             $storage = 'local';
                         } else {
@@ -126,7 +126,7 @@ class MediaWorkerJob implements ShouldQueue
                     }
                 }
 
-                if($exists === true) {
+                if ($exists === true) {
                     $pathInfo = pathinfo($data['name']);
                     $basename = $pathInfo['filename'];
                     $extension = $pathInfo['extension'];
@@ -302,7 +302,7 @@ class MediaWorkerJob implements ShouldQueue
                 $media->security_type = $data['security']['type'];
                 $media->security_data = $data['security']['data'];
             }
-            
+
             if (array_key_exists('storage', $data) === true) {
                 if ($media->storage !== $data['storage']) {
                     $media->createStagingFile();

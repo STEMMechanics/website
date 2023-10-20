@@ -13,9 +13,9 @@ class UnmangleRequest
     /**
      * Handle an incoming request.
      *
-     * @param  Request                                                                                           $request   Request.
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse) $next      Next.
-     * @param  string|null                                                                                       ...$guards Guards.
+     * @param  Request     $request   Request.
+     * @param  \Closure    $next      Next.
+     * @param  string|null ...$guards Guards.
      * @return Response response.
      */
     public function handle(Request $request, Closure $next, string ...$guards): Response

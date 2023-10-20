@@ -2,17 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Conductors\MediaConductor;
 use App\Conductors\ShortlinkConductor;
 use App\Enum\HttpResponseCodes;
-use App\Http\Requests\MediaRequest;
 use App\Http\Requests\ShortlinkRequest;
-use App\Models\Media;
 use App\Models\Shortlink;
 use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class ShortlinkController extends ApiController
 {
@@ -85,8 +79,8 @@ class ShortlinkController extends ApiController
     /**
      * Update the media resource in storage.
      *
-     * @param  \App\Http\Requests\ShortlinkRequest $request The update request.
-     * @param  \App\Models\Shortlink               $medium  The specified shortlink.
+     * @param  \App\Http\Requests\ShortlinkRequest $request   The update request.
+     * @param  \App\Models\Shortlink               $shortlink The specified shortlink.
      * @return \Illuminate\Http\Response
      */
     public function update(ShortlinkRequest $request, Shortlink $shortlink)
@@ -102,7 +96,7 @@ class ShortlinkController extends ApiController
     /**
      * Remove the specified resource from storage.
      *
-     * @param  \App\Models\Shortlink $medium Specified shortlink.
+     * @param  \App\Models\Shortlink $shortlink Specified shortlink.
      * @return \Illuminate\Http\Response
      */
     public function destroy(Shortlink $shortlink)

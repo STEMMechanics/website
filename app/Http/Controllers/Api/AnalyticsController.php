@@ -99,7 +99,11 @@ class AnalyticsController extends ApiController
                 'ip' => $request->ip()
             ];
 
-            if ($user !== null && $user->hasPermission('admin/analytics') === true && $request->has('session') === true) {
+            if (
+                $user !== null &&
+                $user->hasPermission('admin/analytics') === true &&
+                $request->has('session') === true
+            ) {
                 $data['session_id'] = $request->input('session_id');
                 $analytics = AnalyticsItemRequest::create($data);
             } else {

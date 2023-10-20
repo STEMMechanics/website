@@ -45,7 +45,12 @@ class LogController extends ApiController
 
                     $before = $request->get('before');
                     if ($before !== null) {
-                        $before = preg_split("/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/", $before, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                        $before = preg_split(
+                            "/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/",
+                            $before,
+                            -1,
+                            (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY)
+                        );
                         if (count($before) !== 6) {
                             $before = null;
                         }
@@ -53,7 +58,12 @@ class LogController extends ApiController
 
                     $after = $request->get('after');
                     if ($after !== null) {
-                        $after = preg_split("/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/", $after, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                        $after = preg_split(
+                            "/([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})/",
+                            $after,
+                            -1,
+                            (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY)
+                        );
                         if (count($after) !== 6) {
                             $after = null;
                         }
@@ -77,30 +87,59 @@ class LogController extends ApiController
                                 $logContent = file_get_contents($logFile['path']);
                             }
 
-                            $logArray = preg_split("/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/", $logContent, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                            $logArray = preg_split(
+                                // phpcs:ignore Generic.Files.LineLength.TooLong
+                                "/(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: (?:(?!\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}: )[\s\S])*)/",
+                                $logContent,
+                                -1,
+                                (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY)
+                            );
 
                             $logContent = '';
                             $logLineCount = 0;
                             $logLineSkip = false;
                             foreach (array_reverse($logArray) as $logLine) {
-                                $lineDate = preg_split("/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2}): /", $logLine, -1, (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY));
+                                $lineDate = preg_split(
+                                    "/^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2}): /",
+                                    $logLine,
+                                    -1,
+                                    (PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY)
+                                );
                                 if (count($lineDate) >= 6) {
                                     $logLineSkip = false;
 
                                     // Is line before
-                                    if ($before !== null && ($lineDate[0] > $before[0] || $lineDate[1] > $before[1] || $lineDate[2] > $before[2] || $lineDate[3] > $before[3] || $lineDate[4] > $before[4] || $lineDate[5] > $before[5])) {
+                                    if (
+                                        $before !== null && (
+                                        $lineDate[0] > $before[0] ||
+                                        $lineDate[1] > $before[1] ||
+                                        $lineDate[2] > $before[2] ||
+                                        $lineDate[3] > $before[3] ||
+                                        $lineDate[4] > $before[4] ||
+                                        $lineDate[5] > $before[5]
+                                        )
+                                    ) {
                                         $logLineSkip = true;
                                         continue;
                                     }
 
                                     // Is line after
-                                    if ($after !== null && ($after[0] > $lineDate[0] || $after[1] > $lineDate[1] || $after[2] > $lineDate[2] || $after[3] > $lineDate[3] || $after[4] > $lineDate[4] || $after[5] > $lineDate[5])) {
+                                    if (
+                                        $after !== null && (
+                                        $after[0] > $lineDate[0] ||
+                                        $after[1] > $lineDate[1] ||
+                                        $after[2] > $lineDate[2] ||
+                                        $after[3] > $lineDate[3] ||
+                                        $after[4] > $lineDate[4] ||
+                                        $after[5] > $lineDate[5]
+                                        )
+                                    ) {
                                         $logLineSkip = true;
                                         continue;
                                     }
 
                                     $logLineCount += 1;
-                                }
+                                }//end if
 
                                 if ($logLineCount > $lines) {
                                     break;

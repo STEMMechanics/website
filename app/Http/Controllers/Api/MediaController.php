@@ -10,6 +10,7 @@ use App\Models\Media;
 use App\Models\MediaJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -123,7 +124,9 @@ class MediaController extends ApiController
                     case UPLOAD_ERR_PARTIAL:
                         return $this->respondWithErrors([$file => 'The file upload was interrupted.']);
                     default:
-                        return $this->respondWithErrors([$file => 'An error occurred uploading the file to the server.']);
+                        return $this->respondWithErrors(
+                            [$file => 'An error occurred uploading the file to the server.']
+                        );
                 }
             }
 
@@ -151,12 +154,16 @@ class MediaController extends ApiController
             }
 
             if ($request->has('name') === true || $file !== null) {
-                $data['name'] = $request->has('chunk') === true ? $request->get('name', '') : $file->getClientOriginalName();
+                $data['name'] = (
+                    $request->has('chunk') === true ? $request->get('name', '') : $file->getClientOriginalName()
+                );
             }
 
             if ($file !== null) {
                 $data['size'] = $request->has('chunk') === true ? intval($request->get('size', 0)) : $file->getSize();
-                $data['mime_type'] = $request->has('chunk') === true ? $request->get('mime_type', '') : $file->getMimeType();
+                $data['mime_type'] = (
+                    $request->has('chunk') === true ? $request->get('mime_type', '') : $file->getMimeType()
+                );
             }
 
             if ($request->has('storage') === true || $file !== null) {
@@ -167,36 +174,42 @@ class MediaController extends ApiController
                 $data['security']['type'] = $request->get('security_type', '');
                 $data['security']['data'] = $request->get('security_data', '');
 
-                if($data['security']['type'] === '') {
+                if ($data['security']['type'] === '') {
                     $data['security']['data'] = '';
                 }
 
-                if($medium === null || strcasecmp($data['security']['type'], $medium->security_type) !== 0) {
-                    if($request->has('storage') === false) {
+                if ($medium === null || strcasecmp($data['security']['type'], $medium->security_type) !== 0) {
+                    if ($request->has('storage') === false) {
                         $mime_type = $request->get('mime_type', $medium === null ? '' : $medium->mime_type);
                         $data['storage'] = Media::recommendedStorage($mime_type, $data['security']['type']);
                     }
                 }
             }
 
-            if(array_key_exists('storage', $data) === true && 
-                (array_key_exists('security', $data) === true && array_key_exists('type', $data['security']) === true) && 
-                array_key_exists('mime_type', $data) === true && 
-                $data['mime_type'] !== "") {
+            if (
+                array_key_exists('storage', $data) === true && (
+                    array_key_exists('security', $data) === true &&
+                    array_key_exists('type', $data['security']) === true
+                ) &&
+                array_key_exists('mime_type', $data) === true &&
+                $data['mime_type'] !== ""
+            ) {
                     $error = Media::verifyStorage($data['mime_type'], $data['security']['type'], $data['storage']);
                     // Log::error($data['mime_type'] . ' - ' . $data['security']['type'] . ' - ' . $data['storage']);
-                    switch($error) {
-                        case Media::STORAGE_VALID:
-                            break;
-                        case Media::STORAGE_MIME_MISSING:
-                            return $this->respondWithErrors(['mime_type' => 'The file type is required.']);
-                        case Media::STORAGE_NOT_FOUND:
-                            return $this->respondWithErrors(['storage' => 'Storage was not found.']);
-                        case Media::STORAGE_INVALID_SECURITY:
-                            return $this->respondWithErrors(['storage' => 'Storage invalid for this security requirement.']);
-                        default:
-                            return $this->respondWithErrors(['storage' => 'Storage verification error occurred.']);
-                    }
+                switch ($error) {
+                    case Media::STORAGE_VALID:
+                        break;
+                    case Media::STORAGE_MIME_MISSING:
+                        return $this->respondWithErrors(['mime_type' => 'The file type is required.']);
+                    case Media::STORAGE_NOT_FOUND:
+                        return $this->respondWithErrors(['storage' => 'Storage was not found.']);
+                    case Media::STORAGE_INVALID_SECURITY:
+                        return $this->respondWithErrors(
+                            ['storage' => 'Storage invalid for this security requirement.']
+                        );
+                    default:
+                        return $this->respondWithErrors(['storage' => 'Storage verification error occurred.']);
+                }
             }
 
             if ($request->has('transform') === true) {
@@ -211,7 +224,12 @@ class MediaController extends ApiController
                         } elseif (preg_match('/^crop-(\d+)-(\d+)$/', $value, $matches) !== false) {
                             $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2]];
                         } elseif (preg_match('/^crop-(\d+)-(\d+)-(\d+)-(\d+)$/', $value, $matches) !== false) {
-                            $transform['crop'] = ['width' => $matches[1], 'height' => $matches[2], 'x' => $matches[3], 'y' => $matches[4]];
+                            $transform['crop'] = [
+                                'width' => $matches[1],
+                                'height' => $matches[2],
+                                'x' => $matches[3],
+                                'y' => $matches[4]
+                            ];
                         }
                     }
                 }
@@ -252,7 +270,10 @@ class MediaController extends ApiController
                 return $this->respondServerError();
             }
 
-            $temporaryFilePath = generateTempFilePath(pathinfo($data['name'], PATHINFO_EXTENSION), $request->get('chunk', ''));
+            $temporaryFilePath = generateTempFilePath(
+                pathinfo($data['name'], PATHINFO_EXTENSION),
+                $request->get('chunk', '')
+            );
             copy($file->path(), $temporaryFilePath);
 
             if ($request->has('chunk') === true) {
@@ -293,18 +314,18 @@ class MediaController extends ApiController
      * Display the specified resource.
      *
      * @param \Illuminate\Http\Request $request The endpoint request.
-     * @param  \App\Models\Media        $medium  Specified media.
+     * @param  \App\Models\Media        $media   Specified media.
      * @return \Illuminate\Http\Response
      */
-    public function download(Request $request, Media $media)
+    public function download(Request $request, Media $media): Response
     {
         $headers = [];
-        
+
         /* Check file exists */
-        if(Storage::disk($media->storage)->exists($media->name) === false) {
+        if (Storage::disk($media->storage)->exists($media->name) === false) {
             return $this->respondNotFound();
         }
-        
+
         $updated_at = Carbon::parse(Storage::disk($media->storage)->lastModified($media->name));
 
         $headerPragma = 'no-cache';
@@ -328,17 +349,22 @@ class MediaController extends ApiController
             /* no security */
             $headerPragma = 'public';
             $headerExpires = $updated_at->addMonth()->toRfc2822String();
-        } else if (strcasecmp('password', $media->security_type) === 0) {
+        } elseif (strcasecmp('password', $media->security_type) === 0) {
             /* password */
-            if(
-                ($user === null || $user->hasPermission('admin/media') === false) && 
-                ($request->has('password') === false || $request->get('password') !== $media->security_data)) {
+            if (
+                ($user === null || $user->hasPermission('admin/media') === false) &&
+                ($request->has('password') === false || $request->get('password') !== $media->security_data)
+            ) {
                     return $this->respondForbidden();
             }
-        } else if (strcasecmp('permission', $media->security_type) === 0) {
+        } elseif (strcasecmp('permission', $media->security_type) === 0) {
             /* permission */
-            if(
-                $user === null || ($user->hasPermission('admin/media') === false && $user->hasPermission($media->security_data) === false)) {
+            if (
+                $user === null || (
+                    $user->hasPermission('admin/media') === false &&
+                    $user->hasPermission($media->security_data) === false
+                )
+            ) {
                     return $this->respondForbidden();
             }
         }//end if
@@ -374,10 +400,12 @@ class MediaController extends ApiController
 
         $stream = Storage::disk($media->storage)->readStream($media->name);
         return response()->stream(
-            function() use($stream) {
-                while(ob_get_level() > 0) ob_end_flush();
+            function () use ($stream) {
+                while (ob_get_level() > 0) {
+                    ob_end_flush();
+                }
                 fpassthru($stream);
-            }, 
+            },
             200,
             $headers
         );
@@ -400,7 +428,9 @@ class MediaController extends ApiController
                 case UPLOAD_ERR_PARTIAL:
                     return $this->respondWithErrors([$errorKey => 'The file upload was interrupted.']);
                 default:
-                    return $this->respondWithErrors([$errorKey => 'An error occurred uploading the file to the server.']);
+                    return $this->respondWithErrors(
+                        [$errorKey => 'An error occurred uploading the file to the server.']
+                    );
             }
         }
 

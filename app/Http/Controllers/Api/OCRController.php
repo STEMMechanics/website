@@ -101,7 +101,10 @@ class OCRController extends ApiController
             $tesseractImageFilterFunc = function ($filter, $options = null) use ($curlResult, $curlSize, $ocr) {
                 $result = '';
                 $img = imagecreatefromstring($curlResult);
-                if ($img !== false && (($options !== null && imagefilter($img, $filter, $options) === true) || ($options === null && imagefilter($img, $filter) === true))) {
+                if (
+                    $img !== false && (($options !== null && imagefilter($img, $filter, $options) === true) ||
+                    ($options === null && imagefilter($img, $filter) === true))
+                ) {
                     ob_start();
                     imagepng($img);
                     $imgData = ob_get_contents();

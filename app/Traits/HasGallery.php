@@ -64,6 +64,11 @@ trait HasGallery
         return $this->morphMany(\App\Models\Gallery::class, 'addendum');
     }
 
+    /**
+     * Get the article's gallery collection.
+     *
+     * @return Illuminate\Database\Eloquent\Collection The gallery collection
+     */
     public function getGallery(): Collection
     {
         return Cache::remember($this->galleryCacheKey(), now()->addDays(28), function () {

@@ -31,6 +31,7 @@ class AuthController extends ApiController
      * Current User details
      *
      * @param Request $request Current request data.
+     * @return JsonResponse
      */
     public function me(Request $request): JsonResponse
     {
@@ -48,7 +49,11 @@ class AuthController extends ApiController
     {
         $user = User::where('email', '=', $request->input('email'))->first();
 
-        if ($user !== null && strlen($user->password) > 0 && Hash::check($request->input('password'), $user->password) === true) {
+        if (
+            $user !== null &&
+            strlen($user->password) > 0 &&
+            Hash::check($request->input('password'), $user->password) === true
+        ) {
             if ($user->email_verified_at === null) {
                 return $this->respondWithErrors([
                     'email' => 'Email address has not been verified.'
@@ -86,6 +91,7 @@ class AuthController extends ApiController
      * Logout current user
      *
      * @param Request $request Current request data.
+     * @return JsonResponse
      */
     public function logout(Request $request): JsonResponse
     {

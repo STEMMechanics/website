@@ -21,10 +21,13 @@ class RemoveStaleMediaJobs extends Command
      */
     protected $description = 'Remove media_jobs that have not been modified for 48 hours';
 
+
     /**
      * Execute the console command.
+     *
+     * @return void
      */
-    public function handle()
+    public function handle(): void
     {
         $threshold = now()->subHours(48);
 

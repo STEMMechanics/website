@@ -6,6 +6,11 @@ use Illuminate\Validation\Rule;
 
 class MediaRequest extends BaseRequest
 {
+    /**
+     * POST request rules
+     *
+     * @return array
+     */
     public function postRules(): array
     {
         return [

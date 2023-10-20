@@ -73,7 +73,10 @@ class UserController extends ApiController
     {
         if (UserConductor::creatable() === true) {
             $user = User::create($request->all());
-            return $this->respondAsResource(UserConductor::model($request, $user), ['respondCode' => HttpResponseCodes::HTTP_CREATED]);
+            return $this->respondAsResource(
+                UserConductor::model($request, $user),
+                ['respondCode' => HttpResponseCodes::HTTP_CREATED]
+            );
         } else {
             return $this->respondForbidden();
         }
@@ -145,6 +148,7 @@ class UserController extends ApiController
      * Register a new user
      *
      * @param \App\Http\Requests\UserRegisterRequest $request The register user request.
+     * @return JsonResponse
      */
     public function register(UserRegisterRequest $request): JsonResponse
     {
@@ -285,6 +289,7 @@ class UserController extends ApiController
      * Resend a new verify email
      *
      * @param \App\Http\Requests\UserResendVerifyEmailRequest $request The resend verify email request.
+     * @return JsonResponse
      */
     public function resendVerifyEmail(UserResendVerifyEmailRequest $request): JsonResponse
     {
@@ -338,10 +343,15 @@ class UserController extends ApiController
      *
      * @param Request $request The http request.
      * @param User    $user    The specified user.
+     * @return JsonResponse
      */
     public function eventList(Request $request, User $user): JsonResponse
     {
-        if ($request->user() !== null && ($request->user() === $user || $request->user()->hasPermission('admin/events') === true)) {
+        if (
+            $request->user() !== null && (
+            $request->user() === $user || $request->user()->hasPermission('admin/events') === true
+            )
+        ) {
             $collection = $user->events;
             $total = $collection->count();
 

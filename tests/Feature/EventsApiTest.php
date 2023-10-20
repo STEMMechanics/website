@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
@@ -12,15 +14,29 @@ final class EventsApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Faker Factory instance.
+     * @var Faker\Factory
+     */
     protected $faker;
 
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return void
+     */
     protected function setUp(): void
     {
         parent::setUp();
         $this->faker = FakerFactory::create();
     }
 
+    /**
+     * Tests that any user can view an event if it's published and not in the future.
+     *
+     * @return void
+     */
     public function testAnyUserCanViewEvent(): void
     {
         // Create an event
@@ -52,6 +68,11 @@ final class EventsApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that any user cannot see draft events.
+     *
+     * @return void
+     */
     public function testAnyUserCannotSeeDraftEvent(): void
     {
         // Create a draft event
@@ -85,6 +106,11 @@ final class EventsApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that an admin can create, update, and delete events.
+     *
+     * @return void
+     */
     public function testAdminCanCreateUpdateDeleteEvent(): void
     {
         // Create a user with the admin/events permission
@@ -139,6 +165,11 @@ final class EventsApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that a non-admin user cannot create, update, or delete events.
+     *
+     * @return void
+     */
     public function testNonAdminCannotCreateUpdateDeleteEvent(): void
     {
         // Create a user without admin/events permission

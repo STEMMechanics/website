@@ -21,8 +21,12 @@ class UserRequest extends BaseRequest
         $isAdminUser = $user->hasPermission('admin/users');
 
         return [
-            'first_name' => ($isAdminUser === true ? 'required_with:last_name,display_name,phone' : 'required') . '|string|max:255|min:2',
-            'last_name' => ($isAdminUser === true ? 'required_with:first_name,display_name,phone' : 'required') . '|string|max:255|min:2',
+            'first_name' => (
+                $isAdminUser === true ? 'required_with:last_name,display_name,phone' : 'required'
+            ) . '|string|max:255|min:2',
+            'last_name' => (
+                $isAdminUser === true ? 'required_with:first_name,display_name,phone' : 'required'
+            ) . '|string|max:255|min:2',
             'display_name' => [
                 $isAdminUser === true ? 'required_with:first_name,last_name,phone' : 'required',
                 'string',

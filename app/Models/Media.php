@@ -21,6 +21,8 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Facades\Image;
+use Psr\Container\NotFoundExceptionInterface;
+use Psr\Container\ContainerExceptionInterface;
 use SplFileInfo;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -155,8 +157,8 @@ class Media extends Model
     /**
      * Variants Get Mutator.
      *
-     * @param mixed $value The value to mutate.
-     * @param bool $raw Values are not run through urlencode.
+     * @param mixed   $value The value to mutate.
+     * @param boolean $raw   Values are not run through urlencode.
      * @return array|null The mutated value.
      */
     public function getVariantsAttribute(mixed $value, bool $raw = false): array|null
@@ -165,15 +167,15 @@ class Media extends Model
             $decodedValue = json_decode($value, true);
 
             // Check if the decoded value is an array
-            if ($raw == false && is_array($decodedValue)) {
+            if ($raw === false && is_array($decodedValue) === true) {
                 // Loop through the array and encode each value
                 foreach ($decodedValue as &$item) {
-                    if (is_string($item)) {
+                    if (is_string($item) === true) {
                         $item = rawurlencode($item);
                     }
                 }
             }
-    
+
             return $decodedValue;
         }
 
@@ -278,7 +280,10 @@ class Media extends Model
      */
     public function deleteFile(): void
     {
-        if (strlen($this->storage) > 0 && strlen($this->name) > 0 && Storage::disk($this->storage)->exists($this->name) === true) {
+        if (
+            strlen($this->storage) > 0 && strlen($this->name) > 0 &&
+            Storage::disk($this->storage)->exists($this->name) === true
+        ) {
             Storage::disk($this->storage)->delete($this->name);
         }
 
@@ -322,19 +327,20 @@ class Media extends Model
     /**
      * Get URL path
      *
+     * @param array $replacements Replace variables in URL.
      * @return string
      */
     public function getUrlPath(array $replacements = []): string
     {
         $url = config("filesystems.disks.$this->storage.url");
-        
-        if (!empty($replacements)) {
+
+        if (empty($replacements) !== true) {
             foreach ($replacements as $key => $value) {
                 $placeholder = '{' . $key . '}';
                 $url = str_replace($placeholder, $value, $url);
             }
         }
-    
+
         // Remove any remaining {x} placeholders
         $url = preg_replace('/\{[^}]+\}/', '', $url);
 
@@ -992,12 +998,26 @@ class Media extends Model
         $this->save();
     }
 
-    public function jobs(): HasMany {
+    /**
+     * Get the associated job models
+     *
+     * @return HasMany
+     */
+    public function jobs(): HasMany
+    {
         return $this->hasMany(MediaJob::class, 'media_id');
     }
 
-    public static function recommendedStorage(string $mime_type, string $security_type): string {
-        if($security_type === '') {
+    /**
+     * Get the recommended storage ID based on mime and security
+     *
+     * @param string $mime_type     The file mime type.
+     * @param string $security_type The security requested.
+     * @return string
+     */
+    public static function recommendedStorage(string $mime_type, string $security_type): string
+    {
+        if ($security_type === '') {
             if (strpos($mime_type, 'image/') === 0) {
                 return('local');
             } else {
@@ -1008,9 +1028,18 @@ class Media extends Model
         return('private');
     }
 
-    public static function verifyStorage($mime_type, $security_type, &$storage): int {
-        if($storage === '') {
-            if($security_type === '') {
+    /**
+     * Verify the storage exists. May change the storage value.
+     *
+     * @param mixed $mime_type     File mime type.
+     * @param mixed $security_type Requested security type.
+     * @param mixed $storage       Reference to the requested storage type.
+     * @return integer Error code.
+     */
+    public static function verifyStorage(mixed $mime_type, mixed $security_type, mixed &$storage): int
+    {
+        if ($storage === '') {
+            if ($security_type === '') {
                 if (strpos($mime_type, 'image/') === 0) {
                     $storage = 'local';
                 } else {
@@ -1021,11 +1050,11 @@ class Media extends Model
             }
         } else {
             $disks = config('filesystems.disks');
-            if(array_key_exists($storage, $disks) === false) {
+            if (array_key_exists($storage, $disks) === false) {
                 return Media::STORAGE_NOT_FOUND;
             }
 
-            if($security_type !== '' && strcasecmp($storage, 'private') !== 0) {
+            if ($security_type !== '' && strcasecmp($storage, 'private') !== 0) {
                 return Media::STORAGE_INVALID_SECURITY;
             }
         }

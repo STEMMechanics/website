@@ -58,10 +58,10 @@ function arrayDefaultValue(string $key, array $arr, mixed $value): mixed
 
 /**
  * Return if an item exists in an array, case insensitive
- * 
+ *
  * @param string $val The value to check.
  * @param array  $arr The array to check.
- * @return bool
+ * @return boolean
  */
 function existsInArray(string $val, array $arr): bool
 {

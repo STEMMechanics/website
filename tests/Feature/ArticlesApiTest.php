@@ -1,5 +1,7 @@
 <?php
 
+namespace Tests;
+
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
@@ -11,15 +13,29 @@ final class ArticlesApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Faker Factory instance.
+     * @var Faker\Factory
+     */
     protected $faker;
 
 
+    /**
+     * {@inheritDoc}
+     *
+     * @return void
+     */
     protected function setUp(): void
     {
         parent::setUp();
         $this->faker = FakerFactory::create();
     }
 
+    /**
+     * Tests that any user can view an article if it's published and not in the future.
+     *
+     * @return void
+     */
     public function testAnyUserCanViewArticle(): void
     {
         // Create an event
@@ -51,6 +67,11 @@ final class ArticlesApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that an admin can create, update, and delete articles.
+     *
+     * @return void
+     */
     public function testAdminCanCreateUpdateDeleteArticle(): void
     {
         // Create a user with the admin/events permission
@@ -102,6 +123,11 @@ final class ArticlesApiTest extends TestCase
         ]);
     }
 
+    /**
+     * Tests that a non-admin user cannot create, update, or delete articles.
+     *
+     * @return void
+     */
     public function testNonAdminCannotCreateUpdateDeleteArticle(): void
     {
         // Create a user without admin/events permission
