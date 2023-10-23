@@ -10,7 +10,7 @@
         "ls-lint": "npx @ls-lint/ls-lint"
     },
     "devDependencies": {
-        "@ls-lint/ls-lint": "^2.0.0",
+        "@ls-lint/ls-lint": "^2.2.2",
         "@typescript-eslint/eslint-plugin": "^6.7.0",
         "@typescript-eslint/parser": "^6.7.0",
         "eslint": "^8.31.0",
