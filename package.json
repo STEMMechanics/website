@@ -27,7 +27,7 @@
         "typescript": "^5.0.4",
         "unocss": "^0.57.1",
         "vite": "^4.4.7",
-        "vite-plugin-compression2": "^0.10.2",
+        "vite-plugin-compression2": "^0.11.0",
         "vitest": "^0.34.3"
     },
     "dependencies": {
