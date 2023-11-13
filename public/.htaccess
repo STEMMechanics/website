@@ -3,30 +3,7 @@
         Options -MultiViews -Indexes
     </IfModule>
 
-    <IfModule mod_headers.c>
-        <FilesMatch "^(uploads|img)/.+">
-            <If "%{QUERY_STRING} =~ /(^|&)download=1($|&)/">
-                Header set Content-Disposition "attachment"
-            </If>
-        </FilesMatch>
-    </IfModule>
-
     RewriteEngine On
-
-    # Block access to .git directory
-	RewriteRule .*\.git/.* - [L,R=404]
-
-    # Force HTTPS
-    RewriteCond %{HTTPS} !=on
-    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-
-    # Support shortlinks
-    RewriteCond %{HTTP_HOST} ^(www\.)?stemmech\.com\.au$ [NC]
-    RewriteRule ^(.*)$ shortlink.php?code=$1 [L,QSA]
-
-    # Add www subdomain if missing
-    RewriteCond %{HTTP_HOST} ^stemmechanics.com.au$ [NC]
-    RewriteRule (.*) https://www.stemmechanics.com.au/$1 [R=301,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -37,31 +14,8 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
-    # Pass to media handler if the media request has query
-    #RewriteCond %{REQUEST_FILENAME} -f
-    #RewriteCond %{QUERY_STRING} .
-    #RewriteRule ^uploads/(.+)\.(jpe?g|png)$ media.php?url=uploads/$1.$2 [NC,QSA,L]
-
-    # AddEncoding allows you to have certain browsers uncompress information on the fly.
-    AddEncoding gzip .gz
-
-    #Serve gzip compressed CSS files if they exist and the client accepts gzip.
-    RewriteCond %{HTTP:Accept-encoding} gzip
-    RewriteCond %{REQUEST_FILENAME}\.gz -s
-    RewriteRule ^(.*)\.css $1\.css\.gz [QSA]
-
-    # Serve gzip compressed JS files if they exist and the client accepts gzip.
-    RewriteCond %{HTTP:Accept-encoding} gzip
-    RewriteCond %{REQUEST_FILENAME}\.gz -s
-    RewriteRule ^(.*)\.js $1\.js\.gz [QSA]
-
-    # Serve correct content types, and prevent mod_deflate double gzip.
-    RewriteRule \.css\.gz$ - [T=text/css,E=no-gzip:1]
-    RewriteRule \.js\.gz$ - [T=text/javascript,E=no-gzip:1]
-
     # Send Requests To Front Controller...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
-
 </IfModule>
