@@ -14,5 +14,19 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('home');
 });
+
+/*
+Route::get('/', function() {
+    return view('listings', [
+        'listings' => Listing:all()
+    ]);
+});
+
+Route::get('/listings/{listing}', function(Listing $listing) {
+    rreturn view('listing', [
+        'listing' => $listing
+    ]);
+});
+*/
