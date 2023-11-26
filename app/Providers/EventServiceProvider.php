@@ -5,10 +5,7 @@ namespace App\Providers;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Illuminate\Queue\Events\JobProcessed;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Log;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -23,11 +20,8 @@ class EventServiceProvider extends ServiceProvider
         ],
     ];
 
-
     /**
      * Register any events for your application.
-     *
-     * @return void
      */
     public function boot(): void
     {
@@ -36,8 +30,6 @@ class EventServiceProvider extends ServiceProvider
 
     /**
      * Determine if events and listeners should be automatically discovered.
-     *
-     * @return boolean
      */
     public function shouldDiscoverEvents(): bool
     {

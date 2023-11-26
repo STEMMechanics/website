@@ -1,0 +1,200 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+    min-height: 100vh;
+    min-width: 100%;
+    overflow-x: hidden;
+}
+
+input:read-only {
+    cursor: not-allowed;
+    background-color: #eee !important;
+    color: #555 !important;
+}
+
+button:disabled,
+a.disabled,
+input[type="submit"]:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+    background-color: #ccc !important;
+    color: #555 !important;
+}
+
+button,
+input[type="submit"] {
+    user-select: none;
+}
+
+a {
+    @apply transition hover:text-blue;
+}
+
+input {
+    &[type="text"],
+    &[type="password"],
+    &[type="email"] {
+        @apply w-full rounded border border-gray-300 p-2;
+    }
+}
+
+div.table-layout {
+    @apply overflow-y-scroll px-4;
+
+    table {
+        @apply mx-auto;
+    }
+}
+
+table {
+    @apply border-separate border border-[#ccc] rounded-lg bg-[#ddd];
+
+    th,
+    td {
+        @apply text-sm px-4 whitespace-nowrap;
+    }
+
+    th {
+        @apply pt-4 pb-3 text-[#666] text-left font-normal border-b border-[#ccc];
+    }
+
+    td {
+        @apply py-4 bg-[#f8f8f8] text-[#333];
+    }
+
+    tbody tr:not(:last-child) td {
+        @apply border-b border-[#ddd];
+    }
+
+    tbody tr:last-child {
+        td:first-child {
+            @apply rounded-bl-lg;
+        }
+
+        td:last-child {
+            @apply rounded-br-lg;
+        }
+    }
+}
+
+.floating-label {
+    @apply relative my-8;
+
+    label {
+        @apply absolute text-gray-600 z-10 pointer-events-none top-2.5 left-2.5;
+        transition: all 0.1s ease-in-out;
+    }
+
+    input::placeholder {
+        @apply opacity-0;
+    }
+
+    input:read-only,
+    input:focus,
+    input:valid:not(:placeholder-shown) {
+        & + label {
+            @apply -top-4 left-1 text-xs;
+        }
+    }
+}
+
+input:has(~ .error) {
+    border: 2px solid #e00000;
+}
+
+p.error {
+    padding-left: 0.25rem;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: #e00000;
+}
+
+input[type="submit"],
+button,
+a.btn {
+    user-select: none;
+    @apply py-2 px-6 rounded transition inline-block border border-gray-300 hover:bg-gray-300;
+
+    &-blue {
+        @apply btn border-none bg-blue text-white hover:bg-blue-dark;
+    }
+
+    &-green {
+        @apply btn border-none bg-green text-white hover:bg-green-dark;
+    }
+
+    &-block {
+        @apply !block text-center;
+    }
+}
+
+.btn-block {
+    @apply btn !block text-center;
+}
+
+.btn-blue {
+    @apply btn border-none bg-blue text-white hover:bg-blue-dark;
+}
+
+.btn-block-blue {
+    @apply btn-blue !block text-center;
+}
+
+.btn-orange {
+    @apply btn border-none bg-orange text-white hover:bg-orange-dark;
+}
+
+.btn-block-orange {
+    @apply btn-orange !block text-center;
+}
+
+.btn-yellow {
+    @apply btn border-none bg-yellow text-white hover:bg-yellow-dark;
+}
+
+.btn-block-yellow {
+    @apply btn-yellow !block text-center;
+}
+
+.btn-red {
+    @apply btn border-none bg-red text-white hover:bg-red-dark;
+}
+
+.btn-block-red {
+    @apply btn-red !block text-center;
+}
+
+.workshop-card:nth-child(6n + 1) .btn-block {
+    @apply bg-pink hover:bg-pink-dark text-white border-none;
+}
+
+.workshop-card:nth-child(6n + 2) .btn-block {
+    @apply bg-orange hover:bg-orange-dark text-white border-none;
+}
+
+.workshop-card:nth-child(6n + 3) .btn-block {
+    @apply bg-yellow hover:bg-yellow-dark text-black border-none;
+}
+
+.workshop-card:nth-child(6n + 4) .btn-block {
+    @apply bg-green hover:bg-green-dark text-white border-none;
+}
+
+.workshop-card:nth-child(6n + 5) .btn-block {
+    @apply bg-blue hover:bg-blue-dark text-white border-none;
+}
+
+.workshop-card:nth-child(6n + 6) .btn-block {
+    @apply bg-red hover:bg-red-dark text-white border-none;
+}
+
+.admin-card {
+    @apply flex w-60 flex-col items-center border;
+}
+
+.action-column {
+    @apply flex gap-4 justify-center;
+}

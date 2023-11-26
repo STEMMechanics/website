@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
  */
 class UserFactory extends Factory
 {
+    protected static ?string $password;
+
     /**
      * Define the model's default state.
      *
@@ -17,23 +20,13 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
-        $faker = \Faker\Factory::create();
-        $faker->addProvider(new \Faker\Provider\CustomInternetProvider($faker));
-
-        $first_name = $faker->firstName();
-        $last_name = $faker->lastName();
-
-        $display_name = $first_name . ' ' . $last_name;
-
         return [
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'email' => $faker->safeEmail(),
+            'username' => fake()->name(),
+            'is_under_14' => fake()->randomElement([0, 1]),
+            'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'phone' => $faker->phoneNumber(),
-            'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
+            'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'display_name' => $display_name,
         ];
     }
 

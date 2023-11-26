@@ -8,6 +8,6 @@
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true
     },
-    "include": ["resources/**/*"],
+    "include": ["resources/js/**/*"],
     "exclude": ["node_modules", "dist"]
 }

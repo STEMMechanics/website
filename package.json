@@ -1,53 +1,17 @@
 {
     "private": true,
+    "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build",
-        "lint": "eslint \"**/*.{js,jsx,.vue}\" --ignore-path .gitignore",
-        "format": "prettier .  --write",
-        "test": "vitest",
-        "knip": "knip",
-        "ls-lint": "npx @ls-lint/ls-lint"
+        "build": "vite build"
     },
     "devDependencies": {
-        "@ls-lint/ls-lint": "^2.2.2",
-        "@typescript-eslint/eslint-plugin": "^6.9.1",
-        "@typescript-eslint/parser": "^6.9.1",
-        "eslint": "^8.52.0",
-        "eslint-config-prettier": "^9.0.0",
-        "eslint-plugin-jsdoc": "^46.6.0",
-        "eslint-plugin-vue": "^9.18.1",
-        "knip": "^2.38.6",
+        "autoprefixer": "^10.4.16",
+        "axios": "^1.6.1",
         "laravel-vite-plugin": "^0.8.0",
-        "lodash": "^4.17.19",
-        "postcss": "^8.4.27",
-        "prettier": "3.0.3",
-        "rollup-plugin-analyzer": "^4.0.0",
-        "ts-node": "^10.9.1",
-        "typescript": "^5.0.4",
-        "unocss": "^0.57.1",
-        "vite": "^4.4.7",
-        "vite-plugin-compression2": "^0.11.0",
-        "vitest": "^0.34.3"
-    },
-    "dependencies": {
-        "@tiptap/extension-highlight": "^2.1.8",
-        "@tiptap/extension-image": "^2.0.3",
-        "@tiptap/extension-link": "^2.0.3",
-        "@tiptap/extension-subscript": "^2.0.3",
-        "@tiptap/extension-superscript": "^2.1.8",
-        "@tiptap/extension-text-align": "^2.0.3",
-        "@tiptap/extension-underline": "^2.0.3",
-        "@tiptap/pm": "^2.0.3",
-        "@tiptap/starter-kit": "^2.1.8",
-        "@tiptap/vue-3": "^2.0.3",
-        "@vitejs/plugin-vue": "^4.4.0",
-        "dompurify": "^3.0.4",
-        "dotenv": "^16.0.3",
-        "pinia": "^2.0.28",
-        "pinia-plugin-persistedstate": "^3.2.0",
-        "sass": "^1.69.5",
-        "vue": "^3.3.7",
-        "vue-router": "^4.2.2"
+        "postcss": "^8.4.31",
+        "precss": "^4.0.0",
+        "tailwindcss": "^3.3.5",
+        "vite": "^4.0.0"
     }
 }
