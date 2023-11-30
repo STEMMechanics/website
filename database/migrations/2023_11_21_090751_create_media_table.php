@@ -13,7 +13,13 @@ return new class extends Migration
     {
         Schema::create('media', function (Blueprint $table) {
             $table->id();
+            $table->string('filename');
+            $table->string('path');
+            $table->string('type');
+            $table->json('metadata')->nullable();
+            $table->integer('size');
             $table->timestamps();
+            $table->foreign('parent_id')->references('id')->on('media')->onDelete('set null');
         });
     }
 
