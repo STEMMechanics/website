@@ -16,5 +16,6 @@
         // "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
         "editor.defaultFormatter": "wongjn.php-sniffer"
     },
-    "cSpell.words": ["TIMESTAMPDIFF"]
+    "phpSniffer.autoDetect": true,
+    "phpSniffer.run": "onSave"
 }
