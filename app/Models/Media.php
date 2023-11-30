@@ -11,14 +11,34 @@ class Media extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['parent_id', 'filename', 'path', 'type', 'metadata', 'size'];
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'parent_id',
+        'filename',
+        'path',
+        'type',
+        'metadata',
+        'size'
+    ];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
     protected $casts = [
         'metadata' => 'array',
     ];
 
+
     /**
      * Get the original media of this variation.
+     *
+     * @return BelongsTo
      */
     public function parent(): BelongsTo
     {
@@ -27,11 +47,11 @@ class Media extends Model
 
     /**
      * Get the variations for the media.
+     *
+     * @return HasMany
      */
-    
-
     public function variations(): HasMany
     {
-        return $this->hasMany(Media::class, 'original_media_id');
+        return $this->hasMany(Media::class, 'parent_id');
     }
 }
