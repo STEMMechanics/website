@@ -31,6 +31,8 @@
         "vitest": "^0.34.3"
     },
     "dependencies": {
+        "@inertiajs/progress": "^0.2.7",
+        "@inertiajs/vue3": "^1.0.14",
         "@tiptap/extension-highlight": "^2.1.8",
         "@tiptap/extension-image": "^2.0.3",
         "@tiptap/extension-link": "^2.0.3",
@@ -48,6 +50,7 @@
         "pinia-plugin-persistedstate": "^3.2.0",
         "sass": "^1.69.5",
         "vue": "^3.3.7",
-        "vue-router": "^4.2.2"
+        "vue-router": "^4.2.2",
+        "ziggy-js": "^1.8.1"
     }
 }
