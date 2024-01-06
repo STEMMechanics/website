@@ -64,7 +64,7 @@
             will forever remain etched in the hearts of the Cairns Minecraft
             community.
         </p>
-        <SMAttachments class="mt-8" :attachments="downloads" />
+        <SMAttachments class="mt-8" :model-value="downloads" />
     </div>
 </template>
 
