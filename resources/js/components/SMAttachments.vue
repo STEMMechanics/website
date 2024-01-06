@@ -17,7 +17,10 @@
                             :src="getFileIconImagePath(file.name || file.title)"
                             class="h-10 text-center" />
                         <div
-                            v-if="file.security_type != ''"
+                            v-if="
+                                file.security_type !== undefined &&
+                                file.security_type != ''
+                            "
                             class="absolute right--1 top-0 h-4 w-4">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -33,7 +36,10 @@
                             file.title || file.name
                         }}</a>
                         <p
-                            v-if="file.security_type != ''"
+                            v-if="
+                                file.security_type !== undefined &&
+                                file.security_type != ''
+                            "
                             class="text-xs color-gray">
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
