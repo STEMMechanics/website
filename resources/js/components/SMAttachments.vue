@@ -32,7 +32,7 @@
                         </div>
                     </td>
                     <td class="pl-2 py-4 w-full">
-                        <a :href="file.url" target="_blank">{{
+                        <a rel="nofollow" :href="file.url" target="_blank">{{
                             file.title || file.name
                         }}</a>
                         <p
@@ -55,7 +55,9 @@
                         </p>
                     </td>
                     <td class="pr-2">
-                        <a :href="addQueryParam(file.url, 'download', '1')"
+                        <a
+                            rel="nofollow"
+                            :href="addQueryParam(file.url, 'download', '1')"
                             ><svg
                                 viewBox="0 0 24 24"
                                 fill="none"
