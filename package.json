@@ -15,7 +15,7 @@
         "@typescript-eslint/parser": "^6.9.1",
         "eslint": "^8.52.0",
         "eslint-config-prettier": "^9.0.0",
-        "eslint-plugin-jsdoc": "^46.6.0",
+        "eslint-plugin-jsdoc": "^48.0.2",
         "eslint-plugin-vue": "^9.18.1",
         "knip": "^2.38.6",
         "laravel-vite-plugin": "^0.8.0",
