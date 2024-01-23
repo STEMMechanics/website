@@ -43,7 +43,7 @@
         "@tiptap/pm": "^2.0.3",
         "@tiptap/starter-kit": "^2.1.8",
         "@tiptap/vue-3": "^2.0.3",
-        "@vitejs/plugin-vue": "^4.4.0",
+        "@vitejs/plugin-vue": "^5.0.3",
         "dompurify": "^3.0.4",
         "dotenv": "^16.0.3",
         "pinia": "^2.0.28",
