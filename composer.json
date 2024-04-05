@@ -24,7 +24,7 @@
         "vlucas/phpdotenv": "^5.5"
     },
     "require-dev": {
-        "barryvdh/laravel-ide-helper": "^2.13",
+        "barryvdh/laravel-ide-helper": "^3.0",
         "fakerphp/faker": "^1.9.1",
         "itsgoingd/clockwork": "^5.1",
         "laravel/pint": "^1.0",
