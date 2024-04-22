@@ -8,8 +8,8 @@
 @endphp
 
 @if($value !== '' || $editor === true)
-<div x-data class="{{ twMerge('mb-4', $attributes->get('class')) }}">
-    <h3 x-show="$store.files.length > 0 || {{ $editor === true ? 'true' : 'false' }}" class="text-xl font-semibold">{{ $label }}</h3>
+<div x-data class="{{ twMerge('mb-4', $attributes->get('class')) }}" x-show="$store.files.length > 0 || {{ $editor === true ? 'true' : 'false' }}">
+    <h3 class="text-xl font-semibold">{{ $label }}</h3>
     <ul x-show="$store.files.length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2">
         <template x-for="file in $store.files" :key="file.name">
         <li class="flex items-center">
@@ -50,22 +50,18 @@
 
         Alpine.store('files', []);
 
-        // Check if result is a string or a collection
-        if (typeof result === 'string') {
-            result = result.split(',').filter((item) => item.length > 0);
-
-            Promise.all(result.map(fileName => new Promise(resolve => {
-                SM.mediaDetails(fileName, (details) => {
-                    resolve(details);
+        // Check if each item in result is a string or an object
+        result.forEach(item => {
+            if (typeof item === 'string') {
+                // If item is a string, get file details
+                SM.mediaDetails(item, (details) => {
+                    Alpine.store('files', [...Alpine.store('files'), details]);
                 });
-            }))).then(detailsArray => {
-                Alpine.store('files', detailsArray);
-            });
-
-        } else if (Array.isArray(result)) {
-            // If result is a collection, directly place it in the store
-            Alpine.store('files', result);
-        }
+            } else {
+                // If item is an object, directly place it in the store
+                Alpine.store('files', [...Alpine.store('files'), item]);
+            }
+        });
 
         const elem = document.getElementById('{{ $name }}');
         if(elem) {
