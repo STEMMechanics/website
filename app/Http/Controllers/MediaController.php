@@ -219,15 +219,65 @@ class MediaController extends Controller
      */
     public function admin_update(Request $request, Media $media)
     {
-        $request->validate([
+        $max_size = Helpers::getMaxUploadSize();
+
+        $validator = Validator::make($request->all(), [
             'title' => 'required',
-            'content' => 'required',
+//            'file' => 'nullable|file|max:' . (max(round($max_size / 1024),0)),
         ], [
-//            'firstname.required' => __('validation.custom_messages.firstname_required'),
-//            'surname.required' => __('validation.custom_messages.surname_required'),
+            'title.required' => __('validation.custom_messages.title_required'),
+//            'file.required' => __('validation.custom_messages.file_required'),
+//            'file.file' => __('validation.custom_messages.file_file'),
+//            'file.max' => __('validation.custom_messages.file_max', ['max' => Helpers::bytesToString($max_size)])
         ]);
 
-        $media->update($request->all());
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $mediaData = $request->all();
+
+//        $file = null;
+//        if($request->has('file')) {
+//            $file = $request->file('file');
+//
+//            $name = $file->getClientOriginalName();
+//            $name = Helpers::cleanFileName($name);
+//            if ($name !== $media->name) {
+//                if (Media::find($name) !== null) {
+//                    $increment = 2;
+//                    while (Media::find($name . '-' . $increment) !== null) {
+//                        $increment++;
+//                    }
+//
+//                    $name = $name . '-' . $increment;
+//                }
+//            }
+//
+//            $hash = hash_file('sha256', $file->path());
+//
+//            $storage = Storage::disk('media');
+//            if (!$storage->exists($hash)) {
+//                if ($file->storeAs('/', $hash, 'media') === false) {
+//                    session()->flash('message', 'A server error occurred uploading the file.');
+//                    session()->flash('message-title', 'Upload failed');
+//                    session()->flash('message-type', 'danger');
+//                    return redirect()->back();
+//                }
+//            }
+//
+//            $mediaData['name'] = $name;
+//            $mediaData['size'] = $file->getSize();
+//            $mediaData['mime_type'] = $file->getMimeType();
+//            $mediaData['hash'] = $hash;
+//        }
+
+        $media->update($mediaData);
+
+//        if($file) {
+//            $media->generateVariants(false);
+//            unlink($file);
+//        }
 
         session()->flash('message', 'Media has been updated');
         session()->flash('message-title', 'Media updated');
