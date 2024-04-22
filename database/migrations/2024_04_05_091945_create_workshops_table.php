@@ -16,10 +16,10 @@ return new class extends Migration
             $table->string('title');
             $table->string('hero_media_name');
             $table->text('content');
-            $table->timestamp('starts_at');
-            $table->timestamp('ends_at');
-            $table->timestamp('publish_at');
-            $table->timestamp('closes_at');
+            $table->timestamp('starts_at')->nullable();
+            $table->timestamp('ends_at')->nullable();
+            $table->timestamp('publish_at')->nullable();
+            $table->timestamp('closes_at')->nullable();
             $table->string('status')->default('draft');
             $table->string('price')->nullable();
             $table->string('ages')->nullable();
