@@ -29,17 +29,17 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@stemmechanics.com.au',
         ]);
 
-        Media::factory()->create([
-            'user_id' => 1,
-            'name' => 'stemmechanics-logo.png',
-            'hash' => '36296b5889a358a6440080074f17d45867727969',
-            'title' => 'STEMMechanics',
-            'mime_type' => 'image/png',
-            'size' => Storage::disk('media')->size('36296b5889a358a6440080074f17d45867727969')
-        ]);
+//        Media::factory()->create([
+//            'user_id' => 1,
+//            'name' => 'stemmechanics-logo.png',
+//            'hash' => '36296b5889a358a6440080074f17d45867727969',
+//            'title' => 'STEMMechanics',
+//            'mime_type' => 'image/png',
+//            'size' => Storage::disk('media')->size('36296b5889a358a6440080074f17d45867727969')
+//        ]);
 
-        Location::factory(10)->create();
-        Post::factory(25)->create();
-        Workshop::factory(10)->create();
+//        Location::factory(10)->create();
+//        Post::factory(25)->create();
+//        Workshop::factory(10)->create();
     }
 }
