@@ -11,7 +11,7 @@
             @endisset
             @csrf
             <div class="mb-4">
-                <x-ui.input label="Title" name="title" value="{!!$workshop->title ?? '' !!}" />
+                <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
             </div>
             <div class="mb-4">
                 <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
