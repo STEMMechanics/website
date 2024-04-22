@@ -4,7 +4,7 @@
 <a href="{{ $url }}" style="display: inline-block;">
     <img
         alt="STEMMechanics Logo"
-        src="https://www.stemmechanics.com.au/assets/logo.webp"
+        src="https://www.stemmechanics.com.au/logo.svg"
         width="200"
         height="31"
     />
