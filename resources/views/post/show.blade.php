@@ -10,6 +10,6 @@
         </div>
         <article class="content mb-4">{!! $post->content !!}</article>
         <x-ui.gallery class="mt-16" value="{{ \App\Helpers::arrayToString($post->files('gallery')->pluck('name')->toArray()) }}" />
-        <x-ui.filelist class="mt-16" value="{{ $post->files()->orderBy('name')->get() }}" />
+        <x-ui.filelist class="mt-16" value="{!! $post->files()->orderBy('name')->get() !!}" />
     </x-container>
 </x-layout>
