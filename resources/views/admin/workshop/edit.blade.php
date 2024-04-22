@@ -105,7 +105,7 @@
                     label="Files"
                     name="files"
                     editor="true"
-                    value="{{ isset($workshop) ? \App\Helpers::arrayToString($workshop->files->toArray()) : '' }}"
+                    value="{!! isset($workshop) ? $post->files()->orderBy('name')->get() : '' !!}"
                 ></x-ui.filelist>
             </div>
             <div class="flex justify-end gap-4 mt-8">

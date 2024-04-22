@@ -47,7 +47,7 @@
                 <x-ui.filelist
                     label="Files"
                     name="files"
-                    value="{{ $post ? \App\Helpers::arrayToString($post->files) : '' }}"
+                    value="{!! $post ? $post->files()->orderBy('name')->get() : '' !!}"
                     editor="true"
                 ></x-ui.filelist>
             </div>
