@@ -10,7 +10,7 @@
                 <x-ui.input label="Title" name="title" value="{{ $medium->title ?? '' }}"/>
             </div>
 
-            <x-ui.file name="file" onchange="updateTitle" file-name="{{ $medium->name ?? '' }}" file-type="{{ $medium->mime_type ?? '' }}" file-size="{{ $medium->size ?? '' }}" file-url="{{ $medium?->url('sm') ?? '' }}" readonly="{{ isset($medium) }}" />
+            <x-ui.file name="file" onchange="updateTitle" file-name="{{ $medium->name ?? '' }}" file-type="{{ $medium->mime_type ?? '' }}" file-size="{{ $medium->size ?? '' }}" file-url="{{ $medium?->thumbnail ?? '' }}" readonly="{{ isset($medium) }}" />
 
             <div class="flex justify-end gap-4 mt-8">
                 @isset($medium)
