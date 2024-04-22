@@ -49,16 +49,22 @@
     function updateFiles(result) {
         Alpine.store('files', []);
 
-        result = result.filter((item) => item.length > 0);
+        // Check if result is a string or a collection
+        if (typeof result === 'string') {
+            result = result.split(',').filter((item) => item.length > 0);
 
-        Promise.all(result.map(fileName => new Promise(resolve => {
-            SM.mediaDetails(fileName, (details) => {
-                details.extension = fileName.split('.').pop();
-                resolve(details);
+            Promise.all(result.map(fileName => new Promise(resolve => {
+                SM.mediaDetails(fileName, (details) => {
+                    resolve(details);
+                });
+            }))).then(detailsArray => {
+                Alpine.store('files', detailsArray);
             });
-        }))).then(detailsArray => {
-            Alpine.store('files', detailsArray);
-        });
+
+        } else if (Array.isArray(result)) {
+            // If result is a collection, directly place it in the store
+            Alpine.store('files', result);
+        }
 
         const elem = document.getElementById('{{ $name }}');
         if(elem) {
