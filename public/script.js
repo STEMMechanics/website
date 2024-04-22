@@ -135,7 +135,7 @@ let SM = {
                     let percent = (progressEvent.loaded / progressEvent.total) * 100;
                     Swal.update({
                         title: 'Uploading...',
-                        html: `${file.name} - ${percent.toFixed(2)}%`,
+                        html: `${file.name} - ${Math.round(percent)}%`,
                     });
                 }
             }).then((response) => {
