@@ -47,6 +47,7 @@
     }
 
     function updateFiles(result) {
+
         Alpine.store('files', []);
 
         // Check if result is a string or a collection
@@ -73,7 +74,14 @@
     }
 
     document.addEventListener('alpine:init', () => {
-        updateFiles('{{ $value }}'.split(',') || []);
+        const files = '{!! addslashes($value) !!}';
+        let fileData = [];
+        try {
+            fileData = JSON.parse(files);
+        } catch {
+
+        }
+        updateFiles(fileData);
     });
 </script>
 @endif
