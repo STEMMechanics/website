@@ -51,12 +51,14 @@
 
         result = result.filter((item) => item.length > 0);
 
-        for(const fileName of result) {
+        Promise.all(result.map(fileName => new Promise(resolve => {
             SM.mediaDetails(fileName, (details) => {
                 details.extension = fileName.split('.').pop();
-                Alpine.store('files').push(details);
+                resolve(details);
             });
-        }
+        }))).then(detailsArray => {
+            Alpine.store('files', detailsArray);
+        });
 
         const elem = document.getElementById('{{ $name }}');
         if(elem) {
