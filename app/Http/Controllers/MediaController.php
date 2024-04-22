@@ -137,7 +137,14 @@ class MediaController extends Controller
         ]);
 
         if ($validator->fails()) {
-            return redirect()->back()->withErrors($validator)->withInput();
+            if($request->wantsJson()) {
+                return response()->json([
+                    'message' => 'The given data was invalid.',
+                    'errors' => $validator->errors(),
+                ], 422);
+            } else {
+                return redirect()->back()->withErrors($validator)->withInput();
+            }
         }
 
         $file = $request->file('file');
@@ -159,10 +166,16 @@ class MediaController extends Controller
         $storage = Storage::disk('media');
         if(!$storage->exists($hash)) {
             if($file->storeAs('/', $hash, 'media') === false) {
-                session()->flash('message', 'A server error occurred uploading the file.');
-                session()->flash('message-title', 'Upload failed');
-                session()->flash('message-type', 'danger');
-                return redirect()->back();
+                if($request->wantsJson()) {
+                    return response()->json([
+                        'message' => 'A server error occurred uploading the file.',
+                    ], 500);
+                } else {
+                    session()->flash('message', 'A server error occurred uploading the file.');
+                    session()->flash('message-title', 'Upload failed');
+                    session()->flash('message-type', 'danger');
+                    return redirect()->back();
+                }
             }
         }
 
@@ -178,10 +191,19 @@ class MediaController extends Controller
         $media->generateVariants(false);
         unlink($file);
 
-        session()->flash('message', 'Media has been uploaded');
-        session()->flash('message-title', 'Media uploaded');
-        session()->flash('message-type', 'success');
-        return redirect()->route('admin.media.index');
+        if($request->wantsJson()) {
+            return response()->json([
+                'message' => 'File has been uploaded',
+                'name' => $media->name,
+                'size' => $media->size,
+                'mime_type' => $media->mime_type
+            ]);
+        } else {
+            session()->flash('message', 'Media has been uploaded');
+            session()->flash('message-title', 'Media uploaded');
+            session()->flash('message-type', 'success');
+            return redirect()->route('admin.media.index');
+        }
     }
 
     /**
