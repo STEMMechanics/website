@@ -47,7 +47,7 @@
     }
 
     function updateFiles(result) {
-
+        const fileNames = [];
         Alpine.store('files', []);
 
         // Check if each item in result is a string or an object
@@ -57,15 +57,18 @@
                 SM.mediaDetails(item, (details) => {
                     Alpine.store('files', [...Alpine.store('files'), details]);
                 });
+
+                fileNames.push(item);
             } else {
                 // If item is an object, directly place it in the store
                 Alpine.store('files', [...Alpine.store('files'), item]);
+                fileNames.push(item.name);
             }
         });
 
         const elem = document.getElementById('{{ $name }}');
         if(elem) {
-            elem.value = result.join(',');
+            elem.value = fileNames.join(',');
         }
     }
 
