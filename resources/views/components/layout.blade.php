@@ -18,8 +18,8 @@
     @vite('resources/css/app.css')
 </head>
 <body class="{{ $bodyClass ?? '' }} flex flex-col antialiased">
-@if(env('APP_NOTICE'))
-    <x-noticebar>{{ env('APP_NOTICE') }}</x-noticebar>
+@if(config('app.notice'))
+    <x-noticebar>{{ config('app.notice') }}</x-noticebar>
 @endif
 <x-navbar />
 <div {{ isset($id) ? 'id='.$id : '' }} class="flex-grow">{{ $slot }}</div>
