@@ -33,7 +33,6 @@
 <script>
     function updateDetails(fileName, fileType, fileSize, fileUrl) {
         document.getElementById('{{ $name }}_name').innerText = fileName;
-        document.getElementById('{{ $name }}_name').classList.add('italic');
 
         document.getElementById('{{ $name }}_size').innerText = SM.bytesToString(fileSize);
 
@@ -57,6 +56,7 @@
         reader.onload = function(e) {
             updateDetails(file.name, file.type, file.size, e.target.result);
 
+            document.getElementById('{{ $name }}_name').classList.add('italic');
             const newFileInfo = document.createElement('i');
             newFileInfo.classList.add('fa-solid', 'fa-info-circle', 'text-gray-500', 'ml-2');
             newFileInfo.setAttribute('data-tooltip', 'The filename may change from the actual file name if a file with the same name already exists.');
