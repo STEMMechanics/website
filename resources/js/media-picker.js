@@ -104,7 +104,7 @@ const SMMediaPicker = {
                 <div id="content-browser" class="flex flex-col h-full w-full p-4" x-show="tab === 'browser'">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
-                            <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" />
+                            <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" />
                             <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </form>

@@ -17,7 +17,7 @@
     @vite('resources/js/app.js')
     @vite('resources/css/app.css')
 </head>
-<body class="{{ $bodyClass ?? '' }} flex flex-col antialiased dark:bg-black dark:text-white/50">
+<body class="{{ $bodyClass ?? '' }} flex flex-col antialiased">
 @if(env('APP_NOTICE'))
     <x-noticebar>{{ env('APP_NOTICE') }}</x-noticebar>
 @endif
