@@ -25,7 +25,7 @@ input[type="text"]:read-only {
 
 .image-background {
     @apply bg-no-repeat bg-center bg-cover;
-    background-image: url('/resources/assets/background.webp');
+    background-image: url('/home-hero.webp');
 }
 
 body.swal2-height-auto {
