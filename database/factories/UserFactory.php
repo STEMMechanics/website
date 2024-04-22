@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -17,23 +18,25 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
-        $faker = \Faker\Factory::create();
-        $faker->addProvider(new \Faker\Provider\CustomInternetProvider($faker));
-
-        $first_name = $faker->firstName();
-        $last_name = $faker->lastName();
-
-        $display_name = $first_name . ' ' . $last_name;
-
         return [
-            'first_name' => $first_name,
-            'last_name' => $last_name,
-            'email' => $faker->safeEmail(),
+            'firstname' => fake()->firstName(),
+            'surname' => fake()->lastName(),
+            'phone' => fake()->phoneNumber(),
+            'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
-            'phone' => $faker->phoneNumber(),
-            'password' => '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', // password
             'remember_token' => Str::random(10),
-            'display_name' => $display_name,
+
+            'home_address' => fake()->streetAddress(),
+            'home_city' => fake()->city(),
+            'home_state' => '',
+            'home_postcode' => fake()->postcode(),
+            'home_country' => fake()->country(),
+
+            'billing_address' => fake()->streetAddress(),
+            'billing_city' => fake()->city(),
+            'billing_state' => '',
+            'billing_postcode' => fake()->postcode(),
+            'billing_country' => fake()->country(),
         ];
     }
 

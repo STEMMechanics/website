@@ -2,16 +2,14 @@
 
 namespace App\Providers;
 
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Storage;
 
 class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
-     *
-     * @return void
      */
     public function register(): void
     {
@@ -20,34 +18,14 @@ class AppServiceProvider extends ServiceProvider
 
     /**
      * Bootstrap any application services.
-     *
-     * @return void
      */
     public function boot(): void
     {
-        Request::macro('rename', function ($param, $newParam = null) {
-            if (is_array($param) === false) {
-                if ($newParam === null) {
-                    return;
-                }
-
-                $param = [$param => $newParam];
-            }
-
-            $paramArray = $this->all();
-            foreach ($param as $oldParam => $newParam) {
-                if (isset($paramArray[$oldParam]) === true) {
-                    $paramArray[$newParam] = $paramArray[$oldParam];
-                    unset($paramArray[$oldParam]);
-                }
-            }
-
-            $this->replace($paramArray);
-        });
-
-        Storage::macro('public', function ($diskName) {
-            $public = config("filesystems.disks.{$diskName}.public", false);
-            return $public;
+        Blade::directive('includeSVG', function ($arguments) {
+            list($path, $styles) = array_pad(explode(',', str_replace(['(', ')', ' ', "'"], '', $arguments), 2), 2, '');
+            $svgContent = file_get_contents(public_path($path));
+            $svgContent = str_replace('<svg ', '<svg style="'.$styles.'" ', $svgContent);
+            return $svgContent;
         });
     }
 }

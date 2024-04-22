@@ -1,0 +1,7 @@
+### Get media items
+GET http://127.0.0.1:8001/media
+Accept: application/json
+
+### Get media item
+GET http://127.0.0.1:8001/media/SC-After-Dark.png
+Accept: application/json

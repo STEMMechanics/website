@@ -1,0 +1,293 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+    @apply bg-gray-100;
+    min-height: 100vh;
+}
+
+body {
+    font-family: Poppins, Roboto, Open Sans, ui-sans-serif, system-ui, sans-serif;
+}
+
+a.link {
+    @apply text-primary-color hover:underline hover:text-primary-color-light;
+}
+
+input[type="text"]:read-only {
+    @apply bg-gray-100 focus:border-gray-300 focus:border-gray-300;
+}
+
+.list-circle {
+    list-style: circle;
+}
+
+.image-background {
+    @apply bg-no-repeat bg-center bg-cover;
+    background-image: url('/resources/assets/background.webp');
+}
+
+body.swal2-height-auto {
+    height: 100vh !important;
+}
+
+.swal2-container {
+    &.swal2-top {
+        padding-top: 5rem;
+    }
+
+    .swal2-title {
+        @apply text-xl;
+    }
+
+    .swal2-html-container {
+        @apply text-base;
+    }
+
+    .swal2-actions button {
+        @apply rounded-md text-white px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm;
+    }
+
+    .swal2-popup.swal2-toast {
+        .swal2-title {
+            @apply text-sm;
+        }
+
+        .swal2-html-container {
+            @apply text-sm;
+        }
+    }
+
+    &.success .swal2-popup {
+        @apply bg-green-100 text-green-900;
+
+        .swal2-close {
+            @apply text-green-900 hover:text-red-600;
+        }
+    }
+
+    &.danger .swal2-popup {
+        @apply bg-red-100 text-red-900;
+
+        .swal2-close {
+            @apply text-red-900 hover:text-red-600;
+        }
+    }
+
+    &.warning .swal2-popup {
+        @apply bg-yellow-100 text-yellow-900;
+
+        .swal2-close {
+            @apply text-yellow-900 hover:text-red-600;
+        }
+    }
+
+    &.info .swal2-popup {
+        @apply bg-blue-100 text-blue-900;
+
+        .swal2-close {
+            @apply text-blue-900 hover:text-red-600;
+        }
+    }
+}
+
+.editor {
+    @apply bg-white rounded-lg border border-gray-300;
+
+    .menu {
+        @apply border-b border-gray-300 flex px-2 py-1 gap-[1px] flex-wrap;
+
+        button {
+            @apply text-xs p-1 min-w-5;
+
+            &:hover:not(.selected) {
+                @apply bg-gray-200;
+            }
+
+            &.is-active {
+                @apply bg-primary-color text-white;
+            }
+        }
+    }
+
+    .tiptap {
+        @apply p-2 min-h-96;
+    }
+}
+
+.content {
+    h1 {
+        @apply text-3xl font-semibold;
+    }
+
+    h2 {
+        @apply text-2xl font-semibold;
+    }
+
+    h3 {
+        @apply text-xl font-semibold;
+    }
+
+    p {
+        @apply mb-4;
+    }
+
+    a {
+        @apply text-primary-color hover:underline hover:text-primary-color-light;
+    }
+
+    blockquote {
+        @apply mx-4 bg-gray-100 rounded py-2 px-4 mb-4;
+
+        p:last-of-type {
+            @apply mb-0;
+        }
+    }
+
+    pre {
+        @apply text-sm bg-gray-100 rounded py-2 px-4 mb-4;
+    }
+
+    /* Color swatches */
+    .color {
+        white-space: nowrap;
+
+        &::before {
+            background-color: var(--color);
+            border: 1px solid rgba(128, 128, 128, 0.3);
+            border-radius: 2px;
+            content: " ";
+            display: inline-block;
+            height: 1em;
+            margin-bottom: 0.15em;
+            margin-right: 0.1em;
+            vertical-align: middle;
+            width: 1em;
+        }
+    }
+
+    /* Box */
+    .box {
+        @apply border text-sm px-3 py-2 rounded-lg my-4 mx-auto max-w-2xl relative pl-8;
+
+        &.success {
+            @apply bg-green-100 text-green-900 border-green-600;
+
+            &:after {
+                content: '\f058';
+                position: absolute;
+                font-family: FontAwesome;
+                font-weight: normal;
+                font-style: normal;
+                top: 0.5rem;
+                left: 0.75rem;
+            }
+        }
+
+        &.info {
+            @apply bg-blue-100 text-blue-900 border-blue-600;
+
+            &:after {
+                content: '\f05a';
+                position: absolute;
+                font-family: FontAwesome;
+                font-weight: normal;
+                font-style: normal;
+                top: 0.5rem;
+                left: 0.75rem;
+            }
+        }
+
+        &.warning {
+            @apply bg-yellow-100 text-yellow-900 border-yellow-600;
+
+            &:after {
+                content: '\f071';
+                position: absolute;
+                font-family: FontAwesome;
+                font-weight: normal;
+                font-style: normal;
+                top: 0.5rem;
+                left: 0.75rem;
+            }
+        }
+
+        &.danger {
+            @apply bg-red-100 text-red-900 border-red-600;
+
+            &:after {
+                content: '\f057';
+                position: absolute;
+                font-family: FontAwesome;
+                font-weight: normal;
+                font-style: normal;
+                top: 0.5rem;
+                left: 0.75rem;
+            }
+        }
+
+        &.bug {
+            @apply bg-purple-100 text-purple-900 border-purple-600;
+
+            &:after {
+                content: '\f188';
+                position: absolute;
+                font-family: FontAwesome;
+                font-weight: normal;
+                font-style: normal;
+                top: 0.5rem;
+                left: 0.75rem;
+            }
+        }
+    }
+}
+
+.sm-media-picker-container {
+    grid-template-rows: minmax(min-content, auto) 1fr minmax(min-content, auto);
+}
+
+.sm-media-picker {
+    width: 100%;
+    height: 100%;
+    max-width: 70rem;
+    max-height: 50rem;
+
+    grid-template-rows: minmax(min-content, auto) 1fr minmax(min-content, auto);
+
+    .swal2-actions {
+        z-index: 0;
+    }
+}
+
+.sm-banner-open {
+    @apply bg-green-800;
+}
+
+.sm-banner-closed {
+    @apply bg-red-600;
+}
+
+.sm-banner-full {
+    @apply bg-purple-600;
+}
+
+.sm-banner-draft {
+    @apply bg-yellow-600;
+}
+
+.sm-banner-cancelled {
+    @apply bg-purple-600 text-xs;
+}
+
+.sm-registration-none, .sm-registration-email, .sm-registration-message, .sm-registration-scheduled, .sm-registration-draft {
+    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-yellow-400 text-yellow-800 bg-yellow-100;
+}
+
+.sm-registration-closed {
+    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-red-400 text-red-800 bg-red-100;
+}
+
+.sm-registration-full {
+    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-purple-400 text-purple-800 bg-purple-100;
+}

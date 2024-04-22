@@ -2,26 +2,21 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
-
-use App\Traits\Uuids;
-use Illuminate\Database\Eloquent\Collection;
+use App\Mail\LoginLink;
+use App\Traits\UUID;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Cache;
-use Laravel\Sanctum\HasApiTokens;
-use OwenIt\Auditing\Contracts\Auditable;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use PharIo\Manifest\Email;
 
-class User extends Authenticatable implements Auditable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens;
-    use HasFactory;
-    use Notifiable;
-    use Uuids;
-    use \OwenIt\Auditing\Auditable;
+    use HasFactory, Notifiable, UUID;
 
     /**
      * The attributes that are mass assignable.
@@ -29,12 +24,24 @@ class User extends Authenticatable implements Auditable
      * @var array<int, string>
      */
     protected $fillable = [
-        'first_name',
-        'last_name',
+        'admin',
+        'firstname',
+        'surname',
         'email',
         'phone',
-        'password',
-        'display_name',
+        'home_address',
+        'home_address2',
+        'home_city',
+        'home_postcode',
+        'home_state',
+        'home_country',
+        'billing_address',
+        'billing_address2',
+        'billing_city',
+        'billing_postcode',
+        'billing_state',
+        'billing_country',
+        'subscribed'
     ];
 
     /**
@@ -45,202 +52,144 @@ class User extends Authenticatable implements Auditable
     protected $hidden = [
         'password',
         'remember_token',
-        'permissions'
     ];
 
     /**
      * The attributes that should be cast.
      *
-     * @var array<string, string>
+     * @var array
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-    ];
-
-    // protected $hidden = [
-    //     'permissions'
-    // ];
-
-    /**
-     * The attributes to append.
-     *
-     * @var string[]
-     */
-    protected $appends = [
-        'permissions'
+        'password' => 'hashed',
     ];
 
     /**
-     * The default attributes.
-     *
-     * @var string[]
-     */
-    protected $attributes = [
-        'phone' => '',
-    ];
-
-
-    /**
-     * Boot the model.
+     * The "booted" method of the model.
      *
      * @return void
      */
-    protected static function boot(): void
+    protected $appends = [
+        'subscribed',
+        'email_update_pending'
+    ];
+
+    public static function boot()
     {
         parent::boot();
 
-        $clearCache = function ($user) {
-            Cache::forget(
-                "user:{$user->id}",
-                "user:{$user->id}:permissions"
-            );
-        };
+        static::updating(function ($user) {
+            if ($user->isDirty('email')) {
+                EmailSubscriptions::where('email', $user->getOriginal('email'))->update(['email' => $user->email]);
 
-        static::saving($clearCache);
-        static::deleting($clearCache);
-    }
+                // remove duplicate email subscriptions, favoring those with confirmed dates
+                $subscriptions = EmailSubscriptions::where('email', $user->email)->orderBy('created_at', 'asc')->get();
+                $confirmed = EmailSubscriptions::where('email', $user->email)->whereNotNull('confirmed')->orderBy('confirmed', 'asc')->first();
+                if($subscriptions->count() > 1) {
+                    // if there is a confirmed, then delete all the others
+                    if($confirmed) {
+                        $subscriptions->each(function($subscription) use ($confirmed) {
+                            if($subscription->id !== $confirmed->id) {
+                                $subscription->delete();
+                            }
+                        });
+                    } else {
+                        // if there is no confirmed, then delete all but the most recent
+                        $subscriptions->each(function($subscription) use ($subscriptions) {
+                            if($subscription->id !== $subscriptions->last()->id) {
+                                $subscription->delete();
+                            }
+                        });
+                    }
+                }
+            }
+        });
 
-    /**
-     * Get the list of permissions of the user
-     *
-     * @return Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function permissions(): HasMany
-    {
-        return $this->hasMany(Permission::class);
-    }
-
-    /**
-     * Get the permission attribute
-     *
-     * @return array
-     */
-    public function getPermissionsAttribute(): array
-    {
-        $cacheKey = "user:{$this->id}:permissions";
-        return Cache::remember($cacheKey, now()->addDays(28), function () {
-            return $this->permissions()->pluck('permission')->toArray();
+        static::deleting(function ($user) {
+            EmailSubscriptions::where('email', $user->email)->delete();
         });
     }
 
-    /**
-     * Set the permission attribute
-     *
-     * @param array $newPermissions The new permissions to set to the user.
-     * @return void
-     */
-    public function setPermissionsAttribute(array $newPermissions): void
+    public function createLoginToken($redirect = null)
     {
-        $existingPermissions = $this->permissions->pluck('permission')->toArray();
+        // Generate a unique token
+        $token = Str::random(60);
 
-        $this->revokePermission(array_diff($this->permissions, $newPermissions));
-        $this->givePermission(array_diff($newPermissions, $this->permissions));
+        // Store the token in the database
+        DB::table('login_tokens')->insert([
+            'email' => $this->email,
+            'token' => $token,
+            'intended_url' => $redirect,
+        ]);
 
-        $cacheKey = "user:{$this->id}:permissions";
-        Cache::delete($cacheKey);
+        return $token;
     }
 
-    /**
-     * Test if user has permission
-     *
-     * @param string $permission Permission to test.
-     * @return boolean
-     */
-    public function hasPermission(string $permission): bool
+    public function softDelete()
     {
-        return in_array($permission, $this->permissions);
-    }
-
-    /**
-     * Give permissions to the user
-     *
-     * @param string|array $permissions The permission(s) to give.
-     * @return Illuminate\Database\Eloquent\Collection
-     */
-    public function givePermission($permissions): Collection
-    {
-        if (is_array($permissions) === false) {
-            $permissions = [$permissions];
+        foreach ($this->fillable as $field) {
+            if ($field === 'email_verified_at') {
+                $this->email_verified_at = null;
+            } else if ($field !== 'email') {
+                $this->{$field} = '';
+            }
         }
 
-        $newPermissions = array_map(function ($permission) {
-            return ['permission' => $permission];
-        }, array_diff($permissions, $this->permissions));
-
-        $cacheKey = "user:{$this->id}:permissions";
-        Cache::forget($cacheKey);
-
-        return $this->permissions()->createMany($newPermissions);
+        $this->save();
     }
 
-
-    /**
-     * Revoke permissions from the user
-     *
-     * @param string|array $permissions The permission(s) to revoke.
-     * @return integer
-     */
-    public function revokePermission($permissions): int
+    public function getName(): string
     {
-        if (is_array($permissions) === false) {
-            $permissions = [$permissions];
+        $name = '';
+
+        if($this->firstname || $this->surname) {
+            $name = implode(' ', [$this->firstname, $this->surname]);
+        } else {
+            $name = substr($this->email, 0, strpos($this->email, '@'));
         }
 
-        $cacheKey = "user:{$this->id}:permissions";
-        Cache::forget($cacheKey);
-
-        return $this->permissions()
-            ->whereIn('permission', $permissions)
-            ->delete();
+        return $name;
     }
 
-    /**
-     * Get the list of files of the user
-     *
-     * @return HasMany
-     */
-    public function media(): HasMany
+    public function tickets()
     {
-        return $this->hasMany(Media::class);
+        return $this->hasMany(Ticket::class);
     }
 
-    /**
-     * Get the list of files of the user
-     *
-     * @return HasMany
-     */
-    public function articles(): HasMany
+    public function getSubscribedAttribute()
     {
-        return $this->hasMany(Article::class);
+        return EmailSubscriptions::where('email', $this->email)
+            ->whereNotNull('confirmed')
+            ->exists();
     }
 
-    /**
-     * Get associated user codes
-     *
-     * @return HasMany
-     */
-    public function codes(): HasMany
+    public function setSubscribedAttribute($value)
     {
-        return $this->hasMany(UserCode::class);
+        if ($value) {
+            $subscription = EmailSubscriptions::where('email', $this->email)->first();
+            if ($subscription) {
+                if($subscription->confirmed === null) {
+                    $subscription->update(['confirmed' => now()]);
+                    $subscription->save();
+                }
+            } else {
+                EmailSubscriptions::Create([
+                    'email' => $this->email,
+                    'confirmed' => now()
+                ]);
+            }
+        } else {
+            EmailSubscriptions::where('email', $this->email)->delete();
+        }
     }
 
-    /**
-     * Get the list of logins of the user
-     *
-     * @return HasMany
-     */
-    public function logins(): HasMany
+    public function emailUpdate()
     {
-        return $this->hasMany(UserLogins::class);
+        return $this->hasOne(EmailUpdate::class);
     }
 
-    /**
-     * Get the events associated with the user.
-     *
-     * @return BelongsToMany
-     */
-    public function events(): BelongsToMany
+    public function getEmailUpdatePendingAttribute()
     {
-        return $this->belongsToMany(Event::class, 'event_user', 'user_id', 'event_id');
+        return $this->emailUpdate()->exists();
     }
 }

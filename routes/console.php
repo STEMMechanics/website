@@ -1,19 +1,38 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
+use App\Models\Media;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
-/*
-|--------------------------------------------------------------------------
-| Console Routes
-|--------------------------------------------------------------------------
-|
-| This file is where you may define all of your Closure based console
-| commands. Each Closure is bound to a command instance allowing a
-| simple approach to interacting with each command's IO methods.
-|
-*/
+Artisan::command('cleanup', function() {
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+    // Clean up expired tokens
+    DB::table('login_tokens')
+        ->where('created_at', '<', now()->subMinutes(10))
+        ->delete();
+
+    // Clean up expired change email requests
+    DB::table('email_updates')
+        ->where('created_at', '<', now()->subMinutes(10))
+        ->delete();
+
+    // Published scheduled posts
+    DB::table('posts')
+        ->where('status', '!=', 'scheduled')
+        ->where('published_at', '<', now())
+        ->update(['status' => 'published']);
+
+    // Open scheduled workshops
+    DB::table('workshops')
+        ->where('status', 'scheduled')
+        ->where('publish_at', '<', now())
+        ->update(['status' => 'open']);
+
+    // Close workshops
+    DB::table('workshops')
+        ->whereIn('status', ['open', 'full'])
+        ->where('closes_at', '<', now())
+        ->update(['status' => 'closed']);
+
+})->purpose('Clean up expired data')->everyMinute();
