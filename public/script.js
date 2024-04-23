@@ -120,9 +120,16 @@ let SM = {
             }
         }
 
-        const uploadFile = (file, title, idx, count) => {
+        const uploadFile = (file, start, title, idx, count) => {
+            const chunkSize = 1024 * 1024 * 2;
+            const end = Math.min(file.size, start + chunkSize);
+            const chunk = file.slice(start, end);
+
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', chunk);
+            formData.append('filename', file.name);
+            formData.append('filesize', file.size);
+            formData.append('fileappend', true);
             if (title !== '') {
                 formData.append('title', title);
             }
@@ -133,7 +140,7 @@ let SM = {
                     'Accept': 'application/json'
                 },
                 onUploadProgress: (progressEvent) => {
-                    let percent = (progressEvent.loaded / progressEvent.total) * 100;
+                    let percent = ((start + progressEvent.loaded) / file.size) * 100;
                     Swal.update({
                         title: 'Uploading...',
                         html: `${file.name} - ${Math.round(percent)}%`,
@@ -141,26 +148,34 @@ let SM = {
                 }
             }).then((response) => {
                 if (response.status === 200) {
-                    uploadedFiles.push({file: file, title: title, data: response.data});
+                    if (end >= file.size) {
+                        uploadedFiles.push({ file: file, title: title, data: response.data });
 
-                    if (idx === count - 1) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Success',
-                            html: count > 1 ? `Uploaded ${count} files successfully` : `${response.data.name || file.name} uploaded successfully`,
-                            showConfirmButton: false,
-                            timer: 3000
-                        });
+                        if (idx === count - 1) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Success',
+                                html: count > 1 ? `Uploaded ${count} files successfully` : `${response.data.name || file.name} uploaded successfully`,
+                                showConfirmButton: false,
+                                timer: 3000
+                            });
 
-                        if (callback) {
-                            window.setTimeout(() => {
-                                callback({success: true, files: uploadedFiles});
-                            }, 3000);
+                            if (callback) {
+                                window.setTimeout(() => {
+                                    callback({ success: true, files: uploadedFiles });
+                                }, 3000);
+                            }
+
+                            return;
+                        } else {
+                            start = 0;
+                            idx += 1;
                         }
                     } else {
-                        idx += 1;
-                        uploadFile(files[idx], titles[idx] || '', idx, files.length);
+                        start = end;
                     }
+
+                    uploadFile(files[idx], start, titles[idx] || '', idx, files.length);
                 } else {
                     showError(response.data.message);
                 }
@@ -169,7 +184,7 @@ let SM = {
             });
         }
 
-        uploadFile(files[0], titles[0] || '', 0, files.length);
+        uploadFile(files[0], 0, titles[0] || '', 0, files.length);
     },
 
     bytesToString: (bytes) => {

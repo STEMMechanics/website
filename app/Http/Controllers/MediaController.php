@@ -7,6 +7,7 @@ use App\Jobs\ProcessMedia;
 use App\MediaService\MediaService;
 use App\Models\Media;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -148,8 +149,43 @@ class MediaController extends Controller
         }
 
         $file = $request->file('file');
+        $fileName = $request->input('filename', $file->getClientOriginalName());
 
-        $fileName = $file->getClientOriginalName();
+        if($request->has('fileappend') && $request->has('filesize')) {
+            $fileSize = $request->get('filesize');
+
+            if($fileSize > $max_size) {
+                return response()->json([
+                    'message' => 'The file ' . $fileName . ' is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size),
+                    'errors' => [
+                        'file' => 'The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size)
+                    ]
+                ], 422);
+            }
+
+            $tempFilePath = sys_get_temp_dir() . '/chunk-' . $fileName;
+
+            // Append the chunk to the temporary file
+            $fp = fopen($tempFilePath, 'a');
+            if ($fp) {
+                fwrite($fp, file_get_contents($file->getRealPath()));
+                fclose($fp);
+            }
+
+            // Check if the upload is complete
+            if (filesize($tempFilePath) >= $fileSize) {
+                $fileMime = mime_content_type($tempFilePath);
+                if($fileMime === false) {
+                    $fileMime = 'application/octet-stream';
+                }
+                $file = new UploadedFile($tempFilePath, $fileName, $fileMime, null, true);
+            } else {
+                return response()->json([
+                    'message' => 'Chunk stored',
+                ]);
+            }
+        }
+
         $name = pathinfo($fileName, PATHINFO_FILENAME);
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
         $name = Helpers::cleanFileName($name);
@@ -191,7 +227,7 @@ class MediaController extends Controller
         ]);
 
         $media->generateVariants(false);
-        unlink($file);
+        unlink($file->getRealPath());
 
         if($request->wantsJson()) {
             return response()->json([
