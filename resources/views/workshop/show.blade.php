@@ -5,7 +5,7 @@
             <div class="flex flex-col flex-1">
                 <h1 class="text-3xl font-bold mb-6">{!! $workshop->title !!}</h1>
                 <article class="content mb-4">{!! $workshop->content !!}</article>
-                <x-ui.filelist class="mt-16" value="{!! $post->files()->orderBy('name')->get() !!}" />
+                <x-ui.filelist class="mt-16" value="{!! $workshop->files()->orderBy('name')->get() !!}" />
             </div>
             <div class="flex flex-col pt-8 basis-64 flex-grow-0 flex-shrink-0">
                 @if($workshop->status === 'closed')
