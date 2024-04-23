@@ -13,6 +13,7 @@ class WorkshopController extends Controller
      */
     public function index(Request $request)
     {
+        $homeView = true;
         $search = $request->get('search', '');
 
         $query = Workshop::query();
@@ -22,6 +23,7 @@ class WorkshopController extends Controller
         }
 
         if($request->has('search') && $request->search !== '') {
+            $homeView = false;
             $query = $query->where(function ($query) use ($request) {
                 $query->where('title', 'like', '%' . $request->search . '%')
                     ->orWhere('content', 'like', '%' . $request->search . '%');
@@ -29,12 +31,14 @@ class WorkshopController extends Controller
         }
 
         if($request->has('location') && $request->location !== '') {
+            $homeView = false;
             $query = $query->whereHas('location', function ($query) use ($request) {
                 $query->where('name', 'like', '%' . $request->location . '%');
             });
         }
 
         if($request->has('date') && $request->date !== '') {
+            $homeView = false;
             $dates = explode('-', $request->date);
             $dates = array_map('trim', $dates);
             $dates = array_map(function($date) {
@@ -72,10 +76,14 @@ class WorkshopController extends Controller
             }
         }
 
-        $workshops = $query
-            ->orderBy('starts_at', 'desc')
-            ->paginate(12);
+        if($homeView) {
+            $query = $query->where('starts_at', '>=', Carbon::now()->subDays(8))
+                ->orderBy('starts_at', 'asc');
+        } else {
+            $query = $query->orderBy('starts_at', 'desc');
+        }
 
+        $workshops = $query->paginate(12);
         return view('workshop.index', [
             'workshops' => $workshops,
             'search' => $search,
