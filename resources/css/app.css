@@ -19,6 +19,11 @@ input[type="text"]:read-only {
     @apply bg-gray-100 focus:border-gray-300 focus:border-gray-300;
 }
 
+input::-webkit-datetime-edit {
+    display: block;
+    padding: 0;
+}
+
 .list-circle {
     list-style: circle;
 }
