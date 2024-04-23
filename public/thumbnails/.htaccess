@@ -2,4 +2,4 @@ RewriteEngine On
 # Check if the requested file does not exist
 RewriteCond %{REQUEST_FILENAME} !-f
 # If it doesn't exist, serve the unknown.webp file
-RewriteRule ^.*$ /path/to/unknown.webp [L]
+RewriteRule ^.*$ unknown.webp [L]
