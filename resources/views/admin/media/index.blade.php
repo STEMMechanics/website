@@ -25,7 +25,7 @@
                 <x-slot:body>
                     @foreach ($media as $medium)
                         <tr>
-                            <td>{{ $medium->title }}</td>
+                            <td><img src="{{ $medium->thumbnail }}" class="max-h-6 max-w-6 mr-3" alt="{{ $media->title }}" />{{ $medium->title }}</td>
                             <td>{{ \App\Helpers::bytesToString($medium->size) }}</td>
                             <td>{{ $medium->mime_type }}</td>
                             <td>{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</td>
@@ -33,6 +33,7 @@
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('admin.media.edit', $medium) }}" title="Edit media item" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
                                     <a href="#" class="hover:text-primary-color" title="Copy media link" x-data x-on:click.prevent="SM.copyToClipboard('{{ $medium->url }}')"><i class="fa-solid fa-link"></i></a>
+                                    <a href="{{ $medium->url }}?download" class="hover:text-primary-color" title="Download media"><i class="fa-solid fa-download"></i></a>
                                     <a href="#" class="hover:text-red-600" title="Delete media item" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete media?', 'Are you sure you want to delete this media? This action cannot be undone', '{{ route('admin.media.destroy', $medium) }}')"><i class="fa-solid fa-trash"></i></a>
                                 </div>
                             </td>
