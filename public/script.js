@@ -151,7 +151,7 @@ let SM = {
 
                     let title = 'Uploading';
                     if(count > 1) {
-                        title = ' ' + (idx + 1) + ' of ' + count;
+                        title += ' ' + (idx + 1) + ' of ' + count;
                     }
 
                     Swal.update({
