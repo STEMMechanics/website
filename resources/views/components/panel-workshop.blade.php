@@ -39,7 +39,7 @@
         <div class="text-gray-600 text-sm mb-1 flex gap-2">
             <div class="w-6 flex items-center justify-center">
                 <i class="fa-solid fa-dollar-sign"></i>
-            </div>{{ isset($workshop->price) && $workshop->price !== '' ? $workshop->price : 'Free' }}
+            </div>{{ isset($workshop->price) && $workshop->price !== '' && $workshop->price !== '0' ? $workshop->price : 'Free' }}
         </div>
     </div>
 </a>
