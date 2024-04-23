@@ -192,7 +192,9 @@ class MediaController extends Controller
         $name = Helpers::cleanFileName($name);
 
         if(Media::find($name . '.' . $extension) !== null) {
-            $increment = 2;
+            $increment = 1;
+            $name = preg_replace('/-\d+$/', '', $name);
+
             while(Media::find($name . '-' . $increment . '.' . $extension) !== null) {
                 $increment++;
             }
