@@ -35,7 +35,13 @@
         document.getElementById('{{ $name }}_name').innerText = fileName;
 
         document.getElementById('{{ $name }}_size').innerText = SM.bytesToString(fileSize);
-        document.getElementById('{{ $name }}_preview').src = fileUrl;
+
+        if(!fileType.startsWith('image/') && fileUrl.startsWith('data:')) {
+            const extension = fileName.split('.').pop();
+            document.getElementById('{{ $name }}_preview').src = '/thumbnails/' + extension + '.webp';
+        } else {
+            document.getElementById('{{ $name }}_preview').src = fileUrl;
+        }
 
         document.getElementById('{{ $name }}_preview').classList.remove('hidden');
         document.getElementById('{{ $name }}_placeholder').classList.add('hidden');
