@@ -149,8 +149,13 @@ let SM = {
                         percent = Math.round(percent);
                     }
 
+                    let title = 'Uploading';
+                    if(count > 1) {
+                        title = ' ' + (idx + 1) + ' of ' + count;
+                    }
+
                     Swal.update({
-                        title: 'Uploading...',
+                        title: title + '...',
                         html: `${file.name} - ${percent}%`,
                     });
                 }
