@@ -149,16 +149,18 @@ class MediaController extends Controller
 
         $file = $request->file('file');
 
-        $name = $file->getClientOriginalName();
+        $fileName = $file->getClientOriginalName();
+        $name = pathinfo($fileName, PATHINFO_FILENAME);
+        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
         $name = Helpers::cleanFileName($name);
 
-        if(Media::find($name) !== null) {
+        if(Media::find($name . '.' . $extension) !== null) {
             $increment = 2;
-            while(Media::find($name . '-' . $increment) !== null) {
+            while(Media::find($name . '-' . $increment . '.' . $extension) !== null) {
                 $increment++;
             }
 
-            $name = $name . '-' . $increment;
+            $fileName = $name . '-' . $increment . '.' . $extension;
         }
 
         $hash = hash_file('sha256', $file->path());
@@ -180,9 +182,9 @@ class MediaController extends Controller
         }
 
         $media = Media::Create([
-            'title' => $request->get('title', $name),
+            'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
             'user_id' => auth()->id(),
-            'name' => $name,
+            'name' => $fileName,
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
             'hash' => $hash
