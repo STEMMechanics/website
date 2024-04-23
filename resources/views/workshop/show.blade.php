@@ -52,9 +52,12 @@
                     </div>
                 <h2 class="text-gray-600 text-lg font-bold mb-2"><i class="mr-1 fa-regular fa-face-smile"></i> {{ isset($workshop->ages) && $workshop->ages !== '' ? 'Ages ' . $workshop->ages : 'All ages' }}</h2>
                 @if(\App\Helpers::isUnderAge($workshop->ages))
-                    <p class="text-gray-600 text-sm pl-3 ml-2 mb-6 border-l-4 border-l-yellow-400">Parental supervision may be required for children 8 years of age and under.</p>
+                    <p class="text-gray-600 text-xs pl-3 ml-2 mb-6 border-l-4 border-l-yellow-400">Parental supervision may be required for children 8 years of age and under.</p>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mb-2"><i class="mr-1 fa-solid fa-dollar-sign"></i> {{ isset($workshop->price) && $workshop->price !== '' && $workshop->price !== '0' ? $workshop->price : 'Free' }}</h2>
+{{--                @if(isset($workshop->price) && $workshop->price !== '' && $workshop->price !== '0' && strtolower($workshop->price) !== 'free')--}}
+{{--                    <p class="text-gray-600 text-xs pl-3 ml-2 mb-6 border-l-4 border-l-green-500">Payment by cash or EFTPOS accepted. Please ensure correct change.</p>--}}
+{{--                @endif--}}
             </div>
         </div>
     </x-container>
