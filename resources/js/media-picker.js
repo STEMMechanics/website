@@ -7,6 +7,9 @@ const SMMediaPicker = {
         const titles = Array.from(validFiles).map((file) => SM.toTitleCase(file.name));
 
         SM.upload(validFiles, (response) => {
+            response.files.forEach((file) => {
+                SMMediaPicker.updateSelection(file.data.name);
+            });
             SMMediaPicker.open(
                 Alpine.store('media').selected,
                 {
@@ -27,13 +30,15 @@ const SMMediaPicker = {
     },
 
     updateSelection: (name) => {
-        if(Alpine.store('media').selected.some(i => i === name)) {
-            Alpine.store('media').selected = Alpine.store('media').selected.filter(i => i !== name);
-        } else {
-            if(!Alpine.store('media').allow_multiple) {
-                Alpine.store('media').selected = [name];
+        if (typeof name === 'string' && name !== '') {
+            if (Alpine.store('media').selected.some(i => i === name)) {
+                Alpine.store('media').selected = Alpine.store('media').selected.filter(i => i !== name);
             } else {
-                Alpine.store('media').selected.push(name);
+                if (!Alpine.store('media').allow_multiple) {
+                    Alpine.store('media').selected = [name];
+                } else {
+                    Alpine.store('media').selected.push(name);
+                }
             }
         }
     },
