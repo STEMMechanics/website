@@ -8,7 +8,7 @@
     <div class="text-sm pl-1">{{ $label }}</div>
     <div class="flex flex-col align-middle items-center">
         <i id="{{ $name }}_placeholder" class="fa-regular fa-image text-9xl text-gray-400"></i>
-        <img class="hidden rounded-lg border max-w-72 max-h-72 my-4" id="{{ $name }}_preview" alt="preview" />
+        <img class="hidden rounded-lg max-w-72 max-h-36 my-4" id="{{ $name }}_preview" alt="preview" />
         <div id="{{ $name }}_name" class="text-sm text-gray-500"></div>
         <div id="{{ $name }}_size" class="text-xs text-gray-500"></div>
         <button x-data class="mt-4 bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="SMMediaPicker.open(document.getElementById('{{$name}}').value, {require_mime_type:'{{$mime_type}}', allow_multiple:{{$allow_multiple}}, allow_uploads:{{$allow_uploads}}}, (value)=>updateMedia('{{$name}}', value))">Select File</button>
@@ -35,11 +35,7 @@
             const imgElement = document.getElementById(name + '_preview');
             const placeholderElement = document.getElementById(name + '_placeholder');
 
-            if(details.mime_type.startsWith('image/')) {
-                imgElement.src = details.url;
-            } else {
-                imgElement.src = '/fileext/' + extension + 'webp';
-            }
+            imgElement.src = details.thumbnail;
 
             imgElement.classList.remove('hidden');
             placeholderElement.classList.add('hidden');
