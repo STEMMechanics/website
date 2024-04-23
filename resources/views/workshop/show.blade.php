@@ -12,6 +12,8 @@
                     <div class="sm-registration-closed">Registration for this event has closed.</div>
                 @elseif($workshop->status === 'full')
                     <div class="sm-registration-full">This workshop is currently full.</div>
+                @elseif($workshop->status === 'private')
+                    <div class="sm-registration-private">This is a private event. Please contact the organiser for details.</div>
                 @elseif($workshop->status === 'scheduled')
                     <div class="sm-registration-scheduled">Registration for this workshop will open soon.</div>
                 @elseif($workshop->status === 'cancelled')

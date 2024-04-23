@@ -31,7 +31,7 @@ Artisan::command('cleanup', function() {
 
     // Close workshops
     DB::table('workshops')
-        ->whereIn('status', ['open', 'full'])
+        ->whereIn('status', ['open', 'full', 'private'])
         ->where('closes_at', '<', now())
         ->update(['status' => 'closed']);
 

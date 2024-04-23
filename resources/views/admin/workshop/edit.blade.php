@@ -46,6 +46,7 @@
                     <x-ui.select label="Status" name="status">
                         <option value="draft" {{ ($workshop->status ?? '') === 'draft' ? 'selected' : '' }}>Draft</option>
                         <option value="open" {{ ($workshop->status ?? '') === 'open' ? 'selected' : '' }}>Open</option>
+                        <option value="private" {{ ($workshop->status ?? '') === 'private' ? 'selected' : '' }}>Private</option>
                         <option value="full" {{ ($workshop->status ?? '') === 'full' ? 'selected' : '' }}>Full</option>
                         <option value="scheduled" {{ ($workshop->status ?? '') === 'scheduled' ? 'selected' : '' }}>Scheduled</option>
                         <option value="closed" {{ ($workshop->status ?? '') === 'closed' ? 'selected' : '' }}>Closed</option>

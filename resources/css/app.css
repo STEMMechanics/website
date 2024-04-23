@@ -285,6 +285,10 @@ body.swal2-height-auto {
     @apply bg-purple-600 text-xs;
 }
 
+.sm-banner-private {
+    @apply bg-purple-600;
+}
+
 .sm-registration-none, .sm-registration-email, .sm-registration-message, .sm-registration-scheduled, .sm-registration-draft {
     @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-yellow-400 text-yellow-800 bg-yellow-100;
 }
@@ -294,5 +298,9 @@ body.swal2-height-auto {
 }
 
 .sm-registration-full {
+    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-purple-400 text-purple-800 bg-purple-100;
+}
+
+.sm-registration-private {
     @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-purple-400 text-purple-800 bg-purple-100;
 }
