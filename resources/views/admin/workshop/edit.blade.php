@@ -68,7 +68,7 @@
                     <x-ui.input label="Price" name="price" info="Leave blank to hide from public. Also supports Free, TBD or TBC" value="{{ $workshop->price ?? '' }}" />
                 </div>
                 <div class="flex-1">
-                    <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '' }}" />
+                    <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
                 </div>
             </div>
             <div class="flex gap-8">
