@@ -24,13 +24,22 @@
     </section>
     <section id="skills">
         <x-container class="bg-gray-200 py-32 my-8" inner-class="flex flex-row gap-16">
-            <div class="flex-1">
+            <div class="flex-1 min-h-72 hidden md:block">
                 <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url('/home-green-screen.webp')"></div>
             </div>
-            <div class="flex-1 text-center">
-                <h2 class="text-3xl mb-4 text-left">Build skills while having a great time</h2>
-                <p class="mb-6 text-left">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
-                <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
+            <div class="flex flex-col flex-1 text-center">
+                <h2 class="text-3xl mb-4 text-center md:text-left">Build skills while having a great time</h2>
+                <div class="flex">
+                    <div class="self-center">
+                        <p class="mb-6 text-left">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
+                        <div class="flex flex-grow justify-center items-center">
+                            <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
+                        </div>
+                    </div>
+                    <div class="ml-8 hidden sm:block md:hidden">
+                        <div class="h-48 w-48 bg-no-repeat bg-center bg-cover rounded-full" style="background-image:url('/home-green-screen.webp')"></div>
+                    </div>
+                </div>
             </div>
         </x-container>
     </section>
