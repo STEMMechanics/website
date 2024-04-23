@@ -170,4 +170,12 @@ class Helpers
 
         return $name;
     }
+
+    public static function filenameToTitle(string $filename): string
+    {
+        $title = pathinfo($filename, PATHINFO_FILENAME);
+        $title = str_replace(['-', '_', '.'], ' ', $title);
+        $title = ucwords($title);
+        return $title;
+    }
 }
