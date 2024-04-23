@@ -25,7 +25,7 @@
                 <x-slot:body>
                     @foreach ($media as $medium)
                         <tr>
-                            <td><img src="{{ $medium->thumbnail }}" class="max-h-6 max-w-6 mr-3" alt="{{ $media->title }}" />{{ $medium->title }}</td>
+                            <td><img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" />{{ $medium->title }}</td>
                             <td>{{ \App\Helpers::bytesToString($medium->size) }}</td>
                             <td>{{ $medium->mime_type }}</td>
                             <td>{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</td>
