@@ -43,6 +43,13 @@ const SMMediaPicker = {
         }
     },
 
+    doubleClick: (name) => {
+        if (!Alpine.store('media').allow_multiple) {
+            Alpine.store('media').selected = [name];
+            Swal.clickConfirm();
+        }
+    },
+
     search: () => {
         SMMediaPicker.query(null, document.querySelector('input[name="search"]').value);
     },
@@ -120,6 +127,7 @@ const SMMediaPicker = {
                             class="cursor-pointer flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
                             :class="{'border-primary-color': $store.media.selected.some(i => i === item.name), 'border-white': !$store.media.selected.some(i => i === item.name)}"
                             x-on:click="SMMediaPicker.updateSelection(item.name)"
+                            x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
                             <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
                             <div class="flex-grow flex items-center justify-center pointer-events-none select-none">
