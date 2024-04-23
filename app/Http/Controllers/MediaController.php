@@ -152,7 +152,7 @@ class MediaController extends Controller
         $fileName = $request->input('filename', $file->getClientOriginalName());
         $fileName = Helpers::cleanFileName($fileName);
 
-        if($request->has('fileappend') && $request->has('filesize')) {
+        if(($request->has('filestart') || $request->has('fileappend')) && $request->has('filesize')) {
             $fileSize = $request->get('filesize');
 
             if($fileSize > $max_size) {
@@ -166,8 +166,13 @@ class MediaController extends Controller
 
             $tempFilePath = sys_get_temp_dir() . '/chunk-' . $fileName;
 
+            $filemode = 'a';
+            if($request->has('filestart')) {
+                $filemode = 'w';
+            }
+
             // Append the chunk to the temporary file
-            $fp = fopen($tempFilePath, 'a');
+            $fp = fopen($tempFilePath, $filemode);
             if ($fp) {
                 fwrite($fp, file_get_contents($file->getRealPath()));
                 fclose($fp);

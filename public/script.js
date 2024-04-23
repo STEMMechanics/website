@@ -130,7 +130,13 @@ let SM = {
             formData.append('file', chunk);
             formData.append('filename', file.name);
             formData.append('filesize', file.size);
-            formData.append('fileappend', true);
+
+            if (start === 0) {
+                formData.append('filestart', true);
+            } else {
+                formData.append('fileappend', true);
+            }
+
             if (title !== '') {
                 formData.append('title', title);
             }
