@@ -121,6 +121,7 @@ let SM = {
         }
 
         const uploadFile = (file, start, title, idx, count) => {
+            const showPercentDecimals = (file.size > (1024 * 1024 * 40));
             const chunkSize = 1024 * 1024 * 2;
             const end = Math.min(file.size, start + chunkSize);
             const chunk = file.slice(start, end);
@@ -141,9 +142,16 @@ let SM = {
                 },
                 onUploadProgress: (progressEvent) => {
                     let percent = ((start + progressEvent.loaded) / file.size) * 100;
+
+                    if(showPercentDecimals) {
+                        percent = percent.toFixed(1);
+                    } else {
+                        percent = Math.round(percent);
+                    }
+
                     Swal.update({
                         title: 'Uploading...',
-                        html: `${file.name} - ${Math.round(percent)}%`,
+                        html: `${file.name} - ${percent}%`,
                     });
                 }
             }).then((response) => {
