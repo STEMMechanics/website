@@ -146,7 +146,7 @@ let SM = {
                         Swal.fire({
                             icon: 'success',
                             title: 'Success',
-                            html: count > 1 ? `Uploaded ${count} files successfully` : `${file.name} uploaded successfully`,
+                            html: count > 1 ? `Uploaded ${count} files successfully` : `${response.data.name || file.name} uploaded successfully`,
                             showConfirmButton: false,
                             timer: 3000
                         });
