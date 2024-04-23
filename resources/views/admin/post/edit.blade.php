@@ -8,7 +8,7 @@
             @endisset
             @csrf
             <div class="mb-4">
-                <x-ui.input label="Title" name="title" value="{{ $post->title ?? '' }}" />
+                <x-ui.input label="Title" name="title" value="{!! $post->title ?? '' !!}" />
             </div>
             <div class="mb-4">
                 <x-ui.media label="Image" name="hero_media_name" value="{{ $post->hero_media_name ?? '' }}" allow_uploads="true" />
