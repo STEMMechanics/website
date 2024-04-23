@@ -150,6 +150,7 @@ class MediaController extends Controller
 
         $file = $request->file('file');
         $fileName = $request->input('filename', $file->getClientOriginalName());
+        $fileName = Helpers::cleanFileName($fileName);
 
         if($request->has('fileappend') && $request->has('filesize')) {
             $fileSize = $request->get('filesize');
