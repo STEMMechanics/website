@@ -90,7 +90,8 @@ let SM = {
             imageUrl: "/loading.gif",
             imageHeight: 100,
             showConfirmButton: false,
-            allowOutsideClick: false
+            allowOutsideClick: false,
+            allowEscapeKey: false,
         }
         Swal.fire(data);
 
