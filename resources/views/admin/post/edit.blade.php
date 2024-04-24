@@ -51,8 +51,10 @@
                     editor="true"
                 ></x-ui.filelist>
             </div>
-            <div class="flex justify-between mt-8">
-                <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this post? This action cannot be undone', '{{ route('admin.post.destroy', $post) }}')">Delete</x-ui.button>
+            <div class="flex justify-end mt-8">
+                @isset($post)
+                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this post? This action cannot be undone', '{{ route('admin.post.destroy', $post) }}')">Delete</x-ui.button>
+                @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </div>
         </form>
