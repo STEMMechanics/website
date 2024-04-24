@@ -10,7 +10,11 @@
         @endisset
 
         @isset($formaction)
-            <form method="POST" action="{{ $formaction }}">
+            @isset($id)
+                <form method="POST" action="{{ $formaction }}" id="{{ $id }}">
+            @else
+                <form method="POST" action="{{ $formaction }}">
+            @endisset
                 @csrf
                 {{ $slot }}
 

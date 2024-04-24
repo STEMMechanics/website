@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -125,8 +126,13 @@ class AuthController extends Controller
             EmailUpdate::where('email', $request->email)->delete();
         }
 
-        $token = $user->createLoginToken(session()->pull('url.intended', null));
-        dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
+        $key = $request->get('name', '');
+        if($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC34') {
+            $token = $user->createLoginToken(session()->pull('url.intended', null));
+            dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
+        } else {
+            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip());
+        }
 
         return view('auth.login-link');
     }
