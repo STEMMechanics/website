@@ -93,7 +93,7 @@ class AuthController extends Controller
 
     public function showRegister(Request $request) {
         if (auth()->check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route('index');
         }
 
         return view('auth.register');
