@@ -18,7 +18,7 @@
         </ul>
     </section>
     <section class="border-t border-t-gray-600 pt-8 flex justify-between text-xs items-center flex-col sm:flex-row">
-        <div>@includeSVG('logo.svg', 'width:10rem;margin-top:-0.2rem;color:#DDD')</div>
+        <div class="mb-3 sm:mb-0">@includeSVG('logo.svg', 'width:10rem;margin-top:-0.2rem;color:#DDD')</div>
         <div>Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics</div>
     </section>
 </footer>
