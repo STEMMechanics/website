@@ -13,7 +13,6 @@
             <li><h3 class="font-bold mb-2">STEMMechanics</h3></li>
             <li><a href="{{ route('contact') }}" class="text-sm hover:text-primary-color">Contact Us</a></li>
             <li><a href="{{ route('code-of-conduct') }}" class="text-sm hover:text-primary-color">Code of Conduct</a></li>
-            <li><a href="{{ route('rules') }}" class="text-sm hover:text-primary-color">Rules</a></li>
             <li><a href="{{ route('terms-conditions') }}" class="text-sm hover:text-primary-color">Terms & Conditions</a></li>
             <li><a href="{{ route('privacy') }}" class="text-sm hover:text-primary-color">Privacy Policy</a></li>
         </ul>
