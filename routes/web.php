@@ -38,6 +38,14 @@ Route::get('/code-of-conduct', function () {
     return view('code-of-conduct');
 })->name('code-of-conduct');
 
+Route::get('/terms-conditions', function () {
+    return view('terms-conditions');
+})->name('terms-conditions');
+
+Route::get('/privacy', function () {
+    return view('privacy');
+})->name('privacy');
+
 Route::get('/media', [MediaController::class, 'index'])->name('media.index');
 Route::get('/media/{media}', [MediaController::class, 'show'])->name('media.show');
 Route::get('/media/download/{media}', [MediaController::class, 'download'])->name('media.download');
