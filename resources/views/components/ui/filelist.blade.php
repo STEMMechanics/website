@@ -8,7 +8,7 @@
 @endphp
 
 @if($value !== '' || $editor === true)
-<div x-data class="{{ twMerge('mb-4', $attributes->get('class')) }}" x-show="$store.files.length > 0 || {{ $editor === true ? 'true' : 'false' }}">
+<div x-data class="{{ twMerge(['mb-4'], $attributes->get('class')) }}" x-show="$store.files.length > 0 || {{ $editor === true ? 'true' : 'false' }}">
     <h3 class="text-xl font-semibold">{{ $label }}</h3>
     <ul x-show="$store.files.length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2">
         <template x-for="file in $store.files" :key="file.name">

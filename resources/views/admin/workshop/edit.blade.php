@@ -83,13 +83,13 @@
                 </div>
                 <div class="flex-1">
                     <span x-show="registration==='link'">
-                        <x-ui.input label="Registration URL" name="registration_url" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" onchange="document.getElementById('registration_data').value = event.target.value" />
+                        <x-ui.input label="Registration URL" name="registration_url" id="registration_url" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
                     </span>
                     <span x-show="registration==='email'">
-                        <x-ui.input label="Registration Email" name="registration_email" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" onchange="document.getElementById('registration_data').value = event.target.value" />
+                        <x-ui.input label="Registration Email" name="registration_email" id="registration_email" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
                     </span>
                     <span x-show="registration==='message'">
-                        <x-ui.input label="Registration Message" name="registration_message" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" onchange="document.getElementById('registration_data').value = event.target.value" />
+                        <x-ui.input label="Registration Message" name="registration_message" id="registration_message" value="{{ $workshop->registration_data ?? '' }}" error="{{ $errors->first('registration_data') }}" />
                     </span>
                     <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                 </div>
@@ -145,6 +145,22 @@
         }
     }
 
+    document.addEventListener('DOMContentLoaded', function() {
+        const elementIds = ['registration_url', 'registration_email', 'registration_message'];
+        const registrationElem = document.getElementById('registration_data');
+
+        if(registrationElem) {
+            elementIds.forEach(id => {
+                const elem = document.getElementById(id);
+                if (elem) {
+                    elem.addEventListener('change', function(event) {
+                        registrationElem.value = event.target.value;
+                    });
+                }
+            })
+        }
+    });
+
     /* Initalize */
     const elemPublishAt = document.getElementsByName('publish_at')[0];
     if(elemPublishAt && elemPublishAt.value === '') {
@@ -152,9 +168,4 @@
         document.getElementsByName('publish_at')[0].value = SM.toLocalISOString(publishAt);
     }
 
-    /* Remove seconds from dates if they exist */
-    // document.getElementsByName('starts_at')[0].value = document.getElementsByName('starts_at')[0].value.replace(/T(\d{2}:\d{2}):\d{2}$/, 'T$1');
-    // document.getElementsByName('ends_at')[0].value = document.getElementsByName('ends_at')[0].value.replace(/T(\d{2}:\d{2}):\d{2}$/, 'T$1');
-    // document.getElementsByName('publish_at')[0].value = document.getElementsByName('publish_at')[0].value.replace(/T(\d{2}:\d{2}):\d{2}$/, 'T$1');
-    // document.getElementsByName('closes_at')[0].value = document.getElementsByName('closes_at')[0].value.replace(/T(\d{2}:\d{2}):\d{2}$/, 'T$1');
 </script>

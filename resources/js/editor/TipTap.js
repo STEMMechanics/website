@@ -64,14 +64,14 @@ document.addEventListener('alpine:init', () => {
                         Box
                     ],
                     content: content,
-                    onCreate({editor}) {
+                    onCreate({/* editor */}) {
                         _this.updatedAt = Date.now()
                     },
                     onUpdate({editor}) {
                         _this.updatedAt = Date.now()
                         _this.content = editor.getHTML()
                     },
-                    onSelectionUpdate({editor}) {
+                    onSelectionUpdate({/* editor */}) {
                         _this.updatedAt = Date.now()
                     }
                 })

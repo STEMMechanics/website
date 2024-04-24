@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Helpers;
-use App\Jobs\ProcessMedia;
-use App\MediaService\MediaService;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;

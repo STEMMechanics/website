@@ -4,7 +4,7 @@
     $hasError = $errors->has($name);
 @endphp
 
-<div class="{{ twMerge('mb-4', $attributes->get('class')) }}">
+<div class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
     <div class="text-sm pl-1">{{ $label }}</div>
     <div class="flex flex-col align-middle items-center">
         <i id="{{ $name }}_placeholder" class="fa-regular fa-image text-9xl text-gray-400"></i>
@@ -27,8 +27,6 @@
     function updateMedia(name, value) {
         document.getElementById(name).value = value;
         SM.mediaDetails(value, (details) => {
-            const extension = details.name.split('.').pop();
-
             document.getElementById(name + '_name').innerText = details.name;
             document.getElementById(name + '_size').innerText = SM.bytesToString(details.size);
 

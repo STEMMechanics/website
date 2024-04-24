@@ -23,7 +23,7 @@
                 </div>
                 <div class="flex-1">
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Publish Date" name="published_at" value="{{ \App\Helpers::timestampNoSeconds($post->published_at ?? '') }}" onchange="updateStatus(event)" />
+                        <x-ui.input type="datetime-local" label="Publish Date" name="published_at" id="published_at" value="{{ \App\Helpers::timestampNoSeconds($post->published_at ?? '') }}" />
                     </div>
                 </div>
             </div>
@@ -71,4 +71,11 @@
             }
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const publishedAt = document.getElementById('published_at');
+        if(publishedAt) {
+            publishedAt.addEventListener('change', updateStatus);
+        }
+    });
 </script>

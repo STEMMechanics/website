@@ -6,7 +6,7 @@
     $readonly = filter_var($readonly, FILTER_VALIDATE_BOOLEAN);
 @endphp
 
-<div class="{{ twMerge('mb-4', $attributes->get('class')) }}">
+<div class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
     <div class="text-sm pl-1">{{ $label }}</div>
     <div class="flex flex-col align-middle items-center">
         <i id="{{ $name }}_placeholder" class="fa-regular fa-image text-9xl text-gray-400"></i>
@@ -25,7 +25,7 @@
     @endif
     </div>
     @if (!$readonly)
-        <input class="hidden" value="" type="file" name="{{ $name }}" id="{{ $name }}" onchange="updatePreview(event)" />
+        <input class="hidden" value="" type="file" name="{{ $name }}" id="{{ $name }}" />
     @endif
 {{--    <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}"></input>--}}
 </div>
@@ -68,6 +68,13 @@
         }
         reader.readAsDataURL(file);
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('{{ $name }}');
+        if(fileInput) {
+            fileInput.addEventListener('change', updatePreview);
+        }
+    });
 
     if('{{ $fileName }}' !== '' && '{{ $fileSize }}' !== '' && '{{ $fileType }}' !== '' && '{{ $fileUrl }}' !== '') {
         updateDetails('{{ $fileName }}', '{{ $fileType }}', '{{ $fileSize }}', '{{ $fileUrl }}');

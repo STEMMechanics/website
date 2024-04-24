@@ -29,7 +29,7 @@ export const Box = Node.create({
     defining: true,
 
     parseHTML() {
-        return this.options.types.map((type) => ({
+        return this.options.types.map((/* type */) => ({
             tag: 'div',
             getAttrs: (node) => {
                 // Extract the class attribute and find the type based on the class

@@ -1,3 +1,5 @@
+@props(['user'])
+
 @php
     $billing_same_home = $user->home_address === $user->billing_address
         && $user->home_address2 === $user->billing_address2

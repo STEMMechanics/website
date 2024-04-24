@@ -86,6 +86,8 @@ const SMMediaPicker = {
                 Alpine.store('media').pagination = [];
                 Alpine.nextTick(() => {
                     Alpine.store('media').pagination = response.data.links;
+                }).then(r => {
+                    /* empty */
                 });
             })
         .catch(error => {

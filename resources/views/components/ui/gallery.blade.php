@@ -8,7 +8,7 @@
 @endphp
 
 @if($value !== '' || $editor === true)
-<div x-data class="{{ twMerge('mb-4', $attributes->get('class')) }}">
+<div x-data class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
     @if($editor === true)
         <h3 class="text-xl font-semibold">{{ $label }}</h3>
         <p class="text-xs italic" x-text="$store.gallery.length + ' Image' + ($store.gallery.length !== 1 ? 's' : '')"></p>

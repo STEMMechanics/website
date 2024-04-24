@@ -1,6 +1,6 @@
 let SM = {
     alert: (title, text, type = 'info') =>{
-        data = {
+        const data = {
             position: 'top-end',
             timer: 7000,
             toast: true,
@@ -26,7 +26,7 @@ let SM = {
             }
         }
 
-        copyContent();
+        copyContent().then(r => { /* empty */});
     },
 
     updateBillingAddress: () => {
@@ -70,7 +70,7 @@ let SM = {
                         window.location.href = response.data.redirect;
                     }
                 })
-                .catch((error) => {
+                .catch(() => {
                     window.location.reload();
                 });
             }
@@ -96,7 +96,6 @@ let SM = {
         Swal.fire(data);
 
         const showError = (message) => {
-            failed = true;
             Swal.fire({
                 position: 'top',
                 icon: 'error',
@@ -104,7 +103,7 @@ let SM = {
                 html: message,
                 showConfirmButton: true,
                 confirmButtonColor: '#b91c1c',
-            }).then((result) => {
+            }).then(() => {
                 if(callback) {
                     callback({success: false});
                 }
@@ -132,9 +131,9 @@ let SM = {
             formData.append('filesize', file.size);
 
             if (start === 0) {
-                formData.append('filestart', true);
+                formData.append('filestart', 'true');
             } else {
-                formData.append('fileappend', true);
+                formData.append('fileappend', 'true');
             }
 
             if (title !== '') {
@@ -198,7 +197,7 @@ let SM = {
                 } else {
                     showError(response.data.message);
                 }
-            }).catch((error) => {
+            }).catch(() => {
                 showError('An error occurred while uploading the file.');
             });
         }
@@ -207,9 +206,14 @@ let SM = {
     },
 
     bytesToString: (bytes) => {
+        bytes = parseInt(bytes);
+        if (isNaN(bytes)) {
+            bytes = 0;
+        }
+
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
         if (bytes === 0) return '0 Bytes';
-        const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
         const size = parseFloat((bytes / Math.pow(1024, i)).toFixed(2));
         return size + ' ' + sizes[i];
     },
