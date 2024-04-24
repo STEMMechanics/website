@@ -4,12 +4,10 @@ import {mergeAttributes, Node} from '@tiptap/core'
 export const Small = Node.create({
     name: 'small',
 
-    priority: 2000,
-
     addOptions() {
         return {
             HTMLAttributes: {
-                class: 'text-sm',
+                class: 'text-sm pb-4',
             },
         }
     },
@@ -20,12 +18,12 @@ export const Small = Node.create({
 
     parseHTML() {
         return [{
-            tag: 'p.text-sm',
+            tag: 'div.text-sm.pb-4',
         }]
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['p', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
+        return ['div', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0]
     },
 
     addCommands() {

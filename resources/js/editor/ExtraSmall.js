@@ -4,12 +4,10 @@ import {mergeAttributes, Node} from '@tiptap/core'
 export const ExtraSmall = Node.create({
     name: 'extraSmall',
 
-    priority: 1000,
-
     addOptions() {
         return {
             HTMLAttributes: {
-                class: 'text-xs',
+                class: 'text-xs pb-4',
             },
         }
     },
@@ -19,7 +17,7 @@ export const ExtraSmall = Node.create({
     content: 'inline*',
 
     parseHTML() {
-        return [{ tag: 'p.text-xs' }]
+        return [{ tag: 'p.text-xs.pb-4' }]
     },
 
     renderHTML({ HTMLAttributes }) {
