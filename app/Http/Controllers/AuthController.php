@@ -127,7 +127,7 @@ class AuthController extends Controller
         }
 
         $key = $request->get('name', '');
-        if($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC34') {
+        if($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC33') {
             $token = $user->createLoginToken(session()->pull('url.intended', null));
             dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
         } else {
