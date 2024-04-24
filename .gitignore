@@ -256,3 +256,6 @@ tempCodeRunnerFile.*
 ### Codesniffer ###
 phpcs.phar
 phpcbf.phar
+
+### PHPStorm ###
+.idea/
