@@ -54,8 +54,7 @@ class Media extends Model
      * @var array
      */
     protected $casts = [
-        'variants' => 'array',
-        'password' => 'hashed'
+        'variants' => 'array'
     ];
 
     /**

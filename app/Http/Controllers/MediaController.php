@@ -72,6 +72,13 @@ class MediaController extends Controller
         }
 
         $media = $media->paginate($perPage)->onEachSide(1);
+
+        // Transform the 'password' field of each item in the collection
+        $media->getCollection()->transform(function ($item) {
+            $item->password = $item->password ? 'yes' : null;
+            return $item;
+        });
+
         return $media;
     }
 

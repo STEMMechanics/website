@@ -131,6 +131,7 @@ const SMMediaPicker = {
                             x-on:click="SMMediaPicker.updateSelection(item.name)"
                             x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
+                            <i x-show="item.password" class="fa-solid fa-lock text-xl text-gray-600 absolute -top-2 -left-1" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                             <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
                             <div class="flex-grow flex items-center justify-center pointer-events-none select-none">
                                 <img x-bind:src="item.thumbnail" class="rounded max-h-32" />

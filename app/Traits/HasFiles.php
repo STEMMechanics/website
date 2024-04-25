@@ -10,7 +10,11 @@ trait HasFiles
 {
     public function files($collection = null)
     {
+//        return $this->morphToMany(Media::class, 'mediable')
+//            ->wherePivot('collection', $collection);
+
         return $this->morphToMany(Media::class, 'mediable')
+            ->selectRaw("*, CASE WHEN password IS NULL THEN NULL ELSE 'yes' END AS password")
             ->wherePivot('collection', $collection);
     }
 
