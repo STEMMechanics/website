@@ -148,7 +148,7 @@ const SMMediaPicker = {
                             <ul class="flex border rounded-lg text-sm">
                                 <template x-for="link in $store.media.pagination">
                                     <li
-                                        class="px-3 py-1.5 w-9 border-r last:border-r-0 text-center select-none"
+                                        class="px-2 py-1.5 w-9 border-r last:border-r-0 text-center select-none whitespace-nowrap"
                                         :class="{
                                             'bg-gray-100':              link.url === null,
                                             'text-gray-400':            link.url === null,
