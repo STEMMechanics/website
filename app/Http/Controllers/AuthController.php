@@ -130,11 +130,11 @@ class AuthController extends Controller
         }
 
         if($passHoneypot) {
-            Log::channel('honeypot')->info('Valid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent());
+            Log::channel('honeypot')->info('Valid key used for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent());
             $token = $user->createLoginToken(session()->pull('url.intended', null));
             dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
         } else {
-            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', key: ' . $key);
+            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', key: ' . $key);
         }
 
         return view('auth.login-link');
