@@ -9,7 +9,7 @@
             <form method="GET" action="" x-on:submit.prevent="submit">
                 <x-ui.input type="password" name="password" label="Password" floating autofocus error="{{ $error ?? '' }}"/>
                 <div class="flex flex-col items-center gap-4 justify-center">
-                    <x-ui.button type="submit">Download</x-ui.button>
+                    <x-ui.button type="submit">Continue</x-ui.button>
                 </div>
             </form>
         </div>
