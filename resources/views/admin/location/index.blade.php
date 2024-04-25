@@ -36,7 +36,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $locations->links() }}
+            {{ $locations->appends(request()->query())->links() }}
         @endif
 
     </x-container>

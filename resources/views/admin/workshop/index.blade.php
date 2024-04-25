@@ -40,7 +40,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $workshops->links() }}
+            {{ $workshops->appends(request()->query())->links() }}
         @endif
 
     </x-container>

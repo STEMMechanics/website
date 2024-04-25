@@ -42,7 +42,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $media->links() }}
+            {{ $media->appends(request()->query())->links() }}
         @endif
 
     </x-container>

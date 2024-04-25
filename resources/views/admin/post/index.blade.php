@@ -40,7 +40,7 @@
                 </x-slot:body>
             </x-ui.table>
 
-            {{ $posts->links() }}
+            {{ $posts->appends(request()->query())->links() }}
         @endif
 
     </x-container>
