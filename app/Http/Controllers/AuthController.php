@@ -131,7 +131,7 @@ class AuthController extends Controller
             $token = $user->createLoginToken(session()->pull('url.intended', null));
             dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
         } else {
-            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip());
+            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', key: ' . $key);
         }
 
         return view('auth.login-link');
