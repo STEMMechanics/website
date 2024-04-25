@@ -22,6 +22,8 @@
         border-color: rgb(209, 213, 219);
         padding: 1rem 1rem;
         font-size: 0.9rem;
+        white-space: nowrap;
+        text-align: center;
     }
 
     .table th {
@@ -54,5 +56,9 @@
 
     .table tr:nth-child(even) {
         background-color: rgb(236 238 241);
+    }
+
+    .table tr td:first-child {
+        text-align: left;
     }
 </style>
