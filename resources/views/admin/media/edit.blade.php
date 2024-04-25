@@ -1,3 +1,10 @@
+@php
+$password = '';
+if(isset($medium) && ($medium->password !== null && $medium->password !== '')) {
+    $password = 'yes';
+}
+@endphp
+
 <x-layout>
     <x-mast backRoute="admin.media.index" backTitle="Media">{{ isset($medium) ? 'Edit' : 'Create' }} Media</x-mast>
     <x-container class="mt-4">
@@ -15,6 +22,10 @@
                     <x-ui.input label="URL" name="url" value="{{ $medium->url }}" disabled />
                 </div>
             @endisset
+
+            <div class="mb-4">
+                <x-ui.password label="Password" name="password" value="{{ $password }}"/>
+            </div>
 
             <x-ui.file name="file" onchange="updateTitle" file-name="{{ $medium->name ?? '' }}" file-type="{{ $medium->mime_type ?? '' }}" file-size="{{ $medium->size ?? '' }}" file-url="{{ $medium?->thumbnail ?? '' }}" readonly="{{ isset($medium) }}" />
 

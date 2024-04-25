@@ -23,7 +23,8 @@ class Media extends Model
         'mime_type',
         'size',
         'user_id',
-        'hash'
+        'hash',
+        'password',
     ];
 
     /**
@@ -53,7 +54,8 @@ class Media extends Model
      * @var array
      */
     protected $casts = [
-        'variants' => 'array'
+        'variants' => 'array',
+        'password' => 'hashed'
     ];
 
     /**

@@ -5,6 +5,7 @@
         'outline' => 'hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white',
         'primary' => 'hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white',
         'primary-outline' => 'hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white',
+        'primary-outline-sm' => '!font-normal !text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white',
         'danger' => 'hover:bg-danger-color-dark focus-visible:outline-danger-color bg-danger-color text-white',
         'success' => 'hover:bg-success-color-dark focus-visible:outline-success-color bg-success-color text-white'
     ][$color];

@@ -12,29 +12,6 @@ use Illuminate\Support\Facades\Validator;
 class MediaController extends Controller
 {
     /**
-     * The disk to store public media.
-     *
-     * @var string
-     */
-    private static $publicStorageDisk = 'public';
-
-    /**
-     * The disk to store temporary media.
-     *
-     * @var string
-     */
-    private static $tempStorageDisk = 'temp';
-
-    /**
-     * Media preprocessors.
-     *
-     * @var array
-     */
-    private static $preProcessors = [
-        \App\MediaServices\Converters\HEICToJPEG::class,
-    ];
-
-    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -316,6 +293,18 @@ class MediaController extends Controller
 //            $mediaData['hash'] = $hash;
 //        }
 
+        if($request->get('password_clear') === 'on') {
+            $mediaData['password'] = null;
+        } else {
+            $password = $request->get('password');
+
+            if($password !== null && $password !== '') {
+                $mediaData['password'] = password_hash($request->get('password'), PASSWORD_DEFAULT);
+            } else {
+                unset($mediaData['password']);
+            }
+        }
+
         $media->update($mediaData);
 
 //        if($file) {
@@ -419,6 +408,26 @@ class MediaController extends Controller
         $file = $media->path();
         if($file === null) {
             abort(404, 'File not found');
+        }
+
+        if($media->password !== null) {
+            if(!$request->has('password')) {
+                return view('media-password');
+            } else {
+                $password = $request->get('password');
+
+                if($password === '' || $password === null) {
+                    return view('media-password', [
+                        'error' => 'Password is required',
+                    ]);
+                }
+
+                if(!password_verify(base64_decode($password), $media->password)) {
+                    return view('media-password', [
+                        'error' => 'Password is incorrect',
+                    ]);
+                }
+            }
         }
 
         $variant = '';
