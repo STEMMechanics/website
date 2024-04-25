@@ -108,6 +108,9 @@ class AuthController extends Controller
             'email.email' => __('validation.custom_messages.email_invalid')
         ]);
 
+        $key = $request->get('name', '');
+        $passHoneypot = ($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC33');
+
         $user = User::where('email', $request->email)->first();
         if($user) {
             if($user->email_verified_at !== null) {
@@ -115,7 +118,7 @@ class AuthController extends Controller
                     'email' => __('validation.custom_messages.email_exists'),
                 ]);
             }
-        } else {
+        } else if($passHoneypot) {
             $firstname = explode('@', $request->email)[0];
 
             $user = User::create([
@@ -126,8 +129,7 @@ class AuthController extends Controller
             EmailUpdate::where('email', $request->email)->delete();
         }
 
-        $key = $request->get('name', '');
-        if($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC33') {
+        if($passHoneypot) {
             Log::channel('honeypot')->info('Valid key used for registration using email: ' . $user->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', time: ' . $request->get('time', '-1'));
             $token = $user->createLoginToken(session()->pull('url.intended', null));
             dispatch(new SendEmail($user->email, new RegisterLink($token, $user->getName(), $user->email)))->onQueue('mail');
