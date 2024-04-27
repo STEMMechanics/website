@@ -44,7 +44,7 @@
                 </div>
             </div>
         </div>
-        <div x-show="open" @click.away="open=false" x-cloak class="sm:absolute right-5 top-9 z-10 sm:mt-2 sm:w-48 origin-top-right sm:rounded-md bg-white py-3 px-2 sm:shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+        <div x-show="open" @click.away="open=false" x-cloak class="absolute w-full right-0 sm:right-5 sm:top-9 z-10 sm:mt-2 sm:w-48 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
             <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>
             <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
             <div class="sm:hidden border-t border-gray-200 my-2"></div>
