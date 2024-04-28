@@ -172,7 +172,7 @@ class GenerateVariants implements ShouldQueue
                 $ffmpeg = FFMpeg::create();
                 $video = $ffmpeg->open($temp);
                 $frame = $video->frame(TimeCode::fromSeconds(5));
-                $frame->save($variantFile);
+                $frame->save($tempImage);
 
                 $width = $variantData['thumbnail']['width'];
                 $height = $variantData['thumbnail']['height'];
