@@ -147,7 +147,7 @@ class Media extends Model
      */
     public function getThumbnailAttribute(): string
     {
-        if($this->password !== null) {
+        if($this->password === null) {
             if ($this->hasVariant('thumbnail')) {
                 $url = $this->url('thumbnail', true);
                 if ($url !== '') {
