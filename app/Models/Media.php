@@ -7,6 +7,7 @@ use App\Jobs\Media\GenerateVariants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
+use function PHPUnit\Framework\stringStartsWith;
 
 class Media extends Model
 {
@@ -65,7 +66,8 @@ class Media extends Model
      */
     protected $appends = [
         'url',
-        'thumbnail'
+        'thumbnail',
+        'file_type'
     ];
 
     /**
@@ -163,6 +165,27 @@ class Media extends Model
         }
 
         return asset('/thumbnails/unknown.webp');
+    }
+
+    public function getFileTypeAttribute(): string
+    {
+        $extension = pathinfo($this->name, PATHINFO_EXTENSION);
+
+        if(stringStartsWith($this->mime_type, 'image/')) {
+            return 'Image (' . strtoupper($extension) . ')';
+        } else if(stringStartsWith($this->mime_type, 'video/')) {
+            return 'Video (' . strtoupper($extension) . ')';
+        } else if(stringStartsWith($this->mime_type, 'audio/')) {
+            return 'Audio (' . strtoupper($extension) . ')';
+        } else if($this->mime_type === 'application/pdf') {
+            return 'PDF';
+        } else if($this->mime_type === 'text/plain') {
+            return 'Text';
+        } else if($extension === 'sb3') {
+            return 'Scratch 3 Project';
+        }
+
+        return 'File (' . strtoupper($extension) . ')';
     }
 
     /**
