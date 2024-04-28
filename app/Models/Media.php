@@ -82,7 +82,16 @@ class Media extends Model
             'xl'    => ['width' => 1536, 'height' => 1152],
             '2xl'   => ['width' => 2048, 'height' => 1536],
             'scaled'    => ['width' => 2560, 'height' => 1920]
-        ]
+        ],
+        'text/plain' => [
+            'thumbnail' => ['width' => 250, 'height' => 250]
+        ],
+        'application/pdf' => [
+            'thumbnail' => ['width' => 250, 'height' => 250]
+        ],
+        'video/*' => [
+            'thumbnail' => ['width' => 250, 'height' => 250]
+        ],
     ];
 
     public static function boot()
