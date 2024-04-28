@@ -138,9 +138,11 @@ class Media extends Model
      */
     public function getThumbnailAttribute(): string
     {
-        $url = $this->url('thumbnail', true);
-        if($url !== '') {
-            return $url;
+        if($this->hasVariant('thumbnail')) {
+            $url = $this->url('thumbnail', true);
+            if($url !== '') {
+                return $url;
+            }
         }
 
         $thumbnail = '/thumbnails/' . pathinfo($this->name, PATHINFO_EXTENSION) . '.webp';
