@@ -12,7 +12,7 @@
     <h3 class="text-xl font-semibold">{{ $label }}</h3>
     <ul x-show="$store.files.length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2">
         <template x-for="file in $store.files" :key="file.name">
-            <li class="flex items-center">
+            <li class="flex items-center min-h-10">
                 <img class="w-10 mr-2" :src="file.thumbnail" />
                 <div class="flex-grow">
                     <a class="link" :href="file.url" x-text="file.title" target="_blank"></a>
