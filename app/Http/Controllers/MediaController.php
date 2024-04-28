@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Models\Media;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -417,7 +418,7 @@ class MediaController extends Controller
             abort(404, 'File not found');
         }
 
-        if($media->password !== null) {
+        if($media->password !== null && !Auth::user()?->isAdmin()) {
             if(!$request->has('password')) {
                 return view('media-password');
             } else {

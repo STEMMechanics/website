@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use function PHPUnit\Framework\stringStartsWith;
 
@@ -149,7 +150,7 @@ class Media extends Model
      */
     public function getThumbnailAttribute(): string
     {
-        if($this->password === null) {
+        if($this->password === null || Auth::user()?->isAdmin()) {
             if ($this->hasVariant('thumbnail')) {
                 $url = $this->url('thumbnail', true);
                 if ($url !== '') {
