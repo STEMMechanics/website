@@ -25,6 +25,7 @@ class Media extends Model
         'user_id',
         'hash',
         'password',
+        'status'
     ];
 
     /**
@@ -206,6 +207,8 @@ class Media extends Model
      */
     public function generateVariants(bool $overwrite = true): void
     {
+        $this->status = 'processing';
+        $this->save();
         dispatch(new GenerateVariants($this, $overwrite))->onQueue('media');
     }
 

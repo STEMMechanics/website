@@ -109,5 +109,8 @@ class GenerateVariants implements ShouldQueue
                 $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
             }//end foreach
         }
+
+        $media->status = 'ready';
+        $media->save();
     }
 }

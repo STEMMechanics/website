@@ -84,7 +84,17 @@ const SMMediaPicker = {
                 Alpine.store('media').items = response.data.data;
 
                 Alpine.store('media').pagination = [];
-                console.log(response.data.links);
+
+                response.data.data.forEach((file) => {
+                    console.log(file.name, file.status);
+                    if(file.status === 'processing') {
+                        const fileName = file.name;
+                        setTimeout(() => {
+                            SMMediaPicker.updateThumbnail(fileName);
+                        }, 5000);
+                    }
+                });
+
                 Alpine.nextTick(() => {
                     Alpine.store('media').pagination = response.data.links;
                 }).then(r => {
@@ -258,6 +268,28 @@ const SMMediaPicker = {
             }
         })
     },
+
+    updateThumbnail: (name) => {
+        axios.get('/media/' + name)
+            .then(response => {
+                console.log(response.data.name, response.data.status);
+                const item = Alpine.store('media').items.find(i => i.name === name);
+                if(item) {
+                    if(response.data.status === 'ready') {
+                        item.thumbnail = response.data.thumbnail;
+                        item.status = response.data.status;
+                        item.variants = response.data.variants;
+                    } else if(response.data.status === 'processing') {
+                        setTimeout(() => {
+                            SMMediaPicker.updateThumbnail(name);
+                        }, 5000);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    }
 };
 
 window.SMMediaPicker = SMMediaPicker;
