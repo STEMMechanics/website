@@ -84,6 +84,7 @@ const SMMediaPicker = {
                 Alpine.store('media').items = response.data.data;
 
                 Alpine.store('media').pagination = [];
+                console.log(response.data.links);
                 Alpine.nextTick(() => {
                     Alpine.store('media').pagination = response.data.links;
                 }).then(r => {
@@ -102,7 +103,7 @@ const SMMediaPicker = {
                 <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'">Browser</li>
             </ul>
             <div
-                class="flex-1 border border-gray-300"
+                class="flex-1 border border-gray-300 overflow-y-scroll"
                 x-on:dragenter.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false"
                 x-on:dragover.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false">
                 <div
@@ -123,7 +124,7 @@ const SMMediaPicker = {
                         </div>
                     </form>
 
-                    <ul class="flex p-2 gap-4 overflow-auto justify-center flex-row flex-wrap">
+                    <ul class="flex p-2 gap-4 justify-center flex-row flex-wrap">
                     <template x-for="item in $store.media.items" :key="item.name">
                         <li
                             class="cursor-pointer flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
@@ -141,11 +142,12 @@ const SMMediaPicker = {
                     </template>
                     </ul>
 
-                    <div class="flex flex-1 items-end">
-                        <div class="flex w-full items-center justify-between">
-                            <p x-show="$store.media.total > 0" class="text-xs" x-text="'Showing ' + ((($store.media.current_page - 1) * $store.media.per_page) + 1) + ' to ' + ($store.media.current_page * $store.media.per_page > $store.media.total ? $store.media.total : $store.media.current_page * $store.media.per_page) + ' of ' + ($store.media.total) + ' results'"></p>
-                            <p x-show="$store.media.total === 0" class="text-xs">No items found</p>
-                            <ul class="flex border rounded-lg text-sm">
+                    <div class="flex flex-1 items-end pt-4 pb-4">
+                        <div class="flex w-full items-center justify-between sm:justify-center md:justify-between">
+                            <p x-show="$store.media.total > 0" class="hidden md:block text-xs" x-text="'Showing ' + ((($store.media.current_page - 1) * $store.media.per_page) + 1) + ' to ' + ($store.media.current_page * $store.media.per_page > $store.media.total ? $store.media.total : $store.media.current_page * $store.media.per_page) + ' of ' + ($store.media.total) + ' results'"></p>
+                            <p x-show="$store.media.total === 0" class="hidden md:block text-xs">No items found</p>
+
+                            <ul class="hidden sm:flex border rounded-lg text-sm">
                                 <template x-for="link in $store.media.pagination">
                                     <li
                                         class="px-2 py-1.5 w-9 border-r last:border-r-0 text-center select-none whitespace-nowrap"
@@ -163,6 +165,29 @@ const SMMediaPicker = {
                                         </div>
                                 </template>
                             </ul>
+
+                            <a
+                                :href="$store.media.pagination[0]?.url"
+                                class="sm:hidden px-2 py-1.5 border rounded text-center text-sm select-none whitespace-nowrap cursor-pointer"
+                                :class="{
+                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.pagination[0]?.url,
+                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.pagination[0]?.url
+                                }"
+                                x-on:click.prevent="SMMediaPicker.gotoLink($store.media.pagination[0].url)"
+                                :disabled="!$store.media.pagination[0]?.url"
+                                ><i class="fa-solid fa-angle-left mr-2"></i>Prev
+                            </a>
+                            <a
+                                :href="$store.media.pagination[$store.media.pagination.length - 1]?.url"
+                                class="sm:hidden px-2 py-1.5 border rounded text-center text-sm select-none whitespace-nowrap"
+                                :class="{
+                                    'cursor-pointer hover:text-primary-color hover:bg-sky-100': $store.media.pagination[$store.media.pagination.length - 1]?.url,
+                                    'pointer-events-none text-gray-400 bg-gray-100': !$store.media.pagination[$store.media.pagination.length - 1]?.url
+                                }"
+                                x-on:click.prevent="SMMediaPicker.gotoLink($store.media.pagination[$store.media.pagination.length - 1].url)"
+                                :disabled="!$store.media.pagination[$store.media.pagination.length - 1]?.url"
+                                >Next<i class="fa-solid fa-angle-right ml-2"></i>
+                            </a>
                         </div>
                     </div>
                 </div>

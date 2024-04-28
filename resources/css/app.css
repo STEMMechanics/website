@@ -250,6 +250,10 @@ body.swal2-height-auto {
 
 .sm-media-picker-container {
     grid-template-rows: minmax(min-content, auto) 1fr minmax(min-content, auto);
+
+    .swal2-html-container {
+        overflow: hidden;
+    }
 }
 
 .sm-media-picker {
