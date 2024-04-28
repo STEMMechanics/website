@@ -171,11 +171,11 @@ class Media extends Model
     {
         $extension = pathinfo($this->name, PATHINFO_EXTENSION);
 
-        if(stringStartsWith($this->mime_type, 'image/')) {
+        if(str_starts_with($this->mime_type, 'image/')) {
             return 'Image (' . strtoupper($extension) . ')';
-        } else if(stringStartsWith($this->mime_type, 'video/')) {
+        } else if(str_starts_with($this->mime_type, 'video/')) {
             return 'Video (' . strtoupper($extension) . ')';
-        } else if(stringStartsWith($this->mime_type, 'audio/')) {
+        } else if(str_starts_with($this->mime_type, 'audio/')) {
             return 'Audio (' . strtoupper($extension) . ')';
         } else if($this->mime_type === 'application/pdf') {
             return 'PDF';
