@@ -19,6 +19,10 @@ if(isset($medium) && ($medium->password !== null && $medium->password !== '')) {
 
             @isset($medium)
                 <div class="mb-4">
+                    <x-ui.input label="Type" name="type" value="{{ $medium->file_type }}" disabled />
+                </div>
+
+                <div class="mb-4">
                     <x-ui.input label="URL" name="url" value="{{ $medium->url }}" disabled />
                 </div>
             @endisset
