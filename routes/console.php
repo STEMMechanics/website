@@ -36,3 +36,11 @@ Artisan::command('cleanup', function() {
         ->update(['status' => 'closed']);
 
 })->purpose('Clean up expired data')->everyMinute();
+
+Artisan::command('regenerate-thumbnails', function() {
+    $media = Media::all();
+
+    foreach ($media as $m) {
+        $m->generateVariants(false);
+    }
+})->purpose('Regenerate thumbnails');
