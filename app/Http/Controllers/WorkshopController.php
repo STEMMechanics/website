@@ -217,6 +217,7 @@ class WorkshopController extends Controller
         }
 
         $workshop->update($workshopData);
+        $workshop->updateFiles($request->input('files'));
 
         session()->flash('message', 'Workshop has been updated');
         session()->flash('message-title', 'Workshop updated');
