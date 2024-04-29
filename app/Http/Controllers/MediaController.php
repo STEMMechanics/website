@@ -133,6 +133,11 @@ class MediaController extends Controller
                 if(!$request->has('title')) {
                     return response()->json([
                         'message' => 'The file ' . $file->getClientOriginalName() . ' has been uploaded',
+                        'file' => [
+                            'name' => $file->getClientOriginalName(),
+                            'size' => $file->getSize(),
+                            'mime_type' => $file->getMimeType()
+                        ]
                     ]);
                 }
             } catch(\Exception $e) {
@@ -151,7 +156,7 @@ class MediaController extends Controller
                 return response()->json([
                     'message' => 'Could not find the referenced file on the server.',
                     'errors' => [
-                        'file' => 'Could not find the referenced file on the server.'
+                        'file' => 'Could not find the referenced file on the server ('.$tempFileName.').'
                     ]
                 ], 422);
             }

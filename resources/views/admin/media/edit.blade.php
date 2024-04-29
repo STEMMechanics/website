@@ -31,7 +31,7 @@ if(isset($medium) && ($medium->password !== null && $medium->password !== '')) {
                 <x-ui.password label="Password" name="password" value="{{ $password }}"/>
             </div>
 
-            <x-ui.file name="file" onchange="updateTitle" file-name="{{ $medium->name ?? '' }}" file-type="{{ $medium->mime_type ?? '' }}" file-size="{{ $medium->size ?? '' }}" file-url="{{ $medium?->thumbnail ?? '' }}" readonly="{{ isset($medium) }}" />
+            <x-ui.file name="file" onchange="updateTitle" value="{{ $medium->name ?? '' }}" readonly="{{ isset($medium) }}" />
 
             <div class="flex justify-end gap-4 mt-8">
                 @isset($medium)
