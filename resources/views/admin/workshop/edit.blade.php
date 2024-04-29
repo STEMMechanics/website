@@ -16,7 +16,7 @@
             <div class="mb-4">
                 <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
             </div>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.select label="Type" name="type" x-model="type">
                         <option value="physical" {{ ($workshop->location_id ?? '') !== '' || !isset($workshop) ? 'selected' : '' }}>Physical</option>
@@ -33,7 +33,7 @@
                     </span>
                 </div>
             </div>
-            <div class="flex gap-8">
+                <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.input type="datetime-local" label="Start Date" name="starts_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') }}" onchange="updatedStartsAt()"/>
                 </div>
@@ -41,7 +41,7 @@
                     <x-ui.input type="datetime-local" label="End Date" name="ends_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') }}" />
                 </div>
             </div>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.select label="Status" name="status">
                         <option value="draft" {{ ($workshop->status ?? '') === 'draft' ? 'selected' : '' }}>Draft</option>
@@ -56,15 +56,15 @@
                     <x-ui.input type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" onchange="updatedPublishAt()" />
                 </div>
             </div>
-                <div class="flex gap-8">
-                    <div class="flex-1">
-                        &nbsp;
-                    </div>
-                    <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Closes Date" name="closes_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->closes_at ?? '') }}" />
-                    </div>
+            <div class="flex flex-col sm:flex-row sm:gap-8">
+                <div class="hidden sm:block flex-1">
+                    &nbsp;
                 </div>
-            <div class="flex gap-8">
+                <div class="flex-1">
+                    <x-ui.input type="datetime-local" label="Closes Date" name="closes_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->closes_at ?? '') }}" />
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.input label="Price" name="price" info="Leave blank to hide from public. Also supports Free, TBD or TBC" value="{{ $workshop->price ?? '' }}" />
                 </div>
@@ -72,7 +72,7 @@
                     <x-ui.input label="Ages" name="ages" info="Leave blank to hide from public" value="{{ $workshop->ages ?? '8+' }}" />
                 </div>
             </div>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
                         <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>

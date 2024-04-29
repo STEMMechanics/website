@@ -13,7 +13,7 @@
             <div class="mb-4">
                 <x-ui.media label="Image" name="hero_media_name" value="{{ $post->hero_media_name ?? '' }}" allow_uploads="true" />
             </div>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                 <div class="flex-1">
                     <x-ui.select label="Status" id="status" name="status" value="{{ $post->status ?? '' }}">
                         <option value="draft" {{ ($post->status ?? '') == 'draft' ? 'selected' :'' }}>Draft</option>
