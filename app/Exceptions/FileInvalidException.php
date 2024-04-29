@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use Exception;
 
-class MediaServiceException extends Exception
+class FileInvalidException extends Exception
 {
     /**
      * The error code of the exception.

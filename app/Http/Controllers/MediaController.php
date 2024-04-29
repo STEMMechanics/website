@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\FileInvalidException;
+use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Models\Media;
 use Illuminate\Http\Request;
@@ -108,73 +110,79 @@ class MediaController extends Controller
      */
     public function admin_store(Request $request)
     {
-        $max_size = Helpers::getMaxUploadSize();
+        $file = null;
 
-        $validator = Validator::make($request->all(), [
-            'title' => 'required',
-            'file' => 'required|file|max:' . (max(round($max_size / 1024),0)),
-        ], [
-            'title.required' => __('validation.custom_messages.title_required'),
-            'file.required' => __('validation.custom_messages.file_required'),
-            'file.file' => __('validation.custom_messages.file_file'),
-            'file.max' => __('validation.custom_messages.file_max', ['max' => Helpers::bytesToString($max_size)])
-        ]);
+        // Check if the endpoint received a file...
+        if($request->hasFile('file')) {
+            try {
+                $file = $this->upload($request);
 
-        if ($validator->fails()) {
-            if($request->wantsJson()) {
+                if($file === true) {
+                    return response()->json([
+                        'message' => 'Chunk stored',
+                    ]);
+                } else if(!$file) {
+                    return response()->json([
+                        'message' => 'An error occurred processing the file.',
+                        'errors' => [
+                            'file' => 'An error occurred processing the file.'
+                        ]
+                    ], 422);
+                }
+
+                if(!$request->has('title')) {
+                    return response()->json([
+                        'message' => 'The file ' . $file->getClientOriginalName() . ' has been uploaded',
+                    ]);
+                }
+            } catch(\Exception $e) {
                 return response()->json([
-                    'message' => 'The given data was invalid.',
-                    'errors' => $validator->errors(),
-                ], 422);
-            } else {
-                return redirect()->back()->withErrors($validator)->withInput();
-            }
-        }
-
-        $file = $request->file('file');
-        $fileName = $request->input('filename', $file->getClientOriginalName());
-        $fileName = Helpers::cleanFileName($fileName);
-
-        if(($request->has('filestart') || $request->has('fileappend')) && $request->has('filesize')) {
-            $fileSize = $request->get('filesize');
-
-            if($fileSize > $max_size) {
-                return response()->json([
-                    'message' => 'The file ' . $fileName . ' is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size),
+                    'message' => $e->getMessage(),
                     'errors' => [
-                        'file' => 'The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size)
+                        'file' => $e->getMessage()
                     ]
                 ], 422);
             }
 
-            $tempFilePath = sys_get_temp_dir() . '/chunk-' . $fileName;
-
-            $filemode = 'a';
-            if($request->has('filestart')) {
-                $filemode = 'w';
-            }
-
-            // Append the chunk to the temporary file
-            $fp = fopen($tempFilePath, $filemode);
-            if ($fp) {
-                fwrite($fp, file_get_contents($file->getRealPath()));
-                fclose($fp);
-            }
-
-            // Check if the upload is complete
-            if (filesize($tempFilePath) >= $fileSize) {
-                $fileMime = mime_content_type($tempFilePath);
-                if($fileMime === false) {
-                    $fileMime = 'application/octet-stream';
-                }
-                $file = new UploadedFile($tempFilePath, $fileName, $fileMime, null, true);
-            } else {
+        // else check if it received a file name of a previous upload...
+        } else if($request->has('file')) {
+            $tempFileName = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $request->file;
+            if(!file_exists($tempFileName)) {
                 return response()->json([
-                    'message' => 'Chunk stored',
-                ]);
+                    'message' => 'Could not find the referenced file on the server.',
+                    'errors' => [
+                        'file' => 'Could not find the referenced file on the server.'
+                    ]
+                ], 422);
             }
+
+            $fileMime = mime_content_type($tempFileName);
+            if($fileMime === false) {
+                $fileMime = 'application/octet-stream';
+            }
+            $file = new UploadedFile($tempFileName, $request->file, $fileMime, null, true);
         }
 
+        // Check there is an actual file
+        if(!$file) {
+            return response()->json([
+                'message' => 'A file is required.',
+                'errors' => [
+                    'file' => 'A file is required.'
+                ]
+            ], 422);
+        }
+
+        if(!$request->has('title')) {
+            return response()->json([
+                'message' => 'A title is required',
+                'errors' => [
+                    'title' => 'A title is required'
+                ]
+            ], 422);
+        }
+
+        $fileName = $file->getClientOriginalName();
         $name = pathinfo($fileName, PATHINFO_FILENAME);
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
         $name = Helpers::cleanFileName($name);
@@ -346,70 +354,60 @@ class MediaController extends Controller
         return redirect()->route('admin.media.index');
     }
 
-    public function upload(Request $request)
+
+    /**
+     * @throws FileInvalidException
+     * @throws FileTooLargeException
+     */
+    private function upload(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file',
-        ]);
-
-        if(auth()->guest()) {
-            return response()->json([
-                'message' => 'You must be logged in to upload media',
-            ], 401);
-        }
-
-        if(!auth()->user()?->admin) {
-            return response()->json([
-                'message' => 'You do not have permission to upload media',
-            ], 403);
-        }
-
-        if(!$request->hasFile('file')) {
-            return response()->json([
-                'message' => 'No file was received by the server',
-            ], 422);
-        }
-
         $max_size = Helpers::getMaxUploadSize();
 
         $file = $request->file('file');
-
-        if($file->getSize() > $max_size) {
-            return response()->json([
-                'message' => 'The file ' . $file->getClientOriginalName() . ' is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size)
-            ], 422);
+        if(!$file->isValid()) {
+            throw new FileInvalidException('The file is invalid');
         }
 
-        $name = $file->getClientOriginalName();
-        if(Media::find($name) !== null) {
-            $increment = 2;
-            while(Media::find($name . '-' . $increment) !== null) {
-                $increment++;
+        $fileName = $request->input('filename', $file->getClientOriginalName());
+        $fileName = Helpers::cleanFileName($fileName);
+
+        if(($request->has('filestart') || $request->has('fileappend')) && $request->has('filesize')) {
+            $fileSize = $request->get('filesize');
+
+            if($fileSize > $max_size) {
+                throw new FileTooLargeException('The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size));
             }
 
-            $name = $name . '-' . $increment;
+            $tempFilePath = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $fileName;
+
+            $filemode = 'a';
+            if($request->has('filestart')) {
+                $filemode = 'w';
+            }
+
+            // Append the chunk to the temporary file
+            $fp = fopen($tempFilePath, $filemode);
+            if ($fp) {
+                fwrite($fp, file_get_contents($file->getRealPath()));
+                fclose($fp);
+            }
+
+            // Check if the upload is complete
+            if (filesize($tempFilePath) >= $fileSize) {
+                $fileMime = mime_content_type($tempFilePath);
+                if($fileMime === false) {
+                    $fileMime = 'application/octet-stream';
+                }
+
+                return new UploadedFile($tempFilePath, $fileName, $fileMime, null, true);
+            } else {
+                return true;
+            }
         }
 
-        $media = Media::Create([
-            'title' => $request->get('title', $name),
-            'user_id' => auth()->id(),
-            'name' => $name,
-            'size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
-            'hash' => hash_file('sha256', $file->path()),
-        ]);
-
-        $file->storeAs('/', $media->hash, 'public');
-        $media->generateVariants();
-        unlink($file);
-
-        return response()->json([
-            'message' => 'File has been uploaded',
-            'name' => $media->name,
-            'size' => $media->size,
-            'mime_type' => $media->mime_type
-        ]);
+        return $file;
     }
+
 
     public function download(Request $request, Media $media)
     {

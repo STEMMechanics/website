@@ -15,8 +15,11 @@
             <li class="flex items-center min-h-10">
                 <img class="w-10 mr-2" :src="file.thumbnail" />
                 <div class="flex-grow">
+                    <div>
                     <a class="link" :href="file.url" x-text="file.title" target="_blank"></a>
                     <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
+                    </div>
+                    <span class="text-xs text-gray-400" x-text="file.file_type"></span>
                 </div>
                 <a class="cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.url + '?download=1'"><i class="fa-solid fa-download"></i></a>
                 @if($editor)

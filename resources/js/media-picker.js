@@ -4,12 +4,23 @@ const SMMediaPicker = {
             return SM.mimeMatches(file.type, Alpine.store('media').require_mime_type);
         });
 
+        if(validFiles.length === 0) {
+            Alpine.store('media').error = 'No files where uploaded as they do not meet the requirements.';
+        } else if(validFiles.length !== files.length) {
+            Alpine.store('media').error = 'Some files where not uploaded as they do not meet the requirements.';
+        } else {
+            Alpine.store('media').error = null;
+        }
+
         const titles = Array.from(validFiles).map((file) => SM.toTitleCase(file.name));
 
         SM.upload(validFiles, (response) => {
-            response.files.forEach((file) => {
-                SMMediaPicker.updateSelection(file.data.name);
-            });
+            if(response.files) {
+                response.files.forEach((file) => {
+                    SMMediaPicker.updateSelection(file.data.name);
+                });
+            }
+
             SMMediaPicker.open(
                 Alpine.store('media').selected,
                 {
@@ -107,6 +118,11 @@ const SMMediaPicker = {
 
     html: `
         <div class="flex flex-col h-full w-full" x-data="{tab: 'browser', showFileDrop: false}">
+            <template x-if="$store.media.error">
+                <div class="flex justify-center" role="alert">
+                    <p class="relative bg-red-100 border border-red-400 text-red-700 py-2 pl-4 pr-8 text-xs rounded mb-4"><span x-text="$store.media.error"></span><i class="fa-solid fa-close text-red-900 hover:text-red-700 cursor-pointer absolute top-2 right-2" x-on:click="$store.media.error=null;"></i></p>
+                </div>
+            </template>
             <ul class="flex -mb-[1px] z-10">
                 <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'upload', 'border-b-white': tab === 'upload', 'border-transparent': tab !== 'upload' }" x-on:click.prevent="tab='upload'">Upload</li>
                 <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'">Browser</li>
