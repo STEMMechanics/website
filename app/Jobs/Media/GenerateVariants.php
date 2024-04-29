@@ -110,6 +110,7 @@ class GenerateVariants implements ShouldQueue
                 $image->save($variantFile, quality: 75);
 
                 $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
+                unset($variantFile);
             }//end foreach
         } else if($matchingMimeType === 'text/plain') {
             /* Text */
@@ -149,6 +150,7 @@ class GenerateVariants implements ShouldQueue
             $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
             $image->save($variantFile, quality: 75);
             $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+            unset($variantFile);
 
         } else if($matchingMimeType === 'application/pdf') {
             /* PDF */
@@ -162,6 +164,7 @@ class GenerateVariants implements ShouldQueue
             $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
             $image->save($variantFile, quality: 75);
             $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+            unset($variantFile);
 
         } else if($matchingMimeType === 'video/*') {
             /* Video */
@@ -183,6 +186,7 @@ class GenerateVariants implements ShouldQueue
                 $image->save($variantFile, quality: 75);
 
                 $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+                unset($variantFile);
             } catch (\Exception $e) {
                 Log::error($e);
             }
