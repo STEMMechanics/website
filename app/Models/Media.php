@@ -179,9 +179,9 @@ class Media extends Model
         } else if(str_starts_with($this->mime_type, 'audio/')) {
             return 'Audio (' . strtoupper($extension) . ')';
         } else if($this->mime_type === 'application/pdf') {
-            return 'PDF';
+            return 'PDF Document';
         } else if($this->mime_type === 'text/plain') {
-            return 'Text';
+            return 'Text Document';
         } else if($extension === 'sb3') {
             return 'Scratch 3 Project';
         }

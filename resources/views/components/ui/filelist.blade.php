@@ -10,22 +10,21 @@
 @if($value !== '' || $editor === true)
 <div x-data class="{{ twMerge(['mb-4'], $attributes->get('class')) }}" x-show="$store.files.length > 0 || {{ $editor === true ? 'true' : 'false' }}">
     <h3 class="text-xl font-semibold">{{ $label }}</h3>
-    <ul x-show="$store.files.length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2">
+    <ul x-show="$store.files.length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2 overflow-hidden">
         <template x-for="file in $store.files" :key="file.name">
             <li class="flex items-center min-h-10">
                 <img class="w-10 mr-2" :src="file.thumbnail" />
-                <div class="flex-grow">
+                <div class="flex flex-grow flex-col">
                     <div>
-                    <a class="link" :href="file.url" x-text="file.title" target="_blank"></a>
-                    <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
+                        <a class="link break-all" :href="file.url" x-text="file.title" target="_blank"></a>
+                        <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
                     </div>
-                    <span class="text-xs text-gray-400" x-text="file.file_type"></span>
+                    <span class="text-xs text-gray-400" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>
                 </div>
-                <a class="cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.url + '?download=1'"><i class="fa-solid fa-download"></i></a>
+                <a class="flex-shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.url + '?download=1'"><i class="fa-solid fa-download"></i></a>
                 @if($editor)
-                    <i class="text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="removeFile(file.name)"></i>
+                    <i class="flex-shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="removeFile(file.name)"></i>
                 @endif
-                <span class="text-gray-400 text-xs w-20 whitespace-nowrap text-right" x-text="'(' + SM.bytesToString(file.size) + ')'"></span>
             </li>
         </template>
     </ul>
