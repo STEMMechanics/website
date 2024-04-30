@@ -80,7 +80,7 @@ class WorkshopController extends Controller
             $query = $query->where('starts_at', '>=', Carbon::now()->subDays(8))
                 ->orderBy('starts_at', 'asc');
         } else {
-            $query = $query->orderBy('starts_at', 'desc');
+            $query = $query->orderBy('starts_at', 'asc');
         }
 
         $workshops = $query->paginate(12);
