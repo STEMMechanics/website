@@ -50,6 +50,7 @@
                         <option value="full" {{ ($workshop->status ?? '') === 'full' ? 'selected' : '' }}>Full</option>
                         <option value="scheduled" {{ ($workshop->status ?? '') === 'scheduled' ? 'selected' : '' }}>Scheduled</option>
                         <option value="closed" {{ ($workshop->status ?? '') === 'closed' ? 'selected' : '' }}>Closed</option>
+                        <option value="cancelled" {{ ($workshop->status ?? '') === 'cancelled' ? 'selected' : '' }}>Scheduled</option>
                     </x-ui.select>
                 </div>
                 <div class="flex-1">
