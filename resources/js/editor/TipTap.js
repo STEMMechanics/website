@@ -29,7 +29,13 @@ const editorToggleLink = (editor) => {
 const CustomLink = Link.extend({
     addKeyboardShortcuts() {
         return {
-            'Mod-k': () => editorToggleLink(this.editor)
+            'Mod-k': () => editorToggleLink(this.editor),
+            'Mod-0': () => this.editor.chain().setParagraph().focus().run(),
+            'Mod-1': () => this.editor.chain().toggleHeading({level: 1}).focus().run(),
+            'Mod-2': () => this.editor.chain().toggleHeading({level: 2}).focus().run(),
+            'Mod-3': () => this.editor.chain().toggleHeading({level: 3}).focus().run(),
+            'Mod-4': () => this.editor.chain().setSmall().focus().run(),
+            'Mod-5': () => this.editor.chain().setExtraSmall().focus().run(),
         }
     }
 });
