@@ -26,7 +26,7 @@
                     @foreach ($media as $medium)
                         <tr>
                             <td class="flex items-center">
-                                <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" />
+                                <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" {{ $medium->status === 'processing' ? 'data-thumbnail=' . $medium->name : '' }} />
                                 <div>
                                     <div class="whitespace-normal">{{ $medium->title }}{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}</div>
                                     <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>

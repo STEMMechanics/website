@@ -36,6 +36,10 @@
         document.getElementById('{{ $name }}_name').innerText = media.name;
         document.getElementById('{{ $name }}_size').innerText = SM.bytesToString(media.size);
 
+        if(Object.keys(media).includes('status') && media.status === 'processing') {
+            SM.updateThumbnail(document.getElementById('{{ $name }}_preview'), media.name);
+        }
+
         if(!media.mime_type.startsWith('image/') && (!media.thumbnail || media.thumbnail.startsWith('data:'))) {
             const extension = media.name.split('.').pop();
             document.getElementById('{{ $name }}_preview').src = '/thumbnails/' + extension + '.webp';

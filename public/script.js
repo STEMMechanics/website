@@ -312,9 +312,40 @@ let SM = {
 
     toLocalISOString: (date) => {
         return date.getFullYear() + '-' + (date.getMonth() + 1).toString().padStart(2, '0') + '-' + date.getDate().toString().padStart(2, '0') + 'T' + date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+    },
+
+    updateThumbnail: (name, element) => {
+        axios.get('/media/' + name)
+            .then(response => {
+                if(response.data.status === 'ready') {
+                    if(element instanceof HTMLImageElement) {
+                        element.src = response.data.thumbnail;
+                    } else if(typeof element === 'string') {
+                        const imgElement = document.querySelector(element);
+                        if(imgElement instanceof HTMLImageElement) {
+                            imgElement.src = response.data.thumbnail;
+                        }
+                    }
+                } else if(response.data.status === 'processing') {
+                    setTimeout(() => {
+                        SM.updateThumbnail(name, element);
+                    }, 5000);
+                }
+            })
+            .catch(error => {
+                console.error(error);
+            });
+    },
+
+    updateAllThumbnails: () => {
+        const elements = document.querySelectorAll('img[data-thumbnail]');
+        elements.forEach(element => {
+            SM.updateThumbnail(element.getAttribute('data-thumbnail'), element);
+        });
     }
 };
 
 document.addEventListener('DOMContentLoaded', () => {
     SM.updateBillingAddress();
+    SM.updateAllThumbnails();
 });
