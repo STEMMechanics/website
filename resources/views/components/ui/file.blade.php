@@ -33,6 +33,7 @@
 <script>
     function updateDetails(media) {
         document.getElementById('{{ $name }}').value = media.name;
+        document.getElementById('{{ $name }}_file').value = '';
         document.getElementById('{{ $name }}_name').innerText = media.name;
         document.getElementById('{{ $name }}_size').innerText = SM.bytesToString(media.size);
 
