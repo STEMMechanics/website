@@ -170,23 +170,25 @@ class Media extends Model
 
     public function getFileTypeAttribute(): string
     {
-        $extension = pathinfo($this->name, PATHINFO_EXTENSION);
+        $extension = strtolower(pathinfo($this->name, PATHINFO_EXTENSION));
 
         if(str_starts_with($this->mime_type, 'image/')) {
-            return 'Image (' . strtoupper($extension) . ')';
+            return 'Image (' . $extension . ')';
         } else if(str_starts_with($this->mime_type, 'video/')) {
-            return 'Video (' . strtoupper($extension) . ')';
+            return 'Video (' . $extension . ')';
         } else if(str_starts_with($this->mime_type, 'audio/')) {
-            return 'Audio (' . strtoupper($extension) . ')';
+            return 'Audio (' . $extension . ')';
         } else if($this->mime_type === 'application/pdf') {
             return 'PDF Document';
         } else if($this->mime_type === 'text/plain') {
             return 'Text Document';
         } else if($extension === 'sb3') {
             return 'Scratch 3 Project';
+        } else if($extension === 'stopmotionstudio') {
+            return 'Stop Motion Studio Project';
         }
 
-        return 'File (' . strtoupper($extension) . ')';
+        return 'File (' . $extension . ')';
     }
 
     /**
