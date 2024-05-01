@@ -206,7 +206,8 @@ class MediaController extends Controller
         $hash = hash_file('sha256', $file->path());
 
         $storage = Storage::disk('media');
-        if(!$storage->exists($hash)) {
+        $exists = $storage->exists($hash);
+        if(!$exists) {
             if($file->storeAs('/', $hash, 'media') === false) {
                 if($request->wantsJson()) {
                     return response()->json([
@@ -230,7 +231,10 @@ class MediaController extends Controller
             'hash' => $hash
         ]);
 
-        $media->generateVariants(false);
+        if(!$exists) {
+            $media->generateVariants(false);
+        }
+
         unlink($file->getRealPath());
 
         if($request->wantsJson()) {
