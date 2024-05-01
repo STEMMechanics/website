@@ -184,7 +184,7 @@ class Media extends Model
             return 'Text Document';
         } else if($extension === 'sb3') {
             return 'Scratch 3 Project';
-        } else if($extension === 'stopmotionstudio') {
+        } else if($extension === 'stopmotionstudio' || $extension === 'stopmotionstudiomobile') {
             return 'Stop Motion Studio Project';
         }
 
