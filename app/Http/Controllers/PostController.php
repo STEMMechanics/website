@@ -81,6 +81,7 @@ class PostController extends Controller
         $post = Post::create($postData);
         $post->updateFiles($request->input('files'));
         $post->updateFiles($request->input('gallery'), 'gallery');
+        $post->updateFiles($request->input('videos'), 'videos');
 
         session()->flash('message', 'Post has been created');
         session()->flash('message-title', 'Post created');
@@ -101,9 +102,6 @@ class PostController extends Controller
      */
     public function admin_edit(Post $post)
     {
-        $fileNameList = $post->files->pluck('name')->toArray();
-        $post->files = $fileNameList;
-
         return view('admin.post.edit', ['post' => $post]);
     }
 
@@ -126,6 +124,7 @@ class PostController extends Controller
         $post->update($postData);
         $post->updateFiles($request->input('files'));
         $post->updateFiles($request->input('gallery'), 'gallery');
+        $post->updateFiles($request->input('videos'), 'videos');
 
         session()->flash('message', 'Post has been updated');
         session()->flash('message-title', 'Post updated');

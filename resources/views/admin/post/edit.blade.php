@@ -42,7 +42,15 @@
                 ></x-ui.gallery>
             </div>
 
-            <p class="text-red-500">
+            <div class="mb-4">
+                <x-ui.filelist
+                    label="Videos"
+                    name="videos"
+                    value="{!! isset($post) ? $post->files('videos')->orderBy('name')->get() : '' !!}"
+                    editor="true"
+                ></x-ui.filelist>
+            </div>
+
             <div class="mb-4">
                 <x-ui.filelist
                     label="Files"
