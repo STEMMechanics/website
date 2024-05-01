@@ -20,6 +20,10 @@ trait HasFiles
 
     public function updateFiles($files, $collection = null): void
     {
+        if($files === null) {
+            $files = '';
+        }
+
         if (is_string($files)) {
             $files = Helpers::stringToArray($files);
         }
