@@ -237,4 +237,25 @@ class WorkshopController extends Controller
 
         return redirect()->route('admin.workshop.index');
     }
+
+    /**
+     * Duplicate the specified resource.
+     */
+    public function admin_duplicate(Workshop $workshop)
+    {
+        $newWorkshop = $workshop->replicate();
+        $newWorkshop->title = $newWorkshop->title . ' (copy)';
+        $newWorkshop->status = 'draft';
+        $newWorkshop->save();
+
+        foreach($workshop->files as $file) {
+            $newWorkshop->files()->attach($file->name);
+        }
+
+        session()->flash('message', 'Workshop has been duplicated');
+        session()->flash('message-title', 'Workshop duplicated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.edit', $newWorkshop);
+    }
 }

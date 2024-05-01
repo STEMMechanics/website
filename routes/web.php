@@ -80,6 +80,7 @@ Route::middleware('admin')->group(function () {
 
     Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
+    Route::get('/admin/workshops/{workshop}/duplicate', [WorkshopController::class, 'admin_duplicate'])->name('admin.workshop.duplicate');
     Route::post('/admin/workshops', [WorkshopController::class, 'admin_store'])->name('admin.workshop.store');
     Route::get('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_edit'])->name('admin.workshop.edit');
     Route::put('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_update'])->name('admin.workshop.update');
