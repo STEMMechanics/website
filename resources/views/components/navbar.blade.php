@@ -23,15 +23,6 @@
                         <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5">Workshops</a>
                     </div>
                 </div>
-
-{{--                <button type="button" class="relative p-1">--}}
-{{--                    <span class="sr-only">View notifications</span>--}}
-{{--                    <svg class="w-6 h-6 text-gray-800 hover:text-sky-500 transition" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">--}}
-{{--                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4h1.5L9 16m0 0h8m-8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm8 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm-8.5-3h9.25L19 7H7.312"/>--}}
-{{--                    </svg>--}}
-{{--                </button>--}}
-
-                <!-- Profile dropdown -->
                 <div class="ml-3">
                     <div>
                         <button type="button" @click="open=!open" @keydown.escape="open=false" class="relative flex w-6 text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
@@ -44,7 +35,7 @@
                 </div>
             </div>
         </div>
-        <div x-show="open" @click.away="open=false" x-cloak class="absolute w-full right-0 sm:right-5 sm:top-9 z-10 sm:mt-2 sm:w-48 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
+        <div x-show="open" @click.away="open=false" x-cloak class="absolute w-full right-0 sm:right-5 sm:top-9 z-50 sm:mt-2 sm:w-48 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
             <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>
             <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
             <div class="sm:hidden border-t border-gray-200 my-2"></div>
@@ -65,17 +56,5 @@
                 <a href="{{ route('logout') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-from-bracket w-4 mr-2"></i>Log out</a>
             @endif
         </div>
-
     </div>
-
-    <!-- Mobile menu, show/hide based on menu state. -->
-{{--    <div class="sm:hidden" id="mobile-menu">--}}
-{{--        <div class="space-y-1 px-2 pb-3 pt-2">--}}
-{{--            <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" -->--}}
-{{--            <a href="#" class="bg-gray-900 text-white block rounded-md px-3 py-2 text-base font-medium" aria-current="page">Dashboard</a>--}}
-{{--            <a href="#" class="text-gray-300 hover:bg-gray-700 hover:text-white block rounded-md px-3 py-2 text-base font-medium">Team</a>--}}
-{{--            <a href="#" class="text-gray-300 hover:bg-gray-700 hover:text-white block rounded-md px-3 py-2 text-base font-medium">Projects</a>--}}
-{{--            <a href="#" class="text-gray-300 hover:bg-gray-700 hover:text-white block rounded-md px-3 py-2 text-base font-medium">Calendar</a>--}}
-{{--        </div>--}}
-{{--    </div>--}}
 </nav>
