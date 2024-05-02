@@ -17,18 +17,21 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>Title</th>
-                    <th>Created</th>
-                    <th>Status</th>
-                    <th>Author</th>
+                    <th class="hidden md:table-cell">Created</th>
+                    <th class="hidden md:table-cell">Status</th>
+                    <th class="hidden lg:table-cell">Author</th>
                     <th>Action</th>
                 </x-slot:header>
                 <x-slot:body>
                     @foreach ($posts as $post)
                         <tr>
-                            <td>{{ $post->title }}</td>
-                            <td>{{ $post->created_at }}</td>
-                            <td>{{ ucwords($post->status) }}</td>
-                            <td>{{ $post->author->getName() }}</td>
+                            <td>
+                                <div class="whitespace-normal">{{ $post->title }}</div>
+                                <div class="md:hidden text-xs text-gray-500 whitespace-normal">{{ ucwords($post->status) }} - {{ \Carbon\Carbon::parse($post->created_at)->format('M j Y, g:i a') }}</div>
+                            </td>
+                            <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($post->created_at)->format('M j Y, g:i a') }}</td>
+                            <td class="hidden md:table-cell">{{ ucwords($post->status) }}</td>
+                            <td class="hidden lg:table-cell">{{ $post->author->getName() }}</td>
                             <td>
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('admin.post.edit', $post) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
