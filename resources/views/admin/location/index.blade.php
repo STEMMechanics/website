@@ -17,14 +17,17 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>Name</th>
-                    <th>Address</th>
+                    <th class="hidden md:table-cell">Address</th>
                     <th>Action</th>
                 </x-slot:header>
                 <x-slot:body>
                     @foreach ($locations as $location)
                         <tr>
-                            <td>{{ $location->name }}</td>
-                            <td>{{ $location->address }}</td>
+                            <td>
+                                <div class="whitespace-normal">{{ $location->name }}</div>
+                                <div class="md:hidden text-xs text-gray-500 whitespace-normal">{{ $location->address }}</div>
+                            </td>
+                            <td class="hidden md:table-cell">{{ $location->address }}</td>
                             <td>
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('admin.location.edit', $location) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
