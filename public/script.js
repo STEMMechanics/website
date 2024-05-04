@@ -212,9 +212,10 @@ let SM = {
         }
 
         const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const fixed = [0, 0, 2, 2, 2];
         if (bytes === 0) return '0 Bytes';
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        const size = parseFloat((bytes / Math.pow(1024, i)).toFixed(2));
+        const size = parseFloat((bytes / Math.pow(1024, i)).toFixed(fixed[i]));
         return size + ' ' + sizes[i];
     },
 
