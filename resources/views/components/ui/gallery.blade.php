@@ -72,12 +72,22 @@
 
         result = result.filter((item) => item.length > 0);
 
-        for(const fileName of result) {
-            SM.mediaDetails(fileName, (details) => {
-                details.extension = fileName.split('.').pop();
+        const promises = result.map(fileName => {
+            return new Promise((resolve, reject) => {
+                SM.mediaDetails(fileName, details => {
+                    details.extension = fileName.split('.').pop();
+                    resolve(details);  // Resolve the promise with the modified details
+                });
+            });
+        });
+
+        // Use Promise.all to process the promises in order
+        Promise.all(promises).then(allDetails => {
+            // allDetails is an array of details in the same order as the result array
+            allDetails.forEach(details => {
                 Alpine.store('gallery').push(details);
             });
-        }
+        });
 
         Alpine.store('modelCount', result.length)
 
