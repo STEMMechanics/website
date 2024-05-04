@@ -30,6 +30,7 @@
         SM.alert('{{ session('message-title') }}', '{{ session('message') }}', '{{ session('message-type') }}');
     </script>
 @endif
+@stack('scripts')
 @livewireScripts
 </body>
 </html>
