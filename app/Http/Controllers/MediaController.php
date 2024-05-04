@@ -233,6 +233,13 @@ class MediaController extends Controller
 
         if(!$exists) {
             $media->generateVariants(false);
+        } else {
+            // find media with the same hash that also has variants and copy them
+            $mediaWithVariants = Media::where('hash', $hash)->where('variants', '!=', '')->orderBy('created_at')->first();
+            if($mediaWithVariants) {
+                $media->variants = $mediaWithVariants->variants;
+                $media->save();
+            }
         }
 
         unlink($file->getRealPath());

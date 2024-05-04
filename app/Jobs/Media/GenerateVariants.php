@@ -158,7 +158,12 @@ class GenerateVariants implements ShouldQueue
             $height = $variantData['thumbnail']['height'];
 
             $manager = new ImageManager(new Driver());
-            $image = $manager->read($temp);
+
+            $imagick = new \Imagick();
+            $imagick->readImage($temp . '[0]'); // Read the first page of the PDF
+            $imagick->setImageFormat('png');
+
+            $image = $manager->read($imagick);
             $image->scaleDown($width, $height);
 
             $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
