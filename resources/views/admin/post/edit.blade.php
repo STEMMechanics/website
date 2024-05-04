@@ -37,7 +37,7 @@
                 <x-ui.gallery
                     label="Gallery"
                     name="gallery"
-                    value="{{ isset($post) ? \App\Helpers::arrayToString($post->files('gallery')->pluck('name')->toArray()) : '' }}"
+                    value="{{ isset($post) ? \App\Helpers::arrayToString($post->files('gallery')->orderBy('mediables.created_at')->pluck('name')->toArray()) : '' }}"
                     editor="true"
                 ></x-ui.gallery>
             </div>

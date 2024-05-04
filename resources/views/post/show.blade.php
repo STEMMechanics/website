@@ -9,7 +9,7 @@
             @endif
         </div>
         <article class="content mb-4">{!! $post->content !!}</article>
-        <x-ui.gallery class="mt-16" value="{{ \App\Helpers::arrayToString($post->files('gallery')->pluck('name')->toArray()) }}" />
+        <x-ui.gallery class="mt-16" value="{{ \App\Helpers::arrayToString($post->files('gallery')->orderBy('mediables.created_at')->pluck('name')->toArray()) }}" />
         <x-ui.filelist class="mt-16" label="Videos" value="{!! $post->files('videos')->orderBy('name')->get() !!}" />
         <x-ui.filelist class="mt-16" label="Files" value="{!! $post->files()->orderBy('name')->get() !!}" />
     </x-container>
