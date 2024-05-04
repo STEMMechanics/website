@@ -30,7 +30,7 @@
     </ul>
 
     @if($editor)
-        <button class="mt-4 bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="console.log(Alpine.store('filelist-{{ $name }}'));SMMediaPicker.open(Alpine.store('filelist-{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:true}, (result)=>updateFiles(result))">Add File</button>
+        <button class="mt-4 bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="SMMediaPicker.open(Alpine.store('filelist-{{ $name }}').map(file => file.name), {allow_multiple:true,allow_uploads:true}, (result)=>updateFiles(result))">Add File</button>
         <div class="text-xs text-gray-500 mb-4 mt-1">Max upload size: {{ \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize()) }}</div>
         <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $value }}"/>
     @endif
@@ -85,6 +85,8 @@
         } catch {
 
         }
+
+        console.log('{{$name}}', files, fileData);
         updateFiles(fileData);
     });
 </script>
