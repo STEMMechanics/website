@@ -5,6 +5,10 @@
     $onchange = $attributes->get('onchange');
     $value = old($name, $value);
     $editor = filter_var($editor, FILTER_VALIDATE_BOOLEAN);
+
+    if($name === '') {
+        $name = \Illuminate\Support\Str::random(8);
+    }
 @endphp
 
 @if($value !== '' || $editor === true)
