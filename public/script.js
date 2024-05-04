@@ -26,7 +26,7 @@ let SM = {
             }
         }
 
-        copyContent().then(r => { /* empty */});
+        copyContent().then(() => { /* empty */});
     },
 
     updateBillingAddress: () => {
