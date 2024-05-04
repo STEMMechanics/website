@@ -23,7 +23,7 @@
                 </div>
                 <div class="flex-1">
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Publish Date" name="published_at" id="published_at" value="{{ \App\Helpers::timestampNoSeconds($post->published_at ?? '') }}" />
+                        <x-ui.input type="datetime-local" label="Publish Date" name="published_at" id="published_at" value="{{ \App\Helpers::timestampNoSeconds($post->published_at ?? now()) }}" />
                     </div>
                 </div>
             </div>
