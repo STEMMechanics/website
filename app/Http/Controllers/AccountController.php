@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AccountController extends Controller
 {
@@ -43,10 +44,12 @@ class AccountController extends Controller
      */
     public function update(Request $request)
     {
+        $user = auth()->user();
+
         $validator = Validator::make($request->all(), [
             'firstname' => 'required',
             'surname' => 'required',
-            'email' => 'required|email',
+            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
             'phone' => 'required',
 
             'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
@@ -84,7 +87,6 @@ class AccountController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $user = auth()->user();
         $userData = $request->all();
 
         $newEmail = $userData['email'];
