@@ -46,7 +46,7 @@ class UserController extends Controller
         $request->validate([
             'firstname' => '',
             'surname' => '',
-            'email' => 'email',
+            'email' => 'email|unique:users',
             'phone' => '',
 
             'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
