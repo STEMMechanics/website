@@ -23,6 +23,10 @@
             <ul class="flex flex-wrap justify-center px-14 mt-2">
                 <template x-for="(file,index) in $store.gallery" :key="file.name">
                     <li x-show="$store.modelIndex==index" class="flex items-center justify-center relative">
+                        <div class="flex gap-4 px-4 py-1 cursor-pointer z-10 fixed top-4 right-14 transition bg-opacity-0 hover:bg-opacity-80 bg-black rounded items-center">
+                            <a :href="file.url + '?download'" target="_blank" class="cursor-pointer transition text-white text-opacity-80 hover:text-opacity-100 text-2xl" x-on:click.stop><i class="fa-solid fa-download"></i></a>
+                            <div class="cursor-pointer transition text-white text-opacity-80 hover:text-opacity-100 text-3xl" x-on:click.prevent.stop="$store.modelIndex=-1"><i class="fa-solid fa-xmark"></i></div>
+                        </div>
                         <img class="rounded" :src="file.url + '?scaled'" />
                     </li>
                 </template>
