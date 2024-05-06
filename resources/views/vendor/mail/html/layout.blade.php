@@ -25,33 +25,46 @@ width: 100% !important;
 </style>
 </head>
 <body>
+    <table class="wrapper" align="center" width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        <tr>
+            <td align="center">
+                <!-- Email Body -->
+                <table class="inner-body" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
+                    <!-- Body header -->
+                    <tr>
+                        <td class="header" align="center">
+                            {{ $header ?? '' }}
+                        </td>
+                    </tr>
 
-<table class="wrapper" width="100%" cellpadding="0" cellspacing="0" role="presentation">
-<tr>
-<td align="center">
-<table class="content" width="100%" cellpadding="0" cellspacing="0" role="presentation">
-{{ $header ?? '' }}
-
-<!-- Email Body -->
-<tr>
-<td class="body" width="100%" cellpadding="0" cellspacing="0" style="border: hidden !important;">
-<table class="inner-body" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
-<!-- Body content -->
-<tr>
-<td class="content-cell">
-{{ Illuminate\Mail\Markdown::parse($slot) }}
-
-{{ $subcopy ?? '' }}
-</td>
-</tr>
-</table>
-</td>
-</tr>
-
-{{ $footer ?? '' }}
-</table>
-</td>
-</tr>
-</table>
+                    <!-- Body content -->
+                    <tr>
+                        <td class="content-cell">
+                            {{ Illuminate\Mail\Markdown::parse($slot) }}
+                        </td>
+                    </tr>
+                    @isset($subcopy)
+                    <tr>
+                        <td class="content-cell">
+                            <hr />
+                            {{ $subcopy ?? '' }}
+                        </td>
+                    </tr>
+                    @endisset
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <table class="footer" align="center" width="570" cellpadding="0" cellspacing="0" role="presentation">
+                    <tr>
+                        <td class="content-cell" align="center">
+                            {{ $footer ?? '' }}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
 </body>
 </html>

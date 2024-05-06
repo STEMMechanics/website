@@ -8,13 +8,8 @@ use Illuminate\Support\Facades\Storage;
 Artisan::command('cleanup', function() {
 
     // Clean up expired tokens
-    DB::table('login_tokens')
-        ->where('created_at', '<', now()->subMinutes(10))
-        ->delete();
-
-    // Clean up expired change email requests
-    DB::table('email_updates')
-        ->where('created_at', '<', now()->subMinutes(10))
+    DB::table('tokens')
+        ->where('expires_at', '<', now())
         ->delete();
 
     // Published scheduled posts

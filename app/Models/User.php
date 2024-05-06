@@ -2,17 +2,12 @@
 
 namespace App\Models;
 
-use App\Mail\LoginLink;
 use App\Traits\UUID;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
-use PharIo\Manifest\Email;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -110,34 +105,21 @@ class User extends Authenticatable implements MustVerifyEmail
         });
     }
 
-    public function createLoginToken($redirect = null)
+    /**
+     * Get the tokens for the user.
+     *
+     * @return HasMany
+     */
+    public function tokens(): HasMany
     {
-        // Generate a unique token
-        $token = Str::random(60);
-
-        // Store the token in the database
-        DB::table('login_tokens')->insert([
-            'email' => $this->email,
-            'token' => $token,
-            'intended_url' => $redirect,
-        ]);
-
-        return $token;
+        return $this->hasMany(Token::class);
     }
 
-    public function softDelete()
-    {
-        foreach ($this->fillable as $field) {
-            if ($field === 'email_verified_at') {
-                $this->email_verified_at = null;
-            } else if ($field !== 'email') {
-                $this->{$field} = '';
-            }
-        }
-
-        $this->save();
-    }
-
+    /**
+     * Get the calculated name of the user.
+     *
+     * @return string
+     */
     public function getName(): string
     {
         $name = '';
@@ -183,14 +165,11 @@ class User extends Authenticatable implements MustVerifyEmail
         }
     }
 
-    public function emailUpdate()
-    {
-        return $this->hasOne(EmailUpdate::class);
-    }
 
     public function getEmailUpdatePendingAttribute()
     {
-        return $this->emailUpdate()->exists();
+        $emailUpdate = $this->tokens()->where('type', 'email-update')->where('expires_at', '>', now())->first();
+        return $emailUpdate ? $emailUpdate->data['email'] : null;
     }
 
     public function isAdmin(): bool

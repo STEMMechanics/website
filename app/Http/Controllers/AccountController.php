@@ -4,11 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Helpers;
 use App\Jobs\SendEmail;
-use App\Mail\EmailUpdateLink;
-use App\Mail\RegisterLink;
+use App\Mail\UserEmailUpdateRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -49,7 +47,7 @@ class AccountController extends Controller
         $validator = Validator::make($request->all(), [
             'firstname' => 'required',
             'surname' => 'required',
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id)],
+            'email' => ['required', 'email', 'unique:users,email,' . $user->id],
             'phone' => 'required',
 
             'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
@@ -92,20 +90,18 @@ class AccountController extends Controller
         $newEmail = $userData['email'];
         unset($userData['email']);
 
-        if ($user->email !== $newEmail) {
-            if(User::where('email', $request->get('email'))->exists()) {
-                $validator->errors()->add('email', __('validation.custom_messages.email_exists'));
-                return redirect()->back()->withErrors($validator)->withInput();
-            }
+        if (strtolower($user->email) !== strtolower($newEmail)) {
+            $user->tokens()->where('type', 'email-update')->delete();
 
-            $token = Str::random(60);
-            $user->emailUpdate()->delete();
-            $emailUpdate = $user->emailUpdate()->create([
-                'email' => $newEmail,
-                'token' => $token
+            $token = $user->tokens()->create([
+                'type' => 'email-update',
+                'data' => [
+                    'email' => $newEmail,
+                ],
+                'expires_at' => now()->addMinutes(30),
             ]);
 
-            dispatch(new SendEmail($user->email, new EmailUpdateLink($token, $user->getName(), $user->email, $newEmail)))->onQueue('mail');
+            dispatch(new SendEmail($user->email, new UserEmailUpdateRequest($token->id, $user->email, $newEmail)))->onQueue('mail');
         }
 
         $userData['subscribed'] = ($request->get('subscribed', false) === 'on');

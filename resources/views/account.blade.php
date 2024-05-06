@@ -25,7 +25,7 @@ $billing_same_home = $user->home_address === $user->billing_address
             </div>
             <div class="flex gap-8">
                 <div class="flex-1">
-                    <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" label-notice="{{ $user->email_update_pending ? 'There is a pending request to change the email address of this account' : '' }}"/>
+                    <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
                 </div>
                 <div class="flex-1">
                     <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />

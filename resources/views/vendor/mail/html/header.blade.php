@@ -1,7 +1,5 @@
-@props(['url', 'username'])
-<tr>
-<td class="header">
-<a href="{{ $url }}" style="display: inline-block;">
+@props(['url'])
+<a href="{{ $url }}">
     <img
         alt="STEMMechanics Logo"
         src="https://www.stemmechanics.com.au/logo.svg"
@@ -9,6 +7,3 @@
         height="31"
     />
 </a>
-<h1>Hello, {{ $username }}</h1>
-</td>
-</tr>
