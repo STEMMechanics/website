@@ -44,10 +44,10 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'firstname' => 'required',
-            'surname' => 'required',
-            'email' => 'required|email',
-            'phone' => 'required',
+            'firstname' => '',
+            'surname' => '',
+            'email' => 'email',
+            'phone' => '',
 
             'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
             'home_city' => 'required_with:home_address,home_postcode,home_country,home_state',
@@ -102,10 +102,10 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'firstname' => 'required',
-            'surname' => 'required',
-            'email' => ['required', 'email', Rule::unique('users')->ignore($user->id),],
-            'phone' => 'required',
+            'firstname' => '',
+            'surname' => '',
+            'email' => ['email', Rule::unique('users')->ignore($user->id)],
+            'phone' => '',
 
             'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
             'home_city' => 'required_with:home_address,home_postcode,home_country,home_state',
