@@ -7,7 +7,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use App\Models\Workshop;
+use App\Models\Event;
 use Database\Factories\LocationFactory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;

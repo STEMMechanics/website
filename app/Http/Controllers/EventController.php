@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Workshop;
+use App\Models\Event;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
-class WorkshopController extends Controller
+class EventController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -16,7 +16,7 @@ class WorkshopController extends Controller
         $homeView = true;
         $search = $request->get('search', '');
 
-        $query = Workshop::query();
+        $query = Event::query();
 
         if(!auth()->user()?->admin) {
             $query = $query->where('status', '!=', 'draft');
@@ -83,9 +83,9 @@ class WorkshopController extends Controller
             $query = $query->orderBy('starts_at', 'asc');
         }
 
-        $workshops = $query->paginate(12);
-        return view('workshop.index', [
-            'workshops' => $workshops,
+        $events = $query->paginate(12);
+        return view('event.index', [
+            'events' => $events,
             'search' => $search,
         ]);
     }
@@ -95,17 +95,17 @@ class WorkshopController extends Controller
      */
     public function admin_index(Request $request)
     {
-        $query = Workshop::query();
+        $query = Event::query();
 
         if($request->has('search')) {
             $query->where('title', 'like', '%' . $request->search . '%');
             $query->orWhere('content', 'like', '%' . $request->search . '%');
         }
 
-        $workshops = $query->orderBy('starts_at', 'desc')->paginate(12)->onEachSide(1);
+        $events = $query->orderBy('starts_at', 'desc')->paginate(12)->onEachSide(1);
 
-        return view('admin.workshop.index', [
-            'workshops' => $workshops
+        return view('admin.event.index', [
+            'events' => $events
         ]);
     }
 
@@ -114,7 +114,7 @@ class WorkshopController extends Controller
      */
     public function admin_create()
     {
-        return view('admin.workshop.edit');
+        return view('admin.event.edit');
     }
 
     /**
@@ -146,46 +146,46 @@ class WorkshopController extends Controller
             'registration_data.required_unless' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
 
-        $workshopData = $request->all();
-        $workshopData['user_id'] = auth()->user()->id;
+        $eventData = $request->all();
+        $eventData['user_id'] = auth()->user()->id;
 
-        if($workshopData['status'] === 'open' && Carbon::parse($workshopData['starts_at'])->lt(Carbon::now())) {
-            $workshopData['status'] = 'closed';
+        if($eventData['status'] === 'open' && Carbon::parse($eventData['starts_at'])->lt(Carbon::now())) {
+            $eventData['status'] = 'closed';
         }
 
-        $workshop = Workshop::create($workshopData);
-        $workshop->updateFiles($request->input('files'));
+        $event = Event::create($eventData);
+        $event->updateFiles($request->input('files'));
 
-        session()->flash('message', 'Workshop has been created');
-        session()->flash('message-title', 'Workshop created');
+        session()->flash('message', 'Event has been created');
+        session()->flash('message-title', 'Event created');
         session()->flash('message-type', 'success');
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.event.index');
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Workshop $workshop)
+    public function show(Event $event)
     {
-        if(!auth()->user()?->admin && $workshop->status == 'draft') {
+        if(!auth()->user()?->admin && $event->status == 'draft') {
             abort(404);
         }
 
-        return view('workshop.show', ['workshop' => $workshop]);
+        return view('event.show', ['event' => $event]);
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function admin_edit(Workshop $workshop)
+    public function admin_edit(Event $event)
     {
-        return view('admin.workshop.edit', ['workshop' => $workshop]);
+        return view('admin.event.edit', ['event' => $event]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function admin_update(Request $request, Workshop $workshop)
+    public function admin_update(Request $request, Event $event)
     {
         $request->validate([
             'title' => 'required',
@@ -211,51 +211,51 @@ class WorkshopController extends Controller
             'registration_data.required_unless' => __('validation.custom_messages.registration_data_required_unless'),
         ]);
 
-        $workshopData = $request->all();
-        if($workshopData['status'] === 'open' && Carbon::parse($workshopData['starts_at'])->lt(Carbon::now())) {
-            $workshopData['status'] = 'closed';
+        $eventData = $request->all();
+        if($eventData['status'] === 'open' && Carbon::parse($eventData['starts_at'])->lt(Carbon::now())) {
+            $eventData['status'] = 'closed';
         }
 
-        $workshop->update($workshopData);
-        $workshop->updateFiles($request->input('files'));
+        $event->update($eventData);
+        $event->updateFiles($request->input('files'));
 
-        session()->flash('message', 'Workshop has been updated');
-        session()->flash('message-title', 'Workshop updated');
+        session()->flash('message', 'Event has been updated');
+        session()->flash('message-title', 'Event updated');
         session()->flash('message-type', 'success');
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.event.index');
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function admin_destroy(Workshop $workshop)
+    public function admin_destroy(Event $event)
     {
-        $workshop->delete();
-        session()->flash('message', 'Workshop has been deleted');
-        session()->flash('message-title', 'Workshop deleted');
+        $event->delete();
+        session()->flash('message', 'Event has been deleted');
+        session()->flash('message-title', 'Event deleted');
         session()->flash('message-type', 'danger');
 
-        return redirect()->route('admin.workshop.index');
+        return redirect()->route('admin.event.index');
     }
 
     /**
      * Duplicate the specified resource.
      */
-    public function admin_duplicate(Workshop $workshop)
+    public function admin_duplicate(Event $event)
     {
-        $newWorkshop = $workshop->replicate();
+        $newWorkshop = $event->replicate();
         $newWorkshop->title = $newWorkshop->title . ' (copy)';
         $newWorkshop->status = 'draft';
         $newWorkshop->save();
 
-        foreach($workshop->files as $file) {
+        foreach($event->files as $file) {
             $newWorkshop->files()->attach($file->name);
         }
 
-        session()->flash('message', 'Workshop has been duplicated');
-        session()->flash('message-title', 'Workshop duplicated');
+        session()->flash('message', 'Event has been duplicated');
+        session()->flash('message-title', 'Event duplicated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.workshop.edit', $newWorkshop);
+        return redirect()->route('admin.event.edit', $newWorkshop);
     }
 }

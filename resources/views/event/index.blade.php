@@ -12,18 +12,18 @@
             </form>
         </x-container>
 
-        @if($workshops->isEmpty())
+        @if($events->isEmpty())
             <x-container class="mt-8">
                 <x-none-found item="workshops" search="{{ request()->get('search') }}" />
             </x-container>
         @else
             <x-container class="mt-4" inner-class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
-                @foreach ($workshops as $workshop)
-                    <x-panel-workshop :workshop="$workshop" />
+                @foreach ($events as $event)
+                    <x-panel-event :event="$event" />
                 @endforeach
             </x-container>
             <x-container>
-                {{ $workshops->appends(request()->query())->links() }}
+                {{ $events->appends(request()->query())->links() }}
             </x-container>
         @endif
     </section>

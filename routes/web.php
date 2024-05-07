@@ -7,15 +7,18 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\WorkshopController;
+use App\Http\Controllers\EventController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('index');
 
-Route::get('posts', [PostController::class, 'index'])->name('post.index');
-Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');
-Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.index');
-Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
+Route::redirect('/events', '/workshops', 301);
+Route::redirect('/events/{event}', '/workshops/{event}', 301);
+
+Route::get('/posts', [PostController::class, 'index'])->name('post.index');
+Route::get('/posts/{post}', [PostController::class, 'show'])->name('post.show');
+Route::get('/workshops', [EventController::class, 'index'])->name('event.index');
+Route::get('/workshops/{event}', [EventController::class, 'show'])->name('event.show');
 
 Route::middleware('auth')->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
@@ -78,12 +81,11 @@ Route::middleware('admin')->group(function () {
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
 
-    Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
-    Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
-    Route::get('/admin/workshops/{workshop}/duplicate', [WorkshopController::class, 'admin_duplicate'])->name('admin.workshop.duplicate');
-    Route::post('/admin/workshops', [WorkshopController::class, 'admin_store'])->name('admin.workshop.store');
-    Route::get('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_edit'])->name('admin.workshop.edit');
-    Route::put('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_update'])->name('admin.workshop.update');
-    Route::delete('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_destroy'])->name('admin.workshop.destroy');
-
+    Route::get('/admin/events', [EventController::class, 'admin_index'])->name('admin.event.index');
+    Route::get('/admin/events/create', [EventController::class, 'admin_create'])->name('admin.event.create');
+    Route::get('/admin/events/{event}/duplicate', [EventController::class, 'admin_duplicate'])->name('admin.event.duplicate');
+    Route::post('/admin/events', [EventController::class, 'admin_store'])->name('admin.event.store');
+    Route::get('/admin/events/{event}', [EventController::class, 'admin_edit'])->name('admin.event.edit');
+    Route::put('/admin/events/{event}', [EventController::class, 'admin_update'])->name('admin.event.update');
+    Route::delete('/admin/events/{event}', [EventController::class, 'admin_destroy'])->name('admin.event.destroy');
 });

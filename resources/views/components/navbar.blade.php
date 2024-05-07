@@ -20,7 +20,7 @@
                 <div class="hidden sm:ml-6 sm:block mr-4">
                     <div class="flex space-x-2">
                         <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5" aria-current="page">Blog</a>
-                        <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5">Workshops</a>
+                        <a href="{{ route('event.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5">Workshops</a>
                     </div>
                 </div>
                 <div class="ml-3">
@@ -37,7 +37,7 @@
         </div>
         <div x-show="open" @click.away="open=false" x-cloak class="absolute w-full right-0 sm:right-5 sm:top-9 z-50 sm:mt-2 sm:w-48 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="user-menu-button" tabindex="-1">
             <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>
-            <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
+            <a href="{{ route('event.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
             <div class="sm:hidden border-t border-gray-200 my-2"></div>
         @if(auth()->guest())
                 <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-pen-to-square w-4 mr-2"></i>Register</a>
@@ -49,7 +49,7 @@
                     <a href="{{ route('admin.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>Media</a>
                     <a href="{{ route('admin.post.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Posts</a>
                     <a href="{{ route('admin.user.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Users</a>
-                    <a href="{{ route('admin.workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
+                    <a href="{{ route('admin.event.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-calendar w-4 mr-2"></i>Events</a>
                     <div class="border-t border-gray-200 my-2"></div>
                 @endif
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>

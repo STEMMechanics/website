@@ -19,13 +19,13 @@ Artisan::command('cleanup', function() {
         ->update(['status' => 'published']);
 
     // Open scheduled workshops
-    DB::table('workshops')
+    DB::table('events')
         ->where('status', 'scheduled')
         ->where('publish_at', '<', now())
         ->update(['status' => 'open']);
 
     // Close workshops
-    DB::table('workshops')
+    DB::table('events')
         ->whereIn('status', ['open', 'full', 'private'])
         ->where('closes_at', '<', now())
         ->update(['status' => 'closed']);
