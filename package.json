@@ -23,7 +23,7 @@
         "@tiptap/extension-text-align": "^2.3.0",
         "@tiptap/extension-typography": "^2.3.0",
         "@tiptap/extension-underline": "^2.3.0",
-        "@tiptap/pm": "^2.3.0",
+        "@tiptap/pm": "^2.5.1",
         "@tiptap/starter-kit": "^2.3.0"
     }
 }
