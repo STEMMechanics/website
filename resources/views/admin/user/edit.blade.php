@@ -34,7 +34,6 @@
                 </div>
             </div>
 
-            {{ $user }}
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">
                     <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
