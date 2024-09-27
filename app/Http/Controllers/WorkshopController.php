@@ -11,93 +11,30 @@ class WorkshopController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index()
     {
-        $homeView = true;
-        $search = $request->get('search', '');
-
         $query = Workshop::query();
-
-        if(!auth()->user()?->admin) {
-            $query = $query->where('status', '!=', 'draft');
-        }
-
-        if($request->has('search') && $request->search !== '') {
-            $homeView = false;
-            $query = $query->where(function ($query) use ($request) {
-                $query->where('title', 'like', '%' . $request->search . '%')
-                    ->orWhere('content', 'like', '%' . $request->search . '%');
-            });
-        }
-
-        if($request->has('location') && $request->location !== '') {
-            $homeView = false;
-            $query = $query->whereHas('location', function ($query) use ($request) {
-                $query->where('name', 'like', '%' . $request->location . '%');
-            });
-        }
-
-        if($request->has('date') && $request->date !== '') {
-            $homeView = false;
-            $dates = explode('-', $request->date);
-            $dates = array_map('trim', $dates);
-            $dates = array_map(function($date) {
-                $date = trim($date);
-
-                if(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-                    return $date;
-                }
-                if(preg_match('/^(\d{2})-(\d{2})-(\d{2})$/', $date, $matches)) {
-                    return '20' . $matches[1] . '-' . $matches[2] . '-' . $matches[3];
-                }
-                if(preg_match('/^\d{4}-\d{2}$/', $date)) {
-                    return $date . '-01';
-                }
-                if(preg_match('/^\d{4}$/', $date)) {
-                    return $date . '-01-01';
-                }
-                if(preg_match('/^(\d{2})\/(\d{2})\/(\d{2})$/', $date, $matches)) {
-                    return '20' . $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-                }
-                if(preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $date, $matches)) {
-                    return $matches[3] . '-' . $matches[2] . '-' . $matches[1];
-                }
-
-                return '';
-            }, $dates);
-
-            if(count($dates) == 2) {
-                // If there are two dates, filter between starts_at and ends_at
-                $query = $query->whereDate('starts_at', '>=', $dates[0])
-                    ->whereDate('ends_at', '<=', $dates[1]);
-            } else {
-                // If there is one date, filter starts_at that date or newer
-                $query = $query->whereDate('starts_at', '>=', $dates[0]);
-            }
-        }
-
-        if($homeView) {
-            $query = $query->where('starts_at', '>=', Carbon::now()->subDays(8))
-                ->orderBy('starts_at', 'asc');
-        } else {
-            $query = $query->orderBy('starts_at', 'asc');
-        }
+        $query = $query->where('starts_at', '>=', Carbon::now()->subDays(8))
+            ->orderBy('starts_at', 'asc');
 
         $workshops = $query->paginate(12);
         return view('workshop.index', [
-            'workshops' => $workshops,
-            'search' => $search,
+            'workshops' => $workshops
         ]);
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function past_index(Request $request)
+    public function past_index()
     {
+        $query = Workshop::query();
+        $query = $query->where('starts_at', '<', Carbon::now())
+            ->orderBy('starts_at', 'desc');
+
+        $workshops = $query->paginate(12);
         return view('workshop.index', [
-            'workshops' => [],
-//            'search' => $search,
+            'workshops' => $workshops
         ]);
     }
 

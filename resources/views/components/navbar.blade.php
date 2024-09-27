@@ -1,4 +1,11 @@
-<nav class="shadow bg-white">
+<nav class="shadow bg-white" x-data="{showSearch:false}" x-init="
+  document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
+      event.preventDefault();
+      $data.showSearch = true;
+    }
+  })
+">
     <div class="mx-auto max-w-7xl px-2 sm:px-6 lg:px-8 relative" x-data="{open:false}">
         <div class="relative flex h-16 items-center justify-between">
             <div class="absolute inset-y-0 left-0 flex items-center sm:hidden">
@@ -21,6 +28,11 @@
                     <div class="flex space-x-2">
                         <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5" aria-current="page">Blog</a>
                         <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out transform hover:-translate-y-0.5">Workshops</a>
+                        <button type="button" class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <div class="ml-3">
@@ -55,6 +67,15 @@
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <a href="{{ route('logout') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-from-bracket w-4 mr-2"></i>Log out</a>
             @endif
+        </div>
+    </div>
+
+    <div class="fixed inset-0 z-10 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => { if(value) { $nextTick(() => document.getElementsByName('q')[0].focus()) } })">
+        <div class="absolute inset-0 backdrop-blur-sm bg-opacity-40 bg-black"></div>
+        <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
+            <form action="{{ route('search.index') }}" method="GET">
+                <x-ui.search type="text" name="q" label="Search..." />
+            </form>
         </div>
     </div>
 </nav>
