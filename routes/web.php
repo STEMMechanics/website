@@ -15,6 +15,7 @@ Route::get('/', [HomeController::class, 'index'])->name('index');
 Route::get('posts', [PostController::class, 'index'])->name('post.index');
 Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');
 Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.index');
+Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('workshop.past.index');
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 
 Route::middleware('auth')->group(function () {
