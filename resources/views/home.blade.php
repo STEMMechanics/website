@@ -33,7 +33,7 @@
                     <div class="self-center">
                         <p class="mb-6 text-left">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
                         <div class="flex flex-grow justify-center items-center">
-                            <x-ui.button color="success" href="{{ route('event.index') }}" class="font-normal">Explore Workshops</x-ui.button>
+                            <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
                         </div>
                     </div>
                     <div class="ml-8 hidden sm:block md:hidden">
@@ -46,12 +46,12 @@
     <section id="events" class="pt-4 pb-8">
         <x-container>
             <h2 class="text-2xl font-bold mb-6">Upcoming workshops</h2>
-                @if($events->isEmpty())
+                @if($workshops->isEmpty())
                     <x-none-found item="workshops" message="No workshops have been scheduled at this time" title="" />
                 @else
                     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
-                        @foreach($events as $index => $event)
-                            <x-panel-event :event="$event" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
+                        @foreach($workshops as $index => $workshop)
+                            <x-panel-workshop :workshop="$workshop" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
                         @endforeach
                     </div>
                 @endif

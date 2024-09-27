@@ -3,13 +3,13 @@
 namespace Database\Factories;
 
 use App\Models\Location;
-use App\Models\Event;
+use App\Models\Workshop;
 use DateInterval;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class WorkshopFactory extends Factory
 {
-    protected $model = Event::class;
+    protected $model = Workshop::class;
 
     public function definition(): array
     {
