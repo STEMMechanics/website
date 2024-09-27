@@ -41,7 +41,7 @@
                     <h3 class="text-lg font-bold mt-4 mb-3">Email Subscriptions</h3>
                 </a>
                 <div x-show="open">
-                    <x-ui.checkbox label="Upcoming Workshops" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" />
+                    <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
                 </div>
             </section>
 
