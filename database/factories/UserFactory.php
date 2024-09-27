@@ -26,11 +26,11 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'remember_token' => Str::random(10),
 
-            'home_address' => fake()->streetAddress(),
-            'home_city' => fake()->city(),
-            'home_state' => '',
-            'home_postcode' => fake()->postcode(),
-            'home_country' => fake()->country(),
+            'shipping_address' => fake()->streetAddress(),
+            'shipping_city' => fake()->city(),
+            'shipping_state' => '',
+            'shipping_postcode' => fake()->postcode(),
+            'shipping_country' => fake()->country(),
 
             'billing_address' => fake()->streetAddress(),
             'billing_city' => fake()->city(),

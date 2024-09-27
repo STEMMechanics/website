@@ -29,21 +29,21 @@ let SM = {
         copyContent().then(() => { /* empty */});
     },
 
-    updateBillingAddress: () => {
-        const checkboxElement = document.querySelector('input[name="billing_same_home"]');
+    updateShippingAddress: () => {
+        const checkboxElement = document.querySelector('input[name="shipping_same_billing"]');
 
         if (checkboxElement) {
             const itemNames = ['address', 'address2', 'city', 'state', 'postcode', 'country'];
 
             if (checkboxElement.checked) {
                 itemNames.forEach((itemName) => {
-                    const element = document.querySelector(`input[name="billing_${itemName}"]`);
-                    element.value = document.querySelector(`input[name="home_${itemName}"]`).value;
+                    const element = document.querySelector(`input[name="shipping_${itemName}"]`);
+                    element.value = document.querySelector(`input[name="billing_${itemName}"]`).value;
                     element.setAttribute('readonly', 'true');
                 });
             } else {
                 itemNames.forEach((itemName) => {
-                    const element = document.querySelector(`input[name="billing_${itemName}"]`);
+                    const element = document.querySelector(`input[name="shipping_${itemName}"]`);
                     element.removeAttribute('readonly');
                 });
             }
@@ -347,6 +347,6 @@ let SM = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    SM.updateBillingAddress();
+    SM.updateShippingAddress();
     SM.updateAllThumbnails();
 });

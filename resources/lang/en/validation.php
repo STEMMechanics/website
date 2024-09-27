@@ -13,11 +13,11 @@ return [
         'surname_required' => 'A surname is required',
         'phone_required' => 'A phone number is required',
 
-        'home_address_required' => 'A home address is required',
-        'home_city_required' => 'A home city is required',
-        'home_postcode_required' => 'A home postcode is required',
-        'home_country_required' => 'A home country is required',
-        'home_state_required' => 'A home state is required',
+        'shipping_address_required' => 'A shipping address is required',
+        'shipping_city_required' => 'A shipping city is required',
+        'shipping_postcode_required' => 'A shipping postcode is required',
+        'shipping_country_required' => 'A shipping country is required',
+        'shipping_state_required' => 'A shipping state is required',
 
         'billing_address_required' => 'A billing address is required',
         'billing_city_required' => 'A billing city is required',

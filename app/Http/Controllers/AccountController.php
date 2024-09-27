@@ -50,11 +50,11 @@ class AccountController extends Controller
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
             'phone' => 'required',
 
-            'home_address' => 'required_with:home_city,home_postcode,home_country,home_state',
-            'home_city' => 'required_with:home_address,home_postcode,home_country,home_state',
-            'home_postcode' => 'required_with:home_address,home_city,home_country,home_state',
-            'home_country' => 'required_with:home_address,home_city,home_postcode,home_state',
-            'home_state' => 'required_with:home_address,home_city,home_postcode,home_country',
+            'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
+            'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
+            'shipping_postcode' => 'required_with:shipping_address,shipping_city,shipping_country,shipping_state',
+            'shipping_country' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state',
+            'shipping_state' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country',
 
             'billing_address' => 'required_with:billing_city,billing_postcode,billing_country,billing_state',
             'billing_city' => 'required_with:billing_address,billing_postcode,billing_country,billing_state',
@@ -68,11 +68,11 @@ class AccountController extends Controller
             'email.email' => __('validation.custom_messages.email_invalid'),
             'phone.required' => __('validation.custom_messages.phone_required'),
 
-            'home_address.required' => __('validation.custom_messages.home_address_required'),
-            'home_city.required' => __('validation.custom_messages.home_city_required'),
-            'home_postcode.required' => __('validation.custom_messages.home_postcode_required'),
-            'home_country.required' => __('validation.custom_messages.home_country_required'),
-            'home_state.required' => __('validation.custom_messages.home_state_required'),
+            'shipping_address.required' => __('validation.custom_messages.shipping_address_required'),
+            'shipping_city.required' => __('validation.custom_messages.shipping_city_required'),
+            'shipping_postcode.required' => __('validation.custom_messages.shipping_postcode_required'),
+            'shipping_country.required' => __('validation.custom_messages.shipping_country_required'),
+            'shipping_state.required' => __('validation.custom_messages.shipping_state_required'),
 
             'billing_address.required' => __('validation.custom_messages.billing_address_required'),
             'billing_city.required' => __('validation.custom_messages.billing_city_required'),
