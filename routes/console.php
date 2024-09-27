@@ -2,12 +2,15 @@
 
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
-use App\Mail\UserWelcome;
 use App\Models\Media;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Storage;
+
+/**
+ * The scheduler is run from a cronjob on the server every minute.
+ * To access the cronjob, run `crontab -u www-data -e` and add the following line:
+ * * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+ */
 
 Artisan::command('email:send', function() {
     $subjects = [
