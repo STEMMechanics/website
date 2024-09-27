@@ -9,7 +9,7 @@
     @isset($tabs)
         <div class="mt-4 -mb-10 flex justify-end">
             @foreach($tabs as $tab)
-                <a href="{{ $tab['route'] }}" class="rounded-t-md px-4 py-2 {{ (request()->routeIs($tab['route']) ? 'bg-gray-100 text-primary-color-dark' : 'text-white') }} hover:bg-primary-color-dark transition-colors">{{ $tab['title'] }}</a>
+                <a href="{{ $tab['route'] }}" class="rounded-t-md px-4 py-2 {{ ('/' . request()->path() === parse_url($tab['route'], PHP_URL_PATH) ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark') }} transition-colors">{{ $tab['title'] }}</a>
             @endforeach
         </div>
     @endisset
