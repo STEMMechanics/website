@@ -15,7 +15,7 @@ $billing_same_home = $user->home_address === $user->billing_address
         <form method="POST" action="{{ route('account.update') }}" x-data x-on:submit.prevent="SM.updateBillingAddress(); $el.submit()">
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:gap-8 sm:flex-row">
                 <div class="flex-1">
                     <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
                 </div>
@@ -23,7 +23,7 @@ $billing_same_home = $user->home_address === $user->billing_address
                     <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
                 </div>
             </div>
-            <div class="flex gap-8">
+            <div class="flex flex-col sm:gap-8 sm:flex-row">
                 <div class="flex-1">
                     <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
                 </div>
@@ -52,7 +52,7 @@ $billing_same_home = $user->home_address === $user->billing_address
                     <x-ui.input label="Address" name="home_address" value="{{ $user->home_address }}" />
                     <x-ui.input label="Address 2" name="home_address2" value="{{ $user->home_address2 }}" />
                     <x-ui.input label="City" name="home_city" value="{{ $user->home_city }}" />
-                    <div class="flex gap-8">
+                    <div class="flex flex-col sm:gap-8 sm:flex-row">
                         <div class="flex-1">
                             <x-ui.input label="State" name="home_state" value="{{ $user->home_state }}" />
                         </div>
@@ -74,7 +74,7 @@ $billing_same_home = $user->home_address === $user->billing_address
                     <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" readonly="{{ $billing_same_home }}" />
                     <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" readonly="{{ $billing_same_home }}" />
                     <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" readonly="{{ $billing_same_home }}" />
-                    <div class="flex gap-8">
+                    <div class="flex flex-col sm:gap-8 sm:flex-row">
                         <div class="flex-1">
                             <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" readonly="{{ $billing_same_home }}" />
                         </div>
