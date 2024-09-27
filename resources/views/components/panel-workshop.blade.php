@@ -40,7 +40,7 @@
             <div class="w-6 flex items-center justify-center">
                 <i class="fa-solid fa-dollar-sign"></i>
             </div>
-            {{ $workshop->price && $workshop->price !== '0' ? number_format($workshop->price, 2) : 'Free' }}
+            {{ $workshop->price && $workshop->price !== '0' ? number_format((float)$workshop->price, 2) : 'Free' }}
         </div>
     </div>
 </a>
