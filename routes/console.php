@@ -32,7 +32,11 @@ Artisan::command('email:send', function() {
     foreach ($subscribers as $subscriber) {
         dispatch(new SendEmail($subscriber->email, new UpcomingWorkshops($subscriber->email, $subject)))->onQueue('mail');
     }
-})->purpose('Send newsletter to confirmed subscribers')->daily();
+})->purpose('Send newsletter to confirmed subscribers')->weeklyOn(3, function() {
+    $hour = random_int(16, 18);
+    $minute = random_int(0, 59);
+    return sprintf('%02d:%02d', $hour, $minute);
+});
 
 Artisan::command('cleanup', function() {
 
