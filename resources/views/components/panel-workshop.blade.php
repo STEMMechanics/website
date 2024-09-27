@@ -33,13 +33,14 @@
             <div class="text-gray-600 text-sm mb-1 flex gap-2">
                 <div class="w-6 flex items-center justify-center">
                     <i class="fa-regular fa-face-smile"></i>
-                </div>{{ isset($workshop->ages) && $workshop->ages !== '' ? 'Ages ' . $workshop->ages : 'All ages' }}
+                </div>{{ $workshop->ages ? 'Ages ' . $workshop->ages : 'All ages' }}
             </div>
         @endif
         <div class="text-gray-600 text-sm mb-1 flex gap-2">
             <div class="w-6 flex items-center justify-center">
                 <i class="fa-solid fa-dollar-sign"></i>
-            </div>{{ isset($workshop->price) && $workshop->price !== '' && $workshop->price !== '0' ? $workshop->price : 'Free' }}
+            </div>
+            {{ $workshop->price && $workshop->price !== '0' ? number_format($workshop->price, 2) : 'Free' }}
         </div>
     </div>
 </a>
