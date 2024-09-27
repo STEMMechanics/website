@@ -1,9 +1,38 @@
 <?php
 
+use App\Jobs\SendEmail;
+use App\Mail\UpcomingWorkshops;
+use App\Mail\UserWelcome;
 use App\Models\Media;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+
+Artisan::command('email:send', function() {
+    $subjects = [
+        '🚀 Your STEM Adventure Awaits!',
+        '⚡ Spark Your STEM Skills in a Workshop',
+        '🔬 Unleash Your Curiosity in a Workshop',
+        '🧠 Boost Your Brain with STEM Workshops',
+        '🌟 Become a STEM Star: Join Our Workshops',
+        '🔧 Tinker, Create, Learn in a Workshop',
+        '🎨 Where Science Meets Creativity',
+        '🏆 Level Up Your STEM Skills',
+        '🌈 Discover the STEM Spectrum',
+        '🔮 Future Innovators: Workshops Unveiled',
+    ];
+
+    $subject = $subjects[array_rand($subjects)];
+
+    $subscribers = DB::table('email_subscriptions')
+        ->whereNotNull('confirmed')
+        ->get();
+
+    foreach ($subscribers as $subscriber) {
+        dispatch(new SendEmail($subscriber->email, new UpcomingWorkshops($subscriber->email, $subject)))->onQueue('mail');
+    }
+})->purpose('Send newsletter to confirmed subscribers')->daily();
 
 Artisan::command('cleanup', function() {
 

@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 
 class EmailSubscriptions extends Model
 {
-    use HasFactory;
-
     /**
      * The attributes that are mass assignable.
      *

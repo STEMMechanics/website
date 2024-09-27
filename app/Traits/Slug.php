@@ -6,6 +6,8 @@ use Illuminate\Support\Str;
 
 trait Slug
 {
+    protected $appendsSlug = ['slug'];
+
     /**
      * Boot function from Laravel.
      *
@@ -18,6 +20,16 @@ trait Slug
                 $model->{$model->getKeyName()} = strtolower(Str::random(11));
             }
         });
+    }
+
+    /**
+     * Initialize the trait.
+     *
+     * @return void
+     */
+    public function initializeSlug(): void
+    {
+        $this->appends = array_merge($this->appends ?? [], $this->appendsSlug);
     }
 
     /**
@@ -47,7 +59,7 @@ trait Slug
      */
     public function getRouteKey()
     {
-        return $this->slug();
+        return $this->slug;
     }
 
     /**
@@ -68,7 +80,7 @@ trait Slug
      *
      * @return string
      */
-    public function slug()
+    public function getSlugAttribute()
     {
         return Str::slug($this->title) . '-' . $this->id;
     }

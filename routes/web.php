@@ -7,6 +7,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,7 @@ Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('w
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 
 Route::get('search', [SearchController::class, 'index'])->name('search.index');
+Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'destroy'])->name('unsubscribe');
 
 Route::middleware('auth')->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
