@@ -1,6 +1,6 @@
 <x-layout id="home">
     <x-slot name="title">Home</x-slot>
-    <section id="banner" class="bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.7),rgba(0,0,0,.2)),url('/home-hero.webp')">
+    <section id="banner" class="bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.7),rgba(0,0,0,.2)),url({{asset('home-hero.webp')}})">
         <x-container class="py-32 relative">
             <h2 class="text-3xl text-white font-bold mb-4">Join the fun!</h2>
             <p class="text-white max-w-[42rem] mb-3">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
@@ -25,7 +25,7 @@
     <section id="skills">
         <x-container class="bg-gray-200 py-32 my-8" inner-class="flex flex-row gap-16">
             <div class="flex-1 min-h-72 hidden md:block">
-                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url('/home-green-screen.webp')"></div>
+                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url({{asset('home-green-screen.webp')}})"></div>
             </div>
             <div class="flex flex-col flex-1 text-center">
                 <h2 class="text-3xl mb-4 text-center md:text-left">Build skills while having a great time</h2>
@@ -37,7 +37,7 @@
                         </div>
                     </div>
                     <div class="ml-8 hidden sm:block md:hidden">
-                        <div class="h-48 w-48 bg-no-repeat bg-center bg-cover rounded-full" style="background-image:url('/home-green-screen.webp')"></div>
+                        <div class="h-48 w-48 bg-no-repeat bg-center bg-cover rounded-full" style="background-image:url({{asset('home-green-screen.webp')}})"></div>
                     </div>
                 </div>
             </div>
@@ -57,23 +57,23 @@
                 @endif
         </x-container>
     </section>
-    <section id="minecraft" class="bg-center bg-no-repeat bg-cover" style="background-image:url('/home-minecraft.webp')">
+    <section id="minecraft" class="bg-center bg-no-repeat bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
         <x-container class="text-white py-32">
             <h2 class="text-3xl mb-4">Play Minecraft with us</h2>
             <p class="mb-4">We invite you to join us on our <a href="https://stemcraft.com.au/" class="link">Minecraft server</a> where you can participate in weekly challenges and mini-games.</p>
             <div class="mb-4 flex gap-4">
-                <img src="/home-minecraft-edu.webp" class="h-12" />
+                <img src="{{  asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12" />
                 <p>We also run workshops on our minecraft server, both online and offline, where you ca learn to make it rain rabbits, or grow flowers wherever you walk!</p>
             </div>
             <div class="flex justify-center">
-                <img src="/home-minecraft-address.webp" class="h-12" />
+                <img src="{{ asset('home-minecraft-address.webp') }}" alt="play.stemcraft.com.au" class="h-12" />
             </div>
         </x-container>
     </section>
     <section id="support">
         <x-container class="bg-gray-200 py-32 -mb-12" inner-class="flex flex-row gap-16">
             <div class="hidden sm:block flex-1">
-                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url('/home-discord.webp')"></div>
+                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url({{ asset('home-discord.webp') }})"></div>
             </div>
             <div class="flex-1 text-center">
                 <h2 class="text-3xl mb-4 text-left">And the support doesn't stop!</h2>
