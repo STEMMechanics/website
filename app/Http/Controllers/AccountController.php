@@ -6,10 +6,11 @@ use App\Helpers;
 use App\Jobs\SendEmail;
 use App\Mail\UserEmailUpdateRequest;
 use App\Models\User;
+use App\Providers\QRCodeProvider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
+use RobThree\Auth\Algorithm;
+use RobThree\Auth\TwoFactorAuth;
 
 class AccountController extends Controller
 {
@@ -129,5 +130,111 @@ class AccountController extends Controller
         session()->flash('message-title', 'Account Deleted');
         session()->flash('message-type', 'success');
         return redirect()->route('index');
+    }
+
+    public static function getTFAInstance()
+    {
+        $tfa = new TwoFactorAuth(new QRCodeProvider(), 'STEMMechanics', 6, 30, Algorithm::Sha512);
+        $tfa->ensureCorrectTime();
+        return $tfa;
+    }
+
+    public function show_tfa()
+    {
+        $user = auth()->user();
+        if ($user->tfa_secret === null) {
+            $tfa = self::getTFAInstance();
+            $secret = $tfa->createSecret();
+
+            return response()->json([
+                'secret' => $secret,
+            ]);
+        } else {
+            abort(404);
+        }
+    }
+
+    public function show_tfa_image(Request $request)
+    {
+        $user = auth()->user();
+        if ($user->tfa_secret === null && $request->has('secret')) {
+            $tfa = self::getTFAInstance();
+
+            $qrCodeProvider = new QRCodeProvider();
+            $qrCode = $qrCodeProvider->getQRCodeImage(
+                $tfa->getQRText($user->email, $request->get('secret')),
+                200
+            );
+
+            return response()->stream(function () use ($qrCode) {
+                echo $qrCode;
+            }, 200, ['Content-Type' => $qrCodeProvider->getMimeType()]);
+        } else {
+            abort(404);
+        }
+    }
+
+    public function post_tfa(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->tfa_secret === null && $request->has('secret') && $request->has('code')) {
+            $secret = $request->get('secret');
+            $code = $request->get('code');
+
+            $tfa = self::getTFAInstance();
+
+            if ($tfa->verifyCode($secret, $code, 4)) {
+                $user->tfa_secret = $secret;
+                $user->save();
+
+                $codes = $user->generateBackupCodes();
+
+                return response()->json([
+                    'success' => true,
+                    'codes' => $codes
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                ]);
+            }
+        } else {
+            abort(403);
+        }
+    }
+
+    public function destroy_tfa(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->tfa_secret !== null) {
+            $user->tfa_secret = null;
+            $user->save();
+
+            $user->backupCodes()->delete();
+
+            return response()->json([
+                'success' => true,
+            ]);
+        } else {
+            abort(403);
+        }
+    }
+
+    public function post_tfa_reset_backup_codes(Request $request)
+    {
+        $user = auth()->user();
+
+        if ($user->tfa_secret !== null) {
+            $codes = $user->generateBackupCodes();
+
+            return response()->json([
+                'success' => true,
+                'codes' => $codes
+            ]);
+        } else {
+            abort(403);
+        }
     }
 }

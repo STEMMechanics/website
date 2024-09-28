@@ -6,13 +6,15 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "ext-imagick": "*",
+        "chillerlan/php-qrcode": "^5.0",
         "gehrisandro/tailwind-merge-laravel": "^1.2",
         "intervention/image": "^3.5",
         "laravel/framework": "^11.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.4",
         "php-ffmpeg/php-ffmpeg": "^1.2",
-        "ext-imagick": "*"
+        "robthree/twofactorauth": "^3.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

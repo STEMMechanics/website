@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use App\Jobs\SendEmail;
+use App\Mail\UserLoginTFADisabled;
+use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Hash;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -36,7 +40,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'billing_postcode',
         'billing_state',
         'billing_country',
-        'subscribed'
+        'subscribed',
+        'tfa_secret',
+        'agree_tos',
     ];
 
     /**
@@ -47,6 +53,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'tfa_secret'
     ];
 
     /**
@@ -96,6 +103,15 @@ class User extends Authenticatable implements MustVerifyEmail
                             }
                         });
                     }
+                }
+            }
+
+            if ($user->isDirty('tfa_secret')) {
+                if($user->tfa_secret === null) {
+                    $user->backupCodes()->delete();
+                    dispatch(new SendEmail($user->email, new UserLoginTFADisabled($user->email)))->onQueue('mail');
+                } else {
+                    dispatch(new SendEmail($user->email, new UserLoginTFAEnabled($user->email)))->onQueue('mail');
                 }
             }
         });
@@ -175,5 +191,39 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->admin === 1;
+    }
+
+    public function backupCodes()
+    {
+        return $this->hasMany(UserBackupCode::class);
+    }
+
+    public function generateBackupCodes()
+    {
+        $this->backupCodes()->delete();
+        $codes = [];
+        for ($i = 0; $i < 10; $i++) {
+            $code = strtoupper(bin2hex(random_bytes(4)));
+            $codes[] = $code;
+
+            UserBackupCode::create([
+                'user_id' => $this->id,
+                'code' => $code,
+            ]);
+        }
+        return $codes;
+    }
+
+    public function verifyBackupCode($code)
+    {
+        $backupCodes = $this->backupCodes()->get();
+        foreach ($backupCodes as $backupCode) {
+            if (Hash::check($code, $backupCode->code)) {
+                $backupCode->delete();
+                return true;
+            }
+        }
+
+        return false;
     }
 }

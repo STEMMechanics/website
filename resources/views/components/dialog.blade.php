@@ -1,7 +1,7 @@
-<div class="flex items-center justify-center flex-grow py-24">
+<div class="flex items-center justify-center flex-grow py-24" {{ $attributes }}>
     <div class="w-full mx-2 max-w-lg p-8 pb-6 bg-white rounded-md shadow-deep">
         @isset($title)
-            <h2 class="text-2xl font-bold mb-4 text-center">{{ $title }}</h2>
+            <h2 class="text-2xl font-bold mb-4 text-center relative">{{ $title }}</h2>
         @endisset
         @isset($header)
             <div class="flex items-center gap-4 mb-4">

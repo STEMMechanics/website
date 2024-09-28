@@ -31,6 +31,7 @@
     </script>
 @endif
 @stack('scripts')
+@captchaScripts
 @livewireScripts
 </body>
 </html>

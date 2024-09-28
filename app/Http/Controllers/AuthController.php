@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UserEmailUpdateConfirm;
 use App\Mail\UserLogin;
+use App\Mail\UserLoginBackupCode;
 use App\Mail\UserRegister;
 use App\Mail\UserWelcome;
 use App\Models\Token;
@@ -47,13 +48,60 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'captcha' => 'required_captcha',
         ], [
             'email.required' => __('validation.custom_messages.email_required'),
             'email.email' => __('validation.custom_messages.email_invalid'),
         ]);
 
+        $forceEmailLogin = false;
+
+        if($request->has('code')) {
+            $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
+            if($user) {
+                $tfa = AccountController::getTFAInstance();
+                if ($request->code && $tfa->verifyCode($user->tfa_secret, $request->code, 4)) {
+                    $data = ['url' => session()->pull('url.intended', null)];
+                    return $this->loginByUser($user, $data);
+                }
+            }
+
+            return view('auth.login-2fa', ['email' => $request->email])->withErrors([
+                'code' => 'The 2FA code is not valid',
+            ]);
+        }
+
+        if($request->has('backup_code')) {
+            $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
+            if($user) {
+                if($user->verifyBackupCode($request->backup_code)) {
+                    $data = ['url' => session()->pull('url.intended', null)];
+
+                    dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
+
+                    return $this->loginByUser($user, $data);
+                }
+            }
+
+            return view('auth.login-2fa', ['email' => $request->email, 'method' => 'backup'])->withErrors([
+                'backup_code' => 'The backup code is not valid',
+            ]);
+        }
+
+        if($request->has('method')) {
+            if($request->get('method') === 'email') {
+                $forceEmailLogin = true;
+            } else {
+                abort(404);
+            }
+        }
+
         $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
-        if($user) {
+        if ($user) {
+            if (!$forceEmailLogin && $user->tfa_secret !== null) {
+                return view('auth.login-2fa', ['user' => $user]);
+            }
+
             $token = $user->tokens()->create([
                 'type' => 'login',
                 'data' => ['url' => session()->pull('url.intended', null)],
@@ -190,6 +238,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'email' => 'required|email',
+            'captcha' => 'required_captcha',
         ], [
             'email.required' => __('validation.custom_messages.email_required'),
             'email.email' => __('validation.custom_messages.email_invalid')

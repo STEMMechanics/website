@@ -27,6 +27,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account', [AccountController::class, 'update'])->name('account.update');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::get('/account/2fa', [AccountController::class, 'show_tfa'])->name('account.show.tfa');
+    Route::get('/account/2fa/image', [AccountController::class, 'show_tfa_image'])->name('account.show.tfa.image');
+    Route::post('/account/2fa', [AccountController::class, 'post_tfa'])->name('account.post.tfa');
+    Route::post('/account/2fa/reset-backup-codes', [AccountController::class, 'post_tfa_reset_backup_codes'])->name('account.post.tfa.reset-backup-codes');
+    Route::delete('/account/2fa', [AccountController::class, 'destroy_tfa'])->name('account.destroy.tfa');
 });
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');

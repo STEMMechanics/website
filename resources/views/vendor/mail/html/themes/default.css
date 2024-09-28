@@ -67,7 +67,7 @@ h4 {
     text-align: left;
 }
 
-p {
+p, li {
     font-size: 14px;
     line-height: 1.2em;
     margin-top: 0;

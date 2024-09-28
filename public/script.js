@@ -16,6 +16,23 @@ let SM = {
         Swal.fire(data);
     },
 
+    confirm: (title, content, button, callback) => {
+        Swal.fire({
+            position: 'top',
+            icon: 'warning',
+            iconColor: '#b91c1c',
+            title: title,
+            html: content,
+            showCancelButton: true,
+            confirmButtonText: button,
+            confirmButtonColor: '#b91c1c',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true
+        }).then((result) => {
+            callback(result.isConfirmed);
+        });
+    },
+
     copyToClipboard: (text) => {
         const copyContent = async () => {
             try {

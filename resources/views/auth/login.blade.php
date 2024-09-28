@@ -1,5 +1,6 @@
 <x-layout :bodyClass="'image-background'">
     <x-dialog formaction="{{ route('login.store') }}">
+        @captcha
         @if(session('status') == 'not-found')
             <x-slot:title>Sorry, we didn't recognize that email</x-slot:title>
             <x-slot:header>
@@ -8,7 +9,7 @@
         @else
         <x-slot:title>Sign in with email</x-slot:title>
         <x-slot:header>
-            <p>Enter the email address associated with your account, and we'll send a magic link to your inbox.</p>
+            <p>Enter the email address associated with your account</p>
         </x-slot:header>
         @endif
         <x-ui.input type="email" name="email" label="Email" floating autofocus />
