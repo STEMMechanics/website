@@ -109,7 +109,20 @@
         </div>
     </div>
 
-    <div class="fixed inset-0 z-50 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => { if(value) { $nextTick(() => document.getElementsByName('q')[0].focus()) } })">
+    <div class="fixed inset-0 z-50 flex items-center justify-center" x-cloak x-show="showSearch" x-on:click="showSearch=false" x-on:keydown.escape.window="showSearch=false" x-init="$watch('showSearch', value => {
+        if(value) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    const el = document.getElementsByName('q')[0];
+                    if (!el) return;
+                    el.focus({ preventScroll: true });
+                    if (typeof el.select === 'function') el.select();
+                    // iOS fallback:
+                    if (el.setSelectionRange) el.setSelectionRange(0, el.value.length);
+                })
+            })
+        }
+        })">
         <div class="absolute inset-0 backdrop-blur-sm bg-opacity-40 bg-black"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
             <form action="{{ route('search.index') }}" method="GET">
