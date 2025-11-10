@@ -86,7 +86,7 @@
             @click.away="userMenuOpen=false"
             x-cloak
             >
-            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="absolute left-0 w-screen z-20 h-screen bg-black bg-opacity-40 backdrop-blur-sm"
+            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="fixed left-0 w-screen z-20 h-screen bg-black bg-opacity-40 backdrop-blur-sm"
                  x-transition:enter="transition ease-out duration-300"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
