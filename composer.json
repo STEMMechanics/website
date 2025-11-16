@@ -10,7 +10,7 @@
         "chillerlan/php-qrcode": "^5.0",
         "gehrisandro/tailwind-merge-laravel": "^1.2",
         "intervention/image": "^3.5",
-        "laravel/framework": "^11.0",
+        "laravel/framework": "^12.0",
         "laravel/tinker": "^2.9",
         "livewire/livewire": "^3.4",
         "php-ffmpeg/php-ffmpeg": "^1.2",
@@ -22,7 +22,6 @@
         "laravel/pint": "^1.13",
         "laravel/sail": "^1.26",
         "mockery/mockery": "^1.6",
-        "nunomaduro/collision": "^8.0",
         "phpunit/phpunit": "^10.5",
         "spatie/laravel-ignition": "^2.4"
     },
