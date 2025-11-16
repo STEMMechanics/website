@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\Facades\Blade;
-use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
+
         Blade::directive('includeSVG', function ($arguments) {
             list($path, $styles) = array_pad(explode(',', str_replace(['(', ')', ' ', "'"], '', $arguments), 2), 2, '');
             $svgContent = file_get_contents(public_path($path));
