@@ -52,7 +52,7 @@ class UpcomingWorkshops extends Mailable
             ->with([
                 'email' => $this->email,
                 'workshops' => $this->workshops,
-                'unsubscribeLink' => $this->unsubscribeLink
+                'unsubscribe' => $this->unsubscribeLink
             ]);
     }
 }
