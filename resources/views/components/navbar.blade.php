@@ -43,7 +43,7 @@
         </div>
 
         <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-20" role="menu" aria-labelledby="page-menu-button" tabindex="-1">
-            <div x-show="pageMenuOpen" @click="pageMenuOpen=false" class="absolute inset-0 bg-black bg-opacity-40 backdrop-blur-sm"
+            <div x-show="pageMenuOpen" @click="pageMenuOpen=false" class="absolute inset-0 bg-black/40 backdrop-blur-sm"
                  x-transition:enter="transition ease-out duration-300"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -90,7 +90,7 @@
             @click.away="userMenuOpen=false"
             x-cloak
             >
-            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="fixed left-0 w-screen z-20 h-screen bg-black bg-opacity-40 backdrop-blur-sm"
+            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="fixed left-0 w-screen z-20 h-screen bg-black/40 backdrop-blur-sm"
                  x-transition:enter="transition ease-out duration-300"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
@@ -99,7 +99,7 @@
                  x-transition:leave-end="opacity-0"></div>
             <div
                 x-show="userMenuOpen"
-                class="absolute w-full right-0 sm:right-5 sm:top-12 z-50 sm:mt-2 sm:w-64 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t sm:ring-1 ring-black ring-opacity-25 focus:outline-none">
+                class="absolute w-full right-0 sm:right-5 sm:top-12 z-50 sm:mt-2 sm:w-64 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t border-gray-200 sm:ring-1 ring-black/25 focus:outline-none">
                 @if(auth()->guest())
                     <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-pen-to-square w-4 mr-2"></i>Register</a>
                     <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-to-bracket w-4 mr-2"></i>Log in</a>
@@ -127,7 +127,7 @@
             })
         }
         })">
-        <div class="absolute inset-0 backdrop-blur-sm bg-opacity-40 bg-black"></div>
+        <div class="absolute inset-0 backdrop-blur-sm bg-black/40"></div>
         <div class="relative w-full mx-8 max-w-2xl bg-gray-50 p-2 rounded-lg shadow-lg" x-on:click.stop>
             <form action="{{ route('search.index') }}" method="GET">
                 <x-ui.search type="text" name="q" label="Search..." />
