@@ -12,8 +12,8 @@
         <p class="mb-2">We do not have a physical address as our workshops are delivered across Queensland. Visit the workshops page for each specific location.</p>
         <p class="mb-4">Official mail can be sent to the following postal address:</p>
         <p class="mb-2 text-center">STEMMechanics<br />
-        1/4 Jordan Street<br />
-        Edmonton, QLD, 4869<br />
+        63 Dalton Street<br />
+        Westcourt, QLD, 4870<br />
         Australia</p>
         <p class="mb-2 text-center"><strong class="font-semibold">ABN</strong>: 15 772 281 735</p>
     </x-container>
