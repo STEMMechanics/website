@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendEmail implements ShouldQueue
@@ -57,8 +58,23 @@ class SendEmail implements ShouldQueue
 
         // Add unsubscribe link if mailable supports it
         if (method_exists($this->mailable, 'withUnsubscribeLink')) {
+            Log::info('SendEmail: Adding unsubscribe link', [
+                'job_id'      => $this->job?->getJobId(),
+                'recipient'   => $this->to,
+                'mailable'    => get_class($this->mailable),
+                'sentEmailId' => $sentEmail->id,
+            ]);
+
+
             $unsubscribeLink = route('unsubscribe', ['email' => $sentEmail->id]);
             $this->mailable->withUnsubscribeLink($unsubscribeLink);
+        } else {
+            Log::info('SendEmail: No unsubscribe link', [
+                'job_id'      => $this->job?->getJobId(),
+                'recipient'   => $this->to,
+                'mailable'    => get_class($this->mailable),
+                'sentEmailId' => $sentEmail->id,
+            ]);
         }
 
         Mail::to($this->to)->send($this->mailable);
