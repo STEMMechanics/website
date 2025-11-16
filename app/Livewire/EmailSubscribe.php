@@ -36,20 +36,24 @@ class EmailSubscribe extends Component
         }
 
         // 2. Block submits in first 10 seconds after render
-        if (now()->timestamp - $this->renderedAt < 10) {
+        if (now()->timestamp - $this->renderedAt < 7) {
             $this->success = false;
             $this->message = 'That was a bit quick. Please wait a few seconds and try again.';
             return;
         }
 
         // 3. Enforce 30 seconds between attempts per session
-        $lastAttempt = session('subscribe_last_attempt');
-        if ($lastAttempt && now()->diffInSeconds($lastAttempt) < 30) {
+        $lastAttempt = session('subscribe_last_attempt'); // int timestamp or null
+        $now = time();
+
+        if ($lastAttempt && ($now - $lastAttempt) < 30) {
+            $remaining = 30 - ($now - $lastAttempt);
             $this->success = false;
-            $this->message = 'Please wait a little before trying again (' . now()->diffInSeconds($lastAttempt) . ')';
+            $this->message = 'Please wait a little before trying again.';
             return;
         }
-        session(['subscribe_last_attempt' => now()]);
+
+        session(['subscribe_last_attempt' => $now]);
 
         // 4. Limit to 5 attempts per session (your existing logic)
         $attempts = session('subscribe_attempts', 0);
