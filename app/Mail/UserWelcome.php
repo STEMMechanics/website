@@ -25,7 +25,7 @@ class UserWelcome extends Mailable
             ->markdown('emails.welcome')
             ->with([
                 'email' => $this->email,
-                'unsubscribeLink' => $this->unsubscribeLink
+                'unsubscribe' => $this->unsubscribeLink
             ]);
     }
 }
