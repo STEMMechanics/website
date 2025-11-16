@@ -30,13 +30,13 @@ class EmailSubscribe extends Component
         }
 
         // Simple rate limiting per session
-        $attempts = session('subscribe_attempts', 0);
-        if ($attempts >= 5) {
-            $this->success = false;
-            $this->message = 'Too many attempts. Please try again in a little while.';
-            return;
-        }
-        session(['subscribe_attempts' => $attempts + 1]);
+//        $attempts = session('subscribe_attempts', 0);
+//        if ($attempts >= 5) {
+//            $this->success = false;
+//            $this->message = 'Too many attempts. Please try again in a little while.';
+//            return;
+//        }
+//        session(['subscribe_attempts' => $attempts + 1]);
 
 
         $this->validate();
