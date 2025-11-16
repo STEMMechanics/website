@@ -25,7 +25,9 @@
                 <div class="hidden sm:ml-6 sm:block mr-4">
                     <div class="flex space-x-2">
 {{--                        <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out" aria-current="page">Blog</a>--}}
+                        <a href="{{ route('about') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">About</a>
                         <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
+                        <a href="{{ route('contact') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
                         <button type="button" class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
                             <i class="fa fa-search"></i>
                         </button>

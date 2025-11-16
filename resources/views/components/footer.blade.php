@@ -11,6 +11,7 @@
         </ul>
         <ul class="sm:w-1/3 flex flex-col gap-0.5 text-center sm:text-left">
             <li><h3 class="font-bold mb-2">STEMMechanics</h3></li>
+            <li><a href="{{ route('about') }}" class="text-sm hover:text-primary-color">About</a></li>
             <li><a href="{{ route('contact') }}" class="text-sm hover:text-primary-color">Contact Us</a></li>
             <li><a href="{{ route('code-of-conduct') }}" class="text-sm hover:text-primary-color">Code of Conduct</a></li>
             <li><a href="{{ route('terms-conditions') }}" class="text-sm hover:text-primary-color">Terms & Conditions</a></li>
