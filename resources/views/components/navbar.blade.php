@@ -25,15 +25,15 @@
                 <div class="hidden sm:ml-6 sm:block mr-4">
                     <div class="flex space-x-2">
 {{--                        <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out" aria-current="page">Blog</a>--}}
-                        <a href="{{ route('about') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">About</a>
-                        <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
-                        <a href="{{ route('contact') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
-                        <button type="button" class="text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
+                        <a href="{{ route('about') }}" class="text-gray-900 hover:text-sky-500 px-1 md:px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">About</a>
+                        <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-1 md:px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
+                        <a href="{{ route('contact') }}" class="text-gray-900 hover:text-sky-500 px-1 md:px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
+                        <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
                             <i class="fa fa-search"></i>
                         </button>
                     </div>
                 </div>
-                <div class="mx-3">
+                <div class="mr-3 md:mx-3">
                     <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex w-6 text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                         <span class="sr-only">Open user menu</span>
                         <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
@@ -69,7 +69,9 @@
                     <i class="fa fa-search w-4 mr-2"></i>Search
                 </div>
 {{--                <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>--}}
+                <a href="{{ route('about') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-circle-info w-4 mr-2"></i>About</a>
                 <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
+                <a href="{{ route('contact') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if(auth()->user()?->admin)
                     <div class="sm:hidden border-t border-gray-200 my-2"></div>
                     <div class="block text-xs font-semibold text-gray-500 px-2 py-1">Admin</div>

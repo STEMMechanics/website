@@ -9,7 +9,8 @@
         'primary-outline-sm' => '!font-normal !text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white',
         'danger' => 'hover:bg-danger-color-dark focus-visible:outline-danger-color bg-danger-color text-white',
         'danger-outline' => 'hover:bg-danger-color-dark focus-visible:outline-danger-color text-danger-color border border-danger-color bg-white hover:text-white',
-        'success' => 'hover:bg-success-color-dark focus-visible:outline-success-color bg-success-color text-white'
+        'success' => 'hover:bg-success-color-dark focus-visible:outline-success-color bg-success-color text-white',
+        'dark' => 'hover:bg-gray-900 focus-visible:outline-gray-800 bg-gray-800 text-white'
     ][$color];
     $commonClasses = @twMerge(['whitespace-nowrap', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
 @endphp

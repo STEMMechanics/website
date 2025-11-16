@@ -85,4 +85,13 @@
             </div>
         </x-container>
     </section>
+    <section id="subscribe">
+        <x-container class="bg-primary-color-dark py-24 -mb-12" inner-class="flex justify-center">
+            <div class="max-w-[52rem]">
+                <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
+                <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
+                <livewire:email-subscribe />
+            </div>
+        </x-container>
+    </section>
 </x-layout>

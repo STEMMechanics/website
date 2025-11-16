@@ -21,7 +21,7 @@
     </p>
     <p>We hope to see you at one of our upcoming workshops!</p>
     <p>Warm regards,</p>
-    <p>—James 😁</p>
+    <p>— James 😁</p>
     @slot('subcopy')
         <h4>Why did I get this email?</h4>
         <p class="sub">You received this email as you are subscribed to our upcoming workshop email list. If you wish no longer receive this email, you can <a href="{{ $unsubscribeLink }}">unsubscribe here</a>.</p>

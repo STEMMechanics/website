@@ -15,7 +15,7 @@
 
 This email was sent to {{ $email }}
 
-STEMMechanics | 1/4 Jordan Street | Edmonton, QLD 4869 Australia
+STEMMechanics | 63 Dalton Street | Westcourt, QLD 4870 Australia
 © {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}
 
 @isset($unsubscribe) Unsubscribe: {{ $unsubscribe }}@endisset
