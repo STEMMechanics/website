@@ -27,6 +27,8 @@ class EmailSubscribe extends Component
 
     public function subscribe(): void
     {
+        $this->validate();
+
         // 1. Honeypot - if this hidden field is filled, treat as success but do nothing
         if (! empty($this->trap)) {
             $this->reset(['email', 'trap']);
@@ -66,9 +68,6 @@ class EmailSubscribe extends Component
             return;
         }
         session(['subscribe_attempts' => $attempts + 1]);
-
-
-        $this->validate();
 
         // Look up existing subscription by email
         $subscription = EmailSubscriptions::where('email', $this->email)->first();
