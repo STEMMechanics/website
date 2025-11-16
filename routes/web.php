@@ -7,21 +7,21 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SearchController;
-use App\Http\Controllers\UnsubscribeController;
+use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('index');
 
-Route::get('posts', [PostController::class, 'index'])->name('post.index');
-Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');
+//Route::get('posts', [PostController::class, 'index'])->name('post.index');
+//Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');
 Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.index');
 Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('workshop.past.index');
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 
 Route::get('search', [SearchController::class, 'index'])->name('search.index');
-Route::get('unsubscribe/{email}', [UnsubscribeController::class, 'destroy'])->name('unsubscribe');
+Route::get('unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
 
 Route::middleware('auth')->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
@@ -75,12 +75,12 @@ Route::middleware('admin')->group(function () {
     Route::put('/admin/locations/{location}', [LocationController::class, 'update'])->name('admin.location.update');
     Route::delete('/admin/locations/{location}', [LocationController::class, 'destroy'])->name('admin.location.destroy');
 
-    Route::get('/admin/posts', [PostController::class, 'admin_index'])->name('admin.post.index');
-    Route::get('/admin/posts/create', [PostController::class, 'admin_create'])->name('admin.post.create');
-    Route::post('/admin/posts', [PostController::class, 'admin_store'])->name('admin.post.store');
-    Route::get('/admin/posts/{post}', [PostController::class, 'admin_edit'])->name('admin.post.edit');
-    Route::put('/admin/posts/{post}', [PostController::class, 'admin_update'])->name('admin.post.update');
-    Route::delete('/admin/posts/{post}', [PostController::class, 'admin_destroy'])->name('admin.post.destroy');
+//    Route::get('/admin/posts', [PostController::class, 'admin_index'])->name('admin.post.index');
+//    Route::get('/admin/posts/create', [PostController::class, 'admin_create'])->name('admin.post.create');
+//    Route::post('/admin/posts', [PostController::class, 'admin_store'])->name('admin.post.store');
+//    Route::get('/admin/posts/{post}', [PostController::class, 'admin_edit'])->name('admin.post.edit');
+//    Route::put('/admin/posts/{post}', [PostController::class, 'admin_update'])->name('admin.post.update');
+//    Route::delete('/admin/posts/{post}', [PostController::class, 'admin_destroy'])->name('admin.post.destroy');
 
     Route::get('/admin/users', [UserController::class, 'index'])->name('admin.user.index');
     Route::get('/admin/users/create', [UserController::class, 'create'])->name('admin.user.create');

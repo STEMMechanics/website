@@ -8,22 +8,36 @@
             <p class="absolute bottom-3 right-5 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded">Steady Hand Game in Ravenshoe</p>
         </x-container>
     </section>
-    <section id="news" class="py-12">
+    <section id="events" class="py-12">
         <x-container>
-            <h2 class="text-2xl font-bold mb-6">Latest Posts</h2>
-            @if($posts->isEmpty())
-                <x-none-found item="posts" message="No posts have been published at this time" title="" />
+            <h2 class="text-2xl font-bold mb-6">Upcoming workshops</h2>
+            @if($workshops->isEmpty())
+                <x-none-found item="workshops" message="No workshops have been scheduled at this time" title="" />
             @else
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
-                    @foreach($posts as $index => $post)
-                        <x-panel-post :post="$post" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
+                    @foreach($workshops as $index => $workshop)
+                        <x-panel-workshop :workshop="$workshop" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
                     @endforeach
                 </div>
             @endif
         </x-container>
     </section>
+{{--    <section id="news" class="py-12">--}}
+{{--        <x-container>--}}
+{{--            <h2 class="text-2xl font-bold mb-6">Latest Posts</h2>--}}
+{{--            @if($posts->isEmpty())--}}
+{{--                <x-none-found item="posts" message="No posts have been published at this time" title="" />--}}
+{{--            @else--}}
+{{--                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">--}}
+{{--                    @foreach($posts as $index => $post)--}}
+{{--                        <x-panel-post :post="$post" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />--}}
+{{--                    @endforeach--}}
+{{--                </div>--}}
+{{--            @endif--}}
+{{--        </x-container>--}}
+{{--    </section>--}}
     <section id="skills">
-        <x-container class="bg-gray-200 py-32 my-8" inner-class="flex flex-row gap-16">
+        <x-container class="bg-gray-200 py-32" inner-class="flex flex-row gap-16">
             <div class="flex-1 min-h-72 hidden md:block">
                 <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url({{asset('home-green-screen.webp')}})"></div>
             </div>
@@ -41,20 +55,6 @@
                     </div>
                 </div>
             </div>
-        </x-container>
-    </section>
-    <section id="events" class="pt-4 pb-8">
-        <x-container>
-            <h2 class="text-2xl font-bold mb-6">Upcoming workshops</h2>
-                @if($workshops->isEmpty())
-                    <x-none-found item="workshops" message="No workshops have been scheduled at this time" title="" />
-                @else
-                    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
-                        @foreach($workshops as $index => $workshop)
-                            <x-panel-workshop :workshop="$workshop" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
-                        @endforeach
-                    </div>
-                @endif
         </x-container>
     </section>
     <section id="minecraft" class="bg-center bg-no-repeat bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
