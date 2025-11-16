@@ -44,10 +44,13 @@ class EmailSubscribe extends Component
 
         // 3. Enforce 30 seconds between attempts per session
         $lastAttempt = session('subscribe_last_attempt'); // int timestamp or null
+        if (! is_int($lastAttempt)) {
+            $lastAttempt = null;
+        }
+
         $now = time();
 
         if ($lastAttempt && ($now - $lastAttempt) < 30) {
-            $remaining = 30 - ($now - $lastAttempt);
             $this->success = false;
             $this->message = 'Please wait a little before trying again.';
             return;
