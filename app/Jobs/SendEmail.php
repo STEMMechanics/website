@@ -58,23 +58,8 @@ class SendEmail implements ShouldQueue
 
         // Add unsubscribe link if mailable supports it
         if (method_exists($this->mailable, 'withUnsubscribeLink')) {
-            Log::info('SendEmail: Adding unsubscribe link', [
-                'job_id'      => $this->job?->getJobId(),
-                'recipient'   => $this->to,
-                'mailable'    => get_class($this->mailable),
-                'sentEmailId' => $sentEmail->id,
-            ]);
-
-
             $unsubscribeLink = route('unsubscribe', ['email' => $sentEmail->id]);
             $this->mailable->withUnsubscribeLink($unsubscribeLink);
-        } else {
-            Log::info('SendEmail: No unsubscribe link', [
-                'job_id'      => $this->job?->getJobId(),
-                'recipient'   => $this->to,
-                'mailable'    => get_class($this->mailable),
-                'sentEmailId' => $sentEmail->id,
-            ]);
         }
 
         Mail::to($this->to)->send($this->mailable);

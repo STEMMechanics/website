@@ -20,7 +20,7 @@
 <p>This email was sent to <a href="mailto:{{ $email }}">{{ $email }}</a><br />
 <a href="{{ route('index') }}">{{ config('app.name') }}</a> | 63 Dalton Street | Westcourt, QLD 4870 Australia<br />
 © {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}<br />
-<a href="{{ route('privacy') }}">Privacy Policy</a> | <a href="{{ route('terms-conditions') }}">Terms & Conditions</a> @isset($unsubscribe) | <a href="{{ $unsubscribe }}">Unsubscribe</a>@endisset
+<a href="{{ route('privacy') }}">Privacy Policy</a> | <a href="{{ route('terms-conditions') }}">Terms & Conditions</a> @isset($unsubscribeLink) | <a href="{{ $unsubscribeLink }}">Unsubscribe</a>@endisset
 </p>
 </x-mail::footer>
 </x-slot:footer>
