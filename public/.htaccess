@@ -65,12 +65,12 @@
     # Block access to .git directory
     RewriteRule .*\.git/.* - [L,R=404]
 
-    <If "%{HTTP_HOST} !~ /(\.local|^localhost(:\d+)?$)/">
-        # Force HTTPS and www in prod
-        RewriteCond %{HTTPS} off [OR]
-        RewriteCond %{HTTP_HOST} !^www\. [NC]
-        RewriteRule ^ https://www.stemmechanics.com.au%{REQUEST_URI} [L,R=301]
-    </If>
+#    <If "%{HTTP_HOST} !~ /(\.local|^localhost(:\d+)?$)/">
+#        # Force HTTPS and www in prod
+#        RewriteCond %{HTTPS} off [OR]
+#        RewriteCond %{HTTP_HOST} !^www\. [NC]
+#        RewriteRule ^ https://www.stemmechanics.com.au%{REQUEST_URI} [L,R=301]
+#    </If>
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
