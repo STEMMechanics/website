@@ -6,7 +6,7 @@ use App\Models\EmailSubscriptions;
 use App\Models\SentEmail;
 use Illuminate\Http\Request;
 
-class UnsubscribeController extends Controller
+class SubscribeController extends Controller
 {
     /**
      * Display a listing of the resource.
