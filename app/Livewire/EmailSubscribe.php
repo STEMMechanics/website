@@ -14,14 +14,20 @@ class EmailSubscribe extends Component
     public bool $success = false;
     public string $message = '';
     public string $trap = '';
+    public int $renderedAt; // unix timestamp
 
     protected $rules = [
         'email' => 'required|email|max:255',
     ];
 
+    public function mount()
+    {
+        $this->renderedAt = now()->timestamp;
+    }
+
     public function subscribe(): void
     {
-        // Honeypot - if this hidden field is filled, treat as success but do nothing
+        // 1. Honeypot - if this hidden field is filled, treat as success but do nothing
         if (! empty($this->trap)) {
             $this->reset(['email', 'trap']);
             $this->success = true;
@@ -29,14 +35,30 @@ class EmailSubscribe extends Component
             return;
         }
 
-        // Simple rate limiting per session
-//        $attempts = session('subscribe_attempts', 0);
-//        if ($attempts >= 5) {
-//            $this->success = false;
-//            $this->message = 'Too many attempts. Please try again in a little while.';
-//            return;
-//        }
-//        session(['subscribe_attempts' => $attempts + 1]);
+        // 2. Block submits in first 10 seconds after render
+        if (now()->timestamp - $this->renderedAt < 10) {
+            $this->success = false;
+            $this->message = 'That was a bit quick. Please wait a few seconds and try again.';
+            return;
+        }
+
+        // 3. Enforce 30 seconds between attempts per session
+        $lastAttempt = session('subscribe_last_attempt');
+        if ($lastAttempt && now()->diffInSeconds($lastAttempt) < 30) {
+            $this->success = false;
+            $this->message = 'Please wait a little before trying again.';
+            return;
+        }
+        session(['subscribe_last_attempt' => now()]);
+
+        // 4. Limit to 5 attempts per session (your existing logic)
+        $attempts = session('subscribe_attempts', 0);
+        if ($attempts >= 5) {
+            $this->success = false;
+            $this->message = 'Too many attempts. Please try again in a little while.';
+            return;
+        }
+        session(['subscribe_attempts' => $attempts + 1]);
 
 
         $this->validate();
