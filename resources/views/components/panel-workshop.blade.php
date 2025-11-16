@@ -10,12 +10,12 @@
     }
 @endphp
 
-<a href="{{ route('workshop.show', $workshop) }}" class="flex flex-col bg-white border rounded-lg overflow-hidden hover:shadow-lg hover:scale-[101%] transition-all relative {{ $attributes->get('class') }}">
-    <div class="shadow border rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white">
+<a href="{{ route('workshop.show', $workshop) }}" class="flex flex-col bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg hover:scale-[101%] transition-all relative {{ $attributes->get('class') }}">
+    <div class="shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white">
         <div class="text-gray-600 font-bold leading-none">{{ $workshop->starts_at->format('j') }}</div>
         <div class="text-gray-600 text-xs uppercase">{{ $workshop->starts_at->format('M') }}</div>
     </div>
-    <div class="border border-white border-opacity-50 absolute flex items-center justify-center top-5 -right-9 bg-gray-500 w-36 text-sm text-white font-bold uppercase py-1 rotate-45 h-8 sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
+    <div class="border border-white/50 absolute flex items-center justify-center top-5 -right-9 bg-gray-500 w-36 text-sm text-white font-bold uppercase py-1 rotate-45 h-8 sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
     <img src="{{ $workshop->hero?->url }}?md" alt="{{ $workshop->title }}" class="w-full h-64 object-cover object-center">
     <div class="flex-grow p-4 flex flex-col">
         <h2 class="flex-grow {{ strlen($workshop->title) > 25 ? 'text-lg' : 'text-xl' }} font-bold mb-2">{{ $workshop->title }}</h2>

@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    /* Color tokens */
+    --color-primary-color: #0284C7;
+    --color-primary-color-dark: #0370A1;
+    --color-primary-color-light: #0EA5E9;
+
+    --color-danger-color: #b91c1c;
+    --color-danger-color-dark: #991b1b;
+    --color-danger-color-light: #dc2626;
+
+    --color-success-color: #16a34a;
+    --color-success-color-dark: #22c55e;
+    --color-success-color-light: #4ade80;
+
+    /* Box shadows */
+    --shadow-deep: 0 10px 15px rgba(0, 0, 0, 0.5);
+}
 
 html, body {
     @apply bg-gray-100;
