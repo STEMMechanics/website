@@ -18,7 +18,7 @@ This email was sent to {{ $email }}
 STEMMechanics | 63 Dalton Street | Westcourt, QLD 4870 Australia
 © {{ date('Y') }} {{ config('app.name') }}. {{ __('All rights reserved.') }}
 
-@isset($unsubscribeLink) Unsubscribe: {{ $unsubscribeLink }}@endisset
+@isset($unsubscribe) Unsubscribe: {{ $unsubscribe }}@endisset
 </x-mail::footer>
 </x-slot:footer>
 </x-mail::layout>

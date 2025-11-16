@@ -1,4 +1,4 @@
-@component('mail::message', ['email' => $email])
+@component('mail::message', ['email' => $email, 'unsubscribe' => $unsubscribeLink])
 <p>Welcome to the community!</p>
 <p>Really glad to have you here and can't wait to see you at one of our workshops.</p>
 <p>You'll get information about upcoming workshops as it comes out.</p>
