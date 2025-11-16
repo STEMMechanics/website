@@ -36,7 +36,7 @@ class EmailSubscribe extends Component
         }
 
         // 2. Block submits in first 10 seconds after render
-        if (now()->timestamp - $this->renderedAt < 7) {
+        if (now()->timestamp - $this->renderedAt < 4) {
             $this->success = false;
             $this->message = 'That was a bit quick. Please wait a few seconds and try again.';
             return;
@@ -50,7 +50,7 @@ class EmailSubscribe extends Component
 
         $now = time();
 
-        if ($lastAttempt && ($now - $lastAttempt) < 30) {
+        if ($lastAttempt && ($now - $lastAttempt) < 20) {
             $this->success = false;
             $this->message = 'Please wait a little before trying again.';
             return;
