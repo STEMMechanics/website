@@ -46,7 +46,7 @@ class EmailSubscribe extends Component
         $lastAttempt = session('subscribe_last_attempt');
         if ($lastAttempt && now()->diffInSeconds($lastAttempt) < 30) {
             $this->success = false;
-            $this->message = 'Please wait a little before trying again.';
+            $this->message = 'Please wait a little before trying again (' . now()->diffInSeconds($lastAttempt) . ')';
             return;
         }
         session(['subscribe_last_attempt' => now()]);
