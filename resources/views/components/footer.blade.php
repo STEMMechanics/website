@@ -7,6 +7,7 @@
             <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color">Discord</a></li>
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color">Facebook</a></li>
             <li><a href="https://www.stemcraft.com.au/" class="text-sm hover:text-primary-color">STEMCraft (Minecraft)</a></li>
+            <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color">Jenkins</a></li>
             <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color">YouTube</a></li>
         </ul>
         <ul class="sm:w-1/3 flex flex-col gap-0.5 text-center sm:text-left">
