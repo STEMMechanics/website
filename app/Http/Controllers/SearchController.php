@@ -34,23 +34,23 @@ class SearchController extends Controller
         $workshops = $workshopQuery->orderBy('starts_at', 'desc')
             ->paginate(6, ['*'], 'workshop');
 
-        $postQuery = Post::query()->where('status', 'published');
-        $postQuery->where(function ($query) use ($search_words) {
-            foreach ($search_words as $word) {
-                $query->where(function ($subQuery) use ($word) {
-                    $subQuery->where('title', 'like', '%' . $word . '%')
-                        ->orWhere('content', 'like', '%' . $word . '%');
-                });
-            }
-        });
-
-        $posts = $postQuery->orderBy('created_at', 'desc')
-            ->paginate(6, ['*'], 'post')
-            ->onEachSide(1);
+//        $postQuery = Post::query()->where('status', 'published');
+//        $postQuery->where(function ($query) use ($search_words) {
+//            foreach ($search_words as $word) {
+//                $query->where(function ($subQuery) use ($word) {
+//                    $subQuery->where('title', 'like', '%' . $word . '%')
+//                        ->orWhere('content', 'like', '%' . $word . '%');
+//                });
+//            }
+//        });
+//
+//        $posts = $postQuery->orderBy('created_at', 'desc')
+//            ->paginate(6, ['*'], 'post')
+//            ->onEachSide(1);
 
         return view('search', [
             'workshops' => $workshops,
-            'posts'     => $posts,
+//            'posts'     => $posts,
             'search'    => $search,
         ]);
     }
