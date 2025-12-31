@@ -20,7 +20,7 @@
         "@tiptap/extension-link": "^2.3.0",
         "@tiptap/extension-subscript": "^2.3.0",
         "@tiptap/extension-superscript": "^2.3.0",
-        "@tiptap/extension-text-align": "^2.3.0",
+        "@tiptap/extension-text-align": "^3.14.0",
         "@tiptap/extension-typography": "^2.3.0",
         "@tiptap/extension-underline": "^2.3.0",
         "@tiptap/pm": "^2.3.0",
