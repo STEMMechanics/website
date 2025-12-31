@@ -9,7 +9,7 @@
         "@tailwindcss/vite": "^4.1.17",
         "autoprefixer": "^10.4.19",
         "axios": "^1.6.4",
-        "laravel-vite-plugin": "^1.0",
+        "laravel-vite-plugin": "^2.0",
         "postcss": "^8.4.38",
         "vite": "^6.4"
     },
