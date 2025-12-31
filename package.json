@@ -9,9 +9,9 @@
         "@tailwindcss/vite": "^4.1.17",
         "autoprefixer": "^10.4.19",
         "axios": "^1.6.4",
-        "laravel-vite-plugin": "^1.0",
+        "laravel-vite-plugin": "^2.0.1",
         "postcss": "^8.4.38",
-        "vite": "^6.4"
+        "vite": "^7.3.0"
     },
     "dependencies": {
         "@tiptap/core": "^3.10.7",
