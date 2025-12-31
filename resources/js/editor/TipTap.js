@@ -1,6 +1,7 @@
 import Link from "@tiptap/extension-link";
 import {Editor} from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import Underline from "@tiptap/extension-underline";
 import Highlight from "@tiptap/extension-highlight";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
@@ -49,12 +50,16 @@ document.addEventListener('alpine:init', () => {
                 editor = new Editor({
                     element: this.$refs.element,
                     extensions: [
-                        StarterKit,
+                        StarterKit.configure({
+                            link: false,
+                            underline: false,
+                        }),
                         Highlight,
                         CustomLink.configure({
                             rel: 'noopener noreferrer',
                             openOnClick: 'whenNotEditable',
                         }),
+                        Underline,
                         TextAlign.configure({
                             types: ['heading', 'paragraph', 'small', 'extraSmall'],
                         }),
@@ -65,6 +70,11 @@ document.addEventListener('alpine:init', () => {
                         ExtraSmall,
                         Box
                     ],
+                    editorProps: {
+                        attributes: {
+                            class: 'tiptap content',
+                        },
+                    },
                     content: content,
                     onCreate({/* editor */}) {
                         _this.updatedAt = Date.now()
@@ -140,6 +150,9 @@ document.addEventListener('alpine:init', () => {
             },
             unsetAllMarks() {
                 editor.chain().focus().unsetAllMarks().run()
+            },
+            clearNodes() {
+                editor.chain().focus().clearNodes().run()
             },
             clearNotes() {
                 editor.chain().focus().clearNodes().run()

@@ -14,17 +14,17 @@
         "vite": "^6.4"
     },
     "dependencies": {
-        "@tiptap/core": "^2.3.0",
-        "@tiptap/extension-highlight": "^2.3.0",
-        "@tiptap/extension-image": "^2.3.0",
-        "@tiptap/extension-link": "^2.3.0",
-        "@tiptap/extension-subscript": "^2.3.0",
-        "@tiptap/extension-superscript": "^2.3.0",
-        "@tiptap/extension-text-align": "^2.3.0",
-        "@tiptap/extension-typography": "^2.3.0",
-        "@tiptap/extension-underline": "^2.3.0",
-        "@tiptap/pm": "^2.3.0",
-        "@tiptap/starter-kit": "^2.3.0",
+        "@tiptap/core": "^3.10.7",
+        "@tiptap/extension-highlight": "^3.10.7",
+        "@tiptap/extension-image": "^3.10.7",
+        "@tiptap/extension-link": "^3.10.7",
+        "@tiptap/extension-subscript": "^3.10.7",
+        "@tiptap/extension-superscript": "^3.10.7",
+        "@tiptap/extension-text-align": "^3.10.7",
+        "@tiptap/extension-typography": "^3.10.7",
+        "@tiptap/extension-underline": "^3.10.7",
+        "@tiptap/pm": "^3.10.7",
+        "@tiptap/starter-kit": "^3.10.7",
         "tailwindcss": "^4.1.17"
     }
 }
