@@ -44,12 +44,20 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create PR
+      # - name: Create PR
+      #   if: steps.changes.outputs.changed == 'true'
+      #   uses: peter-evans/create-pull-request@v6
+      #   with:
+      #     commit-message: "Dependency update"
+      #     title: "Dependency update"
+      #     body: "Automated dependency update."
+      #     branch: "bot/dependency-update"
+      #     delete-branch: true
+
+      - name: Commit and push
         if: steps.changes.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "Dependency update"
-          title: "Dependency update"
-          body: "Automated dependency update."
-          branch: "bot/dependency-update"
-          delete-branch: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -am "Dependency update"
+          git push origin HEAD:main
