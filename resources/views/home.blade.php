@@ -12,7 +12,7 @@
         <x-container>
             <h2 class="text-2xl font-bold mb-6">Upcoming workshops</h2>
             @if($workshops->isEmpty())
-                <x-none-found item="workshops" message="No workshops have been scheduled at this time" title="" />
+                <x-on-holiday />
             @else
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
                     @foreach($workshops as $index => $workshop)
