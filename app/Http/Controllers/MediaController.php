@@ -263,7 +263,14 @@ class MediaController extends Controller
             }
         }
 
-        unlink($file->getRealPath());
+        $tempPath = $file->getRealPath();
+        if(is_string($tempPath)) {
+            $realPath = realpath($tempPath);
+            $tempDir = realpath(sys_get_temp_dir());
+            if($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir . DIRECTORY_SEPARATOR)) {
+                @unlink($realPath);
+            }
+        }
 
         if($request->wantsJson()) {
             return response()->json([
