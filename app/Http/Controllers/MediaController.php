@@ -386,6 +386,10 @@ class MediaController extends Controller
 
         $fileName = $request->input('filename', $file->getClientOriginalName());
         $fileName = Helpers::cleanFileName($fileName);
+        if ($fileName === '') {
+            $extension = strtolower($file->getClientOriginalExtension());
+            $fileName = 'upload' . ($extension !== '' ? '.' . $extension : '');
+        }
 
         if(($request->has('filestart') || $request->has('fileappend')) && $request->has('filesize')) {
             $fileSize = $request->get('filesize');
@@ -394,7 +398,8 @@ class MediaController extends Controller
                 throw new FileTooLargeException('The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size));
             }
 
-            $tempFilePath = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $fileName;
+            $chunkKey = hash('sha256', $fileName);
+            $tempFilePath = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $chunkKey;
 
             $filemode = 'a';
             if($request->has('filestart')) {
