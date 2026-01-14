@@ -1,4 +1,26 @@
 let SM = {
+    redirectIfSafe: (target) => {
+        if (typeof target !== 'string' || target === '') {
+            window.location.assign('/');
+            return;
+        }
+
+        let url;
+        try {
+            url = new URL(target, window.location.origin);
+        } catch (error) {
+            window.location.assign('/');
+            return;
+        }
+
+        if (url.origin !== window.location.origin) {
+            window.location.assign('/');
+            return;
+        }
+
+        window.location.assign(url.href);
+    },
+
     alert: (title, text, type = 'info') =>{
         const data = {
             position: 'top-end',
@@ -84,7 +106,7 @@ let SM = {
                 axios.delete(url)
                 .then((response) => {
                     if(response.data.success){
-                        window.location.href = response.data.redirect;
+                        SM.redirectIfSafe(response.data.redirect);
                     }
                 })
                 .catch(() => {
