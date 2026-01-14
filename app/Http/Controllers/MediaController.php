@@ -111,6 +111,7 @@ class MediaController extends Controller
     public function admin_store(Request $request)
     {
         $file = null;
+        $cleanupPath = null;
 
         // Check if the endpoint received a file...
         if($request->hasFile('file')) {
@@ -185,6 +186,7 @@ class MediaController extends Controller
             }
 
             $file = new UploadedFile($tempFileName, $fileName, $fileMime, null, true);
+            $cleanupPath = $tempFileName;
             unset($chunkUploads[$uploadToken]);
             session()->put('chunk_uploads', $chunkUploads);
         }
@@ -263,9 +265,8 @@ class MediaController extends Controller
             }
         }
 
-        $tempPath = $file->getRealPath();
-        if(is_string($tempPath)) {
-            $realPath = realpath($tempPath);
+        if(is_string($cleanupPath)) {
+            $realPath = realpath($cleanupPath);
             $tempDir = realpath(sys_get_temp_dir());
             if($realPath !== false && $tempDir !== false && str_starts_with($realPath, $tempDir . DIRECTORY_SEPARATOR)) {
                 @unlink($realPath);
