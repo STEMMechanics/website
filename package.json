@@ -4,7 +4,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "snyk:test": "snyk test --all-projects"
+        "snyk:test": "snyk test --all-projects --exclude=vendor"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.1.17",
