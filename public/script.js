@@ -158,7 +158,7 @@ let SM = {
             }
         }
 
-        const uploadFile = (file, start, title, idx, count) => {
+        const uploadFile = (file, start, title, idx, count, uploadToken = null) => {
             const showPercentDecimals = (file.size > (1024 * 1024 * 40));
             const chunkSize = 1024 * 1024 * 2;
             const end = Math.min(file.size, start + chunkSize);
@@ -168,6 +168,9 @@ let SM = {
             formData.append('file', chunk);
             formData.append('filename', file.name);
             formData.append('filesize', file.size);
+            if (uploadToken) {
+                formData.append('upload_token', uploadToken);
+            }
 
             if (start === 0) {
                 formData.append('filestart', 'true');
@@ -205,6 +208,10 @@ let SM = {
                 }
             }).then((response) => {
                 if (response.status === 200) {
+                    if (response.data && response.data.upload_token) {
+                        uploadToken = response.data.upload_token;
+                    }
+
                     if (end >= file.size) {
                         uploadedFiles.push({ file: file, title: title, data: response.data });
 
@@ -227,12 +234,13 @@ let SM = {
                         } else {
                             start = 0;
                             idx += 1;
+                            uploadToken = null;
                         }
                     } else {
                         start = end;
                     }
 
-                    uploadFile(files[idx], start, titles[idx] || '', idx, files.length);
+                    uploadFile(files[idx], start, titles[idx] || '', idx, files.length, uploadToken);
                 } else {
                     showError(response.data.message);
                 }

@@ -117,9 +117,10 @@ class MediaController extends Controller
             try {
                 $file = $this->upload($request);
 
-                if($file === true) {
+                if(is_array($file) && !empty($file['chunk'])) {
                     return response()->json([
                         'message' => 'Chunk stored',
+                        'upload_token' => $file['token'] ?? null,
                     ]);
                 } else if(!$file) {
                     return response()->json([
@@ -150,8 +151,20 @@ class MediaController extends Controller
             }
 
         // else check if it received a file name of a previous upload...
-        } else if($request->has('file')) {
-            $tempFileName = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $request->file;
+        } else if($request->has('upload_token') || $request->has('file')) {
+            $uploadToken = $request->input('upload_token', $request->input('file'));
+            $chunkUploads = session()->get('chunk_uploads', []);
+
+            if(!is_string($uploadToken) || !isset($chunkUploads[$uploadToken])) {
+                return response()->json([
+                    'message' => 'Could not find the referenced file on the server.',
+                    'errors' => [
+                        'file' => 'Could not find the referenced file on the server.'
+                    ]
+                ], 422);
+            }
+
+            $tempFileName = $chunkUploads[$uploadToken];
             if(!file_exists($tempFileName)) {
                 return response()->json([
                     'message' => 'Could not find the referenced file on the server.',
@@ -165,7 +178,15 @@ class MediaController extends Controller
             if($fileMime === false) {
                 $fileMime = 'application/octet-stream';
             }
-            $file = new UploadedFile($tempFileName, $request->file, $fileMime, null, true);
+            $fileName = $request->input('filename', 'upload');
+            $fileName = Helpers::cleanFileName($fileName);
+            if ($fileName === '') {
+                $fileName = 'upload';
+            }
+
+            $file = new UploadedFile($tempFileName, $fileName, $fileMime, null, true);
+            unset($chunkUploads[$uploadToken]);
+            session()->put('chunk_uploads', $chunkUploads);
         }
 
         // Check there is an actual file
@@ -398,8 +419,25 @@ class MediaController extends Controller
                 throw new FileTooLargeException('The file is larger than the maximum size allowed of ' . Helpers::bytesToString($max_size));
             }
 
-            $chunkKey = hash('sha256', $fileName);
-            $tempFilePath = sys_get_temp_dir() . '/chunk-' . Auth::id() . '-' . $chunkKey;
+            $chunkUploads = session()->get('chunk_uploads', []);
+            $uploadToken = $request->input('upload_token');
+
+            if($request->has('filestart')) {
+                $uploadToken = bin2hex(random_bytes(16));
+                $tempFilePath = tempnam(sys_get_temp_dir(), 'chunk-' . Auth::id() . '-');
+                if($tempFilePath === false) {
+                    throw new FileInvalidException('Unable to create a temporary upload file.');
+                }
+
+                $chunkUploads[$uploadToken] = $tempFilePath;
+                session()->put('chunk_uploads', $chunkUploads);
+            } else {
+                if(!is_string($uploadToken) || !isset($chunkUploads[$uploadToken])) {
+                    throw new FileInvalidException('Invalid upload token.');
+                }
+
+                $tempFilePath = $chunkUploads[$uploadToken];
+            }
 
             $filemode = 'a';
             if($request->has('filestart')) {
@@ -420,9 +458,17 @@ class MediaController extends Controller
                     $fileMime = 'application/octet-stream';
                 }
 
+                if(is_string($uploadToken) && isset($chunkUploads[$uploadToken])) {
+                    unset($chunkUploads[$uploadToken]);
+                    session()->put('chunk_uploads', $chunkUploads);
+                }
+
                 return new UploadedFile($tempFilePath, $fileName, $fileMime, null, true);
             } else {
-                return true;
+                return [
+                    'chunk' => true,
+                    'token' => $uploadToken,
+                ];
             }
         }
 
