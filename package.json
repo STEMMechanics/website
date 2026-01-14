@@ -3,7 +3,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "snyk:test": "snyk test --all-projects"
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.1.17",
