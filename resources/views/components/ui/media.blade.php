@@ -36,7 +36,7 @@
             imgElement.src = details.thumbnail;
 
             imgElement.classList.remove('hidden');
-            placeholderElement.classList.add('hidden');
+            placeholderElement.classList.add('hidden!');
 
             document.getElementById(name).value = value;
         });
