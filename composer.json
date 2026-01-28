@@ -5,7 +5,7 @@
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "ext-imagick": "*",
         "chillerlan/php-qrcode": "^5.0",
         "gehrisandro/tailwind-merge-laravel": "^1.2",
@@ -60,6 +60,9 @@
         }
     },
     "config": {
+        "platform": {
+            "php": "8.4.17"
+        },
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
