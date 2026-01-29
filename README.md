@@ -49,6 +49,24 @@ We would like to extend our thanks to the following sponsors for funding Laravel
 - **[byte5](https://byte5.de)**
 - **[OP.GG](https://op.gg)**
 
+## Code Style
+
+This project uses [Laravel Pint](https://laravel.com/docs/pint) for code styling. Pint is an opinionated PHP code style fixer for minimalists, built on top of PHP-CS-Fixer.
+
+To automatically fix code style issues, run:
+
+```bash
+composer pint
+```
+
+To check for code style issues without fixing them:
+
+```bash
+composer pint-test
+```
+
+The code style configuration can be found in `pint.json`.
+
 ## Contributing
 
 Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
