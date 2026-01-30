@@ -19,7 +19,7 @@
         "@tiptap/extension-highlight": "^3.18.0",
         "@tiptap/extension-image": "^3.10.7",
         "@tiptap/extension-link": "^3.18.0",
-        "@tiptap/extension-subscript": "^3.10.7",
+        "@tiptap/extension-subscript": "^3.18.0",
         "@tiptap/extension-superscript": "^3.18.0",
         "@tiptap/extension-text-align": "^3.10.7",
         "@tiptap/extension-typography": "^3.10.7",
