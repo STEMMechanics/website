@@ -125,4 +125,5 @@ return [
 
     'notice' => env('APP_NOTICE', ''),
     'version' => env('APP_VERSION', 'dev'),
+    'commit' => env('APP_COMMIT', ''),
 ];

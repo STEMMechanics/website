@@ -25,6 +25,13 @@
     </section>
     <section class="border-t border-t-gray-600 pt-8 flex justify-between text-xs items-center flex-col sm:flex-row">
         <div class="mb-3 sm:mb-0">@includeSVG('logo.svg', 'width:10rem;margin-top:-0.2rem;color:#DDD')</div>
-        <div>Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics • v{{ config('app.version') }}</div>
+        @php $commit = config('app.commit'); @endphp
+        <div>
+            Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics
+            • v{{ config('app.version') }}
+            @if(!empty($commit))
+                ({{ substr($commit, 0, 10) }})
+            @endif
+        </div>
     </section>
 </footer>
