@@ -260,3 +260,5 @@ phpcbf.phar
 ### PHPStorm ###
 .idea/
 
+### Deployment ###
+/deploy.sh
