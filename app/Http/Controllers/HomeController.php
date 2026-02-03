@@ -9,11 +9,11 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $posts = Post::query()->orderBy('created_at', 'desc')->limit(4)->get();
+        // $posts = Post::query()->orderBy('created_at', 'desc')->limit(4)->get();
         $workshops = Workshop::query()->where('starts_at', '>', now())->where('status', '!=', 'private')->orderBy('starts_at', 'asc')->limit(4)->get();
 
         return view('home', [
-            'posts' => $posts,
+            // 'posts' => $posts,
             'workshops' => $workshops,
         ]);
     }
