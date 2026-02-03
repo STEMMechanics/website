@@ -1,6 +1,7 @@
 name: renovate
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "@daily"
   push:
@@ -13,8 +14,16 @@ jobs:
     container: ghcr.io/renovatebot/renovate:37.20.2
     steps:
       - uses: actions/checkout@v4
+
+      - name: Debug paths
+        run: |
+          pwd
+          ls -la
+          echo "gitea.workspace=${{ gitea.workspace }}"
+          ls -la "${{ gitea.workspace }}"
+
       - run: renovate
         env:
-          RENOVATE_CONFIG_FILE: "/workspace/renovate-config.js"
+          RENOVATE_CONFIG_FILE: "${{ gitea.workspace }}/renovate-config.js"
           LOG_LEVEL: "debug"
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
