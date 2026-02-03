@@ -15,9 +15,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - run: renovate
+      - name: Run renovate
         working-directory: ${{ gitea.workspace }}
         env:
-          RENOVATE_CONFIG_FILE: "${{ gitea.workspace }}/renovate-config.js"
+          RENOVATE_CONFIG_FILE: "renovate-config.js"
           LOG_LEVEL: "debug"
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+        run: |
+          pwd
+          ls -la
+          ls -la "$RENOVATE_CONFIG_FILE"
+          renovate --config-file "$RENOVATE_CONFIG_FILE"
