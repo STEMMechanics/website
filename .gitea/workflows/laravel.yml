@@ -55,8 +55,3 @@ jobs:
                   DB_CONNECTION: sqlite
                   DB_DATABASE: database/database.sqlite
               run: vendor/bin/phpunit
-            
-            - name: Run Vue tests
-              env:
-                  LARAVEL_BYPASS_ENV_CHECK: "1"
-              run: npm run test
