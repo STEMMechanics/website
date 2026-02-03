@@ -21,5 +21,5 @@ jobs:
           RENOVATE_CONFIG_FILE: "renovate-config.json"
           LOG_LEVEL: "info"
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
+          GITHUB_COM_TOKEN: ${{ secrets.RENOVATE_GITHUB_TOKEN }}
         
