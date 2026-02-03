@@ -1,11 +1,24 @@
 {
-  "extends": [
-    "config:base"  
-  ],
-  "packageRules": [
-    {
-      "updateTypes": ["minor", "patch", "pin", "digest"],
-      "automerge": true
-    }
-  ]
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+        "config:base"
+    ],
+    "automerge": true,
+    "platformAutomerge": true,
+    "requiredStatusChecks": null,
+    "packageRules": [
+        {
+            "matchUpdateTypes": [
+                "patch"
+            ],
+            "automerge": true
+        },
+        {
+            "matchUpdateTypes": [
+                "minor",
+                "major"
+            ],
+            "automerge": false
+        }
+    ]
 }
