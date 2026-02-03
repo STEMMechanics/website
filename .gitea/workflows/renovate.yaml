@@ -15,14 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug paths
-        run: |
-          pwd
-          ls -la
-          echo "gitea.workspace=${{ gitea.workspace }}"
-          ls -la "${{ gitea.workspace }}"
-
       - run: renovate
+        working-directory: ${{ gitea.workspace }}
         env:
           RENOVATE_CONFIG_FILE: "${{ gitea.workspace }}/renovate-config.js"
           LOG_LEVEL: "debug"
