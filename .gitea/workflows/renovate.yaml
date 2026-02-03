@@ -19,6 +19,6 @@ jobs:
         working-directory: ${{ gitea.workspace }}
         env:
           RENOVATE_CONFIG_FILE: "renovate-config.json"
-          LOG_LEVEL: "debug"
+          LOG_LEVEL: "info"
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
         
