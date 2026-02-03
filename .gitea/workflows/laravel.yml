@@ -33,6 +33,17 @@ jobs:
                   mkdir -p database
                   touch database/database.sqlite
             
+            - name: Install Node.js
+              uses: actions/setup-node@v2
+              with:
+                  node-version: "20"
+            
+            - name: Install Node dependencies
+              run: npm ci
+              
+            - name: Build frontend
+              run: npm run build
+  
             - name: Run migrations
               env:
                 DB_CONNECTION: sqlite
@@ -44,14 +55,6 @@ jobs:
                   DB_CONNECTION: sqlite
                   DB_DATABASE: database/database.sqlite
               run: vendor/bin/phpunit
-            
-            - name: Install Node.js
-              uses: actions/setup-node@v2
-              with:
-                  node-version: "20"
-            
-            - name: Install Node dependencies
-              run: npm ci
             
             - name: Run Vue tests
               env:
