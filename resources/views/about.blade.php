@@ -15,5 +15,8 @@
         <h3 class="ml-4 font-bold">Community & School Programs</h3>
         <p class="ml-4 mb-4">STEMMechanics partners with schools, regional councils, libraries and community groups to deliver project based STEM initiatives, themed workshop blocks and multi day programs.</p>
 
+        <div class="mt-8">
+            <x-ui.button href="{{ route('contact') }}">Contact Us</x-ui.button>
+        </div>
     </x-container>
 </x-layout>
