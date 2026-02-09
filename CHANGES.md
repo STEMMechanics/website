@@ -3,6 +3,7 @@
 ## 1.0.4
 
 - Updated about page
+- Updated dependencies
 
 ## 1.0.3
 
