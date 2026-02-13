@@ -46,10 +46,10 @@ class AccountController extends Controller
         $user = auth()->user();
 
         $validator = Validator::make($request->all(), [
-            'firstname' => 'required',
-            'surname' => 'required',
+            'firstname' => 'required_with:surname,phone',
+            'surname' => 'required_with:surname,phone',
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
-            'phone' => 'required',
+            'phone' => 'required_with:surname,phone',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
