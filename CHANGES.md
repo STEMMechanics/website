@@ -1,5 +1,9 @@
 # Changes
 
+## 1.0.5
+
+- Fix variable access exception
+
 ## 1.0.4
 
 - Updated about page
