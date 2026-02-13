@@ -17,7 +17,7 @@ class EmailSubscribe extends Component
     // Server-controlled
     protected bool $successState = false;
     protected string $messageText = '';
-    protected int $renderedAt; // unix timestamp
+    protected int $renderedAt = 0; // unix timestamp
 
     protected $rules = [
         'email' => 'required|email|max:255',
@@ -46,9 +46,19 @@ class EmailSubscribe extends Component
         }
     }
 
-    public function mount()
+    public function mount(): void
     {
+        // Mount only runs on the initial page load.
         $this->renderedAt = now()->timestamp;
+    }
+
+    public function hydrate(): void
+    {
+        // Protected properties are not hydrated from the snapshot on subsequent requests,
+        // so ensure it is initialized for action calls like subscribe().
+        if ($this->renderedAt === 0) {
+            $this->renderedAt = now()->timestamp;
+        }
     }
 
     public function subscribe(): void
@@ -63,7 +73,7 @@ class EmailSubscribe extends Component
             return;
         }
 
-        // 2. Block submits in first 10 seconds after render
+        // 2. Block submits in first few seconds after render
         if (now()->timestamp - $this->renderedAt < 4) {
             $this->successState = false;
             $this->messageText = 'That was a bit quick. Please wait a few seconds and try again.';
