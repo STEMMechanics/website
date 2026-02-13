@@ -25,10 +25,10 @@
         </x-ui.button>
     </form>
 
-    @if($message)
-        @if($success)
+    @if($this->message)
+        @if($this->success)
             <p class="mt-4 text-sm text-green-600 mx-auto border-green-800 bg-green-100 py-1 px-4 w-fit">
-                <i class="fa fa-check mr-2"></i>{{ $message }}
+                <i class="fa fa-check mr-2"></i>{{ $this->message }}
             </p>
         @else
             <p class="mt-4 text-sm text-red-600 mx-auto border-red-800 bg-red-100 py-1 px-4 w-fit">
