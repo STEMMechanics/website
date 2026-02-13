@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -224,6 +225,11 @@ class AuthController extends Controller
             session()->flash('message-type', 'danger');
         }
 
+        // Bot protection: per-page nonce + render timestamp
+        session([
+            'reg_nonce' => Str::random(32),
+            'reg_rendered_at' => now()->timestamp,
+        ]);
 
         return view('auth.register');
     }
@@ -244,8 +250,18 @@ class AuthController extends Controller
             'email.email' => __('validation.custom_messages.email_invalid')
         ]);
 
-        $key = $request->get('name', '');
-        $passHoneypot = ($key === 'AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC33');
+        // Bot protection
+        $honeypot = (string) $request->input('hp', '');
+        $nonce = (string) $request->input('nonce', '');
+
+        $sessionNonce = (string) session('reg_nonce', '');
+        $renderedAt = (int) session('reg_rendered_at', 0);
+
+        $passHoneypot = ($honeypot === '');
+        $passNonce = ($nonce !== '' && hash_equals($sessionNonce, $nonce));
+        $passTime = ($renderedAt > 0 && (now()->timestamp - $renderedAt) >= 3);
+
+        $passBotChecks = ($passHoneypot && $passNonce && $passTime);
 
         $user = User::where('email', $request->email)->first();
         if($user) {
@@ -254,14 +270,14 @@ class AuthController extends Controller
                     'email' => __('validation.custom_messages.email_exists'),
                 ]);
             }
-        } else if($passHoneypot) {
+        } else if($passBotChecks) {
             $user = User::create([
                 'email' => $request->email,
             ]);
         }
 
-        if($passHoneypot) {
-            Log::channel('honeypot')->info('Valid key used for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent());
+        if($passBotChecks) {
+            Log::channel('honeypot')->info('Bot checks passed for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent());
             $user->tokens()->where('type', 'register')->delete();
             $token = $user->tokens()->create([
                 'type' => 'register',
@@ -270,8 +286,10 @@ class AuthController extends Controller
 
             dispatch(new SendEmail($user->email, new UserRegister($token->id, $user->email)))->onQueue('mail');
         } else {
-            Log::channel('honeypot')->info('Invalid key used for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', key: ' . $key);
+            Log::channel('honeypot')->info('Bot checks failed for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', hp: ' . $honeypot . ', nonce_ok: ' . ($passNonce ? '1' : '0') . ', time_ok: ' . ($passTime ? '1' : '0'));
         }
+
+        session()->forget(['reg_nonce', 'reg_rendered_at']);
 
         return view('auth.register-link');
     }

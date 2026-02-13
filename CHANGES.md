@@ -5,6 +5,7 @@
 - Updated about page
 - Updated dependencies
 - Improved bot handling on subscription form
+- Fix bot protection on register page
 
 ## 1.0.3
 
