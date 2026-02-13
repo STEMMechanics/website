@@ -36,9 +36,6 @@
         <x-heading class="mt-8">Code of Conduct team</x-heading>
         <ul class="mb-2 list-disc pl-8">
             <li class="mb-2">James Collins, james@stemmechanics.com.au</li>
-            <ul class="mb-2 list-circle pl-8">
-                <li class="mb-2">GitHub / Discord / Reddit / Twitter: nomadjimbob</li>
-            </ul>
         </ul>
     </x-container>
 </x-layout>

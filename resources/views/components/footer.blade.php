@@ -6,7 +6,7 @@
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
             <li><a href="https://github.com/stemmechanics" class="text-sm hover:text-primary-color">GitHub</a></li>
-            <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color">Discord</a></li>
+            <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color">Discord</a></li> -->
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color">Facebook</a></li>
             <li><a href="https://www.stemcraft.com.au/" class="text-sm hover:text-primary-color">STEMCraft (Minecraft)</a></li>
             <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color">Jenkins</a></li>

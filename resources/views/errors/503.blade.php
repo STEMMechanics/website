@@ -24,7 +24,7 @@
     <img class="d-light" src="/logo.svg" width="312" height="48" alt="STEMMechanics" />
     <h1>We&rsquo;ll be back soon!</h1>
     <div>
-        <p>Sorry for the inconvenience but we&rsquo;re performing some maintenance at the moment. If you need to you can always contact us by <a href="mailto:hello@stemmechanics.com.au">email</a> or over on <a href="https://discord.gg/yNzk4x7mpD">Discord</a>, otherwise we&rsquo;ll be back online shortly!</p>
+        <p>Sorry for the inconvenience but we&rsquo;re performing some maintenance at the moment. If you need to you can always contact us by <a href="mailto:hello@stemmechanics.com.au">email</a>, otherwise we&rsquo;ll be back online shortly!</p>
         <p>&mdash; The STEMMechanics Team</p>
     </div>
 </article>
