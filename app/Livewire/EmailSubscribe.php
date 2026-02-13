@@ -10,15 +10,41 @@ use App\Mail\UserWelcome;
 
 class EmailSubscribe extends Component
 {
+    // Client-controlled
     public string $email = '';
-    public bool $success = false;
-    public string $message = '';
     public string $trap = '';
-    public int $renderedAt; // unix timestamp
+
+    // Server-controlled
+    protected bool $successState = false;
+    protected string $messageText = '';
+    protected int $renderedAt; // unix timestamp
 
     protected $rules = [
         'email' => 'required|email|max:255',
     ];
+
+    /**
+     * Expose server-controlled state to the view without allowing client updates.
+     */
+    public function getSuccessProperty(): bool
+    {
+        return $this->successState;
+    }
+
+    public function getMessageProperty(): string
+    {
+        return $this->messageText;
+    }
+
+    /**
+     * Only allow the client to update user-input fields.
+     */
+    public function updating($name, $value)
+    {
+        if (! in_array($name, ['email', 'trap'], true)) {
+            return false;
+        }
+    }
 
     public function mount()
     {
@@ -32,15 +58,15 @@ class EmailSubscribe extends Component
         // 1. Honeypot - if this hidden field is filled, treat as success but do nothing
         if (! empty($this->trap)) {
             $this->reset(['email', 'trap']);
-            $this->success = true;
-            $this->message = 'Thanks, you have been subscribed to our newsletter.';
+            $this->successState = true;
+            $this->messageText = 'Thanks, you have been subscribed to our newsletter.';
             return;
         }
 
         // 2. Block submits in first 10 seconds after render
         if (now()->timestamp - $this->renderedAt < 4) {
-            $this->success = false;
-            $this->message = 'That was a bit quick. Please wait a few seconds and try again.';
+            $this->successState = false;
+            $this->messageText = 'That was a bit quick. Please wait a few seconds and try again.';
             return;
         }
 
@@ -53,8 +79,8 @@ class EmailSubscribe extends Component
         $now = time();
 
         if ($lastAttempt && ($now - $lastAttempt) < 20) {
-            $this->success = false;
-            $this->message = 'Please wait a little before trying again.';
+            $this->successState = false;
+            $this->messageText = 'Please wait a little before trying again.';
             return;
         }
 
@@ -63,8 +89,8 @@ class EmailSubscribe extends Component
         // 4. Limit to 5 attempts per session (your existing logic)
         $attempts = session('subscribe_attempts', 0);
         if ($attempts >= 5) {
-            $this->success = false;
-            $this->message = 'Too many attempts. Please try again in a little while.';
+            $this->successState = false;
+            $this->messageText = 'Too many attempts. Please try again in a little while.';
             return;
         }
         session(['subscribe_attempts' => $attempts + 1]);
@@ -75,8 +101,8 @@ class EmailSubscribe extends Component
         // If already confirmed, do not create a new record or resend confirmation
         if ($subscription && $subscription->confirmed) {
             // Optionally you could set a different flag or message here
-            $this->success = false;
-            $this->message = 'That email is already subscribed to our newsletter.';
+            $this->successState = false;
+            $this->messageText = 'That email is already subscribed to our newsletter.';
         } else {
             // If no subscription exists, create a new unconfirmed one
             if (!$subscription) {
@@ -90,8 +116,8 @@ class EmailSubscribe extends Component
 
             dispatch(new SendEmail($subscription->email, new UserWelcome($subscription->email)))->onQueue('mail');
 
-            $this->success = true;
-            $this->message = 'Thanks, you have been subscribed to our newsletter.';
+            $this->successState = true;
+            $this->messageText = 'Thanks, you have been subscribed to our newsletter.';
         }
 
         $this->reset(['email', 'trap']);

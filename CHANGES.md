@@ -4,6 +4,7 @@
 
 - Updated about page
 - Updated dependencies
+- Improved bot handling on subscription form
 
 ## 1.0.3
 
