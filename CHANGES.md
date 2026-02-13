@@ -1,5 +1,9 @@
 # Changes
 
+## 1.0.7
+
+- Fix subscription message exception
+
 ## 1.0.6
 
 - Remove Discord links
