@@ -1,5 +1,12 @@
 # Changes
 
+## 1.0.6
+
+- Remove Discord links
+- Fix subscription renderedAt initalization
+- Fixed bad bot protection on register page
+- Account: First, Surname and Phone are required only when the other fields are not empty
+
 ## 1.0.5
 
 - Fix variable access exception
