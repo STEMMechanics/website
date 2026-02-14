@@ -3,6 +3,8 @@
 ## 1.0.11
 
 - Fixed malformed delete email template
+- Verified return type from browser for deletion messaging
+- Fixed login message on account creation to be more accurate
 
 ## 1.0.10
 

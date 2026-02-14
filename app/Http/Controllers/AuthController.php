@@ -151,7 +151,13 @@ class AuthController extends Controller
      * @param array $data
      * @return RedirectResponse
      */
-    public function loginByUser(User $user, array $data = [])
+    public function loginByUser(
+        User $user,
+        array $data = [],
+        ?string $message = null,
+        ?string $title = null,
+        string $type = 'success'
+    )
     {
         $url = null;
         if($data && isset($data->url) && $data->url) {
@@ -160,9 +166,9 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        session()->flash('message', 'You have been logged in');
-        session()->flash('message-title', 'Logged in');
-        session()->flash('message-type', 'success');
+        session()->flash('message', $message ?? 'You have been logged in');
+        session()->flash('message-title', $title ?? 'Logged in');
+        session()->flash('message-type', $type);
 
         if($url) {
             return redirect($url);
@@ -215,8 +221,13 @@ class AuthController extends Controller
 
                     dispatch(new SendEmail($user->email, new UserWelcome($user->email)))->onQueue('mail');
 
-                    $this->loginByUser($user);
-                    return redirect()->route('index');
+                    return $this->loginByUser(
+                        $user,
+                        [],
+                        'Your account has been created and you have been logged in',
+                        'Welcome to STEMMechanics',
+                        'success'
+                    );
                 }
             }
 
