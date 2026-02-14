@@ -3,6 +3,7 @@
 ## 1.2
 
 - Added email subscripton management from admin panel
+- Do not show 'v' prefix in footer when a direct branch deployed
 
 ## 1.1.1
 

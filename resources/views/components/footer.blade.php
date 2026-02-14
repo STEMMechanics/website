@@ -28,7 +28,8 @@
         @php $commit = config('app.commit'); @endphp
         <div>
             Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics
-            • v{{ config('app.version') }}
+            @php($appVersion = (string) config('app.version'))
+            • {{ preg_match('/^\d/', $appVersion) ? 'v' . $appVersion : $appVersion }}
             @if(!empty($commit))
                 ({{ substr($commit, 0, 10) }})
             @endif
