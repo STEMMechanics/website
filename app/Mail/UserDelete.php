@@ -7,16 +7,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 
-class UserRegister extends Mailable
+class UserDelete extends Mailable
 {
     use Queueable, SerializesModels;
 
     public $token;
     public $email;
 
-    public function __construct($token, $email)
+    public function __construct($email)
     {
-        $this->token = $token;
         $this->email = $email;
     }
 

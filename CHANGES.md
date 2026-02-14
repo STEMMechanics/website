@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.9
+
+- Added in dev barryvdh/laravel-ide-helper
+- Fixed error in UserDelete class
+
 ## 1.0.8
 
 - Fix overzealous bot protection
