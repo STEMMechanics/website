@@ -96,13 +96,11 @@
     const initServerLogControls = () => {
         const updatedEl = document.getElementById('deploy-log-updated');
         const autoRefreshEl = document.getElementById('deploy-log-auto-refresh');
-        const deployRefreshButtonEl = document.getElementById('deploy-log-refresh');
         const emptyEl = document.getElementById('deploy-log-empty');
         const contentEl = document.getElementById('deploy-log-content');
         const endpoint = "{{ route('admin.server.deploy.log') }}";
         const laravelUpdatedEl = document.getElementById('laravel-log-updated');
         const laravelSizeEl = document.getElementById('laravel-log-size');
-        const laravelRefreshButtonEl = document.getElementById('laravel-log-refresh');
         const laravelEmptyEl = document.getElementById('laravel-log-empty');
         const laravelContentEl = document.getElementById('laravel-log-content');
         const laravelEndpoint = "{{ route('admin.server.log') }}";
@@ -141,7 +139,6 @@
 
             fetchJson(endpoint)
                 .then((data) => {
-                    console.log('Fetched deploy log data:', data);
                     updatedEl.textContent = data.modified_at || 'N/A';
                     const content = (data.content || '').trim();
 
@@ -157,8 +154,7 @@
                     contentEl.textContent = data.content;
                     scrollToBottom(contentEl);
                 })
-                .catch((e) => {
-                    console.error('Error fetching deploy log:', e);
+                .catch(() => {
                     // Keep the last known content if polling fails.
                 });
         };
