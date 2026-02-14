@@ -4,7 +4,7 @@
     <x-container>
         <div class="flex my-4 items-center">
             <div class="flex-1">
-                <x-ui.button type="link" href="{{ route('admin.subscription.create') }}">Create Subscription</x-ui.button>
+                <x-ui.button type="link" href="{{ route('admin.subscription.create') }}">Register</x-ui.button>
             </div>
             <div class="flex-1">
                 <x-ui.search name="search" label="Search" />
