@@ -1,5 +1,9 @@
 # Changes
 
+## 1.0.11
+
+- Fixed malformed delete email template
+
 ## 1.0.10
 
 - Fixed missing user-delete email template
