@@ -13,11 +13,11 @@ class EmailSubscribe extends Component
     // Client-controlled
     public string $email = '';
     public string $trap = '';
+    public int $renderedAt = 0; // unix timestamp
 
     // Server-controlled
     protected bool $successState = false;
     protected string $messageText = '';
-    protected int $renderedAt = 0; // unix timestamp
 
     protected $rules = [
         'email' => 'required|email|max:255',

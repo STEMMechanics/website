@@ -1,5 +1,9 @@
 # Changes
 
+## 1.0.8
+
+- Fix overzealous bot protection
+
 ## 1.0.7
 
 - Fix subscription message exception
