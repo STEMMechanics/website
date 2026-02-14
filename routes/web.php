@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
@@ -93,6 +94,13 @@ Route::middleware('admin')->group(function () {
     Route::get('/admin/users/{user}', [UserController::class, 'edit'])->name('admin.user.edit');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
+
+    Route::get('/admin/subscriptions', [EmailSubscriptionController::class, 'index'])->name('admin.subscription.index');
+    Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
+    Route::post('/admin/subscriptions', [EmailSubscriptionController::class, 'store'])->name('admin.subscription.store');
+    Route::get('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'edit'])->name('admin.subscription.edit');
+    Route::put('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'update'])->name('admin.subscription.update');
+    Route::delete('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'destroy'])->name('admin.subscription.destroy');
 
     Route::get('/admin/server', [ServerController::class, 'admin_index'])->name('admin.server.index');
     Route::get('/admin/server/log', [ServerController::class, 'admin_laravel_log'])->name('admin.server.log');

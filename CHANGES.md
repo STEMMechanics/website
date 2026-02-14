@@ -1,5 +1,9 @@
 # Changes
 
+## 1.2
+
+- Added email subscripton management from admin panel
+
 ## 1.1.1
 
 - Updated server information and auto updating logs
