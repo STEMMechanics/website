@@ -141,6 +141,7 @@
 
             fetchJson(endpoint)
                 .then((data) => {
+                    console.log('Fetched deploy log data:', data);
                     updatedEl.textContent = data.modified_at || 'N/A';
                     const content = (data.content || '').trim();
 
@@ -156,7 +157,8 @@
                     contentEl.textContent = data.content;
                     scrollToBottom(contentEl);
                 })
-                .catch(() => {
+                .catch((e) => {
+                    console.error('Error fetching deploy log:', e);
                     // Keep the last known content if polling fails.
                 });
         };
