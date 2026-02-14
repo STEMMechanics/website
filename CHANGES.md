@@ -3,6 +3,7 @@
 ## 1.0.7
 
 - Fix subscription message exception
+- Confirm account deletion by email
 
 ## 1.0.6
 

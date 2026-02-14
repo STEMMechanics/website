@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helpers;
 use App\Jobs\SendEmail;
 use App\Mail\UserEmailUpdateRequest;
+use App\Mail\UserDelete;
 use App\Models\User;
 use App\Providers\QRCodeProvider;
 use Illuminate\Http\Request;
@@ -122,6 +123,7 @@ class AccountController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
+        dispatch(new SendEmail($user->email, new UserDelete($user->email)))->onQueue('mail');
         auth()->logout();
 
         $user->delete();
