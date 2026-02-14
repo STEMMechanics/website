@@ -130,7 +130,7 @@ class AccountController extends Controller
 
         session()->flash('message', 'Your account has been deleted');
         session()->flash('message-title', 'Account Deleted');
-        session()->flash('message-type', 'success');
+        session()->flash('message-type', 'danger');
 
         if ($request->wantsJson()) {
             return response()->json([
