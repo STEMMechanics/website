@@ -289,7 +289,7 @@ class AuthController extends Controller
             Log::channel('honeypot')->info('Bot checks failed for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', hp: ' . $honeypot . ', nonce_ok: ' . ($passNonce ? '1' : '0') . ', time_ok: ' . ($passTime ? '1' : '0'));
             session()->flash('message', 'Your registration could not be completed. Please try again. (Bot protection checks failed)');
             session()->flash('message-title', 'Registration failed');
-            session()->flash('message-type', 'error');
+            session()->flash('message-type', 'danger');
 
             return redirect()->back()->withInput();
         }

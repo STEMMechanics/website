@@ -1,5 +1,10 @@
 # Changes
 
+## 1.0.10
+
+- Fixed missing user-delete email template
+- Fixed styling on error notifications
+
 ## 1.0.9
 
 - Added in dev barryvdh/laravel-ide-helper

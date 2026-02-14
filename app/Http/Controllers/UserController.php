@@ -159,7 +159,7 @@ class UserController extends Controller
         } else {
             session()->flash('message', 'You cannot delete the main admin user');
             session()->flash('message-title', 'User not deleted');
-            session()->flash('message-type', 'error');
+            session()->flash('message-type', 'danger');
         }
 
         return redirect()->route('admin.user.index');
