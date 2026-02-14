@@ -192,6 +192,8 @@ class ServerController extends Controller
             'PHP SAPI' => PHP_SAPI,
             'Web Server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
             'Operating System' => php_uname(),
+            'Server Time' => date('Y-m-d H:i:s'),
+            'IP Address' => $_SERVER['SERVER_ADDR'] ?? 'Unknown',
             'Timezone' => config('app.timezone'),
             'Memory Limit' => ini_get('memory_limit'),
             'Max Execution Time' => ini_get('max_execution_time') . 's',
