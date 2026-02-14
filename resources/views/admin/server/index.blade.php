@@ -93,7 +93,7 @@
 
 @push('scripts')
 <script>
-    (() => {
+    const initServerLogControls = () => {
         const updatedEl = document.getElementById('deploy-log-updated');
         const autoRefreshEl = document.getElementById('deploy-log-auto-refresh');
         const deployRefreshButtonEl = document.getElementById('deploy-log-refresh');
@@ -200,16 +200,32 @@
                 });
         };
 
-        if (deployRefreshButtonEl) {
-            deployRefreshButtonEl.addEventListener('click', () => refreshLog(false));
-        }
-        if (laravelRefreshButtonEl) {
-            laravelRefreshButtonEl.addEventListener('click', refreshLaravelLog);
-        }
+        document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) {
+                return;
+            }
+
+            if (target.closest('#deploy-log-refresh')) {
+                event.preventDefault();
+                refreshLog(false);
+            }
+
+            if (target.closest('#laravel-log-refresh')) {
+                event.preventDefault();
+                refreshLaravelLog();
+            }
+        });
 
         refreshLog(false);
         refreshLaravelLog();
         setInterval(() => refreshLog(true), 10000);
-    })();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initServerLogControls, { once: true });
+    } else {
+        initServerLogControls();
+    }
 </script>
 @endpush
