@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class ServerController extends Controller
@@ -64,6 +65,31 @@ class ServerController extends Controller
         return $this->startDeployProcess($args, 'Deploy started (' . implode(', ', $label) . ')');
     }
 
+    public function admin_deploy_log(): JsonResponse
+    {
+        $deployLogPath = $this->getDeployOutputPath();
+        $deployLogData = $this->getFileData($deployLogPath, 150);
+
+        return response()->json([
+            'exists' => $deployLogData['exists'],
+            'modified_at' => $deployLogData['modified_at'],
+            'content' => $deployLogData['content'],
+        ]);
+    }
+
+    public function admin_laravel_log(): JsonResponse
+    {
+        $laravelLogPath = $this->getLaravelLogPath();
+        $laravelLogData = $this->getFileData($laravelLogPath, 300);
+
+        return response()->json([
+            'exists' => $laravelLogData['exists'],
+            'size' => $laravelLogData['size'],
+            'modified_at' => $laravelLogData['modified_at'],
+            'content' => $laravelLogData['content'],
+        ]);
+    }
+
     private function startDeployProcess(array $args, string $successTitle): RedirectResponse
     {
         $scriptPath = $this->getDeployScriptPath();
@@ -100,10 +126,18 @@ class ServerController extends Controller
             $argString .= ' ' . escapeshellarg($arg);
         }
 
+        $deployCommand = escapeshellarg($scriptPath) . $argString;
+        $timestampedCommand = $deployCommand . " 2>&1 | awk '{ print strftime(\"[%Y-%m-%d %H:%M:%S]\"), \$0; fflush(); }'";
+
+        @file_put_contents(
+            $outputPath,
+            '[' . date('Y-m-d H:i:s') . '] Starting deploy command: ' . $deployCommand . PHP_EOL,
+            FILE_APPEND
+        );
+
         $command = sprintf(
-            'nohup %s%s >> %s 2>&1 & echo $!',
-            escapeshellarg($scriptPath),
-            $argString,
+            'nohup bash -lc %s >> %s 2>&1 & echo $!',
+            escapeshellarg($timestampedCommand),
             escapeshellarg($outputPath)
         );
 
@@ -128,6 +162,11 @@ class ServerController extends Controller
 
     private function getServerInfo(): array
     {
+        $rootPath = '/';
+        $storagePublicPath = storage_path('app/public');
+        $diskFree = @disk_free_space($rootPath);
+        $diskTotal = @disk_total_space($rootPath);
+
         return [
             'App Environment' => app()->environment(),
             'App Version' => config('app.version'),
@@ -144,6 +183,11 @@ class ServerController extends Controller
             'Post Max Size' => ini_get('post_max_size'),
             'PHP INI File' => php_ini_loaded_file() ?: 'Unknown',
             'OPcache Enabled' => extension_loaded('Zend OPcache') ? 'Yes' : 'No',
+            'Disk Free Space (/)' => is_numeric($diskFree) ? $this->formatBytes((int) $diskFree) : 'N/A',
+            'Disk Total Space (/)' => is_numeric($diskTotal) ? $this->formatBytes((int) $diskTotal) : 'N/A',
+            'Storage Usage (storage/app/public)' => is_dir($storagePublicPath)
+                ? $this->formatBytes($this->getDirectorySize($storagePublicPath))
+                : 'N/A',
             'Loaded Extensions' => implode(', ', get_loaded_extensions()),
         ];
     }
@@ -190,5 +234,45 @@ class ServerController extends Controller
         }
 
         return trim(implode(PHP_EOL, $lines));
+    }
+
+    private function getDirectorySize(string $directory): int
+    {
+        $size = 0;
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::LEAVES_ONLY
+            );
+
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $size += $file->getSize();
+                }
+            }
+        } catch (\Throwable $e) {
+            return 0;
+        }
+
+        return $size;
+    }
+
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes < 1024) {
+            return $bytes . ' B';
+        }
+
+        $units = ['KB', 'MB', 'GB', 'TB', 'PB'];
+        $value = $bytes / 1024;
+        $index = 0;
+
+        while ($value >= 1024 && $index < count($units) - 1) {
+            $value /= 1024;
+            $index++;
+        }
+
+        return number_format($value, 2) . ' ' . $units[$index];
     }
 }

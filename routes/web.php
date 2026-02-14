@@ -95,8 +95,10 @@ Route::middleware('admin')->group(function () {
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
 
     Route::get('/admin/server', [ServerController::class, 'admin_index'])->name('admin.server.index');
+    Route::get('/admin/server/log', [ServerController::class, 'admin_laravel_log'])->name('admin.server.log');
     Route::post('/admin/server/log/clear', [ServerController::class, 'admin_clear_log'])->name('admin.server.log.clear');
     Route::post('/admin/server/deploy', [ServerController::class, 'admin_deploy'])->name('admin.server.deploy');
+    Route::get('/admin/server/deploy/log', [ServerController::class, 'admin_deploy_log'])->name('admin.server.deploy.log');
 
     Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
