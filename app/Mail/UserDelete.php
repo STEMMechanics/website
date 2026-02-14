@@ -23,7 +23,7 @@ class UserDelete extends Mailable
     {
         return $this
             ->subject('Account Deletion Confirmation')
-            ->markdown('emails.user_delete')
+            ->markdown('emails.user-delete')
             ->with([
                 'email' => $this->email,
             ]);
