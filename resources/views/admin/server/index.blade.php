@@ -107,6 +107,30 @@
         const laravelContentEl = document.getElementById('laravel-log-content');
         const laravelEndpoint = "{{ route('admin.server.log') }}";
 
+        const scrollToBottom = (el) => {
+            if (!el) {
+                return;
+            }
+            el.scrollTop = el.scrollHeight;
+        };
+
+        const fetchJson = (url) => {
+            const bustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+            return fetch(bustUrl, {
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            }).then((response) => {
+                if (!response.ok) {
+                    throw new Error('Request failed with status ' + response.status);
+                }
+                return response.json();
+            });
+        };
+
         const refreshLog = (respectAutoRefresh = true) => {
             if (!updatedEl || !emptyEl || !contentEl) {
                 return;
@@ -115,13 +139,7 @@
                 return;
             }
 
-            fetch(endpoint, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-                .then((response) => response.json())
+            fetchJson(endpoint)
                 .then((data) => {
                     updatedEl.textContent = data.modified_at || 'N/A';
                     const content = (data.content || '').trim();
@@ -136,6 +154,7 @@
                     emptyEl.classList.add('hidden');
                     contentEl.classList.remove('hidden');
                     contentEl.textContent = data.content;
+                    scrollToBottom(contentEl);
                 })
                 .catch(() => {
                     // Keep the last known content if polling fails.
@@ -147,13 +166,7 @@
                 return;
             }
 
-            fetch(laravelEndpoint, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-                .then((response) => response.json())
+            fetchJson(laravelEndpoint)
                 .then((data) => {
                     if (laravelUpdatedEl) {
                         laravelUpdatedEl.textContent = data.modified_at || 'N/A';
@@ -178,6 +191,7 @@
                     laravelEmptyEl.classList.add('hidden');
                     laravelContentEl.classList.remove('hidden');
                     laravelContentEl.textContent = data.content;
+                    scrollToBottom(laravelContentEl);
                 })
                 .catch(() => {
                     // Keep the last known content if polling fails.
@@ -191,6 +205,8 @@
             laravelRefreshButtonEl.addEventListener('click', refreshLaravelLog);
         }
 
+        refreshLog(false);
+        refreshLaravelLog();
         setInterval(() => refreshLog(true), 10000);
     })();
 </script>
