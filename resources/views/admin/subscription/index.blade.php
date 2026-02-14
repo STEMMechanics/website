@@ -17,8 +17,7 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>Email</th>
-                    <th class="hidden md:table-cell">Status</th>
-                    <th class="hidden lg:table-cell">Confirmed</th>
+                    <th>Registered On</th>
                     <th>Action</th>
                 </x-slot:header>
                 <x-slot:body>
@@ -26,14 +25,8 @@
                         <tr>
                             <td>
                                 <div class="whitespace-normal">{{ $subscription->email }}</div>
-                                <div class="md:hidden text-xs text-gray-500">
-                                    {{ $subscription->confirmed ? 'Confirmed' : 'Unconfirmed' }}
-                                </div>
                             </td>
-                            <td class="hidden md:table-cell">
-                                {{ $subscription->confirmed ? 'Confirmed' : 'Unconfirmed' }}
-                            </td>
-                            <td class="hidden lg:table-cell">
+                            <td>
                                 {{ $subscription->confirmed ? \Carbon\Carbon::parse($subscription->confirmed)->format('M j Y, g:i a') : '-' }}
                             </td>
                             <td>

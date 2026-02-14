@@ -42,7 +42,7 @@ class EmailSubscriptionController extends Controller
 
         EmailSubscriptions::create([
             'email' => strtolower(trim($request->email)),
-            'confirmed' => ($request->get('confirmed', false) === 'on') ? now() : null,
+            'confirmed' => now(),
         ]);
 
         session()->flash('message', 'Subscription has been created');
@@ -73,7 +73,7 @@ class EmailSubscriptionController extends Controller
 
         $subscription->update([
             'email' => strtolower(trim($request->email)),
-            'confirmed' => ($request->get('confirmed', false) === 'on') ? ($subscription->confirmed ?: now()) : null,
+            'confirmed' => now(),
         ]);
 
         session()->flash('message', 'Subscription has been updated');
