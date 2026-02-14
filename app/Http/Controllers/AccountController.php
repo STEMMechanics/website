@@ -119,7 +119,7 @@ class AccountController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy()
+    public function destroy(Request $request)
     {
         /** @var User $user */
         $user = auth()->user();
@@ -131,6 +131,14 @@ class AccountController extends Controller
         session()->flash('message', 'Your account has been deleted');
         session()->flash('message-title', 'Account Deleted');
         session()->flash('message-type', 'success');
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('index'),
+            ]);
+        }
+
         return redirect()->route('index');
     }
 
