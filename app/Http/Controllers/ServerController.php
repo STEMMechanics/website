@@ -47,6 +47,23 @@ class ServerController extends Controller
         return redirect()->route('admin.server.index');
     }
 
+    public function admin_clear_deploy_log(): RedirectResponse
+    {
+        $logPath = $this->getDeployOutputPath();
+
+        if (!file_exists($logPath)) {
+            file_put_contents($logPath, '');
+        } else {
+            file_put_contents($logPath, '');
+        }
+
+        session()->flash('message', 'deploy.log has been cleared');
+        session()->flash('message-title', 'Deploy log cleared');
+        session()->flash('message-type', 'warning');
+
+        return redirect()->route('admin.server.index');
+    }
+
     public function admin_deploy(Request $request): RedirectResponse
     {
         $args = [];
@@ -163,9 +180,8 @@ class ServerController extends Controller
     private function getServerInfo(): array
     {
         $rootPath = '/';
-        $storagePublicPath = storage_path('app/public');
+        $storagePublicPath = storage_path('app');
         $diskFree = @disk_free_space($rootPath);
-        $diskTotal = @disk_total_space($rootPath);
 
         return [
             'App Environment' => app()->environment(),
@@ -183,9 +199,8 @@ class ServerController extends Controller
             'Post Max Size' => ini_get('post_max_size'),
             'PHP INI File' => php_ini_loaded_file() ?: 'Unknown',
             'OPcache Enabled' => extension_loaded('Zend OPcache') ? 'Yes' : 'No',
-            'Disk Free Space (/)' => is_numeric($diskFree) ? $this->formatBytes((int) $diskFree) : 'N/A',
-            'Disk Total Space (/)' => is_numeric($diskTotal) ? $this->formatBytes((int) $diskTotal) : 'N/A',
-            'Storage Usage (storage/app/public)' => is_dir($storagePublicPath)
+            'Disk Free Space' => is_numeric($diskFree) ? $this->formatBytes((int) $diskFree) : 'N/A',
+            'Storage Usage (storage/app)' => is_dir($storagePublicPath)
                 ? $this->formatBytes($this->getDirectorySize($storagePublicPath))
                 : 'N/A',
             'Loaded Extensions' => implode(', ', get_loaded_extensions()),

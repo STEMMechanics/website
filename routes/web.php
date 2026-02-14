@@ -97,6 +97,7 @@ Route::middleware('admin')->group(function () {
     Route::get('/admin/server', [ServerController::class, 'admin_index'])->name('admin.server.index');
     Route::get('/admin/server/log', [ServerController::class, 'admin_laravel_log'])->name('admin.server.log');
     Route::post('/admin/server/log/clear', [ServerController::class, 'admin_clear_log'])->name('admin.server.log.clear');
+    Route::post('/admin/server/deploy/log/clear', [ServerController::class, 'admin_clear_deploy_log'])->name('admin.server.deploy.log.clear');
     Route::post('/admin/server/deploy', [ServerController::class, 'admin_deploy'])->name('admin.server.deploy');
     Route::get('/admin/server/deploy/log', [ServerController::class, 'admin_deploy_log'])->name('admin.server.deploy.log');
 

@@ -17,6 +17,10 @@
                     </label>
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
                 </form>
+                <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" onsubmit="return confirm('Clear deploy output log? This cannot be undone.');">
+                    @csrf
+                    <x-ui.button type="submit" color="danger">Clear Deploy Log</x-ui.button>
+                </form>
             </div>
             <div class="text-xs text-gray-600 mb-3">
                 <p><strong>Output Log:</strong> <code>{{ $deployOutputPath }}</code></p>
