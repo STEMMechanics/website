@@ -91,7 +91,6 @@
     </x-container>
 </x-layout>
 
-@push('scripts')
 <script>
     const initServerLogControls = () => {
         const updatedEl = document.getElementById('deploy-log-updated');
@@ -224,4 +223,3 @@
         initServerLogControls();
     }
 </script>
-@endpush
