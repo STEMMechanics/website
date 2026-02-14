@@ -5,21 +5,17 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
-                <form method="POST" action="{{ route('admin.server.deploy') }}" onsubmit="return confirm('Run deploy.sh with selected options now? This can restart queues and run migrations/build steps.');" class="flex flex-wrap items-center gap-3">
+                <form method="POST" action="{{ route('admin.server.deploy') }}" onsubmit="return confirm('Run website updater with selected options? You may need to refresh the page afterward the update completes.');" class="flex flex-wrap items-center gap-3">
                     @csrf
                     <label class="inline-flex items-center text-sm gap-2">
                         <input type="checkbox" name="current" value="1" class="rounded border-gray-300">
                         <span>Current</span>
                     </label>
                     <label class="inline-flex items-center text-sm gap-2">
-                        <input type="checkbox" name="force" value="1" checked class="rounded border-gray-300">
+                        <input type="checkbox" name="force" value="1" class="rounded border-gray-300">
                         <span>Force</span>
                     </label>
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
-                </form>
-                <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" onsubmit="return confirm('Clear deploy output log? This cannot be undone.');">
-                    @csrf
-                    <x-ui.button type="submit" color="danger">Clear Deploy Log</x-ui.button>
                 </form>
             </div>
             <div class="text-xs text-gray-600 mb-3">
@@ -27,6 +23,10 @@
                 <p><strong>Last Output Update:</strong> <span id="deploy-log-updated">{{ $deployOutputModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 150 lines</p>
                 <div class="flex flex-wrap items-center gap-3 mt-2">
+                    <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" onsubmit="return confirm('Clear deploy output log? This cannot be undone.');">
+                        @csrf
+                        <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
+                    </form>
                     <button type="button" id="deploy-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</button>
                     <label class="inline-flex items-center text-sm gap-2">
                         <input type="checkbox" id="deploy-log-auto-refresh" checked class="rounded border-gray-300">
@@ -35,14 +35,14 @@
                 </div>
             </div>
             @if(!$deployOutputExists)
-                <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log not found yet.</p>
-                <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
+            <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log not found yet.</p>
+            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
             @elseif(trim($deployOutputContent) === '')
-                <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log is empty.</p>
-                <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
+            <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log is empty.</p>
+            <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
             @else
-                <p id="deploy-log-empty" class="hidden text-sm text-gray-600">Deploy output log is empty.</p>
-                <pre id="deploy-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap">{{ $deployOutputContent }}</pre>
+            <p id="deploy-log-empty" class="hidden text-sm text-gray-600">Deploy output log is empty.</p>
+            <pre id="deploy-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap">{{ $deployOutputContent }}</pre>
             @endif
         </div>
 
@@ -50,10 +50,10 @@
             <h3 class="text-lg font-bold mb-3">Runtime</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 @foreach($serverInfo as $label => $value)
-                    <div class="py-1 border-b border-gray-100">
-                        <span class="font-semibold">{{ $label }}:</span>
-                        <span class="break-all">{{ $value }}</span>
-                    </div>
+                <div class="py-1 border-b border-gray-100">
+                    <span class="font-semibold">{{ $label }}:</span>
+                    <span class="break-all">{{ $value }}</span>
+                </div>
                 @endforeach
             </div>
         </div>
@@ -78,14 +78,14 @@
             </div>
 
             @if(!$logExists)
-                <p id="laravel-log-empty" class="text-sm text-gray-600">Log file not found.</p>
-                <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
+            <p id="laravel-log-empty" class="text-sm text-gray-600">Log file not found.</p>
+            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
             @elseif(trim($logContent) === '')
-                <p id="laravel-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
-                <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
+            <p id="laravel-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
+            <pre id="laravel-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap"></pre>
             @else
-                <p id="laravel-log-empty" class="hidden text-sm text-gray-600">Log file is empty.</p>
-                <pre id="laravel-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap">{{ $logContent }}</pre>
+            <p id="laravel-log-empty" class="hidden text-sm text-gray-600">Log file is empty.</p>
+            <pre id="laravel-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[40rem] whitespace-pre-wrap">{{ $logContent }}</pre>
             @endif
         </div>
     </x-container>
@@ -218,7 +218,9 @@
     };
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initServerLogControls, { once: true });
+        document.addEventListener('DOMContentLoaded', initServerLogControls, {
+            once: true
+        });
     } else {
         initServerLogControls();
     }

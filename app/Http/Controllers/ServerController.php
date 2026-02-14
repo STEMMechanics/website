@@ -148,8 +148,7 @@ class ServerController extends Controller
 
         @file_put_contents(
             $outputPath,
-            '[' . date('Y-m-d H:i:s') . '] Starting deploy command: ' . $deployCommand . PHP_EOL,
-            FILE_APPEND
+            '[' . date('Y-m-d H:i:s') . '] Starting deploy command: ' . $deployCommand . PHP_EOL
         );
 
         $command = sprintf(
