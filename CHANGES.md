@@ -1,5 +1,9 @@
 # Changes
 
+## 1.1.0
+
+- Added server information admin page
+
 ## 1.0.11
 
 - Fixed malformed delete email template

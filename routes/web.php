@@ -7,6 +7,7 @@ use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\ServerController;
 use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
@@ -92,6 +93,10 @@ Route::middleware('admin')->group(function () {
     Route::get('/admin/users/{user}', [UserController::class, 'edit'])->name('admin.user.edit');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
+
+    Route::get('/admin/server', [ServerController::class, 'admin_index'])->name('admin.server.index');
+    Route::post('/admin/server/log/clear', [ServerController::class, 'admin_clear_log'])->name('admin.server.log.clear');
+    Route::post('/admin/server/deploy', [ServerController::class, 'admin_deploy'])->name('admin.server.deploy');
 
     Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
