@@ -2,14 +2,14 @@
     <x-mast>Posts</x-mast>
 
     <x-container>
-        <div class="flex my-4 items-center">
-            <div class="flex-1">
+        <x-ui.toolbar>
+            <x-slot:left>
                 <x-ui.button type="link" href="{{ route('admin.post.create') }}">Create Post</x-ui.button>
-            </div>
-            <div class="flex-1">
+            </x-slot:left>
+            <x-slot:right>
                 <x-ui.search name="search" label="Search" />
-            </div>
-        </div>
+            </x-slot:right>
+        </x-ui.toolbar>
 
         @if($posts->isEmpty())
             <x-none-found item="posts" search="{{ request()->get('search') }}" />

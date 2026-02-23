@@ -10,11 +10,11 @@ use App\Mail\UserRegister;
 use App\Mail\UserWelcome;
 use App\Models\Token;
 use App\Models\User;
+use App\Support\AltchaTrust;
+use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class AuthController extends Controller
@@ -47,21 +47,27 @@ class AuthController extends Controller
      */
     public function postLogin(Request $request): View|RedirectResponse
     {
-        $request->validate([
+        $rules = [
             'email' => 'required|email',
-            'captcha' => 'required_captcha',
-        ], [
+        ];
+        if (AltchaTrust::shouldRequire($request)) {
+            $rules['altcha'] = ['required', new ValidAltcha()];
+        }
+
+        $request->validate($rules, [
             'email.required' => __('validation.custom_messages.email_required'),
             'email.email' => __('validation.custom_messages.email_invalid'),
         ]);
+        if (array_key_exists('altcha', $rules)) {
+            AltchaTrust::markVerified($request);
+        }
 
         $forceEmailLogin = false;
 
         if($request->has('code')) {
             $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
             if($user) {
-                $tfa = AccountController::getTFAInstance();
-                if ($request->code && $tfa->verifyCode($user->tfa_secret, $request->code, 4)) {
+                if ($request->code && AccountController::verifyTfaCode((string) $user->tfa_secret, (string) $request->code)) {
                     $data = ['url' => session()->pull('url.intended', null)];
                     return $this->loginByUser($user, $data);
                 }
@@ -160,11 +166,21 @@ class AuthController extends Controller
     )
     {
         $url = null;
-        if($data && isset($data->url) && $data->url) {
+        if (is_array($data) && isset($data['url']) && $data['url']) {
+            $url = $data['url'];
+        } elseif (is_object($data) && isset($data->url) && $data->url) {
             $url = $data->url;
         }
 
+        if (is_string($url) && $url !== '') {
+            $path = parse_url($url, PHP_URL_PATH);
+            if (is_string($path) && in_array($path, ['/admin/server/deploy/log', '/admin/server/log'], true)) {
+                $url = route('admin.server.index');
+            }
+        }
+
         Auth::login($user);
+        request()->session()->regenerate();
 
         session()->flash('message', $message ?? 'You have been logged in');
         session()->flash('message-title', $title ?? 'Logged in');
@@ -177,14 +193,26 @@ class AuthController extends Controller
         return redirect()->action([HomeController::class, 'index']);
     }
 
+    public function showLogout(Request $request): View|RedirectResponse
+    {
+        if (! auth()->check()) {
+            return redirect()->route('index');
+        }
+
+        return view('auth.logout');
+    }
+
     /**
      * Process the user logout
      *
      * @return RedirectResponse
      */
-    public function logout(): RedirectResponse
+    public function logout(Request $request): RedirectResponse
     {
         auth()->logout();
+        AltchaTrust::clear($request);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         session()->flash('message', 'You have been logged out');
         session()->flash('message-title', 'Logged out');
@@ -236,12 +264,6 @@ class AuthController extends Controller
             session()->flash('message-type', 'danger');
         }
 
-        // Bot protection: per-page nonce + render timestamp
-        session([
-            'reg_nonce' => Str::random(32),
-            'reg_rendered_at' => now()->timestamp,
-        ]);
-
         return view('auth.register');
     }
 
@@ -253,26 +275,20 @@ class AuthController extends Controller
      */
     public function postRegister(Request $request): View|RedirectResponse
     {
-        $request->validate([
+        $rules = [
             'email' => 'required|email',
-            'captcha' => 'required_captcha',
-        ], [
+        ];
+        if (AltchaTrust::shouldRequire($request)) {
+            $rules['altcha'] = ['required', new ValidAltcha()];
+        }
+
+        $request->validate($rules, [
             'email.required' => __('validation.custom_messages.email_required'),
             'email.email' => __('validation.custom_messages.email_invalid')
         ]);
-
-        // Bot protection
-        $honeypot = (string) $request->input('hp', '');
-        $nonce = (string) $request->input('nonce', '');
-
-        $sessionNonce = (string) session('reg_nonce', '');
-        $renderedAt = (int) session('reg_rendered_at', 0);
-
-        $passHoneypot = ($honeypot === '');
-        $passNonce = ($nonce !== '' && hash_equals($sessionNonce, $nonce));
-        $passTime = ($renderedAt > 0 && (now()->timestamp - $renderedAt) >= 3);
-
-        $passBotChecks = ($passHoneypot && $passNonce && $passTime);
+        if (array_key_exists('altcha', $rules)) {
+            AltchaTrust::markVerified($request);
+        }
 
         $user = User::where('email', $request->email)->first();
         if($user) {
@@ -281,31 +297,19 @@ class AuthController extends Controller
                     'email' => __('validation.custom_messages.email_exists'),
                 ]);
             }
-        } else if($passBotChecks) {
+        } else {
             $user = User::create([
                 'email' => $request->email,
             ]);
         }
 
-        if($passBotChecks) {
-            Log::channel('honeypot')->info('Bot checks passed for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent());
-            $user->tokens()->where('type', 'register')->delete();
-            $token = $user->tokens()->create([
-                'type' => 'register',
-                'data' => ['url' => session()->pull('url.intended', null)],
-            ]);
+        $user->tokens()->where('type', 'register')->delete();
+        $token = $user->tokens()->create([
+            'type' => 'register',
+            'data' => ['url' => session()->pull('url.intended', null)],
+        ]);
 
-            dispatch(new SendEmail($user->email, new UserRegister($token->id, $user->email)))->onQueue('mail');
-        } else {
-            Log::channel('honeypot')->info('Bot checks failed for registration using email: ' . $request->email . ', ip address: ' . $request->ip() . ', user agent: ' . $request->userAgent() . ', hp: ' . $honeypot . ', nonce_ok: ' . ($passNonce ? '1' : '0') . ', time_ok: ' . ($passTime ? '1' : '0'));
-            session()->flash('message', 'Your registration could not be completed. Please try again. (Bot protection checks failed)');
-            session()->flash('message-title', 'Registration failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->back()->withInput();
-        }
-
-        session()->forget(['reg_nonce', 'reg_rendered_at']);
+        dispatch(new SendEmail($user->email, new UserRegister($token->id, $user->email)))->onQueue('mail');
 
         return view('auth.register-link');
     }

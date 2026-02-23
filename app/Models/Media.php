@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use function PHPUnit\Framework\stringStartsWith;
 
 class Media extends Model
 {
@@ -129,7 +128,7 @@ class Media extends Model
         if(!$strict) {
             $data = $this->getClosestVariant($variant);
         } else {
-            if($this->variants === null || !array_key_exists($variant, $this->variants)) {
+            if($this->variants === null || !array_key_exists($variant, $this->variants) || !$this->hasVariant($variant)) {
                 return '';
             }
 
@@ -224,8 +223,29 @@ class Media extends Model
             return null;
         }
 
-        $stream = $disk->getDriver()->readStream($this->hash);
-        is_resource($stream) && file_put_contents($file, stream_get_contents($stream), FILE_APPEND);
+        $sourceStream = $disk->readStream($this->hash);
+        if (!is_resource($sourceStream)) {
+            @unlink($file);
+            return null;
+        }
+
+        $targetStream = fopen($file, 'wb');
+        if (!is_resource($targetStream)) {
+            fclose($sourceStream);
+            @unlink($file);
+            return null;
+        }
+
+        // Stream data between files to avoid loading large media into PHP memory.
+        $bytesCopied = stream_copy_to_stream($sourceStream, $targetStream);
+        fclose($sourceStream);
+        fclose($targetStream);
+
+        if ($bytesCopied === false || $bytesCopied < 0) {
+            @unlink($file);
+            return null;
+        }
+
         return $file;
     }
 
@@ -246,7 +266,7 @@ class Media extends Model
      */
     public function generateVariants(bool $overwrite = true): void
     {
-        $this->status = 'processing';
+        $this->status = 'queued';
         $this->save();
         dispatch(new GenerateVariants($this, $overwrite))->onQueue('media');
     }
@@ -277,7 +297,7 @@ class Media extends Model
 
         if (isset($this->variants[$name])) {
             if ($storage->exists($this->hash . '-' . $name)) {
-                $storage->delete($this->hash . '-_' . $name);
+                $storage->delete($this->hash . '-' . $name);
             }
         }
 
@@ -383,7 +403,7 @@ class Media extends Model
                     $found = true;
                 }
 
-                if($found && array_key_exists($variant, $this->variants)) {
+                if($found && array_key_exists($variant, $this->variants) && $this->hasVariant($variant)) {
                     return [
                         'variant' => $variant,
                         'name' => pathinfo($this->name, PATHINFO_FILENAME) . '-' . $variant . '.' . $this->variants[$variant]['extension'],

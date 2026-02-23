@@ -2,13 +2,24 @@
     <x-mast>Media</x-mast>
 
     <x-container>
-        <div class="flex my-4 items-center">
-            <div class="flex-1">
+        <x-ui.toolbar>
+            <x-slot:left>
                 <x-ui.button type="link" href="{{ route('admin.media.create') }}">Create</x-ui.button>
-            </div>
-            <div class="flex-1">
+                <x-ui.button type="button" color="outline" class="ml-2" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()">Regenerate Missing Variants</x-ui.button>
+            </x-slot:left>
+            <x-slot:right>
                 <x-ui.search name="search" label="Search" />
+            </x-slot:right>
+        </x-ui.toolbar>
+        <div id="regenerate-missing-variants-status" class="hidden mb-4 rounded border border-gray-200 bg-gray-50 px-3 py-2">
+            <div class="mb-1 flex items-center justify-between">
+                <div class="text-sm font-semibold text-gray-700" id="regenerate-missing-variants-status-title">Regenerating Missing Variants</div>
+                <div class="text-xs text-gray-600" id="regenerate-missing-variants-status-percent">0%</div>
             </div>
+            <div class="h-2 w-full overflow-hidden rounded bg-gray-200">
+                <div id="regenerate-missing-variants-status-bar" class="h-2 rounded bg-primary-color transition-all duration-300" style="width:0"></div>
+            </div>
+            <div class="mt-1 text-xs text-gray-600" id="regenerate-missing-variants-status-meta"></div>
         </div>
 
         @if($media->isEmpty())
@@ -25,12 +36,14 @@
                 <x-slot:body>
                     @foreach ($media as $medium)
                         <tr>
-                            <td class="flex items-center">
-                                <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" {{ $medium->status === 'processing' ? 'data-thumbnail=' . $medium->name : '' }} />
-                                <div>
-                                    <div class="whitespace-normal">{{ $medium->title }}{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}</div>
-                                    <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
-                                    <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
+                            <td>
+                                <div class="flex items-center">
+                                    <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }} />
+                                    <div>
+                                        <div class="whitespace-normal">{{ $medium->title }}{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}</div>
+                                        <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
+                                        <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
+                                    </div>
                                 </div>
                             </td>
                             <td class="hidden md:table-cell">{{ $medium->file_type }}</td>
@@ -54,3 +67,169 @@
 
     </x-container>
 </x-layout>
+
+<script>
+    const regenerateMissingVariantsState = {
+        startUrl: @json(route('admin.media.regenerate-missing-variants')),
+        statusUrl: @json(route('admin.media.regenerate-missing-variants.status')),
+        csrf: @json(csrf_token()),
+        initial: @json($missingVariantRegeneration ?? ['running' => false]),
+        pollTimer: null,
+    };
+
+    function regenerateMissingVariantsElements() {
+        return {
+            button: document.getElementById('regenerate-missing-variants-button'),
+            panel: document.getElementById('regenerate-missing-variants-status'),
+            percent: document.getElementById('regenerate-missing-variants-status-percent'),
+            bar: document.getElementById('regenerate-missing-variants-status-bar'),
+            meta: document.getElementById('regenerate-missing-variants-status-meta'),
+            title: document.getElementById('regenerate-missing-variants-status-title'),
+        };
+    }
+
+    function updateRegenerateMissingVariantsUI(status) {
+        const elements = regenerateMissingVariantsElements();
+        if (!elements.button || !elements.panel) {
+            return;
+        }
+
+        const running = !!(status && status.running);
+        elements.button.disabled = running;
+        elements.button.classList.toggle('opacity-60', running);
+        elements.button.classList.toggle('cursor-not-allowed', running);
+
+        if (!status || (!running && !status.finished && !status.cancelled)) {
+            elements.panel.classList.add('hidden');
+            return;
+        }
+
+        elements.panel.classList.remove('hidden');
+        const progress = Number.isFinite(Number(status.progress)) ? Number(status.progress) : 0;
+        const processed = Number.isFinite(Number(status.processed_jobs)) ? Number(status.processed_jobs) : 0;
+        const total = Number.isFinite(Number(status.total_jobs)) ? Number(status.total_jobs) : 0;
+        const pending = Number.isFinite(Number(status.pending_jobs)) ? Number(status.pending_jobs) : 0;
+        const failed = Number.isFinite(Number(status.failed_jobs)) ? Number(status.failed_jobs) : 0;
+        elements.percent.textContent = `${progress}%`;
+        elements.bar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+
+        if (running) {
+            elements.title.textContent = 'Regenerating Missing Variants';
+            elements.meta.textContent = `${processed} of ${total} processed, ${pending} pending${failed > 0 ? `, ${failed} failed` : ''}`;
+            return;
+        }
+
+        if (status.finished) {
+            elements.title.textContent = 'Missing Variant Regeneration Complete';
+            elements.meta.textContent = `${processed} of ${total} processed${failed > 0 ? `, ${failed} failed` : ''}`;
+            return;
+        }
+
+        if (status.cancelled) {
+            elements.title.textContent = 'Missing Variant Regeneration Cancelled';
+            elements.meta.textContent = `${processed} of ${total} processed${failed > 0 ? `, ${failed} failed` : ''}`;
+        }
+    }
+
+    async function fetchRegenerateMissingVariantsStatus() {
+        const response = await fetch(regenerateMissingVariantsState.statusUrl, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to load regeneration status');
+        }
+
+        const status = await response.json();
+        updateRegenerateMissingVariantsUI(status);
+
+        if (!status.running && regenerateMissingVariantsState.pollTimer) {
+            clearInterval(regenerateMissingVariantsState.pollTimer);
+            regenerateMissingVariantsState.pollTimer = null;
+        }
+    }
+
+    function ensureRegenerateMissingVariantsPolling() {
+        if (regenerateMissingVariantsState.pollTimer) {
+            return;
+        }
+
+        regenerateMissingVariantsState.pollTimer = setInterval(() => {
+            fetchRegenerateMissingVariantsStatus().catch(() => {
+                /* empty */
+            });
+        }, 3000);
+    }
+
+    async function startRegenerateMissingVariants() {
+        const response = await fetch(regenerateMissingVariantsState.startUrl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': regenerateMissingVariantsState.csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({}),
+            credentials: 'same-origin',
+        });
+
+        const data = await response.json();
+        if (!response.ok || data.ok === false) {
+            throw new Error(data.message || 'Could not queue regeneration');
+        }
+
+        if (data.regeneration && data.regeneration.running) {
+            updateRegenerateMissingVariantsUI(data.regeneration);
+            ensureRegenerateMissingVariantsPolling();
+            return;
+        }
+
+        await fetchRegenerateMissingVariantsStatus();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        updateRegenerateMissingVariantsUI(regenerateMissingVariantsState.initial);
+        if (regenerateMissingVariantsState.initial && regenerateMissingVariantsState.initial.running) {
+            ensureRegenerateMissingVariantsPolling();
+        }
+
+        fetchRegenerateMissingVariantsStatus().catch(() => {
+            /* empty */
+        });
+    });
+
+    function confirmRegenerateMissingVariants() {
+        const doStart = () => {
+            startRegenerateMissingVariants().catch((error) => {
+                const message = error && error.message ? error.message : 'Could not queue regeneration';
+                if (window.SM && typeof window.SM.alert === 'function') {
+                    window.SM.alert('Regeneration failed', message, 'error');
+                } else {
+                    alert(message);
+                }
+            });
+        };
+
+        if (!window.SM || typeof window.SM.confirm !== 'function') {
+            doStart();
+            return;
+        }
+
+        window.SM.confirm(
+            'Regenerate missing variants',
+            'Queue regeneration for missing variants only? Existing variants will not be replaced.',
+            'Queue Regeneration',
+            (isConfirmed) => {
+                if (!isConfirmed) {
+                    return;
+                }
+                doStart();
+            }
+        );
+    }
+</script>

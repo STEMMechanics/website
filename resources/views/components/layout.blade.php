@@ -12,18 +12,18 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,400;0,700;1,400;1,700&amp;display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="/script.js"></script>
+    <script src="/script.js?v={{ @filemtime(public_path('script.js')) ?: time() }}"></script>
 
     @livewireStyles
     @vite('resources/js/app.js')
     @vite('resources/css/app.css')
 </head>
 <body class="{{ $bodyClass ?? '' }} flex flex-col antialiased">
-@if(config('app.notice'))
-    <x-noticebar>{{ config('app.notice') }}</x-noticebar>
+@if(trim((string)($appNotice ?? '')) !== '')
+    <x-noticebar>{{ $appNotice }}</x-noticebar>
 @endif
 <x-navbar />
-<div {{ isset($id) ? 'id='.$id : '' }} class="flex-grow">{{ $slot }}</div>
+<div {{ isset($id) ? 'id='.$id : '' }} class="grow">{{ $slot }}</div>
 <x-footer />
 @if (session('message'))
     <script>
@@ -31,7 +31,6 @@
     </script>
 @endif
 @stack('scripts')
-@captchaScripts
 @livewireScripts
 </body>
 </html>

@@ -1,41 +1,40 @@
-@props(['name', 'label', 'checked' => false, 'small' => false])
+@props([
+'name' => null,
+'id' => null,
+'label' => null,
+'checked' => false,
+'small' => false,
+'inline' => false,
+'noWrapper' => false,
+'labelHidden' => false,
+'inputClass' => '',
+'labelClass' => '',
+'disabled' => false,
+])
 
 @php
-    $checkBoxClasses = '';
-    $labelClasses = '';
-    if($small) {
-        $checkBoxClasses = 'h-6 w-6 rounded-md text-xs';
-        $labelClasses = 'pl-1 text-xs';
-    }
+$resolvedId = $id ?: ($name ?: null);
+$sizeClasses = $small
+? ['h-6', 'min-w-6', 'w-6', 'rounded-md', 'text-xs']
+: ['h-8', 'min-w-8', 'w-8', 'rounded-lg'];
+$wrapperClasses = $noWrapper ? '' : 'mb-4';
 @endphp
 
-<style>
-    input[type="checkbox"]:checked {
-        &:after {
-            content: '';
-            display: block;
-            height: 1.2rem;
-            width: 0.6rem;
-            border-width: 0 0.25rem 0.25rem 0;
-            border-style: solid;
-            border-color: #0370A1;
-            transform: rotate(40deg) translateY(-0.2rem) translateX(0.65rem);
-        }
-    }
+<div class="{{ twMerge([$wrapperClasses, $attributes->get('class')]) }}">
+    <div class="sm-ui-checkbox {{ $inline ? 'inline-flex' : 'flex' }} items-center">
+        <input
+            type="checkbox"
+            @if($checked) checked @endif
+            @if($disabled) disabled @endif
+            @if($resolvedId) id="{{ $resolvedId }}" @endif
+            @if($name) name="{{ $name }}" @endif
+            class="{{ twMerge(['bg-white','mt-1','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
+            {{ $attributes->except('class') }} />
 
-    input.text-xs[type="checkbox"]:checked {
-        &:after {
-            height: 1rem;
-            width: 0.55rem;
-            border-width: 0 0.225rem 0.225rem 0;
-            transform: rotate(40deg) translateY(-0.2rem) translateX(0.4rem);
-        }
-    }
-</style>
-
-<div class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
-    <div class="flex items-center">
-        <input class="{{ twMerge(['bg-white','mt-1','h-8','w-8','rounded-lg','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300'], $checkBoxClasses ?? '') }}" type="checkbox" {{ $checked ? 'checked' : '' }} id="{{ $name }}" name="{{ $name }}" {{ $attributes }} />
-        <label for="{{ $name }}" class="{{ twMerge(['text-sm','pl-2','pt-1'], $labelClasses ?? '') }}">{{ $label }}</label>
+        @if(($label !== null && $label !== '') || $labelHidden)
+        <label
+            @if($resolvedId) for="{{ $resolvedId }}" @endif
+            class="{{ twMerge(['text-sm','pl-2','pt-1'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</label>
+        @endif
     </div>
 </div>

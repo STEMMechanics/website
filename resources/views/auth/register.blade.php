@@ -13,8 +13,7 @@
             <x-slot:header>
                 <p>Enter your email address and we'll create an account for you to use on our website.</p>
             </x-slot:header>
-            <input type="text" name="hp" id="hp" value="" autocomplete="off" tabindex="-1" aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;" />
-            <input type="hidden" name="nonce" id="nonce" value="{{ session('reg_nonce') }}" />
+            <x-altcha-proof />
             <x-ui.input type="email" name="email" label="Email" floating autofocus />
             <x-slot:footer>
                 <div class="text-xs">Already have an account? <a href="{{ route('login') }}" class="link">Log in</a></div>

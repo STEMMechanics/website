@@ -6,9 +6,13 @@
     "license": "MIT",
     "require": {
         "php": "^8.4",
+        "ext-fileinfo": "*",
         "ext-imagick": "*",
+        "ext-mbstring": "*",
+        "ext-zip": "*",
+        "barryvdh/laravel-dompdf": "^3.1",
         "chillerlan/php-qrcode": "^5.0",
-        "gehrisandro/tailwind-merge-laravel": "^1.2",
+        "grantholle/laravel-altcha": "^2.1",
         "intervention/image": "^3.5",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.9",
@@ -27,6 +31,9 @@
         "spatie/laravel-ignition": "^2.4"
     },
     "autoload": {
+        "files": [
+            "app/Support/helpers.php"
+        ],
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",

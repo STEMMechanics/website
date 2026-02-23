@@ -118,6 +118,23 @@ class Helpers
         }
     }
 
+    public static function createTicketTimeDurationStr(string $startStr, string $endStr): string
+    {
+        try {
+            $start = new DateTime($startStr);
+            $end = new DateTime($endStr);
+
+            if ($start->format('Y-m-d') === $end->format('Y-m-d')) {
+                return $start->format('l, j M Y') . ' from ' .
+                $start->format('g:i a') . ' to ' . $end->format('g:i a');
+            } else {
+                return $start->format('D j/m/Y') . ' - ' . $end->format('D j/m/Y');
+            }
+        } catch (\Exception $e) {
+            return 'Error parsing date';
+        }
+    }
+
     public static function matchesMimeType(string $mimeType, string|array $patterns): bool
     {
         if (is_string($patterns)) {

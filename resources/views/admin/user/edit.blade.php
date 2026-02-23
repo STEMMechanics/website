@@ -7,13 +7,14 @@
         && $user->shipping_state === $user->billing_state
         && $user->shipping_postcode === $user->billing_postcode
         && $user->shipping_country === $user->billing_country;
+    $groupValue = old('groups', implode(', ', $user->groupSlugs()));
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
-        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{groupsRaw: @js($groupValue)}" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @method('PUT')
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
@@ -33,6 +34,16 @@
                     <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                 </div>
             </div>
+            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+            <x-ui.input
+                label="Groups (comma or space separated)"
+                name="groups"
+                :suggestions="$groupSuggestions ?? []"
+                :value="$groupValue"
+                info="Slug format only. Uppercase/spaces/symbols are normalized."
+                x-model="groupsRaw"
+                x-on:input="groupsRaw = groupsRaw.split(/[\\s,]+/).map(v => v.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')).filter(Boolean).join(', ')"
+            />
 
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">

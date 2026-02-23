@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\UserGroup;
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -14,19 +15,38 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
+        $showGhostUsers = $request->boolean('show_ghost');
+
         $query = User::query();
 
-        if($request->has('search')) {
-            $query->where('firstname', 'like', '%' . $request->search . '%');
-            $query->orWhere('surname', 'like', '%' . $request->search . '%');
-            $query->orWhere('phone', 'like', '%' . $request->search . '%');
-            $query->orWhere('email', 'like', '%' . $request->search . '%');
+        if (! $showGhostUsers) {
+            $query->whereNotNull('email_verified_at');
         }
 
-        $users = $query->orderBy('created_at', 'desc')->paginate(12)->onEachSide(1);
+        if ($request->has('search')) {
+            $search = trim((string) $request->search);
+            if ($search !== '') {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery->where('firstname', 'like', '%'.$search.'%')
+                        ->orWhere('surname', 'like', '%'.$search.'%')
+                        ->orWhere('company', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
+                });
+            }
+        }
+
+        $users = $query
+            ->with(['groups' => function ($groupQuery): void {
+                $groupQuery->orderBy('slug');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->paginate(12)
+            ->onEachSide(1);
 
         return view('admin.user.index', [
-            'users' => $users
+            'users' => $users,
+            'showGhostUsers' => $showGhostUsers,
         ]);
     }
 
@@ -35,7 +55,9 @@ class UserController extends Controller
      */
     public function create()
     {
-        return view('admin.user.create');
+        return view('admin.user.create', [
+            'groupSuggestions' => $this->groupSuggestions(),
+        ]);
     }
 
     /**
@@ -43,11 +65,14 @@ class UserController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'firstname' => '',
             'surname' => '',
+            'company' => 'nullable|string|max:255',
             'email' => 'email|unique:users',
             'phone' => '',
+            'subscribed' => 'nullable',
+            'groups' => 'nullable|string|max:2000',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
@@ -80,11 +105,18 @@ class UserController extends Controller
             'billing_state.required' => __('validation.custom_messages.billing_state_required'),
         ]);
 
-        User::create($request->all());
+        $payload = $this->userPayloadFromValidated($validated);
+        $email = trim((string) ($payload['email'] ?? ''));
+        $payload['email_verified_at'] = $email !== '' ? now() : null;
+        $payload['subscribed'] = ($request->input('subscribed') === 'on');
+
+        $user = User::create($payload);
+        $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User has been created');
         session()->flash('message-title', 'User created');
         session()->flash('message-type', 'success');
+
         return redirect()->route('admin.user.index');
     }
 
@@ -93,7 +125,10 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        return view('admin.user.edit', compact('user'));
+        return view('admin.user.edit', [
+            'user' => $user->load('groups'),
+            'groupSuggestions' => $this->groupSuggestions(),
+        ]);
     }
 
     /**
@@ -101,11 +136,14 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        $request->validate([
+        $validated = $request->validate([
             'firstname' => '',
             'surname' => '',
+            'company' => 'nullable|string|max:255',
             'email' => ['email', Rule::unique('users')->ignore($user->id)],
             'phone' => '',
+            'subscribed' => 'nullable',
+            'groups' => 'nullable|string|max:2000',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
@@ -138,11 +176,18 @@ class UserController extends Controller
             'billing_state.required' => __('validation.custom_messages.billing_state_required'),
         ]);
 
-        $user->update($request->all());
+        $payload = $this->userPayloadFromValidated($validated);
+        $email = trim((string) ($payload['email'] ?? ''));
+        $payload['email_verified_at'] = $email !== '' ? now() : null;
+        $payload['subscribed'] = ($request->input('subscribed') === 'on');
+
+        $user->update($payload);
+        $this->syncGroups($user, (string) ($validated['groups'] ?? ''));
 
         session()->flash('message', 'User details have been updated');
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
+
         return redirect()->back();
     }
 
@@ -151,7 +196,7 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        if($user->id !== '1') {
+        if ($user->id !== '1') {
             $user->delete();
             session()->flash('message', 'User has been deleted');
             session()->flash('message-title', 'User deleted');
@@ -163,5 +208,120 @@ class UserController extends Controller
         }
 
         return redirect()->route('admin.user.index');
+    }
+
+    public function storeInline(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'firstname' => ['nullable', 'string', 'max:120'],
+            'surname' => ['nullable', 'string', 'max:120'],
+            'company' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:120'],
+            'shipping_address' => ['nullable', 'string', 'max:255', 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state'],
+            'shipping_address2' => ['nullable', 'string', 'max:255'],
+            'shipping_city' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state'],
+            'shipping_postcode' => ['nullable', 'string', 'max:40', 'required_with:shipping_address,shipping_city,shipping_country,shipping_state'],
+            'shipping_country' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state'],
+            'shipping_state' => ['nullable', 'string', 'max:120', 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country'],
+            'billing_address' => ['nullable', 'string', 'max:255', 'required_with:billing_city,billing_postcode,billing_country,billing_state'],
+            'billing_address2' => ['nullable', 'string', 'max:255'],
+            'billing_city' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_postcode,billing_country,billing_state'],
+            'billing_postcode' => ['nullable', 'string', 'max:40', 'required_with:billing_address,billing_city,billing_country,billing_state'],
+            'billing_country' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_city,billing_postcode,billing_state'],
+            'billing_state' => ['nullable', 'string', 'max:120', 'required_with:billing_address,billing_city,billing_postcode,billing_country'],
+        ]);
+
+        $user = User::create([
+            'firstname' => trim((string) ($validated['firstname'] ?? '')),
+            'surname' => trim((string) ($validated['surname'] ?? '')),
+            'company' => trim((string) ($validated['company'] ?? '')),
+            'email' => trim((string) ($validated['email'] ?? '')),
+            'phone' => trim((string) ($validated['phone'] ?? '')),
+            'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
+            'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
+            'shipping_city' => trim((string) ($validated['shipping_city'] ?? '')),
+            'shipping_postcode' => trim((string) ($validated['shipping_postcode'] ?? '')),
+            'shipping_country' => trim((string) ($validated['shipping_country'] ?? '')),
+            'shipping_state' => trim((string) ($validated['shipping_state'] ?? '')),
+            'billing_address' => trim((string) ($validated['billing_address'] ?? '')),
+            'billing_address2' => trim((string) ($validated['billing_address2'] ?? '')),
+            'billing_city' => trim((string) ($validated['billing_city'] ?? '')),
+            'billing_postcode' => trim((string) ($validated['billing_postcode'] ?? '')),
+            'billing_country' => trim((string) ($validated['billing_country'] ?? '')),
+            'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
+        ]);
+        $user->email_verified_at = now();
+        $user->save();
+
+        $label = trim((string) $user->getName());
+        if ((string) $user->company !== '') {
+            $label .= ' - '.$user->company;
+        }
+        if ((string) $user->email !== '') {
+            $label .= ' ('.$user->email.')';
+        }
+
+        return response()->json([
+            'success' => true,
+            'user' => [
+                'id' => (string) $user->id,
+                'label' => $label,
+            ],
+        ]);
+    }
+
+    private function userPayloadFromValidated(array $validated): array
+    {
+        return [
+            'firstname' => trim((string) ($validated['firstname'] ?? '')),
+            'surname' => trim((string) ($validated['surname'] ?? '')),
+            'company' => trim((string) ($validated['company'] ?? '')),
+            'email' => trim((string) ($validated['email'] ?? '')),
+            'phone' => trim((string) ($validated['phone'] ?? '')),
+            'shipping_address' => trim((string) ($validated['shipping_address'] ?? '')),
+            'shipping_address2' => trim((string) ($validated['shipping_address2'] ?? '')),
+            'shipping_city' => trim((string) ($validated['shipping_city'] ?? '')),
+            'shipping_postcode' => trim((string) ($validated['shipping_postcode'] ?? '')),
+            'shipping_country' => trim((string) ($validated['shipping_country'] ?? '')),
+            'shipping_state' => trim((string) ($validated['shipping_state'] ?? '')),
+            'billing_address' => trim((string) ($validated['billing_address'] ?? '')),
+            'billing_address2' => trim((string) ($validated['billing_address2'] ?? '')),
+            'billing_city' => trim((string) ($validated['billing_city'] ?? '')),
+            'billing_postcode' => trim((string) ($validated['billing_postcode'] ?? '')),
+            'billing_country' => trim((string) ($validated['billing_country'] ?? '')),
+            'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
+        ];
+    }
+
+    private function groupSuggestions(): array
+    {
+        return UserGroup::query()
+            ->select('slug')
+            ->distinct()
+            ->orderBy('slug')
+            ->pluck('slug')
+            ->map(fn ($slug) => (string) $slug)
+            ->filter(fn ($slug) => $slug !== '')
+            ->values()
+            ->all();
+    }
+
+    private function syncGroups(User $user, string $raw): void
+    {
+        $slugs = collect(preg_split('/[\s,]+/', $raw) ?: [])
+            ->map(fn ($value) => UserGroup::normalizeSlug((string) $value))
+            ->filter(fn ($slug) => $slug !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $user->groups()->whereNotIn('slug', $slugs)->delete();
+
+        foreach ($slugs as $slug) {
+            $user->groups()->firstOrCreate([
+                'slug' => $slug,
+            ]);
+        }
     }
 }

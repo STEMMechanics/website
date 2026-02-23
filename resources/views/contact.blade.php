@@ -2,7 +2,7 @@
     <x-mast>Contact us</x-mast>
     <x-container class="pt-8">
         <x-heading>Questions & Support</x-heading>
-        <p class="mb-2">If you have a question or would like help with a project, you can send it our way using the form on this page or be emailing <a href="mailto:hello@stemmechanics.com.au" class="link">hello@stemmechanics.com.au</a>.</p>
+        <p class="mb-2">If you have a question or would like help with a project, you can send it our way by emailing <a href="mailto:hello@stemmechanics.com.au" class="link">hello@stemmechanics.com.au</a>.</p>
         <p class="mb-2">You can find us on various social media platforms, and if you join our Discord server, you'll have the opportunity to connect with our team, participants, and other individuals who share similar interests.</p>
 
         <x-heading>Wanting a workshop?</x-heading>

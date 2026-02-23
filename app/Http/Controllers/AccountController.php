@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Helpers;
 use App\Jobs\SendEmail;
-use App\Mail\UserEmailUpdateRequest;
 use App\Mail\UserDelete;
+use App\Mail\UserEmailUpdateRequest;
 use App\Models\User;
 use App\Providers\QRCodeProvider;
 use Illuminate\Http\Request;
@@ -49,7 +48,8 @@ class AccountController extends Controller
         $validator = Validator::make($request->all(), [
             'firstname' => 'required_with:surname,phone',
             'surname' => 'required_with:surname,phone',
-            'email' => ['required', 'email', 'unique:users,email,' . $user->id],
+            'company' => 'nullable|string|max:255',
+            'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'phone' => 'required_with:surname,phone',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
@@ -87,7 +87,7 @@ class AccountController extends Controller
             return redirect()->back()->withErrors($validator)->withInput();
         }
 
-        $userData = $request->all();
+        $userData = $validator->validated();
 
         $newEmail = $userData['email'];
         unset($userData['email']);
@@ -113,6 +113,7 @@ class AccountController extends Controller
         session()->flash('message', 'Your account details have been saved');
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
+
         return redirect()->back();
     }
 
@@ -142,11 +143,30 @@ class AccountController extends Controller
         return redirect()->route('index');
     }
 
-    public static function getTFAInstance()
+    public static function getTFAInstance(Algorithm $algorithm = Algorithm::Sha512)
     {
-        $tfa = new TwoFactorAuth(new QRCodeProvider(), 'STEMMechanics', 6, 30, Algorithm::Sha512);
+        $tfa = new TwoFactorAuth(new QRCodeProvider(), 'STEMMechanics', 6, 30, $algorithm);
         $tfa->ensureCorrectTime();
+
         return $tfa;
+    }
+
+    public static function verifyTfaCode(string $secret, string $code): bool
+    {
+        $normalizedCode = preg_replace('/\s+/', '', trim($code));
+        if (! is_string($normalizedCode) || $normalizedCode === '') {
+            return false;
+        }
+
+        $sha512 = self::getTFAInstance(Algorithm::Sha512);
+        if ($sha512->verifyCode($secret, $normalizedCode, 4)) {
+            return true;
+        }
+
+        // Bitwarden/manual setups frequently default to SHA1.
+        $sha1 = self::getTFAInstance(Algorithm::Sha1);
+
+        return $sha1->verifyCode($secret, $normalizedCode, 4);
     }
 
     public function show_tfa()
@@ -190,11 +210,9 @@ class AccountController extends Controller
 
         if ($user->tfa_secret === null && $request->has('secret') && $request->has('code')) {
             $secret = $request->get('secret');
-            $code = $request->get('code');
+            $code = (string) $request->get('code');
 
-            $tfa = self::getTFAInstance();
-
-            if ($tfa->verifyCode($secret, $code, 4)) {
+            if (self::verifyTfaCode((string) $secret, $code)) {
                 $user->tfa_secret = $secret;
                 $user->save();
 
@@ -202,7 +220,7 @@ class AccountController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'codes' => $codes
+                    'codes' => $codes,
                 ]);
             } else {
                 return response()->json([
@@ -241,7 +259,7 @@ class AccountController extends Controller
 
             return response()->json([
                 'success' => true,
-                'codes' => $codes
+                'codes' => $codes,
             ]);
         } else {
             abort(403);

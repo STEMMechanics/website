@@ -21,6 +21,127 @@ let SM = {
         window.location.assign(url.href);
     },
 
+    setFormProcessing: (form, isProcessing, options = {}) => {
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const submitLabel = typeof options.submitLabel === 'string' && options.submitLabel.trim() !== ''
+            ? options.submitLabel.trim()
+            : 'Processing...';
+        const controls = form.querySelectorAll('input:not([type="hidden"]), select, textarea, button');
+
+        const canUseReadonly = (control, typeAttr) => {
+            if (control.tagName === 'TEXTAREA') {
+                return true;
+            }
+            if (control.tagName !== 'INPUT') {
+                return false;
+            }
+
+            return !['checkbox', 'radio', 'file', 'submit', 'button', 'reset', 'image', 'range', 'color'].includes(typeAttr);
+        };
+
+        controls.forEach((control) => {
+            const typeAttr = (control.getAttribute('type') || '').toLowerCase();
+            const isSubmitControl = (control.tagName === 'BUTTON' && (typeAttr === '' || typeAttr === 'submit'))
+                || (control.tagName === 'INPUT' && typeAttr === 'submit');
+
+            if (isProcessing) {
+                if (isSubmitControl) {
+                    if (!control.disabled) {
+                        control.disabled = true;
+                        control.dataset.smFormTemporarilyDisabled = '1';
+                    }
+
+                    control.setAttribute('aria-busy', 'true');
+
+                    if (control.dataset.smFormTemporarilyDisabled === '1') {
+                        if (control.tagName === 'BUTTON' && !control.dataset.smFormOriginalHtml) {
+                            control.dataset.smFormOriginalHtml = control.innerHTML;
+                            control.innerHTML = `<span class="altcha-processing-content"><span class="altcha-inline-spinner" aria-hidden="true"></span><span>${submitLabel}</span></span>`;
+                        } else if (control.tagName === 'INPUT' && !control.dataset.smFormOriginalValue) {
+                            control.dataset.smFormOriginalValue = control.value;
+                            control.value = submitLabel;
+                        }
+                    }
+                } else if (control.dataset.smFormSoftDisabled !== '1') {
+                    control.dataset.smFormSoftDisabled = '1';
+                    control.classList.add('sm-form-processing-control');
+                    control.setAttribute('aria-disabled', 'true');
+
+                    if (control === document.activeElement && typeof control.blur === 'function') {
+                        control.blur();
+                    }
+
+                    const hasTabindex = control.hasAttribute('tabindex');
+                    control.dataset.smFormOriginalTabindex = hasTabindex ? control.getAttribute('tabindex') || '' : '__none__';
+                    control.setAttribute('tabindex', '-1');
+
+                    if (canUseReadonly(control, typeAttr) && !control.readOnly) {
+                        control.readOnly = true;
+                        control.dataset.smFormTemporarilyReadonly = '1';
+                    }
+                }
+
+                return;
+            }
+
+            if (control.dataset.smFormTemporarilyDisabled === '1') {
+                control.disabled = false;
+                delete control.dataset.smFormTemporarilyDisabled;
+            }
+
+            if (isSubmitControl) {
+                control.removeAttribute('aria-busy');
+
+                if (control.tagName === 'BUTTON' && control.dataset.smFormOriginalHtml) {
+                    control.innerHTML = control.dataset.smFormOriginalHtml;
+                    delete control.dataset.smFormOriginalHtml;
+                }
+
+                if (control.tagName === 'INPUT' && control.dataset.smFormOriginalValue) {
+                    control.value = control.dataset.smFormOriginalValue;
+                    delete control.dataset.smFormOriginalValue;
+                }
+            } else if (control.dataset.smFormSoftDisabled === '1') {
+                delete control.dataset.smFormSoftDisabled;
+                control.classList.remove('sm-form-processing-control');
+                control.removeAttribute('aria-disabled');
+
+                const originalTabindex = control.dataset.smFormOriginalTabindex;
+                if (typeof originalTabindex === 'undefined' || originalTabindex === '__none__') {
+                    control.removeAttribute('tabindex');
+                } else {
+                    control.setAttribute('tabindex', originalTabindex);
+                }
+                delete control.dataset.smFormOriginalTabindex;
+
+                if (control.dataset.smFormTemporarilyReadonly === '1') {
+                    control.readOnly = false;
+                    delete control.dataset.smFormTemporarilyReadonly;
+                }
+            }
+        });
+    },
+
+    bindFormProcessingOnSubmit: (formOrSelector, options = {}) => {
+        const forms = typeof formOrSelector === 'string'
+            ? Array.from(document.querySelectorAll(formOrSelector))
+            : (formOrSelector instanceof HTMLFormElement ? [formOrSelector] : []);
+
+        forms.forEach((form) => {
+            if (!(form instanceof HTMLFormElement) || form.dataset.smFormProcessingBound === '1') {
+                return;
+            }
+
+            form.dataset.smFormProcessingBound = '1';
+            form.addEventListener('submit', () => {
+                SM.setFormProcessing(form, true, options);
+            });
+        });
+    },
+
     alert: (title, text, type = 'info') =>{
         const data = {
             position: 'top-end',
@@ -52,6 +173,68 @@ let SM = {
             reverseButtons: true
         }).then((result) => {
             callback(result.isConfirmed);
+        });
+    },
+
+    notice: (title, content = '', type = 'info', options = {}) => {
+        if (typeof content === 'object' && content !== null) {
+            options = content;
+            content = options.content ?? options.html ?? options.text ?? '';
+            type = options.type ?? 'info';
+        } else if (typeof type === 'object' && type !== null) {
+            options = type;
+            type = options.type ?? 'info';
+        }
+
+        const styles = {
+            info: { icon: 'info', iconColor: '#2563eb', confirmButtonColor: '#2563eb' },
+            success: { icon: 'success', iconColor: '#15803d', confirmButtonColor: '#15803d' },
+            warning: { icon: 'warning', iconColor: '#b45309', confirmButtonColor: '#b45309' },
+            danger: { icon: 'warning', iconColor: '#b91c1c', confirmButtonColor: '#b91c1c' },
+            error: { icon: 'error', iconColor: '#b91c1c', confirmButtonColor: '#b91c1c' },
+            question: { icon: 'question', iconColor: '#374151', confirmButtonColor: '#374151' }
+        };
+
+        const styleKey = String(type || 'info').toLowerCase();
+        const style = styles[styleKey] || styles.info;
+        const toast = options.toast === true;
+        const config = {
+            position: options.position || (toast ? 'top-end' : 'top'),
+            title: title,
+            html: content,
+            icon: options.icon === false ? undefined : (options.icon || style.icon),
+            iconColor: options.iconColor || style.iconColor,
+            showConfirmButton: options.showConfirmButton ?? !toast,
+            confirmButtonText: options.confirmButtonText || 'OK',
+            confirmButtonColor: options.confirmButtonColor || style.confirmButtonColor,
+            showCancelButton: options.showCancelButton === true,
+            cancelButtonText: options.cancelButtonText || 'Cancel',
+            reverseButtons: options.reverseButtons ?? true,
+            allowOutsideClick: options.allowOutsideClick ?? true,
+            allowEscapeKey: options.allowEscapeKey ?? true,
+            timer: options.timer,
+            timerProgressBar: options.timerProgressBar ?? false,
+            toast: toast,
+            showCloseButton: options.showCloseButton ?? toast,
+            customClass: options.customClass,
+            width: options.width,
+            footer: options.footer,
+        };
+
+        return Swal.fire(config).then((result) => {
+            if (result.isConfirmed && typeof options.onConfirm === 'function') {
+                options.onConfirm(result);
+            }
+
+            if (result.isDismissed && typeof options.onDismiss === 'function') {
+                options.onDismiss(result);
+            }
+
+            if (typeof options.onClose === 'function') {
+                options.onClose(result);
+            }
+
+            return result;
         });
     },
 
@@ -392,6 +575,8 @@ let SM = {
         });
     }
 };
+
+window.SM = SM;
 
 document.addEventListener('DOMContentLoaded', () => {
     SM.updateShippingAddress();

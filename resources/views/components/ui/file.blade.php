@@ -10,7 +10,7 @@
     <div class="text-sm pl-1">{{ $label }}</div>
     <div class="flex flex-col align-middle items-center">
         <i id="{{ $name }}_placeholder" class="fa-regular fa-image text-9xl text-gray-400"></i>
-        <img class="hidden rounded-lg max-w-72 max-h-36 my-4" id="{{ $name }}_preview" alt="preview" />
+        <img class="hidden rounded-lg max-w-72 max-h-36 my-4" id="{{ $name }}_preview" alt="preview" src="" />
         <div id="{{ $name }}_name" class="text-sm text-gray-500"></div>
         <div id="{{ $name }}_size" class="text-xs text-gray-500"></div>
         @if (!$readonly)
@@ -28,15 +28,20 @@
         <input class="hidden" value="" type="file" name="{{ $name }}_file" id="{{ $name }}_file" />
     @endif
     <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $value }}" />
+    <input class="hidden" type="text" id="{{ $name }}_original_filename" name="{{ $name }}_original_filename" value="" />
 </div>
 
 <script>
     function updateDetails(media) {
-        document.getElementById('{{ $name }}').value = media.name;
+        document.getElementById('{{ $name }}').value = (typeof media.upload_token === 'string' && media.upload_token !== '') ? media.upload_token : media.name;
+        const originalNameInput = document.getElementById('{{ $name }}_original_filename');
+        if (originalNameInput) {
+            originalNameInput.value = media.name || '';
+        }
         document.getElementById('{{ $name }}_name').innerText = media.name;
         document.getElementById('{{ $name }}_size').innerText = SM.bytesToString(media.size);
 
-        if(Object.keys(media).includes('status') && media.status === 'processing') {
+        if(Object.keys(media).includes('status') && (media.status === 'processing' || media.status === 'queued')) {
             SM.updateThumbnail(document.getElementById('{{ $name }}_preview'), media.name);
         }
 
@@ -48,7 +53,7 @@
         }
 
         document.getElementById('{{ $name }}_preview').classList.remove('hidden');
-        document.getElementById('{{ $name }}_placeholder').classList.add('hidden');
+        document.getElementById('{{ $name }}_placeholder').classList.add('hidden!');
 
         const element = document.getElementById('{{ $name }}_file');
         if(element) {
@@ -68,6 +73,7 @@
 
             const updatePageInfo = (media, thumbnail) => {
                 const file = {
+                    upload_token: media.files[0].data.upload_token || null,
                     name: media.files[0].data.file.name,
                     size: media.files[0].data.file.size,
                     mime_type: media.files[0].data.file.mime_type,

@@ -5,15 +5,24 @@ namespace App\Http\Controllers;
 use App\Exceptions\FileInvalidException;
 use App\Exceptions\FileTooLargeException;
 use App\Helpers;
+use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
+use Illuminate\Bus\Batch;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class MediaController extends Controller
 {
+    private const REGENERATE_MISSING_BATCH_CACHE_KEY = 'media:regenerate-missing:active-batch-id';
+
     /**
      * Display a listing of the resource.
      */
@@ -24,6 +33,10 @@ class MediaController extends Controller
         }
 
         $media = $this->getMedia($request);
+        $media->setCollection(
+            $media->getCollection()->map(fn (Media $item) => $this->publicMediaPayload($item))
+        );
+
         return response()->json($media);
     }
 
@@ -33,6 +46,7 @@ class MediaController extends Controller
 
         return view('admin.media.index', [
             'media' => $media,
+            'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
         ]);
 
     }
@@ -94,7 +108,7 @@ class MediaController extends Controller
             abort(404);
         }
 
-        return response()->json($media);
+        return response()->json($this->publicMediaPayload($media));
     }
 
     /**
@@ -133,8 +147,26 @@ class MediaController extends Controller
                 }
 
                 if(!$request->has('title')) {
+                    $chunkUploads = session()->get('chunk_uploads', []);
+                    $deferredToken = bin2hex(random_bytes(16));
+                    $sourcePath = $file->getRealPath();
+                    $deferredPath = tempnam(sys_get_temp_dir(), 'media-deferred-');
+                    if($sourcePath === false || !is_string($deferredPath) || $deferredPath === '' || !@copy($sourcePath, $deferredPath)) {
+                        return response()->json([
+                            'message' => 'Could not persist uploaded file for form submission.',
+                            'errors' => [
+                                'file' => 'Could not persist uploaded file for form submission.'
+                            ]
+                        ], 500);
+                    }
+
+                    $chunkUploads[$deferredToken] = $deferredPath;
+                    session()->put('chunk_uploads', $chunkUploads);
+
                     return response()->json([
                         'message' => 'The file ' . $file->getClientOriginalName() . ' has been uploaded',
+                        'upload_token' => $deferredToken,
+                        'filename' => $file->getClientOriginalName(),
                         'file' => [
                             'name' => $file->getClientOriginalName(),
                             'size' => $file->getSize(),
@@ -179,7 +211,7 @@ class MediaController extends Controller
             if($fileMime === false) {
                 $fileMime = 'application/octet-stream';
             }
-            $fileName = $request->input('filename', 'upload');
+            $fileName = $request->input('filename', $request->input('file_original_filename', 'upload'));
             $fileName = Helpers::cleanFileName($fileName);
             if ($fileName === '') {
                 $fileName = 'upload';
@@ -293,7 +325,19 @@ class MediaController extends Controller
      */
     public function admin_edit(Media $media)
     {
-        return view('admin.media.edit', ['medium' => $media]);
+        $mediaFilesInfo = [];
+        try {
+            $mediaFilesInfo = $this->mediaFilesInfo($media);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return response()->view('admin.media.edit', [
+            'medium' => $media,
+            'mediaFilesInfo' => $mediaFilesInfo,
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     /**
@@ -377,6 +421,338 @@ class MediaController extends Controller
         session()->flash('message-title', 'Media updated');
         session()->flash('message-type', 'success');
         return redirect()->route('admin.media.index');
+    }
+
+    public function admin_regenerate_variants(Media $media): RedirectResponse
+    {
+        try {
+            if ($this->isMediaVariantRegenerationLocked($media)) {
+                session()->flash('message', 'Variant regeneration is already running for this media. Please wait and refresh.');
+                session()->flash('message-title', 'Regeneration already running');
+                session()->flash('message-type', 'warning');
+                return redirect()->back();
+            }
+
+            $media->generateVariants(true);
+
+            session()->flash('message', 'Variant regeneration has been queued. Try refreshing the page in a few minutes.');
+            session()->flash('message-title', 'Variants regenerating');
+            session()->flash('message-type', 'success');
+        } catch (\Throwable $e) {
+            report($e);
+
+            session()->flash('message', 'Could not regenerate variants: '.$e->getMessage());
+            session()->flash('message-title', 'Regenerate failed');
+            session()->flash('message-type', 'danger');
+        }
+
+        return redirect()->back();
+    }
+
+    private function isMediaVariantRegenerationLocked(Media $media): bool
+    {
+        $job = new GenerateVariants($media, true);
+        $middleware = (new WithoutOverlapping($media->name))->dontRelease();
+        $lockKey = $middleware->getLockKey($job);
+
+        $lock = Cache::lock($lockKey, 5);
+        if ($lock->get()) {
+            $lock->release();
+            return false;
+        }
+
+        return true;
+    }
+
+    public function admin_regenerate_missing_variants(): RedirectResponse|JsonResponse
+    {
+        try {
+            $runningBatch = $this->activeMissingVariantRegenerationBatch();
+            if ($runningBatch !== null && !$runningBatch->finished() && !$runningBatch->cancelled()) {
+                $message = 'Missing variant regeneration is already running.';
+
+                if (request()->expectsJson()) {
+                    return response()->json([
+                        'ok' => true,
+                        'message' => $message,
+                        'regeneration' => $this->missingVariantRegenerationPayload(),
+                    ]);
+                }
+
+                session()->flash('message', $message);
+                session()->flash('message-title', 'Already running');
+                session()->flash('message-type', 'warning');
+                return redirect()->back();
+            }
+
+            $jobBuffer = [];
+            $queuedCount = 0;
+            $batch = null;
+            Media::query()->chunkById(200, function ($mediaBatch) use (&$jobBuffer, &$queuedCount, &$batch): void {
+                foreach ($mediaBatch as $media) {
+                    if (!($media instanceof Media)) {
+                        continue;
+                    }
+
+                    $variantTypes = $media->getVariantTypes();
+                    if ($variantTypes === []) {
+                        continue;
+                    }
+
+                    $hasMissingVariant = false;
+                    foreach (array_keys($variantTypes) as $variantName) {
+                        if (!$media->hasVariant($variantName)) {
+                            $hasMissingVariant = true;
+                            break;
+                        }
+                    }
+
+                    if (!$hasMissingVariant) {
+                        continue;
+                    }
+
+                    if ($batch === null) {
+                        $batch = Bus::batch([])
+                            ->name('Regenerate Missing Media Variants')
+                            ->allowFailures()
+                            ->onQueue('media')
+                            ->dispatch();
+
+                        Cache::forever(self::REGENERATE_MISSING_BATCH_CACHE_KEY, $batch->id);
+                    }
+
+                    $jobBuffer[] = new GenerateVariants($media, false);
+                    $queuedCount++;
+
+                    if (count($jobBuffer) >= 200) {
+                        $batch->add($jobBuffer);
+                        $jobBuffer = [];
+                    }
+                }
+            }, 'name');
+
+            if ($batch !== null && $jobBuffer !== []) {
+                $batch->add($jobBuffer);
+            }
+
+            if ($queuedCount === 0) {
+                Cache::forget(self::REGENERATE_MISSING_BATCH_CACHE_KEY);
+                $message = 'No missing variants were found.';
+
+                if (request()->expectsJson()) {
+                    return response()->json([
+                        'ok' => true,
+                        'message' => $message,
+                        'regeneration' => ['running' => false],
+                    ]);
+                }
+
+                session()->flash('message', $message);
+                session()->flash('message-title', 'Nothing to regenerate');
+                session()->flash('message-type', 'info');
+                return redirect()->back();
+            }
+
+            session()->flash('message', 'Missing variant regeneration has been queued.');
+            session()->flash('message-title', 'Regeneration queued');
+            session()->flash('message-type', 'success');
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Missing variant regeneration has started.',
+                    'queued' => $queuedCount,
+                    'regeneration' => $this->missingVariantRegenerationPayload(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+
+            $message = 'Could not queue missing variant regeneration: '.$e->getMessage();
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Queue failed');
+            session()->flash('message-type', 'danger');
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $message,
+                ], 500);
+            }
+        }
+
+        return redirect()->back();
+    }
+
+    public function admin_regenerate_missing_variants_status(): JsonResponse
+    {
+        return response()->json($this->missingVariantRegenerationPayload());
+    }
+
+    private function missingVariantRegenerationPayload(): array
+    {
+        $batch = $this->activeMissingVariantRegenerationBatch();
+        if ($batch === null) {
+            return [
+                'running' => false,
+            ];
+        }
+
+        return [
+            'running' => !$batch->finished() && !$batch->cancelled(),
+            'id' => $batch->id,
+            'name' => $batch->name,
+            'total_jobs' => $batch->totalJobs,
+            'pending_jobs' => $batch->pendingJobs,
+            'processed_jobs' => $batch->processedJobs(),
+            'failed_jobs' => $batch->failedJobs,
+            'progress' => $batch->progress(),
+            'cancelled' => $batch->cancelled(),
+            'finished' => $batch->finished(),
+            'created_at' => $batch->createdAt?->toDateTimeString(),
+            'finished_at' => $batch->finishedAt?->toDateTimeString(),
+        ];
+    }
+
+    private function activeMissingVariantRegenerationBatch(): ?Batch
+    {
+        $batchId = Cache::get(self::REGENERATE_MISSING_BATCH_CACHE_KEY);
+        if (!is_string($batchId) || trim($batchId) === '') {
+            return null;
+        }
+
+        $batch = Bus::findBatch($batchId);
+        if ($batch === null) {
+            Cache::forget(self::REGENERATE_MISSING_BATCH_CACHE_KEY);
+            return null;
+        }
+
+        // Recover from previously-created empty batches that never transition state.
+        if ($batch->totalJobs === 0 && $batch->pendingJobs === 0 && !$batch->finished() && !$batch->cancelled()) {
+            Cache::forget(self::REGENERATE_MISSING_BATCH_CACHE_KEY);
+            return null;
+        }
+
+        if ($batch->finished() || $batch->cancelled()) {
+            Cache::forget(self::REGENERATE_MISSING_BATCH_CACHE_KEY);
+        }
+
+        return $batch;
+    }
+
+    private function mediaFilesInfo(Media $media): array
+    {
+        $files = [];
+
+        $originalPath = $media->path();
+        $files[] = $this->buildMediaFileInfo(
+            label: 'Original',
+            variant: '',
+            storageKey: (string) ($media->hash ?? ''),
+            filePath: is_string($originalPath) ? $originalPath : null,
+            mimeType: (string) ($media->mime_type ?? ''),
+            fallbackSize: isset($media->size) ? (int) $media->size : null,
+            url: (string) ($media->url ?? '')
+        );
+
+        $variants = is_array($media->variants ?? null) ? $media->variants : [];
+        foreach ($variants as $variantName => $variant) {
+            $variantName = strtolower(trim((string) $variantName));
+            if ($variantName === '') {
+                continue;
+            }
+
+            $files[] = $this->buildMediaFileInfo(
+                label: $variantName,
+                variant: $variantName,
+                storageKey: trim((string) ($media->hash ?? '')).'-'.$variantName,
+                filePath: $this->variantFilePath($media, $variantName),
+                mimeType: (string) ($variant['mime_type'] ?? ''),
+                fallbackSize: null,
+                url: (string) $media->url($variantName, true)
+            );
+        }
+
+        return $files;
+    }
+
+    private function buildMediaFileInfo(
+        string $label,
+        string $variant,
+        string $storageKey,
+        ?string $filePath,
+        string $mimeType,
+        ?int $fallbackSize,
+        string $url
+    ): array {
+        $exists = is_string($filePath) && $filePath !== '' && is_file($filePath);
+        $sizeBytes = $exists ? (int) filesize($filePath) : ($fallbackSize !== null ? max(0, $fallbackSize) : null);
+        $dimensions = $this->imageDimensions($filePath, $mimeType);
+
+        return [
+            'label' => $label,
+            'variant' => $variant,
+            'exists' => $exists,
+            'format' => $this->formatLabel($mimeType, $filePath),
+            'mime_type' => $mimeType !== '' ? $mimeType : '-',
+            'dimensions' => $dimensions,
+            'size_bytes' => $sizeBytes,
+            'size_human' => $sizeBytes !== null ? Helpers::bytesToString($sizeBytes) : '-',
+            'storage_key' => $storageKey !== '' ? $storageKey : '-',
+            'path' => $filePath ?: '-',
+            'url' => $url !== '' ? $url : '-',
+        ];
+    }
+
+    private function variantFilePath(Media $media, string $variant): ?string
+    {
+        $path = $media->path();
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $variantPath = $path.'-'.$variant;
+
+        return is_file($variantPath) ? $variantPath : null;
+    }
+
+    private function imageDimensions(?string $filePath, string $mimeType): string
+    {
+        if (! is_string($filePath) || $filePath === '' || ! is_file($filePath)) {
+            return '-';
+        }
+
+        if (! str_starts_with(strtolower($mimeType), 'image/')) {
+            return '-';
+        }
+
+        $size = @getimagesize($filePath);
+        if (! is_array($size) || ! isset($size[0], $size[1])) {
+            return '-';
+        }
+
+        return ((int) $size[0]).' x '.((int) $size[1]);
+    }
+
+    private function formatLabel(string $mimeType, ?string $filePath): string
+    {
+        $mimeType = trim($mimeType);
+        if ($mimeType !== '' && str_contains($mimeType, '/')) {
+            $parts = explode('/', $mimeType, 2);
+            $subtype = strtoupper(trim((string) ($parts[1] ?? '')));
+            if ($subtype !== '') {
+                return $subtype;
+            }
+        }
+
+        if (is_string($filePath) && $filePath !== '') {
+            $extension = strtoupper(trim((string) pathinfo($filePath, PATHINFO_EXTENSION)));
+            if ($extension !== '') {
+                return $extension;
+            }
+        }
+
+        return '-';
     }
 
     /**
@@ -534,6 +910,9 @@ class MediaController extends Controller
 
         if($variant !== '') {
             $variantFile = $media->getClosestVariant($variant);
+            if (($variantFile['variant'] ?? null) === null || !is_string($variantFile['file'] ?? null) || !is_file((string) $variantFile['file'])) {
+                abort(404, 'Requested variant file not found. Please regenerate variants.');
+            }
             $file = $variantFile['file'];
             $mime_type = $variantFile['mime_type'];
             $name = $variantFile['name'];
@@ -545,5 +924,20 @@ class MediaController extends Controller
         ];
 
         return response()->file($file, $headers);
+    }
+
+    private function publicMediaPayload(Media $media): array
+    {
+        return [
+            'name' => (string) $media->name,
+            'title' => (string) $media->title,
+            'mime_type' => (string) $media->mime_type,
+            'size' => (int) $media->size,
+            'status' => (string) ($media->status ?? ''),
+            'url' => (string) $media->url,
+            'thumbnail' => (string) $media->thumbnail,
+            'file_type' => (string) $media->file_type,
+            'password' => Auth::user()?->isAdmin() ? ($media->password ? 'yes' : null) : null,
+        ];
     }
 }

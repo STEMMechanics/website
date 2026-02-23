@@ -1,8 +1,14 @@
 @props(['workshop'])
 
 @php
-    $statusClass = $workshop->status;
-    $statusTitle = $workshop->status;
+    $statusClass = $workshop->publicStatus();
+    $statusTitle = $workshop->publicStatus();
+    $isAdmin = (bool) (auth()->user()?->isAdmin() ?? false);
+    $showHostedFor = $workshop->is_private && $workshop->hosted_for != '';;
+    $locationLabel = $showHostedFor
+        ? $workshop->hosted_for
+        : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());
+    $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
 
     if($workshop->status === 'scheduled') {
         $statusClass = 'soon';
@@ -26,8 +32,8 @@
         </div>
         <div class="text-gray-600 text-sm mb-1 flex gap-2">
             <div class="w-6 flex items-center justify-center">
-                <i class="fa-solid fa-location-dot"></i>
-            </div>{{ $workshop->location->name }}
+                <i class="{{ $locationIcon }}"></i>
+            </div>{{ $locationLabel }}
         </div>
         @if($workshop->ages)
             <div class="text-gray-600 text-sm mb-1 flex gap-2">

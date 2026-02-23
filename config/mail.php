@@ -106,4 +106,26 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
+
+    'ticket_from' => [
+        'address' => env('MAIL_TICKET_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+        'name' => env('MAIL_TICKET_FROM_NAME', 'STEMMechanics Tickets'),
+    ],
+
+    'order_from' => [
+        'address' => env('MAIL_ORDER_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+        'name' => env('MAIL_ORDER_FROM_NAME', 'STEMMechanics Order'),
+    ],
+
+    'payment_from' => [
+        'address' => env('MAIL_PAYMENT_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+        'name' => env('MAIL_PAYMENT_FROM_NAME', env('MAIL_FROM_NAME', 'Example')),
+    ],
+
+    'refund_from' => [
+        'address' => env('MAIL_REFUND_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+        'name' => env('MAIL_REFUND_FROM_NAME', 'STEMMechanics Refunds'),
+    ],
+
+    'admin_bcc' => env('MAIL_ADMIN_BCC', 'admin@stemmechanics.com.au'),
 ];

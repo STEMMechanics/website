@@ -29,5 +29,7 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="ALTCHA_HMAC_KEY" value="testing-secret-key"/>
+        <env name="ALTCHA_TESTING_BYPASS" value="valid"/>
     </php>
 </phpunit>
