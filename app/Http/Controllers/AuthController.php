@@ -166,13 +166,11 @@ class AuthController extends Controller
     )
     {
         $url = null;
-        if (is_array($data) && isset($data['url']) && $data['url']) {
+        if (isset($data['url']) && $data['url']) {
             $url = $data['url'];
-        } elseif (is_object($data) && isset($data->url) && $data->url) {
-            $url = $data->url;
         }
 
-        if (is_string($url) && $url !== '') {
+        if (is_string($url)) {
             $path = parse_url($url, PHP_URL_PATH);
             if (is_string($path) && in_array($path, ['/admin/server/deploy/log', '/admin/server/log'], true)) {
                 $url = route('admin.server.index');

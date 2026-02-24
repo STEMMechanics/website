@@ -18,10 +18,6 @@ class RegenerateMissingVariants implements ShouldQueue
         Media::query()
             ->chunkById(100, function ($mediaBatch): void {
                 foreach ($mediaBatch as $media) {
-                    if (!($media instanceof Media)) {
-                        continue;
-                    }
-
                     $variantTypes = $media->getVariantTypes();
                     if ($variantTypes === []) {
                         continue;

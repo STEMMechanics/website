@@ -79,31 +79,49 @@ class Payment extends Model
         'square_webhook_payload' => 'array',
     ];
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * @return BelongsTo<Payment, $this>
+     */
     public function refundOf(): BelongsTo
     {
         return $this->belongsTo(self::class, 'refund_of_payment_id');
     }
 
+    /**
+     * @return HasMany<Payment, $this>
+     */
     public function refunds(): HasMany
     {
         return $this->hasMany(self::class, 'refund_of_payment_id');
     }
 
+    /**
+     * @return HasMany<InvoicePaymentAllocation, $this>
+     */
     public function allocations(): HasMany
     {
         return $this->hasMany(InvoicePaymentAllocation::class);
     }
 
+    /**
+     * @return BelongsToMany<Invoice, $this>
+     */
     public function invoices(): BelongsToMany
     {
         return $this->belongsToMany(Invoice::class, 'invoice_payment_allocations')
@@ -111,6 +129,9 @@ class Payment extends Model
             ->withTimestamps();
     }
 
+    /**
+     * @return HasMany<SquareWebhookEvent, $this>
+     */
     public function squareWebhookEvents(): HasMany
     {
         return $this->hasMany(SquareWebhookEvent::class);

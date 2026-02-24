@@ -56,26 +56,41 @@ class Invoice extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Quote, $this>
+     */
     public function quote(): BelongsTo
     {
         return $this->belongsTo(Quote::class);
     }
 
+    /**
+     * @return HasMany<TaxAdjustment, $this>
+     */
     public function taxAdjustments(): HasMany
     {
         return $this->hasMany(TaxAdjustment::class)->orderByDesc('issue_date')->orderByDesc('id');
     }
 
+    /**
+     * @return HasMany<InvoicePaymentAllocation, $this>
+     */
     public function allocations(): HasMany
     {
         return $this->hasMany(InvoicePaymentAllocation::class);
     }
 
+    /**
+     * @return BelongsToMany<Payment, $this>
+     */
     public function payments(): BelongsToMany
     {
         return $this->belongsToMany(Payment::class, 'invoice_payment_allocations')
@@ -83,11 +98,17 @@ class Invoice extends Model
             ->withTimestamps();
     }
 
+    /**
+     * @return HasMany<Ticket, $this>
+     */
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
     }
 
+    /**
+     * @return HasMany<InvoiceLine, $this>
+     */
     public function lines(): HasMany
     {
         return $this->hasMany(InvoiceLine::class)->orderBy('line_number');
@@ -114,7 +135,7 @@ class Invoice extends Model
             self::STATUS_CANCELLED => [],
         ];
 
-        return in_array($nextStatus, $allowed[$current] ?? [], true);
+        return in_array($nextStatus, $allowed[$current], true);
     }
 
     public static function statusLabel(string $status): string

@@ -164,7 +164,7 @@ class MediaController extends Controller
                     $deferredToken = bin2hex(random_bytes(16));
                     $sourcePath = $file->getRealPath();
                     $deferredPath = tempnam(sys_get_temp_dir(), 'media-deferred-');
-                    if($sourcePath === false || !is_string($deferredPath) || $deferredPath === '' || !@copy($sourcePath, $deferredPath)) {
+                    if($sourcePath === false || !is_string($deferredPath) || !@copy($sourcePath, $deferredPath)) {
                         return response()->json([
                             'message' => 'Could not persist uploaded file for form submission.',
                             'errors' => [
@@ -242,15 +242,6 @@ class MediaController extends Controller
                 'message' => 'A file is required.',
                 'errors' => [
                     'file' => 'A file is required.'
-                ]
-            ], 422);
-        }
-
-        if(!$request->has('title')) {
-            return response()->json([
-                'message' => 'A title is required',
-                'errors' => [
-                    'title' => 'A title is required'
                 ]
             ], 422);
         }
@@ -503,10 +494,6 @@ class MediaController extends Controller
             $batch = null;
             Media::query()->chunkById(200, function ($mediaBatch) use (&$jobBuffer, &$queuedCount, &$batch): void {
                 foreach ($mediaBatch as $media) {
-                    if (!($media instanceof Media)) {
-                        continue;
-                    }
-
                     $variantTypes = $media->getVariantTypes();
                     if ($variantTypes === []) {
                         continue;
@@ -622,7 +609,7 @@ class MediaController extends Controller
             'progress' => $batch->progress(),
             'cancelled' => $batch->cancelled(),
             'finished' => $batch->finished(),
-            'created_at' => $batch->createdAt?->toDateTimeString(),
+            'created_at' => $batch->createdAt->toDateTimeString(),
             'finished_at' => $batch->finishedAt?->toDateTimeString(),
         ];
     }
@@ -740,7 +727,7 @@ class MediaController extends Controller
         }
 
         $size = @getimagesize($filePath);
-        if (! is_array($size) || ! isset($size[0], $size[1])) {
+        if (! is_array($size)) {
             return '-';
         }
 
@@ -855,7 +842,7 @@ class MediaController extends Controller
                     $fileMime = 'application/octet-stream';
                 }
 
-                if(is_string($uploadToken) && isset($chunkUploads[$uploadToken])) {
+                if(isset($chunkUploads[$uploadToken])) {
                     unset($chunkUploads[$uploadToken]);
                     session()->put('chunk_uploads', $chunkUploads);
                 }

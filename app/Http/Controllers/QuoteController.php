@@ -146,9 +146,7 @@ class QuoteController extends Controller
 
     public function pdf(Quote $quote)
     {
-        return $this->buildQuotePdf($quote)->stream($this->getQuotePdfFilename($quote), [
-            'Attachment' => false,
-        ]);
+        return $this->buildQuotePdf($quote)->stream($this->getQuotePdfFilename($quote));
     }
 
     public function accountIndex(Request $request)
@@ -185,7 +183,7 @@ class QuoteController extends Controller
         if ($emailMessage === '') {
             $emailMessage = $this->defaultQuoteEmailMessage($quote);
         }
-        $quoteDueDate = $quote->quote_date?->copy()?->addDays(28)?->format('M j, Y');
+        $quoteDueDate = $quote->quote_date->copy()->addDays(28)->format('M j, Y');
 
         $recipients = $this->resolveQuoteEmailRecipients($request, $quote);
         $ccRecipients = $this->resolveQuoteEmailCcRecipients($request);
@@ -375,7 +373,7 @@ class QuoteController extends Controller
             ]);
         }
 
-        if ($targetInvoice->quote_id !== null && (int) $targetInvoice->quote_id !== (int) ($quote?->id ?? 0)) {
+        if ($targetInvoice->quote_id !== null && (int) $targetInvoice->quote_id !== (int) ($quote->id ?? 0)) {
             throw ValidationException::withMessages([
                 'linked_invoice_id' => 'Selected invoice is already linked to another quote.',
             ]);
@@ -578,7 +576,7 @@ class QuoteController extends Controller
     {
         $input = trim((string) $request->input('recipient_emails', ''));
         if ($input === '') {
-            $input = trim((string) ($quote->user?->email ?? ''));
+            $input = trim((string) ($quote->user->email ?? ''));
         }
 
         if ($input === '') {
@@ -670,9 +668,9 @@ class QuoteController extends Controller
     private function getMailInitiatorIdentity(): array
     {
         $user = auth()->user();
-        $email = trim((string) ($user?->email ?? ''));
-        $firstName = trim((string) ($user?->firstname ?? ''));
-        $surname = trim((string) ($user?->surname ?? ''));
+        $email = trim((string) ($user->email ?? ''));
+        $firstName = trim((string) ($user->firstname ?? ''));
+        $surname = trim((string) ($user->surname ?? ''));
         $name = trim($firstName.' '.$surname);
         if ($name === '') {
             $name = trim((string) ($user?->getName() ?? ''));

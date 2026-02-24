@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Models\AnalyticsEvent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -92,7 +93,7 @@ class AnalyticsController extends Controller
                 ->groupBy('session_token');
         }
 
-        $sessionFlows = $recentSessions->setCollection($recentSessions->getCollection()->map(function ($session) use ($sessionEvents) {
+        $sessionFlowRows = $recentSessions->getCollection()->map(function ($session) use ($sessionEvents) {
             $events = collect($sessionEvents->get($session->session_token, []));
 
             $steps = [];
@@ -111,12 +112,24 @@ class AnalyticsController extends Controller
             return [
                 'session_token' => (string) $session->session_token,
                 'visitor_hash' => (string) ($session->visitor_hash ?? ''),
-                'started_at' => $session->started_at,
-                'ended_at' => $session->ended_at,
-                'event_count' => (int) $session->event_count,
+                'started_at' => $session->getAttribute('started_at'),
+                'ended_at' => $session->getAttribute('ended_at'),
+                'event_count' => (int) $session->getAttribute('event_count'),
                 'steps' => array_slice($steps, 0, 12),
             ];
-        }));
+        });
+
+        $sessionFlows = new LengthAwarePaginator(
+            $sessionFlowRows,
+            $recentSessions->total(),
+            $recentSessions->perPage(),
+            $recentSessions->currentPage(),
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+                'pageName' => $recentSessions->getPageName(),
+            ]
+        );
 
         $returningVisitors = (clone $baseQuery)
             ->whereNotNull('analytics_events.visitor_hash')

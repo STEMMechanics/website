@@ -85,7 +85,7 @@ class Ticket extends Model
     public function getCustomerStatusLabelAttribute(): string
     {
         return match ((int) $this->status) {
-            self::STATUS_PAID, self::STATUS_DONE => 'Paid',
+            self::STATUS_PAID => 'Paid',
             self::STATUS_PENDING_DOOR => 'Reserved (Pay at Door)',
             self::STATUS_PENDING_XFER => 'Awaiting Bank Transfer',
             self::STATUS_CANCELLED => 'Cancelled',
@@ -113,31 +113,49 @@ class Ticket extends Model
         ];
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<Workshop, $this>
+     */
     public function workshop(): BelongsTo
     {
         return $this->belongsTo(Workshop::class);
     }
 
+    /**
+     * @return BelongsTo<Invoice, $this>
+     */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    /**
+     * @return BelongsTo<InvoiceLine, $this>
+     */
     public function invoiceLine(): BelongsTo
     {
         return $this->belongsTo(InvoiceLine::class);
     }
 
+    /**
+     * @return BelongsTo<Ticket, $this>
+     */
     public function reissuedToTicket(): BelongsTo
     {
         return $this->belongsTo(self::class, 'reissued_to_ticket_id');
     }
 
+    /**
+     * @return BelongsTo<Ticket, $this>
+     */
     public function reissuedFromTicket(): BelongsTo
     {
         return $this->belongsTo(self::class, 'reissued_from_ticket_id');
@@ -145,7 +163,7 @@ class Ticket extends Model
 
     private function reissuedStatusLabel(): string
     {
-        $reference = trim((string) ($this->reissuedToTicket?->reference_code ?? ''));
+        $reference = trim((string) ($this->reissuedToTicket->reference_code ?? ''));
         if ($reference === '') {
             $reference = trim((string) ($this->reissued_to_ticket_id ?? ''));
         }
@@ -159,7 +177,7 @@ class Ticket extends Model
 
     private function reissuedCustomerStatusLabel(): string
     {
-        $reference = trim((string) ($this->reissuedToTicket?->reference_code ?? ''));
+        $reference = trim((string) ($this->reissuedToTicket->reference_code ?? ''));
         if ($reference === '') {
             $reference = trim((string) ($this->reissued_to_ticket_id ?? ''));
         }

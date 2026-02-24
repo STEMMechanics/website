@@ -201,9 +201,7 @@ class TaxAdjustmentController extends Controller
             'enable_font_subsetting' => true,
         ]);
 
-        return $pdf->stream('tax-adjustment-'.$taxAdjustment->adjustment_number.'.pdf', [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream('tax-adjustment-'.$taxAdjustment->adjustment_number.'.pdf');
     }
 
     public function emailPdf(Request $request, Invoice $invoice, TaxAdjustment $taxAdjustment): RedirectResponse
@@ -212,7 +210,7 @@ class TaxAdjustmentController extends Controller
         $this->abortIfNotOwnedByInvoice($invoice, $taxAdjustment);
         $taxAdjustment->loadMissing('lines', 'invoice.user');
 
-        $recipient = trim((string) ($invoice->user?->email ?? ''));
+        $recipient = trim((string) ($invoice->user->email ?? ''));
         if ($recipient === '') {
             session()->flash('message', 'Tax adjustment email failed: assigned user has no email');
             session()->flash('message-title', 'Email failed');
@@ -292,8 +290,8 @@ class TaxAdjustmentController extends Controller
     private function getMailInitiatorIdentity(): array
     {
         $user = auth()->user();
-        $email = trim((string) ($user?->email ?? ''));
-        $name = trim((string) ($user?->name ?? ($user?->getName() ?? '')));
+        $email = trim((string) ($user->email ?? ''));
+        $name = trim((string) $user->getName());
 
         return [
             $email !== '' ? $email : null,

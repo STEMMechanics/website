@@ -88,9 +88,7 @@ class BasController extends Controller
                 'enable_font_subsetting' => true,
             ]);
 
-        return $pdf->stream($filename, [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($filename);
     }
 
     private function buildBasData(Request $request): array

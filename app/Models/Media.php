@@ -5,10 +5,16 @@ namespace App\Models;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
+/**
+ * @property string $url
+ * @property string $thumbnail
+ * @property string $file_type
+ */
 class Media extends Model
 {
     use HasFactory;
@@ -16,7 +22,7 @@ class Media extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'name',
@@ -53,7 +59,7 @@ class Media extends Model
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'variants' => 'array'
@@ -65,7 +71,6 @@ class Media extends Model
      * @return void
      */
     protected $appends = [
-        'url',
         'thumbnail',
         'file_type'
     ];
@@ -193,7 +198,10 @@ class Media extends Model
     /**
      * Get the user that owns the media.
      */
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
@@ -379,6 +387,10 @@ class Media extends Model
      * @param string $matchingKey The matching key.
      *
      * @return array The variant types.
+     */
+    /**
+     * @param-out string|null $matchingKey
+     * @return array<string, array<string, int>>
      */
     public function getVariantTypes(&$matchingKey = null)
     {

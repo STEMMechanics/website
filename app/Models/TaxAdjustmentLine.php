@@ -33,14 +33,19 @@ class TaxAdjustmentLine extends Model
         'line_total_inc_tax' => 'decimal:2',
     ];
 
+    /**
+     * @return BelongsTo<TaxAdjustment, $this>
+     */
     public function taxAdjustment(): BelongsTo
     {
         return $this->belongsTo(TaxAdjustment::class);
     }
 
+    /**
+     * @return BelongsTo<InvoiceLine, $this>
+     */
     public function invoiceLine(): BelongsTo
     {
         return $this->belongsTo(InvoiceLine::class);
     }
 }
-

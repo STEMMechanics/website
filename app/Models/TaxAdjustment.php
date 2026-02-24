@@ -28,16 +28,25 @@ class TaxAdjustment extends Model
         'total_amount' => 'decimal:2',
     ];
 
+    /**
+     * @return BelongsTo<Invoice, $this>
+     */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    /**
+     * @return HasMany<InvoicePaymentAllocation, $this>
+     */
     public function allocations(): HasMany
     {
         return $this->hasMany(InvoicePaymentAllocation::class);
     }
 
+    /**
+     * @return HasMany<TaxAdjustmentLine, $this>
+     */
     public function lines(): HasMany
     {
         return $this->hasMany(TaxAdjustmentLine::class)->orderBy('line_number');

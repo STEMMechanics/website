@@ -63,15 +63,20 @@ class AuditLogObserver
     {
         $request = app()->bound('request') ? request() : null;
         $actorUserId = auth()->id();
-        if ($request && method_exists($request, 'user') && $request->user()?->id) {
+        if ($request && $request->user()?->id) {
             $actorUserId = $request->user()->id;
+        }
+
+        $normalizedActorUserId = null;
+        if ($actorUserId !== null && $actorUserId !== '') {
+            $normalizedActorUserId = (string) $actorUserId;
         }
 
         AuditLog::query()->create([
             'event' => $event,
             'auditable_type' => $model::class,
             'auditable_id' => (string) $model->getKey(),
-            'actor_user_id' => is_string($actorUserId) && $actorUserId !== '' ? $actorUserId : null,
+            'actor_user_id' => $normalizedActorUserId,
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
             'url' => $request?->fullUrl(),
@@ -88,9 +93,6 @@ class AuditLogObserver
     {
         $filtered = [];
         foreach ($values as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
             if (in_array($key, $this->excludedFields, true)) {
                 continue;
             }

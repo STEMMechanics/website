@@ -449,9 +449,7 @@ class WorkshopController extends Controller
             'generatedAt' => now(),
         ])->setOption([
             'enable_font_subsetting' => true,
-        ])->stream('workshop-'.$workshop->id.'-ticket-roll.pdf', [
-            'Attachment' => false,
-        ]);
+        ])->stream('workshop-'.$workshop->id.'-ticket-roll.pdf');
     }
 
     /**
@@ -620,7 +618,7 @@ class WorkshopController extends Controller
         $newWorkshop->status = 'draft';
         $newWorkshop->save();
 
-        foreach ($workshop->files as $file) {
+        foreach ($workshop->files()->get() as $file) {
             $newWorkshop->files()->attach($file->name);
         }
         foreach ($workshop->files('private')->get() as $file) {
@@ -632,112 +630,6 @@ class WorkshopController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.edit', $newWorkshop);
-    }
-
-    private function syncTickets(Workshop $workshop, Request $request): void
-    {
-        if ($workshop->registration !== 'tickets') {
-            $workshop->tickets()->delete();
-
-            return;
-        }
-
-        $tickets = $this->extractTickets($request);
-        if ($workshop->max_tickets !== null && count($tickets) > (int) $workshop->max_tickets) {
-            throw ValidationException::withMessages([
-                'tickets_json' => 'Ticket count cannot exceed the max tickets value.',
-            ]);
-        }
-
-        $existingTickets = $workshop->tickets()->get()->keyBy('id');
-        $keepIds = [];
-
-        foreach ($tickets as $ticketData) {
-            $ticketId = isset($ticketData['id']) ? (int) $ticketData['id'] : null;
-            unset($ticketData['id']);
-
-            if ($ticketId !== null && $existingTickets->has($ticketId)) {
-                $ticket = $existingTickets->get($ticketId);
-                $ticket->fill($ticketData);
-                $ticket->save();
-                $keepIds[] = $ticket->id;
-
-                continue;
-            }
-
-            $ticket = new Ticket();
-            $ticket->fill($ticketData);
-            $ticket->workshop_id = $workshop->id;
-            $ticket->save();
-            $keepIds[] = $ticket->id;
-        }
-
-        $deleteQuery = $workshop->tickets()->newQuery()->where('workshop_id', $workshop->id);
-        if (! empty($keepIds)) {
-            $deleteQuery->whereNotIn('id', $keepIds);
-        }
-
-        $deleteQuery->delete();
-    }
-
-    private function extractTickets(Request $request): array
-    {
-        $ticketsJson = $request->input('tickets_json', '[]');
-
-        if (! is_string($ticketsJson) || trim($ticketsJson) === '') {
-            return [];
-        }
-
-        $decoded = json_decode($ticketsJson, true);
-        if (! is_array($decoded)) {
-            return [];
-        }
-
-        $rows = array_values(array_filter($decoded, fn ($item) => is_array($item)));
-        if (count($rows) === 0) {
-            return [];
-        }
-
-        $userIds = collect($rows)
-            ->map(fn (array $row) => (string) ($row['user_id'] ?? ''))
-            ->filter()
-            ->unique()
-            ->values();
-
-        $users = User::query()->whereIn('id', $userIds)->get()->keyBy(fn (User $user) => (string) $user->id);
-
-        $tickets = [];
-
-        foreach ($rows as $row) {
-            $userId = trim((string) ($row['user_id'] ?? ''));
-            if ($userId === '') {
-                continue;
-            }
-
-            $user = $users->get($userId);
-            if (! $user) {
-                throw ValidationException::withMessages([
-                    'tickets_json' => 'One or more selected ticket users are invalid.',
-                ]);
-            }
-
-            $firstname = trim((string) ($row['firstname'] ?? ''));
-            $surname = trim((string) ($row['surname'] ?? ''));
-            $email = trim((string) ($row['email'] ?? ''));
-            $phone = trim((string) ($row['phone'] ?? ''));
-
-            $tickets[] = [
-                'id' => isset($row['id']) ? (int) $row['id'] : null,
-                'status' => Ticket::STATUS_DONE,
-                'user_id' => $userId,
-                'firstname' => $firstname !== '' ? $firstname : (string) ($user->firstname ?? ''),
-                'surname' => $surname !== '' ? $surname : (string) ($user->surname ?? ''),
-                'email' => $email !== '' ? $email : (string) ($user->email ?? ''),
-                'phone' => $phone !== '' ? $phone : (string) ($user->phone ?? ''),
-            ];
-        }
-
-        return $tickets;
     }
 
     private function resolveAttendanceUserId(string $email, string $firstname, string $surname, string $phone): ?string
@@ -826,7 +718,7 @@ class WorkshopController extends Controller
         foreach ($tickets as $ticket) {
             $addresses = [
                 trim((string) ($ticket->email ?? '')),
-                trim((string) ($ticket->user?->email ?? '')),
+                trim((string) ($ticket->user->email ?? '')),
             ];
 
             foreach ($addresses as $email) {
@@ -847,9 +739,9 @@ class WorkshopController extends Controller
     private function getMailInitiatorIdentity(): array
     {
         $user = auth()->user();
-        $email = trim((string) ($user?->email ?? ''));
-        $firstName = trim((string) ($user?->firstname ?? ''));
-        $surname = trim((string) ($user?->surname ?? ''));
+        $email = trim((string) ($user->email ?? ''));
+        $firstName = trim((string) ($user->firstname ?? ''));
+        $surname = trim((string) ($user->surname ?? ''));
         $name = trim($firstName.' '.$surname);
         if ($name === '') {
             $name = trim((string) ($user?->getName() ?? ''));

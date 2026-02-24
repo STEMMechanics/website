@@ -46,8 +46,8 @@ class PaymentController extends Controller
                     ->orWhere('reference', 'like', '%'.$search.'%');
 
                 if ($searchId !== null) {
-                    $builder->orWhereKey($searchId)
-                        ->orWhereHas('refunds', fn ($refundQuery) => $refundQuery->whereKey($searchId));
+                    $builder->orWhere('id', $searchId)
+                        ->orWhereHas('refunds', fn ($refundQuery) => $refundQuery->where('id', $searchId));
                 }
             });
         }
@@ -544,9 +544,7 @@ class PaymentController extends Controller
             return $pdf->download($filename);
         }
 
-        return $pdf->stream($filename, [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($filename);
     }
 
     public function accountReceiptPdf(Request $request, Payment $payment)
@@ -563,9 +561,7 @@ class PaymentController extends Controller
             return $pdf->download($filename);
         }
 
-        return $pdf->stream($filename, [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($filename);
     }
 
     private function validateRequest(Request $request): array
@@ -788,14 +784,14 @@ class PaymentController extends Controller
             ->map(fn ($allocation) => [
                 'document' => $allocation->taxAdjustment
                     ? ('Tax Adjustment '.$allocation->taxAdjustment->adjustment_number)
-                    : ('Invoice '.(string) ($allocation->invoice?->invoice_number ?? '-')),
+                    : ('Invoice '.(string) ($allocation->invoice->invoice_number ?? '-')),
                 'amount' => (float) $allocation->allocated_amount,
             ])
             ->values();
 
         $invoiceNumbers = $payment->allocations
             ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
-            ->map(fn ($allocation) => trim((string) ($allocation->invoice?->invoice_number ?? '')))
+            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
             ->filter(fn ($number) => $number !== '')
             ->unique()
             ->values();
@@ -808,10 +804,10 @@ class PaymentController extends Controller
 
         $invoiceSummaryParts = $allocationRows
             ->map(function ($row) {
-                $amount = (float) ($row['amount'] ?? 0);
+                $amount = (float) $row['amount'];
                 $prefix = $amount < 0 ? '-' : '';
 
-                return ($row['document'] ?? 'Document').' ('.$prefix.'$'.number_format(abs($amount), 2).')';
+                return $row['document'].' ('.$prefix.'$'.number_format(abs($amount), 2).')';
             })
             ->values()
             ->all();
@@ -881,7 +877,7 @@ class PaymentController extends Controller
 
     private function paymentCanAllocateToInvoice(Payment $payment, Invoice $invoice): bool
     {
-        $paymentKind = (string) ($payment->kind ?: Payment::KIND_PAYMENT);
+        $paymentKind = (string) ($payment->kind ?? Payment::KIND_PAYMENT);
 
         return $invoice->expectedSettlementKind() === $paymentKind;
     }

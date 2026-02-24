@@ -21,16 +21,25 @@ class InvoicePaymentAllocation extends Model
         'allocated_amount' => 'decimal:2',
     ];
 
+    /**
+     * @return BelongsTo<Payment, $this>
+     */
     public function customerPayment(): BelongsTo
     {
         return $this->belongsTo(Payment::class, 'payment_id');
     }
 
+    /**
+     * @return BelongsTo<Invoice, $this>
+     */
     public function invoice(): BelongsTo
     {
         return $this->belongsTo(Invoice::class);
     }
 
+    /**
+     * @return BelongsTo<TaxAdjustment, $this>
+     */
     public function taxAdjustment(): BelongsTo
     {
         return $this->belongsTo(TaxAdjustment::class);

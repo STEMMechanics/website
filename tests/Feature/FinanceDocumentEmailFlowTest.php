@@ -103,6 +103,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
         $admin = $this->createAdminUser();
         $owner = User::factory()->create();
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'billing_email' => 'customer@example.com',
@@ -130,6 +131,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
         $admin = $this->createAdminUser();
         $owner = User::factory()->create();
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'billing_email' => 'billing@example.com',
@@ -186,6 +188,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
             'firstname' => 'Casey',
             'surname' => 'Buyer',
         ]);
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'invoice_number' => 'INV-9988',
@@ -218,15 +221,17 @@ class FinanceDocumentEmailFlowTest extends TestCase
         });
 
         $this->assertNotNull($capturedJob);
-        $this->assertInstanceOf(FinanceDocumentPdf::class, $capturedJob->mailable);
-        $resolved = (string) $capturedJob->mailable->resolvedFullMessage;
+        $mailable = $capturedJob->mailable;
+        $this->assertInstanceOf(FinanceDocumentPdf::class, $mailable);
+        /** @var FinanceDocumentPdf $mailable */
+        $resolved = (string) $mailable->resolvedFullMessage;
         $this->assertStringContainsString('Hi Casey,', $resolved);
         $this->assertStringContainsString('Invoice INV-9988', $resolved);
         $this->assertStringContainsString('$123.45', $resolved);
         $this->assertStringNotContainsString('{{name}}', $resolved);
         $this->assertStringContainsString('{{pay}}', $resolved);
 
-        $html = $capturedJob->mailable->render();
+        $html = $mailable->render();
         $this->assertStringContainsString('View and Pay Invoice', $html);
     }
 
@@ -239,6 +244,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
             'firstname' => 'Jordan',
             'surname' => 'Smith',
         ]);
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'invoice_number' => 'INV-PAID-1',
@@ -269,7 +275,10 @@ class FinanceDocumentEmailFlowTest extends TestCase
         });
 
         $this->assertNotNull($capturedJob);
-        $resolved = (string) $capturedJob->mailable->resolvedFullMessage;
+        $mailable = $capturedJob->mailable;
+        $this->assertInstanceOf(FinanceDocumentPdf::class, $mailable);
+        /** @var FinanceDocumentPdf $mailable */
+        $resolved = (string) $mailable->resolvedFullMessage;
         $this->assertStringContainsString('paid in full', $resolved);
         $this->assertStringNotContainsString('{{pay}}', $resolved);
     }

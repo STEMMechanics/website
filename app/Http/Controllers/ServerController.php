@@ -200,7 +200,7 @@ class ServerController extends Controller
         }
 
         $zipPath = tempnam(sys_get_temp_dir(), 'orphans-');
-        if (! is_string($zipPath) || $zipPath === '') {
+        if (! is_string($zipPath)) {
             session()->flash('message', 'Unable to create temporary archive file.');
             session()->flash('message-title', 'Download failed');
             session()->flash('message-type', 'danger');
@@ -536,14 +536,12 @@ class ServerController extends Controller
 
     private function getDeployScriptPath(): string
     {
-        /** @noinspection LaravelFunctionsInspection */
-        return env('DEPLOY_SCRIPT_PATH', '/app/deploy.sh');
+        return (string) config('services.deploy.script_path', '/app/deploy.sh');
     }
 
     private function getDeployOutputPath(): string
     {
-        /** @noinspection LaravelFunctionsInspection */
-        return env('DEPLOY_OUTPUT_LOG', '/var/tmp/stemmechanics_deploy.log');
+        return (string) config('services.deploy.output_log', '/var/tmp/stemmechanics_deploy.log');
     }
 
     private function getFileData(string $path, int $tailLines): array
@@ -718,7 +716,7 @@ class ServerController extends Controller
 
             $missingMediaFiles[] = [
                 'path' => (string) $path,
-                'references' => array_values($references),
+                'references' => $references,
             ];
         }
 
@@ -767,7 +765,7 @@ class ServerController extends Controller
         return match ($scope) {
             'orphan_expense' => $expenseOrphans,
             'orphan_media' => $mediaOrphans,
-            default => array_values(array_merge($expenseOrphans, $mediaOrphans)),
+            default => array_merge($expenseOrphans, $mediaOrphans),
         };
     }
 

@@ -89,7 +89,7 @@ class InvoiceController extends Controller
         $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
-        if (! $invoice->due_date && $invoice->issue_date) {
+        if (! $invoice->due_date) {
             $invoice->due_date = Carbon::parse($invoice->issue_date)->addDays(28);
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
@@ -168,7 +168,7 @@ class InvoiceController extends Controller
         $invoice->subtotal_amount = $this->calculateSubtotal($lineItems);
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
-        if (! $invoice->due_date && $invoice->issue_date) {
+        if (! $invoice->due_date) {
             $invoice->due_date = Carbon::parse($invoice->issue_date)->addDays(28);
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
@@ -260,9 +260,7 @@ class InvoiceController extends Controller
 
     public function pdf(Invoice $invoice)
     {
-        return $this->buildInvoicePdf($invoice)->stream($this->getInvoicePdfFilename($invoice), [
-            'Attachment' => false,
-        ]);
+        return $this->buildInvoicePdf($invoice)->stream($this->getInvoicePdfFilename($invoice));
     }
 
     public function accountIndex(Request $request)
@@ -291,9 +289,7 @@ class InvoiceController extends Controller
 
     public function pdfWithAdjustments(Invoice $invoice)
     {
-        return $this->buildInvoicePdf($invoice, includeAdjustments: true)->stream($this->getInvoicePdfFilename($invoice), [
-            'Attachment' => false,
-        ]);
+        return $this->buildInvoicePdf($invoice, includeAdjustments: true)->stream($this->getInvoicePdfFilename($invoice));
     }
 
     public function accountShow(Request $request, Invoice $invoice): View
@@ -523,9 +519,7 @@ class InvoiceController extends Controller
             return $pdf->download($filename);
         }
 
-        return $pdf->stream($filename, [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($filename);
     }
 
     public function accountReceiptPdf(Request $request, Invoice $invoice, Payment $payment)
@@ -534,7 +528,7 @@ class InvoiceController extends Controller
         $this->abortIfInvoiceNotAccessibleForRequest($request, $invoice);
 
         if (! $this->paymentLinkedToInvoiceForReceipt($invoice, $payment)) {
-            $authUserId = (string) ($request->user()?->id ?? '');
+            $authUserId = (string) ($request->user()->id ?? '');
             $paymentUserId = (string) ($payment->user_id ?? '');
 
 
@@ -551,9 +545,7 @@ class InvoiceController extends Controller
             return $pdf->download($filename);
         }
 
-        return $pdf->stream($filename, [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($filename);
     }
 
     public function emailPdf(Request $request, Invoice $invoice): RedirectResponse
@@ -1010,7 +1002,7 @@ class InvoiceController extends Controller
             return $billingEmail;
         }
 
-        return trim((string) ($invoice->user?->email ?? ''));
+        return trim((string) ($invoice->user->email ?? ''));
     }
 
     private function resolveInvoiceEmailRecipients(Request $request, Invoice $invoice): array
@@ -1236,23 +1228,9 @@ class InvoiceController extends Controller
         return collect($allocatedPaymentIds)
             ->merge($refundIds)
             ->map(fn ($id) => (int) $id)
-            ->filter(fn (int $id) => $id > 0)
             ->unique()
             ->values()
             ->all();
-    }
-
-    private function createInvoiceAccessToken(Invoice $invoice, string $recipientEmail, Carbon $expiresAt): Token
-    {
-        return Token::create([
-            'user_id' => $invoice->user_id,
-            'type' => 'invoice-access',
-            'data' => [
-                'invoice_id' => $invoice->id,
-                'email' => $recipientEmail,
-            ],
-            'expires_at' => $expiresAt,
-        ]);
     }
 
     private function sendPaymentReceiptEmail(Invoice $invoice, Payment $customerPayment): void
@@ -1384,7 +1362,7 @@ class InvoiceController extends Controller
                     'nullable',
                     'integer',
                     'exists:quotes,id',
-                    Rule::unique('invoices', 'quote_id')->ignore($invoice?->id),
+                    Rule::unique('invoices', 'quote_id')->ignore($invoice->id),
                 ],
                 'private_files' => ['nullable', 'string'],
             ]);
@@ -1799,9 +1777,9 @@ class InvoiceController extends Controller
     private function getMailInitiatorIdentity(): array
     {
         $user = auth()->user();
-        $email = trim((string) ($user?->email ?? ''));
-        $firstName = trim((string) ($user?->firstname ?? ''));
-        $surname = trim((string) ($user?->surname ?? ''));
+        $email = trim((string) ($user->email ?? ''));
+        $firstName = trim((string) ($user->firstname ?? ''));
+        $surname = trim((string) ($user->surname ?? ''));
         $name = trim($firstName.' '.$surname);
         if ($name === '') {
             $name = trim((string) ($user?->getName() ?? ''));

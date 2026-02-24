@@ -234,12 +234,15 @@ class GenerateVariants implements ShouldQueue
             $tempImage = $tempDir . '/' . $media->hash . '-temp-frame.jpg';
             $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
 
-            try {
-                $ffmpeg = FFMpeg::create();
-                $video = $ffmpeg->open($temp);
+                try {
+                    $ffmpeg = FFMpeg::create();
+                    $video = $ffmpeg->open($temp);
+                    if (! method_exists($video, 'frame')) {
+                        return;
+                    }
 
-                // Choose a frame that exists for short videos.
-                $frameAt = 1.0;
+                    // Choose a frame that exists for short videos.
+                    $frameAt = 1.0;
                 try {
                     $ffprobe = FFProbe::create();
                     $duration = (float) $ffprobe->format($temp)->get('duration');

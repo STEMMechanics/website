@@ -58,7 +58,7 @@ class TicketController extends Controller
             ->with(['workshop.location', 'user'])
             ->where(function (Builder $builder) use ($user): void {
                 $builder->where('user_id', $user?->id);
-                $email = strtolower(trim((string) ($user?->email ?? '')));
+                $email = strtolower(trim((string) ($user->email ?? '')));
                 if ($email !== '') {
                     $builder->orWhereRaw('LOWER(email) = ?', [$email]);
                 }
@@ -175,6 +175,7 @@ class TicketController extends Controller
         $ticketCount = (clone $ticketQuery)->count();
 
         if ($ticketCount > 0) {
+            /** @var Ticket|null $firstTicket */
             $firstTicket = (clone $ticketQuery)->orderBy('id')->first();
             if ($firstTicket) {
                 $tokenUserId = $this->resolveOrCreateTokenUserIdForTicketEmail($email, $firstTicket);
@@ -688,9 +689,7 @@ class TicketController extends Controller
             'enable_font_subsetting' => true,
         ]);
 
-        return $pdf->stream($this->ticketPdfFilename($ticket), [
-            'Attachment' => false,
-        ]);
+        return $pdf->stream($this->ticketPdfFilename($ticket));
     }
 
     private function abortIfTicketNotAccessible(Request $request, Ticket $ticket): void
@@ -766,7 +765,7 @@ class TicketController extends Controller
 
     private function ticketPdfFilename(Ticket $ticket): string
     {
-        $slug = trim((string) ($ticket->workshop?->title ?? 'workshop'));
+        $slug = trim((string) ($ticket->workshop->title ?? 'workshop'));
         $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? 'workshop');
         $slug = trim($slug, '-');
         if ($slug === '') {
@@ -890,24 +889,24 @@ class TicketController extends Controller
             ];
         });
 
-        $expectedRefundCents = (int) ($summary['expected_refund_cents'] ?? 0);
+        $expectedRefundCents = (int) $summary['expected_refund_cents'];
         $refundedCents = 0;
         $refundPaymentIds = [];
         $manualRefundRequired = false;
 
         if ($expectedRefundCents > 0 && $processSquareRefunds) {
             $refundOutcome = $this->processSquareRefundOperations(
-                $summary['refund_operation_ids'] ?? [],
+                $summary['refund_operation_ids'],
                 'Ticket cancellation '.($ticket->reference_code ?: $ticket->id),
                 $squareApi
             );
             $refundedCents = (int) ($refundOutcome['refunded_cents'] ?? 0);
             $refundPaymentIds = array_map('intval', (array) ($refundOutcome['refund_payment_ids'] ?? []));
 
-            $manualRefundRequired = ((bool) ($summary['originally_paid'] ?? false))
+            $manualRefundRequired = (bool) $summary['originally_paid']
                 && $refundedCents < $expectedRefundCents;
         } elseif ($expectedRefundCents > 0) {
-            $manualRefundRequired = (bool) ($summary['originally_paid'] ?? false);
+            $manualRefundRequired = (bool) $summary['originally_paid'];
         }
 
         unset($summary['expected_refund_cents'], $summary['refund_operation_ids']);
@@ -946,7 +945,7 @@ class TicketController extends Controller
         $lineTotalEx = $invoiceLine ? (float) $invoiceLine->line_total_ex_tax : ((float) $invoice->subtotal_amount);
         $lineTotalInc = $invoiceLine ? (float) $invoiceLine->line_total_inc_tax : ((float) $invoice->total_amount);
         $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : 0.10;
-        $description = $invoiceLine?->description ?: (($ticket->workshop?->title ?? 'Workshop').' - Ticket refund');
+        $description = $invoiceLine->description ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket refund');
         $sourceType = $invoiceLine?->source_type;
         $sourceId = $invoiceLine?->source_id;
         $originalInvoiceLineId = $invoiceLine?->id;
@@ -1056,9 +1055,6 @@ class TicketController extends Controller
 
             $allocationCents = max(0, (int) round(((float) $allocation->allocated_amount) * 100));
             $refundCents = min($remaining, $refundable, max(1, $allocationCents));
-            if ($refundCents <= 0) {
-                continue;
-            }
 
             $idempotencyKey = mb_substr(
                 'tkt-'.$ticket->id.'-an-'.$adjustmentNote->id.'-cp-'.$customerPayment->id.'-'.$refundCents,
@@ -1391,9 +1387,9 @@ class TicketController extends Controller
             return;
         }
 
-        $workshopTitle = trim((string) ($ticket->workshop?->title ?? 'Workshop'));
+        $workshopTitle = trim((string) ($ticket->workshop->title ?? 'Workshop'));
         $workshopTime = method_exists($ticket->workshop, 'formattedDateRange')
-            ? (string) ($ticket->workshop?->formattedDateRange() ?? '-')
+            ? (string) ($ticket->workshop->formattedDateRange() ?? '-')
             : (string) ($ticket->workshop?->starts_at?->format('M j, Y g:i a') ?? '-');
         $workshopLocation = (string) ($ticket->workshop?->getLocationName() ?? '-');
         $ticketReference = (string) ($ticket->reference_code ?: '#'.$ticket->id);
@@ -1401,7 +1397,7 @@ class TicketController extends Controller
         $refundedCents = (int) ($summary['refunded_cents'] ?? 0);
         $manualRefundRequired = (bool) ($summary['manual_refund_required'] ?? false);
         $alreadyAdjusted = (bool) ($summary['already_adjusted'] ?? false);
-        $invoiceTotal = (float) ($ticket->invoice?->total_amount ?? 0);
+        $invoiceTotal = (float) ($ticket->invoice->total_amount ?? 0);
         $isFreeBooking = (int) ($ticket->invoice_id ?? 0) <= 0 || $invoiceTotal <= 0.0001;
 
         $financialSummary = '';
@@ -1534,49 +1530,6 @@ class TicketController extends Controller
         return max(0, round($netInvoiceDue - $paidAgainstInvoice, 2));
     }
 
-    private function invoiceHasRemainingBillableItems(Invoice $invoice): bool
-    {
-        $invoice->loadMissing('lines');
-        if ($invoice->lines->isEmpty()) {
-            return false;
-        }
-
-        foreach ($invoice->lines as $line) {
-            $quantity = (float) $line->quantity;
-            if ($quantity <= 0) {
-                continue;
-            }
-
-            if ($line->kind !== 'ticket') {
-                return true;
-            }
-
-            $linkedTicketCount = Ticket::query()->where('invoice_line_id', $line->id)->count();
-            $cancelledLinkedCount = Ticket::query()
-                ->where('invoice_line_id', $line->id)
-                ->whereIn('status', Ticket::inactiveStatuses())
-                ->count();
-
-            if ($linkedTicketCount > 0 && $cancelledLinkedCount < $linkedTicketCount) {
-                return true;
-            }
-
-            if ($linkedTicketCount === 0) {
-                $allInvoiceTickets = Ticket::query()->where('invoice_id', $invoice->id)->count();
-                $cancelledInvoiceTickets = Ticket::query()
-                    ->where('invoice_id', $invoice->id)
-                    ->whereIn('status', Ticket::inactiveStatuses())
-                    ->count();
-
-                if ($allInvoiceTickets > 0 && $cancelledInvoiceTickets < $allInvoiceTickets) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-
     private function ticketAlreadyHasAdjustment(Invoice $invoice, Ticket $ticket, ?InvoiceLine $invoiceLine): bool
     {
         $ticketReference = trim((string) ($ticket->reference_code ?: $ticket->id));
@@ -1612,7 +1565,7 @@ class TicketController extends Controller
         string $purchaserName
     ): void {
         $workshopInfo = [
-            'title' => (string) ($newTicket->workshop?->title ?? ''),
+            'title' => (string) ($newTicket->workshop->title ?? ''),
             'time' => (string) ($newTicket->workshop?->getTicketTimeRangeLabel() ?? '-'),
             'location' => (string) ($newTicket->workshop?->getLocationDisplay(true) ?? '-'),
         ];
@@ -1755,12 +1708,12 @@ class TicketController extends Controller
 
     private function purchaserEmailForTicket(Ticket $ticket): string
     {
-        $invoiceEmail = strtolower(trim((string) ($ticket->invoice?->billing_email ?? '')));
+        $invoiceEmail = strtolower(trim((string) ($ticket->invoice->billing_email ?? '')));
         if ($invoiceEmail !== '') {
             return $invoiceEmail;
         }
 
-        $userEmail = strtolower(trim((string) ($ticket->user?->email ?? '')));
+        $userEmail = strtolower(trim((string) ($ticket->user->email ?? '')));
         if ($userEmail !== '') {
             return $userEmail;
         }
@@ -1770,7 +1723,7 @@ class TicketController extends Controller
 
     private function purchaserNameForTicket(Ticket $ticket): string
     {
-        $invoiceName = trim((string) ($ticket->invoice?->billing_name ?? ''));
+        $invoiceName = trim((string) ($ticket->invoice->billing_name ?? ''));
         if ($invoiceName !== '') {
             return $invoiceName;
         }
@@ -2043,7 +1996,6 @@ class TicketController extends Controller
         return collect($allocatedPaymentIds)
             ->merge($refundIds)
             ->map(fn ($id) => (int) $id)
-            ->filter(fn (int $id) => $id > 0)
             ->unique()
             ->values()
             ->all();

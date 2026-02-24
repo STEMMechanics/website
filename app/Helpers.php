@@ -37,7 +37,7 @@ class Helpers
                 break;
         }
 
-        return $val;
+        return (int) round($val);
     }
 
     public static function bytesToString(int|float|string $bytes): string
@@ -152,7 +152,7 @@ class Helpers
         return false;
     }
 
-    public static function findMatchingMimeTypeKey(string $mimeType, array $patterns): string|bool
+    public static function findMatchingMimeTypeKey(string $mimeType, array $patterns): string|false
     {
         $match = '';
 

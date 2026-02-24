@@ -20,7 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'firstname',
@@ -47,7 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',
@@ -58,7 +58,7 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -124,6 +124,9 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * Get the tokens for the user.
      */
+    /**
+     * @return HasMany<Token, $this>
+     */
     public function tokens(): HasMany
     {
         return $this->hasMany(Token::class);
@@ -145,16 +148,25 @@ class User extends Authenticatable implements MustVerifyEmail
         return $name;
     }
 
-    public function tickets()
+    /**
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
     }
 
+    /**
+     * @return HasMany<Invoice, $this>
+     */
     public function invoices(): HasMany
     {
         return $this->hasMany(Invoice::class);
     }
 
+    /**
+     * @return HasMany<Quote, $this>
+     */
     public function quotes(): HasMany
     {
         return $this->hasMany(Quote::class);
@@ -165,6 +177,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Expense::class, 'created_by');
     }
 
+    /**
+     * @return HasMany<Payment, $this>
+     */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
@@ -204,6 +219,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getEmailUpdatePendingAttribute()
     {
+        /** @var Token|null $emailUpdate */
         $emailUpdate = $this->tokens()->where('type', 'email-update')->where('expires_at', '>', now())->first();
 
         return $emailUpdate ? $emailUpdate->data['email'] : null;
@@ -214,6 +230,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasGroup('admin');
     }
 
+    /**
+     * @return HasMany<UserGroup, $this>
+     */
     public function groups(): HasMany
     {
         return $this->hasMany(UserGroup::class);

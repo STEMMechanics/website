@@ -82,7 +82,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 'guardian@example.com',
                 'other@example.com',
                 'parent@example.com',
-            ], array_values($recipients));
+            ], $recipients);
 
             return true;
         });

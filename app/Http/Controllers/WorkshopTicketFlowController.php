@@ -612,7 +612,7 @@ class WorkshopTicketFlowController extends Controller
             $payment = isset($session['payment_id']) ? Payment::query()->find((int) $session['payment_id']) : null;
             $purchaserEmail = strtolower(trim((string) ($session['purchaser']['email'] ?? '')));
             $purchaserName = trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? '')));
-            $orderAmount = (float) ($payment?->total_amount ?? $invoice?->total_amount ?? 0.0);
+            $orderAmount = (float) ($payment->total_amount ?? $invoice->total_amount ?? 0.0);
 
             $this->sendCustomerTicketOrderConfirmation(
                 workshop: $workshop->loadMissing('location'),
@@ -652,7 +652,7 @@ class WorkshopTicketFlowController extends Controller
         $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
         $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
         $payment = isset($session['payment_id']) ? Payment::query()->find((int) $session['payment_id']) : null;
-        $sentToEmail = trim((string) ($session['purchaser']['email'] ?? $tickets->first()?->email ?? ''));
+        $sentToEmail = trim((string) ($session['purchaser']['email'] ?? $tickets->first()->email ?? ''));
         $normalizedSentToEmail = strtolower($sentToEmail);
         $holderRecipientCount = $tickets
             ->map(fn (Ticket $ticket): string => strtolower(trim((string) ($ticket->email ?? ''))))
@@ -663,7 +663,7 @@ class WorkshopTicketFlowController extends Controller
         $accessToken = null;
 
         if ($sentToEmail !== '') {
-            $tokenUserId = trim((string) ($session['purchaser_user_id'] ?? $tickets->first()?->user_id ?? auth()->id()));
+            $tokenUserId = trim((string) ($session['purchaser_user_id'] ?? $tickets->first()->user_id ?? auth()->id()));
             if ($tokenUserId !== '') {
                 $token = Token::create([
                     'user_id' => $tokenUserId,
@@ -796,12 +796,12 @@ class WorkshopTicketFlowController extends Controller
         $invoice->subtotal_amount = 0;
         $invoice->gst_amount = 0;
         $invoice->total_amount = $totalAmount;
-        $invoice->notes = trim(implode("\n", array_filter([
+        $invoice->notes = trim(implode("\n", [
             'Generated from public ticket checkout for workshop: '.$workshop->title,
             'Purchaser: '.trim(($purchaser['firstname'] ?? '').' '.($purchaser['surname'] ?? '')),
             'Purchaser email: '.($purchaser['email'] ?? ''),
             'Purchaser phone: '.($purchaser['phone'] ?? ''),
-        ])));
+        ]));
         $invoice->save();
 
         $lines = collect();
@@ -819,10 +819,10 @@ class WorkshopTicketFlowController extends Controller
             $line->line_number = $index + 1;
             $line->kind = 'ticket';
             $line->description = $workshop->title.' - Ticket '.$ticketReference;
-            $line->notes = trim(implode("\n", array_filter([
+            $line->notes = trim(implode("\n", [
                 'Workshop date/time: '.($workshop->starts_at?->format('M j, Y g:i a') ?? '-'),
                 'Workshop location: '.((string) ($workshop->getLocationName())),
-            ])));
+            ]));
             $line->details_json = [
                 'ticket_id' => (int) $ticket->id,
                 'ticket_reference' => $ticketReference,
@@ -940,10 +940,10 @@ class WorkshopTicketFlowController extends Controller
         $user = auth()->user();
 
         return [
-            'firstname' => (string) ($user?->firstname ?? ''),
-            'surname' => (string) ($user?->surname ?? ''),
-            'email' => (string) ($user?->email ?? ''),
-            'phone' => (string) ($user?->phone ?? ''),
+            'firstname' => (string) ($user->firstname ?? ''),
+            'surname' => (string) ($user->surname ?? ''),
+            'email' => (string) ($user->email ?? ''),
+            'phone' => (string) ($user->phone ?? ''),
         ];
     }
 
@@ -972,7 +972,7 @@ class WorkshopTicketFlowController extends Controller
         ?string $purchaserName = null,
         ?int $ticketCount = null
     ): void {
-        $recipient = strtolower(trim((string) ($purchaserEmail ?? $tickets[0]->email ?? $invoice?->billing_email ?? auth()->user()?->email ?? '')));
+        $recipient = strtolower(trim((string) ($purchaserEmail ?? $tickets[0]->email ?? $invoice->billing_email ?? auth()->user()->email ?? '')));
         if ($recipient === '') {
             return;
         }
@@ -1087,7 +1087,7 @@ class WorkshopTicketFlowController extends Controller
             ] : null;
 
             $workshopInfo = [
-                'title' => (string) ($ticket->workshop?->title ?? ''),
+                'title' => (string) ($ticket->workshop->title ?? ''),
                 'time' => (string) ($ticket->workshop?->getTicketTimeRangeLabel() ?? '-'),
                 'location' => (string) ($ticket->workshop?->getLocationDisplay(true) ?? '-'),
             ];
@@ -1292,7 +1292,7 @@ class WorkshopTicketFlowController extends Controller
 
     private function ticketPdfFilename(Ticket $ticket): string
     {
-        $slug = trim((string) ($ticket->workshop?->title ?? 'workshop'));
+        $slug = trim((string) ($ticket->workshop->title ?? 'workshop'));
         $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $slug) ?? 'workshop');
         $slug = trim($slug, '-');
         if ($slug === '') {

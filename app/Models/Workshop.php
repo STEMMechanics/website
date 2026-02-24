@@ -6,6 +6,7 @@ use App\Helpers;
 use App\Traits\HasFiles;
 use App\Traits\Slug;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -43,26 +44,41 @@ class Workshop extends Model
         'max_tickets' => 'integer',
     ];
 
-    public function author()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function hero()
+    /**
+     * @return BelongsTo<Media, $this>
+     */
+    public function hero(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_name');
     }
 
-    public function location()
+    /**
+     * @return BelongsTo<Location, $this>
+     */
+    public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'location_id');
     }
 
+    /**
+     * @return HasMany<Ticket, $this>
+     */
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
     }
 
+    /**
+     * @return HasMany<WorkshopAttendance, $this>
+     */
     public function attendances(): HasMany
     {
         return $this->hasMany(WorkshopAttendance::class);
@@ -76,7 +92,7 @@ class Workshop extends Model
             return 'Online';
         }
 
-        return trim((string) ($this->location?->name ?? '')) ?: '-';
+        return trim((string) ($this->location->name ?? '')) ?: '-';
     }
 
     public function getLocationDisplay(bool $includeAddress = true): string
@@ -86,7 +102,7 @@ class Workshop extends Model
             return $locationName;
         }
 
-        $address = trim((string) ($this->location?->address ?? ''));
+        $address = trim((string) ($this->location->address ?? ''));
         if ($address === '') {
             return $locationName;
         }

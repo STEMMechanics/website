@@ -31,11 +31,13 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'user_id' => $quoteOwner->id,
             'line_items' => [],
         ]);
+        /** @var Quote $quote */
 
         $invoice = Invoice::factory()->create([
             'user_id' => $invoiceOwner->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
+        /** @var Invoice $invoice */
 
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => 'Q-TEST-'.uniqid(),
@@ -66,10 +68,12 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $admin = $this->createAdminUser();
         $owner = User::factory()->create();
         $quote = Quote::factory()->create(['user_id' => $owner->id]);
+        /** @var Quote $quote */
         $invoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
+        /** @var Invoice $invoice */
 
         $media = Media::query()->create([
             'name' => 'invoice-private-doc.txt',
@@ -94,7 +98,9 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
 
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
-        $this->assertSame((int) $quote->id, (int) $invoice->fresh()->quote_id);
+        $freshInvoice = $invoice->fresh();
+        $this->assertInstanceOf(Invoice::class, $freshInvoice);
+        $this->assertSame((int) $quote->id, (int) $freshInvoice->quote_id);
         $this->assertDatabaseHas('mediables', [
             'media_name' => $media->name,
             'mediable_id' => (string) $invoice->id,
@@ -111,6 +117,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'user_id' => $owner->id,
             'line_items' => [],
         ]);
+        /** @var Quote $quote */
 
         $media = Media::query()->create([
             'name' => 'quote-private-doc.txt',
@@ -170,12 +177,14 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
                 ],
             ],
         ]);
+        /** @var Quote $quote */
 
         $previousInvoice = Invoice::factory()->create([
             'user_id' => $owner->id,
             'status' => Invoice::STATUS_DRAFT,
             'quote_id' => $quote->id,
         ]);
+        /** @var Invoice $previousInvoice */
 
         $media = Media::query()->create([
             'name' => 'quote-private-invoice-copy.txt',
@@ -199,12 +208,15 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             ->latest('id')
             ->first();
 
-        $this->assertNotNull($newInvoice);
+        $this->assertInstanceOf(Invoice::class, $newInvoice);
         $this->assertSame((string) $owner->id, (string) $newInvoice->user_id);
-        $this->assertNull($previousInvoice->fresh()->quote_id);
+        $freshPreviousInvoice = $previousInvoice->fresh();
+        $this->assertInstanceOf(Invoice::class, $freshPreviousInvoice);
+        $this->assertNull($freshPreviousInvoice->quote_id);
 
         $this->assertSame(1, $newInvoice->lines()->count());
         $line = $newInvoice->lines()->first();
+        $this->assertInstanceOf(\App\Models\InvoiceLine::class, $line);
         $this->assertSame('Facilitator', $line->description);
         $this->assertSame('1 hour', $line->notes);
         $this->assertSame(2.0, (float) $line->quantity);

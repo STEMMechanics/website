@@ -42,10 +42,10 @@ class InvoiceDocumentBundle extends Mailable
         $this->recipientName = $recipientName;
         $this->invoiceNumber = $invoiceNumber;
         $this->attachmentsPayload = collect($attachments)->map(function ($attachment): array {
-            $content = (string) ($attachment['content'] ?? '');
+            $content = (string) $attachment['content'];
 
             return [
-                'filename' => trim((string) ($attachment['filename'] ?? '')),
+                'filename' => trim((string) $attachment['filename']),
                 'mime' => (string) ($attachment['mime'] ?? 'application/pdf'),
                 'content_base64' => $content !== '' ? base64_encode($content) : '',
             ];
@@ -69,8 +69,8 @@ class InvoiceDocumentBundle extends Mailable
         }
 
         foreach ($this->attachmentsPayload as $attachment) {
-            $filename = trim((string) ($attachment['filename'] ?? ''));
-            $contentBase64 = (string) ($attachment['content_base64'] ?? '');
+            $filename = trim((string) $attachment['filename']);
+            $contentBase64 = (string) $attachment['content_base64'];
             if ($filename === '' || $contentBase64 === '') {
                 continue;
             }
