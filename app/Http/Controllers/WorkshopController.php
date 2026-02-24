@@ -263,12 +263,26 @@ class WorkshopController extends Controller
             $workshopData['status'] = 'closed';
         }
 
+        $changingAwayFromManagedTickets = $workshop->registration === 'tickets'
+            && (($workshopData['registration'] ?? 'none') !== 'tickets');
+        if ($changingAwayFromManagedTickets) {
+            $hasActiveTickets = Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->exists();
+
+            if ($hasActiveTickets) {
+                session()->flash('message', 'This workshop cannot be changed from managed tickets while active tickets exist. Cancel/refund active tickets first.');
+                session()->flash('message-title', 'Update blocked');
+                session()->flash('message-type', 'danger');
+
+                return redirect()->route('admin.workshop.edit', $workshop);
+            }
+        }
+
         $workshop->update($workshopData);
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles($request->input('private_files'), 'private');
-        if (($workshopData['registration'] ?? 'none') !== 'tickets') {
-            $workshop->tickets()->delete();
-        }
 
         session()->flash('message', 'Workshop has been updated');
         session()->flash('message-title', 'Workshop updated');
@@ -457,20 +471,30 @@ class WorkshopController extends Controller
      */
     public function admin_destroy(Workshop $workshop)
     {
-        $hasIssuedTickets = $workshop->registration === 'tickets'
-            && Ticket::query()
-                ->where('workshop_id', $workshop->id)
-                ->where('status', '!=', Ticket::STATUS_HOLD)
-                ->exists();
-        if ($hasIssuedTickets) {
-            session()->flash('message', 'This workshop cannot be deleted because issued tickets exist (including cancelled/reissued records).');
+        $hasActiveTickets = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->exists();
+        if ($hasActiveTickets) {
+            session()->flash('message', 'This workshop cannot be deleted while active tickets exist. Cancel/refund active tickets first.');
             session()->flash('message-title', 'Delete blocked');
             session()->flash('message-type', 'danger');
 
             return redirect()->route('admin.workshop.edit', $workshop);
         }
 
-        $workshop->tickets()->delete();
+        $hasHistoricalTickets = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->where('status', '!=', Ticket::STATUS_HOLD)
+            ->exists();
+        if ($hasHistoricalTickets) {
+            session()->flash('message', 'This workshop cannot be deleted because ticket records must be retained.');
+            session()->flash('message-title', 'Delete blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.workshop.edit', $workshop);
+        }
+
         $workshop->delete();
         session()->flash('message', 'Workshop has been deleted');
         session()->flash('message-title', 'Workshop deleted');
