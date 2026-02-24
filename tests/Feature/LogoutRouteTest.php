@@ -10,13 +10,14 @@ class LogoutRouteTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_logout_is_post_only(): void
+    public function test_logout_get_shows_confirmation_and_post_logs_out(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user)
             ->get('/logout')
-            ->assertRedirect(route('index'));
+            ->assertOk()
+            ->assertSee('Confirm logout from your account.');
 
         $this->actingAs($user)
             ->withSession(['_token' => 'test-csrf-token'])

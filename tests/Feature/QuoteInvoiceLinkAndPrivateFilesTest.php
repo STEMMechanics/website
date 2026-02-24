@@ -150,6 +150,73 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         ]);
     }
 
+    public function test_create_invoice_from_quote_links_quote_copies_files_and_unlinks_previous_invoice(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'title' => 'Pinball Workshop',
+            'description' => 'Delivered onsite',
+            'notes' => 'Bring safety glasses',
+            'line_items' => [
+                [
+                    'description' => 'Facilitator',
+                    'notes' => '1 hour',
+                    'quantity' => 2,
+                    'unit_price' => 120,
+                    'gst_applicable' => true,
+                ],
+            ],
+        ]);
+
+        $previousInvoice = Invoice::factory()->create([
+            'user_id' => $owner->id,
+            'status' => Invoice::STATUS_DRAFT,
+            'quote_id' => $quote->id,
+        ]);
+
+        $media = Media::query()->create([
+            'name' => 'quote-private-invoice-copy.txt',
+            'title' => 'Quote Private File',
+            'hash' => str_repeat('a', 64),
+            'mime_type' => 'text/plain',
+            'size' => 64,
+            'user_id' => $owner->id,
+        ]);
+        $quote->updateFiles($media->name, 'private');
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.quote.create-invoice', $quote));
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $newInvoice = Invoice::query()
+            ->where('quote_id', $quote->id)
+            ->where('id', '!=', $previousInvoice->id)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($newInvoice);
+        $this->assertSame((string) $owner->id, (string) $newInvoice->user_id);
+        $this->assertNull($previousInvoice->fresh()->quote_id);
+
+        $this->assertSame(1, $newInvoice->lines()->count());
+        $line = $newInvoice->lines()->first();
+        $this->assertSame('Facilitator', $line->description);
+        $this->assertSame('1 hour', $line->notes);
+        $this->assertSame(2.0, (float) $line->quantity);
+
+        $this->assertDatabaseHas('mediables', [
+            'media_name' => $media->name,
+            'mediable_id' => (string) $newInvoice->id,
+            'mediable_type' => Invoice::class,
+            'collection' => 'private',
+        ]);
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

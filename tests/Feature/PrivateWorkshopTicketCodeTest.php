@@ -18,7 +18,7 @@ class PrivateWorkshopTicketCodeTest extends TestCase
 
         $this->get(route('workshop.ticket.flow.start', $workshop))
             ->assertOk()
-            ->assertSee('Private Code')
+            ->assertSee('Access Code')
             ->assertSee('private workshop', false);
     }
 
@@ -63,7 +63,8 @@ class PrivateWorkshopTicketCodeTest extends TestCase
             'ends_at' => now()->addDays(3)->addHours(2),
             'publish_at' => now()->subDay(),
             'closes_at' => now()->addDays(2),
-            'status' => 'private',
+            'status' => 'open',
+            'is_private' => true,
             'registration' => 'tickets',
             'private_code' => 'CODE-123',
             'max_tickets' => 10,
