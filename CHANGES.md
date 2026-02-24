@@ -1,5 +1,9 @@
 # Changes
 
+## 1.2.2
+
+- BAS report did not take refunds into account
+
 ## 1.2.1
 
 - Pass altcha checks if config is invalid

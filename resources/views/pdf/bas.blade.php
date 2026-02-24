@@ -127,7 +127,7 @@
                 <tr>
                     <td>{{ $payment->received_on?->format('Y-m-d H:i') ?? '-' }}</td>
                     <td>{{ $payment->user?->getName() ?? '-' }}</td>
-                    <td class="right">${{ number_format((float) $payment->total_amount, 2) }}</td>
+                    <td class="right">${{ number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2) }}</td>
                     <td class="right">${{ number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2) }}</td>
                 </tr>
             @empty

@@ -49,7 +49,7 @@ class BasController extends Controller
                 fputcsv($out, [
                     $payment->received_on?->format('Y-m-d H:i') ?? '',
                     $payment->user?->getName() ?? '',
-                    number_format((float) $payment->total_amount, 2, '.', ''),
+                    number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2, '.', ''),
                     number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2, '.', ''),
                 ]);
             }
@@ -106,7 +106,7 @@ class BasController extends Controller
             ->whereBetween('paid_on', [$start->toDateString(), $end->toDateString()]);
 
         $paymentsQuery = Payment::query()
-            ->where('kind', Payment::KIND_PAYMENT)
+            ->whereIn('kind', [Payment::KIND_PAYMENT, Payment::KIND_REFUND])
             ->whereNotNull('received_on')
             ->whereBetween('received_on', [$start->copy()->startOfDay()->toDateTimeString(), $end->copy()->endOfDay()->toDateTimeString()]);
 
@@ -126,10 +126,11 @@ class BasController extends Controller
             ->get();
 
         $customerPayments->each(function (Payment $payment): void {
+            $payment->setAttribute('bas_total_amount', $this->paymentSignedAmount($payment));
             $payment->setAttribute('bas_gst_amount', $this->paymentGstAmount($payment));
         });
 
-        $paymentsTotalInc = round((float) $customerPayments->sum(fn (Payment $payment): float => (float) $payment->total_amount), 2);
+        $paymentsTotalInc = round((float) $customerPayments->sum(fn (Payment $payment): float => (float) ($payment->bas_total_amount ?? 0)), 2);
         $paymentsGst = round((float) $customerPayments->sum(fn (Payment $payment): float => (float) ($payment->bas_gst_amount ?? 0)), 2);
         $paymentsTotalEx = round($paymentsTotalInc - $paymentsGst, 2);
 
@@ -154,29 +155,44 @@ class BasController extends Controller
     private function paymentGstAmount(Payment $payment): float
     {
         $storedGst = round((float) $payment->gst_amount, 2);
-        if (abs($storedGst) > 0.0001) {
-            return $storedGst;
-        }
+        if (abs($storedGst) <= 0.0001) {
+            $calculatedGst = 0.0;
+            foreach ($payment->allocations as $allocation) {
+                $invoice = $allocation->invoice;
+                if (! $invoice) {
+                    continue;
+                }
 
-        $calculatedGst = 0.0;
-        foreach ($payment->allocations as $allocation) {
-            $invoice = $allocation->invoice;
-            if (! $invoice) {
-                continue;
+                $allocatedAmount = (float) $allocation->allocated_amount;
+                $invoiceTotal = (float) $invoice->total_amount;
+                $invoiceGst = (float) $invoice->gst_amount;
+
+                if ($allocatedAmount <= 0 || $invoiceTotal <= 0 || $invoiceGst <= 0) {
+                    continue;
+                }
+
+                $ratio = max(0.0, min(1.0, $allocatedAmount / $invoiceTotal));
+                $calculatedGst += $invoiceGst * $ratio;
             }
 
-            $allocatedAmount = (float) $allocation->allocated_amount;
-            $invoiceTotal = (float) $invoice->total_amount;
-            $invoiceGst = (float) $invoice->gst_amount;
-
-            if ($allocatedAmount <= 0 || $invoiceTotal <= 0 || $invoiceGst <= 0) {
-                continue;
-            }
-
-            $ratio = max(0.0, min(1.0, $allocatedAmount / $invoiceTotal));
-            $calculatedGst += $invoiceGst * $ratio;
+            $storedGst = round($calculatedGst, 2);
         }
 
-        return round($calculatedGst, 2);
+        if ($payment->isRefund()) {
+            return -abs($storedGst);
+        }
+
+        return abs($storedGst);
+    }
+
+    private function paymentSignedAmount(Payment $payment): float
+    {
+        $amount = round((float) $payment->total_amount, 2);
+
+        if ($payment->isRefund()) {
+            return -abs($amount);
+        }
+
+        return abs($amount);
     }
 }

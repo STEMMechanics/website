@@ -68,7 +68,7 @@
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $payment->user?->getName() ?? '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $payment->user?->getName() ?? '-' }}</td>
-                                    <td class="text-right">${{ number_format((float) $payment->total_amount, 2) }}</td>
+                                    <td class="text-right">${{ number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2) }}</td>
                                     <td class="text-right">${{ number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2) }}</td>
                                 </tr>
                             @endforeach
