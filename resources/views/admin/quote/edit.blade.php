@@ -2,6 +2,12 @@
     $savedLineItems = old('line_items_json');
     $selectedUserId = (string) old('user_id', $quote->user_id ?? '');
     $selectedLinkedInvoiceId = (string) old('linked_invoice_id', $linkedInvoiceId ?? '');
+    $quoteEmailNameSource = trim((string) ($quote->user?->getName() ?? $quote->billing_name ?? ''));
+    $quoteEmailName = trim((string) strtok($quoteEmailNameSource, ' '));
+    if ($quoteEmailName === '') {
+        $quoteEmailName = $quoteEmailNameSource !== '' ? $quoteEmailNameSource : 'there';
+    }
+    $defaultQuoteEmailMessage = "Hi {$quoteEmailName},\n\nAttached is quote **{$quote->quote_number}** for a workshop. Please don't hesitate to reach out if you have any questions.";
 
     if ($savedLineItems === null) {
         $savedLineItems = isset($quote) ? json_encode($quote->line_items ?? []) : '[]';
@@ -15,7 +21,7 @@
         @isset($quote)
             <div class="flex justify-end mb-4 gap-3">
                 <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', '')), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quote->user?->email ?? '')))) }">
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
                     <x-ui.button type="submit" x-data x-on:click.prevent="
                         open = true;
@@ -29,11 +35,12 @@
                                     <i class="fa-solid fa-xmark"></i>
                                 </button>
                             </div>
-                            <label class="block text-sm pl-1 mt-4" for="quote-recipient-emails">Recipient Email(s)</label>
+                            <label class="block text-sm pl-1 mt-4" for="quote-recipient-emails">Recipient Email</label>
                             <input
                                 id="quote-recipient-emails"
                                 name="recipient_emails"
                                 type="text"
+                                value="{{ (string) old('recipient_emails', trim((string) ($quote->user?->email ?? ''))) }}"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('recipient_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                                 x-model="recipientEmails"
                                 placeholder="name@example.com, another@example.com"
@@ -43,15 +50,31 @@
                                 <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('recipient_emails') }}</div>
                             @endif
 
-                            <label class="block text-sm pl-1 mt-4" for="quote-email-message">Message (optional)</label>
+                            <label class="block text-sm pl-1 mt-4" for="quote-cc-emails">CC</label>
+                            <input
+                                id="quote-cc-emails"
+                                name="cc_emails"
+                                type="text"
+                                value="{{ (string) old('cc_emails', '') }}"
+                                class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('cc_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                                x-model="ccEmails"
+                                placeholder="cc@example.com, team@example.com"
+                            />
+                            <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to add multiple CC recipients.</div>
+                            @if($errors->has('cc_emails'))
+                                <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('cc_emails') }}</div>
+                            @endif
+
+                            <label class="block text-sm pl-1 mt-4" for="quote-email-message">Message</label>
                             <textarea
                                 id="quote-email-message"
                                 name="email_message"
                                 rows="8"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300"
                                 x-model="emailMessage"
-                                placeholder="Add an optional message to include in the quote email."
-                            ></textarea>
+                                placeholder="Compose the full email body. Supports placeholders like @{{name}} and @{{id}}."
+                            >{{ (string) old('email_message', $defaultQuoteEmailMessage) }}</textarea>
+                            <div class="text-xs text-gray-500 ml-2 mt-1">Placeholders: @{{name}}, @{{id}}, @{{total}}, @{{outstanding}}, @{{due}}, @{{pay}}</div>
                             <div class="mt-4 flex justify-end gap-2">
                                 <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
                                 <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit();">Send Quote Email</x-ui.button>

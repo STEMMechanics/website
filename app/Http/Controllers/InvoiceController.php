@@ -561,10 +561,13 @@ class InvoiceController extends Controller
         $invoice->loadMissing('user');
         $emailMessage = trim((string) $request->input('email_message', ''));
         if ($emailMessage === '') {
-            $emailMessage = null;
+            $emailMessage = $this->defaultInvoiceEmailMessage($invoice);
         }
+        $invoiceDueDate = $invoice->due_date?->format('M j, Y');
+        $invoiceOutstanding = (float) $invoice->outstandingAmount();
 
         $recipients = $this->resolveInvoiceEmailRecipients($request, $invoice);
+        $ccRecipients = $this->resolveInvoiceEmailCcRecipients($request);
 
         $pdfBinary = $this->buildInvoicePdf($invoice)->output();
 
@@ -578,13 +581,28 @@ class InvoiceController extends Controller
                     recipientName: $invoice->user?->getName() ?? $recipient,
                     pdfContent: $pdfBinary,
                     pdfFilename: $this->getInvoicePdfFilename($invoice),
-                    customMessage: $emailMessage,
+                    fullMessage: $emailMessage,
+                    documentTotal: (float) $invoice->total_amount,
+                    documentOutstanding: $invoiceOutstanding,
+                    documentDue: $invoiceDueDate,
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
                     payUrl: route('invoice.public.pay.show', $invoice),
                 );
-                if ($initiatedByEmail !== null && strcasecmp($initiatedByEmail, $recipient) !== 0) {
-                    $mailable->cc($initiatedByEmail);
+                $allCcRecipients = $ccRecipients;
+                if ($initiatedByEmail !== null) {
+                    $allCcRecipients[] = $initiatedByEmail;
+                }
+
+                $normalizedCcRecipients = [];
+                foreach ($allCcRecipients as $ccEmail) {
+                    $normalizedCcRecipients[strtolower($ccEmail)] = $ccEmail;
+                }
+
+                foreach (array_values($normalizedCcRecipients) as $ccEmail) {
+                    if (strcasecmp($ccEmail, $recipient) !== 0) {
+                        $mailable->cc($ccEmail);
+                    }
                 }
 
                 dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
@@ -609,41 +627,49 @@ class InvoiceController extends Controller
     public function emailPaymentLink(Request $request, Invoice $invoice): RedirectResponse
     {
         $invoice->loadMissing('user');
-        $emailMessage = trim((string) $request->input('email_message', ''));
+        $emailMessage = trim((string) $request->input('payment_link_email_message', $request->input('email_message', '')));
         if ($emailMessage === '') {
             $emailMessage = null;
         }
 
-        $recipient = $this->resolveInvoiceContactEmail($invoice);
-        if ($recipient === '') {
-            session()->flash('message', 'Payment link email failed: invoice has no billing or user email');
-            session()->flash('message-title', 'Email failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->back();
-        }
+        $recipients = $this->resolveInvoicePaymentLinkRecipients($request, $invoice);
+        $ccRecipients = $this->resolveInvoicePaymentLinkCcRecipients($request);
 
         $payUrl = route('invoice.public.pay.show', $invoice);
         $pdfUrl = route('invoice.public.pay.show', $invoice);
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
 
-        $mailable = new InvoicePaymentLink(
-            invoiceNumber: (string) $invoice->invoice_number,
-            recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
-            payUrl: $payUrl,
-            pdfUrl: $pdfUrl,
-            customMessage: $emailMessage,
-            initiatedByEmail: $initiatedByEmail,
-            initiatedByName: $initiatedByName,
-        );
-        $ccEmail = $initiatedByEmail;
-        if ($ccEmail !== null) {
-            $mailable->cc($ccEmail);
-        }
-
         try {
-            dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            foreach ($recipients as $recipient) {
+                $mailable = new InvoicePaymentLink(
+                    invoiceNumber: (string) $invoice->invoice_number,
+                    recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
+                    payUrl: $payUrl,
+                    pdfUrl: $pdfUrl,
+                    customMessage: $emailMessage,
+                    initiatedByEmail: $initiatedByEmail,
+                    initiatedByName: $initiatedByName,
+                );
+
+                $allCcRecipients = $ccRecipients;
+                if ($initiatedByEmail !== null) {
+                    $allCcRecipients[] = $initiatedByEmail;
+                }
+
+                $normalizedCcRecipients = [];
+                foreach ($allCcRecipients as $ccEmail) {
+                    $normalizedCcRecipients[strtolower($ccEmail)] = $ccEmail;
+                }
+
+                foreach (array_values($normalizedCcRecipients) as $ccEmail) {
+                    if (strcasecmp($ccEmail, $recipient) !== 0) {
+                        $mailable->cc($ccEmail);
+                    }
+                }
+
+                dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            }
         } catch (Throwable $e) {
             report($e);
 
@@ -654,7 +680,7 @@ class InvoiceController extends Controller
             return redirect()->back();
         }
 
-        session()->flash('message', 'Invoice payment link emailed to '.$recipient);
+        session()->flash('message', 'Invoice payment link emailed to '.implode(', ', $recipients));
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
 
@@ -1027,6 +1053,149 @@ class InvoiceController extends Controller
         if (count($normalized) === 0) {
             throw ValidationException::withMessages([
                 'recipient_emails' => 'Add at least one valid recipient email address.',
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
+    private function defaultInvoiceEmailMessage(Invoice $invoice): string
+    {
+        $nameSource = trim((string) ($invoice->user?->getName() ?? $invoice->billing_name ?? ''));
+        $name = trim((string) strtok($nameSource, ' '));
+        if ($name === '') {
+            $name = $nameSource !== '' ? $nameSource : 'there';
+        }
+
+        $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
+        $total = '$'.number_format((float) ($invoice->total_amount ?? 0), 2);
+        $due = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
+        $outstanding = (float) $invoice->outstandingAmount();
+        $isPaidInFull = $outstanding <= 0.0001;
+
+        if ($invoice->isTicketInvoice()) {
+            if ($isPaidInFull) {
+                return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for your workshop ticket booking. The total cost was {$total}, and this invoice has now been paid in full.\n\nPlease don't hesitate to reach out if you have any questions.";
+            }
+
+            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for your workshop ticket booking. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+        }
+
+        if ($isPaidInFull) {
+            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost was {$total}, and this invoice has now been paid in full.\n\nPlease don't hesitate to reach out if you have any questions.";
+        }
+
+        return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+    }
+
+    private function resolveInvoiceEmailCcRecipients(Request $request): array
+    {
+        $input = trim((string) $request->input('cc_emails', ''));
+        if ($input === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'cc_emails' => 'One or more CC email addresses are invalid. Use commas or semicolons to separate recipients.',
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
+    private function resolveInvoicePaymentLinkRecipients(Request $request, Invoice $invoice): array
+    {
+        $input = trim((string) $request->input('payment_link_recipient_emails', ''));
+        if ($input === '') {
+            $input = $this->resolveInvoiceContactEmail($invoice);
+        }
+
+        if ($input === '') {
+            throw ValidationException::withMessages([
+                'payment_link_recipient_emails' => 'Add at least one recipient email address.',
+            ]);
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'payment_link_recipient_emails' => 'One or more email addresses are invalid. Use commas or semicolons to separate recipients.',
+            ]);
+        }
+
+        if (count($normalized) === 0) {
+            throw ValidationException::withMessages([
+                'payment_link_recipient_emails' => 'Add at least one valid recipient email address.',
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
+    private function resolveInvoicePaymentLinkCcRecipients(Request $request): array
+    {
+        $input = trim((string) $request->input('payment_link_cc_emails', ''));
+        if ($input === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'payment_link_cc_emails' => 'One or more CC email addresses are invalid. Use commas or semicolons to separate recipients.',
             ]);
         }
 

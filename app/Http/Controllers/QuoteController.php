@@ -183,10 +183,12 @@ class QuoteController extends Controller
         $quote->loadMissing('user');
         $emailMessage = trim((string) $request->input('email_message', ''));
         if ($emailMessage === '') {
-            $emailMessage = null;
+            $emailMessage = $this->defaultQuoteEmailMessage($quote);
         }
+        $quoteDueDate = $quote->quote_date?->copy()?->addDays(28)?->format('M j, Y');
 
         $recipients = $this->resolveQuoteEmailRecipients($request, $quote);
+        $ccRecipients = $this->resolveQuoteEmailCcRecipients($request);
 
         $pdfBinary = $this->buildQuotePdf($quote)->output();
 
@@ -200,13 +202,27 @@ class QuoteController extends Controller
                     recipientName: $quote->user?->getName() ?? $recipient,
                     pdfContent: $pdfBinary,
                     pdfFilename: $this->getQuotePdfFilename($quote),
-                    customMessage: $emailMessage,
+                    fullMessage: $emailMessage,
+                    documentTotal: (float) $quote->total_amount,
+                    documentOutstanding: (float) $quote->total_amount,
+                    documentDue: $quoteDueDate,
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
                 );
-                $ccEmail = $initiatedByEmail;
-                if ($ccEmail !== null) {
-                    $mailable->cc($ccEmail);
+                $allCcRecipients = $ccRecipients;
+                if ($initiatedByEmail !== null) {
+                    $allCcRecipients[] = $initiatedByEmail;
+                }
+
+                $normalizedCcRecipients = [];
+                foreach ($allCcRecipients as $ccEmail) {
+                    $normalizedCcRecipients[strtolower($ccEmail)] = $ccEmail;
+                }
+
+                foreach (array_values($normalizedCcRecipients) as $ccEmail) {
+                    if (strcasecmp($ccEmail, $recipient) !== 0) {
+                        $mailable->cc($ccEmail);
+                    }
                 }
 
                 dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
@@ -598,6 +614,53 @@ class QuoteController extends Controller
         if (count($normalized) === 0) {
             throw ValidationException::withMessages([
                 'recipient_emails' => 'Add at least one valid recipient email address.',
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
+    private function defaultQuoteEmailMessage(Quote $quote): string
+    {
+        $nameSource = trim((string) ($quote->user?->getName() ?? $quote->billing_name ?? ''));
+        $name = trim((string) strtok($nameSource, ' '));
+        if ($name === '') {
+            $name = $nameSource !== '' ? $nameSource : 'there';
+        }
+
+        $quoteNumber = trim((string) ($quote->quote_number ?? ''));
+
+        return "Hi {$name},\n\nAttached is quote **{$quoteNumber}** for a workshop. Please don't hesitate to reach out if you have any questions.";
+    }
+
+    private function resolveQuoteEmailCcRecipients(Request $request): array
+    {
+        $input = trim((string) $request->input('cc_emails', ''));
+        if ($input === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'cc_emails' => 'One or more CC email addresses are invalid. Use commas or semicolons to separate recipients.',
             ]);
         }
 

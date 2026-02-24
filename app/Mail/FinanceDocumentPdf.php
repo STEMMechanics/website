@@ -18,6 +18,16 @@ class FinanceDocumentPdf extends Mailable
 
     public ?string $customMessage;
 
+    public ?string $fullMessage;
+
+    public ?float $documentTotal;
+
+    public ?float $documentOutstanding;
+
+    public ?string $documentDue;
+
+    public ?string $resolvedFullMessage;
+
     public ?string $initiatedByEmail;
 
     public ?string $initiatedByName;
@@ -35,6 +45,10 @@ class FinanceDocumentPdf extends Mailable
         string $pdfContent,
         string $pdfFilename,
         ?string $customMessage = null,
+        ?string $fullMessage = null,
+        ?float $documentTotal = null,
+        ?float $documentOutstanding = null,
+        ?string $documentDue = null,
         ?string $initiatedByEmail = null,
         ?string $initiatedByName = null,
         ?string $payUrl = null
@@ -45,9 +59,14 @@ class FinanceDocumentPdf extends Mailable
         $this->pdfContentBase64 = $pdfContent !== '' ? base64_encode($pdfContent) : '';
         $this->pdfFilename = $pdfFilename;
         $this->customMessage = $customMessage !== null ? trim($customMessage) : null;
+        $this->fullMessage = $fullMessage !== null ? trim($fullMessage) : null;
+        $this->documentTotal = $documentTotal;
+        $this->documentOutstanding = $documentOutstanding;
+        $this->documentDue = $documentDue !== null ? trim($documentDue) : null;
         $this->initiatedByEmail = $initiatedByEmail !== null ? trim($initiatedByEmail) : null;
         $this->initiatedByName = $initiatedByName !== null ? trim($initiatedByName) : null;
         $this->payUrl = $payUrl !== null ? trim($payUrl) : null;
+        $this->resolvedFullMessage = $this->resolveFullMessage();
     }
 
     public function build(): static
@@ -75,5 +94,34 @@ class FinanceDocumentPdf extends Mailable
         }
 
         return $mail;
+    }
+
+    private function resolveFullMessage(): ?string
+    {
+        $template = $this->fullMessage;
+        if ($template === null || $template === '') {
+            return null;
+        }
+
+        $recipientName = trim((string) $this->recipientName);
+        $recipientFirstName = trim((string) strtok($recipientName, ' '));
+        if ($recipientFirstName === '') {
+            $recipientFirstName = $recipientName;
+        }
+
+        $totalFormatted = $this->documentTotal !== null ? '$'.number_format($this->documentTotal, 2) : '';
+        $outstandingFormatted = $this->documentOutstanding !== null ? '$'.number_format($this->documentOutstanding, 2) : '';
+        $dueFormatted = trim((string) ($this->documentDue ?? ''));
+
+        return strtr($template, [
+            '{{name}}' => $recipientFirstName,
+            '{{id}}' => (string) $this->documentNumber,
+            '{{total}}' => $totalFormatted,
+            '{{outstanding}}' => $outstandingFormatted,
+            '{{due}}' => $dueFormatted,
+            '{{$total}}' => $totalFormatted,
+            '{{$outstanding}}' => $outstandingFormatted,
+            '{{$due}}' => $dueFormatted,
+        ]);
     }
 }

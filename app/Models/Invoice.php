@@ -180,4 +180,21 @@ class Invoice extends Model
     {
         return max(0, round($this->dueAmount() - $this->settledAmount($excludingCustomerPaymentId), 2));
     }
+
+    public function isTicketInvoice(): bool
+    {
+        if ($this->relationLoaded('lines')) {
+            if ($this->lines->isEmpty()) {
+                return false;
+            }
+
+            return $this->lines->every(fn (InvoiceLine $line) => (string) $line->kind === 'ticket');
+        }
+
+        if (! $this->lines()->exists()) {
+            return false;
+        }
+
+        return ! $this->lines()->where('kind', '!=', 'ticket')->exists();
+    }
 }

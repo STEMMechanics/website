@@ -45,6 +45,18 @@
     $invoiceAdjustments = isset($invoice)
         ? $invoice->taxAdjustments->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0)
         : collect();
+    $invoiceEmailNameSource = trim((string) ($invoice->user?->getName() ?? $invoice->billing_name ?? ''));
+    $invoiceEmailName = trim((string) strtok($invoiceEmailNameSource, ' '));
+    if ($invoiceEmailName === '') {
+        $invoiceEmailName = $invoiceEmailNameSource !== '' ? $invoiceEmailNameSource : 'there';
+    }
+    $invoiceTotalDisplay = '$'.number_format((float) ($invoice->total_amount ?? 0), 2);
+    $invoiceDueDisplay = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
+    if (isset($invoice) && $invoice->isTicketInvoice()) {
+        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoice->invoice_number}** for your workshop ticket booking. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+    } else {
+        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoice->invoice_number}** for your workshop program and materials. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+    }
 @endphp
 
 <x-layout>
@@ -55,7 +67,7 @@
             <div class="flex justify-end mb-4 gap-2">
                 @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                     <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                    <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', '')), recipientEmails: @js((string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? '')))) }">
+                    <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultInvoiceEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                         @csrf
                         <x-ui.button type="submit" x-on:click.prevent="open = true">Email Invoice</x-ui.button>
 
@@ -67,11 +79,12 @@
                                         <i class="fa-solid fa-xmark"></i>
                                     </button>
                                 </div>
-                                <label class="block text-sm pl-1" for="invoice-recipient-emails">Recipient Email(s)</label>
+                                <label class="block text-sm pl-1" for="invoice-recipient-emails">Recipient Email</label>
                                 <input
                                     id="invoice-recipient-emails"
                                     name="recipient_emails"
                                     type="text"
+                                    value="{{ (string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? ''))) }}"
                                     class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('recipient_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                                     x-model="recipientEmails"
                                     placeholder="name@example.com, another@example.com"
@@ -81,15 +94,31 @@
                                     <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('recipient_emails') }}</div>
                                 @endif
 
-                                <label class="block text-sm pl-1 mt-4" for="invoice-email-message">Message (optional)</label>
+                                <label class="block text-sm pl-1 mt-4" for="invoice-cc-emails">CC Email</label>
+                                <input
+                                    id="invoice-cc-emails"
+                                    name="cc_emails"
+                                    type="text"
+                                    value="{{ (string) old('cc_emails', '') }}"
+                                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('cc_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                                    x-model="ccEmails"
+                                    placeholder="cc@example.com, team@example.com"
+                                />
+                                <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to add multiple CC recipients.</div>
+                                @if($errors->has('cc_emails'))
+                                    <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('cc_emails') }}</div>
+                                @endif
+
+                                <label class="block text-sm pl-1 mt-4" for="invoice-email-message">Message</label>
                                 <textarea
                                     id="invoice-email-message"
                                     name="email_message"
                                     rows="8"
                                     class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300"
                                     x-model="emailMessage"
-                                    placeholder="Add an optional message to include in the invoice email."
-                                ></textarea>
+                                    placeholder="Compose the full email body. Supports placeholders like @{{name}} and @{{id}}."
+                                >{{ (string) old('email_message', $defaultInvoiceEmailMessage) }}</textarea>
+                                <div class="text-xs text-gray-500 ml-2 mt-1">Placeholders: @{{name}}, @{{id}}, @{{total}}, @{{outstanding}}, @{{due}}, @{{pay}}</div>
                                 <div class="mt-4 flex justify-end gap-2">
                                     <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
                                     <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit();">Send Invoice Email</x-ui.button>
@@ -97,6 +126,31 @@
                             </div>
                         </div>
                     </form>
+                    <x-ui.button
+                        type="button"
+                        color="secondary"
+                        x-data
+                        x-on:click.prevent="
+                            fetch('{{ route('admin.invoice.payment-link', $invoice) }}', {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data || !data.url) {
+                                    throw new Error('Unable to generate payment link.');
+                                }
+                                SM.copyToClipboard(data.url);
+                                SM.alert('Payment Link Copied', 'Invoice payment link copied to clipboard.', 'success');
+                            })
+                            .catch((error) => {
+                                SM.alert('Copy Failed', error?.message || 'Unable to generate payment link.', 'danger');
+                            });
+                        "
+                    >Copy Payment Link</x-ui.button>
                     <x-ui.button type="link" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}">Record Payment</x-ui.button>
                 @endif
             </div>
