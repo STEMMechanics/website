@@ -10,7 +10,7 @@
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="text-sm"><strong>Ticket:</strong> {{ $ticket->reference_code ?: $ticket->id }}</div>
             <div class="text-sm"><strong>Invoice #:</strong> {{ $invoice->invoice_number }}</div>
-            <div class="text-sm"><strong>Total:</strong> ${{ number_format((float) $invoice->total_amount, 2) }}</div>
+            <div class="text-sm"><strong>Total:</strong> {{ money((float) $invoice->total_amount) }}</div>
         </div>
 
         <div class="flex my-4 items-center gap-4">
@@ -41,13 +41,7 @@
                             <td>{{ $isRefund ? 'Refund' : 'Payment' }}</td>
                             <td>{{ $receipt->received_on?->format('M j, Y g:i a') ?? '-' }}</td>
                             <td>{{ \App\Models\Payment::paymentMethodLabel((string) ($receipt->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
-                            <td>
-                                @if($isRefund)
-                                    -${{ number_format((float) $receipt->total_amount, 2) }}
-                                @else
-                                    ${{ number_format((float) $receipt->total_amount, 2) }}
-                                @endif
-                            </td>
+                            <td>{{ money($isRefund ? -((float) $receipt->total_amount) : (float) $receipt->total_amount) }}</td>
                             <td>
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('tickets.invoice.receipt.pdf', ['ticket' => $ticket, 'payment' => $receipt, 'token' => $accessToken]) }}" target="_blank" class="hover:text-primary-color" title="View PDF"><i class="fa-regular fa-file-lines"></i></a>

@@ -83,31 +83,31 @@
         <tbody>
             <tr>
                 <td>Sales Inc GST</td>
-                <td class="right">${{ number_format((float) $summary['payments_inc'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['payments_inc']) }}</td>
             </tr>
             <tr>
                 <td>Sales Ex GST</td>
-                <td class="right">${{ number_format((float) $summary['payments_ex'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['payments_ex']) }}</td>
             </tr>
             <tr>
                 <td>GST on Sales</td>
-                <td class="right">${{ number_format((float) $summary['payments_gst'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['payments_gst']) }}</td>
             </tr>
             <tr>
                 <td>Expenses Inc GST</td>
-                <td class="right">${{ number_format((float) $summary['expenses_inc'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['expenses_inc']) }}</td>
             </tr>
             <tr>
                 <td>Expenses Ex GST</td>
-                <td class="right">${{ number_format((float) $summary['expenses_ex'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['expenses_ex']) }}</td>
             </tr>
             <tr>
                 <td>GST on Expenses</td>
-                <td class="right">${{ number_format((float) $summary['expenses_gst'], 2) }}</td>
+                <td class="right">{{ money((float) $summary['expenses_gst']) }}</td>
             </tr>
             <tr>
                 <td><strong>Net GST</strong></td>
-                <td class="right"><strong>${{ number_format((float) $summary['net_gst'], 2) }}</strong></td>
+                <td class="right"><strong>{{ money((float) $summary['net_gst']) }}</strong></td>
             </tr>
         </tbody>
     </table>
@@ -128,9 +128,9 @@
                 <tr>
                     <td>{{ $payment->received_on?->format('Y-m-d H:i') ?? '-' }}</td>
                     <td>{{ $payment->user?->getName() ?? '-' }}</td>
-                    <td class="right">${{ number_format((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount))), 2) }}</td>
-                    <td class="right">${{ number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2) }}</td>
-                    <td class="right">${{ number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2) }}</td>
+                    <td class="right">{{ money((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount)))) }}</td>
+                    <td class="right">{{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</td>
+                    <td class="right">{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</td>
                 </tr>
             @empty
                 <tr>
@@ -163,9 +163,9 @@
                     <td>{{ $expense->paid_on?->format('Y-m-d') ?? '-' }}</td>
                     <td>{{ $expense->supplier ?: '-' }}</td>
                     <td>{{ $expense->description ?: '-' }}</td>
-                    <td class="right">${{ number_format($expenseEx, 2) }}</td>
-                    <td class="right">${{ number_format($expenseGst, 2) }}</td>
-                    <td class="right">${{ number_format($expenseTotal, 2) }}</td>
+                    <td class="right">{{ money($expenseEx) }}</td>
+                    <td class="right">{{ money($expenseGst) }}</td>
+                    <td class="right">{{ money($expenseTotal) }}</td>
                 </tr>
             @empty
                 <tr>
