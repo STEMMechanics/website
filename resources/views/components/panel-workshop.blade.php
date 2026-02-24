@@ -4,7 +4,7 @@
     $statusClass = $workshop->publicStatus();
     $statusTitle = $workshop->publicStatus();
     $isAdmin = (bool) (auth()->user()?->isAdmin() ?? false);
-    $showHostedFor = $workshop->is_private && $workshop->hosted_for != '';;
+    $showHostedFor = $workshop->is_private && !empty($workshop->hosted_for);
     $locationLabel = $showHostedFor
         ? $workshop->hosted_for
         : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());

@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Support\EmailMessageFormatter;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -58,8 +59,10 @@ class FinanceDocumentPdf extends Mailable
         $this->recipientName = $recipientName;
         $this->pdfContentBase64 = $pdfContent !== '' ? base64_encode($pdfContent) : '';
         $this->pdfFilename = $pdfFilename;
-        $this->customMessage = $customMessage !== null ? trim($customMessage) : null;
-        $this->fullMessage = $fullMessage !== null ? trim($fullMessage) : null;
+        $normalizedCustomMessage = $customMessage !== null ? EmailMessageFormatter::normalizeForMarkdown($customMessage) : '';
+        $normalizedFullMessage = $fullMessage !== null ? EmailMessageFormatter::normalizeForMarkdown($fullMessage) : '';
+        $this->customMessage = $normalizedCustomMessage !== '' ? $normalizedCustomMessage : null;
+        $this->fullMessage = $normalizedFullMessage !== '' ? $normalizedFullMessage : null;
         $this->documentTotal = $documentTotal;
         $this->documentOutstanding = $documentOutstanding;
         $this->documentDue = $documentDue !== null ? trim($documentDue) : null;

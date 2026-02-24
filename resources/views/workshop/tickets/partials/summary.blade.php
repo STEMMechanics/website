@@ -7,7 +7,7 @@
         <th class="text-left pr-4">Date</th>
         <td>{!! implode(', ', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</td>
     </tr>
-    @if($workshop->hosted_for != '')
+    @if(!empty($workshop->hosted_for))
     <tr>
         <th class="text-left pr-4 align-top">Hosted For</th>
         <td>

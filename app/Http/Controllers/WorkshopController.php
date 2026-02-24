@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmail;
+use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Workshop;
@@ -13,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class WorkshopController extends Controller
 {
@@ -85,6 +88,8 @@ class WorkshopController extends Controller
         $request->validate([
             'title' => 'required',
             'content' => 'required',
+            'type' => 'required|in:physical,online',
+            'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -114,6 +119,7 @@ class WorkshopController extends Controller
 
         $workshopData = $request->all();
         $workshopData['user_id'] = auth()->user()->id;
+        $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
         if (($workshopData['status'] ?? null) === 'private') {
             $workshopData['status'] = 'open';
@@ -201,6 +207,8 @@ class WorkshopController extends Controller
         $request->validate([
             'title' => 'required',
             'content' => 'required',
+            'type' => 'required|in:physical,online',
+            'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
             'ends_at' => 'required|after:starts_at',
             'publish_at' => 'required',
@@ -229,6 +237,7 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
         if (($workshopData['status'] ?? null) === 'private') {
             $workshopData['status'] = 'open';
@@ -298,6 +307,8 @@ class WorkshopController extends Controller
 
     public function admin_tickets(Workshop $workshop, Request $request)
     {
+        $bulkEmailRecipientCount = count($this->resolveWorkshopTicketEmailRecipients($workshop));
+
         $activeTicketCount = Ticket::query()
             ->where('workshop_id', $workshop->id)
             ->whereIn('status', Ticket::activePurchasedStatuses())
@@ -339,7 +350,72 @@ class WorkshopController extends Controller
             'tickets' => $tickets,
             'activeTicketCount' => $activeTicketCount,
             'showInvoiceColumn' => $showInvoiceColumn,
+            'bulkEmailRecipientCount' => $bulkEmailRecipientCount,
         ]);
+    }
+
+    public function admin_tickets_email(Request $request, Workshop $workshop): RedirectResponse
+    {
+        $validated = $request->validate([
+            'email_subject' => ['required', 'string', 'max:255'],
+            'email_message' => ['required', 'string'],
+        ]);
+
+        $subject = trim((string) ($validated['email_subject'] ?? ''));
+        $message = trim((string) ($validated['email_message'] ?? ''));
+        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop);
+
+        if ($recipients === []) {
+            session()->flash('message', 'No ticket-holder or linked-user email addresses were found for this workshop.');
+            session()->flash('message-title', 'No recipients');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
+        $toEmail = $initiatedByEmail;
+        if ($toEmail === null) {
+            $fallback = trim((string) config('mail.from.address', ''));
+            $toEmail = $fallback !== '' ? $fallback : null;
+        }
+        if ($toEmail === null) {
+            $fallback = trim((string) config('mail.admin_bcc', ''));
+            $toEmail = $fallback !== '' ? $fallback : null;
+        }
+
+        if ($toEmail === null || ! filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            session()->flash('message', 'Unable to send email: no valid sender/admin email address is configured.');
+            session()->flash('message-title', 'Email failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        try {
+            dispatch(new SendEmail($toEmail, new WorkshopTicketBroadcast(
+                subjectLine: $subject,
+                workshopTitle: (string) ($workshop->title ?? 'Workshop'),
+                messageBody: $message,
+                bccRecipients: $recipients,
+                initiatedByEmail: $initiatedByEmail,
+                initiatedByName: $initiatedByName,
+            )))->onQueue('mail');
+        } catch (Throwable $e) {
+            report($e);
+
+            session()->flash('message', 'Workshop email failed: '.$e->getMessage());
+            session()->flash('message-title', 'Email failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        session()->flash('message', 'Email sent to '.count($recipients).' recipient' . (count($recipients) == 1 ? '' : 's') . '.');
+        session()->flash('message-title', 'Email queued');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
     }
 
     public function admin_tickets_pdf(Workshop $workshop): Response
@@ -721,6 +797,68 @@ class WorkshopController extends Controller
         }
 
         $workshopData['registration_data'] = $registrationData;
+    }
+
+    private function normalizeWorkshopTypeData(array &$workshopData): void
+    {
+        $type = (string) ($workshopData['type'] ?? 'online');
+        if ($type !== 'physical') {
+            $workshopData['location_id'] = null;
+            return;
+        }
+
+        $locationId = trim((string) ($workshopData['location_id'] ?? ''));
+        $workshopData['location_id'] = $locationId !== '' ? $locationId : null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveWorkshopTicketEmailRecipients(Workshop $workshop): array
+    {
+        $tickets = Ticket::query()
+            ->with('user')
+            ->where('workshop_id', $workshop->id)
+            ->where('status', '!=', Ticket::STATUS_HOLD)
+            ->get();
+
+        $normalized = [];
+        foreach ($tickets as $ticket) {
+            $addresses = [
+                trim((string) ($ticket->email ?? '')),
+                trim((string) ($ticket->user?->email ?? '')),
+            ];
+
+            foreach ($addresses as $email) {
+                if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+
+                $normalized[strtolower($email)] = $email;
+            }
+        }
+
+        return array_values($normalized);
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function getMailInitiatorIdentity(): array
+    {
+        $user = auth()->user();
+        $email = trim((string) ($user?->email ?? ''));
+        $firstName = trim((string) ($user?->firstname ?? ''));
+        $surname = trim((string) ($user?->surname ?? ''));
+        $name = trim($firstName.' '.$surname);
+        if ($name === '') {
+            $name = trim((string) ($user?->getName() ?? ''));
+        }
+
+        return [
+            $email !== '' ? $email : null,
+            $name !== '' ? $name : null,
+        ];
     }
 
     private function isSafeHttpUrl(string $url): bool

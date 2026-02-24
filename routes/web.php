@@ -192,6 +192,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/{workshop}/duplicate', [WorkshopController::class, 'admin_duplicate'])->name('admin.workshop.duplicate');
     Route::get('/admin/workshops/{workshop}/tickets', [WorkshopController::class, 'admin_tickets'])->name('admin.workshop.tickets');
     Route::get('/admin/workshops/{workshop}/tickets/pdf', [WorkshopController::class, 'admin_tickets_pdf'])->name('admin.workshop.tickets.pdf');
+    Route::post('/admin/workshops/{workshop}/tickets/email', [WorkshopController::class, 'admin_tickets_email'])->name('admin.workshop.tickets.email');
     Route::get('/admin/workshops/{workshop}/attendance', [WorkshopController::class, 'admin_attendance'])->name('admin.workshop.attendance');
     Route::post('/admin/workshops/{workshop}/attendance/tickets', [WorkshopController::class, 'admin_attendance_tickets'])->name('admin.workshop.attendance.tickets');
     Route::post('/admin/workshops/{workshop}/attendance/dropins', [WorkshopController::class, 'admin_attendance_dropin_store'])->name('admin.workshop.attendance.dropin.store');

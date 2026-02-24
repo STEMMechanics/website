@@ -64,9 +64,8 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>When</th>
-                    <th>Event</th>
-                    <th>Model</th>
-                    <th>Record</th>
+                    <th class="whitespace-nowrap">Event</th>
+                    <th class="whitespace-nowrap">Model / Record</th>
                     <th>Actor</th>
                     <th class="hidden lg:table-cell">Request</th>
                     <th class="hidden xl:table-cell text-center">Changes</th>
@@ -85,12 +84,17 @@
                         @endphp
                         <tr>
                             <td>
-                                <div>{{ $log->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div class="whitespace-nowrap">
+                                    @if($log->created_at)
+                                        {{ $log->created_at->format('M j, Y')}}<br>{{$log->created_at->format('g:i a') }}
+                                    @else
+                                        -
+                                    @endif
+                                </div>
                                 <div class="text-xs text-gray-500">{{ $log->created_at?->diffForHumans() ?? '' }}</div>
                             </td>
-                            <td><span class="uppercase text-xxs font-semibold">{{ $log->event }}</span></td>
-                            <td>{{ $modelShort }}</td>
-                            <td>{{ $log->auditable_id }}</td>
+                            <td class="whitespace-nowrap"><span class="uppercase text-xxs font-semibold whitespace-nowrap">{{ $log->event }}</span></td>
+                            <td class="whitespace-nowrap" style="white-space: nowrap; overflow-wrap: normal; word-break: normal;">{{ $modelShort }}<br>ID: {{ $log->auditable_id }}</td>
                             <td>
                                 <div>{{ $actorLabel }}</div>
                                 @if($log->ip_address)

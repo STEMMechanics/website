@@ -25,14 +25,12 @@ Your {{ $documentType }} **{{ $documentNumber }}** is attached as a PDF.
 {{ $customMessage }}
 
 @endif
+
+@if(!empty($payUrl))
+    @component('mail::button', ['url' => $payUrl])
+        View and Pay Invoice
+    @endcomponent
 @endif
-
-@if(!empty($payUrl) && !$hasPayPlaceholder)
-@component('mail::button', ['url' => $payUrl])
-View and Pay Invoice
-@endcomponent
-
-You can also open this link directly: {{ $payUrl }}
 @endif
 
 Thanks,<br>
