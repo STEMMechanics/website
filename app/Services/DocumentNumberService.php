@@ -96,6 +96,23 @@ class DocumentNumberService
 
     private function currentNumericMax(string $table, string $column): ?int
     {
+        $driver = DB::connection()->getDriverName();
+
+        if ($driver === 'sqlite') {
+            return DB::table($table)
+                ->whereRaw("{$column} != ''")
+                ->whereRaw("{$column} NOT GLOB '*[^0-9]*'")
+                ->selectRaw("MAX(CAST({$column} AS INTEGER)) as max_number")
+                ->value('max_number');
+        }
+
+        if ($driver === 'pgsql') {
+            return DB::table($table)
+                ->whereRaw("{$column} ~ '^[0-9]+$'")
+                ->selectRaw("MAX(CAST({$column} AS BIGINT)) as max_number")
+                ->value('max_number');
+        }
+
         return DB::table($table)
             ->whereRaw("{$column} REGEXP '^[0-9]+$'")
             ->selectRaw("MAX(CAST({$column} AS UNSIGNED)) as max_number")
