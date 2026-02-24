@@ -7,7 +7,7 @@
     <style>
         @include('pdf.partials.styling')
         .items.items-last {
-            margin-bottom: 320px;
+            margin-bottom: 8px;
         }
     </style>
 </head>
@@ -38,6 +38,49 @@
     }
     $billingCountry = trim((string) ($customer?->billing_country ?? ''));
     $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
+    $notes = trim((string) ($quote->notes ?? ''));
+    $renderLineNotes = function (string $rawNotes): string {
+    $lines = preg_split('/\r\n|\r|\n/', $rawNotes) ?: [];
+    $html = [];
+    $inList = false;
+
+    foreach ($lines as $line) {
+    $trimmed = trim((string) $line);
+
+    if ($trimmed === '') {
+    if ($inList) {
+    $html[] = '</ul>';
+    $inList = false;
+    }
+    $html[] = '<div class="line-note line-note-empty">&nbsp;</div>';
+    continue;
+    }
+
+    if (preg_match('/^[-*]\s+(.+)$/', $trimmed, $matches) === 1) {
+    if (! $inList) {
+    $html[] = '<ul class="line-note-list">';
+    $inList = true;
+    }
+    $content = e(trim((string) ($matches[1] ?? '')));
+    if ($content !== '') {
+    $html[] = '<li>'.$content.'</li>';
+    }
+    continue;
+    }
+
+    if ($inList) {
+    $html[] = '</ul>';
+    $inList = false;
+    }
+    $html[] = '<div class="line-note">'.e($trimmed).'</div>';
+    }
+
+    if ($inList) {
+    $html[] = '</ul>';
+    }
+
+    return implode('', $html);
+    };
     @endphp
 
     @foreach($pages as $pageIndex => $pageItems)
@@ -134,7 +177,7 @@
                     <td>
                         <div class="line-desc">{{ $item['description'] ?? '' }}{{ $gstApplicable ? '' : '*' }}</div>
                         @if($lineNotes !== '')
-                        <div class="line-note">{!! nl2br(e($lineNotes)) !!}</div>
+                        {!! $renderLineNotes($lineNotes) !!}
                         @endif
                     </td>
                     <td class="right">{{ rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.') }}</td>
@@ -152,6 +195,9 @@
         @if(!$loop->last)
         <div class="continued">Continued on next page...</div>
         @else
+        @if($notes !== '')
+        <div class="notes"><span class="note-title">Note: </span>{!! nl2br(e($notes)) !!}</div>
+        @endif
         <div class="bottom-block">
             <table class="totals">
                 <tr>

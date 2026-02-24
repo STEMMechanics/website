@@ -1,6 +1,7 @@
 @php
     $savedLineItems = old('line_items_json');
     $selectedUserId = (string) old('user_id', $quote->user_id ?? '');
+    $selectedLinkedInvoiceId = (string) old('linked_invoice_id', $linkedInvoiceId ?? '');
 
     if ($savedLineItems === null) {
         $savedLineItems = isset($quote) ? json_encode($quote->line_items ?? []) : '[]';
@@ -14,9 +15,8 @@
         @isset($quote)
             <div class="flex justify-end mb-4 gap-3">
                 <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: false, emailMessage: '' }">
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', '')), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quote->user?->email ?? '')))) }">
                     @csrf
-                    <input type="hidden" name="email_message" x-ref="emailMessage">
                     <x-ui.button type="submit" x-data x-on:click.prevent="
                         open = true;
                     ">Email Quote</x-ui.button>
@@ -29,9 +29,24 @@
                                     <i class="fa-solid fa-xmark"></i>
                                 </button>
                             </div>
-                            <label class="block text-sm pl-1" for="quote-email-message">Message (optional)</label>
+                            <label class="block text-sm pl-1 mt-4" for="quote-recipient-emails">Recipient Email(s)</label>
+                            <input
+                                id="quote-recipient-emails"
+                                name="recipient_emails"
+                                type="text"
+                                class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('recipient_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                                x-model="recipientEmails"
+                                placeholder="name@example.com, another@example.com"
+                            />
+                            <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to email multiple recipients.</div>
+                            @if($errors->has('recipient_emails'))
+                                <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('recipient_emails') }}</div>
+                            @endif
+
+                            <label class="block text-sm pl-1 mt-4" for="quote-email-message">Message (optional)</label>
                             <textarea
                                 id="quote-email-message"
+                                name="email_message"
                                 rows="8"
                                 class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300"
                                 x-model="emailMessage"
@@ -39,7 +54,7 @@
                             ></textarea>
                             <div class="mt-4 flex justify-end gap-2">
                                 <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
-                                <x-ui.button type="button" x-on:click.prevent="$refs.emailMessage.value = emailMessage; $el.closest('form').submit();">Send Quote Email</x-ui.button>
+                                <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit();">Send Quote Email</x-ui.button>
                             </div>
                         </div>
                     </div>
@@ -141,6 +156,53 @@
                 info="Search by name/company/email. Select a suggestion to link the quote."
             />
 
+            <div class="mb-4">
+                <div class="flex items-center justify-between">
+                    <label for="linked_invoice_id" class="block text-sm pl-1">Linked Invoice</label>
+                    <button
+                        type="button"
+                        id="open-linked-invoice-button"
+                        class="text-xs text-primary-color hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
+                        @disabled($selectedLinkedInvoiceId === '')
+                        onclick="
+                            const select = document.getElementById('linked_invoice_id');
+                            if (!select || !select.value) { return; }
+                            const option = select.options[select.selectedIndex];
+                            const url = option ? option.getAttribute('data-edit-url') : '';
+                            if (!url) { return; }
+                            window.open(url, '_blank', 'noopener,noreferrer');
+                        "
+                    >
+                        Open linked invoice
+                    </button>
+                </div>
+                <select
+                    id="linked_invoice_id"
+                    name="linked_invoice_id"
+                    onchange="
+                        const button = document.getElementById('open-linked-invoice-button');
+                        if (!button) { return; }
+                        button.disabled = this.value === '';
+                    "
+                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('linked_invoice_id') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
+                >
+                    <option value="">None</option>
+                    @foreach(($invoices ?? collect()) as $invoiceOption)
+                        <option
+                            value="{{ $invoiceOption->id }}"
+                            data-edit-url="{{ route('admin.invoice.edit', $invoiceOption) }}"
+                            {{ $selectedLinkedInvoiceId === (string) $invoiceOption->id ? 'selected' : '' }}
+                        >
+                            {{ $invoiceOption->invoice_number }} - {{ trim((string) ($invoiceOption->user?->getName() ?? $invoiceOption->user?->email ?? 'No user')) }}
+                        </option>
+                    @endforeach
+                </select>
+                <div class="text-xs text-gray-500 ml-2 mt-1">Can only link invoices for the same user.</div>
+                @if($errors->has('linked_invoice_id'))
+                    <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('linked_invoice_id') }}</div>
+                @endif
+            </div>
+
             <x-ui.input type="date" label="Quote Date" name="quote_date" value="{{ old('quote_date', isset($quote) && $quote->quote_date ? $quote->quote_date->format('Y-m-d') : now()->format('Y-m-d')) }}" />
 
             <x-ui.input label="Quote Title" name="title" value="{{ old('title', $quote->title ?? '') }}" />
@@ -218,6 +280,13 @@
             </div>
 
             <x-ui.input type="textarea" label="Notes" name="notes" value="{{ old('notes', $quote->notes ?? '') }}" />
+            <x-ui.filelist
+                label="Private Files"
+                info="Admin-only files attached to this quote."
+                name="private_files"
+                editor="true"
+                value="{!! isset($quote) ? $quote->files('private')->orderBy('name')->get() : '' !!}"
+            />
 
             <div class="flex justify-end mt-8 gap-4">
                 @isset($quote)

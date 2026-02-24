@@ -49,13 +49,16 @@ class QuoteController extends Controller
     {
         return view('admin.quote.edit', [
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'invoices' => Invoice::query()->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->get(),
             'nextQuoteNumber' => $this->documentNumbers->previewQuoteNumber(),
+            'linkedInvoiceId' => null,
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $this->validateRequest($request);
+        $this->validateLinkedInvoiceSelection($validated['linked_invoice_id'] ?? null, $validated['user_id'] ?? null, null);
         $lineItems = $this->extractLineItems($request);
 
         if (count($lineItems) === 0) {
@@ -72,6 +75,8 @@ class QuoteController extends Controller
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
 
         $quote->save();
+        $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
+        $quote->updateFiles($request->input('private_files'), 'private');
 
         session()->flash('message', 'Quote has been created');
         session()->flash('message-title', 'Quote created');
@@ -82,15 +87,20 @@ class QuoteController extends Controller
 
     public function edit(Quote $quote)
     {
+        $linkedInvoiceId = Invoice::query()->where('quote_id', $quote->id)->value('id');
+
         return view('admin.quote.edit', [
             'quote' => $quote,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'invoices' => Invoice::query()->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->get(),
+            'linkedInvoiceId' => $linkedInvoiceId,
         ]);
     }
 
     public function update(Request $request, Quote $quote)
     {
         $validated = $this->validateRequest($request, $quote);
+        $this->validateLinkedInvoiceSelection($validated['linked_invoice_id'] ?? null, $validated['user_id'] ?? null, $quote);
         $lineItems = $this->extractLineItems($request);
 
         if (count($lineItems) === 0) {
@@ -106,6 +116,8 @@ class QuoteController extends Controller
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
 
         $quote->save();
+        $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
+        $quote->updateFiles($request->input('private_files'), 'private');
 
         session()->flash('message', 'Quote has been updated');
         session()->flash('message-title', 'Quote updated');
@@ -174,36 +186,31 @@ class QuoteController extends Controller
             $emailMessage = null;
         }
 
-        $recipient = trim((string) ($quote->user?->email ?? ''));
-        if ($recipient === '') {
-            session()->flash('message', 'Quote email failed: assigned user has no email');
-            session()->flash('message-title', 'Email failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->back();
-        }
+        $recipients = $this->resolveQuoteEmailRecipients($request, $quote);
 
         $pdfBinary = $this->buildQuotePdf($quote)->output();
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
 
-        $mailable = new FinanceDocumentPdf(
-            documentType: 'quote',
-            documentNumber: $quote->quote_number,
-            recipientName: $quote->user?->getName() ?? $recipient,
-            pdfContent: $pdfBinary,
-            pdfFilename: $this->getQuotePdfFilename($quote),
-            customMessage: $emailMessage,
-            initiatedByEmail: $initiatedByEmail,
-            initiatedByName: $initiatedByName,
-        );
-        $ccEmail = $initiatedByEmail;
-        if ($ccEmail !== null) {
-            $mailable->cc($ccEmail);
-        }
-
         try {
-            dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            foreach ($recipients as $recipient) {
+                $mailable = new FinanceDocumentPdf(
+                    documentType: 'quote',
+                    documentNumber: $quote->quote_number,
+                    recipientName: $quote->user?->getName() ?? $recipient,
+                    pdfContent: $pdfBinary,
+                    pdfFilename: $this->getQuotePdfFilename($quote),
+                    customMessage: $emailMessage,
+                    initiatedByEmail: $initiatedByEmail,
+                    initiatedByName: $initiatedByName,
+                );
+                $ccEmail = $initiatedByEmail;
+                if ($ccEmail !== null) {
+                    $mailable->cc($ccEmail);
+                }
+
+                dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            }
         } catch (Throwable $e) {
             report($e);
 
@@ -214,7 +221,7 @@ class QuoteController extends Controller
             return redirect()->back();
         }
 
-        session()->flash('message', 'Quote PDF emailed to '.$recipient);
+        session()->flash('message', 'Quote PDF emailed to '.implode(', ', $recipients));
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
 
@@ -227,7 +234,9 @@ class QuoteController extends Controller
         $sourceLineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
 
         $invoice = new Invoice();
+        Invoice::query()->where('quote_id', $quote->id)->update(['quote_id' => null]);
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
+        $invoice->quote_id = $quote->id;
         $invoice->user_id = $quote->user_id;
         $invoice->status = 'draft';
         $invoice->issue_date = Carbon::now()->startOfDay();
@@ -254,6 +263,7 @@ class QuoteController extends Controller
         ])));
 
         $invoice->save();
+        $invoice->updateFiles($quote->files('private')->pluck('name')->all(), 'private');
         foreach ($sourceLineItems as $index => $lineItem) {
             if (! is_array($lineItem)) {
                 continue;
@@ -296,7 +306,64 @@ class QuoteController extends Controller
             'description' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'line_items_json' => ['nullable', 'string'],
+            'private_files' => ['nullable', 'string'],
+            'linked_invoice_id' => [
+                'nullable',
+                'integer',
+                'exists:invoices,id',
+                Rule::unique('invoices', 'quote_id')->ignore($quote?->id, 'quote_id'),
+            ],
         ]);
+    }
+
+    private function syncLinkedInvoiceLink(Quote $quote, mixed $linkedInvoiceId): void
+    {
+        $targetInvoiceId = is_numeric($linkedInvoiceId) ? (int) $linkedInvoiceId : 0;
+        $targetInvoice = $targetInvoiceId > 0 ? Invoice::query()->find($targetInvoiceId) : null;
+
+        Invoice::query()
+            ->where('quote_id', $quote->id)
+            ->when($targetInvoiceId > 0, fn ($builder) => $builder->where('id', '!=', $targetInvoiceId))
+            ->update(['quote_id' => null]);
+
+        if ($targetInvoice instanceof Invoice) {
+            $targetInvoice->quote_id = $quote->id;
+            $targetInvoice->save();
+        }
+    }
+
+    private function validateLinkedInvoiceSelection(mixed $linkedInvoiceId, mixed $userId, ?Quote $quote): void
+    {
+        $targetInvoiceId = is_numeric($linkedInvoiceId) ? (int) $linkedInvoiceId : 0;
+        if ($targetInvoiceId <= 0) {
+            return;
+        }
+
+        $normalizedUserId = trim((string) ($userId ?? ''));
+        if ($normalizedUserId === '') {
+            throw ValidationException::withMessages([
+                'linked_invoice_id' => 'Select a linked user before linking an invoice.',
+            ]);
+        }
+
+        $targetInvoice = Invoice::query()->find($targetInvoiceId);
+        if (! $targetInvoice instanceof Invoice) {
+            throw ValidationException::withMessages([
+                'linked_invoice_id' => 'Selected invoice could not be found.',
+            ]);
+        }
+
+        if ((string) ($targetInvoice->user_id ?? '') !== $normalizedUserId) {
+            throw ValidationException::withMessages([
+                'linked_invoice_id' => 'Linked invoice must belong to the same user as this quote.',
+            ]);
+        }
+
+        if ($targetInvoice->quote_id !== null && (int) $targetInvoice->quote_id !== (int) ($quote?->id ?? 0)) {
+            throw ValidationException::withMessages([
+                'linked_invoice_id' => 'Selected invoice is already linked to another quote.',
+            ]);
+        }
     }
 
     private function extractLineItems(Request $request): array
@@ -489,6 +556,52 @@ class QuoteController extends Controller
         if (! $user->isAdmin() && $quote->user_id !== $user->id) {
             abort(Response::HTTP_FORBIDDEN);
         }
+    }
+
+    private function resolveQuoteEmailRecipients(Request $request, Quote $quote): array
+    {
+        $input = trim((string) $request->input('recipient_emails', ''));
+        if ($input === '') {
+            $input = trim((string) ($quote->user?->email ?? ''));
+        }
+
+        if ($input === '') {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'Add at least one recipient email address.',
+            ]);
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'One or more email addresses are invalid. Use commas or semicolons to separate recipients.',
+            ]);
+        }
+
+        if (count($normalized) === 0) {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'Add at least one valid recipient email address.',
+            ]);
+        }
+
+        return array_values($normalized);
     }
 
     private function getMailInitiatorIdentity(): array

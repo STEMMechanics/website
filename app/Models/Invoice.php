@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, HasFiles;
 
     public const STATUS_DRAFT = 'draft';
     public const STATUS_ISSUED = 'issued';
@@ -30,6 +31,7 @@ class Invoice extends Model
 
     protected $fillable = [
         'invoice_number',
+        'quote_id',
         'user_id',
         'billing_name',
         'billing_email',
@@ -57,6 +59,11 @@ class Invoice extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
     }
 
     public function taxAdjustments(): HasMany

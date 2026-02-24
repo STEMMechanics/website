@@ -16,6 +16,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -55,6 +56,16 @@ class MediaController extends Controller
     {
         $query = Media::query();
         $perPage = $request->input('per_page', 25);
+        $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
+
+        if (! $isAdmin) {
+            $query->whereNotExists(function ($builder) {
+                $builder->selectRaw('1')
+                    ->from('mediables')
+                    ->whereColumn('mediables.media_name', 'media.name')
+                    ->where('mediables.collection', 'private');
+            });
+        }
 
         if(!empty($request->get('search'))) {
             $query->where(function($query) use ($request) {
@@ -107,6 +118,8 @@ class MediaController extends Controller
         if(!$request->wantsJson()) {
             abort(404);
         }
+
+        $this->authorizeMediaAccess($media);
 
         return response()->json($this->publicMediaPayload($media));
     }
@@ -862,6 +875,8 @@ class MediaController extends Controller
 
     public function download(Request $request, Media $media)
     {
+        $this->authorizeMediaAccess($media);
+
         $file = $media->path();
         if($file === null) {
             abort(404, 'File not found');
@@ -939,5 +954,21 @@ class MediaController extends Controller
             'file_type' => (string) $media->file_type,
             'password' => Auth::user()?->isAdmin() ? ($media->password ? 'yes' : null) : null,
         ];
+    }
+
+    private function authorizeMediaAccess(Media $media): void
+    {
+        $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
+        if (! $isAdmin && $this->isPrivateAdminMedia($media)) {
+            abort(403, 'You are not authorized to access this file.');
+        }
+    }
+
+    private function isPrivateAdminMedia(Media $media): bool
+    {
+        return DB::table('mediables')
+            ->where('media_name', (string) $media->name)
+            ->where('collection', 'private')
+            ->exists();
     }
 }

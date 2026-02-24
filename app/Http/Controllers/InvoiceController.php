@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
+use App\Models\Quote;
 use App\Models\Ticket;
 use App\Models\Token;
 use App\Models\TaxAdjustment;
@@ -68,6 +69,7 @@ class InvoiceController extends Controller
     {
         return view('admin.invoice.edit', [
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
         ]);
@@ -76,6 +78,7 @@ class InvoiceController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateRequest($request);
+        $this->validateQuoteUserMatch($validated['quote_id'] ?? null, $validated['user_id'] ?? null);
         $lineItems = $this->extractLineItems($request);
 
         $invoice = new Invoice();
@@ -95,6 +98,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        $invoice->updateFiles($request->input('private_files'), 'private');
 
         session()->flash('message', 'Invoice has been created');
         session()->flash('message-title', 'Invoice created');
@@ -115,6 +119,7 @@ class InvoiceController extends Controller
         return view('admin.invoice.edit', [
             'invoice' => $invoice,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
+            'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
         ]);
     }
@@ -127,6 +132,10 @@ class InvoiceController extends Controller
     public function update(Request $request, Invoice $invoice)
     {
         $validated = $this->validateRequest($request, $invoice);
+        $quoteUserId = $invoice->canEditContents()
+            ? ($validated['user_id'] ?? null)
+            : ($invoice->user_id ?? null);
+        $this->validateQuoteUserMatch($validated['quote_id'] ?? null, $quoteUserId);
         $nextStatus = $invoice->canEditContents()
             ? ($request->boolean('issue_now') ? Invoice::STATUS_ISSUED : Invoice::STATUS_DRAFT)
             : (string) $invoice->status;
@@ -141,7 +150,9 @@ class InvoiceController extends Controller
         if (! $invoice->canEditContents()) {
             $invoice->purchase_order_number = $validated['purchase_order_number'] ?? null;
             $invoice->notes = $validated['notes'] ?? null;
+            $invoice->quote_id = $validated['quote_id'] ?? null;
             $invoice->save();
+            $invoice->updateFiles($request->input('private_files'), 'private');
 
             session()->flash('message', 'Purchase order number and notes have been updated');
             session()->flash('message-title', 'Invoice updated');
@@ -166,6 +177,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
+        $invoice->updateFiles($request->input('private_files'), 'private');
 
         session()->flash('message', 'Invoice has been updated');
         session()->flash('message-title', 'Invoice updated');
@@ -552,36 +564,31 @@ class InvoiceController extends Controller
             $emailMessage = null;
         }
 
-        $recipient = trim((string) ($invoice->user?->email ?? ''));
-        if ($recipient === '') {
-            session()->flash('message', 'Invoice email failed: assigned user has no email');
-            session()->flash('message-title', 'Email failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->back();
-        }
+        $recipients = $this->resolveInvoiceEmailRecipients($request, $invoice);
 
         $pdfBinary = $this->buildInvoicePdf($invoice)->output();
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
 
-        $mailable = new FinanceDocumentPdf(
-            documentType: 'invoice',
-            documentNumber: $invoice->invoice_number,
-            recipientName: $invoice->user?->getName() ?? $recipient,
-            pdfContent: $pdfBinary,
-            pdfFilename: $this->getInvoicePdfFilename($invoice),
-            customMessage: $emailMessage,
-            initiatedByEmail: $initiatedByEmail,
-            initiatedByName: $initiatedByName,
-            payUrl: route('invoice.public.pay.show', $invoice),
-        );
-        if ($initiatedByEmail !== null && strcasecmp($initiatedByEmail, $recipient) !== 0) {
-            $mailable->cc($initiatedByEmail);
-        }
-
         try {
-            dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            foreach ($recipients as $recipient) {
+                $mailable = new FinanceDocumentPdf(
+                    documentType: 'invoice',
+                    documentNumber: $invoice->invoice_number,
+                    recipientName: $invoice->user?->getName() ?? $recipient,
+                    pdfContent: $pdfBinary,
+                    pdfFilename: $this->getInvoicePdfFilename($invoice),
+                    customMessage: $emailMessage,
+                    initiatedByEmail: $initiatedByEmail,
+                    initiatedByName: $initiatedByName,
+                    payUrl: route('invoice.public.pay.show', $invoice),
+                );
+                if ($initiatedByEmail !== null && strcasecmp($initiatedByEmail, $recipient) !== 0) {
+                    $mailable->cc($initiatedByEmail);
+                }
+
+                dispatch(new SendEmail($recipient, $mailable))->onQueue('mail');
+            }
         } catch (Throwable $e) {
             report($e);
 
@@ -592,7 +599,7 @@ class InvoiceController extends Controller
             return redirect()->back();
         }
 
-        session()->flash('message', 'Invoice PDF emailed to '.$recipient);
+        session()->flash('message', 'Invoice PDF emailed to '.implode(', ', $recipients));
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
 
@@ -980,6 +987,52 @@ class InvoiceController extends Controller
         return trim((string) ($invoice->user?->email ?? ''));
     }
 
+    private function resolveInvoiceEmailRecipients(Request $request, Invoice $invoice): array
+    {
+        $input = trim((string) $request->input('recipient_emails', ''));
+        if ($input === '') {
+            $input = $this->resolveInvoiceContactEmail($invoice);
+        }
+
+        if ($input === '') {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'Add at least one recipient email address.',
+            ]);
+        }
+
+        $parts = preg_split('/[;,]/', $input) ?: [];
+        $normalized = [];
+        $invalid = [];
+
+        foreach ($parts as $part) {
+            $email = trim((string) $part);
+            if ($email === '') {
+                continue;
+            }
+
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $invalid[] = $email;
+                continue;
+            }
+
+            $normalized[strtolower($email)] = $email;
+        }
+
+        if (count($invalid) > 0) {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'One or more email addresses are invalid. Use commas or semicolons to separate recipients.',
+            ]);
+        }
+
+        if (count($normalized) === 0) {
+            throw ValidationException::withMessages([
+                'recipient_emails' => 'Add at least one valid recipient email address.',
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
     private function paymentLinkedToInvoiceForReceipt(Invoice $invoice, Payment $payment): bool
     {
         $eligibleIds = $this->receiptPaymentIdsForInvoice($invoice);
@@ -1158,6 +1211,13 @@ class InvoiceController extends Controller
             return $request->validate([
                 'purchase_order_number' => ['nullable', 'string', 'max:120'],
                 'notes' => ['nullable', 'string'],
+                'quote_id' => [
+                    'nullable',
+                    'integer',
+                    'exists:quotes,id',
+                    Rule::unique('invoices', 'quote_id')->ignore($invoice?->id),
+                ],
+                'private_files' => ['nullable', 'string'],
             ]);
         }
 
@@ -1170,7 +1230,42 @@ class InvoiceController extends Controller
             'purchase_order_number' => ['nullable', 'string', 'max:120'],
             'notes' => ['nullable', 'string'],
             'line_items_json' => ['nullable', 'string'],
+            'quote_id' => [
+                'nullable',
+                'integer',
+                'exists:quotes,id',
+                Rule::unique('invoices', 'quote_id')->ignore($invoice?->id),
+            ],
+            'private_files' => ['nullable', 'string'],
         ]);
+    }
+
+    private function validateQuoteUserMatch(mixed $quoteId, mixed $invoiceUserId): void
+    {
+        $normalizedQuoteId = is_numeric($quoteId) ? (int) $quoteId : 0;
+        if ($normalizedQuoteId <= 0) {
+            return;
+        }
+
+        $normalizedUserId = trim((string) ($invoiceUserId ?? ''));
+        if ($normalizedUserId === '') {
+            throw ValidationException::withMessages([
+                'quote_id' => 'Select a linked user before linking a quote.',
+            ]);
+        }
+
+        $quote = Quote::query()->find($normalizedQuoteId);
+        if (! $quote instanceof Quote) {
+            throw ValidationException::withMessages([
+                'quote_id' => 'Selected quote could not be found.',
+            ]);
+        }
+
+        if ((string) ($quote->user_id ?? '') !== $normalizedUserId) {
+            throw ValidationException::withMessages([
+                'quote_id' => 'Linked quote must belong to the same user as this invoice.',
+            ]);
+        }
     }
 
     private function extractLineItems(Request $request): array

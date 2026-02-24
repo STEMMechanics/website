@@ -59,6 +59,9 @@ td, th { padding: 0; margin: 0; }
 .items tbody td { border-bottom: 1px solid #e3e3e3; padding: 7px 6px; vertical-align: middle; }
 .line-desc { font-size: 11px; }
 .line-note { font-size: 9px; color: #555; line-height: 1.2; margin-top: 2px; }
+.line-note-empty { line-height: 0.8; }
+.line-note-list { margin: 2px 0 0 18px; padding: 0; }
+.line-note-list li { font-size: 9px; color: #555; line-height: 1.1; margin: 0 0 2px 0; }
 
 .continued { text-align: right; color: #666; font-size: 10px; margin-top: 4px; }
 
@@ -77,6 +80,9 @@ td, th { padding: 0; margin: 0; }
 .block { margin-bottom: 10px; padding: 0 3px; }
 .heading { color: #1da1e6; font-weight: 700; text-transform: uppercase; }
 .bank-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.bank-table th { text-align: left; padding: 2px 0; color: #1da1e6; width: 15%; font-weight: 400; }
-.bank-table td { padding: 1px 0; }
+.bank-table th { text-align: left; padding: 0; color: #1da1e6; width: 15%; font-weight: 400; }
+.bank-table td { padding: 0; }
 .thanks { color: #1da1e6; margin-top: 10px; }
+
+.notes { text-align: center; font-size: 10px; }
+.note-title { font-weight: 700; color: #1da1e6; }
