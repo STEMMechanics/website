@@ -4,8 +4,8 @@
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <form method="GET" action="{{ route('admin.server.audit') }}" class="flex items-end gap-3">
-                    <div>
+                <form method="GET" action="{{ route('admin.server.audit') }}" class="flex w-full flex-wrap items-end gap-3">
+                    <div class="w-full sm:w-auto">
                         <x-ui.select name="event" label="Event">
                             <option value="">All Events</option>
                             @foreach($events as $event)
@@ -13,7 +13,7 @@
                             @endforeach
                         </x-ui.select>
                     </div>
-                    <div class="mb-4">
+                    <div class="mb-4 w-full sm:w-auto">
                         <x-ui.button type="submit" color="outline">Filter</x-ui.button>
                     </div>
                 </form>
@@ -24,7 +24,7 @@
         </x-ui.toolbar>
 
         <form method="GET" class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-wrap items-end gap-3">
-            <div class="ml-auto grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
+            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-600">
                 <div>
                     <div class="font-semibold text-gray-700">Audit Table Size</div>
                     <div>{{ $auditMeta['table_size_human'] ?? 'Unavailable' }}</div>
@@ -44,7 +44,7 @@
             @csrf
             <input type="hidden" name="event" value="{{ (string) request()->query('event', '') }}">
             <input type="hidden" name="search" value="{{ (string) request()->query('search', '') }}">
-            <div class="w-44">
+            <div class="w-full sm:w-44">
                 <x-ui.select label="Prune Older Than" name="prune_days">
                     <option value="30">30 days</option>
                     <option value="60">60 days</option>
@@ -53,7 +53,7 @@
                     <option value="365">365 days</option>
                 </x-ui.select>
             </div>
-            <div class="mb-4">
+            <div class="mb-4 w-full sm:w-auto">
                 <x-ui.button type="button" color="danger-outline" x-data x-on:click.prevent="confirmAuditPrune()">Prune Records</x-ui.button>
             </div>
         </form>
@@ -94,16 +94,16 @@
                                 <div class="text-xs text-gray-500">{{ $log->created_at?->diffForHumans() ?? '' }}</div>
                             </td>
                             <td class="whitespace-nowrap"><span class="uppercase text-xxs font-semibold whitespace-nowrap">{{ $log->event }}</span></td>
-                            <td class="whitespace-nowrap" style="white-space: nowrap; overflow-wrap: normal; word-break: normal;">{{ $modelShort }}<br>ID: {{ $log->auditable_id }}</td>
+                            <td class="whitespace-nowrap text-xs sm:text-sm" style="white-space: nowrap; overflow-wrap: normal; word-break: normal;">{{ $modelShort }}<br>ID: {{ $log->auditable_id }}</td>
                             <td>
-                                <div>{{ $actorLabel }}</div>
+                                <div class="break-words text-xs sm:text-sm">{{ $actorLabel }}</div>
                                 @if($log->ip_address)
-                                    <div class="text-xs text-gray-500">IP: {{ $log->ip_address }}</div>
+                                    <div class="text-xxs sm:text-xs text-gray-500">IP: {{ $log->ip_address }}</div>
                                 @endif
                             </td>
                             <td class="hidden lg:table-cell">
                                 @if($log->url)
-                                    <div class="max-w-xs break-all text-xs text-gray-600">{{ $log->url }}</div>
+                                    <div class="max-w-xs break-all text-xxs sm:text-xs text-gray-600">{{ $log->url }}</div>
                                 @else
                                     -
                                 @endif

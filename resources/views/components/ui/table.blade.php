@@ -1,4 +1,4 @@
-<div class="w-full overflow-x-hidden">
+<div class="w-full overflow-x-auto">
     <table class="table">
         <thead>
             <tr>

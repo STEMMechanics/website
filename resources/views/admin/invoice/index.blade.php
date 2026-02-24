@@ -21,7 +21,7 @@
                 <th class="hidden md:table-cell">Status</th>
                 <th class="hidden md:table-cell">Issue Date</th>
                 <th>Amount</th>
-                <th>Actions</th>
+                    <th class="text-center">Actions</th>
             </x-slot:header>
             <x-slot:body>
                 @foreach ($invoices as $invoice)
@@ -54,7 +54,7 @@
                         </div>
                     </td>
                     <td>
-                        <div class="flex justify-center gap-3 whitespace-nowrap">
+                        <div class="flex justify-center sm:justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                             <a href="{{ route('admin.invoice.edit', $invoice) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                             <a href="{{ route('admin.invoice.pdf', $invoice) }}" class="hover:text-primary-color" title="Download PDF"><i class="fa-regular fa-file-pdf"></i></a>
@@ -115,7 +115,7 @@
                         <td class="hidden md:table-cell">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</td>
                         <td>${{ number_format((float) $adjustment->total_amount, 2) }}</td>
                         <td>
-                            <div class="flex justify-center gap-3 whitespace-nowrap">
+                            <div class="flex justify-center sm:justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                                 <a href="{{ route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]) }}" class="hover:text-primary-color" title="Open Tax Adjustment">
                                     <i class="fa-solid fa-pen-to-square"></i>
                                 </a>
