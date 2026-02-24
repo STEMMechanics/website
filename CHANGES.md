@@ -1,7 +1,15 @@
 # Changes
 
-## 1.2
+## 1.2.1
 
+- Pass altcha checks if config is invalid
+- Prevent workshop changes if active tickets are present
+- Improved mobile view of admin invoices, payment and audit log pages
+
+## 1.2.0
+
+- Added financial support to the website
+- Added ticketing options to workshops
 - Added email subscripton management from admin panel
 - Do not show 'v' prefix in footer when a direct branch deployed
 
