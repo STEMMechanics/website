@@ -18,6 +18,7 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -41,6 +42,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->ensurePdfArtifactDirectoriesExist();
+
         RateLimiter::for('login', function (Request $request): array {
             $email = strtolower(trim((string) $request->input('email', '')));
 
@@ -121,5 +124,22 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('appNotice', $notice);
         });
+    }
+
+    private function ensurePdfArtifactDirectoriesExist(): void
+    {
+        /** @var array<int, mixed> $paths */
+        $paths = [
+            config('dompdf.options.font_dir'),
+            config('dompdf.options.font_cache'),
+        ];
+
+        foreach ($paths as $path) {
+            if (! is_string($path) || $path === '') {
+                continue;
+            }
+
+            File::ensureDirectoryExists($path);
+        }
     }
 }
