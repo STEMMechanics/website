@@ -27,6 +27,11 @@ jobs:
             
             - name: Directory Permissions
               run: chmod -R 777 storage bootstrap/cache
+
+            - name: Prepare DomPDF directories
+              run: |
+                  mkdir -p storage/fonts
+                  chmod -R 777 storage/fonts
             
             - name: Create Database
               run: |
