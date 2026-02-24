@@ -22,4 +22,4 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
       - run: composer install --no-interaction --no-progress --prefer-dist
-      - run: vendor/bin/phpstan analyse --memory-limit=1G
+      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
