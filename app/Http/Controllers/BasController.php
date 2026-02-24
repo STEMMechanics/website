@@ -44,26 +44,30 @@ class BasController extends Controller
             fputcsv($out, []);
 
             fputcsv($out, ['Processed Payments']);
-            fputcsv($out, ['Date', 'Customer', 'Total Inc GST', 'GST']);
+            fputcsv($out, ['Date', 'Customer', 'Amount Ex GST', 'GST', 'Total Inc GST']);
             foreach ($data['customerPayments'] as $payment) {
                 fputcsv($out, [
                     $payment->received_on?->format('Y-m-d H:i') ?? '',
                     $payment->user?->getName() ?? '',
-                    number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2, '.', ''),
+                    number_format((float) ($payment->bas_ex_amount ?? 0), 2, '.', ''),
                     number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2, '.', ''),
+                    number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2, '.', ''),
                 ]);
             }
             fputcsv($out, []);
 
             fputcsv($out, ['Expenses']);
-            fputcsv($out, ['Date', 'Supplier', 'Description', 'Total Inc GST', 'GST']);
+            fputcsv($out, ['Date', 'Supplier', 'Description', 'Amount Ex GST', 'GST', 'Total Inc GST']);
             foreach ($data['expenses'] as $expense) {
+                $expenseTotal = round((float) $expense->total_amount, 2);
+                $expenseGst = round((float) $expense->gst_amount, 2);
                 fputcsv($out, [
                     $expense->paid_on?->format('Y-m-d') ?? '',
                     (string) ($expense->supplier ?? ''),
                     (string) ($expense->description ?? ''),
-                    number_format((float) $expense->total_amount, 2, '.', ''),
-                    number_format((float) $expense->gst_amount, 2, '.', ''),
+                    number_format($expenseTotal - $expenseGst, 2, '.', ''),
+                    number_format($expenseGst, 2, '.', ''),
+                    number_format($expenseTotal, 2, '.', ''),
                 ]);
             }
 
@@ -120,14 +124,17 @@ class BasController extends Controller
             ->get();
 
         $customerPayments = (clone $paymentsQuery)
-            ->with(['user', 'allocations.invoice'])
+            ->with(['user', 'allocations.invoice', 'refundOf.allocations.invoice'])
             ->orderBy('received_on')
             ->orderBy('id')
             ->get();
 
         $customerPayments->each(function (Payment $payment): void {
-            $payment->setAttribute('bas_total_amount', $this->paymentSignedAmount($payment));
-            $payment->setAttribute('bas_gst_amount', $this->paymentGstAmount($payment));
+            $signedTotal = $this->paymentSignedAmount($payment);
+            $signedGst = $this->paymentGstAmount($payment);
+            $payment->setAttribute('bas_total_amount', $signedTotal);
+            $payment->setAttribute('bas_gst_amount', $signedGst);
+            $payment->setAttribute('bas_ex_amount', round($signedTotal - $signedGst, 2));
         });
 
         $paymentsTotalInc = round((float) $customerPayments->sum(fn (Payment $payment): float => (float) ($payment->bas_total_amount ?? 0)), 2);
@@ -154,35 +161,27 @@ class BasController extends Controller
 
     private function paymentGstAmount(Payment $payment): float
     {
-        $storedGst = round((float) $payment->gst_amount, 2);
-        if (abs($storedGst) <= 0.0001) {
-            $calculatedGst = 0.0;
-            foreach ($payment->allocations as $allocation) {
-                $invoice = $allocation->invoice;
-                if (! $invoice) {
-                    continue;
+        $baseGst = $this->paymentBaseGstAmount($payment);
+
+        // Most refund records store gst_amount=0 and have no allocations.
+        // In that case, derive proportional GST from the original payment.
+        if ($payment->isRefund() && $baseGst <= 0.0001) {
+            $original = $payment->refundOf;
+            if ($original instanceof Payment) {
+                $originalAmount = abs(round((float) $original->total_amount, 2));
+                $refundAmount = abs(round((float) $payment->total_amount, 2));
+                if ($originalAmount > 0.0001 && $refundAmount > 0.0001) {
+                    $ratio = max(0.0, min(1.0, $refundAmount / $originalAmount));
+                    $baseGst = round($this->paymentBaseGstAmount($original) * $ratio, 2);
                 }
-
-                $allocatedAmount = (float) $allocation->allocated_amount;
-                $invoiceTotal = (float) $invoice->total_amount;
-                $invoiceGst = (float) $invoice->gst_amount;
-
-                if ($allocatedAmount <= 0 || $invoiceTotal <= 0 || $invoiceGst <= 0) {
-                    continue;
-                }
-
-                $ratio = max(0.0, min(1.0, $allocatedAmount / $invoiceTotal));
-                $calculatedGst += $invoiceGst * $ratio;
             }
-
-            $storedGst = round($calculatedGst, 2);
         }
 
         if ($payment->isRefund()) {
-            return -abs($storedGst);
+            return -abs($baseGst);
         }
 
-        return abs($storedGst);
+        return abs($baseGst);
     }
 
     private function paymentSignedAmount(Payment $payment): float
@@ -194,5 +193,34 @@ class BasController extends Controller
         }
 
         return abs($amount);
+    }
+
+    private function paymentBaseGstAmount(Payment $payment): float
+    {
+        $storedGst = round((float) $payment->gst_amount, 2);
+        if (abs($storedGst) > 0.0001) {
+            return abs($storedGst);
+        }
+
+        $calculatedGst = 0.0;
+        foreach ($payment->allocations as $allocation) {
+            $invoice = $allocation->invoice;
+            if (! $invoice) {
+                continue;
+            }
+
+            $allocatedAmount = (float) $allocation->allocated_amount;
+            $invoiceTotal = (float) $invoice->total_amount;
+            $invoiceGst = (float) $invoice->gst_amount;
+
+            if ($allocatedAmount <= 0 || $invoiceTotal <= 0 || $invoiceGst <= 0) {
+                continue;
+            }
+
+            $ratio = max(0.0, min(1.0, $allocatedAmount / $invoiceTotal));
+            $calculatedGst += $invoiceGst * $ratio;
+        }
+
+        return abs(round($calculatedGst, 2));
     }
 }

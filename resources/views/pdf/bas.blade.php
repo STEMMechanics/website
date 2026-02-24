@@ -118,8 +118,9 @@
             <tr>
                 <th>Date</th>
                 <th>Customer</th>
-                <th class="right">Total</th>
+                <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
+                <th class="right">Total Inc GST</th>
             </tr>
         </thead>
         <tbody>
@@ -127,12 +128,13 @@
                 <tr>
                     <td>{{ $payment->received_on?->format('Y-m-d H:i') ?? '-' }}</td>
                     <td>{{ $payment->user?->getName() ?? '-' }}</td>
-                    <td class="right">${{ number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2) }}</td>
+                    <td class="right">${{ number_format((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount))), 2) }}</td>
                     <td class="right">${{ number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2) }}</td>
+                    <td class="right">${{ number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4">No processed payments in this period.</td>
+                    <td colspan="5">No processed payments in this period.</td>
                 </tr>
             @endforelse
         </tbody>
@@ -145,22 +147,29 @@
                 <th>Date</th>
                 <th>Supplier</th>
                 <th>Description</th>
-                <th class="right">Total</th>
+                <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
+                <th class="right">Total Inc GST</th>
             </tr>
         </thead>
         <tbody>
             @forelse($expenses as $expense)
+                @php
+                    $expenseTotal = round((float) $expense->total_amount, 2);
+                    $expenseGst = round((float) $expense->gst_amount, 2);
+                    $expenseEx = round($expenseTotal - $expenseGst, 2);
+                @endphp
                 <tr>
                     <td>{{ $expense->paid_on?->format('Y-m-d') ?? '-' }}</td>
                     <td>{{ $expense->supplier ?: '-' }}</td>
                     <td>{{ $expense->description ?: '-' }}</td>
-                    <td class="right">${{ number_format((float) $expense->total_amount, 2) }}</td>
-                    <td class="right">${{ number_format((float) $expense->gst_amount, 2) }}</td>
+                    <td class="right">${{ number_format($expenseEx, 2) }}</td>
+                    <td class="right">${{ number_format($expenseGst, 2) }}</td>
+                    <td class="right">${{ number_format($expenseTotal, 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5">No expenses in this period.</td>
+                    <td colspan="6">No expenses in this period.</td>
                 </tr>
             @endforelse
         </tbody>

@@ -1,5 +1,9 @@
 # Changes
 
+## 1.2.3
+
+- Improved BAS reporting
+
 ## 1.2.2
 
 - BAS report did not take refunds into account
