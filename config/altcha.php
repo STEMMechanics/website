@@ -30,7 +30,13 @@ return [
     /*
      * The route path to use for the challenge endpoint.
      */
-    'route' => '/altcha-challenge',
+    'route' => (static function () {
+        $hmacKey = env('ALTCHA_HMAC_KEY');
+
+        return is_string($hmacKey) && trim($hmacKey) !== ''
+            ? '/altcha-challenge'
+            : false;
+    })(),
 
     /*
      * Keep this endpoint stateless to avoid rotating the main auth session
