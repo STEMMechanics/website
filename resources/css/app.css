@@ -20,6 +20,29 @@
     --shadow-deep: 0 10px 15px rgba(0, 0, 0, 0.5);
 }
 
+:root {
+    --altcha-border-width: 1px;
+    --altcha-border-radius: 8px;
+    --altcha-color-base: #ffffff;
+    --altcha-color-border: #d1d5db;
+    --altcha-color-text: #111827;
+    --altcha-color-border-focus: #0284c7;
+    --altcha-color-error-text: #dc2626;
+    --altcha-color-footer-bg: #f3f4f6;
+    --altcha-max-width: 100%;
+}
+
+/* Tailwind doesn't ship text-xxs by default; define it for app-wide use. */
+.text-xxs {
+    font-size: 0.6875rem; /* 11px */
+    line-height: 1rem;
+}
+
+/* Altcha widget styles */
+.altcha-label {
+    @apply block text-sm font-medium;
+}
+
 html, body {
     @apply bg-gray-100;
     min-height: 100vh;
@@ -29,12 +52,48 @@ body {
     font-family: Poppins, Roboto, Open Sans, ui-sans-serif, system-ui, sans-serif;
 }
 
+altcha-widget {
+    display: block;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.sm-form-processing-control {
+    pointer-events: none;
+    background-color: #f3f4f6 !important;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.altcha-processing-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.altcha-inline-spinner {
+    display: inline-block;
+    width: 0.875rem;
+    height: 0.875rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 9999px;
+    animation: altcha-spin 0.7s linear infinite;
+}
+
+@keyframes altcha-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 a.link {
     @apply text-primary-color hover:underline hover:text-primary-color-light;
 }
 
 input[type="text"]:read-only {
-    @apply bg-gray-100 focus:border-gray-300 focus:border-gray-300;
+    @apply bg-gray-100 focus:border-gray-300;
 }
 
 input::-webkit-datetime-edit {
@@ -119,7 +178,7 @@ body.swal2-height-auto {
     @apply bg-white rounded-lg border border-gray-300;
 
     .menu {
-        @apply border-b border-gray-300 flex px-2 py-1 gap-[1px] flex-wrap;
+        @apply border-b border-gray-300 flex px-2 py-1 gap-px flex-wrap;
 
         button {
             @apply text-xs p-1 min-w-5;
@@ -276,6 +335,96 @@ body.swal2-height-auto {
             }
         }
     }
+}
+
+/* resources/views/components/ui/checkbox.blade.php */
+.sm-ui-checkbox input[type="checkbox"]:checked::after {
+    content: '';
+    display: block;
+    height: 1.2rem;
+    width: 0.6rem;
+    border-width: 0 0.25rem 0.25rem 0;
+    border-style: solid;
+    border-color: #0370A1;
+    transform: rotate(40deg) translateY(-0.2rem) translateX(0.65rem);
+}
+
+.sm-ui-checkbox input[type="checkbox"]:checked:disabled::after {
+    border-color: #9CA3AF;
+}
+
+/* resources/views/components/ui/toolbar.blade.php */
+@media (max-width: 639px) {
+    .sm-ui-toolbar .sm-ui-toolbar-left > a,
+    .sm-ui-toolbar .sm-ui-toolbar-left > button,
+    .sm-ui-toolbar .sm-ui-toolbar-left > div,
+    .sm-ui-toolbar .sm-ui-toolbar-right > a,
+    .sm-ui-toolbar .sm-ui-toolbar-right > button,
+    .sm-ui-toolbar .sm-ui-toolbar-right > div {
+        display: flex;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* resources/views/components/ui/table.blade.php */
+.table {
+    width: 100%;
+    max-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.table th,
+.table td {
+    border-width: 1px 0 0 1px;
+    border-style: solid;
+    border-color: rgb(209, 213, 219);
+    padding: 1rem 1rem;
+    font-size: 0.9rem;
+}
+
+.table th {
+    background-color: rgb(229 231 235);
+}
+
+.table td {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.table th:first-child {
+    border-top-left-radius: 0.5em;
+}
+
+.table th:last-child {
+    border-top-right-radius: 0.5em;
+}
+
+.table th:last-child,
+.table td:last-child {
+    border-right-width: 1px;
+}
+
+.table tr:last-child td:first-child {
+    border-bottom-left-radius: 0.5em;
+}
+
+.table tr:last-child td:last-child {
+    border-bottom-right-radius: 0.5em;
+}
+
+.table tr:last-child td {
+    border-bottom-width: 1px;
+}
+
+.table tr:nth-child(even) {
+    background-color: rgb(236 238 241);
+}
+
+.table tr td:first-child {
+    text-align: left;
 }
 
 .sm-media-picker-container {

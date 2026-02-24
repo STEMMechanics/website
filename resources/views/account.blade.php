@@ -7,6 +7,7 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
     && $user->shipping_state === $user->billing_state
     && $user->shipping_postcode === $user->billing_postcode
     && $user->shipping_country === $user->billing_country;
+$groupSlugs = $user->groupSlugs();
 @endphp
 
 <x-layout>
@@ -31,6 +32,22 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
                     <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                 </div>
             </div>
+            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+            @if($groupSlugs !== [])
+                <section x-data="{ open: true }">
+                    <a href="#" class="flex items-center" @click.prevent="open = !open">
+                        <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
+                        <h3 class="text-lg font-bold mt-4 mb-3">Your Groups</h3>
+                    </a>
+                    <div x-show="open" class="mb-4">
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($groupSlugs as $groupSlug)
+                                <span class="inline-flex items-center rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                </section>
+            @endif
 
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">
@@ -82,12 +99,12 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
                         </div>
                         <div class="mt-4 pt-4 border-t flex items-center justify-center gap-4" x-cloak x-show="$store.tfa.show && !$store.tfa.loading">
                             <img src="/loading.gif" id="tfa_image_loader" alt="loading" width="100" height="100"/>
-                            <img src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" onload="this.style.display='block';document.getElementById('tfa_image_loader').style.display='none';"/>
+                            <img src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" onload="handleTfaImageLoad()"/>
                             <div>
-                                <p class="text-xs mb-2">Scan the QR Code into your Authenticator App and enter the code provided below</p>
+                                <p class="text-xs mb-2">Scan the QR Code or enter the key <span class="font-bold" id="tfa_key"></span> into your Authenticator App and enter the code provided below</p>
                                 <div class="flex items-center gap-4 justify-center">
                                     <x-ui.input name="code" id="code" class="mb-0" />
-                                    <x-ui.button class="mt-1" type="button" color="primary-outline" x-on:click.prevent="linkTFA()">Link</x-ui.button>
+                                    <x-ui.button class="mt-1 mb-4" type="button" color="primary-outline" x-on:click.prevent="linkTFA()">Link</x-ui.button>
                                 </div>
                             </div>
                         </div>
@@ -184,6 +201,19 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
         });
     });
 
+    function handleTfaImageLoad() {
+        const image = document.getElementById('tfa_image');
+        const loader = document.getElementById('tfa_image_loader');
+
+        if (image) {
+            image.style.display = 'block';
+        }
+
+        if (loader) {
+            loader.style.display = 'none';
+        }
+    }
+
     function setupTFA() {
         document.getElementById('tfa_button').disabled = true;
         axios.get('/account/2fa')
@@ -192,6 +222,7 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
                     Alpine.store('tfa').show = true;
                     Alpine.store('tfa').secret = response.data.secret;
                     document.getElementById('tfa_image').src = '/account/2fa/image?secret=' + response.data.secret;
+                    document.getElementById('tfa_key').textContent = response.data.secret;
                 } else {
                     SM.alert('2FA Error', 'An error occurred while setting up two-factor authentication. Please try again later', 'danger');
                 }

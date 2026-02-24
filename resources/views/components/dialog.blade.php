@@ -1,4 +1,12 @@
-<div class="flex items-center justify-center flex-grow py-24" {{ $attributes }}>
+@php
+    $dialogAttributes = $attributes;
+    $formId = $attributes->get('id');
+
+    if (isset($formaction) && $formId) {
+        $dialogAttributes = $attributes->except('id');
+    }
+@endphp
+<div class="flex items-center justify-center flex-grow py-24" {{ $dialogAttributes }}>
     <div class="w-full mx-2 max-w-lg p-8 pb-6 bg-white rounded-md shadow-deep">
         @isset($title)
             <h2 class="text-2xl font-bold mb-4 text-center relative">{{ $title }}</h2>
@@ -10,11 +18,11 @@
         @endisset
 
         @isset($formaction)
-            @isset($id)
-                <form method="POST" action="{{ $formaction }}" id="{{ $id }}">
+            @if($formId)
+                <form method="POST" action="{{ $formaction }}" id="{{ $formId }}">
             @else
                 <form method="POST" action="{{ $formaction }}">
-            @endisset
+            @endif
                 @csrf
                 {{ $slot }}
 

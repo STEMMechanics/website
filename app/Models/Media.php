@@ -5,11 +5,16 @@ namespace App\Models;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
-use function PHPUnit\Framework\stringStartsWith;
 
+/**
+ * @property string $url
+ * @property string $thumbnail
+ * @property string $file_type
+ */
 class Media extends Model
 {
     use HasFactory;
@@ -17,7 +22,7 @@ class Media extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array
+     * @var list<string>
      */
     protected $fillable = [
         'name',
@@ -54,7 +59,7 @@ class Media extends Model
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'variants' => 'array'
@@ -66,7 +71,6 @@ class Media extends Model
      * @return void
      */
     protected $appends = [
-        'url',
         'thumbnail',
         'file_type'
     ];
@@ -129,7 +133,7 @@ class Media extends Model
         if(!$strict) {
             $data = $this->getClosestVariant($variant);
         } else {
-            if($this->variants === null || !array_key_exists($variant, $this->variants)) {
+            if($this->variants === null || !array_key_exists($variant, $this->variants) || !$this->hasVariant($variant)) {
                 return '';
             }
 
@@ -194,7 +198,10 @@ class Media extends Model
     /**
      * Get the user that owns the media.
      */
-    public function user()
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
@@ -224,8 +231,29 @@ class Media extends Model
             return null;
         }
 
-        $stream = $disk->getDriver()->readStream($this->hash);
-        is_resource($stream) && file_put_contents($file, stream_get_contents($stream), FILE_APPEND);
+        $sourceStream = $disk->readStream($this->hash);
+        if (!is_resource($sourceStream)) {
+            @unlink($file);
+            return null;
+        }
+
+        $targetStream = fopen($file, 'wb');
+        if (!is_resource($targetStream)) {
+            fclose($sourceStream);
+            @unlink($file);
+            return null;
+        }
+
+        // Stream data between files to avoid loading large media into PHP memory.
+        $bytesCopied = stream_copy_to_stream($sourceStream, $targetStream);
+        fclose($sourceStream);
+        fclose($targetStream);
+
+        if ($bytesCopied === false || $bytesCopied < 0) {
+            @unlink($file);
+            return null;
+        }
+
         return $file;
     }
 
@@ -246,7 +274,7 @@ class Media extends Model
      */
     public function generateVariants(bool $overwrite = true): void
     {
-        $this->status = 'processing';
+        $this->status = 'queued';
         $this->save();
         dispatch(new GenerateVariants($this, $overwrite))->onQueue('media');
     }
@@ -277,7 +305,7 @@ class Media extends Model
 
         if (isset($this->variants[$name])) {
             if ($storage->exists($this->hash . '-' . $name)) {
-                $storage->delete($this->hash . '-_' . $name);
+                $storage->delete($this->hash . '-' . $name);
             }
         }
 
@@ -360,6 +388,10 @@ class Media extends Model
      *
      * @return array The variant types.
      */
+    /**
+     * @param-out string|null $matchingKey
+     * @return array<string, array<string, int>>
+     */
     public function getVariantTypes(&$matchingKey = null)
     {
         $key = Helpers::findMatchingMimeTypeKey($this->mime_type, Media::$variants);
@@ -383,7 +415,7 @@ class Media extends Model
                     $found = true;
                 }
 
-                if($found && array_key_exists($variant, $this->variants)) {
+                if($found && array_key_exists($variant, $this->variants) && $this->hasVariant($variant)) {
                     return [
                         'variant' => $variant,
                         'name' => pathinfo($this->name, PATHINFO_FILENAME) . '-' . $variant . '.' . $this->variants[$variant]['extension'],

@@ -17,17 +17,17 @@
     <ul x-show="$store['filelist-{{ $name }}'].length > 0" class="flex flex-col bg-white p-4 border border-gray-300 rounded-lg gap-4 mt-2 overflow-hidden">
         <template x-for="file in $store['filelist-{{ $name }}']" :key="file.name">
             <li class="flex items-center min-h-10">
-                <img class="w-10 mr-2" :src="file.thumbnail" />
-                <div class="flex flex-grow flex-col">
+                <img class="w-10 mr-2" :src="file.thumbnail" src="" alt="thumbnail" />
+                <div class="flex grow flex-col">
                     <div>
                         <a class="link break-all" :href="file.url" x-text="file.title" target="_blank"></a>
                         <i x-show="file.password" x-cloak class="fa-solid fa-lock text-xs text-gray-400 -translate-x-0.5 -translate-y-1.5 scale-75"></i>
                     </div>
                     <span class="text-xs text-gray-400" x-text="file.file_type.replace(/\(.*?\)/g, '').trim() + ' (' + SM.bytesToString(file.size) + ')'"></span>
                 </div>
-                <a class="flex-shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.url + '?download=1'"><i class="fa-solid fa-download"></i></a>
+                <a class="shrink-0 cursor-pointer text-gray-400 w-7 text-center hover:text-primary-color" :href="file.url + '?download=1'"><i class="fa-solid fa-download"></i></a>
                 @if($editor)
-                    <i class="flex-shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="removeFile('{{ $name }}', file.name)"></i>
+                    <i class="shrink-0 text-gray-400 w-7 text-center fa-solid fa-trash hover:text-red-500 cursor-pointer" x-on:click.prevent="removeFile('{{ $name }}', file.name)"></i>
                 @endif
             </li>
         </template>
@@ -86,7 +86,7 @@
 @push('scripts')
 <script>
 document.addEventListener('alpine:init', () => {
-    const files = '{!! addslashes($value) !!}';
+    const files = @js($value ?? []);
     let fileData = [];
     try {
         fileData = JSON.parse(files);

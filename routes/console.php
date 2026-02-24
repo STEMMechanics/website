@@ -3,6 +3,7 @@
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
 use App\Models\Media;
+use App\Models\Ticket;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
@@ -58,9 +59,15 @@ Artisan::command('cleanup', function() {
 
     // Close workshops
     DB::table('workshops')
-        ->whereIn('status', ['open', 'full', 'private'])
+        ->whereIn('status', ['open', 'full'])
         ->where('closes_at', '<', now())
         ->update(['status' => 'closed']);
+
+    // Expire held workshop tickets older than 10 minutes.
+    Ticket::query()
+        ->where('status', Ticket::STATUS_HOLD)
+        ->where('created_at', '<', now()->subMinutes(10))
+        ->delete();
 
 })->purpose('Clean up expired data')->everyMinute();
 
@@ -71,3 +78,65 @@ Artisan::command('regenerate-thumbnails', function() {
         $m->generateVariants(false);
     }
 })->purpose('Regenerate thumbnails');
+
+Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}', function() {
+    $minutes = max(1, (int) $this->option('minutes'));
+    $limit = max(1, (int) $this->option('limit'));
+    $dryRun = (bool) $this->option('dry-run');
+
+    $threshold = now()->subMinutes($minutes);
+
+    $candidates = Media::query()
+        ->whereIn('status', ['queued', 'processing'])
+        ->where('updated_at', '<', $threshold)
+        ->orderBy('updated_at')
+        ->limit($limit)
+        ->get();
+
+    $checked = 0;
+    $queued = 0;
+    $ready = 0;
+    $skipped = 0;
+
+    foreach ($candidates as $media) {
+        $checked++;
+
+        $variantTypes = $media->getVariantTypes();
+        if ($variantTypes === []) {
+            $skipped++;
+            continue;
+        }
+
+        $missing = false;
+        foreach (array_keys($variantTypes) as $variantName) {
+            if (!$media->hasVariant($variantName)) {
+                $missing = true;
+                break;
+            }
+        }
+
+        if ($missing) {
+            $queued++;
+            if (!$dryRun) {
+                $media->generateVariants(false);
+            }
+            continue;
+        }
+
+        $ready++;
+        if (!$dryRun) {
+            $media->status = 'ready';
+            $media->save();
+        }
+    }
+
+    $this->info('Checked: ' . $checked);
+    $this->info('Queued for regeneration: ' . $queued);
+    $this->info('Marked ready (already complete): ' . $ready);
+    $this->info('Skipped (unsupported type): ' . $skipped);
+    if ($dryRun) {
+        $this->comment('Dry run mode: no records were modified.');
+    }
+})->purpose('Requeue stuck media variants and recover stale media statuses')
+    ->everyTenMinutes()
+    ->withoutOverlapping();

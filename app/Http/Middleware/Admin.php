@@ -21,14 +21,17 @@ class Admin
         $user = Auth::user();
 
         if ($user) {
-            if($user->admin == 1) {
+            if ($user->isAdmin()) {
                 return $next($request);
             }
 
             abort(403, 'Forbidden');
         }
 
-        session()->put('url.intended', url()->current());
+        if ($request->isMethod('GET') && ! $request->expectsJson() && ! $request->ajax()) {
+            session()->put('url.intended', $request->fullUrl());
+        }
+
         return redirect()->route('login');
     }
 }

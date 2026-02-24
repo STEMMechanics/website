@@ -45,7 +45,7 @@
                 <h2 class="text-3xl mb-4 text-center md:text-left">Build skills while having a great time</h2>
                 <div class="flex">
                     <div class="self-center">
-                        <p class="mb-6 text-left">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
+                        <p class="mb-6 text-left">Each workshop blends practical problem-solving, creativity and fosters teamwork so learners can build confidence while creating something they are proud of.</p>
                         <div class="flex flex-grow justify-center items-center">
                             <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
                         </div>
@@ -63,7 +63,7 @@
             <p class="mb-4">We invite you to join us on our <a href="https://stemcraft.com.au/" class="link">Minecraft server</a> where you can participate in weekly challenges and mini-games.</p>
             <div class="mb-4 flex gap-4">
                 <img src="{{  asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12" />
-                <p>We also run workshops on our minecraft server, both online and offline, where you ca learn to make it rain rabbits, or grow flowers wherever you walk!</p>
+                <p>We also run workshops on our minecraft server, both online and offline, where you can learn to make it rain rabbits, or grow flowers wherever you walk!</p>
             </div>
             <div class="flex justify-center">
                 <img src="{{ asset('home-minecraft-address.webp') }}" alt="play.stemcraft.com.au" class="h-12" />

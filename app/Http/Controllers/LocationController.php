@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Location;
 use App\Models\Post;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class LocationController extends Controller
@@ -40,17 +41,33 @@ class LocationController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => 'required',
+            'address' => 'nullable|string|max:255',
+            'url' => 'nullable|url',
             'address_url' => 'nullable|url',
         ], [
 //            'firstname.required' => __('validation.custom_messages.firstname_required'),
 //            'surname.required' => __('validation.custom_messages.surname_required'),
         ]);
 
-        Location::create(array_merge(
-            $request->all(),
-        ));
+        $location = Location::create([
+            'name' => trim((string) ($validated['name'] ?? '')),
+            'address' => trim((string) ($validated['address'] ?? '')),
+            'url' => trim((string) ($validated['url'] ?? '')),
+            'address_url' => trim((string) ($validated['address_url'] ?? '')),
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'location' => [
+                    'id' => (string) $location->id,
+                    'name' => (string) $location->name,
+                    'address' => (string) ($location->address ?? ''),
+                ],
+            ]);
+        }
 
         session()->flash('message', 'Location has been created');
         session()->flash('message-title', 'Location created');

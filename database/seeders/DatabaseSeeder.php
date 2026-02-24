@@ -21,12 +21,15 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'admin' => 1,
+        $adminUser = User::factory()->create([
             'id' => 1,
             'firstname' => 'STEMMechanics',
             'surname' => '',
             'email' => 'admin@stemmechanics.com.au',
+        ]);
+
+        $adminUser->groups()->firstOrCreate([
+            'slug' => 'admin',
         ]);
 
 //        Media::factory()->create([

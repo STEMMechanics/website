@@ -1,6 +1,6 @@
 <x-layout :bodyClass="'image-background'">
     <x-dialog formaction="{{ route('login.store') }}">
-        @captcha
+        <x-altcha-proof />
         <x-slot:title>Sign in another way</x-slot:title>
         <x-slot:header>Select the method to sign in to your account</x-slot:header>
         <div class="flex flex-col gap-4 mb-4">

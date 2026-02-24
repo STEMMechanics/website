@@ -97,7 +97,7 @@ const SMMediaPicker = {
                 Alpine.store('media').pagination = [];
 
                 response.data.data.forEach((file) => {
-                    if(file.status === 'processing') {
+                    if(file.status === 'processing' || file.status === 'queued') {
                         const fileName = file.name;
                         setTimeout(() => {
                             SMMediaPicker.updateThumbnail(fileName);
@@ -172,7 +172,7 @@ const SMMediaPicker = {
                             <p x-show="$store.media.total > 0" class="hidden md:block text-xs" x-text="'Showing ' + ((($store.media.current_page - 1) * $store.media.per_page) + 1) + ' to ' + ($store.media.current_page * $store.media.per_page > $store.media.total ? $store.media.total : $store.media.current_page * $store.media.per_page) + ' of ' + ($store.media.total) + ' results'"></p>
                             <p x-show="$store.media.total === 0" class="hidden md:block text-xs">No items found</p>
 
-                            <ul class="hidden sm:flex border rounded-lg text-sm">
+                            <ul class="hidden sm:flex border border-gray-300 rounded-lg text-sm">
                                 <template x-for="link in $store.media.pagination">
                                     <li
                                         class="px-2 py-1.5 w-9 border-r last:border-r-0 text-center select-none whitespace-nowrap"
@@ -293,7 +293,7 @@ const SMMediaPicker = {
                         item.thumbnail = response.data.thumbnail;
                         item.status = response.data.status;
                         item.variants = response.data.variants;
-                    } else if(response.data.status === 'processing') {
+                    } else if(response.data.status === 'processing' || response.data.status === 'queued') {
                         setTimeout(() => {
                             SMMediaPicker.updateThumbnail(name);
                         }, 5000);
@@ -322,4 +322,3 @@ document.addEventListener('DOMContentLoaded', () => {
         pagination: [],
     });
 })
-

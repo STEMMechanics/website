@@ -2,14 +2,14 @@
     <x-mast>Locations</x-mast>
 
     <x-container>
-        <div class="flex my-4 items-center">
-            <div class="flex-1">
-                <x-ui.button type="link" href="{{ route('admin.location.create') }}">Create Location</x-ui.button>
-            </div>
-            <div class="flex-1">
+        <x-ui.toolbar>
+            <x-slot:left>
+                <x-ui.button type="link" href="{{ route('admin.location.create') }}">Create</x-ui.button>
+            </x-slot:left>
+            <x-slot:right>
                 <x-ui.search name="search" label="Search" />
-            </div>
-        </div>
+            </x-slot:right>
+        </x-ui.toolbar>
 
         @if($locations->isEmpty())
             <x-none-found item="locations" search="{{ request()->get('search') }}" />

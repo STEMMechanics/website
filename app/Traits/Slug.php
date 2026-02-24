@@ -29,7 +29,7 @@ trait Slug
      */
     public function initializeSlug(): void
     {
-        $this->appends = array_merge($this->appends ?? [], $this->appendsSlug);
+        $this->appends = array_merge($this->appends, $this->appendsSlug);
     }
 
     /**

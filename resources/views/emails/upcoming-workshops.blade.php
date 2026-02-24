@@ -6,10 +6,11 @@
         $currentLocation = null;
     @endphp
     @foreach($workshops as $workshop)
-        @if($workshop->location->name !== $currentLocation)
-            <h2 style="margin-top: 32px; margin-bottom: 6px">{{ $workshop->location->name }}</h2>
+        @php($locationName = $workshop->getLocationName())
+        @if($locationName !== $currentLocation)
+            <h2 style="margin-top: 32px; margin-bottom: 6px">{{ $locationName }}</h2>
             @php
-                $currentLocation = $workshop->location->name;
+                $currentLocation = $locationName;
             @endphp
         @endif
         <p style="margin-bottom: 6px">{{ $workshop->starts_at->format('D, j M, g:i A') . ' - ' }}<a href="{{ route('workshop.show', $workshop->slug) }}">{{ $workshop->title }}</a> ({{ ($workshop->price && is_numeric($workshop->price) && $workshop->price != '0' ? '$' . number_format((float)$workshop->price, 2) : 'Free') . ( $workshop->status === 'scheduled' ? ' / Opens soon' : '') }})</p>

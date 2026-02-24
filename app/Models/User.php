@@ -20,12 +20,12 @@ class User extends Authenticatable implements MustVerifyEmail
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
-        'admin',
         'firstname',
         'surname',
+        'company',
         'email',
         'phone',
         'shipping_address',
@@ -41,25 +41,24 @@ class User extends Authenticatable implements MustVerifyEmail
         'billing_state',
         'billing_country',
         'subscribed',
-        'tfa_secret',
         'agree_tos',
     ];
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $hidden = [
         'password',
         'remember_token',
-        'tfa_secret'
+        'tfa_secret',
     ];
 
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -73,7 +72,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     protected $appends = [
         'subscribed',
-        'email_update_pending'
+        'email_update_pending',
     ];
 
     public static function boot()
@@ -87,18 +86,18 @@ class User extends Authenticatable implements MustVerifyEmail
                 // remove duplicate email subscriptions, favoring those with confirmed dates
                 $subscriptions = EmailSubscriptions::where('email', $user->email)->orderBy('created_at', 'asc')->get();
                 $confirmed = EmailSubscriptions::where('email', $user->email)->whereNotNull('confirmed')->orderBy('confirmed', 'asc')->first();
-                if($subscriptions->count() > 1) {
+                if ($subscriptions->count() > 1) {
                     // if there is a confirmed, then delete all the others
-                    if($confirmed) {
-                        $subscriptions->each(function($subscription) use ($confirmed) {
-                            if($subscription->id !== $confirmed->id) {
+                    if ($confirmed) {
+                        $subscriptions->each(function ($subscription) use ($confirmed) {
+                            if ($subscription->id !== $confirmed->id) {
                                 $subscription->delete();
                             }
                         });
                     } else {
                         // if there is no confirmed, then delete all but the most recent
-                        $subscriptions->each(function($subscription) use ($subscriptions) {
-                            if($subscription->id !== $subscriptions->last()->id) {
+                        $subscriptions->each(function ($subscription) use ($subscriptions) {
+                            if ($subscription->id !== $subscriptions->last()->id) {
                                 $subscription->delete();
                             }
                         });
@@ -107,7 +106,7 @@ class User extends Authenticatable implements MustVerifyEmail
             }
 
             if ($user->isDirty('tfa_secret')) {
-                if($user->tfa_secret === null) {
+                if ($user->tfa_secret === null) {
                     $user->backupCodes()->delete();
                     dispatch(new SendEmail($user->email, new UserLoginTFADisabled($user->email)))->onQueue('mail');
                 } else {
@@ -119,12 +118,14 @@ class User extends Authenticatable implements MustVerifyEmail
         static::deleting(function ($user) {
             EmailSubscriptions::where('email', $user->email)->delete();
         });
+
     }
 
     /**
      * Get the tokens for the user.
-     *
-     * @return HasMany
+     */
+    /**
+     * @return HasMany<Token, $this>
      */
     public function tokens(): HasMany
     {
@@ -133,14 +134,12 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /**
      * Get the calculated name of the user.
-     *
-     * @return string
      */
     public function getName(): string
     {
         $name = '';
 
-        if($this->firstname || $this->surname) {
+        if ($this->firstname || $this->surname) {
             $name = implode(' ', [$this->firstname, $this->surname]);
         } else {
             $name = substr($this->email, 0, strpos($this->email, '@'));
@@ -149,9 +148,46 @@ class User extends Authenticatable implements MustVerifyEmail
         return $name;
     }
 
-    public function tickets()
+    /**
+     * @return HasMany<Ticket, $this>
+     */
+    public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    /**
+     * @return HasMany<Invoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    /**
+     * @return HasMany<Quote, $this>
+     */
+    public function quotes(): HasMany
+    {
+        return $this->hasMany(Quote::class);
+    }
+
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class, 'created_by');
+    }
+
+    /**
+     * @return HasMany<Payment, $this>
+     */
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function createdPayments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'created_by');
     }
 
     public function getSubscribedAttribute()
@@ -166,14 +202,14 @@ class User extends Authenticatable implements MustVerifyEmail
         if ($value) {
             $subscription = EmailSubscriptions::where('email', $this->email)->first();
             if ($subscription) {
-                if($subscription->confirmed === null) {
+                if ($subscription->confirmed === null) {
                     $subscription->update(['confirmed' => now()]);
                     $subscription->save();
                 }
             } else {
                 EmailSubscriptions::Create([
                     'email' => $this->email,
-                    'confirmed' => now()
+                    'confirmed' => now(),
                 ]);
             }
         } else {
@@ -181,16 +217,63 @@ class User extends Authenticatable implements MustVerifyEmail
         }
     }
 
-
     public function getEmailUpdatePendingAttribute()
     {
+        /** @var Token|null $emailUpdate */
         $emailUpdate = $this->tokens()->where('type', 'email-update')->where('expires_at', '>', now())->first();
+
         return $emailUpdate ? $emailUpdate->data['email'] : null;
     }
 
     public function isAdmin(): bool
     {
-        return $this->admin === 1;
+        return $this->hasGroup('admin');
+    }
+
+    /**
+     * @return HasMany<UserGroup, $this>
+     */
+    public function groups(): HasMany
+    {
+        return $this->hasMany(UserGroup::class);
+    }
+
+    public function groupSlugs(): array
+    {
+        if ($this->relationLoaded('groups')) {
+            return $this->groups
+                ->pluck('slug')
+                ->map(fn ($slug) => (string) $slug)
+                ->filter(fn ($slug) => $slug !== '')
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return $this->groups()
+            ->orderBy('slug')
+            ->pluck('slug')
+            ->map(fn ($slug) => (string) $slug)
+            ->filter(fn ($slug) => $slug !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    public function hasGroup(string $slug): bool
+    {
+        $normalized = UserGroup::normalizeSlug($slug);
+        if ($normalized === '') {
+            return false;
+        }
+
+        if ($this->relationLoaded('groups')) {
+            return $this->groups->contains(fn (UserGroup $group) => (string) $group->slug === $normalized);
+        }
+
+        return $this->groups()
+            ->where('slug', $normalized)
+            ->exists();
     }
 
     public function backupCodes()
@@ -211,6 +294,7 @@ class User extends Authenticatable implements MustVerifyEmail
                 'code' => $code,
             ]);
         }
+
         return $codes;
     }
 
@@ -220,6 +304,7 @@ class User extends Authenticatable implements MustVerifyEmail
         foreach ($backupCodes as $backupCode) {
             if (Hash::check($code, $backupCode->code)) {
                 $backupCode->delete();
+
                 return true;
             }
         }

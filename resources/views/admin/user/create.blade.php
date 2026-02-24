@@ -2,7 +2,7 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Create User</x-mast>
 
     <x-container>
-        <form method="POST" action="{{ route('admin.user.store') }}" x-data x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+        <form method="POST" action="{{ route('admin.user.store') }}" x-data="{groupsRaw: @js(old('groups', ''))}" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @csrf
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex gap-8">
@@ -21,6 +21,15 @@
                     <x-ui.input label="Phone" name="phone" />
                 </div>
             </div>
+            <x-ui.input label="Company (Optional)" name="company" />
+            <x-ui.input
+                label="Groups (comma or space separated)"
+                name="groups"
+                :suggestions="$groupSuggestions ?? []"
+                info="Slug format only. Uppercase/spaces/symbols are normalized."
+                x-model="groupsRaw"
+                x-on:input="groupsRaw = groupsRaw.split(/[\\s,]+/).map(v => v.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')).filter(Boolean).join(', ')"
+            />
 
             <section x-data="{ open: true }">
                 <a href="#" class="flex items-center" @click.prevent="open = !open">

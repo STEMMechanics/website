@@ -5,16 +5,24 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Deployment</h3>
-                <form method="POST" action="{{ route('admin.server.deploy') }}" onsubmit="return confirm('Run website updater with selected options? You may need to refresh the page afterward the update completes.');" class="flex flex-wrap items-center gap-3">
+                <form method="POST" action="{{ route('admin.server.deploy') }}" data-sm-confirm="Run website updater with selected options? You may need to refresh the page afterward the update completes." data-sm-confirm-button="Run Update" class="flex flex-wrap items-center gap-3">
                     @csrf
-                    <label class="inline-flex items-center text-sm gap-2">
-                        <input type="checkbox" name="current" value="1" class="rounded border-gray-300">
-                        <span>Current</span>
-                    </label>
-                    <label class="inline-flex items-center text-sm gap-2">
-                        <input type="checkbox" name="force" value="1" class="rounded border-gray-300">
-                        <span>Force</span>
-                    </label>
+                    <x-ui.checkbox
+                        name="current"
+                        value="1"
+                        label="Current"
+                        :noWrapper="true"
+                        :inline="true"
+                        inputClass="h-4 w-4 rounded mt-0"
+                        labelClass="text-sm pt-0" />
+                    <x-ui.checkbox
+                        name="force"
+                        value="1"
+                        label="Force"
+                        :noWrapper="true"
+                        :inline="true"
+                        inputClass="h-4 w-4 rounded mt-0"
+                        labelClass="text-sm pt-0" />
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
                 </form>
             </div>
@@ -23,19 +31,23 @@
                 <p><strong>Last Output Update:</strong> <span id="deploy-log-updated">{{ $deployOutputModifiedAt ?? 'N/A' }}</span></p>
                 <p><strong>Showing:</strong> Last 150 lines</p>
                 <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" onsubmit="return confirm('Clear deploy output log? This cannot be undone.');">
+                    <form method="POST" action="{{ route('admin.server.deploy.log.clear') }}" data-sm-confirm="Clear deploy output log? This cannot be undone." data-sm-confirm-button="Clear Log">
                         @csrf
                         <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
                     </form>
                     <button type="button" id="deploy-log-refresh" class="whitespace-nowrap text-center justify-center rounded-md px-4 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition hover:bg-gray-500 focus-visible:outline-primary-color text-gray-800 border border-gray-400 bg-white hover:text-white">Refresh Log</button>
-                    <label class="inline-flex items-center text-sm gap-2">
-                        <input type="checkbox" id="deploy-log-auto-refresh" checked class="rounded border-gray-300">
-                        <span>Auto-refresh every 10 seconds</span>
-                    </label>
+                    <x-ui.checkbox
+                        id="deploy-log-auto-refresh"
+                        label="Auto-refresh every 10 seconds"
+                        :checked="true"
+                        :noWrapper="true"
+                        :inline="true"
+                        inputClass="h-4 w-4 rounded mt-0"
+                        labelClass="text-sm pt-0" />
                 </div>
             </div>
             @if(!$deployOutputExists)
-            <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log not found yet.</p>
+            <p id="deploy-log-empty" class="text-sm text-gray-600">Log file is empty.</p>
             <pre id="deploy-log-content" class="hidden text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap"></pre>
             @elseif(trim($deployOutputContent) === '')
             <p id="deploy-log-empty" class="text-sm text-gray-600">Deploy output log is empty.</p>
@@ -61,7 +73,7 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Laravel Log</h3>
-                <form method="POST" action="{{ route('admin.server.log.clear') }}" onsubmit="return confirm('Clear laravel.log? This cannot be undone.');">
+                <form method="POST" action="{{ route('admin.server.log.clear') }}" data-sm-confirm="Clear laravel.log? This cannot be undone." data-sm-confirm-button="Clear Log">
                     @csrf
                     <x-ui.button type="submit" color="danger">Clear Log</x-ui.button>
                 </form>
@@ -103,6 +115,28 @@
         const laravelEmptyEl = document.getElementById('laravel-log-empty');
         const laravelContentEl = document.getElementById('laravel-log-content');
         const laravelEndpoint = "{{ route('admin.server.log') }}";
+        const setButtonLoading = (button, isLoading, label = 'Refreshing...') => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            if (isLoading) {
+                if (!button.dataset.originalHtml) {
+                    button.dataset.originalHtml = button.innerHTML;
+                }
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                button.innerHTML = `<span class="altcha-processing-content"><span class="altcha-inline-spinner" aria-hidden="true"></span><span>${label}</span></span>`;
+                return;
+            }
+
+            if (button.dataset.originalHtml) {
+                button.innerHTML = button.dataset.originalHtml;
+                delete button.dataset.originalHtml;
+            }
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+        };
 
         const scrollToBottom = (el) => {
             if (!el) {
@@ -130,13 +164,13 @@
 
         const refreshLog = (respectAutoRefresh = true) => {
             if (!updatedEl || !emptyEl || !contentEl) {
-                return;
+                return Promise.resolve();
             }
             if (respectAutoRefresh && autoRefreshEl && !autoRefreshEl.checked) {
-                return;
+                return Promise.resolve();
             }
 
-            fetchJson(endpoint)
+            return fetchJson(endpoint)
                 .then((data) => {
                     updatedEl.textContent = data.modified_at || 'N/A';
                     const content = (data.content || '').trim();
@@ -144,7 +178,7 @@
                     if (!data.exists || content === '') {
                         emptyEl.classList.remove('hidden');
                         contentEl.classList.add('hidden');
-                        emptyEl.textContent = data.exists ? 'Deploy output log is empty.' : 'Deploy output log not found yet.';
+                        emptyEl.textContent = 'Log file is empty.';
                         return;
                     }
 
@@ -160,10 +194,10 @@
 
         const refreshLaravelLog = () => {
             if (!laravelUpdatedEl || !laravelSizeEl || !laravelEmptyEl || !laravelContentEl) {
-                return;
+                return Promise.resolve();
             }
 
-            fetchJson(laravelEndpoint)
+            return fetchJson(laravelEndpoint)
                 .then((data) => {
                     if (laravelUpdatedEl) {
                         laravelUpdatedEl.textContent = data.modified_at || 'N/A';
@@ -201,14 +235,54 @@
                 return;
             }
 
-            if (target.closest('#deploy-log-refresh')) {
+            const deployRefreshButton = target.closest('#deploy-log-refresh');
+            if (deployRefreshButton instanceof HTMLButtonElement) {
                 event.preventDefault();
-                refreshLog(false);
+                setButtonLoading(deployRefreshButton, true, 'Refreshing...');
+                refreshLog(false).finally(() => {
+                    setButtonLoading(deployRefreshButton, false);
+                });
             }
 
-            if (target.closest('#laravel-log-refresh')) {
+            const laravelRefreshButton = target.closest('#laravel-log-refresh');
+            if (laravelRefreshButton instanceof HTMLButtonElement) {
                 event.preventDefault();
-                refreshLaravelLog();
+                setButtonLoading(laravelRefreshButton, true, 'Refreshing...');
+                refreshLaravelLog().finally(() => {
+                    setButtonLoading(laravelRefreshButton, false);
+                });
+            }
+        });
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) {
+                return;
+            }
+            if (form.dataset.confirmedSubmit === '1') {
+                delete form.dataset.confirmedSubmit;
+                return;
+            }
+
+            const message = (form.dataset.smConfirm || '').trim();
+            if (message === '') {
+                return;
+            }
+
+            event.preventDefault();
+            if (window.SM && typeof window.SM.confirm === 'function') {
+                window.SM.confirm(
+                    'Confirm action',
+                    message,
+                    (form.dataset.smConfirmButton || 'Confirm'),
+                    (isConfirmed) => {
+                        if (!isConfirmed) {
+                            return;
+                        }
+                        form.dataset.confirmedSubmit = '1';
+                        form.requestSubmit();
+                    }
+                );
             }
         });
 

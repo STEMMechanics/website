@@ -11,6 +11,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 class SendEmail implements ShouldQueue
 {
@@ -31,37 +32,86 @@ class SendEmail implements ShouldQueue
     public $mailable;
 
     /**
+     * Sent email record id.
+     *
+     * @var string|null
+     */
+    public $sentEmailId;
+
+    /**
      * Create a new job instance.
      *
      * @param string   $to       The email receipient.
      * @param Mailable $mailable The mailable.
-     * @return void
      */
     public function __construct(string $to, Mailable $mailable)
     {
-        $this->to       = $to;
+        $this->to = $to;
         $this->mailable = $mailable;
+        $this->sentEmailId = null;
+        $this->onQueue('mail');
     }
 
     /**
      * Execute the job.
-     *
-     * @return void
      */
     public function handle(): void
     {
-        // Record sent email
+        // Record attempted email before sending.
         $sentEmail = SentEmail::create([
             'recipient' => $this->to,
-            'mailable_class' => get_class($this->mailable)
+            'mailable_class' => get_class($this->mailable),
+            'status' => SentEmail::STATUS_QUEUED,
         ]);
 
-        // Add unsubscribe link if mailable supports it
+        $this->sentEmailId = $sentEmail->id;
+
         if (method_exists($this->mailable, 'withUnsubscribeLink')) {
             $unsubscribeLink = route('unsubscribe', ['email' => $sentEmail->id]);
             $this->mailable->withUnsubscribeLink($unsubscribeLink);
         }
 
-        Mail::to($this->to)->send($this->mailable);
+        try {
+            Mail::to($this->to)->send($this->mailable);
+
+            $sentEmail->update([
+                'status' => SentEmail::STATUS_SENT,
+                'sent_at' => now(),
+                'failed_at' => null,
+                'error_message' => null,
+            ]);
+        } catch (Throwable $exception) {
+            $this->markFailed($exception);
+            throw $exception;
+        }
+    }
+
+    /**
+     * Handle a job failure from the queue worker.
+     */
+    public function failed(Throwable $exception): void
+    {
+        $this->markFailed($exception);
+    }
+
+    private function markFailed(Throwable $exception): void
+    {
+        if ($this->sentEmailId === null) {
+            Log::error('Email send failed before SentEmail row existed', [
+                'recipient' => $this->to,
+                'mailable_class' => get_class($this->mailable),
+                'error' => $exception->getMessage(),
+            ]);
+
+            return;
+        }
+
+        SentEmail::query()
+            ->whereKey($this->sentEmailId)
+            ->update([
+                'status' => SentEmail::STATUS_FAILED,
+                'failed_at' => now(),
+                'error_message' => mb_substr($exception->getMessage(), 0, 5000),
+            ]);
     }
 }

@@ -4,7 +4,7 @@
         <h1 class="text-3xl font-bold mb-2">{{ $post->title }}</h1>
         <div class="flex justify-between align-middle mb-4">
             <p class="text-gray-500 font-semibold">{{ $post->created_at->format('F j, Y') }}</p>
-            @if(auth()->user()?->admin)
+            @if(auth()->user()?->isAdmin())
                 <x-ui.button href="{{ route('admin.post.edit', $post) }}">Edit Article</x-ui.button>
             @endif
         </div>

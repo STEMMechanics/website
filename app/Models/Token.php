@@ -11,7 +11,7 @@ class Token extends Model
     /**
      * The attributes that are mass assignable.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     protected $fillable = [
         'user_id',
@@ -23,7 +23,7 @@ class Token extends Model
     /**
      * The attributes that should be cast.
      *
-     * @var array
+     * @var array<string, string>
      */
     protected $casts = [
         'expires_at' => 'datetime',
@@ -79,6 +79,9 @@ class Token extends Model
      * Get the user that the token belongs to.
      *
      * @return BelongsTo
+     */
+    /**
+     * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo
     {

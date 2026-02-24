@@ -8,20 +8,37 @@ use Illuminate\Support\Str;
 
 class SentEmail extends Model
 {
-    protected $fillable = ['recipient', 'mailable_class'];
+    use HasFactory;
+
+    public const STATUS_QUEUED = 'queued';
+    public const STATUS_SENT = 'sent';
+    public const STATUS_FAILED = 'failed';
+
+    protected $fillable = [
+        'recipient',
+        'mailable_class',
+        'status',
+        'sent_at',
+        'failed_at',
+        'error_message',
+    ];
+
+    protected $casts = [
+        'sent_at' => 'datetime',
+        'failed_at' => 'datetime',
+    ];
+
     public $incrementing = false;
     protected $keyType = 'string';
 
     /**
      * Boot function from Laravel.
-     *
-     * @return void
      */
     protected static function boot(): void
     {
         parent::boot();
 
-        static::creating(function ($model) {
+        static::creating(function ($model): void {
             if (empty($model->{$model->getKeyName()}) === true) {
                 $model->{$model->getKeyName()} = strtolower(Str::random(15));
             }

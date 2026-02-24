@@ -1,6 +1,6 @@
 <x-layout :bodyClass="'image-background'">
     <x-dialog formaction="{{ route('login.store') }}">
-        @captcha
+        <x-altcha-proof />
         @if(session('status') == 'not-found')
             <x-slot:title>Sorry, we didn't recognize that email</x-slot:title>
             <x-slot:header>
