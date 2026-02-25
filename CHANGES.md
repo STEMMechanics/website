@@ -6,6 +6,7 @@
 - Disable and show loader when saving pick lists
 - Pluralize pick list items automatically
 - Improved layout of BAS tables
+- Improved wording in no tickets found email
 
 ## 1.3.0
 

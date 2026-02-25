@@ -19,11 +19,20 @@ class TicketNoTickets extends Mailable
 
     public function build(): static
     {
-        return $this
-            ->subject('Ticket lookup result')
+        $mail = $this
+            ->subject('We couldn\'t find your tickets')
             ->markdown('emails.ticket-no-tickets')
             ->with([
                 'email' => $this->email,
             ]);
+
+        $fromAddress = trim((string) config('mail.ticket_from.address', (string) config('mail.from.address', '')));
+        $fromName = trim((string) config('mail.ticket_from.name', (string) config('mail.from.name', '')));
+
+        if ($fromAddress !== '') {
+            $mail->from($fromAddress, $fromName !== '' ? $fromName : null);
+        }
+
+        return $mail;
     }
 }

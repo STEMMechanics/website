@@ -23,7 +23,7 @@ class TicketMagicLink extends Mailable
     public function build(): static
     {
         $mail = $this
-            ->subject('Access your ticket with this link')
+            ->subject('Access your tickets with this link')
             ->markdown('emails.ticket-magic-link')
             ->with([
                 'email' => $this->email,
