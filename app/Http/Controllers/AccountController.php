@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UserDelete;
 use App\Mail\UserEmailUpdateRequest;
+use App\Models\Token;
 use App\Models\User;
 use App\Providers\QRCodeProvider;
+use App\Support\RememberedDeviceManager;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use RobThree\Auth\Algorithm;
@@ -14,6 +18,10 @@ use RobThree\Auth\TwoFactorAuth;
 
 class AccountController extends Controller
 {
+    public function __construct(
+        private readonly RememberedDeviceManager $rememberedDeviceManager
+    ) {}
+
     /**
      * Display a listing of the resource.
      */
@@ -25,9 +33,16 @@ class AccountController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(User $user)
+    public function show(Request $request)
     {
-        return view('account', compact('user'));
+        /** @var User $user */
+        $user = auth()->user();
+
+        return view('account', [
+            'user' => $user,
+            'rememberedDevices' => $this->rememberedDeviceManager->listRememberedDevices($user, $request),
+            'currentRememberedTokenId' => $this->rememberedDeviceManager->currentTokenId($request),
+        ]);
     }
 
     /**
@@ -43,6 +58,7 @@ class AccountController extends Controller
      */
     public function update(Request $request)
     {
+        /** @var User $user */
         $user = auth()->user();
 
         $validator = Validator::make($request->all(), [
@@ -110,11 +126,42 @@ class AccountController extends Controller
         $user->update($userData);
         $user->save();
 
+        if ($request->boolean('keep_signed_in_device')) {
+            $this->rememberedDeviceManager->rememberUserOnCurrentDevice($request, $user);
+        } else {
+            $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
+        }
+
         session()->flash('message', 'Your account details have been saved');
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    public function destroyRememberedDevice(Request $request, Token $token): RedirectResponse|JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        if ((string) $token->user_id !== (string) $user->id || (string) $token->type !== RememberedDeviceManager::DEVICE_TOKEN_TYPE) {
+            abort(403);
+        }
+
+        $this->rememberedDeviceManager->forgetDeviceById($user, (string) $token->id, $request);
+
+        session()->flash('message', 'The selected remembered device has been removed.');
+        session()->flash('message-title', 'Device removed');
+        session()->flash('message-type', 'success');
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('account.show'),
+            ]);
+        }
+
+        return redirect()->route('account.show');
     }
 
     /**

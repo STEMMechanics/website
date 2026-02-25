@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account', [AccountController::class, 'update'])->name('account.update');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
     Route::get('/account/invoices/{invoice}', [InvoiceController::class, 'accountShow'])->name('account.invoice.show');
     Route::get('/account/invoices/{invoice}/receipts', [InvoiceController::class, 'accountReceipts'])->name('account.invoice.receipts');

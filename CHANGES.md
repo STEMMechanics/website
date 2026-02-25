@@ -6,6 +6,7 @@
 - Added Artisan test/qa commands
 - Fix styling on small checkboxes
 - Added link to repo in footer
+- Support for remembering email and devices
 
 ## 1.3.3
 

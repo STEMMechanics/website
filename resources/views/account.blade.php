@@ -8,6 +8,12 @@ $shipping_same_billing = $user->shipping_address === $user->billing_address
     && $user->shipping_postcode === $user->billing_postcode
     && $user->shipping_country === $user->billing_country;
 $groupSlugs = $user->groupSlugs();
+$rememberedDevices = collect($rememberedDevices ?? []);
+$currentRememberedTokenId = (string) ($currentRememberedTokenId ?? '');
+$keepSignedInDeviceOld = old('keep_signed_in_device');
+$keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
+    ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
+    : ($currentRememberedTokenId !== '');
 @endphp
 
 <x-layout>
@@ -56,6 +62,58 @@ $groupSlugs = $user->groupSlugs();
                 </a>
                 <div x-show="open">
                     <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                </div>
+            </section>
+
+            <section x-data="{ open: true }">
+                <a href="#" class="flex items-center" @click.prevent="open = !open">
+                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
+                    <h3 class="text-lg font-bold mt-4 mb-3">Remembered Devices</h3>
+                </a>
+                <div x-show="open">
+                    <input type="hidden" name="keep_signed_in_device" value="0" />
+                    <x-ui.checkbox
+                        id="keep_signed_in_device"
+                        label="Keep me signed in on this device"
+                        name="keep_signed_in_device"
+                        checked="{{ $keepSignedInDeviceChecked }}"
+                    />
+
+                    @if($rememberedDevices->isEmpty())
+                        <p class="text-sm text-gray-500 mb-4">No remembered devices have been saved.</p>
+                    @else
+                        <div class="space-y-3 mb-4">
+                            @foreach($rememberedDevices as $device)
+                                <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                    <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                        <div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="font-semibold">{{ $device['title'] ?? 'Browser Device' }}</div>
+                                                @if(! empty($device['is_current']))
+                                                    <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs text-green-800">Current device</div>
+                                                @endif
+                                            </div>
+                                            <div class="text-xs text-gray-600">IP: {{ $device['ip_address'] ?? '-' }}</div>
+                                            @if(! empty($device['browser']))
+                                                <div class="text-xs text-gray-600">Browser: {{ $device['browser'] }}</div>
+                                            @endif
+                                            <div class="text-xs text-gray-600">Added: {{ $device['created_label'] ?? '-' }}</div>
+                                            <div class="text-xs text-gray-600">Last used: {{ $device['last_used_label'] ?? '-' }}</div>
+                                        </div>
+                                        <x-ui.button
+                                            type="button"
+                                            color="danger-outline"
+                                            class="!px-4 !py-1.5"
+                                            x-data
+                                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove device?', 'This device will no longer stay signed in.', '{{ route('account.device.destroy', $device['id']) }}')"
+                                        >
+                                            Remove
+                                        </x-ui.button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </section>
 

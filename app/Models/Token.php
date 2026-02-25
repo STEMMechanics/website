@@ -70,7 +70,9 @@ class Token extends Model
             }
 
             if (empty($model->expires_at) === true) {
-                $model->expires_at = now()->addMinutes(10);
+                if ((string) $model->type !== 'remember-device') {
+                    $model->expires_at = now()->addMinutes(10);
+                }
             }
         });
     }
