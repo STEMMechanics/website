@@ -166,10 +166,18 @@
                     options: @js($suggestions),
                     moneyFormat: @js($moneyFormat),
                     hasTyped: false,
+                    suppressRefresh: false,
                     filtered: [],
                     open: false,
                     selectedIndex: -1,
                     refresh() {
+                        if (this.suppressRefresh) {
+                            this.suppressRefresh = false;
+                            this.filtered = [];
+                            this.selectedIndex = -1;
+                            this.open = false;
+                            return;
+                        }
                         if (!this.hasTyped) {
                             this.filtered = [];
                             this.selectedIndex = -1;
@@ -200,6 +208,7 @@
                         this.selectedIndex = (this.selectedIndex + step + len) % len;
                     },
                     choose(value) {
+                        this.suppressRefresh = true;
                         this.rawValue = value;
                         this.open = false;
                         this.selectedIndex = -1;
@@ -216,6 +225,8 @@
                             return;
                         }
                         if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
+                            this.open = false;
+                            this.selectedIndex = -1;
                             return;
                         }
                         this.choose(this.filtered[this.selectedIndex]);
@@ -321,10 +332,18 @@
                         options: @js($suggestions),
                         moneyFormat: @js($moneyFormat),
                         hasTyped: false,
+                        suppressRefresh: false,
                         filtered: [],
                         open: false,
                         selectedIndex: -1,
                         refresh() {
+                            if (this.suppressRefresh) {
+                                this.suppressRefresh = false;
+                                this.filtered = [];
+                                this.selectedIndex = -1;
+                                this.open = false;
+                                return;
+                            }
                             if (!this.hasTyped) {
                                 this.filtered = [];
                                 this.selectedIndex = -1;
@@ -355,6 +374,7 @@
                             this.selectedIndex = (this.selectedIndex + step + len) % len;
                         },
                         choose(value) {
+                            this.suppressRefresh = true;
                             this.rawValue = value;
                             this.open = false;
                             this.selectedIndex = -1;
@@ -371,6 +391,8 @@
                                 return;
                             }
                             if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
+                                this.open = false;
+                                this.selectedIndex = -1;
                                 return;
                             }
                             this.choose(this.filtered[this.selectedIndex]);
@@ -474,10 +496,18 @@
                         options: @js($suggestions),
                         moneyFormat: @js($moneyFormat),
                         hasTyped: false,
+                        suppressRefresh: false,
                         filtered: [],
                         open: false,
                         selectedIndex: -1,
                         refresh() {
+                            if (this.suppressRefresh) {
+                                this.suppressRefresh = false;
+                                this.filtered = [];
+                                this.selectedIndex = -1;
+                                this.open = false;
+                                return;
+                            }
                             if (!this.hasTyped) {
                                 this.filtered = [];
                                 this.selectedIndex = -1;
@@ -508,6 +538,7 @@
                             this.selectedIndex = (this.selectedIndex + step + len) % len;
                         },
                         choose(value) {
+                            this.suppressRefresh = true;
                             this.rawValue = value;
                             this.open = false;
                             this.selectedIndex = -1;
@@ -524,6 +555,8 @@
                                 return;
                             }
                             if (this.selectedIndex < 0 || this.selectedIndex >= this.filtered.length) {
+                                this.open = false;
+                                this.selectedIndex = -1;
                                 return;
                             }
                             this.choose(this.filtered[this.selectedIndex]);
