@@ -75,12 +75,14 @@ class UserController extends Controller
             'groups' => 'nullable|string|max:2000',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
+            'shipping_address2' => 'nullable|string|max:255',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
             'shipping_postcode' => 'required_with:shipping_address,shipping_city,shipping_country,shipping_state',
             'shipping_country' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state',
             'shipping_state' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country',
 
             'billing_address' => 'required_with:billing_city,billing_postcode,billing_country,billing_state',
+            'billing_address2' => 'nullable|string|max:255',
             'billing_city' => 'required_with:billing_address,billing_postcode,billing_country,billing_state',
             'billing_postcode' => 'required_with:billing_address,billing_city,billing_country,billing_state',
             'billing_country' => 'required_with:billing_address,billing_city,billing_postcode,billing_state',
@@ -146,12 +148,14 @@ class UserController extends Controller
             'groups' => 'nullable|string|max:2000',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
+            'shipping_address2' => 'nullable|string|max:255',
             'shipping_city' => 'required_with:shipping_address,shipping_postcode,shipping_country,shipping_state',
             'shipping_postcode' => 'required_with:shipping_address,shipping_city,shipping_country,shipping_state',
             'shipping_country' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_state',
             'shipping_state' => 'required_with:shipping_address,shipping_city,shipping_postcode,shipping_country',
 
             'billing_address' => 'required_with:billing_city,billing_postcode,billing_country,billing_state',
+            'billing_address2' => 'nullable|string|max:255',
             'billing_city' => 'required_with:billing_address,billing_postcode,billing_country,billing_state',
             'billing_postcode' => 'required_with:billing_address,billing_city,billing_country,billing_state',
             'billing_country' => 'required_with:billing_address,billing_city,billing_postcode,billing_state',
