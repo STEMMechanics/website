@@ -20,6 +20,7 @@
         <form method="POST" action="{{ route('admin.workshop.pick-list.save', $workshop) }}" class="rounded-lg border border-gray-200 p-4 mb-6 bg-white" x-data="{
             checked: @js(collect($checkedItemIds ?? [])->mapWithKeys(fn ($id) => [(string) $id => true])->all()),
             allItemIds: @js($calculatedItems->pluck('item_id')->map(fn ($id) => (string) $id)->values()->all()),
+            submitting: false,
             clearAllChecks() {
                 this.checked = {};
             },
@@ -30,7 +31,7 @@
                 }
                 this.checked = next;
             }
-        }">
+        }" x-on:submit="submitting = true">
             @csrf
             @if(! $workshop->pickListTemplate)
                 <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
@@ -73,7 +74,13 @@
                 />
             </div>
             <div class="flex md:justify-end">
-                <x-ui.button type="submit">Save</x-ui.button>
+                <x-ui.button type="submit" x-bind:disabled="submitting">
+                    <span x-show="!submitting">Save</span>
+                    <span x-show="submitting" class="inline-flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                        <span>Saving...</span>
+                    </span>
+                </x-ui.button>
             </div>
         </form>
     </x-container>

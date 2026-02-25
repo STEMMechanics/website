@@ -20,6 +20,7 @@
     <x-container class="mt-4">
         <form method="POST" action="{{ route('admin.pick-list-template.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
             items: @js($seedItems),
+            submitting: false,
             newBlankItem() {
                 return {
                     item_name: '',
@@ -96,7 +97,7 @@
                     this.ensureSingleTrailingBlank();
                 }
             },
-        }" x-init="ensureSingleTrailingBlank()">
+        }" x-init="ensureSingleTrailingBlank()" x-on:submit="submitting = true">
             @csrf
             @if($editing)
                 @method('PUT')
@@ -198,7 +199,13 @@
 
             <div class="flex justify-end gap-2">
                 <x-ui.button type="link" color="outline" href="{{ route('admin.pick-list-template.index') }}">Cancel</x-ui.button>
-                <x-ui.button type="submit">{{ $editing ? 'Save Template' : 'Create Template' }}</x-ui.button>
+                <x-ui.button type="submit" x-bind:disabled="submitting">
+                    <span x-show="!submitting">{{ $editing ? 'Save Template' : 'Create Template' }}</span>
+                    <span x-show="submitting" class="inline-flex items-center gap-2">
+                        <i class="fa-solid fa-circle-notch animate-spin"></i>
+                        <span>{{ $editing ? 'Saving...' : 'Creating...' }}</span>
+                    </span>
+                </x-ui.button>
             </div>
         </form>
     </x-container>
