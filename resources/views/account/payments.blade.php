@@ -6,7 +6,7 @@
             <x-slot:left>
                 <div class="text-sm text-gray-700">
                 Account Credit:
-                <span class="ml-1 font-semibold text-indigo-700">${{ number_format((float) ($accountCredit ?? 0), 2) }}</span>
+                <span class="ml-1 font-semibold text-indigo-700">{{ money((float) ($accountCredit ?? 0)) }}</span>
                 </div>
             </x-slot:left>
             <x-slot:right>
@@ -62,14 +62,14 @@
                                 <div>{{ $payment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                                 <div class="text-xs text-gray-600">{{ \App\Models\Payment::paymentMethodLabel((string) ($payment->payment_method ?? '')) }} · {{ $typeLabel }}</div>
                                 <div class="lg:hidden text-xs text-gray-600 mt-1">{{ $invoiceNumbers->isNotEmpty() ? 'Invoice #'.$invoiceNumbers->implode(', Invoice #') : '-' }}</div>
-                                <div class="lg:hidden text-xs text-gray-600">Alloc: ${{ number_format((float) $allocated, 2) }} · Unalloc: ${{ number_format($unallocated, 2) }}</div>
+                                <div class="lg:hidden text-xs text-gray-600">Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}</div>
                             </td>
                             <td class="hidden md:table-cell">{{ \App\Models\Payment::paymentMethodLabel((string) ($payment->payment_method ?? '')) }}</td>
                             <td class="hidden md:table-cell">{{ $typeLabel }}</td>
-                            <td>${{ number_format((float) $payment->total_amount, 2) }}</td>
+                            <td>{{ money((float) $payment->total_amount) }}</td>
                             <td class="hidden lg:table-cell">{{ $invoiceNumbers->isNotEmpty() ? 'Invoice #'.$invoiceNumbers->implode(', Invoice #') : '-' }}</td>
-                            <td class="hidden lg:table-cell">${{ number_format((float) $allocated, 2) }}</td>
-                            <td class="hidden lg:table-cell">${{ number_format($unallocated, 2) }}</td>
+                            <td class="hidden lg:table-cell">{{ money((float) $allocated) }}</td>
+                            <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
                             <td>
                                 <div class="flex justify-center gap-3">
                                     <a href="{{ route('account.payment.receipt', $payment) }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
@@ -110,7 +110,7 @@
                                 </td>
                                 <td class="hidden md:table-cell">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? '')) }}</td>
                                 <td class="hidden md:table-cell">Refund</td>
-                                <td>-${{ number_format((float) $refund->total_amount, 2) }}</td>
+                                <td>{{ money(-((float) $refund->total_amount)) }}</td>
                                 <td class="hidden lg:table-cell">{{ $refundInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$refundInvoiceNumbers->implode(', Invoice #') : '-' }}</td>
                                 <td class="hidden lg:table-cell">-</td>
                                 <td class="hidden lg:table-cell">-</td>

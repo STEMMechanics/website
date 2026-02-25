@@ -8,6 +8,7 @@
             <div class="text-sm text-gray-600">Location: {{ $workshop->getLocationName() }}</div>
             <div class="mt-2 flex gap-2">
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
+                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
                 @if($workshop->registration === 'tickets')
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                 @endif

@@ -30,6 +30,10 @@ class Workshop extends Model
         'hosted_for',
         'is_private',
         'max_tickets',
+        'pick_list_template_id',
+        'pick_list_participants',
+        'pick_list_checked_item_ids',
+        'pick_list_notes',
         'location_id',
         'user_id',
         'hero_media_name',
@@ -42,6 +46,8 @@ class Workshop extends Model
         'closes_at' => 'datetime',
         'is_private' => 'boolean',
         'max_tickets' => 'integer',
+        'pick_list_participants' => 'integer',
+        'pick_list_checked_item_ids' => 'array',
     ];
 
     /**
@@ -66,6 +72,14 @@ class Workshop extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'location_id');
+    }
+
+    /**
+     * @return BelongsTo<PickListTemplate, $this>
+     */
+    public function pickListTemplate(): BelongsTo
+    {
+        return $this->belongsTo(PickListTemplate::class, 'pick_list_template_id');
     }
 
     /**

@@ -62,21 +62,21 @@
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
                         <div class="text-xs text-gray-600 lg:hidden mt-1">
-                            Alloc: ${{ number_format((float) $allocated, 2) }} · Unalloc: ${{ number_format($unallocated, 2) }}
+                            Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
                             {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
                         </div>
                     </td>
-                    <td>${{ number_format((float) $customerPayment->total_amount, 2) }}</td>
+                    <td>{{ money((float) $customerPayment->total_amount) }}</td>
                     <td class="hidden md:table-cell">{{ $typeLabel }}</td>
                     <td class="hidden lg:table-cell">
-                        ${{ number_format((float) $allocated, 2) }}
+                        {{ money((float) $allocated) }}
                         <div class="text-xs text-gray-600">
                             {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
                         </div>
                     </td>
-                    <td class="hidden lg:table-cell">${{ number_format($unallocated, 2) }}</td>
+                    <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
                     <td>
                         <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                             <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
@@ -97,7 +97,7 @@
                         <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">Refund</div>
                     </td>
-                    <td>-${{ number_format((float) $refund->total_amount, 2) }}</td>
+                    <td>{{ money(-((float) $refund->total_amount)) }}</td>
                     <td class="hidden md:table-cell">Refund</td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="hidden lg:table-cell">-</td>

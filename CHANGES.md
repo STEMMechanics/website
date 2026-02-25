@@ -1,5 +1,13 @@
 # Changes
 
+## 1.3.0
+
+- Added workshop pick list support
+
+## 1.2.4
+
+- Improved the display of negative currency amounts
+
 ## 1.2.3
 
 - Improved BAS reporting
