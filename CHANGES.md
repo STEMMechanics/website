@@ -4,6 +4,7 @@
 
 - hide popup suggestions when selecting item
 - disable and show loader when saving pick lists
+- pluralize pick list items automatically
 
 ## 1.3.0
 

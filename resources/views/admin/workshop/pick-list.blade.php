@@ -50,7 +50,7 @@
                             <input type="checkbox" class="h-7 w-7 rounded border-gray-300" x-model="checked['{{ (int) $row['item_id'] }}']" />
                             <input type="hidden" name="checked_item_ids[]" :disabled="!checked['{{ (int) $row['item_id'] }}']" value="{{ (int) $row['item_id'] }}">
                             <div>
-                                <div class="font-semibold">{{ $row['quantity_text'] }} x {{ $row['item_name'] }}</div>
+                                <div class="font-semibold">{{ $row['quantity_text'] }} x {{ \Illuminate\Support\Str::plural((string) $row['item_name'], (int) $row['quantity']) }}</div>
                                 <div class="text-xs text-gray-500">{{ $row['type_note'] }}</div>
                             </div>
                         </label>
