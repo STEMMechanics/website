@@ -7,7 +7,7 @@
                 <x-ui.button type="link" href="{{ route('admin.payment.create') }}">Record</x-ui.button>
             </div>
             <div class="w-full sm:flex-1 flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <form method="GET" action="{{ route('admin.payment.index') }}" class="inline-flex items-center gap-2">
+                <form method="GET" action="{{ route('admin.payment.index') }}" class="flex flex-wrap items-center gap-2">
                     @if(request()->filled('search'))
                     <input type="hidden" name="search" value="{{ request('search') }}">
                     @endif
@@ -36,7 +36,7 @@
                     <th class="hidden md:table-cell">Type</th>
                     <th class="hidden lg:table-cell">Allocated</th>
                     <th class="hidden lg:table-cell">Unallocated</th>
-                    <th>Actions</th>
+                    <th class="text-center">Actions</th>
                 </x-slot:header>
                 <x-slot:body>
                 @foreach ($customerPayments as $customerPayment)
@@ -57,28 +57,28 @@
                 @endphp
                 <tr>
                     <td class="whitespace-nowrap">{{ $customerPayment->id }}</td>
-                    <td>
+                    <td class="w-28">
                         <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
                         <div class="text-xs text-gray-600 lg:hidden mt-1">
-                            Alloc: ${{ number_format((float) $allocated, 2) }} · Unalloc: ${{ number_format($unallocated, 2) }}
+                            Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
                             {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
                         </div>
                     </td>
-                    <td>${{ number_format((float) $customerPayment->total_amount, 2) }}</td>
+                    <td>{{ money((float) $customerPayment->total_amount) }}</td>
                     <td class="hidden md:table-cell">{{ $typeLabel }}</td>
                     <td class="hidden lg:table-cell">
-                        ${{ number_format((float) $allocated, 2) }}
+                        {{ money((float) $allocated) }}
                         <div class="text-xs text-gray-600">
                             {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
                         </div>
                     </td>
-                    <td class="hidden lg:table-cell">${{ number_format($unallocated, 2) }}</td>
+                    <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
                     <td>
-                        <div class="flex justify-center gap-3 whitespace-nowrap">
+                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                             <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
                             <a href="{{ $receiptViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
                             <a href="{{ $receiptDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
@@ -97,12 +97,12 @@
                         <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">Refund</div>
                     </td>
-                    <td>-${{ number_format((float) $refund->total_amount, 2) }}</td>
+                    <td>{{ money(-((float) $refund->total_amount)) }}</td>
                     <td class="hidden md:table-cell">Refund</td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="hidden lg:table-cell">-</td>
-                    <td>
-                        <div class="flex justify-center gap-3 whitespace-nowrap">
+                    <td class="w-28">
+                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                             <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
                             <a href="{{ $refundViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
                             <a href="{{ $refundDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>

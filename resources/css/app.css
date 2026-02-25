@@ -427,6 +427,15 @@ body.swal2-height-auto {
     text-align: left;
 }
 
+@media (max-width: 767px) {
+    .table th,
+    .table td {
+        padding: 0.625rem 0.625rem;
+        font-size: 0.8125rem;
+        line-height: 1.2rem;
+    }
+}
+
 .sm-media-picker-container {
     grid-template-rows: minmax(min-content, auto) 1fr minmax(min-content, auto);
 

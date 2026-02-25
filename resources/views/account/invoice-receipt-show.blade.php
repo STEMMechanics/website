@@ -16,13 +16,7 @@
                     <div><strong>Method:</strong> {{ \App\Models\Payment::paymentMethodLabel((string) ($receipt->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</div>
                 </div>
                 <div class="md:text-right">
-                    <div><strong>Amount:</strong>
-                        @if($isRefund)
-                            -${{ number_format((float) $receipt->total_amount, 2) }}
-                        @else
-                            ${{ number_format((float) $receipt->total_amount, 2) }}
-                        @endif
-                    </div>
+                    <div><strong>Amount:</strong> {{ money($isRefund ? -((float) $receipt->total_amount) : (float) $receipt->total_amount) }}</div>
                     <div><strong>Reference:</strong> {{ $receipt->reference ?: '-' }}</div>
                 </div>
             </div>

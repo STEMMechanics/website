@@ -95,6 +95,7 @@
                 <a href="{{ route('admin.invoice.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-file-lines w-4 mr-2"></i>Invoices</a>
                 <a href="{{ route('admin.payment.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-money-check-dollar w-4 mr-2"></i>Payments</a>
                 <a href="{{ route('admin.quote.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-file-lines w-4 mr-2"></i>Quotes</a>
+                <a href="{{ route('admin.pick-list-template.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-list-check w-4 mr-2"></i>Pick List Templates</a>
 
                 <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Server</div>
                 <a href="{{ route('admin.analytics.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chart-line w-4 mr-2"></i>Analytics</a>

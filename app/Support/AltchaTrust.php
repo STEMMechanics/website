@@ -15,7 +15,10 @@ class AltchaTrust
 
     public static function shouldRequire(Request $request): bool
     {
-        if (! (bool) config('security.altcha_enabled', true)) {
+        $hmacKey = config('altcha.hmac_key');
+        $hasHmacKey = is_string($hmacKey) && trim($hmacKey) !== '';
+
+        if (! (bool) config('security.altcha_enabled', true) || ! $hasHmacKey) {
             return false;
         }
 

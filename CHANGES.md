@@ -1,7 +1,31 @@
 # Changes
 
-## 1.2
+## 1.3.0
 
+- Added workshop pick list support
+
+## 1.2.4
+
+- Improved the display of negative currency amounts
+
+## 1.2.3
+
+- Improved BAS reporting
+
+## 1.2.2
+
+- BAS report did not take refunds into account
+
+## 1.2.1
+
+- Pass altcha checks if config is invalid
+- Prevent workshop changes if active tickets are present
+- Improved mobile view of admin invoices, payment and audit log pages
+
+## 1.2.0
+
+- Added financial support to the website
+- Added ticketing options to workshops
 - Added email subscripton management from admin panel
 - Do not show 'v' prefix in footer when a direct branch deployed
 

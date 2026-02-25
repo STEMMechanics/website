@@ -13,6 +13,7 @@
     $disabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
     $suggestions = collect(is_array($suggestions) ? $suggestions : [])->map(fn ($item) => trim((string) $item))->filter(fn ($item) => $item !== '')->unique()->values()->all();
     $hasSuggestions = $type === 'text' && !filter_var($readonly, FILTER_VALIDATE_BOOLEAN) && ! $disabled && count($suggestions) > 0;
+    $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
     $isFileInput = $type === 'file';
     $inputId = (string) ($attributes->get('id') ?? $name);
     $fileUiUid = substr(md5($name.'-'.$inputId), 0, 12);
@@ -202,6 +203,13 @@
                         this.rawValue = value;
                         this.open = false;
                         this.selectedIndex = -1;
+                        this.$nextTick(() => {
+                            if (!this.$refs.inputEl) {
+                                return;
+                            }
+                            this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                            this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                        });
                     },
                     confirm() {
                         if (!this.open) {
@@ -228,10 +236,42 @@
                         this.rawValue = amount.toFixed(2);
                     }
                 }"
-                x-init="refresh()"
+                x-init="
+                    refresh();
+                    @if($xModelBinding !== '')
+                        let __modelValue = '';
+                        try {
+                            __modelValue = {{ $xModelBinding }};
+                        } catch (e) {
+                            __modelValue = '';
+                        }
+                        if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
+                            rawValue = __modelValue;
+                        }
+                        $watch('rawValue', value => {
+                            try {
+                                {{ $xModelBinding }} = value;
+                            } catch (e) {}
+                        });
+                    @endif
+                "
+                x-effect="
+                    @if($xModelBinding !== '')
+                        let __incoming = '';
+                        try {
+                            __incoming = {{ $xModelBinding }};
+                        } catch (e) {
+                            __incoming = '';
+                        }
+                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                            rawValue = (__incoming ?? '');
+                        }
+                    @endif
+                "
                 x-on:click.away="open = false"
             >
                 <input
+                    x-ref="inputEl"
                     class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}"
                     autocomplete="off"
                     placeholder=" "
@@ -246,7 +286,7 @@
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes }}
+                    {{ $attributes->except(['class', 'id', 'x-model']) }}
                 />
                 <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
                 <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
@@ -318,6 +358,13 @@
                             this.rawValue = value;
                             this.open = false;
                             this.selectedIndex = -1;
+                            this.$nextTick(() => {
+                                if (!this.$refs.inputEl) {
+                                    return;
+                                }
+                                this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            });
                         },
                         confirm() {
                             if (!this.open) {
@@ -344,10 +391,42 @@
                             this.rawValue = amount.toFixed(2);
                         }
                     }"
-                    x-init="refresh()"
+                    x-init="
+                        refresh();
+                        @if($xModelBinding !== '')
+                            let __modelValue = '';
+                            try {
+                                __modelValue = {{ $xModelBinding }};
+                            } catch (e) {
+                                __modelValue = '';
+                            }
+                            if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
+                                rawValue = __modelValue;
+                            }
+                            $watch('rawValue', value => {
+                                try {
+                                    {{ $xModelBinding }} = value;
+                                } catch (e) {}
+                            });
+                        @endif
+                    "
+                    x-effect="
+                        @if($xModelBinding !== '')
+                            let __incoming = '';
+                            try {
+                                __incoming = {{ $xModelBinding }};
+                            } catch (e) {
+                                __incoming = '';
+                            }
+                            if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                                rawValue = (__incoming ?? '');
+                            }
+                        @endif
+                    "
                     x-on:click.away="open = false"
                 >
                     <input
+                        x-ref="inputEl"
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
                         autocomplete="off"
                         placeholder="{{ $label }}"
@@ -362,7 +441,7 @@
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)
-                        {{ $attributes }}
+                        {{ $attributes->except(['x-model']) }}
                     />
                     <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
@@ -432,6 +511,13 @@
                             this.rawValue = value;
                             this.open = false;
                             this.selectedIndex = -1;
+                            this.$nextTick(() => {
+                                if (!this.$refs.inputEl) {
+                                    return;
+                                }
+                                this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                                this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+                            });
                         },
                         confirm() {
                             if (!this.open) {
@@ -458,10 +544,42 @@
                             this.rawValue = amount.toFixed(2);
                         }
                     }"
-                    x-init="refresh()"
+                    x-init="
+                        refresh();
+                        @if($xModelBinding !== '')
+                            let __modelValue = '';
+                            try {
+                                __modelValue = {{ $xModelBinding }};
+                            } catch (e) {
+                                __modelValue = '';
+                            }
+                            if (__modelValue !== null && __modelValue !== undefined && __modelValue !== '') {
+                                rawValue = __modelValue;
+                            }
+                            $watch('rawValue', value => {
+                                try {
+                                    {{ $xModelBinding }} = value;
+                                } catch (e) {}
+                            });
+                        @endif
+                    "
+                    x-effect="
+                        @if($xModelBinding !== '')
+                            let __incoming = '';
+                            try {
+                                __incoming = {{ $xModelBinding }};
+                            } catch (e) {
+                                __incoming = '';
+                            }
+                            if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                                rawValue = (__incoming ?? '');
+                            }
+                        @endif
+                    "
                     x-on:click.away="open = false"
                 >
                     <input
+                        x-ref="inputEl"
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
                         autocomplete="off"
                         placeholder=" "
@@ -476,7 +594,7 @@
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)
-                        {{ $attributes }}
+                        {{ $attributes->except(['x-model']) }}
                     />
                     <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">

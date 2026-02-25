@@ -30,19 +30,19 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <div class="text-xs uppercase tracking-wide text-gray-500">Sales (Processed Payments)</div>
-                <div class="text-xl font-semibold mt-2">${{ number_format((float) $summary['payments_inc'], 2) }}</div>
-                <div class="text-sm text-gray-600 mt-1">Invoice Amount Ex GST: ${{ number_format((float) $summary['payments_ex'], 2) }}</div>
-                <div class="text-sm text-gray-600">GST on Sales: ${{ number_format((float) $summary['payments_gst'], 2) }}</div>
+                <div class="text-xl font-semibold mt-2">{{ money((float) $summary['payments_inc']) }}</div>
+                <div class="text-sm text-gray-600 mt-1">Invoice Amount Ex GST: {{ money((float) $summary['payments_ex']) }}</div>
+                <div class="text-sm text-gray-600">GST on Sales: {{ money((float) $summary['payments_gst']) }}</div>
             </div>
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <div class="text-xs uppercase tracking-wide text-gray-500">Expenses</div>
-                <div class="text-xl font-semibold mt-2">${{ number_format((float) $summary['expenses_inc'], 2) }}</div>
-                <div class="text-sm text-gray-600 mt-1">Expense Amount Ex GST: ${{ number_format((float) $summary['expenses_ex'], 2) }}</div>
-                <div class="text-sm text-gray-600">GST on Expenses: ${{ number_format((float) $summary['expenses_gst'], 2) }}</div>
+                <div class="text-xl font-semibold mt-2">{{ money((float) $summary['expenses_inc']) }}</div>
+                <div class="text-sm text-gray-600 mt-1">Expense Amount Ex GST: {{ money((float) $summary['expenses_ex']) }}</div>
+                <div class="text-sm text-gray-600">GST on Expenses: {{ money((float) $summary['expenses_gst']) }}</div>
             </div>
             <div class="bg-white border border-gray-200 rounded-lg p-4">
                 <div class="text-xs uppercase tracking-wide text-gray-500">Net GST</div>
-                <div class="text-xl font-semibold mt-2">${{ number_format((float) $summary['net_gst'], 2) }}</div>
+                <div class="text-xl font-semibold mt-2">{{ money((float) $summary['net_gst']) }}</div>
                 <div class="text-sm text-gray-600 mt-1">GST Collected - GST Paid</div>
             </div>
         </div>
@@ -57,8 +57,9 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Customer</th>
-                            <th>Total</th>
+                            <th>Amount Ex GST</th>
                             <th>GST</th>
+                            <th>Total Inc GST</th>
                         </x-slot:header>
                         <x-slot:body>
                             @foreach($customerPayments as $payment)
@@ -68,8 +69,9 @@
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $payment->user?->getName() ?? '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $payment->user?->getName() ?? '-' }}</td>
-                                    <td class="text-right">${{ number_format((float) $payment->total_amount, 2) }}</td>
-                                    <td class="text-right">${{ number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2) }}</td>
+                                    <td class="text-right">{{ money((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount)))) }}</td>
+                                    <td class="text-right">{{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</td>
+                                    <td class="text-right">{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</td>
                                 </tr>
                             @endforeach
                         </x-slot:body>
@@ -86,19 +88,26 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Supplier</th>
-                            <th>Total</th>
+                            <th>Amount Ex GST</th>
                             <th>GST</th>
+                            <th>Total Inc GST</th>
                         </x-slot:header>
                         <x-slot:body>
                             @foreach($expenses as $expense)
+                                @php
+                                    $expenseTotal = round((float) $expense->total_amount, 2);
+                                    $expenseGst = round((float) $expense->gst_amount, 2);
+                                    $expenseEx = round($expenseTotal - $expenseGst, 2);
+                                @endphp
                                 <tr>
                                     <td>
                                         <div>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</div>
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
-                                    <td class="text-right">${{ number_format((float) $expense->total_amount, 2) }}</td>
-                                    <td class="text-right">${{ number_format((float) $expense->gst_amount, 2) }}</td>
+                                    <td class="text-right">{{ money($expenseEx) }}</td>
+                                    <td class="text-right">{{ money($expenseGst) }}</td>
+                                    <td class="text-right">{{ money($expenseTotal) }}</td>
                                 </tr>
                             @endforeach
                         </x-slot:body>

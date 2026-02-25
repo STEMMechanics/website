@@ -22,6 +22,8 @@ use App\Http\Controllers\TaxAdjustmentController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
+use App\Http\Controllers\WorkshopPickListController;
+use App\Http\Controllers\PickListTemplateController;
 use App\Http\Controllers\WorkshopTicketFlowController;
 use Illuminate\Support\Facades\Route;
 
@@ -197,6 +199,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/workshops/{workshop}/attendance/tickets', [WorkshopController::class, 'admin_attendance_tickets'])->name('admin.workshop.attendance.tickets');
     Route::post('/admin/workshops/{workshop}/attendance/dropins', [WorkshopController::class, 'admin_attendance_dropin_store'])->name('admin.workshop.attendance.dropin.store');
     Route::post('/admin/workshops/{workshop}/attendance/dropins/{attendance}/delete', [WorkshopController::class, 'admin_attendance_dropin_destroy'])->name('admin.workshop.attendance.dropin.destroy');
+    Route::get('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'show'])->name('admin.workshop.pick-list');
+    Route::post('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'save'])->name('admin.workshop.pick-list.save');
+    Route::get('/admin/workshops/{workshop}/pick-list/pdf', [WorkshopPickListController::class, 'pdf'])->name('admin.workshop.pick-list.pdf');
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex'])->name('admin.ticket.index');
     Route::post('/admin/tickets/{ticket}/cancel', [TicketController::class, 'adminCancel'])->name('admin.ticket.cancel');
     Route::post('/admin/workshops', [WorkshopController::class, 'admin_store'])->name('admin.workshop.store');
@@ -252,6 +257,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/quotes/{quote}/pdf', [QuoteController::class, 'pdf'])->name('admin.quote.pdf');
     Route::post('/admin/quotes/{quote}/email', [QuoteController::class, 'emailPdf'])->name('admin.quote.email');
     Route::post('/admin/quotes/{quote}/create-invoice', [QuoteController::class, 'createInvoice'])->name('admin.quote.create-invoice');
+    Route::get('/admin/pick-list-templates', [PickListTemplateController::class, 'index'])->name('admin.pick-list-template.index');
+    Route::get('/admin/pick-list-templates/create', [PickListTemplateController::class, 'create'])->name('admin.pick-list-template.create');
+    Route::post('/admin/pick-list-templates', [PickListTemplateController::class, 'store'])->name('admin.pick-list-template.store');
+    Route::get('/admin/pick-list-templates/{pickListTemplate}', [PickListTemplateController::class, 'edit'])->name('admin.pick-list-template.edit');
+    Route::put('/admin/pick-list-templates/{pickListTemplate}', [PickListTemplateController::class, 'update'])->name('admin.pick-list-template.update');
+    Route::post('/admin/pick-list-templates/{pickListTemplate}/duplicate', [PickListTemplateController::class, 'duplicate'])->name('admin.pick-list-template.duplicate');
+    Route::delete('/admin/pick-list-templates/{pickListTemplate}', [PickListTemplateController::class, 'destroy'])->name('admin.pick-list-template.destroy');
     Route::get('/admin/bas', [BasController::class, 'index'])->name('admin.bas.index');
     Route::get('/admin/bas/export/csv', [BasController::class, 'exportCsv'])->name('admin.bas.export.csv');
     Route::get('/admin/bas/export/pdf', [BasController::class, 'exportPdf'])->name('admin.bas.export.pdf');

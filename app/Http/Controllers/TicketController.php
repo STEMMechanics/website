@@ -1288,7 +1288,7 @@ class TicketController extends Controller
                 recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
                 invoiceNumber: (string) $invoice->invoice_number,
                 receiptNumber: (string) $refundPayment->id,
-                amount: '$'.number_format((float) $refundPayment->total_amount, 2),
+                amount: money(-((float) $refundPayment->total_amount)),
                 paidOn: ($refundPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
                 receiptUrl: (string) ($refundPayment->square_receipt_url ?? ''),
                 isRefund: true,
