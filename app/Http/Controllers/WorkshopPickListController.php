@@ -25,7 +25,10 @@ class WorkshopPickListController extends Controller
             'participants' => $participants,
             'activeTicketCount' => $this->activeTicketCount($workshop),
             'checkedItemIds' => collect($workshop->pick_list_checked_item_ids ?? [])->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->values()->all(),
-            'calculatedItems' => $this->buildCalculatedItems($workshop->pickListTemplate?->items ?? collect(), $participants),
+            'calculatedItems' => $this->buildCalculatedItems(
+                $workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect(),
+                $participants
+            ),
         ]);
     }
 
@@ -93,7 +96,10 @@ class WorkshopPickListController extends Controller
         $pdf = DomPdf::loadView('pdf.workshop-pick-list', [
             'workshop' => $workshop,
             'participants' => $participants,
-            'calculatedItems' => $this->buildCalculatedItems($workshop->pickListTemplate?->items ?? collect(), $participants),
+            'calculatedItems' => $this->buildCalculatedItems(
+                $workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect(),
+                $participants
+            ),
             'generatedAt' => now(),
         ])->setOption([
             'enable_font_subsetting' => true,
