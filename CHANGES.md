@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.2
+
+- Changing a quote ID will now redirect to the new ID
+
 ## 1.3.1
 
 - Hide popup suggestions when selecting item

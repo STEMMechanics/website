@@ -157,6 +157,41 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         ]);
     }
 
+    public function test_quote_update_redirects_to_new_quote_number_when_changed(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'line_items' => [],
+        ]);
+        /** @var Quote $quote */
+
+        $newQuoteNumber = 'Q-TEST-'.uniqid();
+
+        $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
+            'quote_number' => $newQuoteNumber,
+            'user_id' => $owner->id,
+            'quote_date' => now()->toDateString(),
+            'title' => 'Updated quote',
+            'description' => 'Description',
+            'notes' => 'Notes',
+            'line_items_json' => json_encode([
+                [
+                    'description' => 'Service',
+                    'notes' => '',
+                    'quantity' => 1,
+                    'unit_price' => 100,
+                    'gst_applicable' => true,
+                ],
+            ]),
+        ]);
+
+        $this->assertSame($newQuoteNumber, $quote->fresh()?->quote_number);
+        $response->assertRedirect(route('admin.quote.edit', $quote->fresh()));
+        $response->assertSessionHasNoErrors();
+    }
+
     public function test_create_invoice_from_quote_links_quote_copies_files_and_unlinks_previous_invoice(): void
     {
         $admin = $this->createAdminUser();
