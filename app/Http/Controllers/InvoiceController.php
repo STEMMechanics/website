@@ -1060,7 +1060,7 @@ class InvoiceController extends Controller
         }
 
         $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
-        $total = '$'.number_format((float) ($invoice->total_amount ?? 0), 2);
+        $total = money((float) ($invoice->total_amount ?? 0));
         $due = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
         $outstanding = (float) $invoice->outstandingAmount();
         $isPaidInFull = $outstanding <= 0.0001;
@@ -1248,7 +1248,7 @@ class InvoiceController extends Controller
             recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
             invoiceNumber: (string) $invoice->invoice_number,
             receiptNumber: $receiptNumber,
-            amount: '$'.number_format((float) $customerPayment->total_amount, 2),
+            amount: money($customerPayment->isRefund() ? -((float) $customerPayment->total_amount) : (float) $customerPayment->total_amount),
             paidOn: ($customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
             receiptUrl: (string) ($customerPayment->square_receipt_url ?? ''),
             isRefund: $customerPayment->isRefund(),

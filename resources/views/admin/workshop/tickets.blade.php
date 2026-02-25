@@ -76,6 +76,7 @@
             <div class="flex-1 flex gap-2">
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
+                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">Ticket Roll PDF</x-ui.button>
                 <x-ui.button type="button" color="outline" x-on:click.prevent="bulkEmailOpen = true">Email Ticket Contacts</x-ui.button>
             </div>

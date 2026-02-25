@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name', 'label', 'value' => '', 'floating' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null])
+@props(['type' => 'text', 'name', 'label', 'value' => '', 'floating' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'noLabel' => false])
 
 @php
     if ($error === null) {
@@ -9,6 +9,7 @@
     $classes = 'disabled:bg-gray-100 bg-white block mt-1 px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
     $value = old($name, $value);
     $disabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
+    $noLabel = filter_var($noLabel, FILTER_VALIDATE_BOOLEAN);
 @endphp
 
 <div class="{{ twMerge(['mb-4'], $attributes->get('class')) }} {{ $attributes->only('x-show') }}">
@@ -23,10 +24,12 @@
         </div>
     @else
         <div class="relative">
-            <div class="flex items-center justify-between mb-1">
-                    <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}</label>
-                    <div class="text-xs text-gray-500">{{ $labelRight ?? '' }}</div>
-            </div>
+            @unless($noLabel)
+                <div class="flex items-center justify-between mb-1">
+                        <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}</label>
+                        <div class="text-xs text-gray-500">{{ $labelRight ?? '' }}</div>
+                </div>
+            @endunless
             <select class="{{ twMerge(['pt-2.5'], $classes) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['x-show','style']) }}>
                 {{ $slot }}
             </select>

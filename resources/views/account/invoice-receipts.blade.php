@@ -4,7 +4,7 @@
     <x-container>
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="text-sm"><strong>Invoice #:</strong> {{ $invoice->invoice_number }}</div>
-            <div class="text-sm"><strong>Total:</strong> ${{ number_format((float) $invoice->total_amount, 2) }}</div>
+            <div class="text-sm"><strong>Total:</strong> {{ money((float) $invoice->total_amount) }}</div>
         </div>
 
         <div class="flex my-4 items-center gap-4">
@@ -55,13 +55,7 @@
                             <td class="hidden md:table-cell">{{ $isRefund ? 'Refund' : 'Payment' }}</td>
                             <td class="hidden lg:table-cell">{{ $receipt->received_on?->format('M j, Y g:i a') ?? '-' }}</td>
                             <td class="hidden md:table-cell">{{ \App\Models\Payment::paymentMethodLabel((string) ($receipt->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
-                            <td>
-                                @if($isRefund)
-                                    -${{ number_format((float) $receipt->total_amount, 2) }}
-                                @else
-                                    ${{ number_format((float) $receipt->total_amount, 2) }}
-                                @endif
-                            </td>
+                            <td>{{ money($isRefund ? -((float) $receipt->total_amount) : (float) $receipt->total_amount) }}</td>
                             <td class="hidden lg:table-cell">
                                 @if($appliedInvoices->isEmpty())
                                     -

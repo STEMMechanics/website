@@ -8,6 +8,7 @@ use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
+use App\Models\PickListTemplate;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
@@ -77,7 +78,9 @@ class WorkshopController extends Controller
      */
     public function admin_create()
     {
-        return view('admin.workshop.edit');
+        return view('admin.workshop.edit', [
+            'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+        ]);
     }
 
     /**
@@ -101,6 +104,8 @@ class WorkshopController extends Controller
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
+            'pick_list_notes' => 'nullable|string',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
         ], [
@@ -127,6 +132,18 @@ class WorkshopController extends Controller
         }
         if (($workshopData['registration'] ?? 'none') !== 'tickets') {
             $workshopData['max_tickets'] = null;
+        }
+        if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
+            $workshopData['pick_list_template_id'] = null;
+        }
+        if (! array_key_exists('pick_list_notes', $workshopData)) {
+            $workshopData['pick_list_notes'] = null;
+        }
+        if (($workshopData['pick_list_template_id'] ?? null) !== null && trim((string) ($workshopData['pick_list_notes'] ?? '')) === '') {
+            $templateNotes = (string) (PickListTemplate::query()
+                ->where('id', (int) $workshopData['pick_list_template_id'])
+                ->value('description') ?? '');
+            $workshopData['pick_list_notes'] = trim($templateNotes) !== '' ? $templateNotes : null;
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['link', 'email', 'message'], true)) {
             $workshopData['registration_data'] = null;
@@ -196,6 +213,7 @@ class WorkshopController extends Controller
     {
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
+            'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
         ]);
     }
 
@@ -220,6 +238,8 @@ class WorkshopController extends Controller
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
+            'pick_list_notes' => 'nullable|string',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
         ], [
@@ -245,6 +265,33 @@ class WorkshopController extends Controller
         }
         if (($workshopData['registration'] ?? 'none') !== 'tickets') {
             $workshopData['max_tickets'] = null;
+        }
+        if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
+            $workshopData['pick_list_template_id'] = null;
+        }
+        $existingTemplateId = $workshop->pick_list_template_id !== null ? (int) $workshop->pick_list_template_id : null;
+        $newTemplateId = $workshopData['pick_list_template_id'] !== null ? (int) $workshopData['pick_list_template_id'] : null;
+        $templateChanged = $existingTemplateId !== $newTemplateId;
+
+        if ($templateChanged) {
+            if ($newTemplateId === null) {
+                $workshopData['pick_list_notes'] = null;
+            } else {
+                $templateNotes = (string) (PickListTemplate::query()
+                    ->where('id', $newTemplateId)
+                    ->value('description') ?? '');
+                $workshopData['pick_list_notes'] = trim($templateNotes) !== '' ? $templateNotes : null;
+            }
+        } else {
+            if (! array_key_exists('pick_list_notes', $workshopData)) {
+                $workshopData['pick_list_notes'] = $workshop->pick_list_notes;
+            }
+            if (($workshopData['pick_list_template_id'] ?? null) !== null && trim((string) ($workshopData['pick_list_notes'] ?? '')) === '') {
+                $templateNotes = (string) (PickListTemplate::query()
+                    ->where('id', (int) $workshopData['pick_list_template_id'])
+                    ->value('description') ?? '');
+                $workshopData['pick_list_notes'] = trim($templateNotes) !== '' ? $templateNotes : null;
+            }
         }
         if (! in_array(($workshopData['registration'] ?? 'none'), ['link', 'email', 'message'], true)) {
             $workshopData['registration_data'] = null;
