@@ -67,6 +67,9 @@
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
+                    @if($workshop->pick_list_template_id)
+                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
+                    @endif
                     @if($adminCanViewTickets ?? false)
                         <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                     @endif

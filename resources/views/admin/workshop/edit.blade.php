@@ -371,6 +371,24 @@ $savedTickets = isset($workshop)
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                     </div>
                 </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8">
+                    <div class="flex-1">
+                        <x-ui.select label="Pick List Template" name="pick_list_template_id">
+                            <x-slot name="labelRight">
+                                <a href="{{ route('admin.pick-list-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
+                            </x-slot>
+                            <option value="">No template</option>
+                            @foreach(($pickListTemplates ?? collect()) as $pickListTemplate)
+                                <option value="{{ $pickListTemplate->id }}" {{ (string) old('pick_list_template_id', $workshop->pick_list_template_id ?? '') === (string) $pickListTemplate->id ? 'selected' : '' }}>{{ $pickListTemplate->name }}</option>
+                            @endforeach
+                        </x-ui.select>
+                        @if(isset($workshop) && $workshop->pick_list_template_id)
+                            <div class="mt-1 text-xs">
+                                <a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
+                            </div>
+                        @endif
+                    </div>
+                </div>
                 <div class="mb-4">
                     <x-ui.editor
                         label="Content"
