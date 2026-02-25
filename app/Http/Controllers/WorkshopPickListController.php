@@ -9,6 +9,7 @@ use App\Models\Workshop;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 
@@ -25,14 +26,27 @@ class WorkshopPickListController extends Controller
             'participants' => $participants,
             'activeTicketCount' => $this->activeTicketCount($workshop),
             'checkedItemIds' => collect($workshop->pick_list_checked_item_ids ?? [])->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->values()->all(),
+            'templateItems' => ($workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect())
+                ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
+                ->map(function (PickListTemplateItem $item): array {
+                    return [
+                        'id' => (int) $item->id,
+                        'item_name' => (string) $item->item_name,
+                        'quantity_type' => (string) $item->quantity_type,
+                        'quantity_value' => (int) $item->quantity_value,
+                    ];
+                })
+                ->values()
+                ->all(),
             'calculatedItems' => $this->buildCalculatedItems(
                 $workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect(),
                 $participants
             ),
+            'lastSavedAt' => $workshop->updated_at,
         ]);
     }
 
-    public function save(Request $request, Workshop $workshop): RedirectResponse
+    public function save(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'pick_list_template_id' => ['sometimes', 'nullable', 'exists:pick_list_templates,id'],
@@ -76,6 +90,16 @@ class WorkshopPickListController extends Controller
 
         $workshop->pick_list_checked_item_ids = $selectedIds;
         $workshop->save();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'saved_at_iso' => $workshop->updated_at?->toIso8601String(),
+                'saved_at_display' => $workshop->updated_at?->format('M j, Y g:i a'),
+                'pick_list_participants' => $workshop->pick_list_participants,
+                'checked_item_ids' => $selectedIds,
+            ]);
+        }
 
         session()->flash('message', 'Workshop pick list settings have been saved');
         session()->flash('message-title', 'Pick list saved');
