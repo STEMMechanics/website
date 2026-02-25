@@ -4,6 +4,7 @@
 
 - Changing a quote ID will now redirect to the new ID
 - Quote title is now shown in the quote list
+- Fixed line item and quantity spacing/alignment in quotes and invoices
 
 ## 1.3.1
 

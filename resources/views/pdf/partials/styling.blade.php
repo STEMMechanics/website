@@ -56,12 +56,14 @@ td, th { padding: 0; margin: 0; }
 .items thead th .excl { font-size: 9px; }
 .items thead th.right,
 .items tbody td.right { text-align: right; }
+.items thead th.center,
+.items tbody td.center { text-align: center; }
 .items tbody td { border-bottom: 1px solid #e3e3e3; padding: 7px 6px; vertical-align: middle; }
-.line-desc { font-size: 11px; }
-.line-note { font-size: 9px; color: #555; line-height: 1.2; margin-top: 2px; }
-.line-note-empty { line-height: 0.8; }
+.line-desc { font-size: 11px; line-height: 0.8; }
+.line-note { font-size: 9px; color: #555; line-height: 1; margin-top: 2px; }
+.line-note-empty { line-height: 0.4; }
 .line-note-list { margin: 2px 0 0 18px; padding: 0; }
-.line-note-list li { font-size: 9px; color: #555; line-height: 1.1; margin: 0 0 2px 0; }
+.line-note-list li { font-size: 9px; color: #555; line-height: 1; margin: 0 0 2px 0; }
 
 .continued { text-align: right; color: #666; font-size: 10px; margin-top: 4px; }
 
