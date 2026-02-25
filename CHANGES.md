@@ -3,6 +3,7 @@
 ## 1.3.4
 
 - Pick lists are now saved automatically
+- Added Artisan test/qa commands
 
 ## 1.3.3
 
