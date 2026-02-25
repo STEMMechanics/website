@@ -7,6 +7,7 @@
 - Fix styling on small checkboxes
 - Added link to repo in footer
 - Support for remembering email and devices
+- Improved error handling of Altcha
 
 ## 1.3.3
 
