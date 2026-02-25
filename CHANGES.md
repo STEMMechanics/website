@@ -3,6 +3,7 @@
 ## 1.3.2
 
 - Changing a quote ID will now redirect to the new ID
+- Quote title is now shown in the quote list
 
 ## 1.3.1
 
