@@ -3,6 +3,7 @@
 ## 1.3.3
 
 - Improved password manager support
+- Improved styling checkboxes of invoice and quote editor
 
 ## 1.3.2
 
