@@ -3,6 +3,7 @@
 ## 1.3.0
 
 - Added workshop pick list support
+- Updated dependencies
 
 ## 1.2.4
 
