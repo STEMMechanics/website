@@ -7,6 +7,7 @@
 - Pluralize pick list items automatically
 - Improved layout of BAS tables
 - Improved wording in no tickets found email
+- Fixed bug in creating quotes errored 
 
 ## 1.3.0
 

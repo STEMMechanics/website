@@ -1,16 +1,18 @@
 @php
+    $editing = isset($quote);
     $savedLineItems = old('line_items_json');
-    $selectedUserId = (string) old('user_id', $quote->user_id ?? '');
+    $selectedUserId = (string) old('user_id', $editing ? ($quote->user_id ?? '') : '');
     $selectedLinkedInvoiceId = (string) old('linked_invoice_id', $linkedInvoiceId ?? '');
-    $quoteEmailNameSource = trim((string) ($quote->user?->getName() ?? $quote->billing_name ?? ''));
+    $quoteEmailNameSource = trim((string) ($editing ? ($quote->user?->getName() ?? $quote->billing_name ?? '') : ''));
     $quoteEmailName = trim((string) strtok($quoteEmailNameSource, ' '));
     if ($quoteEmailName === '') {
         $quoteEmailName = $quoteEmailNameSource !== '' ? $quoteEmailNameSource : 'there';
     }
-    $defaultQuoteEmailMessage = "Hi {$quoteEmailName},\n\nAttached is quote **{$quote->quote_number}** for a workshop. Please don't hesitate to reach out if you have any questions.";
+    $quoteNumberForEmail = $editing ? (string) ($quote->quote_number ?? '') : 'TBD';
+    $defaultQuoteEmailMessage = "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for a workshop. Please don't hesitate to reach out if you have any questions.";
 
     if ($savedLineItems === null) {
-        $savedLineItems = isset($quote) ? json_encode($quote->line_items ?? []) : '[]';
+        $savedLineItems = $editing ? json_encode($quote->line_items ?? []) : '[]';
     }
 @endphp
 
