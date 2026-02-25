@@ -353,6 +353,12 @@ body.swal2-height-auto {
     border-color: #9CA3AF;
 }
 
+.sm-ui-checkbox.small input[type="checkbox"]:checked::after {
+    height: 1.1rem;
+    width: 0.6rem;
+    transform: rotate(40deg) translateY(-0.25rem) translateX(0.3rem);
+}
+
 /* resources/views/components/ui/toolbar.blade.php */
 @media (max-width: 639px) {
     .sm-ui-toolbar .sm-ui-toolbar-left > a,

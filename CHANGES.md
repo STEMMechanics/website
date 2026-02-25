@@ -4,6 +4,7 @@
 
 - Pick lists are now saved automatically
 - Added Artisan test/qa commands
+- Fix styling on small checkboxes
 
 ## 1.3.3
 
