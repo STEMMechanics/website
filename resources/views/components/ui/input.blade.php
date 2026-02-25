@@ -23,6 +23,7 @@
     $fileClearId = 'file-clear-'.$fileUiUid;
     $maxUploadSize = \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize());
     $maxUploadBytes = (int) \App\Helpers::getMaxUploadSize();
+    $autocomplete = (string) ($attributes->get('autocomplete') ?? 'off');
 
     $autocompleteValue = (string) $value;
     $moneyFormatOnBlur = "const raw = String(this.value || '').trim(); if (raw === '') { return; } const amount = parseFloat(raw); if (!Number.isFinite(amount) || amount < 0) { this.value = ''; return; } this.value = amount.toFixed(2);";
@@ -284,7 +285,7 @@
                 <input
                     x-ref="inputEl"
                     class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}"
-                    autocomplete="off"
+                    autocomplete="{{ $autocomplete }}"
                     placeholder=" "
                     type="{{ $type }}"
                     name="{{ $name }}"
@@ -297,7 +298,7 @@
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes->except(['class', 'id', 'x-model']) }}
+                    {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete']) }}
                 />
                 <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
                 <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
@@ -316,7 +317,7 @@
             </div>
         @else
             <div class="relative">
-                <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="off" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }} />
+                <input class="{{ twMerge(['pt-4'], $classes, $attributes->get('fieldClasses')) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
                 <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
             </div>
         @endif
@@ -450,7 +451,7 @@
                     <input
                         x-ref="inputEl"
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
-                        autocomplete="off"
+                        autocomplete="{{ $autocomplete }}"
                         placeholder="{{ $label }}"
                         type="{{ $type }}"
                         name="{{ $name }}"
@@ -463,7 +464,7 @@
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)
-                        {{ $attributes->except(['x-model']) }}
+                        {{ $attributes->except(['x-model', 'autocomplete']) }}
                     />
                     <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
@@ -480,7 +481,7 @@
                     </div>
                 </div>
             @else
-                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="off" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }} />
+                <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
             @endif
         </div>
     @else
@@ -614,7 +615,7 @@
                     <input
                         x-ref="inputEl"
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
-                        autocomplete="off"
+                        autocomplete="{{ $autocomplete }}"
                         placeholder=" "
                         type="{{ $type }}"
                         name="{{ $name }}"
@@ -627,7 +628,7 @@
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)
-                        {{ $attributes->except(['x-model']) }}
+                        {{ $attributes->except(['x-model', 'autocomplete']) }}
                     />
                     <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
@@ -644,7 +645,7 @@
                     </div>
                 </div>
             @else
-                <input class="{{ twMerge(['pt-2.5','mt-1'], $classes, $fieldClasses) }}" autocomplete="off" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }} />
+                <input class="{{ twMerge(['pt-2.5','mt-1'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />
             @endif
         </div>
     @endif

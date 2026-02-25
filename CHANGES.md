@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.3
+
+- Improved password manager support
+
 ## 1.3.2
 
 - Changing a quote ID will now redirect to the new ID
