@@ -16,9 +16,23 @@ $email = $user->email;
             <x-slot:header>
                 <p class="text-sm">Two-factor authentication (2FA) is enabled for your account. Please enter a code to log in.</p>
             </x-slot:header>
-            <input type="hidden" name="email" value="{{ $email }}" />
+            <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
             <x-altcha-proof />
-            <x-ui.input type="text" name="code" label="Code" floating autofocus error="{{ $errors->first('code') }}" />
+            <x-ui.input
+                type="tel"
+                name="totp"
+                id="totp"
+                label="Code"
+                floating
+                autofocus
+                autocomplete="one-time-code"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                maxlength="6"
+                autocapitalize="off"
+                spellcheck="false"
+                error="{{ $errors->first('totp') }}"
+            />
             <x-slot:footer>
                 <div class="text-xs">
                     Having trouble? <a class="link" href="#" x-on:click.prevent="show='other'">Sign in another way</a>
@@ -37,7 +51,7 @@ $email = $user->email;
                 <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
                     @csrf
                     <x-altcha-proof />
-                    <input type="hidden" name="email" value="{{ $email }}" />
+                    <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
                     <input type="hidden" name="method" value="email" />
                     <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>
                 </form>
@@ -57,8 +71,18 @@ $email = $user->email;
                 <p class="text-sm">Enter one of your backup codes below to log in. Once a backup codes are a 1 time use only.</p>
             </x-slot:header>
             <x-altcha-proof />
-            <input type="hidden" name="email" value="{{ $email }}" />
-            <x-ui.input type="text" name="backup_code" label="Backup Code" floating autofocus error="{{ $errors->first('backup_code') }}" />
+            <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
+            <x-ui.input
+                type="text"
+                name="backup_code"
+                label="Backup Code"
+                floating
+                autofocus
+                autocomplete="one-time-code"
+                autocapitalize="off"
+                spellcheck="false"
+                error="{{ $errors->first('backup_code') }}"
+            />
             <x-slot:footer center>
                 <x-ui.button class="self-end" type="submit">Verify</x-ui.button>
             </x-slot:footer>

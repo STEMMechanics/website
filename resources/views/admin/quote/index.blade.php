@@ -19,7 +19,7 @@
                     <th>Quote #</th>
                     <th class="hidden md:table-cell">User</th>
                     <th class="hidden md:table-cell">Quote Date</th>
-                    <th>Total</th>
+                    <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>
@@ -27,6 +27,9 @@
                         <tr>
                             <td>
                                 <div>{{ $quote->quote_number }}</div>
+                                @if(trim((string) ($quote->title ?? '')) !== '')
+                                    <div class="text-xs text-gray-600 mt-1">{{ $quote->title }}</div>
+                                @endif
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $quote->user?->getName() ?? '-' }}</div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
                             </td>

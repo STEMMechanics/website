@@ -45,17 +45,18 @@
     $invoiceAdjustments = isset($invoice)
         ? $invoice->taxAdjustments->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0)
         : collect();
-    $invoiceEmailNameSource = trim((string) ($invoice->user?->getName() ?? $invoice->billing_name ?? ''));
+    $invoiceEmailNameSource = trim((string) (isset($invoice) ? ($invoice->user?->getName() ?? $invoice->billing_name ?? '') : ''));
     $invoiceEmailName = trim((string) strtok($invoiceEmailNameSource, ' '));
     if ($invoiceEmailName === '') {
         $invoiceEmailName = $invoiceEmailNameSource !== '' ? $invoiceEmailNameSource : 'there';
     }
-    $invoiceTotalDisplay = '$'.number_format((float) ($invoice->total_amount ?? 0), 2);
-    $invoiceDueDisplay = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
+    $invoiceNumberForEmail = isset($invoice) ? (string) ($invoice->invoice_number ?? '') : 'TBD';
+    $invoiceTotalDisplay = '$'.number_format((float) (isset($invoice) ? ($invoice->total_amount ?? 0) : 0), 2);
+    $invoiceDueDisplay = isset($invoice) ? ($invoice->due_date?->format('M j, Y') ?? 'the due date on file') : 'the due date on file';
     if (isset($invoice) && $invoice->isTicketInvoice()) {
-        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoice->invoice_number}** for your workshop ticket booking. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoiceNumberForEmail}** for your workshop ticket booking. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
     } else {
-        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoice->invoice_number}** for your workshop program and materials. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+        $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoiceNumberForEmail}** for your workshop program and materials. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
     }
 @endphp
 
@@ -671,7 +672,7 @@
                 </template>
 
                 <template x-for="(item, index) in lineItems" :key="index">
-                    <div class="grid grid-cols-12 gap-3 mb-4 border-b pb-3 items-start">
+                    <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-6 items-start">
                         <div class="col-span-2">
                             <label class="block text-sm pl-1">Type</label>
                             <select class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.kind" x-on:change="serializeLineItems()">
@@ -698,7 +699,8 @@
                         <div class="col-span-1">
                             <label class="block text-sm pl-1">GST</label>
                                 <x-ui.checkbox
-                                    label="GST applicable"
+                                    class="h-12 w-12 flex"
+                                    inputClass="mt-0"
                                     :labelHidden="true"
                                     :noWrapper="true"
                                     :disabled="$isLocked"

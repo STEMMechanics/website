@@ -1,5 +1,17 @@
 # Changes
 
+## 1.3.3
+
+- Improved password manager support
+- Improved styling checkboxes of invoice and quote editor
+
+## 1.3.2
+
+- Changing a quote ID will now redirect to the new ID
+- Quote title is now shown in the quote list
+- Fixed line item and quantity spacing/alignment in quotes and invoices
+- Total columns now specify GST state
+
 ## 1.3.1
 
 - Hide popup suggestions when selecting item

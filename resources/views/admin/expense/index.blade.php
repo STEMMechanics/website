@@ -19,7 +19,7 @@
                     <th>Expense</th>
                     <th class="hidden md:table-cell">Supplier</th>
                     <th class="hidden lg:table-cell">Description</th>
-                    <th>Total</th>
+                    <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
                     <th>GST</th>
                     <th>Actions</th>
                 </x-slot:header>

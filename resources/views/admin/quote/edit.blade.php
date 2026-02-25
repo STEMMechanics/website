@@ -233,7 +233,7 @@
             <x-ui.input label="Quote Title" name="title" value="{{ old('title', $quote->title ?? '') }}" />
             <x-ui.input type="textarea" label="Quote Description" name="description" value="{{ old('description', $quote->description ?? '') }}" />
 
-            <div class="border rounded-lg p-4 mb-4" x-init="serializeLineItems()">
+            <div class="border border-gray-400 rounded-lg p-4 mb-4" x-init="serializeLineItems()">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-lg">Line Items</h3>
                     <button type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addLineItem()">Add Item</button>
@@ -247,7 +247,7 @@
                 </template>
 
                 <template x-for="(item, index) in lineItems" :key="index">
-                    <div class="grid grid-cols-12 gap-3 items-end mb-4 border-b pb-3">
+                    <div class="grid grid-cols-12 gap-3 items-end mb-4 border-b border-gray-300 pb-6">
                         <div class="col-span-5">
                             <label class="block text-sm pl-1">Description</label>
                             <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.description" x-on:input="serializeLineItems()" />
@@ -262,18 +262,16 @@
                         </div>
                         <div class="col-span-1">
                             <label class="block text-sm pl-1">GST</label>
-                            <label class="h-[42px] flex items-center justify-center mt-1 border border-gray-300 rounded-lg bg-white cursor-pointer">
-                                <x-ui.checkbox
-                                    label="GST applicable"
-                                    :labelHidden="true"
-                                    :noWrapper="true"
-                                    inputClass="w-4 h-4 mt-0"
-                                    x-model="item.gst_applicable"
-                                    x-bind:name="'quote_line_item_gst_' + index"
-                                    x-bind:id="'quote_line_item_gst_' + index"
-                                    x-on:change="serializeLineItems()"
-                                />
-                            </label>
+                            <x-ui.checkbox
+                                :labelHidden="true"
+                                :noWrapper="true"
+                                class="h-12 w-12 flex"
+                                inputClass="mt-0"
+                                x-model="item.gst_applicable"
+                                x-bind:name="'quote_line_item_gst_' + index"
+                                x-bind:id="'quote_line_item_gst_' + index"
+                                x-on:change="serializeLineItems()"
+                            />
                         </div>
                         <div class="col-span-1">
                             <button type="button" class="text-red-600 hover:text-red-700 h-[42px]" x-on:click.prevent="removeLineItem(index)">

@@ -64,17 +64,19 @@ class AuthController extends Controller
 
         $forceEmailLogin = false;
 
-        if($request->has('code')) {
+        $otpCode = trim((string) ($request->input('totp', $request->input('otp', $request->input('code', '')))));
+
+        if($otpCode !== '') {
             $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
             if($user) {
-                if ($request->code && AccountController::verifyTfaCode((string) $user->tfa_secret, (string) $request->code)) {
+                if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)) {
                     $data = ['url' => session()->pull('url.intended', null)];
                     return $this->loginByUser($user, $data);
                 }
             }
 
             return view('auth.login-2fa', ['email' => $request->email])->withErrors([
-                'code' => 'The 2FA code is not valid',
+                'totp' => 'The 2FA code is not valid',
             ]);
         }
 

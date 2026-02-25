@@ -123,7 +123,7 @@ class QuoteController extends Controller
         session()->flash('message-title', 'Quote updated');
         session()->flash('message-type', 'success');
 
-        return redirect()->back();
+        return redirect()->route('admin.quote.edit', $quote);
     }
 
     public function destroy(Request $request, Quote $quote)
