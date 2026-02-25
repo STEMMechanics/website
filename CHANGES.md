@@ -5,6 +5,7 @@
 - Pick lists are now saved automatically
 - Added Artisan test/qa commands
 - Fix styling on small checkboxes
+- Added link to repo in footer
 
 ## 1.3.3
 
