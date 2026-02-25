@@ -2,21 +2,25 @@
     <x-mast backRoute="workshop.index" backTitle="Workshops">Workshop Pick List</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
-            <div class="flex-grow">
-                <div class="text-lg font-semibold">{{ $workshop->title }}</div>
-                <div class="text-sm text-gray-600">Starts: {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                <div class="text-sm text-gray-600">Location: {{ $workshop->getLocationName() }}</div>
-                <div class="text-sm text-gray-600">Pick List Template: {{ $workshop->pickListTemplate->name ?? '-' }}</div>
-            </div>
-            <div class="mt-2">
+        <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
+            <x-slot:left>
+                <div class="flex flex-col">
+                    <div class="text-lg font-semibold mb-2">{{ $workshop->title }}</div>
+                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
+                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Template:</span> {{ $workshop->pickListTemplate->name ?? '-' }}</div>
+                </div>
+            </x-slot:left>
+            <x-slot:right>
                 <x-ui.button class="mr-2" type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                 @if($workshop->pick_list_template_id)
                     <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
                 @endif
-            </div>
-        </div>
+            </x-slot:right>
+        </x-ui.toolbar>
+    </x-container>
 
+    <x-container>
         <form
             method="POST"
             action="{{ route('admin.workshop.pick-list.save', $workshop) }}"

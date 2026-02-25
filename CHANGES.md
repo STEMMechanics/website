@@ -8,6 +8,7 @@
 - Added link to repo in footer
 - Support for remembering email and devices
 - Improved error handling of Altcha
+- Improved layout of pick list on mobile
 
 ## 1.3.3
 
