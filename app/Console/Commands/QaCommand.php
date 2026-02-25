@@ -11,6 +11,7 @@ class QaCommand extends Command
         {--without-tty : Disable TTY output for child processes}
         {--tests-only : Run tests only}
         {--stan-only : Run PHPStan only}
+        {--stan-memory-limit=1G : Memory limit passed to phpstan, e.g. 1G or 2G}
         {--test=* : Additional args passed to artisan test}
         {--stan=* : Additional args passed to phpstan analyse}';
 
@@ -51,9 +52,11 @@ class QaCommand extends Command
             }
 
             $stanArgs = array_values(array_map('strval', (array) $this->option('stan')));
+            $stanMemoryLimit = trim((string) $this->option('stan-memory-limit'));
+            $memoryArgs = $stanMemoryLimit !== '' ? ['--memory-limit='.$stanMemoryLimit] : [];
             $stanExitCode = $this->runStep(
                 'Running PHPStan',
-                array_merge([PHP_BINARY, $phpstan, 'analyse'], $stanArgs),
+                array_merge([PHP_BINARY, $phpstan, 'analyse'], $memoryArgs, $stanArgs),
                 $withoutTty
             );
 
