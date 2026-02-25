@@ -57,9 +57,7 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Customer</th>
-                            <th>Amount Ex GST</th>
-                            <th>GST</th>
-                            <th>Total Inc GST</th>
+                            <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
                         </x-slot:header>
                         <x-slot:body>
                             @foreach($customerPayments as $payment)
@@ -69,9 +67,10 @@
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $payment->user?->getName() ?? '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $payment->user?->getName() ?? '-' }}</td>
-                                    <td class="text-right">{{ money((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount)))) }}</td>
-                                    <td class="text-right">{{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</td>
-                                    <td class="text-right">{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</td>
+                                    <td class="text-right">
+                                        <div>{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</div>
+                                        <div class="text-xs">GST: {{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </x-slot:body>
@@ -88,9 +87,7 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Supplier</th>
-                            <th>Amount Ex GST</th>
-                            <th>GST</th>
-                            <th>Total Inc GST</th>
+                            <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
                         </x-slot:header>
                         <x-slot:body>
                             @foreach($expenses as $expense)
@@ -105,9 +102,10 @@
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
-                                    <td class="text-right">{{ money($expenseEx) }}</td>
-                                    <td class="text-right">{{ money($expenseGst) }}</td>
-                                    <td class="text-right">{{ money($expenseTotal) }}</td>
+                                    <td class="text-right">
+                                        <div>{{ money($expenseTotal) }}</div>
+                                        <div class="text-xs">GST: {{ money($expenseGst) }}</div>
+                                    </td>
                                 </tr>
                             @endforeach
                         </x-slot:body>
