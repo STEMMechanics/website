@@ -1,24 +1,71 @@
 <!doctype html>
-<title>Site Maintenance</title>
-<style>
-  body { text-align: center; padding: 150px; }
-  h1 { font-size: 50px; }
-  body { font: 20px Helvetica, sans-serif; color: #333; }
-  article { display: block; text-align: left; width: 650px; margin: 0 auto; }
-  img { margin: 0 auto; }
-  h1 { text-align: center; font-size: 175%; }
-  a, a:visited { color: #35a5f1; text-decoration-thickness: 0.1em; text-decoration-color: #67bbf4; }
-  a:hover { filter: brightness(115%); }
-  p { line-height: 1.25em; }
-  .d-light { display: block; }
-  .d-dark { display: none; }
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site Maintenance</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
 
-  @media (prefers-color-scheme: dark) {
-    body { background-color: #333; color: #ccc; }
-    .d-light { display: none; }
-    .d-dark { display: block; }
-  }
-</style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: clamp(1rem, 5vw, 3rem);
+      font: clamp(1rem, 1.7vw, 1.125rem) Helvetica, Arial, sans-serif;
+      color: #333;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    article {
+      width: min(40rem, 100%);
+      text-align: left;
+    }
+
+    img {
+      display: block;
+      width: min(100%, 19.5rem);
+      height: auto;
+      margin: 0 auto 1rem;
+    }
+
+    h1 {
+      margin: 0 0 1rem;
+      text-align: center;
+      line-height: 1.2;
+      font-size: clamp(1.5rem, 5.8vw, 2.25rem);
+    }
+
+    p {
+      margin: 0 0 1rem;
+      line-height: 1.5;
+    }
+
+    a, a:visited {
+      color: #35a5f1;
+      text-decoration-thickness: 0.1em;
+      text-decoration-color: #67bbf4;
+    }
+
+    a:hover {
+      filter: brightness(115%);
+    }
+
+    .d-light { display: block; }
+    .d-dark { display: none; }
+
+    @media (prefers-color-scheme: dark) {
+      body { background-color: #333; color: #ccc; }
+      .d-light { display: none; }
+      .d-dark { display: block; }
+    }
+  </style>
+</head>
+<body>
 
 <article>
     <img class="d-light" src="/logo.svg" width="312" height="48" alt="STEMMechanics" />
@@ -28,3 +75,5 @@
         <p>&mdash; The STEMMechanics Team</p>
     </div>
 </article>
+</body>
+</html>

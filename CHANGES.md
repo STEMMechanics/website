@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.7
+
+- Maintenance page is now responsive
+
 ## 1.3.6
 
 - Support reverse proxies in identifying IP addresses
