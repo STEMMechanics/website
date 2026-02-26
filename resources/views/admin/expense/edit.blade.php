@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <x-ui.input type="file" label="Receipt Document" name="receipt_document_file" id="expense-receipt-file" />
+            <x-ui.file-upload label="Receipt Document" name="receipt_document_file" id="expense-receipt-file" />
 
             <div class="mb-6">
                 <div class="font-semibold mb-2">Receipt Preview</div>

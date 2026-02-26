@@ -83,7 +83,7 @@
                 @csrf
                 <div class="flex flex-col md:flex-row md:items-end gap-3">
                     <div class="flex-1">
-                        <x-ui.input type="file" name="database_backup" id="database_backup" label="Import Backup (.sql or .sql.gz)" accept=".sql,.gz,.sql.gz" />
+                        <x-ui.file-upload name="database_backup" id="database_backup" label="Import Backup (.sql or .sql.gz)" accept=".sql,.gz,.sql.gz" />
                     </div>
                 </div>
             </form>

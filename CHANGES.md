@@ -1,5 +1,10 @@
 # Changes
 
+## 1.3.11
+
+- Separated file upload to its own component
+- File upload now supports drag and drop
+
 ## 1.3.10
 
 - Use mariadb_dump
