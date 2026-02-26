@@ -3,6 +3,7 @@
 ## 1.3.7
 
 - Maintenance page is now responsive
+- UI improvements
 
 ## 1.3.6
 

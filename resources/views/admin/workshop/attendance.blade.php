@@ -148,16 +148,16 @@
                     <h2 class="text-lg font-semibold">{{ $isTicketedWorkshop ? 'Drop-In Attendance' : 'Attendance Records' }}</h2>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border border-gray-200 rounded-md">
-                        <thead class="bg-gray-50">
+                <div class="border border-gray-300 rounded-lg overflow-hidden">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 rounded-md">
                             <tr>
-                                <th class="text-left p-2 border-b">Child Name</th>
-                                <th class="text-left p-2 border-b">Parent/Guardian</th>
-                                <th class="text-left p-2 border-b">Email</th>
-                                <th class="text-left p-2 border-b">Phone</th>
-                                <th class="text-left p-2 border-b">Media</th>
-                                <th class="text-left p-2 border-b">Actions</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Child Name</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Parent/Guardian</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Email</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Phone</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Media</th>
+                                <th class="text-sm text-left px-4 py-2 border-b border-gray-300">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
