@@ -16,6 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware) {
+        $trustedProxies = env('TRUSTED_PROXIES', '*');
+        if (is_string($trustedProxies) && trim($trustedProxies) === '') {
+            $trustedProxies = null;
+        } elseif (is_string($trustedProxies) && str_contains($trustedProxies, ',')) {
+            $trustedProxies = array_values(array_filter(array_map('trim', explode(',', $trustedProxies))));
+        }
+
+        $middleware->trustProxies(at: $trustedProxies);
+
         $middleware->alias([
             'admin' => Admin::class,
             'nocache' => NoCache::class,

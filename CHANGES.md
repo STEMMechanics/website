@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.6
+
+- Support reverse proxies in identifying IP addresses
+
 ## 1.3.5
 
 - Fixed scheduler updating 'Opens soon' workshops to 'Open' based on publish at date
