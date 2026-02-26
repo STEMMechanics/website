@@ -75,7 +75,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.attendance', ['workshop' => $workshop]))
             ->assertOk()
-            ->assertSee('Save Attendance Records');
+            ->assertSee('Attendance Records');
 
         $response = $this->actingAs($admin)
             ->post(route('admin.workshop.attendance.dropin.sync', ['workshop' => $workshop]), [

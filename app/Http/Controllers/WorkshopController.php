@@ -785,22 +785,22 @@ class WorkshopController extends Controller
         $retainedIds = [];
 
         foreach ($entries as $row) {
-            $entryId = (int) ($row['id'] ?? 0);
+            $entryId = (int) $row['id'];
             $userId = $this->resolveAttendanceUserId(
-                (string) ($row['email'] ?? ''),
-                (string) ($row['child_name'] ?? ''),
+                $row['email'],
+                $row['child_name'],
                 '',
-                (string) ($row['phone'] ?? '')
+                $row['phone']
             );
 
             if ($entryId > 0 && $existing->has($entryId)) {
                 /** @var WorkshopAttendance $entry */
                 $entry = $existing->get($entryId);
-                $entry->child_name = $row['child_name'] !== '' ? $row['child_name'] : null;
+                $entry->child_name = $row['child_name'];
                 $entry->guardian_name = $row['guardian_name'] !== '' ? $row['guardian_name'] : null;
                 $entry->email = $row['email'] !== '' ? $row['email'] : null;
                 $entry->phone = $row['phone'] !== '' ? $row['phone'] : null;
-                $entry->media_consent = (bool) ($row['media_consent'] ?? false);
+                $entry->media_consent = $row['media_consent'];
                 $entry->user_id = $userId;
                 $entry->save();
 
@@ -814,13 +814,13 @@ class WorkshopController extends Controller
                 'user_id' => $userId,
                 'created_by' => auth()->id(),
                 'source' => 'dropin',
-                'child_name' => $row['child_name'] !== '' ? $row['child_name'] : null,
+                'child_name' => $row['child_name'],
                 'firstname' => null,
                 'surname' => null,
                 'guardian_name' => $row['guardian_name'] !== '' ? $row['guardian_name'] : null,
                 'email' => $row['email'] !== '' ? $row['email'] : null,
                 'phone' => $row['phone'] !== '' ? $row['phone'] : null,
-                'media_consent' => (bool) ($row['media_consent'] ?? false),
+                'media_consent' => $row['media_consent'],
                 'attended_at' => now(),
             ]);
 
