@@ -4,6 +4,7 @@
 
 - Separated file upload to its own component
 - File upload now supports drag and drop
+- Orpan file downloads are now streamed
 
 ## 1.3.10
 

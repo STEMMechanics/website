@@ -349,50 +349,17 @@ class ServerController extends Controller
             return redirect()->route('admin.server.orphans');
         }
 
-        if (! class_exists(ZipArchive::class)) {
-            session()->flash('message', 'ZIP extension is not enabled on this server.');
+        if (! $this->isCommandAvailable('zip')) {
+            session()->flash('message', 'The `zip` command is not available on this server.');
             session()->flash('message-title', 'Download unavailable');
             session()->flash('message-type', 'danger');
 
             return redirect()->route('admin.server.orphans');
         }
 
-        $zipPath = tempnam(sys_get_temp_dir(), 'orphans-');
-        if (! is_string($zipPath)) {
-            session()->flash('message', 'Unable to create temporary archive file.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.orphans');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
-            @unlink($zipPath);
-            session()->flash('message', 'Unable to create ZIP archive.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.orphans');
-        }
-
-        foreach ($files as $entry) {
-            $diskName = $entry['disk'];
-            $path = $entry['path'];
-            if (! Storage::disk($diskName)->exists($path)) {
-                continue;
-            }
-
-            $absolutePath = Storage::disk($diskName)->path($path);
-            $archivePath = $diskName.'/'.$path;
-            $zip->addFile($absolutePath, $archivePath);
-        }
-
-        $zip->close();
-
         $filename = 'orphaned-files-'.$scope.'-'.now()->format('Ymd-His').'.zip';
 
-        return response()->download($zipPath, $filename)->deleteFileAfterSend(true);
+        return $this->streamArbitraryFilesAsZip($files, $filename);
     }
 
     public function admin_square_webhooks(Request $request): View
@@ -883,6 +850,105 @@ class ServerController extends Controller
         $process->run();
 
         return $process->isSuccessful();
+    }
+
+    /**
+     * @param array<int, array{disk: string, path: string}> $files
+     */
+    private function streamArbitraryFilesAsZip(array $files, string $filename): StreamedResponse
+    {
+        return response()->streamDownload(function () use ($files): void {
+            @set_time_limit(0);
+            @ini_set('output_buffering', 'off');
+            @ini_set('zlib.output_compression', '0');
+
+            $stageBase = tempnam(sys_get_temp_dir(), 'orphans-stage-');
+            if (! is_string($stageBase)) {
+                throw new \RuntimeException('Unable to allocate temporary staging directory.');
+            }
+
+            @unlink($stageBase);
+            if (! @mkdir($stageBase, 0775, true) && ! is_dir($stageBase)) {
+                throw new \RuntimeException('Unable to create temporary staging directory.');
+            }
+
+            try {
+                foreach ($files as $entry) {
+                    $disk = (string) ($entry['disk'] ?? '');
+                    $path = ltrim((string) ($entry['path'] ?? ''), '/');
+                    if (! in_array($disk, ['local', 'media'], true) || $path === '') {
+                        continue;
+                    }
+
+                    if (! Storage::disk($disk)->exists($path)) {
+                        continue;
+                    }
+
+                    $sourcePath = Storage::disk($disk)->path($path);
+                    if (! is_file($sourcePath)) {
+                        continue;
+                    }
+
+                    $targetPath = $stageBase.'/'.$disk.'/'.$path;
+                    $targetDir = dirname($targetPath);
+                    if (! is_dir($targetDir)) {
+                        @mkdir($targetDir, 0775, true);
+                    }
+
+                    if (! @symlink($sourcePath, $targetPath)) {
+                        @copy($sourcePath, $targetPath);
+                    }
+                }
+
+                $process = new Process(['zip', '-qr', '-', '.'], $stageBase, null, null, null);
+                $process->run(function (string $type, string $buffer): void {
+                    if ($type === Process::OUT) {
+                        echo $buffer;
+                        if (function_exists('ob_flush')) {
+                            @ob_flush();
+                        }
+                        flush();
+                    }
+                });
+
+                if (! $process->isSuccessful()) {
+                    throw new \RuntimeException('Failed to stream ZIP archive.');
+                }
+            } finally {
+                $this->deleteDirectoryRecursive($stageBase);
+            }
+        }, $filename, [
+            'Content-Type' => 'application/zip',
+            'X-Accel-Buffering' => 'no',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
+    private function deleteDirectoryRecursive(string $directory): void
+    {
+        if (! is_dir($directory)) {
+            return;
+        }
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+
+            foreach ($iterator as $item) {
+                if ($item->isDir() && ! $item->isLink()) {
+                    @rmdir($item->getPathname());
+                    continue;
+                }
+
+                @unlink($item->getPathname());
+            }
+        } catch (\Throwable $e) {
+            // Best-effort cleanup only.
+        }
+
+        @rmdir($directory);
     }
 
     private function tailFile(string $path, int $lineCount = 300): string
