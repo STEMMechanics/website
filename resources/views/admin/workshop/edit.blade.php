@@ -303,9 +303,10 @@ $savedTickets = isset($workshop)
                     <div class="flex-1">
                         <x-ui.select label="Status" name="status" x-model="status">
                             <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
+                            <option value="hidden" {{ $workshopStatusForForm === 'hidden' ? 'selected' : '' }}>Hidden</option>
+                            <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
                             <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
                             <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
-                            <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
                             <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
                             <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </x-ui.select>
@@ -440,9 +441,10 @@ $savedTickets = isset($workshop)
     function updatedPublishAt() {
         const publishAt = document.getElementsByName('publish_at')[0].value;
         const now = new Date();
+        const statusElement = document.getElementsByName('status')[0];
 
-        if (publishAt > now) {
-            document.getElementsByName('status')[0].value = 'scheduled';
+        if (publishAt > now && statusElement && statusElement.value !== 'hidden') {
+            statusElement.value = 'scheduled';
         }
     }
 

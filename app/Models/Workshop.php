@@ -185,6 +185,10 @@ class Workshop extends Model
             return false;
         }
 
+        if ($this->status === 'hidden') {
+            return true;
+        }
+
         if ($this->publish_at === null) {
             return true;
         }
@@ -195,7 +199,7 @@ class Workshop extends Model
     public function scopePubliclyVisible(Builder $query): Builder
     {
         return $query
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'hidden'])
             ->where(function (Builder $builder) {
                 $builder->whereNull('publish_at')
                     ->orWhere('publish_at', '<=', now());

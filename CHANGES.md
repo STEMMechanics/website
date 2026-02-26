@@ -3,6 +3,7 @@
 ## 1.3.6
 
 - Support reverse proxies in identifying IP addresses
+- Added option to have hidden workshops
 
 ## 1.3.5
 
