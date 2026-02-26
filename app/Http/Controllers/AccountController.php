@@ -79,6 +79,7 @@ class AccountController extends Controller
             'billing_postcode' => 'required_with:billing_address,billing_city,billing_country,billing_state',
             'billing_country' => 'required_with:billing_address,billing_city,billing_postcode,billing_state',
             'billing_state' => 'required_with:billing_address,billing_city,billing_postcode,billing_country',
+            'current_device_nickname' => 'nullable|string|max:60',
         ], [
             'firstname.required' => __('validation.custom_messages.firstname_required'),
             'surname.required' => __('validation.custom_messages.surname_required'),
@@ -127,9 +128,25 @@ class AccountController extends Controller
         $user->save();
 
         if ($request->boolean('keep_signed_in_device')) {
-            $this->rememberedDeviceManager->rememberUserOnCurrentDevice($request, $user);
+            $token = $this->rememberedDeviceManager->rememberUserOnCurrentDevice($request, $user);
+            $this->rememberedDeviceManager->setDeviceNickname(
+                $user,
+                (string) $token->id,
+                (string) $request->input('current_device_nickname', '')
+            );
         } else {
             $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
+        }
+
+        $nicknameMap = $request->input('remembered_device_nicknames', []);
+        if (is_array($nicknameMap)) {
+            foreach ($nicknameMap as $tokenId => $nickname) {
+                if (! is_string($tokenId)) {
+                    continue;
+                }
+
+                $this->rememberedDeviceManager->setDeviceNickname($user, $tokenId, is_string($nickname) ? $nickname : '');
+            }
         }
 
         session()->flash('message', 'Your account details have been saved');
@@ -162,6 +179,28 @@ class AccountController extends Controller
         }
 
         return redirect()->route('account.show');
+    }
+
+    public function updateRememberedDeviceNickname(Request $request, Token $token): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        if ((string) $token->user_id !== (string) $user->id || (string) $token->type !== RememberedDeviceManager::DEVICE_TOKEN_TYPE) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'nickname' => 'nullable|string|max:60',
+        ]);
+
+        $nickname = is_string($validated['nickname'] ?? null) ? $validated['nickname'] : '';
+        $this->rememberedDeviceManager->setDeviceNickname($user, (string) $token->id, $nickname);
+
+        return response()->json([
+            'success' => true,
+            'nickname' => trim($nickname),
+        ]);
     }
 
     /**

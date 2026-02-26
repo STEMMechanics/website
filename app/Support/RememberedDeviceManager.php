@@ -58,6 +58,14 @@ class RememberedDeviceManager
         $data['user_agent'] = substr((string) ($request->userAgent() ?? ''), 0, 500);
         $data['ip_address'] = substr((string) ($request->ip() ?? ''), 0, 64);
         $data['last_used_at'] = now()->toIso8601String();
+        $deviceHint = $this->normalizedDeviceHint($request->input('remembered_device_hint'));
+        if ($deviceHint !== null) {
+            $data['device_hint'] = $deviceHint;
+        }
+        $maxTouchPoints = $this->normalizedMaxTouchPoints($request->input('remembered_device_touch_points'));
+        if ($maxTouchPoints !== null) {
+            $data['max_touch_points'] = $maxTouchPoints;
+        }
 
         $token->data = $data;
         $token->expires_at = null;
@@ -141,12 +149,14 @@ class RememberedDeviceManager
                     'is_current' => (string) $token->id === (string) $currentTokenId,
                     'user_agent' => (string) ($data['user_agent'] ?? ''),
                     'ip_address' => (string) ($data['ip_address'] ?? ''),
+                    'nickname' => $this->normalizedNickname((string) ($data['nickname'] ?? '')),
                     'browser' => $this->browserName((string) ($data['user_agent'] ?? '')),
                     'created_at' => $createdAt,
                     'created_label' => $createdAt?->diffForHumans() ?? '-',
                     'last_used_at' => $lastUsedAt,
                     'last_used_label' => $lastUsedAt?->diffForHumans() ?? '-',
-                    'title' => $this->deviceTitle((string) ($data['user_agent'] ?? '')),
+                    'default_title' => $this->deviceTitle($data),
+                    'title' => $this->normalizedNickname((string) ($data['nickname'] ?? '')) ?: $this->deviceTitle($data),
                 ];
             })
             ->values();
@@ -184,6 +194,34 @@ class RememberedDeviceManager
         }
 
         return $deleted > 0;
+    }
+
+    public function setDeviceNickname(User $user, string $tokenId, string $nickname): bool
+    {
+        /** @var Token|null $token */
+        $token = Token::query()
+            ->where('id', $tokenId)
+            ->where('type', self::DEVICE_TOKEN_TYPE)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $token) {
+            return false;
+        }
+
+        $data = is_array($token->data) ? $token->data : [];
+        $normalizedNickname = $this->normalizedNickname($nickname);
+
+        if ($normalizedNickname === '') {
+            unset($data['nickname']);
+        } else {
+            $data['nickname'] = $normalizedNickname;
+        }
+
+        $token->data = $data;
+        $token->save();
+
+        return true;
     }
 
     public function currentTokenId(Request $request): ?string
@@ -252,9 +290,28 @@ class RememberedDeviceManager
         return is_string($sameSite) && trim($sameSite) !== '' ? $sameSite : null;
     }
 
-    private function deviceTitle(string $userAgent): string
+    private function deviceTitle(array $data): string
     {
+        $deviceHint = $this->normalizedDeviceHint($data['device_hint'] ?? null);
+        if ($deviceHint === 'ipad') {
+            return 'iPad';
+        }
+        if ($deviceHint === 'iphone') {
+            return 'iPhone';
+        }
+        if ($deviceHint === 'android') {
+            return 'Android Device';
+        }
+        if ($deviceHint === 'mac') {
+            return 'Mac';
+        }
+        if ($deviceHint === 'windows') {
+            return 'Windows PC';
+        }
+
+        $userAgent = (string) ($data['user_agent'] ?? '');
         $ua = strtolower($userAgent);
+        $maxTouchPoints = $this->normalizedMaxTouchPoints($data['max_touch_points'] ?? null) ?? 0;
 
         if (str_contains($ua, 'ipad')) {
             return 'iPad';
@@ -264,6 +321,9 @@ class RememberedDeviceManager
         }
         if (str_contains($ua, 'android')) {
             return 'Android Device';
+        }
+        if (str_contains($ua, 'macintosh') && $maxTouchPoints > 1) {
+            return 'iPad';
         }
         if (str_contains($ua, 'macintosh') || str_contains($ua, 'mac os')) {
             return 'Mac';
@@ -302,5 +362,45 @@ class RememberedDeviceManager
         }
 
         return null;
+    }
+
+    private function normalizedDeviceHint(mixed $hint): ?string
+    {
+        if (! is_string($hint)) {
+            return null;
+        }
+
+        $normalized = strtolower(trim($hint));
+        if ($normalized === '') {
+            return null;
+        }
+
+        $allowed = ['ipad', 'iphone', 'android', 'mac', 'windows', 'other'];
+
+        return in_array($normalized, $allowed, true) ? $normalized : null;
+    }
+
+    private function normalizedMaxTouchPoints(mixed $touchPoints): ?int
+    {
+        if (is_string($touchPoints)) {
+            $touchPoints = trim($touchPoints);
+        }
+
+        if ($touchPoints === '' || $touchPoints === null || ! is_numeric($touchPoints)) {
+            return null;
+        }
+
+        $normalized = (int) $touchPoints;
+
+        if ($normalized < 0) {
+            return 0;
+        }
+
+        return min($normalized, 20);
+    }
+
+    private function normalizedNickname(string $nickname): string
+    {
+        return substr(trim($nickname), 0, 60);
     }
 }

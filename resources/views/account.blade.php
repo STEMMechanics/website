@@ -21,6 +21,8 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     <x-container>
         <form method="POST" action="{{ route('account.update') }}" x-data x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @csrf
+            <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />
+            <input type="hidden" name="remembered_device_touch_points" id="remembered_device_touch_points" value="" />
             <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
             <div class="flex flex-col sm:gap-8 sm:flex-row">
                 <div class="flex-1">
@@ -79,41 +81,54 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                         checked="{{ $keepSignedInDeviceChecked }}"
                     />
 
-                    @if($rememberedDevices->isEmpty())
-                        <p class="text-sm text-gray-500 mb-4">No remembered devices have been saved.</p>
-                    @else
-                        <div class="space-y-3 mb-4">
-                            @foreach($rememberedDevices as $device)
-                                <div class="rounded-lg border border-gray-200 bg-white px-4 py-3">
-                                    <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                                        <div>
-                                            <div class="flex items-center gap-2">
-                                                <div class="font-semibold">{{ $device['title'] ?? 'Browser Device' }}</div>
-                                                @if(! empty($device['is_current']))
-                                                    <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs text-green-800">Current device</div>
-                                                @endif
-                                            </div>
-                                            <div class="text-xs text-gray-600">IP: {{ $device['ip_address'] ?? '-' }}</div>
-                                            @if(! empty($device['browser']))
-                                                <div class="text-xs text-gray-600">Browser: {{ $device['browser'] }}</div>
+                    <p id="remembered-devices-empty" class="text-sm text-gray-500 mb-4 {{ $rememberedDevices->isEmpty() ? '' : 'hidden' }}">No remembered devices have been saved.</p>
+                    <div id="remembered-devices-list" data-current-token-id="{{ $currentRememberedTokenId }}" class="space-y-3 mb-4 {{ $rememberedDevices->isEmpty() ? 'hidden' : '' }}">
+                        @foreach($rememberedDevices as $device)
+                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3" data-device-row data-device-id="{{ $device['id'] }}">
+                                @php
+                                    $defaultDeviceTitle = (string) ($device['default_title'] ?? 'Browser Device');
+                                    $displayDeviceTitle = (string) ($device['title'] ?? $defaultDeviceTitle);
+                                @endphp
+                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <div class="font-semibold" data-device-title>{{ $displayDeviceTitle }}</div>
+                                            <button
+                                                type="button"
+                                                class="text-gray-500 hover:text-primary-color"
+                                                title="Edit device name"
+                                                data-device-edit
+                                                data-device-id="{{ $device['id'] }}"
+                                                data-device-title="{{ $displayDeviceTitle }}"
+                                                data-device-nickname="{{ (string) ($device['nickname'] ?? '') }}"
+                                                data-device-default-title="{{ $defaultDeviceTitle }}"
+                                            >
+                                                <i class="fa-solid fa-pen"></i>
+                                            </button>
+                                            @if(! empty($device['is_current']))
+                                                <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs text-green-800">Current device</div>
                                             @endif
-                                            <div class="text-xs text-gray-600">Added: {{ $device['created_label'] ?? '-' }}</div>
-                                            <div class="text-xs text-gray-600">Last used: {{ $device['last_used_label'] ?? '-' }}</div>
                                         </div>
-                                        <x-ui.button
-                                            type="button"
-                                            color="danger-outline"
-                                            class="!px-4 !py-1.5"
-                                            x-data
-                                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove device?', 'This device will no longer stay signed in.', '{{ route('account.device.destroy', $device['id']) }}')"
-                                        >
-                                            Remove
-                                        </x-ui.button>
+                                        <div class="text-xs text-gray-600">IP: {{ $device['ip_address'] ?? '-' }}</div>
+                                        @if(! empty($device['browser']))
+                                            <div class="text-xs text-gray-600">Browser: {{ $device['browser'] }}</div>
+                                        @endif
+                                        <div class="text-xs text-gray-600">Added: {{ $device['created_label'] ?? '-' }}</div>
+                                        <div class="text-xs text-gray-600">Last used: {{ $device['last_used_label'] ?? '-' }}</div>
                                     </div>
+                                    <x-ui.button
+                                        type="button"
+                                        color="danger-outline"
+                                        class="!px-4 !py-1.5"
+                                        data-device-remove
+                                        data-device-id="{{ $device['id'] }}"
+                                    >
+                                        Remove
+                                    </x-ui.button>
                                 </div>
-                            @endforeach
-                        </div>
-                    @endif
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </section>
 
@@ -361,4 +376,205 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
             confirmButtonText: 'Disable'
         });
     }
+
+    const initRememberedDeviceActions = () => {
+        const devicesList = document.getElementById('remembered-devices-list');
+        const emptyState = document.getElementById('remembered-devices-empty');
+        const keepSignedInCheckbox = document.getElementById('keep_signed_in_device');
+
+        const updateEmptyState = () => {
+            if (!devicesList || !emptyState) {
+                return;
+            }
+
+            const remainingRows = devicesList.querySelectorAll('[data-device-row]').length;
+            const hasRows = remainingRows > 0;
+            devicesList.classList.toggle('hidden', !hasRows);
+            emptyState.classList.toggle('hidden', hasRows);
+        };
+
+        const handleDeviceRename = (button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const deviceId = String(button.dataset.deviceId || '').trim();
+            const defaultTitle = String(button.dataset.deviceDefaultTitle || 'Browser Device').trim();
+            const nicknameValue = String(button.dataset.deviceNickname || '').trim();
+            const row = button.closest('[data-device-row]');
+            const titleElement = row ? row.querySelector('[data-device-title]') : null;
+
+            if (deviceId === '' || !(titleElement instanceof HTMLElement)) {
+                return;
+            }
+
+            const saveNickname = (nicknameRaw) => {
+                const nickname = String(nicknameRaw || '').trim();
+                button.disabled = true;
+
+                axios.patch(`/account/devices/${encodeURIComponent(deviceId)}/nickname`, {
+                    nickname: nickname,
+                }, {
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                }).then(() => {
+                    button.dataset.deviceNickname = nickname;
+                    titleElement.textContent = nickname !== '' ? nickname : defaultTitle;
+                    SM.alert('Device updated', 'Device name saved.', 'success');
+                }).catch(() => {
+                    SM.alert('Update failed', 'Could not save the device name right now.', 'danger');
+                }).finally(() => {
+                    button.disabled = false;
+                });
+            };
+
+            if (typeof Swal !== 'undefined' && Swal && typeof Swal.fire === 'function') {
+                Swal.fire({
+                    title: 'Edit device name',
+                    input: 'text',
+                    inputValue: nicknameValue,
+                    inputLabel: `Leave empty to use "${defaultTitle}"`,
+                    inputPlaceholder: 'Device nickname',
+                    showCancelButton: true,
+                    confirmButtonText: 'Save',
+                    confirmButtonColor: '#0284c7',
+                    cancelButtonText: 'Cancel',
+                    reverseButtons: true,
+                    inputAttributes: {
+                        maxlength: '60',
+                        autocapitalize: 'off',
+                        autocorrect: 'off',
+                    },
+                }).then((result) => {
+                    if (!result.isConfirmed) {
+                        return;
+                    }
+
+                    saveNickname(result.value);
+                });
+                return;
+            }
+
+            const fallbackValue = window.prompt(`Edit device name (leave empty to use "${defaultTitle}")`, nicknameValue);
+            if (fallbackValue === null) {
+                return;
+            }
+
+            saveNickname(fallbackValue);
+        };
+
+        const handleDeviceRemove = (button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            const deviceId = String(button.dataset.deviceId || '').trim();
+            if (deviceId === '') {
+                return;
+            }
+
+            const deleteRequest = () => {
+                button.disabled = true;
+
+                axios.delete(`/account/devices/${encodeURIComponent(deviceId)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                }).then((response) => {
+                    if (!response.data || !response.data.success) {
+                        throw new Error('Device removal failed.');
+                    }
+
+                    const row = button.closest('[data-device-row]');
+                    if (row instanceof HTMLElement) {
+                        row.remove();
+                    }
+
+                    if (devicesList && keepSignedInCheckbox instanceof HTMLInputElement) {
+                        const currentTokenId = String(devicesList.dataset.currentTokenId || '').trim();
+                        if (currentTokenId !== '' && currentTokenId === deviceId) {
+                            keepSignedInCheckbox.checked = false;
+                            devicesList.dataset.currentTokenId = '';
+                        }
+                    }
+
+                    updateEmptyState();
+                    SM.alert('Device removed', 'The device has been removed.', 'success');
+                }).catch(() => {
+                    SM.alert('Remove failed', 'Could not remove the device right now.', 'danger');
+                    button.disabled = false;
+                });
+            };
+
+            if (window.SM && typeof window.SM.confirm === 'function') {
+                SM.confirm('Remove device?', 'This device will no longer stay signed in.', 'Remove', (isConfirmed) => {
+                    if (!isConfirmed) {
+                        return;
+                    }
+
+                    deleteRequest();
+                });
+                return;
+            }
+
+            if (window.confirm('Remove this remembered device?')) {
+                deleteRequest();
+            }
+        };
+
+        document.querySelectorAll('[data-device-edit]').forEach((button) => {
+            button.addEventListener('click', () => {
+                handleDeviceRename(button);
+            });
+        });
+
+        document.querySelectorAll('[data-device-remove]').forEach((button) => {
+            button.addEventListener('click', () => {
+                handleDeviceRemove(button);
+            });
+        });
+
+        updateEmptyState();
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+        initRememberedDeviceActions();
+
+        const hintInput = document.getElementById('remembered_device_hint');
+        const touchPointsInput = document.getElementById('remembered_device_touch_points');
+        if (!hintInput || !touchPointsInput) {
+            return;
+        }
+
+        const touchPoints = Number.isFinite(navigator.maxTouchPoints) ? navigator.maxTouchPoints : 0;
+        touchPointsInput.value = String(Math.max(0, Math.floor(touchPoints)));
+
+        const ua = String(navigator.userAgent || '');
+        const lowerUa = ua.toLowerCase();
+        const isMacintosh = lowerUa.includes('macintosh');
+
+        if (lowerUa.includes('ipad') || (isMacintosh && touchPoints > 1)) {
+            hintInput.value = 'ipad';
+            return;
+        }
+        if (lowerUa.includes('iphone')) {
+            hintInput.value = 'iphone';
+            return;
+        }
+        if (lowerUa.includes('android')) {
+            hintInput.value = 'android';
+            return;
+        }
+        if (isMacintosh) {
+            hintInput.value = 'mac';
+            return;
+        }
+        if (lowerUa.includes('windows')) {
+            hintInput.value = 'windows';
+            return;
+        }
+
+        hintInput.value = 'other';
+    });
 </script>

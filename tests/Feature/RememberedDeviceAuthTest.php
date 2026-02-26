@@ -182,6 +182,38 @@ class RememberedDeviceAuthTest extends TestCase
         ]);
     }
 
+    public function test_account_device_nickname_update_returns_json_for_ajax_request(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $user->tokens()->create([
+            'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE,
+            'data' => [
+                'user_agent' => 'iPad Safari',
+                'ip_address' => '10.0.0.1',
+                'last_used_at' => now()->toIso8601String(),
+            ],
+            'expires_at' => null,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->patchJson(route('account.device.nickname.update', $token), [
+                'nickname' => "James's iPad",
+            ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'nickname' => "James's iPad",
+        ]);
+
+        /** @var Token|null $updatedToken */
+        $updatedToken = Token::query()->find($token->id);
+
+        $this->assertNotNull($updatedToken);
+        $this->assertSame("James's iPad", (string) (($updatedToken->data ?? [])['nickname'] ?? ''));
+    }
+
     public function test_account_remembered_devices_displays_browser_when_available(): void
     {
         $user = User::factory()->create();
@@ -202,6 +234,84 @@ class RememberedDeviceAuthTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Browser: Safari');
+    }
+
+    public function test_account_remembered_device_uses_ipad_hint_for_macintosh_user_agent(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->withHeader('User-Agent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15')
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->post(route('account.update'), [
+                '_token' => 'test-csrf-token',
+                'email' => $user->email,
+                'keep_signed_in_device' => 'on',
+                'remembered_device_hint' => 'ipad',
+                'remembered_device_touch_points' => '5',
+            ])
+            ->assertRedirect();
+
+        $token = Token::query()
+            ->where('user_id', $user->id)
+            ->where('type', RememberedDeviceManager::DEVICE_TOKEN_TYPE)
+            ->latest('created_at')
+            ->first();
+
+        $this->assertNotNull($token);
+
+        $response = $this->actingAs($user)
+            ->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
+            ->get(route('account.show'));
+
+        $response->assertOk();
+        $response->assertSee('iPad');
+    }
+
+    public function test_account_remembered_device_nickname_can_be_saved_and_rendered(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $user->tokens()->create([
+            'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE,
+            'data' => [
+                'user_agent' => 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15',
+                'ip_address' => '10.0.0.88',
+                'last_used_at' => now()->toIso8601String(),
+            ],
+            'expires_at' => null,
+        ]);
+
+        $nickname = "James's iPad";
+
+        $this->actingAs($user)
+            ->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->post(route('account.update'), [
+                '_token' => 'test-csrf-token',
+                'email' => $user->email,
+                'keep_signed_in_device' => 'on',
+                'current_device_nickname' => $nickname,
+                'remembered_device_nicknames' => [
+                    (string) $token->id => $nickname,
+                ],
+            ])
+            ->assertRedirect();
+
+        /** @var Token|null $updatedToken */
+        $updatedToken = Token::query()
+            ->where('id', $token->id)
+            ->first();
+
+        $this->assertNotNull($updatedToken);
+        $this->assertSame($nickname, (string) (($updatedToken->data ?? [])['nickname'] ?? ''));
+
+        $response = $this->actingAs($user)
+            ->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
+            ->get(route('account.show'));
+
+        $response->assertOk();
+        $response->assertSee($nickname);
     }
 
     public function test_account_update_validation_error_preserves_keep_signed_in_device_old_input(): void

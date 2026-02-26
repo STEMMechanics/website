@@ -4,6 +4,7 @@
 
 - Maintenance page is now responsive
 - UI improvements
+- Allow renaming of saved devices
 
 ## 1.3.6
 
