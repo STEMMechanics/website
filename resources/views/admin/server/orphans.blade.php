@@ -73,14 +73,14 @@
             <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
                 <h3 class="text-lg font-bold mb-3">Summary</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div><strong>Expense files scanned:</strong> {{ number_format((int) ($summary['expense_files_scanned'] ?? 0)) }}</div>
-                    <div><strong>Expense files referenced:</strong> {{ number_format((int) ($summary['expense_files_referenced'] ?? 0)) }}</div>
-                    <div><strong>Orphan expense files:</strong> {{ number_format((int) ($summary['orphan_expense_files'] ?? 0)) }}</div>
-                    <div><strong>Missing expense references:</strong> {{ number_format((int) ($summary['missing_expense_files'] ?? 0)) }}</div>
-                    <div><strong>Media files scanned:</strong> {{ number_format((int) ($summary['media_files_scanned'] ?? 0)) }}</div>
-                    <div><strong>Media files referenced:</strong> {{ number_format((int) ($summary['media_files_referenced'] ?? 0)) }}</div>
-                    <div><strong>Orphan media files:</strong> {{ number_format((int) ($summary['orphan_media_files'] ?? 0)) }}</div>
-                    <div><strong>Missing media references:</strong> {{ number_format((int) ($summary['missing_media_files'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Expense files scanned:</span> {{ number_format((int) ($summary['expense_files_scanned'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Expense files referenced:</span> {{ number_format((int) ($summary['expense_files_referenced'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Orphan expense files:</span> {{ number_format((int) ($summary['orphan_expense_files'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Missing expense references:</span> {{ number_format((int) ($summary['missing_expense_files'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Media files scanned:</span> {{ number_format((int) ($summary['media_files_scanned'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Media files referenced:</span> {{ number_format((int) ($summary['media_files_referenced'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Orphan media files:</span> {{ number_format((int) ($summary['orphan_media_files'] ?? 0)) }}</div>
+                    <div><span class="inline-block w-52 font-semibold">Missing media references:</span> {{ number_format((int) ($summary['missing_media_files'] ?? 0)) }}</div>
                 </div>
             </div>
 
@@ -90,6 +90,21 @@
                     <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_all']) }}">Download All Orphans</x-ui.button>
                     <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_expense']) }}">Download Expense Orphans</x-ui.button>
                     <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_media']) }}">Download Media Orphans</x-ui.button>
+                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete all orphans?', 'Delete all orphan expense and media files found in this scan?', 'Delete All', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                        @csrf
+                        <input type="hidden" name="scope" value="orphan_all">
+                        <x-ui.button type="submit" color="danger-outline">Delete All Orphans</x-ui.button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete expense orphans?', 'Delete all orphan expense files from this scan?', 'Delete Expense', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                        @csrf
+                        <input type="hidden" name="scope" value="orphan_expense">
+                        <x-ui.button type="submit" color="danger-outline">Delete Expense Orphans</x-ui.button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete media orphans?', 'Delete all orphan media files from this scan?', 'Delete Media', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                        @csrf
+                        <input type="hidden" name="scope" value="orphan_media">
+                        <x-ui.button type="submit" color="danger-outline">Delete Media Orphans</x-ui.button>
+                    </form>
                 </div>
 
                 <h4 class="font-semibold mb-2">Expense Files (not referenced)</h4>
@@ -100,8 +115,16 @@
                         @foreach($orphanExpenseFiles as $entry)
                             <li>
                                 <code>{{ $entry['path'] }}</code>
-                                <a class="ml-2 text-primary-color hover:underline" target="_blank" href="{{ route('admin.server.orphans.file', ['disk' => 'local', 'path' => $entry['path']]) }}">View</a>
-                                <a class="ml-2 text-primary-color hover:underline" href="{{ route('admin.server.orphans.file', ['disk' => 'local', 'path' => $entry['path'], 'download' => 1]) }}">Download</a>
+                                <span class="ml-2 inline-flex items-center gap-3 align-middle">
+                                    <a class="hover:text-primary-color" target="_blank" title="View file" href="{{ route('admin.server.orphans.file', ['disk' => 'local', 'path' => $entry['path']]) }}"><i class="fa-solid fa-eye"></i></a>
+                                    <a class="hover:text-primary-color" title="Download file" href="{{ route('admin.server.orphans.file', ['disk' => 'local', 'path' => $entry['path'], 'download' => 1]) }}"><i class="fa-solid fa-download"></i></a>
+                                    <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-file') }}" x-data x-on:submit.prevent="SM.confirm('Delete orphan file?', 'Delete this orphan file permanently?', 'Delete', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                                        @csrf
+                                        <input type="hidden" name="disk" value="local">
+                                        <input type="hidden" name="path" value="{{ $entry['path'] }}">
+                                        <button type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </span>
                             </li>
                         @endforeach
                     </ul>
@@ -115,8 +138,16 @@
                         @foreach($orphanMediaFiles as $entry)
                             <li>
                                 <code>{{ $entry['path'] }}</code>
-                                <a class="ml-2 text-primary-color hover:underline" target="_blank" href="{{ route('admin.server.orphans.file', ['disk' => 'media', 'path' => $entry['path']]) }}">View</a>
-                                <a class="ml-2 text-primary-color hover:underline" href="{{ route('admin.server.orphans.file', ['disk' => 'media', 'path' => $entry['path'], 'download' => 1]) }}">Download</a>
+                                <span class="ml-2 inline-flex items-center gap-3 align-middle">
+                                    <a class="hover:text-primary-color" target="_blank" title="View file" href="{{ route('admin.server.orphans.file', ['disk' => 'media', 'path' => $entry['path']]) }}"><i class="fa-solid fa-eye"></i></a>
+                                    <a class="hover:text-primary-color" title="Download file" href="{{ route('admin.server.orphans.file', ['disk' => 'media', 'path' => $entry['path'], 'download' => 1]) }}"><i class="fa-solid fa-download"></i></a>
+                                    <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-file') }}" x-data x-on:submit.prevent="SM.confirm('Delete orphan file?', 'Delete this orphan file permanently?', 'Delete', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                                        @csrf
+                                        <input type="hidden" name="disk" value="media">
+                                        <input type="hidden" name="path" value="{{ $entry['path'] }}">
+                                        <button type="submit" class="hover:text-red-600" title="Delete file"><i class="fa-solid fa-trash"></i></button>
+                                    </form>
+                                </span>
                             </li>
                         @endforeach
                     </ul>

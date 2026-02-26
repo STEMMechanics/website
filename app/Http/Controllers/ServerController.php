@@ -362,6 +362,112 @@ class ServerController extends Controller
         return $this->streamArbitraryFilesAsZip($files, $filename);
     }
 
+    public function admin_orphans_delete_file(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'disk' => ['required', 'in:local,media'],
+            'path' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $report = $this->getOrphanScanReport();
+        if (! is_array($report)) {
+            session()->flash('message', 'Run an orphan scan first.');
+            session()->flash('message-title', 'No scan results');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        $disk = (string) $validated['disk'];
+        $path = ltrim(trim((string) $validated['path']), '/');
+        if ($path === '' || str_contains($path, '..')) {
+            abort(403);
+        }
+
+        $orphanFiles = collect($this->resolveOrphanDownloadFiles($report, 'orphan_all'));
+        $isOrphanPath = $orphanFiles->contains(fn (array $entry) => (string) ($entry['disk'] ?? '') === $disk && (string) ($entry['path'] ?? '') === $path);
+        if (! $isOrphanPath) {
+            session()->flash('message', 'The selected file is not in the current orphan list.');
+            session()->flash('message-title', 'Delete blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        if (! Storage::disk($disk)->exists($path)) {
+            session()->flash('message', 'File does not exist anymore.');
+            session()->flash('message-title', 'Already removed');
+            session()->flash('message-type', 'warning');
+            $this->refreshOrphanScanReport();
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        $deleted = Storage::disk($disk)->delete($path);
+        $this->refreshOrphanScanReport();
+
+        if (! $deleted) {
+            session()->flash('message', 'Unable to delete orphan file.');
+            session()->flash('message-title', 'Delete failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        session()->flash('message', 'Orphan file deleted: '.$path);
+        session()->flash('message-title', 'File deleted');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.server.orphans');
+    }
+
+    public function admin_orphans_delete_all(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'scope' => ['required', 'in:orphan_all,orphan_expense,orphan_media'],
+        ]);
+
+        $report = $this->getOrphanScanReport();
+        if (! is_array($report)) {
+            session()->flash('message', 'Run an orphan scan first.');
+            session()->flash('message-title', 'No scan results');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        $scope = (string) $validated['scope'];
+        $files = $this->resolveOrphanDownloadFiles($report, $scope);
+        if ($files === []) {
+            session()->flash('message', 'No orphan files found for this scope.');
+            session()->flash('message-title', 'Nothing to delete');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.orphans');
+        }
+
+        $deleted = 0;
+        foreach ($files as $entry) {
+            $disk = (string) ($entry['disk'] ?? '');
+            $path = ltrim((string) ($entry['path'] ?? ''), '/');
+            if (! in_array($disk, ['local', 'media'], true) || $path === '' || str_contains($path, '..')) {
+                continue;
+            }
+
+            if (Storage::disk($disk)->exists($path) && Storage::disk($disk)->delete($path)) {
+                $deleted++;
+            }
+        }
+
+        $this->refreshOrphanScanReport();
+
+        session()->flash('message', 'Deleted '.number_format($deleted).' orphan file(s).');
+        session()->flash('message-title', 'Bulk delete complete');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.server.orphans');
+    }
+
     public function admin_square_webhooks(Request $request): View
     {
         $query = SquareWebhookEvent::query()->with('customerPayment');
@@ -1162,6 +1268,12 @@ class ServerController extends Controller
             'orphan_media' => $mediaOrphans,
             default => array_merge($expenseOrphans, $mediaOrphans),
         };
+    }
+
+    private function refreshOrphanScanReport(): void
+    {
+        $report = $this->buildOrphanScanReport();
+        Storage::disk('local')->put(self::ORPHAN_SCAN_REPORT_FILE, json_encode($report, JSON_PRETTY_PRINT));
     }
 
     private function paginateBackups(Request $request): LengthAwarePaginator
