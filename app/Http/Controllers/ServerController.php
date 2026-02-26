@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Process\Process;
 use ZipArchive;
 
 class ServerController extends Controller
@@ -48,6 +50,8 @@ class ServerController extends Controller
             'deployOutputModifiedAt' => $deployLogData['modified_at'],
             'deployOutputContent' => $deployLogData['content'],
             'databaseBackups' => $databaseBackups,
+            'mediaStats' => $this->directoryStats('media', '/'),
+            'financeStats' => $this->directoryStats('local', 'finance'),
         ]);
     }
 
@@ -189,6 +193,16 @@ class ServerController extends Controller
         }
 
         return redirect()->route('admin.server.index');
+    }
+
+    public function admin_media_download_all()
+    {
+        return $this->streamDiskDirectoryAsZip('media', '/', 'media-files');
+    }
+
+    public function admin_finance_download_all()
+    {
+        return $this->streamDiskDirectoryAsZip('local', 'finance', 'finance-files');
     }
 
     public function admin_clear_log(): RedirectResponse
@@ -679,6 +693,37 @@ class ServerController extends Controller
         ];
     }
 
+    /**
+     * @return array{count: int, size: int}
+     */
+    private function directoryStats(string $disk, string $prefix): array
+    {
+        $count = 0;
+        $size = 0;
+        $normalizedPrefix = trim($prefix, '/');
+        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
+
+        $files = Storage::disk($disk)->allFiles($searchPrefix);
+        foreach ($files as $path) {
+            $path = ltrim((string) $path, '/');
+            if ($path === '') {
+                continue;
+            }
+
+            $count++;
+            try {
+                $size += (int) Storage::disk($disk)->size($path);
+            } catch (\Throwable $e) {
+                // Ignore per-file stat errors so we still report count and partial size.
+            }
+        }
+
+        return [
+            'count' => $count,
+            'size' => $size,
+        ];
+    }
+
     private function getLaravelLogPath(): string
     {
         return storage_path('logs/laravel.log');
@@ -704,6 +749,146 @@ class ServerController extends Controller
             'modified_at' => $exists ? date('Y-m-d H:i:s', filemtime($path)) : null,
             'content' => $exists ? $this->tailFile($path, $tailLines) : '',
         ];
+    }
+
+    private function downloadDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
+    {
+        if (! class_exists(ZipArchive::class)) {
+            session()->flash('message', 'ZIP extension is not enabled on this server.');
+            session()->flash('message-title', 'Download unavailable');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $normalizedPrefix = trim($prefix, '/');
+        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
+        $files = collect(Storage::disk($disk)->allFiles($searchPrefix))
+            ->map(fn ($path) => ltrim((string) $path, '/'))
+            ->filter(fn ($path) => $path !== '')
+            ->values()
+            ->all();
+
+        if ($files === []) {
+            session()->flash('message', 'No files found for this archive.');
+            session()->flash('message-title', 'Nothing to download');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $zipPath = tempnam(sys_get_temp_dir(), $archivePrefix.'-');
+        if (! is_string($zipPath)) {
+            session()->flash('message', 'Unable to create temporary archive file.');
+            session()->flash('message-title', 'Download failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
+            @unlink($zipPath);
+            session()->flash('message', 'Unable to create ZIP archive.');
+            session()->flash('message-title', 'Download failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        foreach ($files as $path) {
+            if (! Storage::disk($disk)->exists($path)) {
+                continue;
+            }
+
+            $absolutePath = Storage::disk($disk)->path($path);
+            $archivePath = $normalizedPrefix === '' || ! str_starts_with($path, $normalizedPrefix.'/')
+                ? $path
+                : substr($path, strlen($normalizedPrefix) + 1);
+
+            $zip->addFile($absolutePath, $archivePath);
+        }
+
+        $zip->close();
+
+        $filename = $archivePrefix.'-'.now()->format('Ymd-His').'.zip';
+
+        return response()->download($zipPath, $filename)->deleteFileAfterSend(true);
+    }
+
+    private function streamDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
+    {
+        $normalizedPrefix = trim($prefix, '/');
+        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
+        $files = collect(Storage::disk($disk)->allFiles($searchPrefix))
+            ->map(fn ($path) => ltrim((string) $path, '/'))
+            ->filter(fn ($path) => $path !== '')
+            ->values()
+            ->all();
+
+        if ($files === []) {
+            session()->flash('message', 'No files found for this archive.');
+            session()->flash('message-title', 'Nothing to download');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $rootPath = $normalizedPrefix === ''
+            ? Storage::disk($disk)->path('/')
+            : Storage::disk($disk)->path($normalizedPrefix);
+
+        if (! is_dir($rootPath)) {
+            session()->flash('message', 'Archive directory is missing on disk.');
+            session()->flash('message-title', 'Download failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        if (! $this->isCommandAvailable('zip')) {
+            session()->flash('message', 'The `zip` command is not available on this server.');
+            session()->flash('message-title', 'Download failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $filename = $archivePrefix.'-'.now()->format('Ymd-His').'.zip';
+
+        return response()->streamDownload(function () use ($rootPath): void {
+            @set_time_limit(0);
+            @ini_set('output_buffering', 'off');
+            @ini_set('zlib.output_compression', '0');
+
+            $process = new Process(['zip', '-qr', '-', '.'], $rootPath, null, null, null);
+            $process->run(function (string $type, string $buffer): void {
+                if ($type === Process::OUT) {
+                    echo $buffer;
+                    if (function_exists('ob_flush')) {
+                        @ob_flush();
+                    }
+                    flush();
+                }
+            });
+
+            if (! $process->isSuccessful()) {
+                throw new \RuntimeException('Failed to stream ZIP archive.');
+            }
+        }, $filename, [
+            'Content-Type' => 'application/zip',
+            'X-Accel-Buffering' => 'no',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
+        ]);
+    }
+
+    private function isCommandAvailable(string $command): bool
+    {
+        $process = Process::fromShellCommandline('command -v '.escapeshellarg($command));
+        $process->setTimeout(10);
+        $process->run();
+
+        return $process->isSuccessful();
     }
 
     private function tailFile(string $path, int $lineCount = 300): string

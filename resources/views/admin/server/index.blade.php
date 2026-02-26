@@ -134,6 +134,30 @@
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <h3 class="text-lg font-bold mb-3">File Backups</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                    <div class="font-semibold mb-1">Media Files</div>
+                    <div class="text-xs text-gray-600 mb-3">
+                        {{ number_format((int) ($mediaStats['count'] ?? 0)) }} files
+                        •
+                        {{ \App\Helpers::bytesToString((int) ($mediaStats['size'] ?? 0)) }}
+                    </div>
+                    <x-ui.button type="link" color="outline" href="{{ route('admin.server.media.download-all') }}">Download ZIP</x-ui.button>
+                </div>
+                <div class="rounded-lg border border-gray-200 bg-white p-3">
+                    <div class="font-semibold mb-1">Finance Files</div>
+                    <div class="text-xs text-gray-600 mb-3">
+                        {{ number_format((int) ($financeStats['count'] ?? 0)) }} files
+                        •
+                        {{ \App\Helpers::bytesToString((int) ($financeStats['size'] ?? 0)) }}
+                    </div>
+                    <x-ui.button type="link" color="outline" href="{{ route('admin.server.finance.download-all') }}">Download ZIP</x-ui.button>
+                </div>
+            </div>
+        </div>
+
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Runtime</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-sm">
                 @foreach($serverInfo as $label => $value)

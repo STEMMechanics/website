@@ -186,6 +186,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/database/import', [ServerController::class, 'admin_database_import'])->name('admin.server.database.import');
     Route::get('/admin/server/database/download/{filename}', [ServerController::class, 'admin_database_download'])->name('admin.server.database.download');
     Route::delete('/admin/server/database/{filename}', [ServerController::class, 'admin_database_delete'])->name('admin.server.database.delete');
+    Route::get('/admin/server/media/download-all', [ServerController::class, 'admin_media_download_all'])->name('admin.server.media.download-all');
+    Route::get('/admin/server/finance/download-all', [ServerController::class, 'admin_finance_download_all'])->name('admin.server.finance.download-all');
     Route::get('/admin/server/orphans', [ServerController::class, 'admin_orphans'])->name('admin.server.orphans');
     Route::get('/admin/server/audit', [ServerController::class, 'admin_audit'])->name('admin.server.audit');
     Route::post('/admin/server/audit/prune', [ServerController::class, 'admin_audit_prune'])->name('admin.server.audit.prune');
