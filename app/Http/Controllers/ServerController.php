@@ -83,9 +83,6 @@ class ServerController extends Controller
             $keep = max(1, (int) config('backup.database.keep', 168));
             $this->databaseBackupService->pruneOldBackups($keep);
         } catch (\Throwable $e) {
-            session()->flash('message', 'Database backup failed: '.$e->getMessage());
-            session()->flash('message-title', 'Backup failed');
-            session()->flash('message-type', 'danger');
             session()->flash('database_backup_notice', [
                 'type' => 'danger',
                 'text' => 'Backup failed: '.$e->getMessage(),
@@ -94,9 +91,6 @@ class ServerController extends Controller
             return redirect()->route('admin.server.index');
         }
 
-        session()->flash('message', 'Database backup created: '.basename($path));
-        session()->flash('message-title', 'Backup complete');
-        session()->flash('message-type', 'success');
         session()->flash('database_backup_notice', [
             'type' => 'success',
             'text' => 'Backup created: '.basename($path),

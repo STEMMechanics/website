@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.10
+
+- Use mariadb_dump
+
 ## 1.3.9
 
 - Improved backup of database

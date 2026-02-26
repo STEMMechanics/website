@@ -8,10 +8,14 @@ use Symfony\Component\Process\Process;
 class DatabaseBackupService
 {
     private string $backupDirectory;
+    private string $dumpCommand;
+    private string $mysqlImportCommand;
 
     public function __construct()
     {
         $this->backupDirectory = storage_path('app/backups/database');
+        $this->dumpCommand = $this->resolveAvailableCommand(['mysqldump', 'mariadb-dump']);
+        $this->mysqlImportCommand = $this->resolveAvailableCommand(['mysql', 'mariadb']);
     }
 
     public function backupPath(string $filename): string
@@ -22,7 +26,6 @@ class DatabaseBackupService
     public function createBackup(?string $prefix = null): string
     {
         $this->assertMysqlConnection();
-        $this->ensureCommandAvailable('mysqldump');
         $this->ensureCommandAvailable('gzip');
 
         if (! is_dir($this->backupDirectory)) {
@@ -41,7 +44,7 @@ class DatabaseBackupService
         $mysql = $this->mysqlConfig();
 
         $dumpArgs = [
-            'mysqldump',
+            $this->dumpCommand,
             '--host='.$mysql['host'],
             '--port='.(string) $mysql['port'],
             '--user='.$mysql['username'],
@@ -58,7 +61,7 @@ class DatabaseBackupService
             '--result-file='.$tmpSqlPath,
         ];
 
-        if ($this->supportsSetGtidPurgedFlag()) {
+        if ($this->supportsSetGtidPurgedFlag($this->dumpCommand)) {
             $dumpArgs[] = '--set-gtid-purged=OFF';
         }
 
@@ -164,7 +167,6 @@ class DatabaseBackupService
     public function restoreBackup(string $sourcePath): void
     {
         $this->assertMysqlConnection();
-        $this->ensureCommandAvailable('mysql');
 
         if (! is_file($sourcePath) || ! is_readable($sourcePath)) {
             throw new RuntimeException('Restore file not found or unreadable.');
@@ -181,7 +183,7 @@ class DatabaseBackupService
             ? 'gzip -dc '.escapeshellarg($sourcePath)
             : 'cat '.escapeshellarg($sourcePath);
 
-        $command = $inputCommand.' | mysql '
+        $command = $inputCommand.' | '.escapeshellcmd($this->mysqlImportCommand).' '
             .'--host='.escapeshellarg($mysql['host']).' '
             .'--port='.escapeshellarg((string) $mysql['port']).' '
             .'--user='.escapeshellarg($mysql['username']);
@@ -237,9 +239,9 @@ class DatabaseBackupService
         }
     }
 
-    private function supportsSetGtidPurgedFlag(): bool
+    private function supportsSetGtidPurgedFlag(string $dumpCommand): bool
     {
-        $process = new Process(['mysqldump', '--help']);
+        $process = new Process([$dumpCommand, '--help']);
         $process->setTimeout(10);
         $process->run();
 
@@ -248,5 +250,27 @@ class DatabaseBackupService
         }
 
         return str_contains($process->getOutput(), '--set-gtid-purged');
+    }
+
+    /**
+     * @param array<int, string> $commands
+     */
+    private function resolveAvailableCommand(array $commands): string
+    {
+        foreach ($commands as $command) {
+            if (! is_string($command) || trim($command) === '') {
+                continue;
+            }
+
+            $process = Process::fromShellCommandline('command -v '.escapeshellarg($command));
+            $process->setTimeout(10);
+            $process->run();
+
+            if ($process->isSuccessful()) {
+                return $command;
+            }
+        }
+
+        throw new RuntimeException('Required command is not available on the server. Tried: '.implode(', ', $commands));
     }
 }
