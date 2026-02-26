@@ -558,7 +558,6 @@
                             :checked="old('issue_now', false)"
                             :noWrapper="true"
                             :inline="true"
-                            inputClass="h-4 w-4 mt-0"
                             labelClass="pt-0"
                         />
                     </div>

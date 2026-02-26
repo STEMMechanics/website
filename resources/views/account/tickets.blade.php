@@ -48,7 +48,6 @@
                     label="Show cancelled/refunded"
                     :noWrapper="true"
                     :inline="true"
-                    inputClass="h-4 w-4 rounded mt-0"
                     labelClass="text-sm pt-0"
                     x-model="showCancelledRefunded" />
             </x-slot:left>

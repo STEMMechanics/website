@@ -1,5 +1,10 @@
 # Changes
 
+## 1.3.9
+
+- Improved backup of database
+- Fixed checkbox UI issues
+
 ## 1.3.8
 
 - UI improvements

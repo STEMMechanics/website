@@ -13,7 +13,6 @@
                         label="Current"
                         :noWrapper="true"
                         :inline="true"
-                        inputClass="h-4 w-4 rounded mt-0"
                         labelClass="text-sm pt-0" />
                     <x-ui.checkbox
                         name="force"
@@ -21,7 +20,6 @@
                         label="Force"
                         :noWrapper="true"
                         :inline="true"
-                        inputClass="h-4 w-4 rounded mt-0"
                         labelClass="text-sm pt-0" />
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
                 </form>
@@ -42,7 +40,6 @@
                         :checked="true"
                         :noWrapper="true"
                         :inline="true"
-                        inputClass="h-4 w-4 rounded mt-0"
                         labelClass="text-sm pt-0" />
                 </div>
             </div>
@@ -55,6 +52,58 @@
             @else
             <p id="deploy-log-empty" class="hidden text-sm text-gray-600">Deploy output log is empty.</p>
             <pre id="deploy-log-content" class="text-xs bg-gray-900 text-gray-100 rounded-md p-4 overflow-auto max-h-[20rem] whitespace-pre-wrap">{{ $deployOutputContent }}</pre>
+            @endif
+        </div>
+
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h3 class="text-lg font-bold">Database Backup</h3>
+                <form method="POST" action="{{ route('admin.server.database.export') }}" data-sm-confirm="Create and download a full database backup now?" data-sm-confirm-button="Export Backup">
+                    @csrf
+                    <x-ui.button type="submit" color="dark">Export Now (.sql.gz)</x-ui.button>
+                </form>
+            </div>
+
+            <p class="text-xs text-gray-600 mb-3">Hourly backups are scheduled via Laravel Scheduler command <code>database:backup --keep=168</code>.</p>
+
+            <form method="POST" action="{{ route('admin.server.database.import') }}" enctype="multipart/form-data" data-sm-confirm="This will overwrite current database data. Continue with import?" data-sm-confirm-button="Import Backup" class="mb-4">
+                @csrf
+                <div class="flex flex-col md:flex-row md:items-end gap-3">
+                    <div class="flex-1">
+                        <x-ui.input type="file" name="database_backup" label="Import Backup (.sql or .sql.gz)" accept=".sql,.gz,.sql.gz" />
+                    </div>
+                    <x-ui.button type="submit" color="danger">Import Backup</x-ui.button>
+                </div>
+            </form>
+
+            <h4 class="font-semibold mb-2">Available Backups</h4>
+            @if(empty($databaseBackups))
+                <p class="text-sm text-gray-600">No backup files found yet.</p>
+            @else
+                <div class="overflow-auto border border-gray-200 rounded-lg">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-3 py-2">File</th>
+                            <th class="text-left px-3 py-2">Modified</th>
+                            <th class="text-left px-3 py-2">Size</th>
+                            <th class="text-left px-3 py-2">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($databaseBackups as $backup)
+                            <tr class="border-t border-gray-100">
+                                <td class="px-3 py-2 font-mono text-xs break-all">{{ $backup['filename'] }}</td>
+                                <td class="px-3 py-2">{{ $backup['modified_at'] }}</td>
+                                <td class="px-3 py-2">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
+                                <td class="px-3 py-2">
+                                    <a class="link" href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}">Download</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
             @endif
         </div>
 

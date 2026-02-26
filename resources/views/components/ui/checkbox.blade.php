@@ -30,7 +30,7 @@ $wrapperClasses = $noWrapper ? '' : 'mb-4';
             @if($disabled) disabled @endif
             @if($resolvedId) id="{{ $resolvedId }}" @endif
             @if($name) name="{{ $name }}" @endif
-            class="{{ twMerge(['bg-white','mt-1','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
+            class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
             {{ $attributes->except('class') }} />
 
         @if(($label !== null && $label !== '') || $labelHidden)
