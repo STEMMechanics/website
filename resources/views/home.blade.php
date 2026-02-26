@@ -1,5 +1,9 @@
-<x-layout id="home">
-    <x-slot name="title">Home</x-slot>
+<x-layout
+    id="home"
+    title="Home"
+    description="Hands-on STEM workshops in Cairns and across Queensland, including coding, robotics, creative tech, and community programs."
+    :canonical="route('index')"
+>
     <section id="banner" class="bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.7),rgba(0,0,0,.2)),url({{asset('home-hero.webp')}})">
         <x-container class="py-32 relative">
             <h2 class="text-3xl text-white font-bold mb-4">Join the fun!</h2>

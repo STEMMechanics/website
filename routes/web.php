@@ -15,6 +15,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\ServerController;
+use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteOptionController;
 use App\Http\Controllers\SquareWebhookController;
 use App\Http\Controllers\SubscribeController;
@@ -28,6 +29,7 @@ use App\Http\Controllers\WorkshopTicketFlowController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('index');
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.xml');
 
 // Route::get('posts', [PostController::class, 'index'])->name('post.index');
 // Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');

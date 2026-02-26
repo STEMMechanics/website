@@ -50,7 +50,8 @@ class WorkshopVisibilityRulesTest extends TestCase
 
         $this->get(route('workshop.show', $hiddenWorkshop))
             ->assertOk()
-            ->assertSee('Hidden Direct Access Workshop');
+            ->assertSee('Hidden Direct Access Workshop')
+            ->assertSee('meta name="robots" content="noindex, nofollow"', false);
     }
 
     public function test_non_hidden_workshop_with_future_publish_date_is_not_accessible_by_direct_url(): void

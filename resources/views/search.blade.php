@@ -1,4 +1,9 @@
-<x-layout>
+<x-layout
+    :title="'Search: ' . $search"
+    :description="'Search results for ' . $search"
+    :canonical="route('search.index', ['q' => $search])"
+    :noindex="true"
+>
     <x-mast title="Search" description='Results for "{{ $search }}"' />
     <x-container>
 {{--        <section class="bg-gray-100">--}}

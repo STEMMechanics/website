@@ -1,4 +1,64 @@
-<x-layout>
+@php
+    $seoDescription = \Illuminate\Support\Str::limit(trim(strip_tags((string) ($workshop->content ?? ''))), 160, '...');
+
+    $eventLocation = $workshop->location_id
+        ? [
+            '@type' => 'Place',
+            'name' => (string) $workshop->getLocationName(),
+            'address' => (string) ($workshop->location?->address ?? ''),
+        ]
+        : [
+            '@type' => 'VirtualLocation',
+            'url' => route('workshop.show', $workshop),
+        ];
+
+    $eventStatus = match ((string) ($workshop->status ?? '')) {
+        'cancelled' => 'https://schema.org/EventCancelled',
+        'scheduled' => 'https://schema.org/EventScheduled',
+        default => 'https://schema.org/EventScheduled',
+    };
+
+    $eventJsonLd = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Event',
+        'name' => (string) ($workshop->title ?? 'Workshop'),
+        'description' => $seoDescription,
+        'startDate' => $workshop->starts_at?->toIso8601String(),
+        'endDate' => $workshop->ends_at?->toIso8601String(),
+        'eventStatus' => $eventStatus,
+        'eventAttendanceMode' => $workshop->location_id
+            ? 'https://schema.org/OfflineEventAttendanceMode'
+            : 'https://schema.org/OnlineEventAttendanceMode',
+        'location' => $eventLocation,
+        'organizer' => [
+            '@type' => 'Organization',
+            'name' => 'STEMMechanics',
+            'url' => url('/'),
+        ],
+        'url' => route('workshop.show', $workshop),
+    ];
+
+    $rawPrice = trim((string) ($workshop->price ?? ''));
+    if (is_numeric($rawPrice)) {
+        $eventJsonLd['offers'] = [
+            '@type' => 'Offer',
+            'priceCurrency' => 'AUD',
+            'price' => number_format((float) $rawPrice, 2, '.', ''),
+            'availability' => $workshop->status === 'full'
+                ? 'https://schema.org/SoldOut'
+                : 'https://schema.org/InStock',
+            'url' => route('workshop.show', $workshop),
+        ];
+    }
+@endphp
+
+<x-layout
+    :title="$workshop->title"
+    :description="$seoDescription"
+    :canonical="route('workshop.show', $workshop)"
+    :noindex="$workshop->status === 'hidden'"
+    :jsonLd="$eventJsonLd"
+>
     <x-container>
         <x-ui.image-hero :image="$workshop->hero?->url" class="my-8" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">

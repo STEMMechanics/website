@@ -4,6 +4,7 @@
 
 - Support reverse proxies in identifying IP addresses
 - Added option to have hidden workshops
+- Improved SEO
 
 ## 1.3.5
 

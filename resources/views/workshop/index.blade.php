@@ -1,5 +1,14 @@
-<x-layout>
-    <x-slot name="title">Workshops</x-slot>
+@php
+    $isPast = request()->routeIs('workshop.past.index');
+@endphp
+
+<x-layout
+    :title="$isPast ? 'Past Workshops' : 'Workshops'"
+    :description="$isPast
+        ? 'Explore past STEMMechanics workshops and previous program sessions.'
+        : 'Browse upcoming STEMMechanics workshops, event details, and registration options.'"
+    :canonical="$isPast ? route('workshop.past.index') : route('workshop.index')"
+>
     <x-mast title="Workshops" :tabs="[
         ['title' => 'Upcoming', 'route' => route('workshop.index')],
         ['title' => 'Past', 'route' => route('workshop.past.index')],
