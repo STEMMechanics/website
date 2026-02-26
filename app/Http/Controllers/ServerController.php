@@ -8,11 +8,14 @@ use App\Models\Expense;
 use App\Models\Media;
 use App\Models\SentEmail;
 use App\Models\SquareWebhookEvent;
+use App\Services\DatabaseBackupService;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use ZipArchive;
@@ -21,12 +24,18 @@ class ServerController extends Controller
 {
     private const ORPHAN_SCAN_REPORT_FILE = 'server/orphaned-files-report.json';
 
+    public function __construct(
+        private readonly DatabaseBackupService $databaseBackupService
+    ) {}
+
     public function admin_index(): View
     {
         $logPath = $this->getLaravelLogPath();
         $logData = $this->getFileData($logPath, 300);
         $deployLogPath = $this->getDeployOutputPath();
         $deployLogData = $this->getFileData($deployLogPath, 150);
+        $databaseBackups = $this->paginateBackups(request());
+
         return view('admin.server.index', [
             'serverInfo' => $this->getServerInfo(),
             'logPath' => $logPath,
@@ -38,7 +47,148 @@ class ServerController extends Controller
             'deployOutputExists' => $deployLogData['exists'],
             'deployOutputModifiedAt' => $deployLogData['modified_at'],
             'deployOutputContent' => $deployLogData['content'],
+            'databaseBackups' => $databaseBackups,
         ]);
+    }
+
+    public function admin_database_export(Request $request)
+    {
+        try {
+            $path = $this->databaseBackupService->createBackup();
+            $keep = max(1, (int) config('backup.database.keep', 168));
+            $this->databaseBackupService->pruneOldBackups($keep);
+        } catch (\Throwable $e) {
+            session()->flash('message', 'Database export failed: '.$e->getMessage());
+            session()->flash('message-title', 'Export failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        $filename = basename($path);
+
+        return response()->download($path, $filename, [
+            'Content-Type' => 'application/gzip',
+        ]);
+    }
+
+    public function admin_database_backup_now(Request $request): RedirectResponse
+    {
+        try {
+            $path = $this->databaseBackupService->createBackup();
+            $keep = max(1, (int) config('backup.database.keep', 168));
+            $this->databaseBackupService->pruneOldBackups($keep);
+        } catch (\Throwable $e) {
+            session()->flash('message', 'Database backup failed: '.$e->getMessage());
+            session()->flash('message-title', 'Backup failed');
+            session()->flash('message-type', 'danger');
+            session()->flash('database_backup_notice', [
+                'type' => 'danger',
+                'text' => 'Backup failed: '.$e->getMessage(),
+            ]);
+
+            return redirect()->route('admin.server.index');
+        }
+
+        session()->flash('message', 'Database backup created: '.basename($path));
+        session()->flash('message-title', 'Backup complete');
+        session()->flash('message-type', 'success');
+        session()->flash('database_backup_notice', [
+            'type' => 'success',
+            'text' => 'Backup created: '.basename($path),
+        ]);
+
+        return redirect()->route('admin.server.index');
+    }
+
+    public function admin_database_download(string $filename)
+    {
+        $safeFilename = basename($filename);
+        if (! Str::endsWith($safeFilename, '.sql.gz')) {
+            abort(404);
+        }
+
+        $path = $this->databaseBackupService->backupPath($safeFilename);
+        if (! is_file($path)) {
+            abort(404);
+        }
+
+        return response()->download($path, $safeFilename, [
+            'Content-Type' => 'application/gzip',
+        ]);
+    }
+
+    public function admin_database_delete(string $filename): RedirectResponse
+    {
+        $safeFilename = basename($filename);
+        if (! Str::endsWith($safeFilename, '.sql.gz')) {
+            abort(404);
+        }
+
+        $path = $this->databaseBackupService->backupPath($safeFilename);
+        if (! is_file($path)) {
+            abort(404);
+        }
+
+        if (! @unlink($path)) {
+            session()->flash('message', 'Could not delete backup file: '.$safeFilename);
+            session()->flash('message-title', 'Delete failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.index');
+        }
+
+        session()->flash('message', 'Backup file deleted: '.$safeFilename);
+        session()->flash('message-title', 'Backup deleted');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.server.index');
+    }
+
+    public function admin_database_import(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'database_backup' => ['required', 'file', 'max:512000'], // 500 MB
+        ]);
+
+        $file = $validated['database_backup'];
+        $originalName = strtolower((string) $file->getClientOriginalName());
+        if (! (Str::endsWith($originalName, '.sql') || Str::endsWith($originalName, '.sql.gz'))) {
+            return back()->withErrors([
+                'database_backup' => 'Please upload a .sql or .sql.gz database backup file.',
+            ]);
+        }
+
+        $tempPath = null;
+
+        try {
+            $storedRelativePath = $file->storeAs(
+                'server/database-imports',
+                now()->format('Ymd_His').'_'.Str::random(8).'_'.preg_replace('/[^a-zA-Z0-9._-]/', '-', (string) $file->getClientOriginalName())
+            );
+
+            if (! is_string($storedRelativePath) || $storedRelativePath === '') {
+                throw new \RuntimeException('Upload failed.');
+            }
+
+            $tempPath = Storage::disk('local')->path($storedRelativePath);
+            $this->databaseBackupService->restoreBackup($tempPath);
+            Storage::disk('local')->delete($storedRelativePath);
+
+            session()->flash('message', 'Database import completed successfully.');
+            session()->flash('message-title', 'Import complete');
+            session()->flash('message-type', 'success');
+        } catch (\Throwable $e) {
+            if (is_string($tempPath) && is_file($tempPath)) {
+                @unlink($tempPath);
+            }
+
+            session()->flash('message', 'Database import failed: '.$e->getMessage());
+            session()->flash('message-title', 'Import failed');
+            session()->flash('message-type', 'danger');
+        }
+
+        return redirect()->route('admin.server.index');
     }
 
     public function admin_clear_log(): RedirectResponse
@@ -767,6 +917,26 @@ class ServerController extends Controller
             'orphan_media' => $mediaOrphans,
             default => array_merge($expenseOrphans, $mediaOrphans),
         };
+    }
+
+    private function paginateBackups(Request $request): LengthAwarePaginator
+    {
+        $allBackups = collect($this->databaseBackupService->listBackups())->values();
+        $perPage = 20;
+        $page = max(1, (int) $request->query('backup_page', 1));
+        $items = $allBackups->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return new LengthAwarePaginator(
+            $items,
+            $allBackups->count(),
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'pageName' => 'backup_page',
+                'query' => $request->query(),
+            ]
+        );
     }
 
     private function shouldIgnoreOrphanScanPath(string $path): bool

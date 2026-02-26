@@ -58,26 +58,38 @@
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
                 <h3 class="text-lg font-bold">Database Backup</h3>
-                <form method="POST" action="{{ route('admin.server.database.export') }}" data-sm-confirm="Create and download a full database backup now?" data-sm-confirm-button="Export Backup">
-                    @csrf
-                    <x-ui.button type="submit" color="dark">Export Now (.sql.gz)</x-ui.button>
-                </form>
+                <div class="flex items-center gap-3">
+                    <form method="POST" action="{{ route('admin.server.database.backup-now') }}" data-sm-confirm="Create a full database backup now?" data-sm-confirm-button="Backup Now">
+                        @csrf
+                        <x-ui.button type="submit" color="dark">Backup Now</x-ui.button>
+                    </form>
+{{--                    <form method="POST" action="{{ route('admin.server.database.export') }}" data-sm-confirm="Create and download a full database backup now?" data-sm-confirm-button="Export Backup">--}}
+{{--                        @csrf--}}
+{{--                        <x-ui.button type="submit" color="outline">Export (.sql.gz)</x-ui.button>--}}
+{{--                    </form>--}}
+                </div>
             </div>
+
+            @if(is_array(session('database_backup_notice')))
+                @php($dbNotice = session('database_backup_notice'))
+                <div class="mb-3 rounded-md border px-3 py-2 text-sm {{ ($dbNotice['type'] ?? '') === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800' }}">
+                    {{ (string) ($dbNotice['text'] ?? '') }}
+                </div>
+            @endif
 
             <p class="text-xs text-gray-600 mb-3">Hourly backups are scheduled via Laravel Scheduler command <code>database:backup --keep=168</code>.</p>
 
-            <form method="POST" action="{{ route('admin.server.database.import') }}" enctype="multipart/form-data" data-sm-confirm="This will overwrite current database data. Continue with import?" data-sm-confirm-button="Import Backup" class="mb-4">
+            <form id="database-import-form" method="POST" action="{{ route('admin.server.database.import') }}" enctype="multipart/form-data" data-sm-confirm="This will overwrite current database data. Continue with import?" data-sm-confirm-button="Import Backup" class="mb-4">
                 @csrf
                 <div class="flex flex-col md:flex-row md:items-end gap-3">
                     <div class="flex-1">
-                        <x-ui.input type="file" name="database_backup" label="Import Backup (.sql or .sql.gz)" accept=".sql,.gz,.sql.gz" />
+                        <x-ui.input type="file" name="database_backup" id="database_backup" label="Import Backup (.sql or .sql.gz)" accept=".sql,.gz,.sql.gz" />
                     </div>
-                    <x-ui.button type="submit" color="danger">Import Backup</x-ui.button>
                 </div>
             </form>
 
             <h4 class="font-semibold mb-2">Available Backups</h4>
-            @if(empty($databaseBackups))
+            @if($databaseBackups->isEmpty())
                 <p class="text-sm text-gray-600">No backup files found yet.</p>
             @else
                 <div class="overflow-auto border border-gray-200 rounded-lg">
@@ -97,12 +109,26 @@
                                 <td class="px-3 py-2">{{ $backup['modified_at'] }}</td>
                                 <td class="px-3 py-2">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
                                 <td class="px-3 py-2">
-                                    <a class="link" href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}">Download</a>
+                                    <div class="flex items-center gap-3">
+                                        <a href="{{ route('admin.server.database.download', ['filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="Download backup">
+                                            <i class="fa-solid fa-download"></i>
+                                        </a>
+                                        <form method="POST" action="{{ route('admin.server.database.delete', ['filename' => $backup['filename']]) }}" data-sm-confirm="Delete this backup file? This cannot be undone." data-sm-confirm-button="Delete Backup">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="hover:text-red-600" title="Delete backup">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
                         </tbody>
                     </table>
+                </div>
+                <div class="mt-3">
+                    {{ $databaseBackups->links() }}
                 </div>
             @endif
         </div>
@@ -164,6 +190,8 @@
         const laravelEmptyEl = document.getElementById('laravel-log-empty');
         const laravelContentEl = document.getElementById('laravel-log-content');
         const laravelEndpoint = "{{ route('admin.server.log') }}";
+        const databaseImportInput = document.getElementById('database_backup');
+        const databaseImportForm = document.getElementById('database-import-form');
         const setButtonLoading = (button, isLoading, label = 'Refreshing...') => {
             if (!(button instanceof HTMLButtonElement)) {
                 return;
@@ -334,6 +362,16 @@
                 );
             }
         });
+
+        if (databaseImportInput instanceof HTMLInputElement && databaseImportForm instanceof HTMLFormElement) {
+            databaseImportInput.addEventListener('change', () => {
+                if (!databaseImportInput.files || databaseImportInput.files.length === 0) {
+                    return;
+                }
+
+                databaseImportForm.requestSubmit();
+            });
+        }
 
         refreshLog(false);
         refreshLaravelLog();

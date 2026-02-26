@@ -181,6 +181,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/deploy/log/clear', [ServerController::class, 'admin_clear_deploy_log'])->name('admin.server.deploy.log.clear');
     Route::post('/admin/server/deploy', [ServerController::class, 'admin_deploy'])->name('admin.server.deploy');
     Route::get('/admin/server/deploy/log', [ServerController::class, 'admin_deploy_log'])->name('admin.server.deploy.log');
+    Route::post('/admin/server/database/backup-now', [ServerController::class, 'admin_database_backup_now'])->name('admin.server.database.backup-now');
+    Route::post('/admin/server/database/export', [ServerController::class, 'admin_database_export'])->name('admin.server.database.export');
+    Route::post('/admin/server/database/import', [ServerController::class, 'admin_database_import'])->name('admin.server.database.import');
+    Route::get('/admin/server/database/download/{filename}', [ServerController::class, 'admin_database_download'])->name('admin.server.database.download');
+    Route::delete('/admin/server/database/{filename}', [ServerController::class, 'admin_database_delete'])->name('admin.server.database.delete');
     Route::get('/admin/server/orphans', [ServerController::class, 'admin_orphans'])->name('admin.server.orphans');
     Route::get('/admin/server/audit', [ServerController::class, 'admin_audit'])->name('admin.server.audit');
     Route::post('/admin/server/audit/prune', [ServerController::class, 'admin_audit_prune'])->name('admin.server.audit.prune');

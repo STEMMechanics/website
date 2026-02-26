@@ -6,6 +6,7 @@ use App\Models\Media;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schedule;
 
 /**
  * The scheduler is run from a cronjob on the server every minute.
@@ -133,4 +134,8 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
     }
 })->purpose('Requeue stuck media variants and recover stale media statuses')
     ->everyTenMinutes()
+    ->withoutOverlapping();
+
+Schedule::command('database:backup --keep=336')
+    ->hourly()
     ->withoutOverlapping();
