@@ -20,7 +20,7 @@
         />
 
         {{-- Submit button --}}
-        <x-ui.button color="dark" type="submit" class="rounded-l-none mb-4">
+        <x-ui.button color="dark" type="submit" class="rounded-l-none">
             Subscribe
         </x-ui.button>
     </form>
