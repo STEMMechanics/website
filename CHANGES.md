@@ -3,6 +3,7 @@
 ## 1.3.8
 
 - UI improvements
+- Added ability to copy hidden workshop URLs
 
 ## 1.3.7
 
