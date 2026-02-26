@@ -27,10 +27,13 @@ class WorkshopAttendanceFactory extends Factory
             'user_id' => User::query()->value('id') ?? User::factory(),
             'created_by' => User::query()->value('id') ?? User::factory(),
             'source' => 'dropin',
+            'child_name' => fake()->name(),
             'firstname' => fake()->firstName(),
             'surname' => fake()->lastName(),
+            'guardian_name' => fake()->name(),
             'email' => fake()->safeEmail(),
             'phone' => fake()->phoneNumber(),
+            'media_consent' => fake()->boolean(),
             'attended_at' => now(),
         ];
     }

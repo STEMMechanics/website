@@ -556,6 +556,8 @@ class WorkshopController extends Controller
 
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
+        $isKiosk = request()->boolean('kiosk') && $workshop->registration !== 'tickets';
+
         $activeTickets = collect();
         if ($workshop->registration === 'tickets') {
             $activeTickets = Ticket::query()
@@ -575,11 +577,73 @@ class WorkshopController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return response()->view('admin.workshop.attendance', [
+        $view = $isKiosk ? 'admin.workshop.attendance-kiosk' : 'admin.workshop.attendance';
+
+        return response()->view($view, [
             'workshop' => $workshop->loadMissing('location'),
             'activeTickets' => $activeTickets,
             'dropIns' => $dropIns,
+            'isKiosk' => $isKiosk,
         ]);
+    }
+
+    public function admin_attendance_csv(Workshop $workshop)
+    {
+        $rows = $this->buildAttendanceExportRows($workshop);
+
+        $filename = 'workshop-'.$workshop->id.'-attendance.csv';
+
+        return response()->streamDownload(function () use ($rows): void {
+            $out = fopen('php://output', 'w');
+            if (! is_resource($out)) {
+                return;
+            }
+
+            fputcsv($out, [
+                'Source',
+                'Child Name',
+                'Parent/Guardian Name',
+                'Email',
+                'Phone',
+                'Media Consent',
+                'Ticket Reference',
+                'Status',
+                'Recorded At',
+            ]);
+
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row['source'],
+                    $row['child_name'],
+                    $row['guardian_name'],
+                    $row['email'],
+                    $row['phone'],
+                    $row['media_consent'],
+                    $row['ticket_reference'],
+                    $row['status'],
+                    $row['recorded_at'],
+                ]);
+            }
+
+            fclose($out);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function admin_attendance_pdf(Workshop $workshop): Response
+    {
+        if (! class_exists(DomPdf::class)) {
+            abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
+        }
+
+        $rows = $this->buildAttendanceExportRows($workshop);
+
+        return DomPdf::loadView('pdf.workshop-attendance-sheet', [
+            'workshop' => $workshop->loadMissing('location'),
+            'rows' => collect($rows),
+            'generatedAt' => now(),
+        ])->stream('workshop-'.$workshop->id.'-attendance.pdf');
     }
 
     public function admin_attendance_tickets(Request $request, Workshop $workshop)
@@ -636,18 +700,23 @@ class WorkshopController extends Controller
     public function admin_attendance_dropin_store(Request $request, Workshop $workshop)
     {
         $validated = $request->validate([
-            'firstname' => ['required', 'string', 'max:120'],
-            'surname' => ['nullable', 'string', 'max:120'],
+            'child_name' => ['required', 'string', 'max:180'],
+            'guardian_name' => ['required_if:kiosk,1', 'nullable', 'string', 'max:160'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:60'],
+            'media_consent' => ['nullable', 'boolean'],
+            'kiosk' => ['nullable', 'boolean'],
         ]);
 
         $email = strtolower(trim((string) ($validated['email'] ?? '')));
-        $firstname = trim((string) ($validated['firstname'] ?? ''));
-        $surname = trim((string) ($validated['surname'] ?? ''));
+        $childName = trim((string) ($validated['child_name'] ?? ''));
+        $guardianName = trim((string) ($validated['guardian_name'] ?? ''));
         $phone = trim((string) ($validated['phone'] ?? ''));
+        $mediaConsent = array_key_exists('media_consent', $validated)
+            ? (bool) $validated['media_consent']
+            : false;
 
-        $userId = $this->resolveAttendanceUserId($email, $firstname, $surname, $phone);
+        $userId = $this->resolveAttendanceUserId($email, $childName, '', $phone);
 
         WorkshopAttendance::query()->create([
             'workshop_id' => $workshop->id,
@@ -655,14 +724,219 @@ class WorkshopController extends Controller
             'user_id' => $userId,
             'created_by' => auth()->id(),
             'source' => 'dropin',
-            'firstname' => $firstname !== '' ? $firstname : null,
-            'surname' => $surname !== '' ? $surname : null,
+            'child_name' => $childName !== '' ? $childName : null,
+            'firstname' => null,
+            'surname' => null,
+            'guardian_name' => $guardianName !== '' ? $guardianName : null,
             'email' => $email !== '' ? $email : null,
             'phone' => $phone !== '' ? $phone : null,
+            'media_consent' => $mediaConsent,
             'attended_at' => now(),
         ]);
 
-        session()->flash('message', 'Drop-in attendance has been recorded.');
+        session()->flash('message', 'Your attendance has been recorded. Thank you.');
+        session()->flash('message-title', 'Attendance saved');
+        session()->flash('message-type', 'success');
+
+        $routeParams = ['workshop' => $workshop];
+        if ($request->boolean('kiosk') && $workshop->registration !== 'tickets') {
+            $routeParams['kiosk'] = 1;
+        }
+
+        return redirect()->route('admin.workshop.attendance', $routeParams);
+    }
+
+    public function admin_attendance_dropin_sync(Request $request, Workshop $workshop)
+    {
+        $rawEntries = collect($request->input('entries', []))
+            ->filter(fn ($row) => is_array($row))
+            ->map(function (array $row): array {
+                return [
+                    'id' => (int) ($row['id'] ?? 0),
+                    'child_name' => trim((string) ($row['child_name'] ?? '')),
+                    'guardian_name' => trim((string) ($row['guardian_name'] ?? '')),
+                    'email' => strtolower(trim((string) ($row['email'] ?? ''))),
+                    'phone' => trim((string) ($row['phone'] ?? '')),
+                    'media_consent' => (bool) ($row['media_consent'] ?? false),
+                ];
+            });
+
+        $entries = $rawEntries
+            ->filter(fn (array $row): bool => $row['child_name'] !== '')
+            ->values()
+            ->all();
+
+        validator(['entries' => $entries], [
+            'entries' => ['nullable', 'array'],
+            'entries.*.id' => ['nullable', 'integer', 'min:0'],
+            'entries.*.child_name' => ['required', 'string', 'max:180'],
+            'entries.*.guardian_name' => ['nullable', 'string', 'max:160'],
+            'entries.*.email' => ['nullable', 'email', 'max:255'],
+            'entries.*.phone' => ['nullable', 'string', 'max:60'],
+            'entries.*.media_consent' => ['nullable', 'boolean'],
+        ])->validate();
+
+        $existing = WorkshopAttendance::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereNull('ticket_id')
+            ->get()
+            ->keyBy(fn (WorkshopAttendance $entry): int => (int) $entry->id);
+
+        $retainedIds = [];
+
+        foreach ($entries as $row) {
+            $entryId = (int) ($row['id'] ?? 0);
+            $userId = $this->resolveAttendanceUserId(
+                (string) ($row['email'] ?? ''),
+                (string) ($row['child_name'] ?? ''),
+                '',
+                (string) ($row['phone'] ?? '')
+            );
+
+            if ($entryId > 0 && $existing->has($entryId)) {
+                /** @var WorkshopAttendance $entry */
+                $entry = $existing->get($entryId);
+                $entry->child_name = $row['child_name'] !== '' ? $row['child_name'] : null;
+                $entry->guardian_name = $row['guardian_name'] !== '' ? $row['guardian_name'] : null;
+                $entry->email = $row['email'] !== '' ? $row['email'] : null;
+                $entry->phone = $row['phone'] !== '' ? $row['phone'] : null;
+                $entry->media_consent = (bool) ($row['media_consent'] ?? false);
+                $entry->user_id = $userId;
+                $entry->save();
+
+                $retainedIds[] = (int) $entry->id;
+                continue;
+            }
+
+            $created = WorkshopAttendance::query()->create([
+                'workshop_id' => $workshop->id,
+                'ticket_id' => null,
+                'user_id' => $userId,
+                'created_by' => auth()->id(),
+                'source' => 'dropin',
+                'child_name' => $row['child_name'] !== '' ? $row['child_name'] : null,
+                'firstname' => null,
+                'surname' => null,
+                'guardian_name' => $row['guardian_name'] !== '' ? $row['guardian_name'] : null,
+                'email' => $row['email'] !== '' ? $row['email'] : null,
+                'phone' => $row['phone'] !== '' ? $row['phone'] : null,
+                'media_consent' => (bool) ($row['media_consent'] ?? false),
+                'attended_at' => now(),
+            ]);
+
+            $retainedIds[] = (int) $created->id;
+        }
+
+        $deleteIds = $existing->keys()
+            ->map(fn ($id): int => (int) $id)
+            ->reject(fn (int $id): bool => in_array($id, $retainedIds, true))
+            ->values()
+            ->all();
+
+        if ($deleteIds !== []) {
+            WorkshopAttendance::query()
+                ->where('workshop_id', $workshop->id)
+                ->whereNull('ticket_id')
+                ->whereIn('id', $deleteIds)
+                ->delete();
+        }
+
+        session()->flash('message', 'Attendance records have been updated.');
+        session()->flash('message-title', 'Attendance saved');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.attendance', $workshop);
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    private function buildAttendanceExportRows(Workshop $workshop): array
+    {
+        $rows = [];
+
+        $dropIns = WorkshopAttendance::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereNull('ticket_id')
+            ->orderBy('attended_at')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($dropIns as $entry) {
+            $childName = trim((string) ($entry->child_name ?? ''));
+            if ($childName === '') {
+                $childName = trim((string) (($entry->firstname ?? '').' '.($entry->surname ?? '')));
+            }
+
+            $rows[] = [
+                'source' => 'dropin',
+                'child_name' => $childName,
+                'guardian_name' => trim((string) ($entry->guardian_name ?? '')),
+                'email' => trim((string) ($entry->email ?? '')),
+                'phone' => trim((string) ($entry->phone ?? '')),
+                'media_consent' => $entry->media_consent ? 'Yes' : 'No',
+                'ticket_reference' => '',
+                'status' => 'Recorded',
+                'recorded_at' => $entry->attended_at?->format('Y-m-d H:i:s') ?? '',
+            ];
+        }
+
+        if ($workshop->registration === 'tickets') {
+            $tickets = Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->orderBy('firstname')
+                ->orderBy('surname')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($tickets as $ticket) {
+                $rows[] = [
+                    'source' => 'ticket',
+                    'child_name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
+                    'guardian_name' => '',
+                    'email' => trim((string) ($ticket->email ?? '')),
+                    'phone' => trim((string) ($ticket->phone ?? '')),
+                    'media_consent' => '',
+                    'ticket_reference' => (string) ($ticket->reference_code ?: $ticket->id),
+                    'status' => $ticket->attended_at ? 'Attended' : 'Not marked',
+                    'recorded_at' => $ticket->attended_at?->format('Y-m-d H:i:s') ?? '',
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    public function admin_attendance_dropin_update(Request $request, Workshop $workshop, WorkshopAttendance $attendance)
+    {
+        abort_if($attendance->workshop_id !== $workshop->id, 404);
+        abort_if($attendance->ticket_id !== null, 403);
+
+        $validated = $request->validate([
+            'child_name' => ['required', 'string', 'max:180'],
+            'guardian_name' => ['nullable', 'string', 'max:160'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:60'],
+            'media_consent' => ['nullable', 'boolean'],
+        ]);
+
+        $email = strtolower(trim((string) ($validated['email'] ?? '')));
+        $childName = trim((string) ($validated['child_name'] ?? ''));
+        $guardianName = trim((string) ($validated['guardian_name'] ?? ''));
+        $phone = trim((string) ($validated['phone'] ?? ''));
+        $mediaConsent = array_key_exists('media_consent', $validated)
+            ? (bool) $validated['media_consent']
+            : false;
+
+        $attendance->child_name = $childName !== '' ? $childName : null;
+        $attendance->guardian_name = $guardianName !== '' ? $guardianName : null;
+        $attendance->email = $email !== '' ? $email : null;
+        $attendance->phone = $phone !== '' ? $phone : null;
+        $attendance->media_consent = $mediaConsent;
+        $attendance->save();
+
+        session()->flash('message', 'Attendance entry updated.');
         session()->flash('message-title', 'Attendance saved');
         session()->flash('message-type', 'success');
 

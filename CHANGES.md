@@ -5,6 +5,7 @@
 - Support reverse proxies in identifying IP addresses
 - Added option to have hidden workshops
 - Improved SEO
+- Added workshop sign in kiosk
 
 ## 1.3.5
 

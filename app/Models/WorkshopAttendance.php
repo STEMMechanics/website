@@ -16,15 +16,19 @@ class WorkshopAttendance extends Model
         'user_id',
         'created_by',
         'source',
+        'child_name',
         'firstname',
         'surname',
+        'guardian_name',
         'email',
         'phone',
+        'media_consent',
         'attended_at',
     ];
 
     protected $casts = [
         'attended_at' => 'datetime',
+        'media_consent' => 'boolean',
     ];
 
     public function workshop(): BelongsTo
