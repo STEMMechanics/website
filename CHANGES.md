@@ -7,6 +7,7 @@
 - Improved SEO
 - Added workshop sign in kiosk
 - oved to tales-from-a-dev/tailwind-merge-phpMoved to tales-from-a-dev/tailwind-merge-php
+- dependencies updated
 
 ## 1.3.5
 
