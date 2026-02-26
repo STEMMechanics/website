@@ -7,6 +7,7 @@
 - Orphan file downloads are now streamed
 - Added ability to delete orphaned files
 - UI Improvements
+- Removed login notification on session refresh of remembered devices
 
 ## 1.3.10
 

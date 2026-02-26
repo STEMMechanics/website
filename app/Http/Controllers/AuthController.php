@@ -46,9 +46,10 @@ class AuthController extends Controller
             return $this->loginByUser(
                 $rememberedUser,
                 ['url' => session()->pull('url.intended', null)],
-                'Welcome back! You were signed in on this device.',
-                'Logged in',
-                'success'
+                null,
+                null,
+                'success',
+                false
             );
         }
 
@@ -201,7 +202,8 @@ class AuthController extends Controller
         array $data = [],
         ?string $message = null,
         ?string $title = null,
-        string $type = 'success'
+        string $type = 'success',
+        bool $flashMessage = true
     )
     {
         $url = null;
@@ -228,9 +230,11 @@ class AuthController extends Controller
             }
         }
 
-        session()->flash('message', $message ?? 'You have been logged in');
-        session()->flash('message-title', $title ?? 'Logged in');
-        session()->flash('message-type', $type);
+        if ($flashMessage) {
+            session()->flash('message', $message ?? 'You have been logged in');
+            session()->flash('message-title', $title ?? 'Logged in');
+            session()->flash('message-type', $type);
+        }
 
         if($url) {
             return redirect($url);
