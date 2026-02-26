@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "98d9328d77a7e88177ce497cf6916f52",
+    "content-hash": "4fd245ddb3d5a695fc4a257c26a96e86",
     "packages": [
         {
             "name": "altcha-org/altcha",
@@ -7300,6 +7300,64 @@
                 }
             ],
             "time": "2025-11-05T18:53:00+00:00"
+        },
+        {
+            "name": "tales-from-a-dev/tailwind-merge-php",
+            "version": "v0.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/tales-from-a-dev/tailwind-merge-php.git",
+                "reference": "df42e7bafdf4628e92da752dafb175db28a77e82"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/tales-from-a-dev/tailwind-merge-php/zipball/df42e7bafdf4628e92da752dafb175db28a77e82",
+                "reference": "df42e7bafdf4628e92da752dafb175db28a77e82",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1",
+                "psr/simple-cache": "^3.0",
+                "symfony/string": "^6.4 || ^7.0 || ^8.0"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.89",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.5"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "TalesFromADev\\TailwindMerge\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Sandro Gehri",
+                    "email": "sandrogehri@gmail.com"
+                },
+                {
+                    "name": "Romain Monteil",
+                    "email": "monteil.romain@gmail.com"
+                }
+            ],
+            "description": "TailwindMerge for PHP merges multiple Tailwind CSS classes by automatically resolving conflicts between them",
+            "homepage": "https://github.com/tales-from-a-dev/tailwind-merge-php",
+            "keywords": [
+                "classes",
+                "merge",
+                "php",
+                "tailwindcss"
+            ],
+            "support": {
+                "issues": "https://github.com/tales-from-a-dev/tailwind-merge-php/issues",
+                "source": "https://github.com/tales-from-a-dev/tailwind-merge-php/tree/v0.2.0"
+            },
+            "time": "2026-02-20T01:12:11+00:00"
         },
         {
             "name": "thecodingmachine/safe",

@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Illuminate\View\ComponentAttributeBag;
+use TalesFromADev\TailwindMerge\TailwindMerge as TailwindMergeEngine;
 use Traversable;
 
 class TailwindMerge
 {
+    public function __construct(
+        private readonly TailwindMergeEngine $engine = new TailwindMergeEngine()
+    ) {
+    }
+
     public function merge(...$args): string
     {
         $tokens = [];
@@ -20,23 +26,7 @@ class TailwindMerge
             return '';
         }
 
-        $lastByToken = [];
-        foreach ($tokens as $index => $token) {
-            if ($token === '') {
-                continue;
-            }
-            $lastByToken[$token] = $index;
-        }
-
-        $ordered = [];
-        foreach ($tokens as $index => $token) {
-            if ($token === '' || ($lastByToken[$token] ?? -1) !== $index) {
-                continue;
-            }
-            $ordered[] = $token;
-        }
-
-        return implode(' ', $ordered);
+        return $this->engine->merge(implode(' ', $tokens));
     }
 
     /**
