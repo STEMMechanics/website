@@ -25,22 +25,24 @@
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Attendance</x-mast>
 
     <x-container>
-        <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div class="text-lg font-semibold">{{ $workshop->title }}</div>
-            <div class="text-sm text-gray-600">Starts: {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
-            <div class="text-sm text-gray-600">Location: {{ $workshop->getLocationName() }}</div>
-            <div class="mt-2 flex gap-2 flex-wrap">
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}">Export PDF</x-ui.button>
+        <x-ui.toolbar class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4 flex">
+            <x-slot:left>
+                <div class="flex flex-col">
+                    <div class="text-lg font-semibold mb-2">{{ $workshop->title }}</div>
+                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
+                </div>
+            </x-slot:left>
+            <x-slot:right>
+{{--                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance.pdf', $workshop) }}">Export PDF</x-ui.button>--}}
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance.csv', $workshop) }}">Export CSV</x-ui.button>
                 @if($isTicketedWorkshop)
                     <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                 @else
                     <x-ui.button type="link" href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
                 @endif
-            </div>
-        </div>
+            </x-slot:right>
+        </x-ui.toolbar>
 
         <div class="mb-6">
             <x-ui.filelist
@@ -207,16 +209,16 @@
                                             x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
                                             x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                     </td>
-                                    <td class="p-2 align-middle">
+                                    <td class="p-2 align-middle text-center">
                                         <input type="hidden" x-bind:name="`entries[${index}][media_consent]`" value="0">
                                         <input type="checkbox"
-                                               class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                               class="h-5 w-5 mt-1 rounded border-gray-300 text-primary-color focus:ring-primary-color"
                                                x-bind:name="`entries[${index}][media_consent]`"
                                                value="1"
                                                x-model="entry.media_consent"
                                                x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)">
                                     </td>
-                                    <td class="p-2 align-top">
+                                    <td class="p-2 align-middle text-center">
                                         <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeEntry(index)" title="Delete row">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
@@ -229,7 +231,7 @@
 
                 <div class="mt-4 flex justify-end">
                     <x-ui.button type="submit" x-bind:disabled="submitting">
-                        <span x-show="!submitting">Save Attendance Records</span>
+                        <span x-show="!submitting">Save</span>
                         <span x-show="submitting" class="inline-flex items-center gap-2">
                             <i class="fa-solid fa-circle-notch animate-spin"></i>
                             <span>Saving...</span>
