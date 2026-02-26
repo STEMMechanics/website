@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.5
+
+- Fixed scheduler updating 'Opens soon' workshops to 'Open' based on publish at date
+
 ## 1.3.4
 
 - Pick lists are now saved automatically
