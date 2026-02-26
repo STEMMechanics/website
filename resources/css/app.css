@@ -354,9 +354,9 @@ body.swal2-height-auto {
 }
 
 .sm-ui-checkbox.small input[type="checkbox"]:checked::after {
-    height: 1.1rem;
+    height: 1rem;
     width: 0.6rem;
-    transform: rotate(40deg) translateY(-0.25rem) translateX(0.3rem);
+    transform: rotate(40deg) translateY(-0.2rem) translateX(0.35rem);
 }
 
 /* resources/views/components/ui/toolbar.blade.php */
