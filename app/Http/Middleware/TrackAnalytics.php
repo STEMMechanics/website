@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\AnalyticsEvent;
+use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -50,6 +51,11 @@ class TrackAnalytics
     private function shouldTrack(Request $request, Response $response): bool
     {
         if (! (bool) config('analytics.enabled', true)) {
+            return false;
+        }
+
+        $user = $request->user();
+        if ($user instanceof User && $user->isAdmin()) {
             return false;
         }
 

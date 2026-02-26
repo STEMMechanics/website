@@ -6,8 +6,9 @@
 - Added option to have hidden workshops
 - Improved SEO
 - Added workshop sign in kiosk
-- oved to tales-from-a-dev/tailwind-merge-phpMoved to tales-from-a-dev/tailwind-merge-php
-- dependencies updated
+- Moved to tales-from-a-dev/tailwind-merge-phpMoved to tales-from-a-dev/tailwind-merge-php
+- Dependencies updated
+- Admin users are no longer tracked in analytics
 
 ## 1.3.5
 
