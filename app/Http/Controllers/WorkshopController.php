@@ -99,6 +99,7 @@ class WorkshopController extends Controller
             'closes_at' => 'required',
             'status' => 'required',
             'is_private' => 'nullable|boolean',
+            'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
@@ -126,6 +127,11 @@ class WorkshopController extends Controller
         $workshopData['user_id'] = auth()->user()->id;
         $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
+        $workshopData['is_hidden'] = $request->boolean('is_hidden');
+        if (($workshopData['status'] ?? null) === 'hidden') {
+            $workshopData['status'] = 'open';
+            $workshopData['is_hidden'] = true;
+        }
         if (($workshopData['status'] ?? null) === 'private') {
             $workshopData['status'] = 'open';
             $workshopData['is_private'] = true;
@@ -233,6 +239,7 @@ class WorkshopController extends Controller
             'closes_at' => 'required',
             'status' => 'required',
             'is_private' => 'nullable|boolean',
+            'is_hidden' => 'nullable|boolean',
             'hero_media_name' => 'required|exists:media,name',
             'registration_data' => 'required_if:registration,link,email,message',
             'private_code' => 'nullable|string|max:120',
@@ -259,6 +266,11 @@ class WorkshopController extends Controller
         $workshopData = $request->all();
         $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
+        $workshopData['is_hidden'] = $request->boolean('is_hidden');
+        if (($workshopData['status'] ?? null) === 'hidden') {
+            $workshopData['status'] = 'open';
+            $workshopData['is_hidden'] = true;
+        }
         if (($workshopData['status'] ?? null) === 'private') {
             $workshopData['status'] = 'open';
             $workshopData['is_private'] = true;

@@ -30,6 +30,7 @@ class Workshop extends Model
         'private_code',
         'hosted_for',
         'is_private',
+        'is_hidden',
         'max_tickets',
         'pick_list_template_id',
         'pick_list_participants',
@@ -46,6 +47,7 @@ class Workshop extends Model
         'publish_at' => 'datetime',
         'closes_at' => 'datetime',
         'is_private' => 'boolean',
+        'is_hidden' => 'boolean',
         'max_tickets' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
@@ -161,6 +163,10 @@ class Workshop extends Model
 
     public function publicStatus(): string
     {
+        if ((bool) ($this->is_hidden ?? false)) {
+            return 'hidden';
+        }
+
         if ($this->isPrivate() && $this->status === 'open') {
             return 'private';
         }
@@ -185,7 +191,7 @@ class Workshop extends Model
             return false;
         }
 
-        if ($this->status === 'hidden') {
+        if ((bool) ($this->is_hidden ?? false)) {
             return true;
         }
 
@@ -199,7 +205,11 @@ class Workshop extends Model
     public function scopePubliclyVisible(Builder $query): Builder
     {
         return $query
-            ->whereNotIn('status', ['draft', 'hidden'])
+            ->where('status', '!=', 'draft')
+            ->where(function (Builder $builder) {
+                $builder->whereNull('is_hidden')
+                    ->orWhere('is_hidden', false);
+            })
             ->where(function (Builder $builder) {
                 $builder->whereNull('publish_at')
                     ->orWhere('publish_at', '<=', now());

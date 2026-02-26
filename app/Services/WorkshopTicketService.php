@@ -66,9 +66,9 @@ class WorkshopTicketService
             return false;
         }
 
-        if ($workshop->isPrivate() && ! $workshop->requiresPrivateTicketCode()) {
-            return false;
-        }
+//        if ($workshop->isPrivate() && ! $workshop->requiresPrivateTicketCode()) {
+//            return false;
+//        }
 
         $this->syncManagedTicketStatus($workshop);
 

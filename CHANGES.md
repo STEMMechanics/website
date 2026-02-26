@@ -4,6 +4,8 @@
 
 - UI improvements
 - Added ability to copy hidden workshop URLs
+- Moved hidden status of workshops to separate flag
+- Fixed access code/tickets flow
 
 ## 1.3.7
 

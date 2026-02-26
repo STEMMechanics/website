@@ -56,7 +56,7 @@
     :title="$workshop->title"
     :description="$seoDescription"
     :canonical="route('workshop.show', $workshop)"
-    :noindex="$workshop->status === 'hidden'"
+    :noindex="(bool) $workshop->is_hidden"
     :jsonLd="$eventJsonLd"
 >
     <x-container>
@@ -81,13 +81,22 @@
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
-                @if($workshop->registration === 'tickets')
-                @include('workshop.partials.ticket-cta', [
-                    'workshop' => $workshop,
-                    'canGetTickets' => $canGetTickets,
-                    'availableTickets' => $availableTickets,
-                    'privateCodeRequired' => $workshop->requiresPrivateTicketCode(),
-                ])
+                @if($workshop->registration === 'tickets' && $availableTickets !== null)
+                    @if((int) $availableTickets > 0)
+                        <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Tickets</x-ui.button>
+                        @if($workshop->requiresPrivateTicketCode())
+                            <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>
+                        @endif
+                        <p class="text-xs text-gray-600 text-center mb-2">
+                            @if($availableTickets === null)
+                                Tickets available now.
+                            @else
+                                {{ $availableTickets }} ticket{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
+                            @endif
+                        </p>
+                    @else
+                        <div class="sm-registration-full">This workshop is currently full.</div>
+                    @endif
                 @elseif($workshop->registration === 'link')
                     @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
                         <div x-data="{ privateAccessModalOpen: {{ $errors->has('private_code') ? 'true' : 'false' }} }" class="flex flex-col mb-4">

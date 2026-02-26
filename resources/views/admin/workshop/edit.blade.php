@@ -1,7 +1,7 @@
 @php
 $workshopContent = isset($workshop) ? $workshop->content : '';
 $workshopStatusForForm = old('status', $workshop->status ?? 'draft');
-if ($workshopStatusForForm === 'private') {
+if (in_array($workshopStatusForForm, ['private', 'hidden'], true)) {
     $workshopStatusForForm = 'open';
 }
 $savedTickets = old('tickets_json');
@@ -30,6 +30,7 @@ $savedTickets = isset($workshop)
             type: @js(old('type', isset($workshop) && $workshop->location_id ? 'physical' : 'online')),
             status: @js($workshopStatusForForm),
             isPrivate: @js((bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)),
+            isHidden: @js((bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)),
             registration: @js(old('registration', $workshop->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshop->max_tickets ?? '')),
             locations: @js(\App\Models\Location::orderByRaw(" name='Online' DESC, name ASC")->get()->map(fn ($location) => [
@@ -303,7 +304,6 @@ $savedTickets = isset($workshop)
                     <div class="flex-1">
                         <x-ui.select label="Status" name="status" x-model="status">
                             <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
-                            <option value="hidden" {{ $workshopStatusForForm === 'hidden' ? 'selected' : '' }}>Hidden</option>
                             <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
                             <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
                             <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
@@ -323,6 +323,14 @@ $savedTickets = isset($workshop)
                                 value="1"
                                 :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
                                 x-model="isPrivate"
+                                no-wrapper="true"
+                                 />
+                        <x-ui.checkbox
+                                label="Hidden Workshop"
+                                name="is_hidden"
+                                value="1"
+                                :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
+                                x-model="isHidden"
                                 no-wrapper="true"
                                  />
                     </div>
@@ -443,7 +451,7 @@ $savedTickets = isset($workshop)
         const now = new Date();
         const statusElement = document.getElementsByName('status')[0];
 
-        if (publishAt > now && statusElement && statusElement.value !== 'hidden') {
+        if (publishAt > now && statusElement) {
             statusElement.value = 'scheduled';
         }
     }

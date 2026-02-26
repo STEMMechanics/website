@@ -18,7 +18,8 @@ class WorkshopVisibilityRulesTest extends TestCase
     {
         $hiddenWorkshop = $this->createWorkshop(
             title: 'Hidden Robotics Session',
-            status: 'hidden',
+            status: 'open',
+            isHidden: true,
             publishAt: now()->subDay()
         );
 
@@ -44,7 +45,8 @@ class WorkshopVisibilityRulesTest extends TestCase
     {
         $hiddenWorkshop = $this->createWorkshop(
             title: 'Hidden Direct Access Workshop',
-            status: 'hidden',
+            status: 'open',
+            isHidden: true,
             publishAt: now()->addDays(3)
         );
 
@@ -59,6 +61,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         $workshop = $this->createWorkshop(
             title: 'Future Published Workshop',
             status: 'open',
+            isHidden: false,
             publishAt: now()->addDays(2)
         );
 
@@ -66,7 +69,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertNotFound();
     }
 
-    private function createWorkshop(string $title, string $status, \DateTimeInterface $publishAt): Workshop
+    private function createWorkshop(string $title, string $status, bool $isHidden, \DateTimeInterface $publishAt): Workshop
     {
         $owner = User::factory()->create();
         $location = Location::factory()->create(['name' => 'City Lab']);
@@ -89,6 +92,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             'publish_at' => $publishAt,
             'closes_at' => now()->addDays(9),
             'status' => $status,
+            'is_hidden' => $isHidden,
             'registration' => 'none',
             'location_id' => $location->id,
             'user_id' => $owner->id,
