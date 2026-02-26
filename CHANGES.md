@@ -1,5 +1,23 @@
 # Changes
 
+## 1.3.5
+
+- Fixed scheduler updating 'Opens soon' workshops to 'Open' based on publish at date
+
+## 1.3.4
+
+- Pick lists are now saved automatically
+- Added Artisan test/qa commands
+- Fix styling on small checkboxes
+- Added link to repo in footer
+- Support for remembering email and devices
+- Improved error handling of Altcha
+- Improved layout of pick list on mobile
+- Added inline support for ui.input component
+- Fixed issue where pubished at for workshops wasnt being honored
+- Workshop status banner now goes beyond card
+- Changed 'Scheduled' to 'Opens Soon' status type
+
 ## 1.3.3
 
 - Improved password manager support

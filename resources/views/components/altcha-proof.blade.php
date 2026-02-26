@@ -1,12 +1,17 @@
 @if(\App\Support\AltchaTrust::shouldRequire(request()))
+@php($altchaError = $errors->first('altcha'))
 <div class="my-2">
     <altcha-widget
         challengeurl="{{ route('altcha-challenge') }}"
         auto="onsubmit"
         strings='{"waitAlert":""}'
-        style="display:none"
+        style="{{ $altchaError !== '' ? 'display:block' : 'display:none' }}"
         data-altcha-hidden-widget="1"></altcha-widget>
     <input type="hidden" name="altcha" value="" data-altcha-field />
+    <p
+        class="mt-2 text-sm text-red-600 {{ $altchaError !== '' ? '' : 'hidden' }}"
+        data-altcha-error
+    >{{ $altchaError !== '' ? $altchaError : 'Verification failed. Please retry the challenge.' }}</p>
 </div>
 @endif
 
@@ -31,15 +36,35 @@
         const armAltchaWatchdog = (form, widget) => {
             clearAltchaWatchdog(form);
 
-            const timeoutMs = 15000;
+            const timeoutMs = 10000;
             const timerId = window.setTimeout(() => {
                 // Failsafe: if ALTCHA verification hangs, unlock the form
                 // and reveal the widget so users can retry visibly.
                 setFormProcessing(form, false);
                 widget.style.display = 'block';
+                showAltchaError(form, 'Verification timed out. Please try again.');
             }, timeoutMs);
 
             form.dataset.altchaWatchdogTimer = String(timerId);
+        };
+
+        const showAltchaError = (form, message) => {
+            const errorElement = form.querySelector('[data-altcha-error]');
+            if (!errorElement) {
+                return;
+            }
+
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+        };
+
+        const hideAltchaError = (form) => {
+            const errorElement = form.querySelector('[data-altcha-error]');
+            if (!errorElement) {
+                return;
+            }
+
+            errorElement.classList.add('hidden');
         };
 
         document.querySelectorAll('altcha-widget').forEach((widget) => {
@@ -81,6 +106,7 @@
 
                 if(detail.state === 'verifying') {
                     setFormProcessing(form, true);
+                    hideAltchaError(form);
                     armAltchaWatchdog(form, widget);
                 }
 
@@ -92,6 +118,7 @@
                     if (widget.dataset.altchaHiddenWidget === '1') {
                         widget.style.display = 'none';
                     }
+                    hideAltchaError(form);
 
                     return;
                 }
@@ -101,12 +128,15 @@
                     clearAltchaWatchdog(form);
                     setFormProcessing(form, false);
                     widget.style.display = 'block';
+                    showAltchaError(form, 'Please complete the verification challenge.');
                     return;
                 }
 
                 if (detail.state === 'error' || detail.state === 'expired' || detail.state === 'failed') {
                     clearAltchaWatchdog(form);
                     setFormProcessing(form, false);
+                    widget.style.display = 'block';
+                    showAltchaError(form, 'Verification failed. Please retry the challenge.');
                 }
 
                 input.value = '';

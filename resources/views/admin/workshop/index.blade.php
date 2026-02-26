@@ -29,11 +29,11 @@
                                 <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
                                 <div>
                                     <div class="whitespace-normal">{{ $workshop->title }}</div>
-                                    <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ ucwords($workshop->publicStatus()) }})</div>
+                                    <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->publicStatusLabel() }})</div>
                                     <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
                                 </div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ ucwords($workshop->publicStatus()) }}</td>
+                            <td class="hidden lg:table-cell">{{ $workshop->publicStatusLabel() }}</td>
                             <td class="hidden lg:table-cell">{{ $workshop->getLocationName() }}</td>
                             <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y, g:i a') }}</td>
                             <td>

@@ -17,7 +17,7 @@ class SearchController extends Controller
         $search = $request->get('q', '');
         $search_words = explode(' ', $search); // Split the search query into words[1]
 
-        $workshopQuery = Workshop::query()->where('status', '!=', 'draft');
+        $workshopQuery = Workshop::query()->publiclyVisible();
 
         $workshopQuery->where(function ($query) use ($search_words) {
             foreach ($search_words as $word) {

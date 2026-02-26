@@ -23,7 +23,7 @@ $wrapperClasses = $noWrapper ? '' : 'mb-4';
 @if(!$noWrapper)
 <div class="{{ twMerge([$wrapperClasses, $attributes->get('class')]) }}">
 @endif
-    <div class="sm-ui-checkbox {{ twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center', ($noWrapper ? $attributes->get('class') : '')]) }}">
+    <div class="sm-ui-checkbox {{ $small ? 'small ': '' }}{{ twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center', ($noWrapper ? $attributes->get('class') : '')]) }}">
         <input
             type="checkbox"
             @if($checked) checked @endif

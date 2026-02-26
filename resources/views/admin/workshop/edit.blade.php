@@ -305,7 +305,7 @@ $savedTickets = isset($workshop)
                             <option value="draft" {{ $workshopStatusForForm === 'draft' ? 'selected' : '' }}>Draft</option>
                             <option value="open" {{ $workshopStatusForForm === 'open' ? 'selected' : '' }}>Open</option>
                             <option value="full" {{ $workshopStatusForForm === 'full' ? 'selected' : '' }}>Full</option>
-                            <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Scheduled</option>
+                            <option value="scheduled" {{ $workshopStatusForForm === 'scheduled' ? 'selected' : '' }}>Opens Soon</option>
                             <option value="closed" {{ $workshopStatusForForm === 'closed' ? 'selected' : '' }}>Closed</option>
                             <option value="cancelled" {{ $workshopStatusForForm === 'cancelled' ? 'selected' : '' }}>Cancelled</option>
                         </x-ui.select>

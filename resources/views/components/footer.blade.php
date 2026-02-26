@@ -30,7 +30,7 @@
         <div>
             Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics
             @php($appVersion = (string) config('app.version'))
-            • {{ preg_match('/^\d/', $appVersion) ? 'v' . $appVersion : $appVersion }}
+            • <a href="https://git.stemmechanics.com.au/STEMMechanics/Website" target="_blank">{{ preg_match('/^\d/', $appVersion) ? 'v' . $appVersion : $appVersion }}</a>
             @if(!empty($commit))
                 ({{ substr($commit, 0, 10) }})
             @endif

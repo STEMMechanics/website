@@ -142,6 +142,120 @@ let SM = {
         });
     },
 
+    clearTimer: (timerId) => {
+        if (timerId !== null && typeof timerId !== 'undefined') {
+            window.clearTimeout(timerId);
+        }
+
+        return null;
+    },
+
+    scheduleDebounce: (timerId, callback, delayMs = 300) => {
+        SM.clearTimer(timerId);
+
+        return window.setTimeout(() => {
+            callback();
+        }, Math.max(0, Number.parseInt(String(delayMs), 10) || 0));
+    },
+
+    clearInterval: (timerId) => {
+        if (timerId !== null && typeof timerId !== 'undefined') {
+            window.clearInterval(timerId);
+        }
+
+        return null;
+    },
+
+    toBoundedInt: (value, options = {}) => {
+        const min = Number.parseInt(String(options.min ?? Number.MIN_SAFE_INTEGER), 10);
+        const max = Number.parseInt(String(options.max ?? Number.MAX_SAFE_INTEGER), 10);
+        const allowNull = options.allowNull !== false;
+        const parsed = Number.parseInt(String(value ?? '').trim(), 10);
+
+        if (!Number.isFinite(parsed)) {
+            return allowNull ? null : min;
+        }
+
+        if (parsed < min) {
+            return allowNull ? null : min;
+        }
+
+        return Math.min(parsed, max);
+    },
+
+    pluralize: (word, count) => {
+        const safeWord = String(word ?? '').trim();
+        if (safeWord === '') {
+            return '';
+        }
+
+        return Number.parseInt(String(count ?? 0), 10) === 1 ? safeWord : `${safeWord}s`;
+    },
+
+    autosaveJson: async (url, csrfToken, payload, options = {}) => {
+        const response = await fetch(url, {
+            method: options.method || 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': csrfToken,
+                ...(options.headers || {}),
+            },
+            credentials: options.credentials || 'same-origin',
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Autosave failed with status ${response.status}`);
+        }
+
+        return response.json();
+    },
+
+    relativeTimeFromIso: (isoString) => {
+        if (!isoString) {
+            return '';
+        }
+
+        const saved = new Date(isoString);
+        if (Number.isNaN(saved.getTime())) {
+            return '';
+        }
+
+        const diffSeconds = Math.max(0, Math.floor((Date.now() - saved.getTime()) / 1000));
+        if (diffSeconds < 10) {
+            return 'just now';
+        }
+        if (diffSeconds < 60) {
+            return `${diffSeconds} seconds ago`;
+        }
+
+        const diffMinutes = Math.floor(diffSeconds / 60);
+        if (diffMinutes < 60) {
+            return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
+        }
+
+        const diffHours = Math.floor(diffMinutes / 60);
+        if (diffHours < 24) {
+            return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
+        }
+
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+    },
+
+    startRelativeTimeTicker: (onTick, intervalMs = 30000) => {
+        if (typeof onTick !== 'function') {
+            return null;
+        }
+
+        onTick();
+        return window.setInterval(() => {
+            onTick();
+        }, Math.max(1000, Number.parseInt(String(intervalMs), 10) || 30000));
+    },
+
     alert: (title, text, type = 'info') =>{
         const data = {
             position: 'top-end',

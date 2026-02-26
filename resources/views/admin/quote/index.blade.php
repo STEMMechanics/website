@@ -33,9 +33,9 @@
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $quote->user?->getName() ?? '-' }}</div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
                             </td>
-                            <td class="hidden md:table-cell">{{ $quote->user?->getName() ?? '-' }}</td>
-                            <td class="hidden md:table-cell">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</td>
-                            <td>${{ number_format((float) $quote->total_amount, 2) }}</td>
+                            <td class="hidden md:table-cell text-center">{{ $quote->user?->getName() ?? '-' }}</td>
+                            <td class="hidden md:table-cell text-center">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</td>
+                            <td class="text-right">${{ number_format((float) $quote->total_amount, 2) }}</td>
                             <td>
                                 <div class="flex justify-center gap-3 whitespace-nowrap">
                                     <a href="{{ route('admin.quote.edit', $quote) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>

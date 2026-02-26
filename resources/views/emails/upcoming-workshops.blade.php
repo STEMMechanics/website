@@ -13,7 +13,7 @@
                 $currentLocation = $locationName;
             @endphp
         @endif
-        <p style="margin-bottom: 6px">{{ $workshop->starts_at->format('D, j M, g:i A') . ' - ' }}<a href="{{ route('workshop.show', $workshop->slug) }}">{{ $workshop->title }}</a> ({{ ($workshop->price && is_numeric($workshop->price) && $workshop->price != '0' ? '$' . number_format((float)$workshop->price, 2) : 'Free') . ( $workshop->status === 'scheduled' ? ' / Opens soon' : '') }})</p>
+        <p style="margin-bottom: 6px">{{ $workshop->starts_at->format('D, j M, g:i A') . ' - ' }}<a href="{{ route('workshop.show', $workshop->slug) }}">{{ $workshop->title }}</a> ({{ ($workshop->price && is_numeric($workshop->price) && $workshop->price != '0' ? '$' . number_format((float)$workshop->price, 2) : 'Free') . ( $workshop->status === 'scheduled' ? ' / Opens Soon' : '') }})</p>
     @endforeach
     <p class="tall center" style="margin-top: 32px">
         @component('mail::button', ['url' => 'https://stemmechanics.com.au/workshops'])

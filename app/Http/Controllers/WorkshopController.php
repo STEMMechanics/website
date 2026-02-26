@@ -26,7 +26,7 @@ class WorkshopController extends Controller
     public function index()
     {
         $query = Workshop::query();
-        $query = $query->where('status', '!=', 'draft')
+        $query = $query->publiclyVisible()
             ->where('starts_at', '>=', Carbon::now()->subDays(8))
             ->orderBy('starts_at', 'asc');
 
@@ -43,7 +43,7 @@ class WorkshopController extends Controller
     public function past_index()
     {
         $query = Workshop::query();
-        $query = $query->where('status', '!=', 'draft')
+        $query = $query->publiclyVisible()
             ->where('starts_at', '<', Carbon::now())
             ->orderBy('starts_at', 'desc');
 
@@ -179,7 +179,7 @@ class WorkshopController extends Controller
      */
     public function show(Workshop $workshop, WorkshopTicketService $ticketService)
     {
-        if (! (bool) (auth()->user()?->isAdmin() ?? false) && $workshop->status == 'draft') {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! $workshop->isPubliclyVisible()) {
             abort(404);
         }
 
@@ -340,6 +340,10 @@ class WorkshopController extends Controller
 
     public function privateAccess(Request $request, Workshop $workshop): RedirectResponse
     {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! $workshop->isPubliclyVisible()) {
+            abort(404);
+        }
+
         if (! $workshop->isPrivate() || ! $workshop->requiresPrivateAccessCode()) {
             return redirect()->route('workshop.show', $workshop);
         }

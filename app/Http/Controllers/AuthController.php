@@ -11,6 +11,7 @@ use App\Mail\UserWelcome;
 use App\Models\Token;
 use App\Models\User;
 use App\Support\AltchaTrust;
+use App\Support\RememberedDeviceManager;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,10 @@ use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly RememberedDeviceManager $rememberedDeviceManager
+    ) {}
+
     /**
      * Show the login form or if token present, process the login
      *
@@ -36,7 +41,20 @@ class AuthController extends Controller
             return $this->LoginByToken($token);
         }
 
-        return view('auth.login');
+        $rememberedUser = $this->rememberedDeviceManager->resolveRememberedUser($request);
+        if ($rememberedUser) {
+            return $this->loginByUser(
+                $rememberedUser,
+                ['url' => session()->pull('url.intended', null)],
+                'Welcome back! You were signed in on this device.',
+                'Logged in',
+                'success'
+            );
+        }
+
+        return view('auth.login', [
+            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail($request),
+        ]);
     }
 
     /**
@@ -47,6 +65,17 @@ class AuthController extends Controller
      */
     public function postLogin(Request $request): View|RedirectResponse
     {
+        $rememberEmailProvided = $request->has('remember_email');
+        $rememberEmail = $rememberEmailProvided && $request->boolean('remember_email');
+
+        if ($request->has('remember_email')) {
+            if ($rememberEmail) {
+                $this->rememberedDeviceManager->queueRememberedEmail((string) $request->input('email', ''));
+            } else {
+                $this->rememberedDeviceManager->queueRememberedEmail(null);
+            }
+        }
+
         $rules = [
             'email' => 'required|email',
         ];
@@ -113,7 +142,11 @@ class AuthController extends Controller
 
             $token = $user->tokens()->create([
                 'type' => 'login',
-                'data' => ['url' => session()->pull('url.intended', null)],
+                'data' => array_filter([
+                    'url' => session()->pull('url.intended', null),
+                    'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                    'remember_email_value' => $rememberEmailProvided ? (string) $request->email : null,
+                ], fn ($value) => $value !== null),
             ]);
 
             dispatch(new SendEmail($user->email, new UserLogin($token->id, $user->getName(), $user->email)))->onQueue('mail');
@@ -121,7 +154,9 @@ class AuthController extends Controller
         }
 
         session()->flash('status', 'not-found');
-        return view('auth.login');
+        return view('auth.login', [
+            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail($request),
+        ]);
     }
 
 
@@ -149,7 +184,9 @@ class AuthController extends Controller
         session()->flash('message', 'That token has expired or is invalid');
         session()->flash('message-title', 'Log in failed');
         session()->flash('message-type', 'danger');
-        return view('auth.login');
+        return view('auth.login', [
+            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail(request()),
+        ]);
     }
 
     /**
@@ -181,6 +218,15 @@ class AuthController extends Controller
 
         Auth::login($user);
         request()->session()->regenerate();
+        $this->rememberedDeviceManager->refreshCurrentDeviceForUser(request(), $user);
+        if (array_key_exists('remember_email', $data)) {
+            if ((bool) $data['remember_email']) {
+                $emailValue = trim((string) ($data['remember_email_value'] ?? $user->email));
+                $this->rememberedDeviceManager->queueRememberedEmail($emailValue !== '' ? $emailValue : $user->email);
+            } else {
+                $this->rememberedDeviceManager->queueRememberedEmail(null);
+            }
+        }
 
         session()->flash('message', $message ?? 'You have been logged in');
         session()->flash('message-title', $title ?? 'Logged in');
@@ -209,6 +255,11 @@ class AuthController extends Controller
      */
     public function logout(Request $request): RedirectResponse
     {
+        $user = auth()->user();
+        if ($user instanceof User) {
+            $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
+        }
+
         auth()->logout();
         AltchaTrust::clear($request);
         $request->session()->invalidate();
