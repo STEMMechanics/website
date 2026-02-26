@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Helpers;
 use App\Traits\HasFiles;
 use App\Traits\Slug;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
@@ -165,6 +166,40 @@ class Workshop extends Model
         }
 
         return (string) $this->status;
+    }
+
+    public function publicStatusLabel(): string
+    {
+        $status = $this->publicStatus();
+
+        if ($status === 'scheduled') {
+            return 'Opens Soon';
+        }
+
+        return ucwords($status);
+    }
+
+    public function isPubliclyVisible(): bool
+    {
+        if ($this->status === 'draft') {
+            return false;
+        }
+
+        if ($this->publish_at === null) {
+            return true;
+        }
+
+        return $this->publish_at->lte(now());
+    }
+
+    public function scopePubliclyVisible(Builder $query): Builder
+    {
+        return $query
+            ->where('status', '!=', 'draft')
+            ->where(function (Builder $builder) {
+                $builder->whereNull('publish_at')
+                    ->orWhere('publish_at', '<=', now());
+            });
     }
 
     public function matchesPrivateAccessCode(?string $code): bool

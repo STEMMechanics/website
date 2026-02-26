@@ -11,12 +11,9 @@ class HomeController extends Controller
     {
         // $posts = Post::query()->orderBy('created_at', 'desc')->limit(4)->get();
         $workshops = Workshop::query()
+            ->publiclyVisible()
             ->where('starts_at', '>', now())
             ->whereIn('status', ['open', 'scheduled', 'full'])
-            ->where(function ($query): void {
-                $query->whereNull('publish_at')
-                    ->orWhere('publish_at', '<=', now());
-            })
             ->orderBy('starts_at', 'asc')
             ->limit(4)
             ->get();

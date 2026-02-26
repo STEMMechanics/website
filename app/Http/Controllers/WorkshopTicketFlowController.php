@@ -42,6 +42,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function start(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $ticketService->cleanupExpiredHolds($workshop);
         if (! $ticketService->canStartTicketCheckout($workshop)) {
             session()->flash('message', 'Tickets are not available for this workshop.');
@@ -66,6 +68,8 @@ class WorkshopTicketFlowController extends Controller
         WorkshopTicketService $ticketService
     ): RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $ticketService->cleanupExpiredHolds($workshop);
         if (! $ticketService->canStartTicketCheckout($workshop)) {
             throw ValidationException::withMessages([
@@ -161,6 +165,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function payment(Workshop $workshop, WorkshopTicketService $ticketService): View|RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -198,6 +204,8 @@ class WorkshopTicketFlowController extends Controller
         WorkshopTicketService $ticketService,
         SquareApiService $squareApi
     ): RedirectResponse {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -490,6 +498,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function details(Workshop $workshop): View|RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['payment_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -516,6 +526,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function detailsKeepAlive(Workshop $workshop): JsonResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['payment_complete'] ?? false) || (bool) ($session['details_complete'] ?? false)) {
             return response()->json([
@@ -553,6 +565,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function saveDetails(Request $request, Workshop $workshop): RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['payment_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -639,6 +653,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function complete(Workshop $workshop): View|RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['details_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -689,6 +705,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function downloadAll(Workshop $workshop)
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['details_complete'] ?? false)) {
             return redirect()->route('workshop.ticket.flow.start', $workshop);
@@ -748,6 +766,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function cancel(Workshop $workshop, WorkshopTicketService $ticketService): RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         $session = $this->getFlowSession($workshop);
         if ($session && !($session['payment_complete'] ?? false)) {
             Ticket::query()
@@ -764,9 +784,22 @@ class WorkshopTicketFlowController extends Controller
 
     public function loginRedirect(Workshop $workshop): RedirectResponse
     {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
         session()->put('url.intended', route('workshop.ticket.flow.start', $workshop));
 
         return redirect()->route('login');
+    }
+
+    private function ensureWorkshopPubliclyVisible(Workshop $workshop): void
+    {
+        if ((bool) (auth()->user()?->isAdmin() ?? false)) {
+            return;
+        }
+
+        if (! $workshop->isPubliclyVisible()) {
+            abort(404);
+        }
     }
 
     private function createTicketInvoice(

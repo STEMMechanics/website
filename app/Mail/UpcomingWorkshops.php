@@ -31,6 +31,7 @@ class UpcomingWorkshops extends Mailable
 
         return Workshop::select('workshops.*', 'locations.name as location_name')
             ->join('locations', 'workshops.location_id', '=', 'locations.id')
+            ->publiclyVisible()
             ->whereIn('workshops.status', ['open','scheduled'])
             ->whereBetween('workshops.starts_at', [$startDate, $endDate])
             ->where('locations.name', 'not like', '%private%')

@@ -13,7 +13,7 @@
                 @elseif($workshop->status === 'full')
                     <div class="sm-registration-full">This workshop is currently full.</div>
                 @elseif($workshop->status === 'scheduled')
-                    <div class="sm-registration-scheduled">Registration for this workshop will open soon.</div>
+                    <div class="sm-registration-scheduled">Registration for this<br>workshop opens soon.</div>
                 @elseif($workshop->status === 'cancelled')
                     <div class="sm-registration-cancelled">This workshop has been cancelled.</div>
                 @elseif($workshop->registration === 'none')

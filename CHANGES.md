@@ -10,6 +10,9 @@
 - Improved error handling of Altcha
 - Improved layout of pick list on mobile
 - Added inline support for ui.input component
+- Fixed issue where pubished at for workshops wasnt being honored
+- Workshop status banner now goes beyond card
+- Changed 'Scheduled' to 'Opens Soon' status type
 
 ## 1.3.3
 
