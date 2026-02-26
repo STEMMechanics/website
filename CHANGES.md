@@ -6,6 +6,7 @@
 - File upload now supports drag and drop
 - Orphan file downloads are now streamed
 - Added ability to delete orphaned files
+- UI Improvements
 
 ## 1.3.10
 

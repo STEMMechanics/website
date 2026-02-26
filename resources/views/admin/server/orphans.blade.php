@@ -85,29 +85,29 @@
             </div>
 
             <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-                <h3 class="text-lg font-bold mb-3">Orphan Files</h3>
-                <div class="flex flex-wrap gap-2 mb-4">
-                    <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_all']) }}">Download All Orphans</x-ui.button>
-                    <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_expense']) }}">Download Expense Orphans</x-ui.button>
-                    <x-ui.button type="link" color="outline" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_media']) }}">Download Media Orphans</x-ui.button>
-                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete all orphans?', 'Delete all orphan expense and media files found in this scan?', 'Delete All', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
-                        @csrf
-                        <input type="hidden" name="scope" value="orphan_all">
-                        <x-ui.button type="submit" color="danger-outline">Delete All Orphans</x-ui.button>
-                    </form>
-                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete expense orphans?', 'Delete all orphan expense files from this scan?', 'Delete Expense', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
-                        @csrf
-                        <input type="hidden" name="scope" value="orphan_expense">
-                        <x-ui.button type="submit" color="danger-outline">Delete Expense Orphans</x-ui.button>
-                    </form>
-                    <form method="POST" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete media orphans?', 'Delete all orphan media files from this scan?', 'Delete Media', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
-                        @csrf
-                        <input type="hidden" name="scope" value="orphan_media">
-                        <x-ui.button type="submit" color="danger-outline">Delete Media Orphans</x-ui.button>
-                    </form>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <h3 class="text-lg font-bold">Orphan Files</h3>
+                    <span class="inline-flex items-center gap-3">
+                        <a class="hover:text-primary-color" title="Download all orphan files" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_all']) }}"><i class="fa-solid fa-download"></i></a>
+                        <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete all orphans?', 'Delete all orphan expense and media files found in this scan?', 'Delete All', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                            @csrf
+                            <input type="hidden" name="scope" value="orphan_all">
+                            <button type="submit" class="hover:text-red-600" title="Delete all orphan files"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </span>
                 </div>
 
-                <h4 class="font-semibold mb-2">Expense Files (not referenced)</h4>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="font-semibold">Expense Files <span class="text-xs font-normal text-gray-500">(not referenced)</span></div>
+                    <span class="inline-flex items-center gap-3">
+                        <a class="hover:text-primary-color" title="Download all orphan expense files" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_expense']) }}"><i class="fa-solid fa-download"></i></a>
+                        <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete expense orphans?', 'Delete all orphan expense files from this scan?', 'Delete Expense', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                            @csrf
+                            <input type="hidden" name="scope" value="orphan_expense">
+                            <button type="submit" class="hover:text-red-600" title="Delete all orphan expense files"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </span>
+                </div>
                 @if($orphanExpenseFiles->isEmpty())
                     <p class="text-sm text-gray-600 mb-4">No orphan expense files found.</p>
                 @else
@@ -130,7 +130,17 @@
                     </ul>
                 @endif
 
-                <h4 class="font-semibold mb-2">Media Files (not referenced)</h4>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <div class="font-semibold">Media Files <span class="text-xs font-normal text-gray-500">(not referenced)</span></div>
+                    <span class="inline-flex items-center gap-3">
+                        <a class="hover:text-primary-color" title="Download all orphan media files" href="{{ route('admin.server.orphans.download-all', ['scope' => 'orphan_media']) }}"><i class="fa-solid fa-download"></i></a>
+                        <form method="POST" class="inline" action="{{ route('admin.server.orphans.delete-all') }}" x-data x-on:submit.prevent="SM.confirm('Delete media orphans?', 'Delete all orphan media files from this scan?', 'Delete Media', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
+                            @csrf
+                            <input type="hidden" name="scope" value="orphan_media">
+                            <button type="submit" class="hover:text-red-600" title="Delete all orphan media files"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                    </span>
+                </div>
                 @if($orphanMediaFiles->isEmpty())
                     <p class="text-sm text-gray-600">No orphan media files found.</p>
                 @else
@@ -157,7 +167,7 @@
             <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
                 <h3 class="text-lg font-bold mb-3">Missing Referenced Files</h3>
 
-                <h4 class="font-semibold mb-2">Expense Files (referenced but missing)</h4>
+                <div class="font-semibold mb-2">Expense Files <span class="text-xs font-normal text-gray-500">(referenced but missing)</span></div>
                 @if($missingExpenseFiles->isEmpty())
                     <p class="text-sm text-gray-600 mb-4">No missing expense files found.</p>
                 @else
@@ -175,7 +185,7 @@
                     </ul>
                 @endif
 
-                <h4 class="font-semibold mb-2">Media Files (referenced but missing)</h4>
+                <div class="font-semibold mb-2">Media Files <span class="text-xs font-normal text-gray-500">(referenced but missing)</span></div>
                 @if($missingMediaFiles->isEmpty())
                     <p class="text-sm text-gray-600">No missing media files found.</p>
                 @else
