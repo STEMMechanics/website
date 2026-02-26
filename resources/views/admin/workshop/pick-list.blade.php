@@ -140,21 +140,8 @@
                     Select a template to generate this workshop's pick list.
                 </div>
             @else
-                <div class="flex flex-wrap justify-end gap-3">
-                    <div>
-                        <label for="pick_list_participants" class="block text-sm pl-1">Participants</label>
-                        <input
-                            id="pick_list_participants"
-                            type="number"
-                            min="1"
-                            max="5000"
-                            step="1"
-                            name="pick_list_participants"
-                            class="disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 border-gray-300 focus:border-indigo-300 focus:ring-indigo-300"
-                            x-model="participantsInput"
-                            x-on:input="scheduleAutosave()"
-                        />
-                    </div>
+                <div class="ml-auto w-48">
+                    <x-ui.input label="Participants" inline type="number" min="1" max="5000" step="1" name="pick_list_participants" x-model="participantsInput" x-on:input="scheduleAutosave()" />
                 </div>
 
                 <template x-for="id in checkedIds" :key="`checked-${id}`">

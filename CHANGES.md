@@ -9,6 +9,7 @@
 - Support for remembering email and devices
 - Improved error handling of Altcha
 - Improved layout of pick list on mobile
+- Added inline support for ui.input component
 
 ## 1.3.3
 

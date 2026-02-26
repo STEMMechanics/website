@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name', 'label' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false ])
+@props(['type' => 'text', 'name', 'label' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false ])
 
 @php
     if ($error === null) {
@@ -29,7 +29,7 @@
     $moneyFormatOnBlur = "const raw = String(this.value || '').trim(); if (raw === '') { return; } const amount = parseFloat(raw); if (!Number.isFinite(amount) || amount < 0) { this.value = ''; return; } this.value = amount.toFixed(2);";
 @endphp
 
-<div class="{{ twMerge(['mb-4'], $attributes->get('class')) }}">
+<div class="{{ twMerge(['mb-4'], $attributes->get('class'), ($inline ? 'w-full' : '')) }}">
     @if($isFileInput)
         @if(!$noLabel && !$floating)
             <label for="{{ $inputId }}" class="block text-sm pl-1">{{ $label }}</label>
@@ -485,7 +485,7 @@
             @endif
         </div>
     @else
-        <div>
+        <div class="{{ ($inline ? 'flex items-center gap-2' : '') }}">
             <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}{!! isset($labelNotice) && $labelNotice !== '' ? '<i class="fa-solid fa-triangle-exclamation ml-1 text-gray-500 hover:text-black" data-tooltip="' . $labelNotice . '"></i>' : '' !!}</label>
             @if($type === 'textarea')
                 <textarea class="{{ twMerge(['pt-2.5','mt-1','h-28'], $classes, $fieldClasses) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->whereDoesntStartWith('x-') }}>{{ $value }}</textarea>
