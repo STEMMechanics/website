@@ -1,6 +1,6 @@
 <table class="text-sm mb-4">
     <tr>
-        <th class="text-left pr-4">Workshop</th>
+        <th class="text-left pr-4 w-24">Workshop</th>
         <td>{{ $workshop->title }}</td>
     </tr>
     <tr>
@@ -15,7 +15,7 @@
         </td>
     </tr>
     @endif
-    @if(!$workshop->isPrivate() || (bool) (auth()->user()?->isAdmin() ?? false))
+    @if(!$workshop->isPrivate())
     <tr>
         <th class="text-left pr-4 align-top">Location</th>
         <td>
