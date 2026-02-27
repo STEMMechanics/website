@@ -5,6 +5,7 @@
 - Updated MySQL SSL CA PDO constant usage for PHP 8.5 compatibility (`Pdo\Mysql::ATTR_SSL_CA` fallback handling)
 - Improved handling of variant generation
 - UI Improvements
+- Fixed bug in passing external registration URLs for workshops
 
 ## 1.3.13
 

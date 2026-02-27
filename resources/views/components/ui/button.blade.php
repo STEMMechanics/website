@@ -17,6 +17,7 @@
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
     $commonClasses = twMerge(['whitespace-nowrap', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
+    $hrefValue = html_entity_decode((string) ($href ?? '#'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 @endphp
 
 @if($type === 'submit' || $type === 'button')
@@ -29,7 +30,7 @@
     </button>
 @elseif($type === 'link')
     <a
-        href="{{ $href ?? '#' }}"
+        href="{{ $hrefValue }}"
         target="{{ $target ?? '_self' }}"
         class="{{ $colorClasses . ' ' . $commonClasses }}"
         {{ $attributes }}
