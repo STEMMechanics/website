@@ -200,19 +200,19 @@ body.swal2-height-auto {
 
 .content {
     h1 {
-        @apply text-3xl font-semibold;
+        @apply text-3xl font-semibold mb-4;
     }
 
     h2 {
-        @apply text-2xl font-semibold;
+        @apply text-2xl font-semibold mb-4;
     }
 
     h3 {
-        @apply text-xl font-semibold;
+        @apply text-xl font-semibold mb-4;
     }
 
     h4 {
-        @apply font-semibold;
+        @apply font-semibold mb-1;
     }
 
     p {
@@ -236,7 +236,7 @@ body.swal2-height-auto {
     }
 
     ul {
-        @apply list-disc ml-7 mb-8;
+        @apply list-disc ml-7 mb-6;
 
         li {
             @apply mb-1;
