@@ -10,7 +10,7 @@
                     <x-ui.checkbox
                         name="current"
                         value="1"
-                        label="Current"
+                        label="Dev"
                         :noWrapper="true"
                         :inline="true"
                         labelClass="text-sm pt-0" />
