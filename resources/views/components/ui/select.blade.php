@@ -6,7 +6,7 @@
     }
 
     $hasError = $error !== '';
-    $classes = 'disabled:bg-gray-100 bg-white block mt-1 px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
+    $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 '.($noLabel ? '' : 'mt-1 ').($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
     $value = old($name, $value);
     $disabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
     $noLabel = filter_var($noLabel, FILTER_VALIDATE_BOOLEAN);

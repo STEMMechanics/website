@@ -114,7 +114,6 @@
             <div class="rounded-lg border border-gray-200 p-4 mb-6">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold">Items</h2>
-                    <x-ui.button type="button" x-on:click="addItem()">Add Item</x-ui.button>
                 </div>
 
                 <template x-if="items.length === 0">
@@ -126,8 +125,8 @@
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="text-left p-2 border-b">Item</th>
-                                <th class="text-left p-2 border-b">Type</th>
-                                <th class="text-left p-2 border-b">Quantity</th>
+                                <th class="text-left p-2 border-b hidden md:table-cell">Type</th>
+                                <th class="text-left p-2 border-b hidden md:table-cell">Quantity</th>
                                 <th class="text-left p-2 border-b">Actions</th>
                             </tr>
                         </thead>
@@ -135,50 +134,100 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="border-b last:border-b-0">
                                     <td class="p-2 align-top">
+                                        <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
                                         <input type="hidden" x-model="item.item_name" x-bind:name="!isBlankItem(item) ? `items[${index}][item_name]` : null">
-                                        <x-ui.input
-                                            name="item_name_placeholder"
-                                            label="Item"
-                                            :noLabel="true"
-                                            class="mb-0"
-                                            fieldClasses="mt-0"
-                                            :suggestions="$itemSuggestions ?? []"
-                                            x-model="item.item_name"
-                                            x-on:input="item.item_name = $event.target.value; handleRowChange(index)"
-                                            x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
+                                        <input type="hidden" x-model="item.quantity_type" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null">
+                                        <input type="hidden" x-model="item.quantity_value" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_value]` : null">
+
+                                        <div class="md:hidden grid grid-cols-1 gap-2">
+                                            <div>
+                                                <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Item</label>
+                                                <x-ui.input
+                                                    name="item_name_placeholder"
+                                                    label="Item"
+                                                    :noLabel="true"
+                                                    class="mb-0"
+                                                    fieldClasses="mt-0"
+                                                    :suggestions="$itemSuggestions ?? []"
+                                                    x-model="item.item_name"
+                                                    x-on:input="item.item_name = $event.target.value; handleRowChange(index)"
+                                                    x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
+                                            </div>
+                                            <div class="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Type</label>
+                                                    <x-ui.select
+                                                        name="quantity_type_placeholder"
+                                                        label="Type"
+                                                        :noLabel="true"
+                                                        class="mb-0"
+                                                        x-model="item.quantity_type"
+                                                        x-on:change="item.quantity_type = $event.target.value; handleRowChange(index)">
+                                                        <option value="per_participant">Per Participant</option>
+                                                        <option value="fixed">Fixed amount</option>
+                                                    </x-ui.select>
+                                                </div>
+                                                <div>
+                                                    <label class="block text-xs font-semibold text-gray-600 mb-1 md:hidden">Quantity</label>
+                                                    <x-ui.input
+                                                        type="number"
+                                                        name="quantity_value_placeholder"
+                                                        label="Quantity"
+                                                        :noLabel="true"
+                                                        class="mb-0"
+                                                        fieldClasses="mt-0"
+                                                        min="1"
+                                                        step="1"
+                                                        x-model="item.quantity_value"
+                                                        x-bind:required="!isBlankItem(item)"
+                                                        x-on:input="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)"
+                                                        x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="hidden md:block">
+                                            <x-ui.input
+                                                name="item_name_placeholder_desktop"
+                                                label="Item"
+                                                :noLabel="true"
+                                                class="mb-0"
+                                                fieldClasses="mt-0"
+                                                :suggestions="$itemSuggestions ?? []"
+                                                x-model="item.item_name"
+                                                x-on:input="item.item_name = $event.target.value; handleRowChange(index)"
+                                                x-on:change="item.item_name = $event.target.value; handleRowChange(index)" />
+                                        </div>
                                     </td>
-                                    <td class="p-2 align-top">
+                                    <td class="p-2 align-top hidden md:table-cell">
                                         <x-ui.select
-                                            name="quantity_type_placeholder"
+                                            name="quantity_type_placeholder_desktop"
                                             label="Type"
                                             :noLabel="true"
-                                            class="mb-0"
+                                            class="mx-0"
                                             x-model="item.quantity_type"
-                                            x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null"
                                             x-on:change="item.quantity_type = $event.target.value; handleRowChange(index)">
                                             <option value="per_participant">Per Participant</option>
                                             <option value="fixed">Fixed amount</option>
                                         </x-ui.select>
                                     </td>
-                                    <td class="p-2 align-top">
+                                    <td class="p-2 align-top hidden md:table-cell">
                                         <x-ui.input
                                             type="number"
-                                            name="quantity_value_placeholder"
+                                            name="quantity_value_placeholder_desktop"
                                             label="Quantity"
                                             :noLabel="true"
                                             class="mb-0"
-                                            fieldClasses="mt-0 max-w-28"
+                                            fieldClasses="mt-0"
                                             min="1"
                                             step="1"
                                             x-model="item.quantity_value"
-                                            x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_value]` : null"
                                             x-bind:required="!isBlankItem(item)"
                                             x-on:input="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)"
                                             x-on:change="item.quantity_value = Number($event.target.value || 1); handleRowChange(index)" />
                                     </td>
-                                    <td class="p-2 align-top">
-                                        <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
-                                        <div class="flex items-center gap-3">
+                                    <td class="p-2 align-middle">
+                                        <div class="flex items-center justify-center gap-3 h-full">
                                             <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveUp(index)" :disabled="index === 0 || isBlankItem(item)" title="Move up">
                                                 <i class="fa-solid fa-arrow-up"></i>
                                             </button>
@@ -198,7 +247,6 @@
             </div>
 
             <div class="flex justify-end gap-2">
-                <x-ui.button type="link" color="outline" href="{{ route('admin.pick-list-template.index') }}">Cancel</x-ui.button>
                 <x-ui.button type="submit" x-bind:disabled="submitting">
                     <span x-show="!submitting">{{ $editing ? 'Save Template' : 'Create Template' }}</span>
                     <span x-show="submitting" class="inline-flex items-center gap-2">
