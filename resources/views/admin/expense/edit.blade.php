@@ -127,8 +127,10 @@
         const previewLoading = document.getElementById('expense-receipt-preview-loading');
         const previewImage = document.getElementById('expense-receipt-preview-image');
         const previewFrame = document.getElementById('expense-receipt-preview-frame');
-        const existingPreviewUrl = @js($documentViewUrl);
-        const existingDocumentName = @js($documentName);
+        let existingPreviewUrl = null;
+        existingPreviewUrl = @js($documentViewUrl);
+        let existingDocumentName = '';
+        existingDocumentName = @js($documentName);
         const maxUploadMeta = document.querySelector('meta[name="max-upload-size"]');
         const maxUploadBytes = maxUploadMeta ? Number(maxUploadMeta.getAttribute('content')) : 0;
         let currentObjectUrl = null;
