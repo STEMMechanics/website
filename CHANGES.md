@@ -1,5 +1,8 @@
 # Changes
 
+## 1.3.14
+- Updated MySQL SSL CA PDO constant usage for PHP 8.5 compatibility (`Pdo\Mysql::ATTR_SSL_CA` fallback handling)
+
 ## 1.3.13
 
 - Added ability to enter decimal numbers into quantities of quotes and invoices
