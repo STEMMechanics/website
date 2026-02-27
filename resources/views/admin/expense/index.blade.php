@@ -33,8 +33,8 @@
                             <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
                             <td class="hidden lg:table-cell">{{ $expense->description ?: '-' }}</td>
                             <td>
-                                ${{ number_format((float) $expense->total_amount, 2) }}<br>
-                                <span class="text-xs text-gray-500">GST: ${{ number_format((float) $expense->gst_amount, 2) }}</span>
+                                <div>${{ number_format((float) $expense->total_amount, 2) }}</div>
+                                <div class="text-xs text-gray-600">GST: ${{ number_format((float) $expense->gst_amount, 2) }}</div>
                             </td>
 
                             <td>

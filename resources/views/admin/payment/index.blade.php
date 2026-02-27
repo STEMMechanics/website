@@ -32,7 +32,7 @@
                 <x-slot:header>
                     <th>ID</th>
                     <th>Details</th>
-                    <th>Total</th>
+                    <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
                     <th class="hidden md:table-cell">Type</th>
                     <th class="hidden lg:table-cell">Allocated</th>
                     <th class="hidden lg:table-cell">Unallocated</th>

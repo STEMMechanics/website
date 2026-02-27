@@ -752,7 +752,7 @@
                 <div class="flex-1">
                     <x-ui.input
                         type="text"
-                        label="Total Amount (Auto, Inc GST)"
+                        label="Total Amount (Auto, incl GST)"
                         name="total_amount_display"
                         x-bind:value="totalAmountFormatted()"
                         value="{{ old('total_amount_display', $invoice->total_amount ?? '0.00') }}"

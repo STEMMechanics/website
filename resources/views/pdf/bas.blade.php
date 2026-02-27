@@ -82,7 +82,7 @@
         </thead>
         <tbody>
             <tr>
-                <td>Sales Inc GST</td>
+                <td>Sales incl GST</td>
                 <td class="right">{{ money((float) $summary['payments_inc']) }}</td>
             </tr>
             <tr>
@@ -94,7 +94,7 @@
                 <td class="right">{{ money((float) $summary['payments_gst']) }}</td>
             </tr>
             <tr>
-                <td>Expenses Inc GST</td>
+                <td>Expenses incl GST</td>
                 <td class="right">{{ money((float) $summary['expenses_inc']) }}</td>
             </tr>
             <tr>
@@ -120,7 +120,7 @@
                 <th>Customer</th>
                 <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
-                <th class="right">Total Inc GST</th>
+                <th class="right">Total incl GST</th>
             </tr>
         </thead>
         <tbody>
@@ -149,7 +149,7 @@
                 <th>Description</th>
                 <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
-                <th class="right">Total Inc GST</th>
+                <th class="right">Total incl GST</th>
             </tr>
         </thead>
         <tbody>
