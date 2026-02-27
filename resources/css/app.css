@@ -496,7 +496,7 @@ body.swal2-height-auto {
 }
 
 .sm-banner-private {
-    @apply bg-purple-600;
+    @apply bg-orange-500;
 }
 
 .sm-registration-none, .sm-registration-email, .sm-registration-message, .sm-registration-scheduled, .sm-registration-draft {
@@ -512,5 +512,5 @@ body.swal2-height-auto {
 }
 
 .sm-registration-private {
-    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-purple-400 text-purple-800 bg-purple-100;
+    @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-orange-400 text-orange-900 bg-orange-100;
 }
