@@ -7,6 +7,7 @@
 - UI Improvements
 - Fixed bug in passing external registration URLs for workshops
 - Improved BAS reporting
+- Dependency updates
 
 ## 1.3.13
 
