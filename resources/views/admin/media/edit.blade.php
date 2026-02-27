@@ -22,6 +22,19 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
             @isset($medium)
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
                     <h3 class="text-base font-semibold mb-3">File Details</h3>
+                    @if(trim((string) ($medium->last_processing_error ?? '')) !== '')
+                        <div class="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                            <div class="font-semibold">Last processing error</div>
+                            <div class="mt-1 whitespace-pre-line">{{ (string) $medium->last_processing_error }}</div>
+                            <div class="mt-1 text-xs text-red-700">
+                                @if($medium->last_processing_failed_at)
+                                    Failed at: {{ $medium->last_processing_failed_at->format('M j, Y g:i a') }}
+                                @else
+                                    Failed at: Unknown
+                                @endif
+                            </div>
+                        </div>
+                    @endif
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div class="md:col-span-2">
                             <x-ui.input
@@ -69,7 +82,12 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
                     <div class="mb-3 flex items-center justify-between gap-3">
                         <h3 class="text-base font-semibold">Stored Variants</h3>
-                        <x-ui.button type="button" color="outline" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
+                        <div class="flex items-center gap-2">
+                            @if($variantFilesInfo->isNotEmpty())
+                            <x-ui.button type="button" color="outline" x-data x-on:click.prevent="confirmDeleteVariants()">Delete Variants</x-ui.button>
+                            @endif
+                            <x-ui.button type="button" color="outline" x-data x-on:click.prevent="confirmRegenerateVariants()">Regenerate Variants</x-ui.button>
+                        </div>
                     </div>
                     @if($variantFilesInfo->isNotEmpty())
                         <x-ui.table>
@@ -79,7 +97,7 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
                                 <th class="text-center">Dimensions</th>
                                 <th class="text-center">Size</th>
                                 <th class="text-center">Status</th>
-                                <th class="text-center">Preview</th>
+                                <th class="text-center">Actions</th>
                             </x-slot:header>
                             <x-slot:body>
                                 @foreach($variantFilesInfo as $fileInfo)
@@ -94,11 +112,30 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
                                             </span>
                                         </td>
                                         <td class="text-center">
-                                            @if(($fileInfo['url'] ?? '-') !== '-' && ($fileInfo['exists'] ?? false))
-                                                <a href="{{ $fileInfo['url'] }}" class="link" target="_blank" rel="noopener noreferrer">Open</a>
-                                            @else
-                                                -
-                                            @endif
+                                            <div class="flex items-center justify-center gap-3">
+                                                @if(($fileInfo['url'] ?? '-') !== '-' && ($fileInfo['exists'] ?? false))
+                                                    <a
+                                                        href="{{ $fileInfo['url'] }}"
+                                                        title="Open variant"
+                                                        class="hover:text-primary-color"
+                                                        target="_blank"
+                                                        rel="noopener noreferrer">
+                                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                                    </a>
+                                                @else
+                                                    <span class="text-gray-400" title="Variant file missing">
+                                                        <i class="fa-solid fa-up-right-from-square"></i>
+                                                    </span>
+                                                @endif
+                                                <a
+                                                    href="#"
+                                                    title="Delete this variant"
+                                                    class="hover:text-red-600"
+                                                    x-data
+                                                    x-on:click.prevent="confirmDeleteSingleVariant('{{ (string) ($fileInfo['variant'] ?? '') }}')">
+                                                    <i class="fa-solid fa-trash"></i>
+                                                </a>
+                                            </div>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -128,6 +165,8 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
 
 <script>
     const regenerateVariantsAction = @json(isset($medium) ? route('admin.media.regenerate-variants', $medium) : null);
+    const deleteVariantAction = @json(isset($medium) ? route('admin.media.delete-variant', $medium) : null);
+    const deleteVariantsAction = @json(isset($medium) ? route('admin.media.delete-variants', $medium) : null);
     const regenerateVariantsCsrf = @json(csrf_token());
 
     function updateTitle(file, name) {
@@ -176,5 +215,74 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
         form.appendChild(token);
         document.body.appendChild(form);
         form.submit();
+    }
+
+    function submitDeleteSingleVariant(action, csrf, variant) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = action;
+        form.style.display = 'none';
+
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = csrf;
+
+        const variantInput = document.createElement('input');
+        variantInput.type = 'hidden';
+        variantInput.name = 'variant';
+        variantInput.value = variant;
+
+        form.appendChild(token);
+        form.appendChild(variantInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    function confirmDeleteVariants() {
+        if (!deleteVariantsAction || !regenerateVariantsCsrf) {
+            return;
+        }
+
+        if (!window.SM || typeof window.SM.confirm !== 'function') {
+            submitRegenerateVariants(deleteVariantsAction, regenerateVariantsCsrf);
+            return;
+        }
+
+        window.SM.confirm(
+            'Delete variants',
+            'Delete all generated variants for this media item? This does not delete the original file.',
+            'Delete Variants',
+            (isConfirmed) => {
+                if (!isConfirmed) {
+                    return;
+                }
+                submitRegenerateVariants(deleteVariantsAction, regenerateVariantsCsrf);
+            }
+        );
+    }
+
+    function confirmDeleteSingleVariant(variant) {
+        const variantName = String(variant || '').trim();
+        if (!deleteVariantAction || !regenerateVariantsCsrf || variantName === '') {
+            return;
+        }
+
+        if (!window.SM || typeof window.SM.confirm !== 'function') {
+            submitDeleteSingleVariant(deleteVariantAction, regenerateVariantsCsrf, variantName);
+            return;
+        }
+
+        window.SM.confirm(
+            'Delete variant',
+            `Delete the "${variantName}" variant? This does not delete the original file.`,
+            'Delete Variant',
+            (isConfirmed) => {
+                if (!isConfirmed) {
+                    return;
+                }
+                submitDeleteSingleVariant(deleteVariantAction, regenerateVariantsCsrf, variantName);
+            }
+        );
     }
 </script>

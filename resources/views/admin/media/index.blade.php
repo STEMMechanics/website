@@ -20,6 +20,10 @@
                 <div id="regenerate-missing-variants-status-bar" class="h-2 rounded bg-primary-color transition-all duration-300" style="width:0"></div>
             </div>
             <div class="mt-1 text-xs text-gray-600" id="regenerate-missing-variants-status-meta"></div>
+            <div id="regenerate-missing-variants-status-errors" class="mt-3 hidden">
+                <div class="text-xs font-semibold text-red-700">Processing errors</div>
+                <ul id="regenerate-missing-variants-status-errors-list" class="mt-1 space-y-1 text-xs"></ul>
+            </div>
         </div>
 
         @if($media->isEmpty())
@@ -85,7 +89,46 @@
             bar: document.getElementById('regenerate-missing-variants-status-bar'),
             meta: document.getElementById('regenerate-missing-variants-status-meta'),
             title: document.getElementById('regenerate-missing-variants-status-title'),
+            errorsWrap: document.getElementById('regenerate-missing-variants-status-errors'),
+            errorsList: document.getElementById('regenerate-missing-variants-status-errors-list'),
         };
+    }
+
+    function renderRegenerateMissingVariantsErrors(errors) {
+        const elements = regenerateMissingVariantsElements();
+        if (!elements.errorsWrap || !elements.errorsList) {
+            return;
+        }
+
+        const items = Array.isArray(errors) ? errors : [];
+        elements.errorsList.innerHTML = '';
+        if (items.length === 0) {
+            elements.errorsWrap.classList.add('hidden');
+            return;
+        }
+
+        elements.errorsWrap.classList.remove('hidden');
+        items.forEach((item) => {
+            const li = document.createElement('li');
+            li.className = 'rounded border border-red-200 bg-red-50 px-2 py-1';
+
+            const link = document.createElement('a');
+            link.href = String(item.edit_url || '#');
+            link.className = 'font-semibold text-red-800 hover:underline';
+            link.textContent = String(item.title || item.name || 'Media item');
+            if (link.href !== '#') {
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            }
+
+            const message = document.createElement('div');
+            message.className = 'mt-0.5 text-red-700 whitespace-pre-line';
+            message.textContent = String(item.message || 'Unknown processing error');
+
+            li.appendChild(link);
+            li.appendChild(message);
+            elements.errorsList.appendChild(li);
+        });
     }
 
     function updateRegenerateMissingVariantsUI(status) {
@@ -101,6 +144,7 @@
 
         if (!status || (!running && !status.finished && !status.cancelled)) {
             elements.panel.classList.add('hidden');
+            renderRegenerateMissingVariantsErrors([]);
             return;
         }
 
@@ -112,6 +156,7 @@
         const failed = Number.isFinite(Number(status.failed_jobs)) ? Number(status.failed_jobs) : 0;
         elements.percent.textContent = `${progress}%`;
         elements.bar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+        renderRegenerateMissingVariantsErrors(status.errors);
 
         if (running) {
             elements.title.textContent = 'Regenerating Missing Variants';

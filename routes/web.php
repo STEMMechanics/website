@@ -140,6 +140,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/media/{media}', [MediaController::class, 'admin_edit'])->name('admin.media.edit');
     Route::put('/admin/media/{media}', [MediaController::class, 'admin_update'])->name('admin.media.update');
     Route::post('/admin/media/{media}/regenerate-variants', [MediaController::class, 'admin_regenerate_variants'])->name('admin.media.regenerate-variants');
+    Route::post('/admin/media/{media}/delete-variant', [MediaController::class, 'admin_delete_variant'])->name('admin.media.delete-variant');
+    Route::post('/admin/media/{media}/delete-variants', [MediaController::class, 'admin_delete_variants'])->name('admin.media.delete-variants');
     Route::delete('/admin/media/{media}', [MediaController::class, 'admin_destroy'])->name('admin.media.destroy');
     Route::get('/admin/locations', [LocationController::class, 'index'])->name('admin.location.index');
     Route::get('/admin/locations/create', [LocationController::class, 'create'])->name('admin.location.create');

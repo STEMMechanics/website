@@ -453,6 +453,77 @@ class MediaController extends Controller
         return redirect()->back();
     }
 
+    public function admin_delete_variants(Media $media): RedirectResponse
+    {
+        try {
+            if ($this->isMediaVariantRegenerationLocked($media)) {
+                session()->flash('message', 'Variant regeneration is running for this media. Please wait before deleting variants.');
+                session()->flash('message-title', 'Delete blocked');
+                session()->flash('message-type', 'warning');
+                return redirect()->back();
+            }
+
+            $media->deleteAllVariants();
+            $media->last_processing_error = null;
+            $media->last_processing_failed_at = null;
+            $media->save();
+
+            session()->flash('message', 'All variants have been deleted.');
+            session()->flash('message-title', 'Variants deleted');
+            session()->flash('message-type', 'success');
+        } catch (\Throwable $e) {
+            report($e);
+
+            session()->flash('message', 'Could not delete variants: '.$e->getMessage());
+            session()->flash('message-title', 'Delete failed');
+            session()->flash('message-type', 'danger');
+        }
+
+        return redirect()->back();
+    }
+
+    public function admin_delete_variant(Request $request, Media $media): RedirectResponse
+    {
+        try {
+            if ($this->isMediaVariantRegenerationLocked($media)) {
+                session()->flash('message', 'Variant regeneration is running for this media. Please wait before deleting a variant.');
+                session()->flash('message-title', 'Delete blocked');
+                session()->flash('message-type', 'warning');
+                return redirect()->back();
+            }
+
+            $variant = strtolower(trim((string) $request->input('variant')));
+            if ($variant === '') {
+                session()->flash('message', 'No variant was selected for deletion.');
+                session()->flash('message-title', 'Delete failed');
+                session()->flash('message-type', 'danger');
+                return redirect()->back();
+            }
+
+            $allowedVariants = array_keys($media->getVariantTypes());
+            if (! in_array($variant, $allowedVariants, true)) {
+                session()->flash('message', 'The selected variant is not valid for this media type.');
+                session()->flash('message-title', 'Delete failed');
+                session()->flash('message-type', 'danger');
+                return redirect()->back();
+            }
+
+            $media->deleteVariant($variant);
+
+            session()->flash('message', 'Variant "'.$variant.'" has been deleted.');
+            session()->flash('message-title', 'Variant deleted');
+            session()->flash('message-type', 'success');
+        } catch (\Throwable $e) {
+            report($e);
+
+            session()->flash('message', 'Could not delete variant: '.$e->getMessage());
+            session()->flash('message-title', 'Delete failed');
+            session()->flash('message-type', 'danger');
+        }
+
+        return redirect()->back();
+    }
+
     private function isMediaVariantRegenerationLocked(Media $media): bool
     {
         $job = new GenerateVariants($media, true);
@@ -500,8 +571,11 @@ class MediaController extends Controller
                     }
 
                     $hasMissingVariant = false;
+                    $existingVariants = is_array($media->variants) ? $media->variants : [];
                     foreach (array_keys($variantTypes) as $variantName) {
-                        if (!$media->hasVariant($variantName)) {
+                        $hasVariantMetadata = array_key_exists($variantName, $existingVariants);
+                        $hasVariantFile = $media->hasVariant($variantName);
+                        if (! $hasVariantMetadata || ! $hasVariantFile) {
                             $hasMissingVariant = true;
                             break;
                         }
@@ -595,6 +669,7 @@ class MediaController extends Controller
         if ($batch === null) {
             return [
                 'running' => false,
+                'errors' => [],
             ];
         }
 
@@ -611,7 +686,32 @@ class MediaController extends Controller
             'finished' => $batch->finished(),
             'created_at' => $batch->createdAt->toDateTimeString(),
             'finished_at' => $batch->finishedAt?->toDateTimeString(),
+            'errors' => $this->missingVariantRegenerationErrors($batch->id),
         ];
+    }
+
+    /**
+     * @return array<int, array{name: string, title: string, message: string, failed_at: string|null, edit_url: string}>
+     */
+    private function missingVariantRegenerationErrors(string $batchId): array
+    {
+        return Media::query()
+            ->where('last_processing_batch_id', $batchId)
+            ->whereNotNull('last_processing_error')
+            ->orderByDesc('last_processing_failed_at')
+            ->limit(25)
+            ->get(['name', 'title', 'last_processing_error', 'last_processing_failed_at'])
+            ->map(function (Media $media): array {
+                return [
+                    'name' => (string) $media->name,
+                    'title' => (string) $media->title,
+                    'message' => (string) ($media->last_processing_error ?? ''),
+                    'failed_at' => $media->last_processing_failed_at?->toDateTimeString(),
+                    'edit_url' => route('admin.media.edit', $media),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function activeMissingVariantRegenerationBatch(): ?Batch

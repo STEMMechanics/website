@@ -62,7 +62,8 @@ class Media extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'variants' => 'array'
+        'variants' => 'array',
+        'last_processing_failed_at' => 'datetime',
     ];
 
     /**

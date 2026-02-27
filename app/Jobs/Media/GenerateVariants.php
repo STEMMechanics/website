@@ -3,7 +3,6 @@
 namespace App\Jobs\Media;
 
 use App\Models\Media;
-use App\Helpers;
 use FFMpeg\Coordinate\TimeCode;
 use FFMpeg\FFMpeg;
 use FFMpeg\FFProbe;
@@ -16,8 +15,9 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Imagick\Driver;
+use Intervention\Image\ImageManager;
+use Throwable;
 
 class GenerateVariants implements ShouldQueue
 {
@@ -26,7 +26,7 @@ class GenerateVariants implements ShouldQueue
     /**
      * Media ID
      *
-     * @var String
+     * @var string
      */
     public $media_name;
 
@@ -39,8 +39,6 @@ class GenerateVariants implements ShouldQueue
 
     /**
      * Create a new job instance.
-     *
-     * @param Media $media The media to process
      */
     public function __construct(Media $media, bool $overwrite = true)
     {
@@ -68,220 +66,231 @@ class GenerateVariants implements ShouldQueue
             return;
         }
 
+        $temp = null;
+        $processingError = null;
+
         $media->status = 'processing';
+        $media->last_processing_batch_id = $this->batch()?->id;
+        $media->last_processing_error = null;
+        $media->last_processing_failed_at = null;
         $media->save();
 
-        if(Storage::disk('media')->exists($media->hash) === false) {
-            $media->status = 'ready';
-            $media->save();
-            return;
-        }
-
-        $variantData = $media->getVariantTypes($matchingMimeType);
-        if(count($variantData) === 0) {
-            $media->status = 'ready';
-            $media->save();
-            return;
-        }
-
-        $temp = $media->getAsTempFile();
-        if($temp === null) {
-            $media->status = 'ready';
-            $media->save();
-            return;
-        }
-
-        $tempDir = pathinfo($temp, PATHINFO_DIRNAME);
-        $targetVariants = array_keys($variantData);
-        if ($this->overwrite) {
-            $media->deleteAllVariants();
-        } else {
-            $targetVariants = array_values(array_filter($targetVariants, function (string $variantName) use ($media): bool {
-                return !$media->hasVariant($variantName);
-            }));
-        }
-
-        if (count($targetVariants) === 0) {
-            $media->status = 'ready';
-            $media->save();
-            if (is_file($temp)) {
-                @unlink($temp);
+        try {
+            if (Storage::disk('media')->exists((string) $media->hash) === false) {
+                $processingError = 'Source file is missing from media storage.';
+                return;
             }
-            return;
-        }
 
-        /* Images */
-        if($matchingMimeType === 'image/*') {
-            $manager = new ImageManager(new Driver());
-            $image = $manager->read($temp);
+            $variantData = $media->getVariantTypes($matchingMimeType);
+            if (count($variantData) === 0) {
+                $processingError = 'No variant configuration found for MIME type: '.((string) $media->mime_type);
+                return;
+            }
 
-            $isPortrait = $image->height() > $image->width();
+            $temp = $media->getAsTempFile();
+            if ($temp === null) {
+                $processingError = 'Could not create a temporary working copy of the media file.';
+                return;
+            }
 
-            foreach ($variantData as $variantName => $size) {
-                if (!in_array($variantName, $targetVariants, true)) {
-                    continue;
+            $tempDir = pathinfo($temp, PATHINFO_DIRNAME);
+            $targetVariants = array_keys($variantData);
+            if ($this->overwrite) {
+                $media->deleteAllVariants();
+            } else {
+                $targetVariants = array_values(array_filter($targetVariants, function (string $variantName) use ($media): bool {
+                    return ! $this->isVariantReady($media, $variantName);
+                }));
+            }
+
+            if (count($targetVariants) === 0) {
+                return;
+            }
+
+            if ($matchingMimeType === 'image/*') {
+                $this->generateImageVariants($media, $temp, $tempDir, $variantData, $targetVariants);
+                return;
+            }
+
+            if ($matchingMimeType === 'text/plain') {
+                if (! in_array('thumbnail', $targetVariants, true)) {
+                    return;
                 }
 
-                $image = $manager->read($temp);
+                $width = (int) $variantData['thumbnail']['width'];
+                $height = (int) $variantData['thumbnail']['height'];
 
-                if($isPortrait === true) {
-                    $width = $size['height'];
-                    $height = $size['width'];
-                } else {
-                    $width = $size['width'];
-                    $height = $size['height'];
+                $manager = new ImageManager(new Driver());
+                $image = $manager->create($width, $height)->fill('fff');
+
+                $numLines = 5;
+                $text = (string) file_get_contents($temp);
+                $lines = explode("\n", $text);
+                $previewText = implode("\n", array_slice($lines, 0, $numLines));
+
+                $fontSize = 8;
+                $textColor = '#000000';
+                $x = 10;
+                $y = 10;
+
+                $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
+                foreach ($lines as $line) {
+                    $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
+                        $font->file(1);
+                        $font->size($fontSize);
+                        $font->color($textColor);
+                    });
+                    $y += ($fontSize + 4);
                 }
 
-                if($variantName !== 'scaled' && ($image->height() < $height || $image->width() < $width)) {
-                    continue;
-                }
-
-                $image->scaleDown($width, $height);
-                $variantFile = $tempDir . '/' . $media->hash . '-' . $variantName . '.webp';
+                $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
                 $image->save($variantFile, quality: 75);
-
-                $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
-                unset($variantFile);
-            }//end foreach
-        } else if($matchingMimeType === 'text/plain') {
-            /* Text */
-            if (!in_array('thumbnail', $targetVariants, true)) {
-                $media->status = 'ready';
-                $media->save();
-                if (is_file($temp)) {
-                    @unlink($temp);
-                }
+                $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
                 return;
             }
 
-            $width = $variantData['thumbnail']['width'];
-            $height = $variantData['thumbnail']['height'];
-
-            $manager = new ImageManager(new Driver());
-            $image = $manager->create($width, $height)->fill('fff');
-
-            // Read the first few lines of the text file
-            $numLines = 5;
-            $text = file_get_contents($temp);
-            $lines = explode("\n", $text);
-            $previewText = implode("\n", array_slice($lines, 0, $numLines));
-
-            // Center the text on the image
-            $fontSize = 8;
-            $textColor = '#000000'; // Black text color
-
-            // Calculate the position to start drawing the text
-            $x = 10; // Left padding
-            $y = 10; // Top padding
-
-            // Draw the text on the canvas with text wrapping
-            $lines = explode("\n", wordwrap($previewText, 30, "\n", true));
-            foreach ($lines as $line) {
-                $image->text($line, $x, $y, function ($font) use ($fontSize, $textColor) {
-                    $font->file(1);
-                    $font->size($fontSize);
-                    $font->color($textColor);
-                });
-
-                // Move to the next line
-                $y += ($fontSize + 4); // Add some vertical spacing between lines (adjust as needed)
-            }
-
-            $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
-            $image->save($variantFile, quality: 75);
-            $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
-            unset($variantFile);
-
-        } else if($matchingMimeType === 'application/pdf') {
-            /* PDF */
-            if (!in_array('thumbnail', $targetVariants, true)) {
-                $media->status = 'ready';
-                $media->save();
-                if (is_file($temp)) {
-                    @unlink($temp);
+            if ($matchingMimeType === 'application/pdf') {
+                if (! in_array('thumbnail', $targetVariants, true)) {
+                    return;
                 }
+
+                $width = (int) $variantData['thumbnail']['width'];
+                $height = (int) $variantData['thumbnail']['height'];
+
+                $manager = new ImageManager(new Driver());
+
+                $imagick = new \Imagick();
+                $imagick->readImage($temp.'[0]');
+                $imagick->setImageFormat('png');
+
+                $image = $manager->read($imagick);
+                $image->scaleDown($width, $height);
+
+                $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
+                $image->save($variantFile, quality: 75);
+                $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
                 return;
             }
 
-            $width = $variantData['thumbnail']['width'];
-            $height = $variantData['thumbnail']['height'];
-
-            $manager = new ImageManager(new Driver());
-
-            $imagick = new \Imagick();
-            $imagick->readImage($temp . '[0]'); // Read the first page of the PDF
-            $imagick->setImageFormat('png');
-
-            $image = $manager->read($imagick);
-            $image->scaleDown($width, $height);
-
-            $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
-            $image->save($variantFile, quality: 75);
-            $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
-            unset($variantFile);
-
-        } else if($matchingMimeType === 'video/*') {
-            /* Video */
-            if (!in_array('thumbnail', $targetVariants, true)) {
-                $media->status = 'ready';
-                $media->save();
-                if (is_file($temp)) {
-                    @unlink($temp);
+            if ($matchingMimeType === 'video/*') {
+                if (! in_array('thumbnail', $targetVariants, true)) {
+                    return;
                 }
-                return;
-            }
 
-            $tempImage = $tempDir . '/' . $media->hash . '-temp-frame.jpg';
-            $variantFile = $tempDir . '/' . $media->hash . '-thumbnail.webp';
+                $tempImage = $tempDir.'/'.$media->hash.'-temp-frame.jpg';
+                $variantFile = $tempDir.'/'.$media->hash.'-thumbnail.webp';
 
                 try {
                     $ffmpeg = FFMpeg::create();
                     $video = $ffmpeg->open($temp);
                     if (! method_exists($video, 'frame')) {
-                        return;
+                        throw new \RuntimeException('Video driver does not support frame extraction.');
                     }
 
-                    // Choose a frame that exists for short videos.
                     $frameAt = 1.0;
-                try {
-                    $ffprobe = FFProbe::create();
-                    $duration = (float) $ffprobe->format($temp)->get('duration');
-                    if ($duration > 0.0) {
-                        $frameAt = max(0.0, min(1.0, $duration - 0.1));
-                    } else {
-                        $frameAt = 0.0;
+                    try {
+                        $ffprobe = FFProbe::create();
+                        $duration = (float) $ffprobe->format($temp)->get('duration');
+                        if ($duration > 0.0) {
+                            $frameAt = max(0.0, min(1.0, $duration - 0.1));
+                        } else {
+                            $frameAt = 0.0;
+                        }
+                    } catch (Throwable) {
+                        $frameAt = 1.0;
                     }
-                } catch (\Throwable $e) {
-                    $frameAt = 1.0;
+
+                    $frame = $video->frame(TimeCode::fromSeconds($frameAt));
+                    $frame->save($tempImage);
+
+                    $width = (int) $variantData['thumbnail']['width'];
+                    $height = (int) $variantData['thumbnail']['height'];
+
+                    $manager = new ImageManager(new Driver());
+                    $image = $manager->read($tempImage);
+                    $image->scaleDown($width, $height);
+                    $image->save($variantFile, quality: 75);
+
+                    $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
+                } catch (Throwable $e) {
+                    $processingError = $this->buildProcessingError('Video thumbnail generation failed.', $e);
+                    Log::warning($processingError);
                 }
 
-                $frame = $video->frame(TimeCode::fromSeconds($frameAt));
-                $frame->save($tempImage);
-
-                $width = $variantData['thumbnail']['width'];
-                $height = $variantData['thumbnail']['height'];
-
-                $manager = new ImageManager(new Driver());
-                $image = $manager->read($tempImage);
-                $image->scaleDown($width, $height);
-                $image->save($variantFile, quality: 75);
-
-                $media->addVariant('thumbnail', 'image/webp', 'webp', $variantFile);
-                unset($variantFile);
-            } catch (\Throwable $e) {
-                Log::error($e);
+                if (is_file($tempImage)) {
+                    @unlink($tempImage);
+                }
+                return;
             }
 
-            if(file_exists($tempImage)) {
-                unlink($tempImage);
+            $processingError = 'Variant generation is not supported for MIME type: '.((string) $media->mime_type);
+        } catch (Throwable $e) {
+            $processingError = $this->buildProcessingError('Media variant generation failed.', $e);
+            Log::warning($processingError);
+        } finally {
+            $media->status = 'ready';
+            if ($processingError === null) {
+                $media->last_processing_error = null;
+                $media->last_processing_failed_at = null;
+            } else {
+                $media->last_processing_error = $processingError;
+                $media->last_processing_failed_at = now();
+            }
+            $media->save();
+
+            if (is_string($temp) && is_file($temp)) {
+                @unlink($temp);
             }
         }
+    }
 
-        $media->status = 'ready';
-        $media->save();
+    /**
+     * @param array<string, array<string, int>> $variantData
+     * @param array<int, string> $targetVariants
+     */
+    private function generateImageVariants(Media $media, string $temp, string $tempDir, array $variantData, array $targetVariants): void
+    {
+        $manager = new ImageManager(new Driver());
+        $baseImage = $manager->read($temp);
 
-        if (is_file($temp)) {
-            @unlink($temp);
+        $isPortrait = $baseImage->height() > $baseImage->width();
+
+        foreach ($variantData as $variantName => $size) {
+            if (! in_array($variantName, $targetVariants, true)) {
+                continue;
+            }
+
+            $image = $manager->read($temp);
+
+            if ($isPortrait === true) {
+                $width = (int) $size['height'];
+                $height = (int) $size['width'];
+            } else {
+                $width = (int) $size['width'];
+                $height = (int) $size['height'];
+            }
+
+            if ($variantName !== 'scaled' && ($image->height() < $height || $image->width() < $width)) {
+                continue;
+            }
+
+            $image->scaleDown($width, $height);
+            $variantFile = $tempDir.'/'.$media->hash.'-'.$variantName.'.webp';
+            $image->save($variantFile, quality: 75);
+
+            $media->addVariant($variantName, 'image/webp', 'webp', $variantFile);
         }
+    }
+
+    private function buildProcessingError(string $message, Throwable $e): string
+    {
+        return mb_substr(trim($message.' '.$e->getMessage()), 0, 2000);
+    }
+
+    private function isVariantReady(Media $media, string $variantName): bool
+    {
+        $variants = is_array($media->variants) ? $media->variants : [];
+
+        return array_key_exists($variantName, $variants) && $media->hasVariant($variantName);
     }
 }
