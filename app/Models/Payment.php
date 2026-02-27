@@ -96,7 +96,7 @@ class Payment extends Model
 
     public function getAttribute($key): mixed
     {
-        if (is_string($key) && array_key_exists($key, self::SQUARE_META_FIELDS)) {
+        if (array_key_exists($key, self::SQUARE_META_FIELDS)) {
             return $this->getSquareMetaAttributeValue($key);
         }
 
@@ -105,7 +105,7 @@ class Payment extends Model
 
     public function setAttribute($key, $value): static
     {
-        if (is_string($key) && array_key_exists($key, self::SQUARE_META_FIELDS)) {
+        if (array_key_exists($key, self::SQUARE_META_FIELDS)) {
             $this->setSquareMetaAttributeValue($key, $value);
 
             return $this;
@@ -190,7 +190,7 @@ class Payment extends Model
         $this->square_last_event_id = $eventId;
         $this->square_last_event_at = $receivedAt ?? now();
         if ($payload !== null) {
-            $this->square_webhook_payload = $payload;
+            $this->setAttribute('square_webhook_payload', $payload);
         }
     }
 

@@ -26,7 +26,6 @@ use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Process\Process;
-use ZipArchive;
 
 class ServerController extends Controller
 {
@@ -1156,71 +1155,6 @@ class ServerController extends Controller
         ];
     }
 
-    private function downloadDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
-    {
-        if (! class_exists(ZipArchive::class)) {
-            session()->flash('message', 'ZIP extension is not enabled on this server.');
-            session()->flash('message-title', 'Download unavailable');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $normalizedPrefix = trim($prefix, '/');
-        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
-        $files = collect(Storage::disk($disk)->allFiles($searchPrefix))
-            ->map(fn ($path) => ltrim((string) $path, '/'))
-            ->filter(fn ($path) => $path !== '')
-            ->values()
-            ->all();
-
-        if ($files === []) {
-            session()->flash('message', 'No files found for this archive.');
-            session()->flash('message-title', 'Nothing to download');
-            session()->flash('message-type', 'warning');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $zipPath = tempnam(sys_get_temp_dir(), $archivePrefix.'-');
-        if (! is_string($zipPath)) {
-            session()->flash('message', 'Unable to create temporary archive file.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
-            @unlink($zipPath);
-            session()->flash('message', 'Unable to create ZIP archive.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        foreach ($files as $path) {
-            if (! Storage::disk($disk)->exists($path)) {
-                continue;
-            }
-
-            $absolutePath = Storage::disk($disk)->path($path);
-            $archivePath = $normalizedPrefix === '' || ! str_starts_with($path, $normalizedPrefix.'/')
-                ? $path
-                : substr($path, strlen($normalizedPrefix) + 1);
-
-            $zip->addFile($absolutePath, $archivePath);
-        }
-
-        $zip->close();
-
-        $filename = $archivePrefix.'-'.now()->format('Ymd-His').'.zip';
-
-        return response()->download($zipPath, $filename)->deleteFileAfterSend(true);
-    }
-
     private function streamDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
     {
         $normalizedPrefix = trim($prefix, '/');
@@ -1318,8 +1252,8 @@ class ServerController extends Controller
 
             try {
                 foreach ($files as $entry) {
-                    $disk = (string) ($entry['disk'] ?? '');
-                    $path = ltrim((string) ($entry['path'] ?? ''), '/');
+                    $disk = (string) $entry['disk'];
+                    $path = ltrim((string) $entry['path'], '/');
                     if (! in_array($disk, ['local', 'media'], true) || $path === '') {
                         continue;
                     }

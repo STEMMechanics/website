@@ -16,8 +16,16 @@ class SquareWebhookSyncService
      */
     public function syncPayload(array $payload, ?SquareWebhookEvent $event = null): array
     {
-        $eventType = trim((string) ($payload['type'] ?? $event?->event_type ?? ''));
-        $eventId = trim((string) ($payload['event_id'] ?? $event?->event_id ?? ''));
+        $eventType = trim((string) ($payload['type'] ?? ''));
+        $eventId = trim((string) ($payload['event_id'] ?? ''));
+        if ($event instanceof SquareWebhookEvent) {
+            if ($eventType === '') {
+                $eventType = trim((string) ($event->event_type ?? ''));
+            }
+            if ($eventId === '') {
+                $eventId = trim((string) ($event->event_id ?? ''));
+            }
+        }
         $payment = data_get($payload, 'data.object.payment');
         $refund = data_get($payload, 'data.object.refund');
         $squarePaymentId = (string) ($payment['id'] ?? $refund['payment_id'] ?? '');

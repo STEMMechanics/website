@@ -99,6 +99,9 @@ class InvoiceController extends Controller
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
+        if ($request->has('private_files')) {
+            $invoice->updateFiles($request->input('private_files'), 'private');
+        }
 
         session()->flash('message', 'Invoice has been created');
         session()->flash('message-title', 'Invoice created');
@@ -154,6 +157,9 @@ class InvoiceController extends Controller
             $invoice->quote_id = $validated['quote_id'] ?? null;
             $invoice->save();
             $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
+            if ($request->has('private_files')) {
+                $invoice->updateFiles($request->input('private_files'), 'private');
+            }
 
             session()->flash('message', 'Purchase order number and notes have been updated');
             session()->flash('message-title', 'Invoice updated');
@@ -179,6 +185,9 @@ class InvoiceController extends Controller
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
         $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
+        if ($request->has('private_files')) {
+            $invoice->updateFiles($request->input('private_files'), 'private');
+        }
 
         session()->flash('message', 'Invoice has been updated');
         session()->flash('message-title', 'Invoice updated');
@@ -1267,6 +1276,16 @@ class InvoiceController extends Controller
         $amountRaw = (float) $customerPayment->total_amount;
         $isRefund = $customerPayment->isRefund();
 
+        $gatewayProcessedAtRaw = trim((string) ($customerPayment->square_gateway_updated_at ?? $customerPayment->square_gateway_created_at ?? ''));
+        $gatewayProcessedAtLabel = '';
+        if ($gatewayProcessedAtRaw !== '') {
+            try {
+                $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+            } catch (Throwable) {
+                $gatewayProcessedAtLabel = '';
+            }
+        }
+
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payment-receipt', [
             'receiptTitle' => $isRefund ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $isRefund ? 'Amount Refunded' : 'Amount Paid',
@@ -1285,9 +1304,7 @@ class InvoiceController extends Controller
             'cardBrand' => (string) ($customerPayment->square_card_brand ?? ''),
             'cardLast4' => (string) ($customerPayment->square_card_last4 ?? ''),
             'squareReceiptUrl' => (string) ($customerPayment->square_receipt_url ?? ''),
-            'gatewayProcessedAt' => $customerPayment->square_gateway_updated_at?->format('M j, Y g:i a')
-                ?? $customerPayment->square_gateway_created_at?->format('M j, Y g:i a')
-                ?? '',
+            'gatewayProcessedAt' => $gatewayProcessedAtLabel,
             'footerMessage' => $isRefund ? 'This receipt confirms the refund transaction.' : 'Thank you for your payment.',
         ])->setOption([
             'enable_font_subsetting' => true,

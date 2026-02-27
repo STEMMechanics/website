@@ -48,16 +48,16 @@ class SyncSquareWebhooksCommand extends Command
 
             try {
                 $result = $syncService->syncPayload($payload, $event);
-                if (($result['ignored'] ?? false) === true) {
+                if ($result['ignored'] === true) {
                     $ignored++;
                 }
-                if (($result['payment'] ?? null) !== null) {
+                if ($result['payment'] !== null) {
                     $linked++;
                 }
-                if (($result['created_payment'] ?? false) === true) {
+                if ($result['created_payment'] === true) {
                     $createdPayments++;
                 }
-                if (($result['event_updated'] ?? false) === true) {
+                if ($result['event_updated'] === true) {
                     $updatedEvents++;
                 }
             } catch (\Throwable $e) {

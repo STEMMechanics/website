@@ -1167,6 +1167,16 @@ class WorkshopTicketFlowController extends Controller
             return null;
         }
 
+        $gatewayProcessedAtRaw = trim((string) ($payment->square_gateway_updated_at ?? $payment->square_gateway_created_at ?? ''));
+        $gatewayProcessedAtLabel = '';
+        if ($gatewayProcessedAtRaw !== '') {
+            try {
+                $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+            } catch (\Throwable) {
+                $gatewayProcessedAtLabel = '';
+            }
+        }
+
         return DomPdf::loadView('pdf.payment-receipt', [
             'receiptTitle' => $payment->isRefund() ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $payment->isRefund() ? 'Amount Refunded' : 'Amount Paid',
@@ -1185,9 +1195,7 @@ class WorkshopTicketFlowController extends Controller
             'cardBrand' => (string) ($payment->square_card_brand ?? ''),
             'cardLast4' => (string) ($payment->square_card_last4 ?? ''),
             'squareReceiptUrl' => (string) ($payment->square_receipt_url ?? ''),
-            'gatewayProcessedAt' => $payment->square_gateway_updated_at?->format('M j, Y g:i a')
-                ?? $payment->square_gateway_created_at?->format('M j, Y g:i a')
-                ?? '',
+            'gatewayProcessedAt' => $gatewayProcessedAtLabel,
             'footerMessage' => $payment->isRefund() ? 'This receipt confirms the refund transaction.' : 'Thank you for your payment.',
         ])->setOption([
             'enable_font_subsetting' => true,

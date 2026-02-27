@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -228,14 +227,7 @@ class UserController extends Controller
             );
         }
 
-        try {
-            $user->delete();
-        } catch (QueryException) {
-            return $this->respondDeleteBlocked(
-                $request,
-                'User cannot be deleted because related records still require this account.'
-            );
-        }
+        $user->delete();
 
         session()->flash('message', 'User has been deleted');
         session()->flash('message-title', 'User deleted');
