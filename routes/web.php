@@ -7,6 +7,7 @@ use App\Http\Controllers\BasController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\FinanceFileController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
@@ -235,6 +236,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/expenses/{expense}/document', [ExpenseController::class, 'viewDocument'])->name('admin.expense.document.view');
     Route::get('/admin/expenses/{expense}/document/download', [ExpenseController::class, 'downloadDocument'])->name('admin.expense.document.download');
     Route::delete('/admin/expenses/{expense}/document', [ExpenseController::class, 'removeDocument'])->name('admin.expense.document.remove');
+    Route::post('/admin/finance-files/upload', [FinanceFileController::class, 'upload'])->name('admin.finance-file.upload');
+    Route::get('/admin/finance-files/{financeFile}', [FinanceFileController::class, 'view'])->name('admin.finance-file.view');
+    Route::get('/admin/finance-files/{financeFile}/download', [FinanceFileController::class, 'download'])->name('admin.finance-file.download');
+    Route::get('/admin/finance-files/{financeFile}/impact', [FinanceFileController::class, 'impact'])->name('admin.finance-file.impact');
+    Route::post('/admin/finance-files/{financeFile}/association', [FinanceFileController::class, 'updateAssociation'])->name('admin.finance-file.association');
 
     Route::get('/admin/payments', [PaymentController::class, 'index'])->name('admin.payment.index');
     Route::get('/admin/payments/create', [PaymentController::class, 'create'])->name('admin.payment.create');

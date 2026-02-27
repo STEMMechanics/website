@@ -58,6 +58,7 @@
     } else {
         $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoiceNumberForEmail}** for your workshop program and materials. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
     }
+    $privateFinanceFiles = isset($invoice) ? $invoice->privateFinanceFiles : collect();
 @endphp
 
 <x-layout>
@@ -764,12 +765,15 @@
             </fieldset>
 
             <x-ui.input type="textarea" label="Notes" name="notes" value="{{ old('notes', $invoice->notes ?? '') }}" />
-            <x-ui.filelist
+            <x-admin.finance-file-manager
                 label="Private Files"
                 info="Admin-only files attached to this invoice."
-                name="private_files"
-                editor="true"
-                value="{!! isset($invoice) ? $invoice->files('private')->orderBy('name')->get() : '' !!}"
+                field-name="private_file_ids"
+                upload-name="private_file_upload"
+                upload-id="invoice-private-file-upload"
+                context-type="invoice"
+                context-id="{{ isset($invoice) ? (string) $invoice->id : '' }}"
+                :files="$privateFinanceFiles"
             />
 
             <div class="flex justify-end mt-8 gap-4">

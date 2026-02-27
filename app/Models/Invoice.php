@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
+use Illuminate\Support\Facades\DB;
 
 class Invoice extends Model
 {
@@ -112,6 +114,73 @@ class Invoice extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(InvoiceLine::class)->orderBy('line_number');
+    }
+
+    /**
+     * @return MorphToMany<FinanceFile, $this>
+     */
+    public function financeFiles(): MorphToMany
+    {
+        return $this->morphToMany(FinanceFile::class, 'fileable', 'finance_fileables')
+            ->withPivot('collection')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return MorphToMany<FinanceFile, $this>
+     */
+    public function privateFinanceFiles(): MorphToMany
+    {
+        return $this->financeFiles()->wherePivot('collection', 'private');
+    }
+
+    public function syncPrivateFinanceFiles(array $fileIds): void
+    {
+        $normalizedIds = collect($fileIds)
+            ->map(fn ($id) => is_numeric($id) ? (int) $id : 0)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        $normalizedIds = FinanceFile::query()
+            ->whereIn('id', $normalizedIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $now = now();
+        $currentIds = DB::table('finance_fileables')
+            ->where('fileable_type', self::class)
+            ->where('fileable_id', (string) $this->getKey())
+            ->where('collection', 'private')
+            ->pluck('finance_file_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $detachIds = array_values(array_diff($currentIds, $normalizedIds));
+        $attachIds = array_values(array_diff($normalizedIds, $currentIds));
+
+        if ($detachIds !== []) {
+            DB::table('finance_fileables')
+                ->where('fileable_type', self::class)
+                ->where('fileable_id', (string) $this->getKey())
+                ->where('collection', 'private')
+                ->whereIn('finance_file_id', $detachIds)
+                ->delete();
+        }
+
+        if ($attachIds !== []) {
+            $rows = array_map(fn (int $fileId) => [
+                'finance_file_id' => $fileId,
+                'fileable_id' => (string) $this->getKey(),
+                'fileable_type' => self::class,
+                'collection' => 'private',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ], $attachIds);
+
+            DB::table('finance_fileables')->insert($rows);
+        }
     }
 
     public function canEditContents(): bool

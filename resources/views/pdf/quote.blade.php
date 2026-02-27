@@ -24,6 +24,7 @@
     $logoPath = public_path('apple-touch-icon.png');
     }
     $quoteDate = $quote->quote_date?->format('M d, Y') ?? '-';
+    $purchaseOrder = trim((string) ($quote->purchase_order_number ?? ''));
     $quoteTitle = trim((string) ($quote->title ?? ''));
     $quoteDescription = trim((string) ($quote->description ?? ''));
     $allLineItems = is_array($quote->line_items) ? $quote->line_items : [];
@@ -134,6 +135,9 @@
                         </tr>
                     </table>
                     <div class="quote-validity">Quotes are valid for 28 days from date</div>
+                    @if($purchaseOrder !== '')
+                    <div class="quote-validity">PO Number: {{ $purchaseOrder }}</div>
+                    @endif
                 </td>
             </tr>
         </table>

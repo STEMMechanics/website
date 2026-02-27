@@ -76,7 +76,7 @@ class QuoteController extends Controller
 
         $quote->save();
         $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
-        $quote->updateFiles($request->input('private_files'), 'private');
+        $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
 
         session()->flash('message', 'Quote has been created');
         session()->flash('message-title', 'Quote created');
@@ -87,6 +87,7 @@ class QuoteController extends Controller
 
     public function edit(Quote $quote)
     {
+        $quote->loadMissing('privateFinanceFiles');
         $linkedInvoiceId = Invoice::query()->where('quote_id', $quote->id)->value('id');
 
         return view('admin.quote.edit', [
@@ -117,7 +118,7 @@ class QuoteController extends Controller
 
         $quote->save();
         $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
-        $quote->updateFiles($request->input('private_files'), 'private');
+        $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
 
         session()->flash('message', 'Quote has been updated');
         session()->flash('message-title', 'Quote updated');
@@ -252,6 +253,7 @@ class QuoteController extends Controller
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->quote_id = $quote->id;
         $invoice->user_id = $quote->user_id;
+        $invoice->purchase_order_number = $quote->purchase_order_number;
         $invoice->status = 'draft';
         $invoice->issue_date = Carbon::now()->startOfDay();
         $invoice->due_date = Carbon::now()->startOfDay()->addDays(28);
@@ -277,7 +279,7 @@ class QuoteController extends Controller
         ])));
 
         $invoice->save();
-        $invoice->updateFiles($quote->files('private')->pluck('name')->all(), 'private');
+        $invoice->syncPrivateFinanceFiles($quote->privateFinanceFiles()->pluck('finance_files.id')->all());
         foreach ($sourceLineItems as $index => $lineItem) {
             if (! is_array($lineItem)) {
                 continue;
@@ -316,11 +318,12 @@ class QuoteController extends Controller
             'quote_number' => ['required', 'string', 'max:100', Rule::unique('quotes')->ignore($quote?->id)],
             'user_id' => ['required', 'exists:users,id'],
             'quote_date' => ['required', 'date'],
+            'purchase_order_number' => ['nullable', 'string', 'max:120'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'line_items_json' => ['nullable', 'string'],
-            'private_files' => ['nullable', 'string'],
+            'private_file_ids' => ['nullable', 'string'],
             'linked_invoice_id' => [
                 'nullable',
                 'integer',
@@ -344,6 +347,24 @@ class QuoteController extends Controller
             $targetInvoice->quote_id = $quote->id;
             $targetInvoice->save();
         }
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function parsePrivateFileIds(mixed $value): array
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        return collect(explode(',', $raw))
+            ->map(fn ($id) => is_numeric(trim($id)) ? (int) trim($id) : 0)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function validateLinkedInvoiceSelection(mixed $linkedInvoiceId, mixed $userId, ?Quote $quote): void

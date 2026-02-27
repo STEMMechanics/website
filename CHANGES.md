@@ -8,6 +8,8 @@
 - Added ability to delete orphaned files
 - UI Improvements
 - Removed login notification on session refresh of remembered devices
+- Improved file management on quotes/invoices
+- Quotes now support a PO field
 
 ## 1.3.10
 

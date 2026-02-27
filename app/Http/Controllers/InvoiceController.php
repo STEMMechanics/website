@@ -98,7 +98,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
-        $invoice->updateFiles($request->input('private_files'), 'private');
+        $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
 
         session()->flash('message', 'Invoice has been created');
         session()->flash('message-title', 'Invoice created');
@@ -111,6 +111,7 @@ class InvoiceController extends Controller
     {
         $invoice->loadMissing(
             'lines',
+            'privateFinanceFiles',
             'taxAdjustments.lines',
             'allocations.customerPayment.user',
             'allocations.customerPayment.refundOf'
@@ -152,7 +153,7 @@ class InvoiceController extends Controller
             $invoice->notes = $validated['notes'] ?? null;
             $invoice->quote_id = $validated['quote_id'] ?? null;
             $invoice->save();
-            $invoice->updateFiles($request->input('private_files'), 'private');
+            $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
 
             session()->flash('message', 'Purchase order number and notes have been updated');
             session()->flash('message-title', 'Invoice updated');
@@ -177,7 +178,7 @@ class InvoiceController extends Controller
 
         $invoice->save();
         $this->replaceInvoiceLines($invoice, $lineItems);
-        $invoice->updateFiles($request->input('private_files'), 'private');
+        $invoice->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
 
         session()->flash('message', 'Invoice has been updated');
         session()->flash('message-title', 'Invoice updated');
@@ -1364,7 +1365,7 @@ class InvoiceController extends Controller
                     'exists:quotes,id',
                     Rule::unique('invoices', 'quote_id')->ignore($invoice->id),
                 ],
-                'private_files' => ['nullable', 'string'],
+                'private_file_ids' => ['nullable', 'string'],
             ]);
         }
 
@@ -1383,8 +1384,26 @@ class InvoiceController extends Controller
                 'exists:quotes,id',
                 Rule::unique('invoices', 'quote_id')->ignore($invoice?->id),
             ],
-            'private_files' => ['nullable', 'string'],
+            'private_file_ids' => ['nullable', 'string'],
         ]);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function parsePrivateFileIds(mixed $value): array
+    {
+        $raw = trim((string) ($value ?? ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        return collect(explode(',', $raw))
+            ->map(fn ($id) => is_numeric(trim($id)) ? (int) trim($id) : 0)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function validateQuoteUserMatch(mixed $quoteId, mixed $invoiceUserId): void

@@ -14,6 +14,8 @@
     if ($savedLineItems === null) {
         $savedLineItems = $editing ? json_encode($quote->line_items ?? []) : '[]';
     }
+
+    $privateFinanceFiles = $editing ? $quote->privateFinanceFiles : collect();
 @endphp
 
 <x-layout>
@@ -229,6 +231,7 @@
             </div>
 
             <x-ui.input type="date" label="Quote Date" name="quote_date" value="{{ old('quote_date', isset($quote) && $quote->quote_date ? $quote->quote_date->format('Y-m-d') : now()->format('Y-m-d')) }}" />
+            <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', $quote->purchase_order_number ?? '') }}" />
 
             <x-ui.input label="Quote Title" name="title" value="{{ old('title', $quote->title ?? '') }}" />
             <x-ui.input type="textarea" label="Quote Description" name="description" value="{{ old('description', $quote->description ?? '') }}" />
@@ -303,12 +306,15 @@
             </div>
 
             <x-ui.input type="textarea" label="Notes" name="notes" value="{{ old('notes', $quote->notes ?? '') }}" />
-            <x-ui.filelist
+            <x-admin.finance-file-manager
                 label="Private Files"
                 info="Admin-only files attached to this quote."
-                name="private_files"
-                editor="true"
-                value="{!! isset($quote) ? $quote->files('private')->orderBy('name')->get() : '' !!}"
+                field-name="private_file_ids"
+                upload-name="private_file_upload"
+                upload-id="quote-private-file-upload"
+                context-type="quote"
+                context-id="{{ isset($quote) ? (string) $quote->id : '' }}"
+                :files="$privateFinanceFiles"
             />
 
             <div class="flex justify-end mt-8 gap-4">
