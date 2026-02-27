@@ -13,6 +13,7 @@
 - Guarding around deleting users
 - Square EFTPOS payments are now recorded automatically
 - BAS Report improvements
+- Square Webhook EFTPOS payment improvements
 
 ## 1.3.10
 

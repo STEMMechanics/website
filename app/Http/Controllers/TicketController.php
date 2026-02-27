@@ -866,7 +866,7 @@ class TicketController extends Controller
                 ->where('invoice_id', $invoice->id)
                 ->whereHas('customerPayment', function ($query): void {
                     $query->where('gateway_provider', 'square')
-                        ->orWhereNotNull('square_payment_id');
+                        ->orWhereNotNull('square_integration_meta->square_payment_id');
                 })
                 ->exists();
 

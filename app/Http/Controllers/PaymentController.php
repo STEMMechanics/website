@@ -240,37 +240,40 @@ class PaymentController extends Controller
 
     public function update(Request $request, Payment $payment)
     {
-        if ($this->canRelinkSquarePosPayment($payment)) {
+        if ($payment->isRefund()) {
             $validated = $request->validate([
-                'user_id' => ['required', 'exists:users,id'],
                 'notes' => ['nullable', 'string'],
-                'allocations_json' => ['nullable', 'string'],
             ]);
 
-            DB::transaction(function () use ($payment, $validated, $request): void {
-                $payment->user_id = (string) $validated['user_id'];
+            DB::transaction(function () use ($payment, $validated): void {
                 $payment->notes = $validated['notes'] ?? null;
                 $payment->save();
-                $this->syncAllocations($payment, $request);
             });
 
-            session()->flash('message', 'Payment linkage has been updated');
-            session()->flash('message-title', 'Payment updated');
+            session()->flash('message', 'Payment notes have been updated');
+            session()->flash('message-title', 'Notes updated');
             session()->flash('message-type', 'success');
 
             return redirect()->back();
         }
 
         $validated = $request->validate([
+            'user_id' => ['required', 'exists:users,id'],
+            'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
+            'allocations_json' => ['nullable', 'string'],
         ]);
-        DB::transaction(function () use ($payment, $validated): void {
+
+        DB::transaction(function () use ($payment, $validated, $request): void {
+            $payment->user_id = (string) $validated['user_id'];
+            $payment->reference = $validated['reference'] ?? null;
             $payment->notes = $validated['notes'] ?? null;
             $payment->save();
+            $this->syncAllocations($payment, $request);
         });
 
-        session()->flash('message', 'Payment notes have been updated');
-        session()->flash('message-title', 'Notes updated');
+        session()->flash('message', 'Payment linkage has been updated');
+        session()->flash('message-title', 'Payment updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
@@ -889,11 +892,6 @@ class PaymentController extends Controller
         }
 
         return strtolower(trim((string) ($payment->gateway_provider ?? ''))) === 'square';
-    }
-
-    private function canRelinkSquarePosPayment(Payment $payment): bool
-    {
-        return $payment->isAutoImportedSquarePos() && ! $payment->isRefund();
     }
 
     private function isCreditGrantPayment(Payment $payment): bool

@@ -8,9 +8,9 @@
         );
     $isRefundRecord = isset($customerPayment) && $customerPayment->refund_of_payment_id !== null;
     $isCreditGrant = isset($customerPayment) && (string) ($customerPayment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_CREDIT;
-    $canRelinkSquarePayment = isset($customerPayment) && $customerPayment->isAutoImportedSquarePos() && ! $isRefundRecord;
-    $isCoreLocked = $isExisting && ! $canRelinkSquarePayment;
-    $canEditAllocations = ($canRelinkSquarePayment || ! $isExisting) && ! $isRefundRecord;
+    $isCoreLocked = $isExisting;
+    $canEditLinkage = ! $isRefundRecord;
+    $canEditAllocations = $canEditLinkage;
     $existingLockedAllocations = isset($customerPayment)
         ? (!$canEditAllocations
             ? $customerPayment->allocations
@@ -174,24 +174,6 @@
                 </div>
             @endif
 
-            @if($isSquareManaged)
-                <div class="mb-4 rounded-lg border border-indigo-300 bg-indigo-50 p-3 text-sm">
-                    This payment is managed by Square. Refunds use the Square refund action and core fields are locked.
-                </div>
-            @endif
-            @if($isExisting)
-                <div class="mb-4 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm">
-                    {{ $canRelinkSquarePayment
-                        ? 'This synced Square POS payment can be linked to a customer and invoice allocations.'
-                        : 'This payment is immutable. Only private notes can be edited.' }}
-                </div>
-            @endif
-            @if($isRefundRecord)
-                <div class="mb-4 rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm">
-                    This is a refund payment record and is fully locked.
-                </div>
-            @endif
-
             <input type="hidden" name="allocations_json" x-ref="allocationsJson" value="{{ $savedAllocations }}" />
 
             <x-admin.user-selector-inline
@@ -201,7 +183,7 @@
                 lookup-name="payment_user_lookup"
                 label="Customer"
                 info="Search by name/company/email. Select a customer for this payment."
-                :disabled="$isCoreLocked"
+                :disabled="!$canEditLinkage"
             />
 
             <div class="flex gap-8">
@@ -220,7 +202,7 @@
                 </div>
             </div>
 
-            <x-ui.input label="Reference" name="reference" value="{{ old('reference', $customerPayment->reference ?? '') }}" :disabled="$isCoreLocked" />
+            <x-ui.input label="Reference" name="reference" value="{{ old('reference', $customerPayment->reference ?? '') }}" :disabled="!$canEditLinkage" />
 
             <x-ui.input type="text" label="Total Amount" name="total_amount" value="{{ old('total_amount', $customerPayment->total_amount ?? (isset($prefillTotalAmount) && $prefillTotalAmount !== null ? number_format((float) $prefillTotalAmount, 2, '.', '') : '0.00')) }}" :moneyFormat="true" :disabled="$isCoreLocked" x-ref="totalAmountInput" />
 
@@ -352,6 +334,25 @@
                             <div><span class="font-semibold">Square Created:</span> {{ $customerPayment->square_gateway_created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             <div><span class="font-semibold">Square Updated:</span> {{ $customerPayment->square_gateway_updated_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             <div><span class="font-semibold">Last Webhook:</span> {{ $customerPayment->square_last_event_type ?? '-' }}{{ $customerPayment->square_last_event_at ? ' @ '.$customerPayment->square_last_event_at->format('M j, Y g:i a') : '' }}</div>
+                            @php
+                                $squareMeta = is_array($customerPayment->square_integration_meta ?? null)
+                                    ? $customerPayment->square_integration_meta
+                                    : [];
+                            @endphp
+                            @if($squareMeta !== [])
+                                <div class="md:col-span-2 mt-2 border-t border-gray-200 pt-2">
+                                    <div class="font-semibold mb-1">Square Metadata</div>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        @foreach($squareMeta as $metaKey => $metaValue)
+                                            @continue(is_array($metaValue) || is_object($metaValue))
+                                            <div>
+                                                <span class="font-semibold">{{ \Illuminate\Support\Str::headline((string) $metaKey) }}:</span>
+                                                {{ is_bool($metaValue) ? ($metaValue ? 'true' : 'false') : (string) $metaValue }}
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @elseif($isSquareManaged && $isRefundRecord)

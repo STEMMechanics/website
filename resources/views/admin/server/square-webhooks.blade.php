@@ -2,39 +2,43 @@
     <x-mast>Square Webhooks</x-mast>
 
     <x-container>
-        <div class="flex flex-col lg:flex-row my-4 items-end gap-3 lg:gap-4">
-            <form method="POST" action="{{ route('admin.server.square-webhooks.sync') }}" class="w-full lg:w-auto">
-                @csrf
-                <input type="hidden" name="only_unlinked" value="1">
-                @if(request()->filled('search'))
-                    <input type="hidden" name="search" value="{{ request('search') }}">
-                @endif
-                @if(request()->filled('event_type'))
-                    <input type="hidden" name="event_type" value="{{ request('event_type') }}">
-                @endif
-                <x-ui.button type="submit" color="outline">Sync Stored Events</x-ui.button>
-            </form>
-            <form method="GET" action="{{ route('admin.server.square-webhooks') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
-                <div class="w-full sm:w-64">
-                    <x-ui.select label="Event Type" name="event_type">
-                        <option value="">All event types</option>
-                        @foreach($eventTypes as $eventType)
-                            <option value="{{ $eventType }}" {{ request('event_type') === $eventType ? 'selected' : '' }}>{{ $eventType }}</option>
-                        @endforeach
-                    </x-ui.select>
-                </div>
-                <div class="w-full sm:w-40 mb-4">
-                    <x-ui.button type="submit" color="outline">Filter</x-ui.button>
-                </div>
-            </form>
-            <div class="w-full lg:flex-1">
+        <x-ui.toolbar>
+            <x-slot:left>
+                <form method="GET" action="{{ route('admin.server.square-webhooks') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
+                    <div class="w-full sm:w-64">
+                        <x-ui.select label="Event Type" name="event_type">
+                            <option value="">All event types</option>
+                            @foreach($eventTypes as $eventType)
+                                <option value="{{ $eventType }}" {{ request('event_type') === $eventType ? 'selected' : '' }}>{{ $eventType }}</option>
+                            @endforeach
+                        </x-ui.select>
+                    </div>
+                    <div class="w-full sm:w-40 mb-4">
+                        <x-ui.button type="submit" color="outline">Filter</x-ui.button>
+                    </div>
+                </form>
+            </x-slot:left>
+            <x-slot:right>
                 <x-ui.search name="search" label="Search" />
-            </div>
-        </div>
+            </x-slot>
+        </x-ui.toolbar>
 
         @if($events->isEmpty())
             <x-none-found item="square webhook events" search="{{ request()->get('search') }}" />
         @else
+            <div class="text-right mb-4">
+                <form method="POST" action="{{ route('admin.server.square-webhooks.sync') }}" class="w-full lg:w-auto">
+                    @csrf
+                    <input type="hidden" name="only_unlinked" value="1">
+                    @if(request()->filled('search'))
+                        <input type="hidden" name="search" value="{{ request('search') }}">
+                    @endif
+                    @if(request()->filled('event_type'))
+                        <input type="hidden" name="event_type" value="{{ request('event_type') }}">
+                    @endif
+                    <x-ui.button type="submit" color="outline">Sync Stored Events</x-ui.button>
+                </form>
+            </div>
             <x-ui.table>
                 <x-slot:header>
                     <th>ID</th>

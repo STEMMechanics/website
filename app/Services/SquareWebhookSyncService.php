@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\SquareWebhookEvent;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class SquareWebhookSyncService
 {
@@ -26,7 +27,7 @@ class SquareWebhookSyncService
 
         if ($squarePaymentId !== '') {
             $customerPayment = Payment::query()
-                ->where('square_payment_id', $squarePaymentId)
+                ->where('square_integration_meta->square_payment_id', $squarePaymentId)
                 ->first();
         }
 
@@ -93,10 +94,16 @@ class SquareWebhookSyncService
             $customerPayment->square_card_last4 = (string) ($payment['card_details']['card']['last_4'] ?? $customerPayment->square_card_last4);
             $customerPayment->square_gateway_created_at = $this->squareDateTime($payment['created_at'] ?? null) ?? $customerPayment->square_gateway_created_at;
             $customerPayment->square_gateway_updated_at = $this->squareDateTime($payment['updated_at'] ?? null) ?? $customerPayment->square_gateway_updated_at;
+            if ($this->supportsSquareIntegrationMetaColumn()) {
+                $customerPayment->square_integration_meta = $this->buildSquareIntegrationMeta($payment, $customerPayment->square_integration_meta);
+            }
             if ($customerPayment->isAutoImportedSquarePos() && $incomingAmount > 0) {
                 $customerPayment->total_amount = $incomingAmount;
                 if (! $customerPayment->allocations()->where('allocated_amount', '>', 0)->exists()) {
                     $customerPayment->gst_amount = $this->estimateInclusiveGst($incomingAmount);
+                }
+                if ($this->isLegacyAutoNote((string) ($customerPayment->notes ?? ''))) {
+                    $customerPayment->notes = null;
                 }
             }
         }
@@ -138,7 +145,7 @@ class SquareWebhookSyncService
     private function createUnallocatedSquarePosPayment(array $payment): array
     {
         $existingBySquareId = Payment::query()
-            ->where('square_payment_id', (string) ($payment['id'] ?? ''))
+            ->where('square_integration_meta->square_payment_id', (string) ($payment['id'] ?? ''))
             ->first();
 
         if ($existingBySquareId instanceof Payment) {
@@ -164,17 +171,9 @@ class SquareWebhookSyncService
         $paymentRecord->created_by = null;
         $paymentRecord->received_on = $receivedOn;
         $paymentRecord->payment_method = Payment::PAYMENT_METHOD_EFTPOS;
-        $paymentRecord->reference = trim(implode(' | ', array_filter([
-            'Square POS',
-            $receiptNumber !== '' ? 'Receipt '.$receiptNumber : null,
-            $sourceType !== '' ? 'Source '.$sourceType : null,
-        ])));
         $paymentRecord->total_amount = $amount;
         $paymentRecord->gst_amount = $this->estimateInclusiveGst($amount);
-        $paymentRecord->notes = trim(implode("\n", array_filter([
-            'Auto-created from Square POS webhook.',
-            $deviceName !== '' ? 'Device: '.$deviceName : null,
-        ])));
+        $paymentRecord->notes = null;
         $paymentRecord->gateway_provider = 'square';
         $paymentRecord->gateway_status = (string) ($payment['status'] ?? '');
         $paymentRecord->gateway_reference_id = (string) ($payment['reference_id'] ?? '');
@@ -188,6 +187,9 @@ class SquareWebhookSyncService
         $paymentRecord->square_refunded_money_amount = (int) ($payment['refunded_money']['amount'] ?? 0);
         $paymentRecord->square_gateway_created_at = $this->squareDateTime($payment['created_at'] ?? null);
         $paymentRecord->square_gateway_updated_at = $this->squareDateTime($payment['updated_at'] ?? null);
+        if ($this->supportsSquareIntegrationMetaColumn()) {
+            $paymentRecord->square_integration_meta = $this->buildSquareIntegrationMeta($payment, null);
+        }
         $paymentRecord->save();
 
         return [$paymentRecord, true];
@@ -200,6 +202,58 @@ class SquareWebhookSyncService
         }
 
         return round($totalInc / 11, 2);
+    }
+
+    /**
+     * @param array<string, mixed>|null $existing
+     * @return array<string, mixed>
+     */
+    private function buildSquareIntegrationMeta(array $payment, ?array $existing): array
+    {
+        $meta = is_array($existing) ? $existing : [];
+
+        $set = static function (array &$target, string $key, mixed $value): void {
+            if (is_string($value)) {
+                $value = trim($value);
+            }
+            if ($value === null || $value === '') {
+                return;
+            }
+            $target[$key] = $value;
+        };
+
+        $set($meta, 'square_product', data_get($payment, 'application_details.square_product'));
+        $set($meta, 'source_type', data_get($payment, 'source_type'));
+        $set($meta, 'entry_method', data_get($payment, 'card_details.entry_method'));
+        $set($meta, 'receipt_number', data_get($payment, 'receipt_number'));
+        $set($meta, 'device_name', data_get($payment, 'device_details.device_name'));
+        $set($meta, 'device_id', data_get($payment, 'device_details.device_id'));
+        $set($meta, 'device_installation_id', data_get($payment, 'device_details.device_installation_id'));
+        $set($meta, 'statement_description', data_get($payment, 'card_details.statement_description'));
+        $set($meta, 'application_name', data_get($payment, 'card_details.application_name'));
+        $set($meta, 'verification_method', data_get($payment, 'card_details.verification_method'));
+
+        return $meta;
+    }
+
+    private function isLegacyAutoNote(string $notes): bool
+    {
+        $trimmed = trim($notes);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        return str_starts_with($trimmed, 'Auto-created from Square POS webhook.');
+    }
+
+    private function supportsSquareIntegrationMetaColumn(): bool
+    {
+        static $hasColumn = null;
+        if ($hasColumn === null) {
+            $hasColumn = Schema::hasColumn('payments', 'square_integration_meta');
+        }
+
+        return $hasColumn;
     }
 
     private function squareDateTime(mixed $value): ?Carbon

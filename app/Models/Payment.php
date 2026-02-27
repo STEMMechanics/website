@@ -8,10 +8,43 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use DateTimeInterface;
 
 class Payment extends Model
 {
     use HasFactory;
+
+    private const SQUARE_META_FIELDS = [
+        'square_payment_id' => 'square_payment_id',
+        'square_order_id' => 'square_order_id',
+        'square_location_id' => 'square_location_id',
+        'square_receipt_url' => 'square_receipt_url',
+        'square_card_brand' => 'square_card_brand',
+        'square_card_last4' => 'square_card_last4',
+        'square_paid_money_amount' => 'square_paid_money_amount',
+        'square_refunded_money_amount' => 'square_refunded_money_amount',
+        'square_gateway_created_at' => 'square_gateway_created_at',
+        'square_gateway_updated_at' => 'square_gateway_updated_at',
+        'square_last_event_type' => 'square_last_event_type',
+        'square_last_event_id' => 'square_last_event_id',
+        'square_last_event_at' => 'square_last_event_at',
+        'square_webhook_payload' => 'square_webhook_payload',
+    ];
+
+    private const SQUARE_META_INT_FIELDS = [
+        'square_paid_money_amount',
+        'square_refunded_money_amount',
+    ];
+
+    private const SQUARE_META_DATETIME_FIELDS = [
+        'square_gateway_created_at',
+        'square_gateway_updated_at',
+        'square_last_event_at',
+    ];
+
+    private const SQUARE_META_ARRAY_FIELDS = [
+        'square_webhook_payload',
+    ];
 
     public const KIND_PAYMENT = 'payment';
     public const KIND_REFUND = 'refund';
@@ -51,33 +84,35 @@ class Payment extends Model
         'gateway_provider',
         'gateway_status',
         'gateway_reference_id',
-        'square_payment_id',
-        'square_order_id',
-        'square_location_id',
-        'square_receipt_url',
-        'square_card_brand',
-        'square_card_last4',
-        'square_paid_money_amount',
-        'square_refunded_money_amount',
-        'square_gateway_created_at',
-        'square_gateway_updated_at',
-        'square_last_event_type',
-        'square_last_event_id',
-        'square_last_event_at',
-        'square_webhook_payload',
+        'square_integration_meta',
     ];
 
     protected $casts = [
         'received_on' => 'datetime',
         'total_amount' => 'decimal:2',
         'gst_amount' => 'decimal:2',
-        'square_paid_money_amount' => 'integer',
-        'square_refunded_money_amount' => 'integer',
-        'square_gateway_created_at' => 'datetime',
-        'square_gateway_updated_at' => 'datetime',
-        'square_last_event_at' => 'datetime',
-        'square_webhook_payload' => 'array',
+        'square_integration_meta' => 'array',
     ];
+
+    public function getAttribute($key): mixed
+    {
+        if (is_string($key) && array_key_exists($key, self::SQUARE_META_FIELDS)) {
+            return $this->getSquareMetaAttributeValue($key);
+        }
+
+        return parent::getAttribute($key);
+    }
+
+    public function setAttribute($key, $value): static
+    {
+        if (is_string($key) && array_key_exists($key, self::SQUARE_META_FIELDS)) {
+            $this->setSquareMetaAttributeValue($key, $value);
+
+            return $this;
+        }
+
+        return parent::setAttribute($key, $value);
+    }
 
     /**
      * @return BelongsTo<User, $this>
@@ -190,5 +225,99 @@ class Payment extends Model
         return $provider === 'square'
             && $method === self::PAYMENT_METHOD_EFTPOS
             && $squarePaymentId !== '';
+    }
+
+    private function getSquareMetaAttributeValue(string $field): mixed
+    {
+        $meta = parent::getAttribute('square_integration_meta');
+        if (! is_array($meta)) {
+            return null;
+        }
+
+        $metaKey = self::SQUARE_META_FIELDS[$field];
+        if (! array_key_exists($metaKey, $meta)) {
+            return null;
+        }
+
+        $value = $meta[$metaKey];
+
+        if (in_array($field, self::SQUARE_META_INT_FIELDS, true)) {
+            return $value === null || $value === '' ? null : (int) $value;
+        }
+
+        if (in_array($field, self::SQUARE_META_DATETIME_FIELDS, true)) {
+            $raw = trim((string) $value);
+            if ($raw === '') {
+                return null;
+            }
+
+            try {
+                return Carbon::parse($raw);
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        if (in_array($field, self::SQUARE_META_ARRAY_FIELDS, true)) {
+            return is_array($value) ? $value : null;
+        }
+
+        return $value === null ? null : (string) $value;
+    }
+
+    private function setSquareMetaAttributeValue(string $field, mixed $value): void
+    {
+        $meta = parent::getAttribute('square_integration_meta');
+        if (! is_array($meta)) {
+            $meta = [];
+        }
+
+        $metaKey = self::SQUARE_META_FIELDS[$field];
+        $normalized = $this->normalizeSquareMetaValue($field, $value);
+
+        if ($normalized === null) {
+            unset($meta[$metaKey]);
+        } else {
+            $meta[$metaKey] = $normalized;
+        }
+
+        parent::setAttribute('square_integration_meta', $meta);
+    }
+
+    private function normalizeSquareMetaValue(string $field, mixed $value): mixed
+    {
+        if (in_array($field, self::SQUARE_META_INT_FIELDS, true)) {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            return (int) $value;
+        }
+
+        if (in_array($field, self::SQUARE_META_DATETIME_FIELDS, true)) {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            if ($value instanceof DateTimeInterface) {
+                return Carbon::instance($value)->setTimezone((string) config('app.timezone'))->toDateTimeString();
+            }
+
+            try {
+                return Carbon::parse((string) $value)->setTimezone((string) config('app.timezone'))->toDateTimeString();
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        if (in_array($field, self::SQUARE_META_ARRAY_FIELDS, true)) {
+            return is_array($value) && $value !== [] ? $value : null;
+        }
+
+        if (is_string($value)) {
+            $value = trim($value);
+        }
+
+        return $value === null || $value === '' ? null : (string) $value;
     }
 }
