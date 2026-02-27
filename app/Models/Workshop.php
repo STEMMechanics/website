@@ -222,8 +222,8 @@ class Workshop extends Model
             return true;
         }
 
-        $actual = trim((string) ($this->private_code ?? ''));
-        $provided = trim((string) ($code ?? ''));
+        $actual = strtolower(trim((string) ($this->private_code ?? '')));
+        $provided = strtolower(trim((string) ($code ?? '')));
 
         return $provided !== '' && hash_equals($actual, $provided);
     }

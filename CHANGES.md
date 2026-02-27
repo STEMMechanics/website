@@ -8,6 +8,7 @@
 - Fixed bug in passing external registration URLs for workshops
 - Improved BAS reporting
 - Dependency updates
+- Private access codes are now case insensitive
 
 ## 1.3.13
 

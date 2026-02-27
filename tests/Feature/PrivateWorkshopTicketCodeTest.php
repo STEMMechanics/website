@@ -44,6 +44,28 @@ class PrivateWorkshopTicketCodeTest extends TestCase
         $response->assertSessionHasErrors('private_code');
     }
 
+    public function test_private_ticket_workshop_begin_accepts_mixed_case_code(): void
+    {
+        config(['security.altcha_enabled' => false]);
+
+        $workshop = $this->createPrivateTicketWorkshop();
+
+        $response = $this->from(route('workshop.ticket.flow.start', $workshop))
+            ->withSession(['_token' => 'test-csrf-token'])
+            ->post(route('workshop.ticket.flow.begin', $workshop), [
+                '_token' => 'test-csrf-token',
+                'quantity' => 1,
+                'firstname' => 'Casey',
+                'surname' => 'Buyer',
+                'email' => 'casey@example.com',
+                'phone' => '0400000000',
+                'private_code' => 'code-123',
+            ]);
+
+        $response->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+        $response->assertSessionHasNoErrors();
+    }
+
     private function createPrivateTicketWorkshop(): Workshop
     {
         $owner = User::factory()->create();
