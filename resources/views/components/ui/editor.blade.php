@@ -31,6 +31,11 @@
                     H3
                 </button>
                 <button
+                    @click.prevent="toggleHeading({ level: 4 })"
+                    :class="{ 'is-active': isActive('heading', { level: 4 }, updatedAt) }">
+                    H4
+                </button>
+                <button
                     @click.prevent="setSmall()"
                     :class="{ 'is-active': isActive('small', updatedAt) }">
                     SM

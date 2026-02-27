@@ -211,6 +211,10 @@ body.swal2-height-auto {
         @apply text-xl font-semibold;
     }
 
+    h4 {
+        @apply font-semibold;
+    }
+
     p {
         @apply mb-4;
     }
@@ -232,15 +236,19 @@ body.swal2-height-auto {
     }
 
     ul {
-        @apply list-disc ml-6 mb-4;
+        @apply list-disc ml-7 mb-8;
 
         li {
-            @apply mb-2;
+            @apply mb-1;
 
             p {
                 @apply mb-0;
             }
         }
+    }
+
+    ul ul {
+        @apply ml-5 mb-0;
     }
 
     /* Color swatches */
