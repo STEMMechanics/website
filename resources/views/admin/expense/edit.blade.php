@@ -35,11 +35,11 @@
                         step="0.01"
                         min="0"
                         label="Total Amount"
+                        labelInfo="(incl GST)"
                         name="total_amount"
                         id="expense-total-amount"
                         value="{{ $expense->total_amount ?? '' }}"
                         :moneyFormat="true"
-                        info="This amount is GST inclusive (inc GST)."
                     />
                 </div>
                 <div class="flex-1">
