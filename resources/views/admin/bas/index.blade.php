@@ -24,6 +24,7 @@
             <div class="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
                 <x-ui.button type="link" href="{{ route('admin.bas.export.csv', ['month' => $selectedMonth]) }}" color="outline">Export CSV</x-ui.button>
                 <x-ui.button type="link" href="{{ route('admin.bas.export.pdf', ['month' => $selectedMonth]) }}" color="outline" target="_blank">Export PDF</x-ui.button>
+                <x-ui.button type="link" href="{{ route('admin.bas.export.download-all', ['month' => $selectedMonth]) }}" color="outline">Download All</x-ui.button>
             </div>
         </form>
 
@@ -87,6 +88,7 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Supplier</th>
+                            <th class="hidden md:table-cell">Invoice ID</th>
                             <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
                         </x-slot:header>
                         <x-slot:body>
@@ -100,8 +102,10 @@
                                     <td>
                                         <div>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</div>
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
+                                        <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
+                                    <td class="hidden md:table-cell">{{ $expense->invoice_id ?: '-' }}</td>
                                     <td class="text-right">
                                         <div>{{ money($expenseTotal) }}</div>
                                         <div class="text-xs">GST: {{ money($expenseGst) }}</div>

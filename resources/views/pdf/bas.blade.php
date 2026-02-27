@@ -146,6 +146,7 @@
             <tr>
                 <th>Date</th>
                 <th>Supplier</th>
+                <th>Invoice ID</th>
                 <th>Description</th>
                 <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
@@ -162,6 +163,7 @@
                 <tr>
                     <td>{{ $expense->paid_on?->format('Y-m-d') ?? '-' }}</td>
                     <td>{{ $expense->supplier ?: '-' }}</td>
+                    <td>{{ $expense->invoice_id ?: '-' }}</td>
                     <td>{{ $expense->description ?: '-' }}</td>
                     <td class="right">{{ money($expenseEx) }}</td>
                     <td class="right">{{ money($expenseGst) }}</td>
@@ -169,7 +171,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6">No expenses in this period.</td>
+                    <td colspan="7">No expenses in this period.</td>
                 </tr>
             @endforelse
         </tbody>

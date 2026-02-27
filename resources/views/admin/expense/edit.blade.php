@@ -26,6 +26,12 @@
                 info="Start typing to choose an existing supplier or enter a new one."
             />
             <x-ui.input label="Description" name="description" value="{{ $expense->description ?? '' }}" />
+            <x-ui.input
+                label="Invoice / Receipt ID"
+                name="invoice_id"
+                value="{{ $expense->invoice_id ?? '' }}"
+                info="Optional supplier invoice or receipt reference used in BAS exports and document naming."
+            />
             <x-ui.input type="date" label="Expense Date" name="paid_on" id="expense-paid-on" value="{{ $defaultPaidOn }}" />
 
             <div class="flex gap-8">

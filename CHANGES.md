@@ -6,6 +6,7 @@
 - Improved handling of variant generation
 - UI Improvements
 - Fixed bug in passing external registration URLs for workshops
+- Improved BAS reporting
 
 ## 1.3.13
 

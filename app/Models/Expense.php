@@ -14,6 +14,7 @@ class Expense extends Model
         'created_by',
         'supplier',
         'description',
+        'invoice_id',
         'paid_on',
         'total_amount',
         'gst_amount',

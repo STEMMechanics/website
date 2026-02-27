@@ -295,6 +295,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/bas', [BasController::class, 'index'])->name('admin.bas.index');
     Route::get('/admin/bas/export/csv', [BasController::class, 'exportCsv'])->name('admin.bas.export.csv');
     Route::get('/admin/bas/export/pdf', [BasController::class, 'exportPdf'])->name('admin.bas.export.pdf');
+    Route::get('/admin/bas/export/download-all', [BasController::class, 'downloadAll'])->name('admin.bas.export.download-all');
 
 });
 

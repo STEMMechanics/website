@@ -18,6 +18,7 @@
                 <x-slot:header>
                     <th>Expense</th>
                     <th class="hidden md:table-cell">Supplier</th>
+                    <th class="hidden md:table-cell">Invoice ID</th>
                     <th class="hidden lg:table-cell">Description</th>
                     <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
@@ -28,9 +29,11 @@
                             <td>
                                 <div>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</div>
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
+                                <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                 <div class="lg:hidden text-xs text-gray-600">{{ $expense->description ?: '-' }}</div>
                             </td>
                             <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
+                            <td class="hidden md:table-cell">{{ $expense->invoice_id ?: '-' }}</td>
                             <td class="hidden lg:table-cell">{{ $expense->description ?: '-' }}</td>
                             <td>
                                 <div>${{ number_format((float) $expense->total_amount, 2) }}</div>

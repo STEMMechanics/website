@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ExpenseController extends Controller
 {
@@ -19,7 +20,8 @@ class ExpenseController extends Controller
             $search = $request->search;
             $query->where(function ($builder) use ($search) {
                 $builder->where('supplier', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%');
+                    ->orWhere('description', 'like', '%'.$search.'%')
+                    ->orWhere('invoice_id', 'like', '%'.$search.'%');
             });
         }
 
@@ -44,9 +46,10 @@ class ExpenseController extends Controller
         $expense = new Expense();
         $expense->fill($validated);
         $expense->created_by = Auth::id();
+        $expense->save();
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
-
+        $this->renameDocumentToCurrentConvention($expense);
         $expense->save();
 
         session()->flash('message', 'Expense has been recorded');
@@ -69,8 +72,10 @@ class ExpenseController extends Controller
         $validated = $this->validateRequest($request);
 
         $expense->fill($validated);
+        $expense->save();
 
         $this->replaceDocument($expense, $request->file('receipt_document_file'));
+        $this->renameDocumentToCurrentConvention($expense);
         $expense->save();
 
         session()->flash('message', 'Expense has been updated');
@@ -130,6 +135,7 @@ class ExpenseController extends Controller
         return $request->validate([
             'supplier' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:255'],
+            'invoice_id' => ['nullable', 'string', 'max:120'],
             'paid_on' => ['nullable', 'date'],
             'total_amount' => ['required', 'numeric', 'min:0'],
             'gst_amount' => ['required', 'numeric', 'min:0'],
@@ -145,10 +151,52 @@ class ExpenseController extends Controller
 
         $this->deleteDocument($expense->receipt_document_path);
 
-        $path = $file->store('finance/expenses', 'local');
+        $filename = $this->buildDocumentFilename($expense, $file->getClientOriginalExtension());
+        $path = $file->storeAs('finance/expenses', $filename, 'local');
 
         $expense->receipt_document_path = $path;
-        $expense->receipt_document_name = $file->getClientOriginalName();
+        $expense->receipt_document_name = basename($path);
+    }
+
+    private function renameDocumentToCurrentConvention(Expense $expense): void
+    {
+        $path = trim((string) ($expense->receipt_document_path ?? ''));
+        if ($path === '' || ! Storage::disk('local')->exists($path)) {
+            return;
+        }
+
+        $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
+        $targetFilename = $this->buildDocumentFilename($expense, $extension);
+        $targetPath = 'finance/expenses/'.$targetFilename;
+        if ($targetPath === $path) {
+            $expense->receipt_document_name = basename($targetPath);
+            return;
+        }
+
+        Storage::disk('local')->move($path, $targetPath);
+        $expense->receipt_document_path = $targetPath;
+        $expense->receipt_document_name = basename($targetPath);
+    }
+
+    private function buildDocumentFilename(Expense $expense, string $extension): string
+    {
+        $datePart = ($expense->paid_on ?? now())->format('ymd');
+        $supplier = $this->normalizeFilenamePart((string) ($expense->supplier ?? 'supplier'));
+        $expenseIdPart = 'EXP'.((int) $expense->id);
+        $invoiceId = trim((string) ($expense->invoice_id ?? ''));
+        $invoicePart = $invoiceId !== '' ? '-INV'.$this->normalizeFilenamePart($invoiceId) : '';
+        $normalizedExtension = trim($extension) !== '' ? strtolower(trim($extension)) : 'bin';
+
+        return $datePart.'-'.$supplier.'-'.$expenseIdPart.$invoicePart.'.'.$normalizedExtension;
+    }
+
+    private function normalizeFilenamePart(string $value): string
+    {
+        $normalized = Str::upper(Str::ascii(trim($value)));
+        $normalized = preg_replace('/[^A-Z0-9]+/', '-', $normalized) ?? '';
+        $normalized = trim((string) $normalized, '-');
+
+        return $normalized !== '' ? $normalized : 'NA';
     }
 
     private function deleteDocument(?string $path): void
