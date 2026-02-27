@@ -10,6 +10,7 @@
 - Removed login notification on session refresh of remembered devices
 - Improved file management on quotes/invoices
 - Quotes now support a PO field
+- Guarding around deleting users
 
 ## 1.3.10
 

@@ -386,7 +386,7 @@ let SM = {
         }
     },
 
-    confirmDelete: (token, title, content, url) => {
+    confirmDelete: (token, title, content, urlOrForm) => {
         Swal.fire({
             position: 'top',
             icon: 'warning',
@@ -400,7 +400,20 @@ let SM = {
             reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
-                axios.delete(url)
+                if (urlOrForm instanceof HTMLFormElement) {
+                    urlOrForm.submit();
+                    return;
+                }
+
+                const deleteUrl = typeof urlOrForm === 'string'
+                    ? urlOrForm
+                    : '';
+
+                if (deleteUrl === '') {
+                    return;
+                }
+
+                axios.delete(deleteUrl)
                 .then((response) => {
                     if(response.data.success){
                         SM.redirectIfSafe(response.data.redirect);

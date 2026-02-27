@@ -6,6 +6,8 @@ use App\Models\UserGroup;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Database\QueryException;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
@@ -198,17 +200,69 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
-        if ($user->id !== '1') {
+        if ($user->id === '1') {
+            return $this->respondDeleteBlocked(
+                $request,
+                'You cannot delete the main admin user.'
+            );
+        }
+
+        $blockingCounts = [
+            'workshops' => (int) DB::table('workshops')->where('user_id', (string) $user->id)->count(),
+            'posts' => (int) DB::table('posts')->where('user_id', (string) $user->id)->count(),
+            'media' => (int) DB::table('media')->where('user_id', (string) $user->id)->count(),
+        ];
+
+        $blocking = collect($blockingCounts)
+            ->filter(fn (int $count) => $count > 0)
+            ->map(fn (int $count, string $label) => $count.' '.$label)
+            ->values()
+            ->all();
+
+        if ($blocking !== []) {
+            return $this->respondDeleteBlocked(
+                $request,
+                'User cannot be deleted because they own: '.implode(', ', $blocking).'. Reassign or remove those records first.'
+            );
+        }
+
+        try {
             $user->delete();
-            session()->flash('message', 'User has been deleted');
-            session()->flash('message-title', 'User deleted');
-            session()->flash('message-type', 'success');
-        } else {
-            session()->flash('message', 'You cannot delete the main admin user');
-            session()->flash('message-title', 'User not deleted');
-            session()->flash('message-type', 'danger');
+        } catch (QueryException) {
+            return $this->respondDeleteBlocked(
+                $request,
+                'User cannot be deleted because related records still require this account.'
+            );
+        }
+
+        session()->flash('message', 'User has been deleted');
+        session()->flash('message-title', 'User deleted');
+        session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('admin.user.index'),
+            ]);
+        }
+
+        return redirect()->route('admin.user.index');
+    }
+
+    private function respondDeleteBlocked(Request $request, string $message): JsonResponse|\Illuminate\Http\RedirectResponse
+    {
+        session()->flash('message', $message);
+        session()->flash('message-title', 'User not deleted');
+        session()->flash('message-type', 'danger');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'redirect' => route('admin.user.index'),
+            ], 422);
         }
 
         return redirect()->route('admin.user.index');
