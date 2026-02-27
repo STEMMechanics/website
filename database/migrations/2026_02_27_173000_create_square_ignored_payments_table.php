@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('square_payment_id', 120)->unique();
             $table->text('reason')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignUuid('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });
     }
