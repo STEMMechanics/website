@@ -160,7 +160,13 @@
                 totalAmountFormatted() { return this.normalizeMoney(this.calculateSubtotal() + this.calculateGst()); },
                 normalizeLineItem(index, field) {
                     const value = parseFloat(this.lineItems[index]?.[field] || 0);
-                    this.lineItems[index][field] = Number.isFinite(value) ? value.toFixed(2) : 0;
+                    if (!Number.isFinite(value)) {
+                        this.lineItems[index][field] = 0;
+                    } else if (field === 'quantity') {
+                        this.lineItems[index][field] = value;
+                    } else {
+                        this.lineItems[index][field] = value.toFixed(2);
+                    }
                     this.serializeLineItems();
                 },
             }"
@@ -257,7 +263,7 @@
                         </div>
                         <div class="col-span-2">
                             <label class="block text-sm pl-1">Qty / Hrs</label>
-                            <input type="number" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
+                            <input type="number" step="any" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
                         </div>
                         <div class="col-span-3">
                             <label class="block text-sm pl-1">Unit Price (Ex GST)</label>

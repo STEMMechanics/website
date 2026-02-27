@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.13
+
+- Added ability to enter decimal numbers into quantities of quotes and invoices
+
 ## 1.3.12
 
 - Square Webhook management improvements

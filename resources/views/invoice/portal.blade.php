@@ -137,14 +137,15 @@
                             </td>
                             @php
                             $quantity = (float) $line['quantity'];
-                            $displayQuantity = abs($quantity - round($quantity)) < 0.0001
-                                ? (string) ((int) round($quantity))
-                                : number_format($quantity, 2);
-                                @endphp
-                                <td class="py-2 pr-3 text-right">{{ $displayQuantity }}</td>
-                                <td class="py-2 pr-3 text-right">${{ number_format((float) $line['unit_price_ex_tax'], 2) }}</td>
-                                <td class="py-2 pr-3 text-right">${{ number_format((float) $line['tax_amount'], 2) }}</td>
-                                <td class="py-2 text-right">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>
+                            $displayQuantity = rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
+                            if ($displayQuantity === '') {
+                                $displayQuantity = '0';
+                            }
+                            @endphp
+                            <td class="py-2 pr-3 text-right">{{ $displayQuantity }}</td>
+                            <td class="py-2 pr-3 text-right">${{ number_format((float) $line['unit_price_ex_tax'], 2) }}</td>
+                            <td class="py-2 pr-3 text-right">${{ number_format((float) $line['tax_amount'], 2) }}</td>
+                            <td class="py-2 text-right">${{ number_format((float) $line['line_total_inc_tax'], 2) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
