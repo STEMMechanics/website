@@ -1551,7 +1551,7 @@ class ServerController extends Controller
     private function paginateBackups(Request $request): LengthAwarePaginator
     {
         $allBackups = collect($this->databaseBackupService->listBackups())->values();
-        $perPage = 20;
+        $perPage = 8;
         $page = max(1, (int) $request->query('backup_page', 1));
         $items = $allBackups->slice(($page - 1) * $perPage, $perPage)->values();
 
