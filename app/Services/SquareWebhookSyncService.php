@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Payment;
+use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -11,7 +12,7 @@ class SquareWebhookSyncService
 {
     /**
      * @param array<string, mixed> $payload
-     * @return array{payment: Payment|null, created_payment: bool, event_updated: bool}
+     * @return array{payment: Payment|null, created_payment: bool, event_updated: bool, ignored: bool}
      */
     public function syncPayload(array $payload, ?SquareWebhookEvent $event = null): array
     {
@@ -24,25 +25,30 @@ class SquareWebhookSyncService
 
         $customerPayment = null;
         $createdPayment = false;
+        $ignored = false;
 
-        if ($squarePaymentId !== '') {
+        if ($squarePaymentId !== '' && $this->isIgnoredSquarePaymentId($squarePaymentId)) {
+            $ignored = true;
+        }
+
+        if (! $ignored && $squarePaymentId !== '') {
             $customerPayment = Payment::query()
                 ->where('square_integration_meta->square_payment_id', $squarePaymentId)
                 ->first();
         }
 
-        if (! $customerPayment && str_starts_with($referenceId, 'payment:')) {
+        if (! $ignored && ! $customerPayment && str_starts_with($referenceId, 'payment:')) {
             $id = (int) substr($referenceId, strlen('payment:'));
             if ($id > 0) {
                 $customerPayment = Payment::query()->find($id);
             }
         }
 
-        if (! $customerPayment && is_array($payment) && $this->isSquarePosPayment($payment)) {
+        if (! $ignored && ! $customerPayment && is_array($payment) && $this->isSquarePosPayment($payment)) {
             [$customerPayment, $createdPayment] = $this->createUnallocatedSquarePosPayment($payment);
         }
 
-        if ($customerPayment instanceof Payment) {
+        if (! $ignored && $customerPayment instanceof Payment) {
             $this->applyWebhookToPayment($customerPayment, $eventType, $eventId, $payment, $refund, $payload);
         }
 
@@ -50,7 +56,10 @@ class SquareWebhookSyncService
         if ($event instanceof SquareWebhookEvent) {
             $newPaymentId = $customerPayment?->id;
             $eventPaymentId = $event->payment_id !== null ? (int) $event->payment_id : null;
-            if ($newPaymentId !== null && $eventPaymentId !== $newPaymentId) {
+            if ($ignored && $eventPaymentId !== null) {
+                $event->payment_id = null;
+                $eventUpdated = true;
+            } elseif ($newPaymentId !== null && $eventPaymentId !== $newPaymentId) {
                 $event->payment_id = $newPaymentId;
                 $eventUpdated = true;
             }
@@ -67,7 +76,22 @@ class SquareWebhookSyncService
             'payment' => $customerPayment,
             'created_payment' => $createdPayment,
             'event_updated' => $eventUpdated,
+            'ignored' => $ignored,
         ];
+    }
+
+    private function isIgnoredSquarePaymentId(string $squarePaymentId): bool
+    {
+        static $cache = [];
+        if (array_key_exists($squarePaymentId, $cache)) {
+            return $cache[$squarePaymentId];
+        }
+
+        $cache[$squarePaymentId] = SquareIgnoredPayment::query()
+            ->where('square_payment_id', $squarePaymentId)
+            ->exists();
+
+        return $cache[$squarePaymentId];
     }
 
     private function applyWebhookToPayment(

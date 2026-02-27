@@ -1,5 +1,9 @@
 # Changes
 
+## 1.3.12
+
+- Square Webhook management improvements
+
 ## 1.3.11
 
 - Separated file upload to its own component

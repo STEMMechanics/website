@@ -199,6 +199,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/orphans/delete-all', [ServerController::class, 'admin_orphans_delete_all'])->name('admin.server.orphans.delete-all');
     Route::get('/admin/server/square-webhooks', [ServerController::class, 'admin_square_webhooks'])->name('admin.server.square-webhooks');
     Route::post('/admin/server/square-webhooks/sync', [ServerController::class, 'admin_square_webhooks_sync'])->name('admin.server.square-webhooks.sync');
+    Route::post('/admin/server/square-webhooks/{event}/ignore', [ServerController::class, 'admin_square_webhook_ignore'])->name('admin.server.square-webhooks.ignore');
+    Route::delete('/admin/server/square-webhooks/{event}/ignore', [ServerController::class, 'admin_square_webhook_unignore'])->name('admin.server.square-webhooks.unignore');
     Route::get('/admin/server/square-webhooks/{event}', [ServerController::class, 'admin_square_webhook_show'])->name('admin.server.square-webhooks.show');
     Route::get('/admin/server/sent-emails', [ServerController::class, 'admin_sent_emails'])->name('admin.server.sent-emails');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics.index');
