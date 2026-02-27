@@ -245,7 +245,7 @@ class ServerController extends Controller
         $label = [];
         if ($request->boolean('current')) {
             $args[] = '--current';
-            $label[] = 'current';
+            $label[] = 'dev';
         } else {
             $label[] = 'release';
         }
