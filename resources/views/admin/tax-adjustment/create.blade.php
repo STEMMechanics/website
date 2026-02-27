@@ -93,7 +93,7 @@
                         <th class="text-right py-2 pr-3">Refund Qty Now</th>
                         <th class="text-right py-2 pr-3">Refund Ex GST</th>
                         <th class="text-right py-2 pr-3">Refund GST</th>
-                        <th class="text-right py-2 pr-3">Refund Total (Inc GST)</th>
+                        <th class="text-right py-2 pr-3">Refund Total (incl GST)</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -161,7 +161,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div><strong>Refund Ex GST:</strong> $<span x-text="money(totalsEx())"></span></div>
                     <div><strong>Refund GST:</strong> $<span x-text="money(totalsGst())"></span></div>
-                    <div><strong>Total Refund (Inc GST):</strong> $<span x-text="money(totalsInc())"></span></div>
+                    <div><strong>Total Refund (incl GST):</strong> $<span x-text="money(totalsInc())"></span></div>
                 </div>
             </div>
 

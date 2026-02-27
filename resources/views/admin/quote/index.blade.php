@@ -19,7 +19,7 @@
                     <th>Quote #</th>
                     <th class="hidden md:table-cell">User</th>
                     <th class="hidden md:table-cell">Quote Date</th>
-                    <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
+                    <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>

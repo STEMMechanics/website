@@ -258,7 +258,7 @@ class DatabaseBackupService
     private function resolveAvailableCommand(array $commands): string
     {
         foreach ($commands as $command) {
-            if (! is_string($command) || trim($command) === '') {
+            if (trim($command) === '') {
                 continue;
             }
 

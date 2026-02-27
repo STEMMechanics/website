@@ -15,7 +15,7 @@
                 <x-slot:header>
                     <th>Quote #</th>
                     <th>Quote Date</th>
-                    <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
+                    <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>

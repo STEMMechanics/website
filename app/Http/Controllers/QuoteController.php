@@ -77,6 +77,9 @@ class QuoteController extends Controller
         $quote->save();
         $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
         $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
+        if ($request->has('private_files')) {
+            $quote->updateFiles($request->input('private_files'), 'private');
+        }
 
         session()->flash('message', 'Quote has been created');
         session()->flash('message-title', 'Quote created');
@@ -119,6 +122,9 @@ class QuoteController extends Controller
         $quote->save();
         $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
         $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
+        if ($request->has('private_files')) {
+            $quote->updateFiles($request->input('private_files'), 'private');
+        }
 
         session()->flash('message', 'Quote has been updated');
         session()->flash('message-title', 'Quote updated');
@@ -280,6 +286,9 @@ class QuoteController extends Controller
 
         $invoice->save();
         $invoice->syncPrivateFinanceFiles($quote->privateFinanceFiles()->pluck('finance_files.id')->all());
+        foreach ($quote->files('private')->get() as $file) {
+            $invoice->files('private')->attach($file->name, ['collection' => 'private']);
+        }
         foreach ($sourceLineItems as $index => $lineItem) {
             if (! is_array($lineItem)) {
                 continue;

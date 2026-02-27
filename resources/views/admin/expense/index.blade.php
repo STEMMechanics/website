@@ -19,8 +19,7 @@
                     <th>Expense</th>
                     <th class="hidden md:table-cell">Supplier</th>
                     <th class="hidden lg:table-cell">Description</th>
-                    <th>Total <span class="font-normal text-xs">(Inc GST)</span></th>
-                    <th>GST</th>
+                    <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>
@@ -33,8 +32,11 @@
                             </td>
                             <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
                             <td class="hidden lg:table-cell">{{ $expense->description ?: '-' }}</td>
-                            <td>${{ number_format((float) $expense->total_amount, 2) }}</td>
-                            <td>${{ number_format((float) $expense->gst_amount, 2) }}</td>
+                            <td>
+                                <div>${{ number_format((float) $expense->total_amount, 2) }}</div>
+                                <div class="text-xs text-gray-600">GST: ${{ number_format((float) $expense->gst_amount, 2) }}</div>
+                            </td>
+
                             <td>
                                 <div class="flex justify-center gap-3 whitespace-nowrap">
                                     @if($expense->receipt_document_path)

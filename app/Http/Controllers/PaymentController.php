@@ -849,9 +849,15 @@ class PaymentController extends Controller
 
         $amountRaw = (float) $payment->total_amount;
         $isRefund = $payment->isRefund();
-        $gatewayProcessedAt = $payment->square_gateway_updated_at?->format('M j, Y g:i a')
-            ?? $payment->square_gateway_created_at?->format('M j, Y g:i a')
-            ?? '';
+        $gatewayProcessedAtRaw = trim((string) ($payment->square_gateway_updated_at ?? $payment->square_gateway_created_at ?? ''));
+        $gatewayProcessedAt = '';
+        if ($gatewayProcessedAtRaw !== '') {
+            try {
+                $gatewayProcessedAt = \Illuminate\Support\Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+            } catch (\Throwable) {
+                $gatewayProcessedAt = '';
+            }
+        }
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payment-receipt', [
             'isRefund' => $isRefund,

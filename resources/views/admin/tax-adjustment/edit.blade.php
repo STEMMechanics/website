@@ -23,7 +23,7 @@
                                 <th class="text-left py-2 pr-3">Description</th>
                                 <th class="text-right py-2 pr-3">Qty</th>
                                 <th class="text-right py-2 pr-3">Unit (Ex GST)</th>
-                                <th class="text-right py-2">Total (Inc GST)</th>
+                                <th class="text-right py-2">Total (incl GST)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -84,7 +84,7 @@
             <x-ui.input
                     type="number"
                     step="0.01"
-                    label="Total Credit Amount (Inc GST)"
+                    label="Total Credit Amount (incl GST)"
                     name="total_amount"
                     :value="old('total_amount', number_format(abs((float) $taxAdjustment->total_amount), 2, '.', ''))"
                     :moneyFormat="true"

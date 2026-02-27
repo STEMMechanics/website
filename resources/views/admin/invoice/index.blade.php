@@ -20,8 +20,8 @@
                 <th>Details</th>
                 <th class="hidden md:table-cell">Status</th>
                 <th class="hidden md:table-cell">Issue Date</th>
-                <th>Amount</th>
-                    <th class="text-center">Actions</th>
+                <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
+                <th class="text-center">Actions</th>
             </x-slot:header>
             <x-slot:body>
                 @foreach ($invoices as $invoice)
@@ -45,6 +45,7 @@
                     <td class="hidden md:table-cell">{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</td>
                     <td>
                         <div>Total: ${{ number_format((float) $invoice->total_amount, 2) }}</div>
+                        <div class="text-xs text-gray-600">GST: ${{ number_format($invoice->gst_amount, 2) }}</div>
                         <div class="text-xs text-gray-600">
                             @if($isCreditDocument)
                             Balance: <span class="text-indigo-700 font-medium">Credit ${{ number_format($balance, 2) }}</span>

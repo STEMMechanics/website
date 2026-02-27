@@ -39,6 +39,7 @@ class SyncSquareWebhooksCommand extends Command
         $linked = 0;
         $createdPayments = 0;
         $updatedEvents = 0;
+        $ignored = 0;
         $errors = 0;
 
         foreach ($events as $event) {
@@ -47,13 +48,16 @@ class SyncSquareWebhooksCommand extends Command
 
             try {
                 $result = $syncService->syncPayload($payload, $event);
-                if (($result['payment'] ?? null) !== null) {
+                if ($result['ignored'] === true) {
+                    $ignored++;
+                }
+                if ($result['payment'] !== null) {
                     $linked++;
                 }
-                if (($result['created_payment'] ?? false) === true) {
+                if ($result['created_payment'] === true) {
                     $createdPayments++;
                 }
-                if (($result['event_updated'] ?? false) === true) {
+                if ($result['event_updated'] === true) {
                     $updatedEvents++;
                 }
             } catch (\Throwable $e) {
@@ -66,10 +70,10 @@ class SyncSquareWebhooksCommand extends Command
         $this->line('Scanned: '.$scanned);
         $this->line('Linked to payment: '.$linked);
         $this->line('Payments auto-created: '.$createdPayments);
+        $this->line('Ignored by rule: '.$ignored);
         $this->line('Event rows updated: '.$updatedEvents);
         $this->line('Errors: '.$errors);
 
         return $errors > 0 ? self::FAILURE : self::SUCCESS;
     }
 }
-

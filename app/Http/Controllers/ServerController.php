@@ -6,22 +6,26 @@ use App\Helpers;
 use App\Models\AuditLog;
 use App\Models\Expense;
 use App\Models\Media;
+use App\Models\Payment;
 use App\Models\SentEmail;
+use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
 use App\Services\DatabaseBackupService;
+use App\Services\SquareWebhookSyncService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Process\Process;
-use ZipArchive;
 
 class ServerController extends Controller
 {
@@ -489,7 +493,65 @@ class ServerController extends Controller
             }
         }
 
-        $events = $query->orderByDesc('processed_at')->orderByDesc('id')->paginate(25)->onEachSide(1);
+        $seedEvents = $query
+            ->orderByDesc('processed_at')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
+
+        $groupedEvents = collect();
+        $seenKeys = [];
+        foreach ($seedEvents as $seedEvent) {
+            $seedPayload = is_array($seedEvent->payload) ? $seedEvent->payload : null;
+            $squarePaymentId = $this->extractSquarePaymentIdFromPayload($seedPayload);
+            $groupKey = $squarePaymentId !== '' ? 'pid:'.$squarePaymentId : 'event:'.$seedEvent->id;
+            if (isset($seenKeys[$groupKey])) {
+                continue;
+            }
+            $seenKeys[$groupKey] = true;
+
+            if ($squarePaymentId === '') {
+                $groupEvents = collect([$seedEvent]);
+            } else {
+                $groupEvents = SquareWebhookEvent::query()
+                    ->with('customerPayment')
+                    ->where(function ($builder) use ($squarePaymentId): void {
+                        $builder->where('payload->data->object->payment->id', $squarePaymentId)
+                            ->orWhere('payload->data->object->refund->payment_id', $squarePaymentId);
+                    })
+                    ->orderByDesc('processed_at')
+                    ->orderByDesc('id')
+                    ->get();
+            }
+
+            if ($groupEvents->isEmpty()) {
+                continue;
+            }
+
+            $groupedEvents->push($groupEvents->values());
+        }
+
+        $events = $groupedEvents->flatten(1)->values();
+        $squarePaymentIds = $events
+            ->map(fn (SquareWebhookEvent $event): string => $this->extractSquarePaymentIdFromPayload(is_array($event->payload) ? $event->payload : null))
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values();
+        $ignoredIds = SquareIgnoredPayment::query()
+            ->whereIn('square_payment_id', $squarePaymentIds->all())
+            ->pluck('square_payment_id')
+            ->all();
+        $ignoredLookup = array_fill_keys($ignoredIds, true);
+
+        $events = $events->map(function (SquareWebhookEvent $event) use ($ignoredLookup) {
+            $squarePaymentId = $this->extractSquarePaymentIdFromPayload(is_array($event->payload) ? $event->payload : null);
+            $event->setAttribute('square_payment_id', $squarePaymentId);
+            $event->setAttribute('is_ignored', $squarePaymentId !== '' && isset($ignoredLookup[$squarePaymentId]));
+            $event->setAttribute('amount_cents', $this->extractSquareAmountCentsFromPayload(is_array($event->payload) ? $event->payload : null));
+            $event->setAttribute('amount_currency', $this->extractSquareAmountCurrencyFromPayload(is_array($event->payload) ? $event->payload : null));
+
+            return $event;
+        });
 
         $eventTypes = SquareWebhookEvent::query()
             ->select('event_type')
@@ -502,6 +564,7 @@ class ServerController extends Controller
         return view('admin.server.square-webhooks', [
             'events' => $events,
             'eventTypes' => $eventTypes,
+            'ignoreReasonOptions' => $this->squareIgnoreReasonOptions(),
         ]);
     }
 
@@ -656,11 +719,130 @@ class ServerController extends Controller
     public function admin_square_webhook_show(SquareWebhookEvent $event): View
     {
         $event->loadMissing('customerPayment');
+        $squarePaymentId = $this->extractSquarePaymentIdFromPayload(is_array($event->payload) ? $event->payload : null);
+        $ignoredRecord = $squarePaymentId !== ''
+            ? SquareIgnoredPayment::query()->where('square_payment_id', $squarePaymentId)->first()
+            : null;
 
         return view('admin.server.square-webhook-show', [
             'event' => $event,
             'payloadPretty' => json_encode($event->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+            'squarePaymentId' => $squarePaymentId,
+            'ignoredRecord' => $ignoredRecord,
+            'ignoreReasonOptions' => $this->squareIgnoreReasonOptions(),
         ]);
+    }
+
+    public function admin_square_webhook_ignore(Request $request, SquareWebhookEvent $event): RedirectResponse
+    {
+        $validated = $request->validate([
+            'reason_code' => ['required', 'string', Rule::in(array_keys($this->squareIgnoreReasonOptions()))],
+            'reason_other' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $payload = is_array($event->payload) ? $event->payload : [];
+        $squarePaymentId = $this->extractSquarePaymentIdFromPayload($payload);
+        if ($squarePaymentId === '') {
+            session()->flash('message', 'This webhook does not contain a Square payment ID to ignore.');
+            session()->flash('message-title', 'Ignore failed');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $reason = $this->resolveSquareIgnoreReason($validated);
+        if ($reason === null) {
+            session()->flash('message', 'A reason is required to ignore this payment.');
+            session()->flash('message-title', 'Ignore failed');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $linkedPayment = Payment::query()
+            ->where('square_integration_meta->square_payment_id', $squarePaymentId)
+            ->first();
+
+        $deletedLinkedPaymentId = null;
+        if ($linkedPayment instanceof Payment) {
+            if (! $this->canDeleteIgnoredAutoImportedPayment($linkedPayment)) {
+                session()->flash('message', 'Cannot ignore Square payment '.$squarePaymentId.' because linked payment #'.$linkedPayment->id.' has financial links (or is not an auto-imported unallocated POS payment).');
+                session()->flash('message-title', 'Ignore blocked');
+                session()->flash('message-type', 'danger');
+
+                return redirect()->back();
+            }
+
+            $deletedLinkedPaymentId = (int) $linkedPayment->id;
+            $linkedPayment->delete();
+        }
+
+        SquareIgnoredPayment::query()->updateOrCreate(
+            ['square_payment_id' => $squarePaymentId],
+            [
+                'reason' => $reason,
+                'created_by' => Auth::id(),
+            ]
+        );
+
+        $relatedEvents = $this->relatedSquareWebhookEvents($squarePaymentId);
+        foreach ($relatedEvents as $relatedEvent) {
+            if ($relatedEvent->payment_id !== null) {
+                $relatedEvent->payment_id = null;
+                $relatedEvent->save();
+            }
+        }
+
+        $message = 'Square payment '.$squarePaymentId.' is now ignored for future sync runs.';
+        if ($deletedLinkedPaymentId !== null) {
+            $message .= ' Auto-imported payment #'.$deletedLinkedPaymentId.' was removed.';
+        }
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Ignore rule saved');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function admin_square_webhook_unignore(SquareWebhookEvent $event, SquareWebhookSyncService $syncService): RedirectResponse
+    {
+        $payload = is_array($event->payload) ? $event->payload : [];
+        $squarePaymentId = $this->extractSquarePaymentIdFromPayload($payload);
+        if ($squarePaymentId === '') {
+            session()->flash('message', 'This webhook does not contain a Square payment ID.');
+            session()->flash('message-title', 'Unignore failed');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        SquareIgnoredPayment::query()->where('square_payment_id', $squarePaymentId)->delete();
+
+        $relatedEvents = $this->relatedSquareWebhookEvents($squarePaymentId);
+        $processed = 0;
+        $errors = 0;
+        foreach ($relatedEvents as $relatedEvent) {
+            try {
+                $syncService->syncPayload(is_array($relatedEvent->payload) ? $relatedEvent->payload : [], $relatedEvent);
+                $processed++;
+            } catch (\Throwable) {
+                $errors++;
+            }
+        }
+
+        $message = 'Ignore rule removed for Square payment '.$squarePaymentId.'.';
+        if ($processed > 0) {
+            $message .= ' Reprocessed '.$processed.' related webhook event(s).';
+        }
+        if ($errors > 0) {
+            $message .= ' '.$errors.' event(s) failed while reprocessing.';
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', $errors === 0 ? 'Ignore rule removed' : 'Ignore removed with warnings');
+        session()->flash('message-type', $errors === 0 ? 'success' : 'warning');
+
+        return redirect()->back();
     }
 
     private function startDeployProcess(array $args, string $successTitle): RedirectResponse
@@ -758,6 +940,131 @@ class ServerController extends Controller
         return null;
     }
 
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    private function extractSquarePaymentIdFromPayload(?array $payload): string
+    {
+        if (! is_array($payload)) {
+            return '';
+        }
+
+        return trim((string) (
+            data_get($payload, 'data.object.payment.id')
+            ?? data_get($payload, 'data.object.refund.payment_id')
+            ?? ''
+        ));
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    private function extractSquareAmountCentsFromPayload(?array $payload): ?int
+    {
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $refundAmount = data_get($payload, 'data.object.refund.amount_money.amount');
+        if ($refundAmount !== null && is_numeric($refundAmount)) {
+            return 0 - (int) $refundAmount;
+        }
+
+        $paymentAmount = data_get($payload, 'data.object.payment.amount_money.amount');
+        if ($paymentAmount !== null && is_numeric($paymentAmount)) {
+            return (int) $paymentAmount;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     */
+    private function extractSquareAmountCurrencyFromPayload(?array $payload): string
+    {
+        if (! is_array($payload)) {
+            return '';
+        }
+
+        $currency = data_get($payload, 'data.object.refund.amount_money.currency')
+            ?? data_get($payload, 'data.object.payment.amount_money.currency')
+            ?? '';
+
+        return trim((string) $currency);
+    }
+
+    private function canDeleteIgnoredAutoImportedPayment(\App\Models\Payment $payment): bool
+    {
+        if (! $payment->isAutoImportedSquarePos()) {
+            return false;
+        }
+
+        if ($payment->allocations()->exists()) {
+            return false;
+        }
+
+        if ($payment->refunds()->exists()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function squareIgnoreReasonOptions(): array
+    {
+        return [
+            'wrong_business' => 'Transaction belongs to another business',
+            'test_transaction' => 'Square test/training transaction',
+            'duplicate_terminal_charge' => 'Duplicate terminal charge',
+            'reconciled_elsewhere' => 'Reconciled outside STEMMechanics',
+            'other' => 'Other',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     */
+    private function resolveSquareIgnoreReason(array $validated): ?string
+    {
+        $reasonCode = trim((string) ($validated['reason_code'] ?? ''));
+        if ($reasonCode === '') {
+            return null;
+        }
+
+        $options = $this->squareIgnoreReasonOptions();
+        if (! array_key_exists($reasonCode, $options)) {
+            return null;
+        }
+
+        if ($reasonCode === 'other') {
+            $other = trim((string) ($validated['reason_other'] ?? ''));
+
+            return $other === '' ? null : 'Other: '.$other;
+        }
+
+        return $options[$reasonCode];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, SquareWebhookEvent>
+     */
+    private function relatedSquareWebhookEvents(string $squarePaymentId)
+    {
+        return SquareWebhookEvent::query()
+            ->with('customerPayment')
+            ->where(function ($builder) use ($squarePaymentId): void {
+                $builder->where('payload->data->object->payment->id', $squarePaymentId)
+                    ->orWhere('payload->data->object->refund->payment_id', $squarePaymentId);
+            })
+            ->orderByDesc('processed_at')
+            ->orderByDesc('id')
+            ->get();
+    }
+
     private function getServerInfo(): array
     {
         $rootPath = '/';
@@ -846,71 +1153,6 @@ class ServerController extends Controller
             'modified_at' => $exists ? date('Y-m-d H:i:s', filemtime($path)) : null,
             'content' => $exists ? $this->tailFile($path, $tailLines) : '',
         ];
-    }
-
-    private function downloadDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
-    {
-        if (! class_exists(ZipArchive::class)) {
-            session()->flash('message', 'ZIP extension is not enabled on this server.');
-            session()->flash('message-title', 'Download unavailable');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $normalizedPrefix = trim($prefix, '/');
-        $searchPrefix = $normalizedPrefix === '' ? '/' : $normalizedPrefix;
-        $files = collect(Storage::disk($disk)->allFiles($searchPrefix))
-            ->map(fn ($path) => ltrim((string) $path, '/'))
-            ->filter(fn ($path) => $path !== '')
-            ->values()
-            ->all();
-
-        if ($files === []) {
-            session()->flash('message', 'No files found for this archive.');
-            session()->flash('message-title', 'Nothing to download');
-            session()->flash('message-type', 'warning');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $zipPath = tempnam(sys_get_temp_dir(), $archivePrefix.'-');
-        if (! is_string($zipPath)) {
-            session()->flash('message', 'Unable to create temporary archive file.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::OVERWRITE) !== true) {
-            @unlink($zipPath);
-            session()->flash('message', 'Unable to create ZIP archive.');
-            session()->flash('message-title', 'Download failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.server.index');
-        }
-
-        foreach ($files as $path) {
-            if (! Storage::disk($disk)->exists($path)) {
-                continue;
-            }
-
-            $absolutePath = Storage::disk($disk)->path($path);
-            $archivePath = $normalizedPrefix === '' || ! str_starts_with($path, $normalizedPrefix.'/')
-                ? $path
-                : substr($path, strlen($normalizedPrefix) + 1);
-
-            $zip->addFile($absolutePath, $archivePath);
-        }
-
-        $zip->close();
-
-        $filename = $archivePrefix.'-'.now()->format('Ymd-His').'.zip';
-
-        return response()->download($zipPath, $filename)->deleteFileAfterSend(true);
     }
 
     private function streamDiskDirectoryAsZip(string $disk, string $prefix, string $archivePrefix)
@@ -1010,8 +1252,8 @@ class ServerController extends Controller
 
             try {
                 foreach ($files as $entry) {
-                    $disk = (string) ($entry['disk'] ?? '');
-                    $path = ltrim((string) ($entry['path'] ?? ''), '/');
+                    $disk = (string) $entry['disk'];
+                    $path = ltrim((string) $entry['path'], '/');
                     if (! in_array($disk, ['local', 'media'], true) || $path === '') {
                         continue;
                     }

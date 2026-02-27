@@ -34,17 +34,17 @@ class BasController extends Controller
             fputcsv($out, []);
             fputcsv($out, ['Summary']);
             fputcsv($out, ['Metric', 'Amount']);
-            fputcsv($out, ['Sales Inc GST', number_format((float) $data['summary']['payments_inc'], 2, '.', '')]);
+            fputcsv($out, ['Sales incl GST', number_format((float) $data['summary']['payments_inc'], 2, '.', '')]);
             fputcsv($out, ['Sales Ex GST', number_format((float) $data['summary']['payments_ex'], 2, '.', '')]);
             fputcsv($out, ['GST on Sales', number_format((float) $data['summary']['payments_gst'], 2, '.', '')]);
-            fputcsv($out, ['Expenses Inc GST', number_format((float) $data['summary']['expenses_inc'], 2, '.', '')]);
+            fputcsv($out, ['Expenses incl GST', number_format((float) $data['summary']['expenses_inc'], 2, '.', '')]);
             fputcsv($out, ['Expenses Ex GST', number_format((float) $data['summary']['expenses_ex'], 2, '.', '')]);
             fputcsv($out, ['GST on Expenses', number_format((float) $data['summary']['expenses_gst'], 2, '.', '')]);
             fputcsv($out, ['Net GST', number_format((float) $data['summary']['net_gst'], 2, '.', '')]);
             fputcsv($out, []);
 
             fputcsv($out, ['Processed Payments']);
-            fputcsv($out, ['Date', 'Customer', 'Amount Ex GST', 'GST', 'Total Inc GST']);
+            fputcsv($out, ['Date', 'Customer', 'Amount Ex GST', 'GST', 'Total incl GST']);
             foreach ($data['customerPayments'] as $payment) {
                 fputcsv($out, [
                     $payment->received_on?->format('Y-m-d H:i') ?? '',
@@ -57,7 +57,7 @@ class BasController extends Controller
             fputcsv($out, []);
 
             fputcsv($out, ['Expenses']);
-            fputcsv($out, ['Date', 'Supplier', 'Description', 'Amount Ex GST', 'GST', 'Total Inc GST']);
+            fputcsv($out, ['Date', 'Supplier', 'Description', 'Amount Ex GST', 'GST', 'Total incl GST']);
             foreach ($data['expenses'] as $expense) {
                 $expenseTotal = round((float) $expense->total_amount, 2);
                 $expenseGst = round((float) $expense->gst_amount, 2);
