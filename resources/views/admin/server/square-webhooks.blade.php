@@ -3,6 +3,17 @@
 
     <x-container>
         <div class="flex flex-col lg:flex-row my-4 items-end gap-3 lg:gap-4">
+            <form method="POST" action="{{ route('admin.server.square-webhooks.sync') }}" class="w-full lg:w-auto">
+                @csrf
+                <input type="hidden" name="only_unlinked" value="1">
+                @if(request()->filled('search'))
+                    <input type="hidden" name="search" value="{{ request('search') }}">
+                @endif
+                @if(request()->filled('event_type'))
+                    <input type="hidden" name="event_type" value="{{ request('event_type') }}">
+                @endif
+                <x-ui.button type="submit" color="outline">Sync Stored Events</x-ui.button>
+            </form>
             <form method="GET" action="{{ route('admin.server.square-webhooks') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
                 <div class="w-full sm:w-64">
                     <x-ui.select label="Event Type" name="event_type">

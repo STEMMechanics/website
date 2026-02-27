@@ -11,6 +11,8 @@
 - Improved file management on quotes/invoices
 - Quotes now support a PO field
 - Guarding around deleting users
+- Square EFTPOS payments are now recorded automatically
+- BAS Report improvements
 
 ## 1.3.10
 

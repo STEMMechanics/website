@@ -13,6 +13,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -502,6 +503,35 @@ class ServerController extends Controller
             'events' => $events,
             'eventTypes' => $eventTypes,
         ]);
+    }
+
+    public function admin_square_webhooks_sync(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'only_unlinked' => ['nullable', 'boolean'],
+            'limit' => ['nullable', 'integer', 'min:0', 'max:100000'],
+        ]);
+
+        $onlyUnlinked = (bool) ($validated['only_unlinked'] ?? true);
+        $limit = max(0, (int) ($validated['limit'] ?? 0));
+
+        $params = [];
+        if ($onlyUnlinked) {
+            $params['--only-unlinked'] = true;
+        }
+        if ($limit > 0) {
+            $params['--limit'] = $limit;
+        }
+
+        $exitCode = Artisan::call('square:webhooks:sync', $params);
+        $output = trim((string) Artisan::output());
+        $summary = $output !== '' ? $output : 'Square webhook sync finished.';
+
+        session()->flash('message', $summary);
+        session()->flash('message-title', $exitCode === 0 ? 'Square webhook sync complete' : 'Square webhook sync finished with errors');
+        session()->flash('message-type', $exitCode === 0 ? 'success' : 'warning');
+
+        return redirect()->route('admin.server.square-webhooks', $request->only(['search', 'event_type']));
     }
 
     public function admin_sent_emails(Request $request): View

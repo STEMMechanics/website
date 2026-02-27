@@ -240,6 +240,27 @@ class PaymentController extends Controller
 
     public function update(Request $request, Payment $payment)
     {
+        if ($this->canRelinkSquarePosPayment($payment)) {
+            $validated = $request->validate([
+                'user_id' => ['required', 'exists:users,id'],
+                'notes' => ['nullable', 'string'],
+                'allocations_json' => ['nullable', 'string'],
+            ]);
+
+            DB::transaction(function () use ($payment, $validated, $request): void {
+                $payment->user_id = (string) $validated['user_id'];
+                $payment->notes = $validated['notes'] ?? null;
+                $payment->save();
+                $this->syncAllocations($payment, $request);
+            });
+
+            session()->flash('message', 'Payment linkage has been updated');
+            session()->flash('message-title', 'Payment updated');
+            session()->flash('message-type', 'success');
+
+            return redirect()->back();
+        }
+
         $validated = $request->validate([
             'notes' => ['nullable', 'string'],
         ]);
@@ -868,6 +889,11 @@ class PaymentController extends Controller
         }
 
         return strtolower(trim((string) ($payment->gateway_provider ?? ''))) === 'square';
+    }
+
+    private function canRelinkSquarePosPayment(Payment $payment): bool
+    {
+        return $payment->isAutoImportedSquarePos() && ! $payment->isRefund();
     }
 
     private function isCreditGrantPayment(Payment $payment): bool

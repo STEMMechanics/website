@@ -8,12 +8,15 @@
         );
     $isRefundRecord = isset($customerPayment) && $customerPayment->refund_of_payment_id !== null;
     $isCreditGrant = isset($customerPayment) && (string) ($customerPayment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_CREDIT;
-    $isCoreLocked = $isExisting;
-    $canEditAllocations = ! $isExisting && ! $isRefundRecord;
+    $canRelinkSquarePayment = isset($customerPayment) && $customerPayment->isAutoImportedSquarePos() && ! $isRefundRecord;
+    $isCoreLocked = $isExisting && ! $canRelinkSquarePayment;
+    $canEditAllocations = ($canRelinkSquarePayment || ! $isExisting) && ! $isRefundRecord;
     $existingLockedAllocations = isset($customerPayment)
-        ? $customerPayment->allocations
+        ? (!$canEditAllocations
+            ? $customerPayment->allocations
             ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && ($allocation->invoice || $allocation->taxAdjustment))
             ->values()
+            : collect())
         : collect();
     $squareRemainingCents = isset($customerPayment)
         ? max(0, ((int) ($customerPayment->square_paid_money_amount ?? 0)) - ((int) ($customerPayment->square_refunded_money_amount ?? 0)))
@@ -56,7 +59,7 @@
         : '';
 
     if ($savedAllocations === null) {
-        $savedAllocations = isset($customerPayment) && ! $isExisting
+        $savedAllocations = isset($customerPayment) && $canEditAllocations
             ? json_encode($customerPayment->allocations->map(fn ($allocation) => [
                 'invoice_id' => $allocation->invoice_id,
                 'allocated_amount' => $allocation->allocated_amount,
@@ -178,7 +181,9 @@
             @endif
             @if($isExisting)
                 <div class="mb-4 rounded-lg border border-sky-300 bg-sky-50 p-3 text-sm">
-                    This payment is immutable. Only private notes can be edited.
+                    {{ $canRelinkSquarePayment
+                        ? 'This synced Square POS payment can be linked to a customer and invoice allocations.'
+                        : 'This payment is immutable. Only private notes can be edited.' }}
                 </div>
             @endif
             @if($isRefundRecord)

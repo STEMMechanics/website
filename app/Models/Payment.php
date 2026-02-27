@@ -176,4 +176,19 @@ class Payment extends Model
     {
         return (string) $this->kind === self::KIND_REFUND || $this->refund_of_payment_id !== null;
     }
+
+    public function isAutoImportedSquarePos(): bool
+    {
+        if ($this->isRefund()) {
+            return false;
+        }
+
+        $provider = strtolower(trim((string) ($this->gateway_provider ?? '')));
+        $method = (string) ($this->payment_method ?? '');
+        $squarePaymentId = trim((string) ($this->square_payment_id ?? ''));
+
+        return $provider === 'square'
+            && $method === self::PAYMENT_METHOD_EFTPOS
+            && $squarePaymentId !== '';
+    }
 }
