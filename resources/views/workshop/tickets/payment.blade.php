@@ -68,6 +68,22 @@
                         <div class="text-xs text-red-600 mt-2">{{ $message }}</div>
                         @enderror
                     </div>
+                    @if($bankTransferNotice)
+                        <div
+                            x-show="!expired && paymentMethod === 'bank_transfer'"
+                            x-cloak
+                            class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                            {!! nl2br(e($bankTransferNotice)) !!}
+                        </div>
+                    @endif
+                    @if($payAtDoorNotice)
+                        <div
+                            x-show="!expired && paymentMethod === 'pay_at_door'"
+                            x-cloak
+                            class="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                            {!! nl2br(e($payAtDoorNotice)) !!}
+                        </div>
+                    @endif
                     @error('payment_method')
                     <div class="text-xs text-red-600 mb-3">{{ $message }}</div>
                     @enderror

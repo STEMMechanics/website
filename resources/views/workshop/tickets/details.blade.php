@@ -10,6 +10,23 @@
                 </p>
                 <p class="text-sm text-gray-600 mb-4">Add details for each ticket holder below.</p>
 
+                @if((string) ($session['payment_method'] ?? '') === 'bank_transfer' && is_array($bankTransferDetails ?? null))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        <div class="font-semibold text-base mb-2">Bank Transfer Details</div>
+                        <div class="mb-3">Use the invoice number below as the payment reference so the transfer can be matched to your booking.</div>
+                        <div class="grid gap-2 sm:grid-cols-[10rem_1fr]">
+                            <div class="font-semibold">Account Name</div>
+                            <div>{{ (string) ($bankTransferDetails['account_name'] ?? '-') }}</div>
+                            <div class="font-semibold">BSB</div>
+                            <div>{{ (string) ($bankTransferDetails['bsb'] ?? '-') }}</div>
+                            <div class="font-semibold">Account Number</div>
+                            <div>{{ (string) ($bankTransferDetails['account_number'] ?? '-') }}</div>
+                            <div class="font-semibold">Reference</div>
+                            <div class="font-mono font-semibold tracking-wide">{{ (string) ($bankTransferDetails['reference'] ?? '-') }}</div>
+                        </div>
+                    </div>
+                @endif
+
                 <form id="ticket-details-form" method="POST" action="{{ route('workshop.ticket.flow.details.save', $workshop) }}">
                     @csrf
                     @foreach($tickets as $index => $ticket)

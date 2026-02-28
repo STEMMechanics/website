@@ -1,35 +1,63 @@
+                @php
+                    $paymentFooterText = trim((string) \App\Models\SiteOption::value('document-footer-payment'));
+                    $termsFooterText = trim((string) \App\Models\SiteOption::value('document-footer-terms'));
+                    $travelFooterText = trim((string) \App\Models\SiteOption::value('document-footer-travel'));
+                    $questionsFooterText = trim((string) \App\Models\SiteOption::value('document-footer-questions'));
+                    $bankReferenceText = trim((string) \App\Models\SiteOption::value('document-footer-bank-reference'));
+                    $bankAccountName = trim((string) \App\Models\SiteOption::value('payments.bank_account_name'));
+                    $bankBsb = trim((string) \App\Models\SiteOption::value('payments.bank_bsb'));
+                    $bankAccountNumber = trim((string) \App\Models\SiteOption::value('payments.bank_account_number'));
+                @endphp
                 <table class="footer">
                     <tr>
                         <td>
-                            <div class="block"><span class="heading">Payment</span> We accept cash, bank transfer and credit cards (Over the phone payments attract a 2.5% fee).</div>
-                            <div class="block"><span class="heading">Terms</span> Payment terms are strictly 28 days from the invoice date. Long-term scheduled deliveries will be invoiced quarterly.</div>
+                            @if($paymentFooterText !== '')
+                                <div class="block"><span class="heading">Payment</span> {{ $paymentFooterText }}</div>
+                            @endif
+                            @if($termsFooterText !== '')
+                                <div class="block"><span class="heading">Terms</span> {{ $termsFooterText }}</div>
+                            @endif
                         </td>
                         <td>
-                            <div class="block"><span class="heading">Travel</span> The first 30 minutes of travel is free; $28.00 every additional 15 minutes.</div>
-                            <div class="block"><span class="heading">Questions</span> If you have any questions about this invoice, please feel free to contact us.</div>
+                            @if($travelFooterText !== '')
+                                <div class="block"><span class="heading">Travel</span> {{ $travelFooterText }}</div>
+                            @endif
+                            @if($questionsFooterText !== '')
+                                <div class="block"><span class="heading">Questions</span> {{ $questionsFooterText }}</div>
+                            @endif
                             @if(isset($publicPayUrl) && $publicPayUrl !== '')
                             <div class="block"><span class="heading">Pay Online</span> visit <a href="{{ $publicPayUrl }}">{{ $displayPublicPayUrl }}</a> to pay this invoice online.</div>
                             @endif
                         </td>
                         <td>
-                            <div class="block">
-                                <div class="heading">Bank Details</div>
-                                <div>Please include the invoice number as the payment description.</div>
-                                <table class="bank-table">
-                                    <tr>
-                                        <th>Name</th>
-                                        <td>STEMMechanics</td>
-                                    </tr>
-                                    <tr>
-                                        <th>BSB</th>
-                                        <td>062-692</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Account</th>
-                                        <td>732-6629</td>
-                                    </tr>
-                                </table>
-                            </div>
+                            @if($bankReferenceText !== '' || $bankAccountName !== '' || $bankBsb !== '' || $bankAccountNumber !== '')
+                                <div class="block">
+                                    <div class="heading">Bank Details</div>
+                                    @if($bankReferenceText !== '')
+                                        <div>{{ $bankReferenceText }}</div>
+                                    @endif
+                                    <table class="bank-table">
+                                        @if($bankAccountName !== '')
+                                            <tr>
+                                                <th>Name</th>
+                                                <td>{{ $bankAccountName }}</td>
+                                            </tr>
+                                        @endif
+                                        @if($bankBsb !== '')
+                                            <tr>
+                                                <th>BSB</th>
+                                                <td>{{ $bankBsb }}</td>
+                                            </tr>
+                                        @endif
+                                        @if($bankAccountNumber !== '')
+                                            <tr>
+                                                <th>Account</th>
+                                                <td>{{ $bankAccountNumber }}</td>
+                                            </tr>
+                                        @endif
+                                    </table>
+                                </div>
+                            @endif
                             <div class="thanks">Thank you for choosing STEMMechanics.</div>
                         </td>
                     </tr>

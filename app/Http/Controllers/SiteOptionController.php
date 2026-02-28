@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,11 +33,18 @@ class SiteOptionController extends Controller
         return view('admin.site-option.edit');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $this->validateRequest($request);
 
-        SiteOption::query()->create($validated);
+        $siteOption = SiteOption::query()->create($validated);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'option' => $this->siteOptionPayload($siteOption),
+            ]);
+        }
 
         session()->flash('message', 'Site option has been created');
         session()->flash('message-title', 'Site option created');
@@ -52,12 +60,21 @@ class SiteOptionController extends Controller
         ]);
     }
 
-    public function update(Request $request, SiteOption $siteOption): RedirectResponse
+    public function update(Request $request, SiteOption $siteOption): RedirectResponse|JsonResponse
     {
-        $validated = $this->validateRequest($request, $siteOption);
+        $validated = $request->validate([
+            'value' => ['nullable', 'string'],
+        ]);
 
-        $siteOption->fill($validated);
+        $siteOption->value = $validated['value'] ?? null;
         $siteOption->save();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'option' => $this->siteOptionPayload($siteOption),
+            ]);
+        }
 
         session()->flash('message', 'Site option has been updated');
         session()->flash('message-title', 'Site option updated');
@@ -66,20 +83,42 @@ class SiteOptionController extends Controller
         return redirect()->back();
     }
 
-    public function destroy(Request $request, SiteOption $siteOption)
+    public function resetDefault(SiteOption $siteOption): RedirectResponse|JsonResponse
     {
-        $siteOption->delete();
+        if (! SiteOption::hasDefault((string) $siteOption->name)) {
+            abort(404);
+        }
 
-        session()->flash('message', 'Site option has been deleted');
-        session()->flash('message-title', 'Site option deleted');
-        session()->flash('message-type', 'danger');
+        $siteOption = SiteOption::resetToDefault((string) $siteOption->name);
 
-        if ($request->expectsJson()) {
+        if (request()->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'redirect' => route('admin.site_option.index'),
+                'option' => $siteOption ? $this->siteOptionPayload($siteOption) : null,
             ]);
         }
+
+        session()->flash('message', 'Site option has been reset to its default value');
+        session()->flash('message-title', 'Site option reset');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function resetAllDefaults(): RedirectResponse|JsonResponse
+    {
+        SiteOption::resetAllToDefaults();
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Default site options were restored.',
+            ]);
+        }
+
+        session()->flash('message', 'Default site options have been reset and any missing options were created');
+        session()->flash('message-title', 'Defaults restored');
+        session()->flash('message-type', 'success');
 
         return redirect()->route('admin.site_option.index');
     }
@@ -98,5 +137,15 @@ class SiteOptionController extends Controller
         ], [
             'name.regex' => 'Name may only contain lowercase letters, numbers, dots, hyphens, and underscores.',
         ]);
+    }
+
+    private function siteOptionPayload(SiteOption $siteOption): array
+    {
+        return [
+            'id' => (int) $siteOption->id,
+            'name' => (string) $siteOption->name,
+            'value' => (string) ($siteOption->value ?? ''),
+            'has_default' => SiteOption::hasDefault((string) $siteOption->name),
+        ];
     }
 }

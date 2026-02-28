@@ -30,8 +30,7 @@
     $allLineItems = is_array($quote->line_items) ? $quote->line_items : [];
     $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ($item['gst_applicable'] ?? true) === false);
     $subtotalEx = (float) $quote->subtotal_amount;
-    $defaultBusinessInfo = "STEMMechanics\n63 Dalton Street\nWestcourt, QLD, 4870\nABN 15 772 281 735\n\n0400 130 190\nhello@stemmechanics.com.au\nstemmechanics.com.au";
-    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info', $defaultBusinessInfo);
+    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info');
     $billToCompany = trim((string) ($customer?->company ?? ''));
     $billToPersonName = trim((string) ($customer?->getName() ?? ''));
     if ($billToPersonName === '') {

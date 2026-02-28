@@ -113,7 +113,7 @@ class AppServiceProvider extends ServiceProvider
 
             try {
                 if (Schema::hasTable('site_options')) {
-                    $siteOptionNotice = trim((string) SiteOption::value('app-notice', ''));
+                    $siteOptionNotice = trim((string) SiteOption::value('app-notice'));
                     if ($siteOptionNotice !== '') {
                         $notice = $siteOptionNotice;
                     }

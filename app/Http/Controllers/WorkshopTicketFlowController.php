@@ -8,6 +8,7 @@ use App\Mail\TicketOrderConfirmation;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\Token;
 use App\Models\User;
@@ -185,6 +186,13 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
+        $tickets = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('id', $session['hold_ids'] ?? [])
+            ->orderBy('id')
+            ->get();
+        $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
+
         return view('workshop.tickets.payment', [
             'workshop' => $workshop,
             'session' => $session,
@@ -195,6 +203,8 @@ class WorkshopTicketFlowController extends Controller
             'squareApplicationId' => (string) config('services.square.application_id'),
             'squareLocationId' => (string) config('services.square.location_id'),
             'squareEnvironment' => (string) config('services.square.environment'),
+            'bankTransferNotice' => $this->bankTransferMethodNotice(),
+            'payAtDoorNotice' => $this->payAtDoorMethodNotice(),
         ]);
     }
 
@@ -517,10 +527,15 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
+        $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
+
         return view('workshop.tickets.details', [
             'workshop' => $workshop,
             'session' => $session,
             'tickets' => $tickets,
+            'bankTransferDetails' => (string) ($session['payment_method'] ?? '') === 'bank_transfer'
+                ? $this->bankTransferDetails($invoice)
+                : null,
         ]);
     }
 
@@ -886,6 +901,39 @@ class WorkshopTicketFlowController extends Controller
         $invoice->setRelation('lines', $lines);
 
         return $invoice;
+    }
+
+    private function bankTransferMethodNotice(): ?string
+    {
+        $value = trim((string) SiteOption::value('checkout.bank_transfer_notice'));
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function payAtDoorMethodNotice(): ?string
+    {
+        $value = trim((string) SiteOption::value('checkout.pay_at_door_notice'));
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function bankTransferDetails(?Invoice $invoice = null): ?array
+    {
+        $accountName = trim((string) SiteOption::value('payments.bank_account_name'));
+        $bsb = trim((string) SiteOption::value('payments.bank_bsb'));
+        $accountNumber = trim((string) SiteOption::value('payments.bank_account_number'));
+        $reference = trim((string) ($invoice?->invoice_number ?? ''));
+
+        if ($accountName === '' || $bsb === '' || $accountNumber === '' || $reference === '') {
+            return null;
+        }
+
+        return [
+            'account_name' => $accountName,
+            'bsb' => $bsb,
+            'account_number' => $accountNumber,
+            'reference' => $reference,
+        ];
     }
 
     private function resolveCheckoutUserId(array $purchaser): ?string

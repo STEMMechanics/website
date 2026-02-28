@@ -176,9 +176,10 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/options', [SiteOptionController::class, 'index'])->name('admin.site_option.index');
     Route::get('/admin/server/options/create', [SiteOptionController::class, 'create'])->name('admin.site_option.create');
     Route::post('/admin/server/options', [SiteOptionController::class, 'store'])->name('admin.site_option.store');
+    Route::post('/admin/server/options/reset-defaults', [SiteOptionController::class, 'resetAllDefaults'])->name('admin.site_option.reset-defaults');
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
-    Route::delete('/admin/server/options/{siteOption}', [SiteOptionController::class, 'destroy'])->name('admin.site_option.destroy');
+    Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
     Route::get('/admin/server/log', [ServerController::class, 'admin_laravel_log'])->name('admin.server.log');
     Route::post('/admin/server/log/clear', [ServerController::class, 'admin_clear_log'])->name('admin.server.log.clear');
     Route::post('/admin/server/deploy/log/clear', [ServerController::class, 'admin_clear_deploy_log'])->name('admin.server.deploy.log.clear');
