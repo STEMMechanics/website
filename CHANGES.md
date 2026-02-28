@@ -13,6 +13,7 @@
 - Improved refund wording
 - Improved error handling of Altcha
 - Ticket hold minutes is now a site option
+- Show Site option descriptions
 
 ## 1.3.13
 

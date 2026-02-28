@@ -36,6 +36,7 @@
                     $valuePreview = \Illuminate\Support\Str::limit($valuePlain, 220);
                     $hasDefault = \App\Models\SiteOption::hasDefault((string) $siteOption->name);
                     $defaultValue = $hasDefault ? (string) (\App\Models\SiteOption::defaultValue((string) $siteOption->name) ?? '') : '';
+                    $defaultDescription = $hasDefault ? (string) (\App\Models\SiteOption::defaultDefinitions()[$siteOption->name]['description'] ?? '') : '';
                     $valueRawEncoded = base64_encode($valueRaw);
                     $defaultValueEncoded = base64_encode($defaultValue);
                     $isNumericOption = (string) $siteOption->name === 'tickets.hold_minutes';
@@ -48,7 +49,12 @@
                         data-option-default-base64="{{ $defaultValueEncoded }}"
                         data-option-input-type="{{ $isNumericOption ? 'number' : 'textarea' }}"
                     >
-                        <td class="whitespace-nowrap!">{{ $siteOption->name }}</td>
+                        <td class="whitespace-nowrap!">
+                            <div>{{ $siteOption->name }}</div>
+                            @if($defaultDescription !== '')
+                                <div class="mt-1 whitespace-normal text-xs text-gray-500">{{ $defaultDescription }}</div>
+                            @endif
+                        </td>
                         <td class="text-left">
                             <div
                                 id="site-option-value-{{ $siteOption->id }}"
