@@ -103,7 +103,7 @@ class SiteOption extends Model
         foreach (static::defaultDefinitions() as $name => $definition) {
             static::query()->firstOrCreate(
                 ['name' => $name],
-                ['value' => (string) ($definition['value'] ?? '')],
+                ['value' => (string) $definition['value']],
             );
         }
     }
@@ -116,7 +116,7 @@ class SiteOption extends Model
             static::query()->create(
                 [
                     'name' => $name,
-                    'value' => (string) ($definition['value'] ?? ''),
+                    'value' => (string) $definition['value'],
                 ]
             );
         }

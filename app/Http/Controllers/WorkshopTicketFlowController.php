@@ -922,7 +922,7 @@ class WorkshopTicketFlowController extends Controller
         $accountName = trim((string) SiteOption::value('payments.bank-account-name'));
         $bsb = trim((string) SiteOption::value('payments.bank-bsb'));
         $accountNumber = trim((string) SiteOption::value('payments.bank-account-number'));
-        $reference = trim((string) ($invoice?->invoice_number ?? ''));
+        $reference = trim((string) ($invoice !== null ? $invoice->invoice_number : ''));
 
         if ($accountName === '' || $bsb === '' || $accountNumber === '' || $reference === '') {
             return null;
