@@ -1,5 +1,6 @@
 @php
     $seoDescription = \Illuminate\Support\Str::limit(trim(strip_tags((string) ($workshop->content ?? ''))), 160, '...');
+    $heroImageUrl = $workshop->hero?->url ? url((string) $workshop->hero->url) : null;
 
     $eventLocation = $workshop->location_id
         ? [
@@ -35,19 +36,33 @@
             'name' => 'STEMMechanics',
             'url' => url('/'),
         ],
+        'performer' => [
+            '@type' => 'Organization',
+            'name' => 'STEMMechanics',
+            'url' => url('/'),
+        ],
         'url' => route('workshop.show', $workshop),
     ];
 
+    if ($heroImageUrl) {
+        $eventJsonLd['image'] = [$heroImageUrl];
+    }
+
     $rawPrice = trim((string) ($workshop->price ?? ''));
-    if (is_numeric($rawPrice)) {
+    $hasBookableOffer = ! $workshop->isPrivate()
+        && in_array((string) ($workshop->registration ?? ''), ['tickets', 'link'], true);
+    if ($hasBookableOffer && ($rawPrice === '' || is_numeric($rawPrice))) {
+        $offerUrl = $workshop->registration === 'link' && trim((string) ($workshop->registration_data ?? '')) !== ''
+            ? trim((string) $workshop->registration_data)
+            : route('workshop.show', $workshop);
         $eventJsonLd['offers'] = [
             '@type' => 'Offer',
             'priceCurrency' => 'AUD',
-            'price' => number_format((float) $rawPrice, 2, '.', ''),
+            'price' => number_format((float) ($rawPrice === '' ? 0 : $rawPrice), 2, '.', ''),
             'availability' => $workshop->status === 'full'
                 ? 'https://schema.org/SoldOut'
                 : 'https://schema.org/InStock',
-            'url' => route('workshop.show', $workshop),
+            'url' => $offerUrl,
         ];
     }
 @endphp

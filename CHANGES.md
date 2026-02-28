@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.0
+
+- Fixed minor issues around workshop SEO
+
 ## 1.3.14
 
 - Updated MySQL SSL CA PDO constant usage for PHP 8.5 compatibility (`Pdo\Mysql::ATTR_SSL_CA` fallback handling)
