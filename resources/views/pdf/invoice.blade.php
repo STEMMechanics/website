@@ -26,7 +26,7 @@
     $allLineItems = collect($pages)->flatten(1)->all();
     $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ((float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0))) <= 0.0001);
         $subtotalEx=(float) $invoice->subtotal_amount;
-        $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info');
+        $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
         $billToCompany = trim((string) ($customer?->company ?? ''));
         $billToPersonName = trim((string) ($customer?->getName() ?? ''));
         if ($billToPersonName === '') {

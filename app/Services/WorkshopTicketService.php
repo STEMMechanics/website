@@ -11,7 +11,7 @@ class WorkshopTicketService
 {
     public function holdWindowMinutes(): int
     {
-        $configured = trim((string) SiteOption::value('tickets.hold_minutes', '10'));
+        $configured = trim((string) SiteOption::value('tickets.hold-minutes', '10'));
         $minutes = is_numeric($configured) ? (int) $configured : 10;
 
         return max(1, min(240, $minutes));

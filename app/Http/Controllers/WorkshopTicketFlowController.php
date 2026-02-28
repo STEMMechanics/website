@@ -905,23 +905,23 @@ class WorkshopTicketFlowController extends Controller
 
     private function bankTransferMethodNotice(): ?string
     {
-        $value = trim((string) SiteOption::value('checkout.bank_transfer_notice'));
+        $value = trim((string) SiteOption::value('checkout.bank-transfer-notice'));
 
         return $value !== '' ? $value : null;
     }
 
     private function payAtDoorMethodNotice(): ?string
     {
-        $value = trim((string) SiteOption::value('checkout.pay_at_door_notice'));
+        $value = trim((string) SiteOption::value('checkout.pay-at-door-notice'));
 
         return $value !== '' ? $value : null;
     }
 
     private function bankTransferDetails(?Invoice $invoice = null): ?array
     {
-        $accountName = trim((string) SiteOption::value('payments.bank_account_name'));
-        $bsb = trim((string) SiteOption::value('payments.bank_bsb'));
-        $accountNumber = trim((string) SiteOption::value('payments.bank_account_number'));
+        $accountName = trim((string) SiteOption::value('payments.bank-account-name'));
+        $bsb = trim((string) SiteOption::value('payments.bank-bsb'));
+        $accountNumber = trim((string) SiteOption::value('payments.bank-account-number'));
         $reference = trim((string) ($invoice?->invoice_number ?? ''));
 
         if ($accountName === '' || $bsb === '' || $accountNumber === '' || $reference === '') {

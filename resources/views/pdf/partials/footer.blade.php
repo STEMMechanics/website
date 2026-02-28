@@ -1,12 +1,12 @@
                 @php
-                    $paymentFooterText = trim((string) \App\Models\SiteOption::value('document-footer-payment'));
-                    $termsFooterText = trim((string) \App\Models\SiteOption::value('document-footer-terms'));
-                    $travelFooterText = trim((string) \App\Models\SiteOption::value('document-footer-travel'));
-                    $questionsFooterText = trim((string) \App\Models\SiteOption::value('document-footer-questions'));
-                    $bankReferenceText = trim((string) \App\Models\SiteOption::value('document-footer-bank-reference'));
-                    $bankAccountName = trim((string) \App\Models\SiteOption::value('payments.bank_account_name'));
-                    $bankBsb = trim((string) \App\Models\SiteOption::value('payments.bank_bsb'));
-                    $bankAccountNumber = trim((string) \App\Models\SiteOption::value('payments.bank_account_number'));
+                    $paymentFooterText = trim((string) \App\Models\SiteOption::value('document.footer.payment'));
+                    $termsFooterText = trim((string) \App\Models\SiteOption::value('document.footer.terms'));
+                    $travelFooterText = trim((string) \App\Models\SiteOption::value('document.footer.travel'));
+                    $questionsFooterText = trim((string) \App\Models\SiteOption::value('document.footer.questions'));
+                    $bankReferenceText = trim((string) \App\Models\SiteOption::value('document.footer.bank-reference'));
+                    $bankAccountName = trim((string) \App\Models\SiteOption::value('payments.bank-account-name'));
+                    $bankBsb = trim((string) \App\Models\SiteOption::value('payments.bank-bsb'));
+                    $bankAccountNumber = trim((string) \App\Models\SiteOption::value('payments.bank-account-number'));
                 @endphp
                 <table class="footer">
                     <tr>

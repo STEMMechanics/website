@@ -32,7 +32,7 @@
             $logoPath = public_path('apple-touch-icon.png');
         }
 
-        $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info');
+        $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
         $renderMarkdown = static function (?string $value): string {
             $normalized = \App\Support\EmailMessageFormatter::normalizeForMarkdown((string) ($value ?? ''));
             if ($normalized === '') {

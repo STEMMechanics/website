@@ -36,10 +36,10 @@
                     $valuePreview = \Illuminate\Support\Str::limit($valuePlain, 220);
                     $hasDefault = \App\Models\SiteOption::hasDefault((string) $siteOption->name);
                     $defaultValue = $hasDefault ? (string) (\App\Models\SiteOption::defaultValue((string) $siteOption->name) ?? '') : '';
-                    $defaultDescription = $hasDefault ? (string) (\App\Models\SiteOption::defaultDefinitions()[$siteOption->name]['description'] ?? '') : '';
+                    $defaultDescription = $hasDefault ? (string) (\App\Models\SiteOption::defaultDescription((string) $siteOption->name) ?? '') : '';
                     $valueRawEncoded = base64_encode($valueRaw);
                     $defaultValueEncoded = base64_encode($defaultValue);
-                    $isNumericOption = (string) $siteOption->name === 'tickets.hold_minutes';
+                    $isNumericOption = (string) $siteOption->name === 'tickets.hold-minutes';
                     @endphp
                     <tr
                         id="site-option-row-{{ $siteOption->id }}"

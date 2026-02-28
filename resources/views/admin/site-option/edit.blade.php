@@ -12,7 +12,7 @@
                 label="Name"
                 name="name"
                 value="{{ $siteOption->name ?? '' }}"
-                placeholder="document-business-info"
+                placeholder="document.business-info"
                 info="{{ isset($siteOption) ? 'Option names cannot be changed after creation.' : 'Lowercase letters, numbers, dots, hyphens and underscores only.' }}"
                 :readonly="isset($siteOption)"
             />

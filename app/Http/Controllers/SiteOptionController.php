@@ -143,7 +143,7 @@ class SiteOptionController extends Controller
             'value' => ['nullable', 'string'],
         ];
 
-        if ($optionName === 'tickets.hold_minutes') {
+        if ($optionName === 'tickets.hold-minutes') {
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 

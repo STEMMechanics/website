@@ -30,7 +30,7 @@
     $allLineItems = is_array($quote->line_items) ? $quote->line_items : [];
     $hasNonTaxableItems = collect($allLineItems)->contains(fn ($item) => ($item['gst_applicable'] ?? true) === false);
     $subtotalEx = (float) $quote->subtotal_amount;
-    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info');
+    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
     $billToCompany = trim((string) ($customer?->company ?? ''));
     $billToPersonName = trim((string) ($customer?->getName() ?? ''));
     if ($billToPersonName === '') {

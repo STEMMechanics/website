@@ -14,6 +14,7 @@
 - Improved error handling of Altcha
 - Ticket hold minutes is now a site option
 - Show Site option descriptions
+- Cleanup and standization of site options
 
 ## 1.3.13
 

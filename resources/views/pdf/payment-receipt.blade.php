@@ -23,7 +23,7 @@
     if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
     }
-    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document-business-info');
+    $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
 
     $provider = strtolower(trim((string) ($gatewayProvider ?? '')));
     $transactionId = trim((string) ($transactionId ?? ''));
