@@ -10,6 +10,7 @@
 - Dependency updates
 - Private access codes are now case insensitive
 - Improved site options across the project
+- Improved refund wording
 
 ## 1.3.13
 

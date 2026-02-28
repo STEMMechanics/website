@@ -24,8 +24,8 @@ td, th { padding: 0; margin: 0; }
 .header { margin-bottom: 18px; }
 .logo-wrap { width: 30%; text-align: left; vertical-align: top; }
 .logo { width: 180px; height: auto; margin-top: 4px; object-fit: contain; }
-.company { width: 30%; font-size: 10px; line-height: 0.9; }
-.headline { text-align: right; width: 40%; font-size: 22px; font-weight: 700; color: #333; vertical-align: bottom; line-height: 0.9; }
+.company { width: 25%; font-size: 10px; line-height: 0.9; }
+.headline { text-align: right; width: 45%; font-size: 22px; font-weight: 700; color: #333; vertical-align: bottom; line-height: 0.9; }
 .headline .underline { text-decoration: underline; }
 
 .meta-wrap { border-top: 1px solid #d6d6d6; margin-bottom: 10px; }

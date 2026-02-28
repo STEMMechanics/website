@@ -15,6 +15,7 @@
 
 <body>
     @php
+    $isRefundDocument = (bool) ($isRefund ?? false);
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
     $logoPath = public_path('logo.png');
@@ -59,7 +60,11 @@
                     {!! $businessInfoHtml !!}
                 </td>
                 <td class="headline">
+                    @if($isRefundDocument)
+                    <div>hello.<br>this is your <span class="underline">refund receipt</span>.</div>
+                    @else
                     <div>hello.<br>this is your <span class="underline">receipt</span>.</div>
+                    @endif
                 </td>
             </tr>
         </table>
@@ -71,7 +76,7 @@
                 <td class="summary-wrap">
                     <table class="summary">
                         <tr>
-                            <th>RECEIPT NO</th>
+                            <th>{{ $isRefundDocument ? 'REFUND NO' : 'RECEIPT NO' }}</th>
                             <th>DATE / TIME</th>
                             <th class="pay">TOTAL</th>
                         </tr>

@@ -888,7 +888,7 @@ class PaymentController extends Controller
 
     private function getPaymentReceiptPdfFilename(Payment $payment): string
     {
-        return 'payment-receipt-'.($payment->id).'.pdf';
+        return ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').($payment->id).'.pdf';
     }
 
     private function isSquareManagedPayment(Payment $payment): bool

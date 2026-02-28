@@ -1288,12 +1288,12 @@ class TicketController extends Controller
                 recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
                 invoiceNumber: (string) $invoice->invoice_number,
                 receiptNumber: (string) $refundPayment->id,
-                amount: money(-((float) $refundPayment->total_amount)),
+                amount: money(abs((float) $refundPayment->total_amount)),
                 paidOn: ($refundPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
                 receiptUrl: (string) ($refundPayment->square_receipt_url ?? ''),
                 isRefund: true,
                 pdfContent: $pdfBinary,
-                pdfFilename: 'payment-receipt-'.((int) $refundPayment->id).'.pdf',
+                pdfFilename: 'refund-receipt-'.((int) $refundPayment->id).'.pdf',
             )))->onQueue('mail');
         }
     }
@@ -1667,7 +1667,7 @@ class TicketController extends Controller
                 $attachments[] = [
                     'type' => 'receipt',
                     'content' => $receiptPdf,
-                    'filename' => 'payment-receipt-'.((int) $payment->id).'.pdf',
+                    'filename' => ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').((int) $payment->id).'.pdf',
                     'mime' => 'application/pdf',
                 ];
             }
@@ -1824,6 +1824,7 @@ class TicketController extends Controller
         }
 
         return DomPdf::loadView('pdf.payment-receipt', [
+            'isRefund' => $payment->isRefund(),
             'receiptTitle' => $payment->isRefund() ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $payment->isRefund() ? 'Amount Refunded' : 'Amount Paid',
             'receiptNumber' => (string) $payment->id,

@@ -768,7 +768,7 @@ class WorkshopTicketFlowController extends Controller
         if ($invoice instanceof Invoice && $payment instanceof Payment) {
             $receiptPdf = $this->buildPaymentReceiptPdfBinary($invoice, $payment);
             if ($receiptPdf !== null) {
-                $zip->addFromString('payment-receipt-'.((int) $payment->id).'.pdf', $receiptPdf);
+                $zip->addFromString(($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').((int) $payment->id).'.pdf', $receiptPdf);
             }
         }
 
@@ -1078,7 +1078,7 @@ class WorkshopTicketFlowController extends Controller
                 $attachments[] = [
                     'type' => 'receipt',
                     'content' => $receiptPdf,
-                    'filename' => 'payment-receipt-'.((int) $payment->id).'.pdf',
+                    'filename' => ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').((int) $payment->id).'.pdf',
                     'mime' => 'application/pdf',
                 ];
             }
@@ -1226,6 +1226,7 @@ class WorkshopTicketFlowController extends Controller
         }
 
         return DomPdf::loadView('pdf.payment-receipt', [
+            'isRefund' => $payment->isRefund(),
             'receiptTitle' => $payment->isRefund() ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $payment->isRefund() ? 'Amount Refunded' : 'Amount Paid',
             'receiptNumber' => (string) $payment->id,

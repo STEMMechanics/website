@@ -1258,7 +1258,7 @@ class InvoiceController extends Controller
             recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
             invoiceNumber: (string) $invoice->invoice_number,
             receiptNumber: $receiptNumber,
-            amount: money($customerPayment->isRefund() ? -((float) $customerPayment->total_amount) : (float) $customerPayment->total_amount),
+            amount: money(abs((float) $customerPayment->total_amount)),
             paidOn: ($customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
             receiptUrl: (string) ($customerPayment->square_receipt_url ?? ''),
             isRefund: $customerPayment->isRefund(),
@@ -1287,6 +1287,7 @@ class InvoiceController extends Controller
         }
 
         return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payment-receipt', [
+            'isRefund' => $isRefund,
             'receiptTitle' => $isRefund ? 'Refund Receipt' : 'Payment Receipt',
             'amountLabel' => $isRefund ? 'Amount Refunded' : 'Amount Paid',
             'receiptNumber' => (string) $customerPayment->id,
@@ -1329,7 +1330,7 @@ class InvoiceController extends Controller
 
     private function getPaymentReceiptPdfFilename(Payment $customerPayment): string
     {
-        return 'payment-receipt-'.($customerPayment->id).'.pdf';
+        return ($customerPayment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').($customerPayment->id).'.pdf';
     }
 
     private function invoiceAllocatedTotal(Invoice $invoice): float
