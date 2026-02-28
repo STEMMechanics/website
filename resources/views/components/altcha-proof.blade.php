@@ -41,7 +41,8 @@
                 // Failsafe: if ALTCHA verification hangs, unlock the form
                 // and reveal the widget so users can retry visibly.
                 setFormProcessing(form, false);
-                widget.style.display = 'block';
+                resetAltchaWidget(widget);
+                revealAltchaWidget(widget);
                 showAltchaError(form, 'Verification timed out. Please try again.');
             }, timeoutMs);
 
@@ -65,6 +66,25 @@
             }
 
             errorElement.classList.add('hidden');
+        };
+
+        const revealAltchaWidget = (widget) => {
+            widget.style.display = 'block';
+            if (typeof widget.show === 'function') {
+                try {
+                    widget.show();
+                } catch (e) {}
+            }
+        };
+
+        const resetAltchaWidget = (widget) => {
+            if (typeof widget.reset !== 'function') {
+                return;
+            }
+
+            try {
+                widget.reset();
+            } catch (e) {}
         };
 
         document.querySelectorAll('altcha-widget').forEach((widget) => {
@@ -127,16 +147,19 @@
                 if (detail.state === 'code' || detail.state === 'unverified') {
                     clearAltchaWatchdog(form);
                     setFormProcessing(form, false);
-                    widget.style.display = 'block';
-                    showAltchaError(form, 'Please complete the verification challenge.');
+                    revealAltchaWidget(widget);
+                    hideAltchaError(form);
                     return;
                 }
 
                 if (detail.state === 'error' || detail.state === 'expired' || detail.state === 'failed') {
                     clearAltchaWatchdog(form);
                     setFormProcessing(form, false);
-                    widget.style.display = 'block';
-                    showAltchaError(form, 'Verification failed. Please retry the challenge.');
+                    input.value = '';
+                    resetAltchaWidget(widget);
+                    revealAltchaWidget(widget);
+                    hideAltchaError(form);
+                    return;
                 }
 
                 input.value = '';

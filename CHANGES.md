@@ -11,6 +11,7 @@
 - Private access codes are now case insensitive
 - Improved site options across the project
 - Improved refund wording
+- Improved error handling of Altcha
 
 ## 1.3.13
 
