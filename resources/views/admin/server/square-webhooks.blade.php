@@ -44,7 +44,7 @@
             </x-slot>
         </x-ui.toolbar>
 
-        @if($events->isEmpty())
+        @if($groupedEvents->isEmpty())
             <x-none-found item="square webhook events" search="{{ request()->get('search') }}" />
         @else
             @if($errors->any())
@@ -52,13 +52,6 @@
                     {{ $errors->first() }}
                 </div>
             @endif
-            @php
-                $groupedEvents = $events->groupBy(function ($event) {
-                    $squarePaymentId = trim((string) ($event->square_payment_id ?? ''));
-
-                    return $squarePaymentId !== '' ? 'pid:'.$squarePaymentId : 'event:'.$event->id;
-                })->values();
-            @endphp
             <div class="text-right mb-4">
                 <form method="POST" action="{{ route('admin.server.square-webhooks.sync') }}" class="w-full lg:w-auto">
                     @csrf
@@ -214,6 +207,8 @@
                     @endforeach
                 </x-slot:body>
             </x-ui.table>
+
+            {{ $groupPage->appends(request()->query())->links() }}
 
             <div
                 x-show="ignoreOpen"

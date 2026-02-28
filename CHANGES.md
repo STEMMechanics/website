@@ -14,7 +14,8 @@
 - Improved error handling of Altcha
 - Ticket hold minutes is now a site option
 - Show Site option descriptions
-- Cleanup and standization of site options
+- Cleanup and standardization of site options
+- Pagination of Square Webhooks page
 
 ## 1.3.13
 

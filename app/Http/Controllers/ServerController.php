@@ -475,7 +475,7 @@ class ServerController extends Controller
 
     public function admin_square_webhooks(Request $request): View
     {
-        $query = SquareWebhookEvent::query()->with('customerPayment');
+        $query = SquareWebhookEvent::query();
 
         $search = trim((string) $request->query('search', ''));
         if ($search !== '') {
@@ -493,45 +493,69 @@ class ServerController extends Controller
             }
         }
 
-        $seedEvents = $query
-            ->orderByDesc('processed_at')
-            ->orderByDesc('id')
-            ->limit(10)
-            ->get();
+        $page = max(1, (int) $request->query('page', 1));
+        $groupKeySql = $this->squareWebhookGroupKeySql();
+        $groupPage = DB::query()
+            ->fromSub(
+                (clone $query)->selectRaw('id, processed_at, '.$groupKeySql.' as group_key'),
+                'square_webhook_event_groups'
+            )
+            ->selectRaw('group_key, MAX(processed_at) as latest_processed_at, MAX(id) as latest_id')
+            ->groupBy('group_key')
+            ->orderByDesc('latest_processed_at')
+            ->orderByDesc('latest_id')
+            ->paginate(10, ['*'], 'page', $page)
+            ->onEachSide(1);
 
-        $groupedEvents = collect();
-        $seenKeys = [];
-        foreach ($seedEvents as $seedEvent) {
-            $seedPayload = is_array($seedEvent->payload) ? $seedEvent->payload : null;
-            $squarePaymentId = $this->extractSquarePaymentIdFromPayload($seedPayload);
-            $groupKey = $squarePaymentId !== '' ? 'pid:'.$squarePaymentId : 'event:'.$seedEvent->id;
-            if (isset($seenKeys[$groupKey])) {
-                continue;
-            }
-            $seenKeys[$groupKey] = true;
+        $groupKeys = collect($groupPage->items())
+            ->pluck('group_key')
+            ->filter(fn ($groupKey): bool => is_string($groupKey) && $groupKey !== '')
+            ->values();
 
-            if ($squarePaymentId === '') {
-                $groupEvents = collect([$seedEvent]);
-            } else {
-                $groupEvents = SquareWebhookEvent::query()
-                    ->with('customerPayment')
-                    ->where(function ($builder) use ($squarePaymentId): void {
-                        $builder->where('payload->data->object->payment->id', $squarePaymentId)
-                            ->orWhere('payload->data->object->refund->payment_id', $squarePaymentId);
-                    })
-                    ->orderByDesc('processed_at')
-                    ->orderByDesc('id')
-                    ->get();
-            }
-
-            if ($groupEvents->isEmpty()) {
+        $standaloneEventIds = [];
+        $squarePaymentIds = [];
+        foreach ($groupKeys as $groupKey) {
+            if (str_starts_with($groupKey, 'pid:')) {
+                $squarePaymentIds[] = substr($groupKey, 4);
                 continue;
             }
 
-            $groupedEvents->push($groupEvents->values());
+            if (str_starts_with($groupKey, 'event:')) {
+                $eventId = (int) substr($groupKey, 6);
+                if ($eventId > 0) {
+                    $standaloneEventIds[] = $eventId;
+                }
+            }
         }
 
-        $events = $groupedEvents->flatten(1)->values();
+        $events = collect();
+        if ($squarePaymentIds !== []) {
+            $paymentEvents = SquareWebhookEvent::query()
+                ->with('customerPayment')
+                ->where(function ($builder) use ($squarePaymentIds): void {
+                    $builder->whereIn('payload->data->object->payment->id', $squarePaymentIds)
+                        ->orWhereIn('payload->data->object->refund->payment_id', $squarePaymentIds);
+                })
+                ->orderByDesc('processed_at')
+                ->orderByDesc('id')
+                ->get();
+            $events = $events->concat($paymentEvents);
+        }
+
+        if ($standaloneEventIds !== []) {
+            $standaloneEvents = SquareWebhookEvent::query()
+                ->with('customerPayment')
+                ->whereIn('id', $standaloneEventIds)
+                ->orderByDesc('processed_at')
+                ->orderByDesc('id')
+                ->get();
+            $events = $events->concat($standaloneEvents);
+        }
+
+        $events = $events
+            ->unique('id')
+            ->values();
+
         $squarePaymentIds = $events
             ->map(fn (SquareWebhookEvent $event): string => $this->extractSquarePaymentIdFromPayload(is_array($event->payload) ? $event->payload : null))
             ->filter(fn (string $id): bool => $id !== '')
@@ -553,6 +577,18 @@ class ServerController extends Controller
             return $event;
         });
 
+        $groupedEvents = $events
+            ->groupBy(function (SquareWebhookEvent $event): string {
+                $squarePaymentId = trim((string) ($event->square_payment_id ?? ''));
+
+                return $squarePaymentId !== '' ? 'pid:'.$squarePaymentId : 'event:'.$event->id;
+            });
+
+        $orderedGroupedEvents = $groupKeys
+            ->map(fn (string $groupKey) => $groupedEvents->get($groupKey))
+            ->filter()
+            ->values();
+
         $eventTypes = SquareWebhookEvent::query()
             ->select('event_type')
             ->whereNotNull('event_type')
@@ -562,7 +598,8 @@ class ServerController extends Controller
             ->all();
 
         return view('admin.server.square-webhooks', [
-            'events' => $events,
+            'groupedEvents' => $orderedGroupedEvents,
+            'groupPage' => $groupPage,
             'eventTypes' => $eventTypes,
             'ignoreReasonOptions' => $this->squareIgnoreReasonOptions(),
         ]);
@@ -1063,6 +1100,15 @@ class ServerController extends Controller
             ->orderByDesc('processed_at')
             ->orderByDesc('id')
             ->get();
+    }
+
+    private function squareWebhookGroupKeySql(): string
+    {
+        return "COALESCE("
+            ."NULLIF(CONCAT('pid:', JSON_UNQUOTE(JSON_EXTRACT(payload, '$.data.object.payment.id'))), 'pid:'), "
+            ."NULLIF(CONCAT('pid:', JSON_UNQUOTE(JSON_EXTRACT(payload, '$.data.object.refund.payment_id'))), 'pid:'), "
+            ."CONCAT('event:', id)"
+            .")";
     }
 
     private function getServerInfo(): array
