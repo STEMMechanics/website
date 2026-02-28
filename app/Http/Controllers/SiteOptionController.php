@@ -62,9 +62,7 @@ class SiteOptionController extends Controller
 
     public function update(Request $request, SiteOption $siteOption): RedirectResponse|JsonResponse
     {
-        $validated = $request->validate([
-            'value' => ['nullable', 'string'],
-        ]);
+        $validated = $this->validateValueRequest($request, (string) $siteOption->name);
 
         $siteOption->value = $validated['value'] ?? null;
         $siteOption->save();
@@ -137,6 +135,19 @@ class SiteOptionController extends Controller
         ], [
             'name.regex' => 'Name may only contain lowercase letters, numbers, dots, hyphens, and underscores.',
         ]);
+    }
+
+    private function validateValueRequest(Request $request, string $optionName): array
+    {
+        $rules = [
+            'value' => ['nullable', 'string'],
+        ];
+
+        if ($optionName === 'tickets.hold_minutes') {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
+        }
+
+        return $request->validate($rules);
     }
 
     private function siteOptionPayload(SiteOption $siteOption): array

@@ -38,6 +38,7 @@
                     $defaultValue = $hasDefault ? (string) (\App\Models\SiteOption::defaultValue((string) $siteOption->name) ?? '') : '';
                     $valueRawEncoded = base64_encode($valueRaw);
                     $defaultValueEncoded = base64_encode($defaultValue);
+                    $isNumericOption = (string) $siteOption->name === 'tickets.hold_minutes';
                     @endphp
                     <tr
                         id="site-option-row-{{ $siteOption->id }}"
@@ -45,6 +46,7 @@
                         data-option-name="{{ $siteOption->name }}"
                         data-option-value-base64="{{ $valueRawEncoded }}"
                         data-option-default-base64="{{ $defaultValueEncoded }}"
+                        data-option-input-type="{{ $isNumericOption ? 'number' : 'textarea' }}"
                     >
                         <td class="whitespace-nowrap!">{{ $siteOption->name }}</td>
                         <td class="text-left">
@@ -107,6 +109,14 @@
                             id="site-option-modal-value"
                             class="min-h-[20rem] w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
                         ></textarea>
+                        <input
+                            id="site-option-modal-number"
+                            type="number"
+                            min="1"
+                            max="240"
+                            step="1"
+                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        />
                     </div>
                     <div class="flex justify-end gap-3 border-t border-gray-200 px-5 py-4">
                         <x-ui.button type="button" color="outline" id="site-option-modal-cancel">Cancel</x-ui.button>
@@ -143,6 +153,7 @@
         const modal = document.getElementById('site-option-modal');
         const modalName = document.getElementById('site-option-modal-name');
         const modalValue = document.getElementById('site-option-modal-value');
+        const modalNumber = document.getElementById('site-option-modal-number');
         const modalClose = document.getElementById('site-option-modal-close');
         const modalCancel = document.getElementById('site-option-modal-cancel');
         const modalSave = document.getElementById('site-option-modal-save');
@@ -227,21 +238,26 @@
 
         const openModal = (id) => {
             const row = rowForId(id);
-            if (!row || !modal || !modalName || !modalValue) {
+            if (!row || !modal || !modalName || !modalValue || !modalNumber) {
                 return;
             }
 
             currentOptionId = id;
             modalName.textContent = String(row.dataset.optionName || '');
-            modalValue.value = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
+            const inputType = String(row.dataset.optionInputType || 'textarea');
+            const decodedValue = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
+            modalValue.value = decodedValue;
+            modalNumber.value = decodedValue;
+            modalValue.classList.toggle('hidden', inputType === 'number');
+            modalNumber.classList.toggle('hidden', inputType !== 'number');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             modal.setAttribute('aria-hidden', 'false');
-            setTimeout(() => modalValue.focus(), 0);
+            setTimeout(() => (inputType === 'number' ? modalNumber : modalValue).focus(), 0);
         };
 
         const closeModal = () => {
-            if (!modal || !modalValue) {
+            if (!modal || !modalValue || !modalNumber) {
                 return;
             }
 
@@ -250,6 +266,9 @@
             modal.classList.remove('flex');
             modal.setAttribute('aria-hidden', 'true');
             modalValue.value = '';
+            modalNumber.value = '';
+            modalValue.classList.remove('hidden');
+            modalNumber.classList.add('hidden');
         };
 
         const confirmDialog = (title, html, confirmButtonText, confirmButtonColor) => {
@@ -310,16 +329,20 @@
 
         if (modalSave) {
             modalSave.addEventListener('click', async () => {
-                if (!currentOptionId || !modalValue) {
+                if (!currentOptionId || !modalValue || !modalNumber) {
                     return;
                 }
+
+                const row = rowForId(currentOptionId);
+                const inputType = String(row?.dataset.optionInputType || 'textarea');
+                const valueToSave = inputType === 'number' ? modalNumber.value : modalValue.value;
 
                 try {
                     modalSave.disabled = true;
                     const payload = await fetchJson(updateUrlTemplate.replace('__ID__', String(currentOptionId)), {
                         method: 'PUT',
                         body: JSON.stringify({
-                            value: modalValue.value,
+                            value: valueToSave,
                         }),
                     });
                     updateRow(payload.option || null);

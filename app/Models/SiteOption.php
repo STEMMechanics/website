@@ -60,6 +60,10 @@ class SiteOption extends Model
                 'value' => '732-6629',
                 'description' => 'Bank account number shown for bank transfer payments.',
             ],
+            'tickets.hold_minutes' => [
+                'value' => '10',
+                'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
+            ],
         ];
     }
 
