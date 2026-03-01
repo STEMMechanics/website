@@ -3,6 +3,7 @@
 ## 1.4.0
 
 - Fixed minor issues around workshop SEO
+- Added support for tables and better media handling in editor
 
 ## 1.3.14
 

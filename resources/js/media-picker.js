@@ -128,7 +128,7 @@ const SMMediaPicker = {
                 <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'">Browser</li>
             </ul>
             <div
-                class="flex-1 border border-gray-300 overflow-y-scroll"
+                class="flex-1 min-h-0 border border-gray-300 overflow-hidden"
                 x-on:dragenter.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false"
                 x-on:dragover.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false">
                 <div
@@ -141,15 +141,14 @@ const SMMediaPicker = {
                     <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" />
                     <p class="text-xs">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
                 </div>
-                <div id="content-browser" class="flex flex-col h-full w-full p-4" x-show="tab === 'browser'">
+                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" x-show="tab === 'browser'">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
                             <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" />
                             <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </form>
-
-                    <ul class="flex p-2 gap-4 justify-center flex-row flex-wrap">
+                    <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap">
                     <template x-for="item in $store.media.items" :key="item.name">
                         <li
                             class="cursor-pointer flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
@@ -167,7 +166,7 @@ const SMMediaPicker = {
                     </template>
                     </ul>
 
-                    <div class="flex flex-1 items-end pt-4 pb-4">
+                    <div class="flex items-end pt-4 pb-1">
                         <div class="flex w-full items-center justify-between sm:justify-center md:justify-between">
                             <p x-show="$store.media.total > 0" class="hidden md:block text-xs" x-text="'Showing ' + ((($store.media.current_page - 1) * $store.media.per_page) + 1) + ' to ' + ($store.media.current_page * $store.media.per_page > $store.media.total ? $store.media.total : $store.media.current_page * $store.media.per_page) + ' of ' + ($store.media.total) + ' results'"></p>
                             <p x-show="$store.media.total === 0" class="hidden md:block text-xs">No items found</p>
@@ -187,7 +186,6 @@ const SMMediaPicker = {
                                             }"
                                         x-html="link.label"
                                         x-on:click="SMMediaPicker.gotoLink(link.url)"></li>
-                                        </div>
                                 </template>
                             </ul>
 

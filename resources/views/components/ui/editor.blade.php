@@ -7,185 +7,357 @@
 
 <div class="editor-container">
     <div class="text-sm pl-1">{{ $label }}</div>
-    <div x-data="editor($store.{{$name}}_content)" class="editor mt-1">
+    <div
+        x-data="editor($store.{{$name}}_content, @js(route('dynamic-page.link-options')))"
+        class="editor mt-1">
         <template x-if="isLoaded()">
             <div class="menu">
                 <button
                     @click.prevent="setParagraph()"
+                    title="Paragraph"
+                    aria-label="Paragraph"
                     :class="{ 'is-active': isActive('paragraph', updatedAt) }">
                     P
                 </button>
                 <button
                     @click.prevent="toggleHeading({ level: 1 })"
+                    title="Heading 1"
+                    aria-label="Heading 1"
                     :class="{ 'is-active': isActive('heading', { level: 1 }, updatedAt) }">
                     H1
                 </button>
                 <button
                     @click.prevent="toggleHeading({ level: 2 })"
+                    title="Heading 2"
+                    aria-label="Heading 2"
                     :class="{ 'is-active': isActive('heading', { level: 2 }, updatedAt) }">
                     H2
                 </button>
                 <button
                     @click.prevent="toggleHeading({ level: 3 })"
+                    title="Heading 3"
+                    aria-label="Heading 3"
                     :class="{ 'is-active': isActive('heading', { level: 3 }, updatedAt) }">
                     H3
                 </button>
                 <button
                     @click.prevent="toggleHeading({ level: 4 })"
+                    title="Heading 4"
+                    aria-label="Heading 4"
                     :class="{ 'is-active': isActive('heading', { level: 4 }, updatedAt) }">
                     H4
                 </button>
                 <button
                     @click.prevent="setSmall()"
+                    title="Small text"
+                    aria-label="Small text"
                     :class="{ 'is-active': isActive('small', updatedAt) }">
                     SM
                 </button>
                 <button
                     @click.prevent="setExtraSmall()"
+                    title="Extra small text"
+                    aria-label="Extra small text"
                     :class="{ 'is-active': isActive('extraSmall', updatedAt) }">
                     XS
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="toggleBold()"
+                    title="Bold"
+                    aria-label="Bold"
                     :class="{ 'is-active' : isActive('bold', updatedAt) }">
                     <i class="fa-solid fa-bold"></i>
                 </button>
                 <button
                     @click.prevent="toggleItalic()"
+                    title="Italic"
+                    aria-label="Italic"
                     :class="{ 'is-active' : isActive('italic', updatedAt) }">
                     <i class="fa-solid fa-italic"></i>
                 </button>
                 <button
                     @click.prevent="toggleUnderline()"
+                    title="Underline"
+                    aria-label="Underline"
                     :class="{ 'is-active' : isActive('underline', updatedAt) }">
                     <i class="fa-solid fa-underline"></i>
                 </button>
                 <button
                     @click.prevent="toggleStrike()"
+                    title="Strikethrough"
+                    aria-label="Strikethrough"
                     :class="{ 'is-active' : isActive('strike', updatedAt) }">
                     <i class="fa-solid fa-strikethrough"></i>
                 </button>
                 <button
                     @click.prevent="toggleHighlight()"
+                    title="Highlight"
+                    aria-label="Highlight"
                     :class="{ 'is-active' : isActive('highlight', updatedAt) }">
                     <i class="fa-solid fa-highlighter"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="setTextAlign('left')"
+                    title="Align left"
+                    aria-label="Align left"
                     :class="{ 'is-active' : isActive({ textAlign: 'left' }, updatedAt) }">
                     <i class="fa-solid fa-align-left"></i>
                 </button>
                 <button
                     @click.prevent="setTextAlign('center')"
+                    title="Align center"
+                    aria-label="Align center"
                     :class="{ 'is-active' : isActive({ textAlign: 'center' }, updatedAt) }">
                     <i class="fa-solid fa-align-center"></i>
                 </button>
                 <button
                     @click.prevent="setTextAlign('right')"
+                    title="Align right"
+                    aria-label="Align right"
                     :class="{ 'is-active' : isActive({ textAlign: 'right' }, updatedAt) }">
                     <i class="fa-solid fa-align-right"></i>
                 </button>
                 <button
                     @click.prevent="setTextAlign('justify')"
+                    title="Justify"
+                    aria-label="Justify"
                     :class="{ 'is-active' : isActive({ textAlign: 'justify' }, updatedAt) }">
                     <i class="fa-solid fa-align-justify"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="toggleSubscript()"
+                    title="Subscript"
+                    aria-label="Subscript"
                     :class="{ 'is-active' : isActive('subscript', updatedAt) }">
                     <i class="fa-solid fa-subscript"></i>
                 </button>
                 <button
                     @click.prevent="toggleSuperscript()"
+                    title="Superscript"
+                    aria-label="Superscript"
                     :class="{ 'is-active' : isActive('superscript', updatedAt) }">
                     <i class="fa-solid fa-superscript"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="toggleCode()"
+                    title="Inline code"
+                    aria-label="Inline code"
                     :class="{ 'is-active' : isActive('code', updatedAt) }">
                     <i class="fa-solid fa-font"></i>
                 </button>
                 <button
                     @click.prevent="toggleCodeBlock()"
+                    title="Code block"
+                    aria-label="Code block"
                     :class="{ 'is-active' : isActive('codeBlock', updatedAt) }">
                     <i class="fa-solid fa-code"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="toggleBulletList()"
+                    title="Bullet list"
+                    aria-label="Bullet list"
                     :class="{ 'is-active' : isActive('bulletList', updatedAt) }">
                     <i class="fa-solid fa-list-ul"></i>
                 </button>
                 <button
                     @click.prevent="toggleOrderedList()"
+                    title="Numbered list"
+                    aria-label="Numbered list"
                     :class="{ 'is-active' : isActive('orderedList', updatedAt) }">
                     <i class="fa-solid fa-list-ol"></i>
                 </button>
+                <button
+                    @click.prevent="insertTable()"
+                    title="Insert table"
+                    aria-label="Insert table"
+                    :class="{ 'is-active' : isActive('table', updatedAt) }">
+                    <i class="fa-solid fa-table"></i>
+                </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
+                    @click.prevent="addColumnBefore()"
+                    title="Add column before"
+                    aria-label="Add column before"
+                    x-bind:disabled="!canTable('addColumnBefore', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-arrow-left text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="addColumnAfter()"
+                    title="Add column after"
+                    aria-label="Add column after"
+                    x-bind:disabled="!canTable('addColumnAfter', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-arrow-right text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="deleteColumn()"
+                    title="Delete column"
+                    aria-label="Delete column"
+                    x-bind:disabled="!canTable('deleteColumn', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-trash text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="addRowBefore()"
+                    title="Add row before"
+                    aria-label="Add row before"
+                    x-bind:disabled="!canTable('addRowBefore', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-arrow-up text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="addRowAfter()"
+                    title="Add row after"
+                    aria-label="Add row after"
+                    x-bind:disabled="!canTable('addRowAfter', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-arrow-down text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="deleteRow()"
+                    title="Delete row"
+                    aria-label="Delete row"
+                    x-bind:disabled="!canTable('deleteRow', updatedAt)">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <i class="fa-solid fa-trash text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="toggleHeaderRow()"
+                    title="Toggle header row"
+                    aria-label="Toggle header row"
+                    x-bind:disabled="!canTable('toggleHeaderRow', updatedAt)">
+                    <i class="fa-solid fa-heading"></i>
+                    <i class="fa-solid fa-arrow-down text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="toggleHeaderColumn()"
+                    title="Toggle header column"
+                    aria-label="Toggle header column"
+                    x-bind:disabled="!canTable('toggleHeaderColumn', updatedAt)">
+                    <i class="fa-solid fa-heading"></i>
+                    <i class="fa-solid fa-arrow-right text-[10px] align-top"></i>
+                </button>
+                <button
+                    @click.prevent="mergeCells()"
+                    title="Merge cells"
+                    aria-label="Merge cells"
+                    x-bind:disabled="!canTable('mergeCells', updatedAt)">
+                    <i class="fa-solid fa-object-group"></i>
+                </button>
+                <button
+                    @click.prevent="splitCell()"
+                    title="Split cell"
+                    aria-label="Split cell"
+                    x-bind:disabled="!canTable('splitCell', updatedAt)">
+                    <i class="fa-solid fa-table-cells"></i>
+                </button>
+                <button
+                    @click.prevent="deleteTable()"
+                    title="Delete table"
+                    aria-label="Delete table"
+                    x-bind:disabled="!canTable('deleteTable', updatedAt)">
+                    <i class="fa-solid fa-table"></i>
+                    <i class="fa-solid fa-trash text-[10px] align-top"></i>
+                </button>
+                <div class="border-l border-l-gray-300 mx-1"></div>
+                <button
+                        @click.prevent="insertImage()"
+                        title="Insert image"
+                        aria-label="Insert image">
+                    <i class="fa-solid fa-image"></i>
+                </button>
+                <button
                     @click.prevent="toggleLink()"
+                    title="Insert or edit link"
+                    aria-label="Insert or edit link"
                     :class="{ 'is-active' : isActive('link', updatedAt) }">
                     <i class="fa-solid fa-link"></i>
                 </button>
                 <button
-                    @click.prevent="clearLink()">
+                    @click.prevent="clearLink()"
+                    title="Remove link"
+                    aria-label="Remove link">
                     <i class="fa-solid fa-link-slash"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
-                    @click.prevent="clearNodes();unsetAllMarks()">
+                    @click.prevent="clearNodes();unsetAllMarks()"
+                    title="Clear formatting"
+                    aria-label="Clear formatting">
                     <i class="fa-solid fa-text-slash"></i>
                 </button>
                 <button
                     @click.prevent="toggleBlockquote()"
+                    title="Blockquote"
+                    aria-label="Blockquote"
                     :class="{ 'is-active' : isActive('blockquote', updatedAt) }">
                     <i class="fa-solid fa-quote-right"></i>
                 </button>
                 <button
-                    @click.prevent="setHorizontalRule()">
+                    @click.prevent="setHorizontalRule()"
+                    title="Horizontal rule"
+                    aria-label="Horizontal rule">
                     <div class="border-t-2 rounded-lg border-black"></div>
                 </button>
                 <button
-                    @click.prevent="setHardBreak()">
+                    @click.prevent="setHardBreak()"
+                    title="Line break"
+                    aria-label="Line break">
                     <i class="fa-solid fa-paragraph"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
                     @click.prevent="toggleBox({ type: 'success' })"
+                    title="Success box"
+                    aria-label="Success box"
                     :class="{ 'is-active': isActive('box', { type: 'success' }, updatedAt) }">
                     <i class="fa-solid fa-circle-check"></i>
                 </button>
                 <button
                     @click.prevent="toggleBox({ type: 'info' })"
+                    title="Info box"
+                    aria-label="Info box"
                     :class="{ 'is-active': isActive('box', { type: 'info' }, updatedAt) }">
                     <i class="fa-solid fa-circle-info"></i>
                 </button>
                 <button
                     @click.prevent="toggleBox({ type: 'warning' })"
+                    title="Warning box"
+                    aria-label="Warning box"
                     :class="{ 'is-active': isActive('box', { type: 'warning' }, updatedAt) }">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </button>
                 <button
                     @click.prevent="toggleBox({ type: 'danger' })"
+                    title="Danger box"
+                    aria-label="Danger box"
                     :class="{ 'is-active': isActive('box', { type: 'danger' }, updatedAt) }">
                     <i class="fa-solid fa-circle-xmark"></i>
                 </button>
                 <button
                     @click.prevent="toggleBox({ type: 'bug' })"
+                    title="Bug box"
+                    aria-label="Bug box"
                     :class="{ 'is-active': isActive('box', { type: 'bug' }, updatedAt) }">
                     <i class="fa-solid fa-bug"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
                 <button
-                    @click.prevent="undo()">
+                    @click.prevent="undo()"
+                    title="Undo"
+                    aria-label="Undo">
                     <i class="fa-solid fa-undo"></i>
                 </button>
                 <button
-                    @click.prevent="redo()">
+                    @click.prevent="redo()"
+                    title="Redo"
+                    aria-label="Redo">
                     <i class="fa-solid fa-redo"></i>
                 </button>
             </div>

@@ -29,14 +29,13 @@ export const Box = Node.create({
     defining: true,
 
     parseHTML() {
-        return this.options.types.map((/* type */) => ({
-            tag: 'div',
+        return this.options.types.map((type) => ({
+            tag: `div.box.${type}`,
             getAttrs: (node) => {
-                // Extract the class attribute and find the type based on the class
                 const classList = node.getAttribute('class')?.split(' ') || [];
                 const boxType = classList.find(cls => this.options.types.includes(cls));
                 return {
-                    type: boxType || this.options.types[0], // Default to 'info' if no matching type is found
+                    type: boxType || this.options.types[0],
                 };
             },
         }));
@@ -49,7 +48,7 @@ export const Box = Node.create({
             : this.options.types[0]
 
         let classes = 'box ' + type;
-        return ['div', mergeAttributes({ class: classes }, HTMLAttributes), 0]
+        return ['div', mergeAttributes({ class: classes, 'data-box-type': type }, HTMLAttributes), 0]
     },
 
     addCommands() {
