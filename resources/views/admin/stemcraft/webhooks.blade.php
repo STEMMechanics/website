@@ -13,7 +13,7 @@
                 <p class="mt-2 text-sm leading-6 text-gray-600">Track what the website has sent to the Minecraft server, what the website has received back from the server, whether delivery succeeded, and retry failed outbound calls when needed.</p>
             </div>
 
-            <form method="GET" action="{{ route('admin.stemcraft.webhooks.index') }}" class="mt-6 grid gap-4 lg:grid-cols-4">
+            <form method="GET" action="{{ route('admin.stemcraft.webhooks.index') }}" class="mt-6 grid gap-4 lg:grid-cols-4 items-center">
                 <x-ui.input name="search" label="Search" value="{{ $search }}" />
                 <x-ui.select name="direction" label="Direction">
                     <option value="">All directions</option>
@@ -26,9 +26,7 @@
                         <option value="{{ $status }}" {{ $selectedStatus === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>
                     @endforeach
                 </x-ui.select>
-                <div class="flex items-end">
-                    <x-ui.button type="submit">Filter</x-ui.button>
-                </div>
+                <x-ui.button type="submit" class="mt-1">Filter</x-ui.button>
             </form>
         </section>
 
