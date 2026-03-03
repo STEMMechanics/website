@@ -1,12 +1,5 @@
 # Changes
 
-- Highlighed not to use your real name 
-
-## 1.4.1
-
-- Highlighted not to use your real name as your username
-- STEMMechanics accounts now highlighted in discussions
-
 ## 1.4.0
 
 - Fixed minor issues around workshop SEO
@@ -23,6 +16,8 @@
 - STEMCraft pages updated
 - Updated dependencies
 - Improved attendance and payment flows
+- Highlighted not to use your real name as your username
+- STEMMechanics accounts now highlighted in discussions
 
 ## 1.3.14
 
