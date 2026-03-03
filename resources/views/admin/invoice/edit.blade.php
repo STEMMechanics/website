@@ -28,13 +28,35 @@
         $savedLineItems = json_encode($lineItemsSeed ?? []);
     }
     $invoiceSettlementKind = isset($invoice) ? $invoice->expectedSettlementKind() : \App\Models\Payment::KIND_PAYMENT;
-    $invoiceAllocatedAmount = isset($invoice)
-        ? (float) $invoice->settledAmount()
+    $invoiceGrossAllocatedAmount = isset($invoice)
+        ? round((float) $invoice->allocations
+            ->filter(function ($allocation) use ($invoiceSettlementKind) {
+                if (! $allocation->customerPayment) {
+                    return false;
+                }
+
+                return (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $invoiceSettlementKind
+                    && ((float) $allocation->allocated_amount) > 0;
+            })
+            ->sum('allocated_amount'), 2)
         : 0.0;
+    $invoiceRefundedAmount = isset($invoice)
+        ? round(abs((float) $invoice->allocations
+            ->filter(function ($allocation) use ($invoiceSettlementKind) {
+                if (! $allocation->customerPayment) {
+                    return false;
+                }
+
+                return (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $invoiceSettlementKind
+                    && ((float) $allocation->allocated_amount) < 0;
+            })
+            ->sum('allocated_amount')), 2)
+        : 0.0;
+    $invoiceNetAllocatedAmount = round(max(0, $invoiceGrossAllocatedAmount - $invoiceRefundedAmount), 2);
     $invoiceDueAmount = isset($invoice) ? (float) $invoice->dueAmount() : 0.0;
-    $invoiceRemainingAmount = isset($invoice) ? (float) $invoice->outstandingAmount() : 0.0;
+    $invoiceRemainingAmount = round(max(0, $invoiceDueAmount - $invoiceNetAllocatedAmount), 2);
     $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0
-        ? max(0, min(100, round(($invoiceAllocatedAmount / $invoiceDueAmount) * 100, 1)))
+        ? max(0, min(100, round(($invoiceNetAllocatedAmount / $invoiceDueAmount) * 100, 1)))
         : 0.0;
     $invoiceAllocations = isset($invoice)
         ? $invoice->allocations
@@ -160,15 +182,17 @@
             <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
                 <div class="flex flex-wrap gap-6 text-sm">
                     <div><strong>Total:</strong> ${{ number_format((float) $invoice->total_amount, 2) }}</div>
-                    <div><strong>Net Due:</strong> ${{ number_format($invoiceDueAmount, 2) }}</div>
-                    <div><strong>Allocated:</strong> ${{ number_format($invoiceAllocatedAmount, 2) }}</div>
+                    <div><strong>Due (after adjustments):</strong> ${{ number_format($invoiceDueAmount, 2) }}</div>
+                    <div><strong>Allocated:</strong> ${{ number_format($invoiceGrossAllocatedAmount, 2) }}</div>
+                    <div><strong>Refunded:</strong> ${{ number_format($invoiceRefundedAmount, 2) }}</div>
+                    <div><strong>Net Allocated:</strong> ${{ number_format($invoiceNetAllocatedAmount, 2) }}</div>
                     <div><strong>Remaining:</strong> ${{ number_format($invoiceRemainingAmount, 2) }}</div>
                 </div>
                 <div class="mt-3">
                     <div class="h-2 w-full rounded bg-gray-100 overflow-hidden">
                         <div class="h-2 bg-primary-color" style="width: {{ $invoiceProgressPercent }}%"></div>
                     </div>
-                    <div class="mt-1 text-xs text-gray-600">{{ number_format($invoiceProgressPercent, 1) }}% net allocated</div>
+                    <div class="mt-1 text-xs text-gray-600">{{ number_format($invoiceProgressPercent, 1) }}% due covered (net)</div>
                 </div>
                 <div class="mt-3">
                     <h3 class="font-semibold mb-2">Associated Payments</h3>
@@ -197,8 +221,8 @@
                                             <td class="py-2">
                                                 @if($payment)
                                                     <a href="{{ route('admin.payment.edit', $payment) }}" class="hover:text-primary-color mr-2" title="Open payment"><i class="fa-solid fa-pen-to-square"></i></a>
-                                                    <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $payment]) }}" target="_blank" class="hover:text-primary-color mr-2" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
-                                                    <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('invoice.receipt.pdf', ['invoice' => $invoice, 'payment' => $payment, 'download' => 1]) }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
+                                                    <a href="{{ route('admin.payment.receipt', ['payment' => $payment]) }}" target="_blank" class="hover:text-primary-color mr-2" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
+                                                    <a href="{{ route('admin.payment.receipt', ['payment' => $payment, 'download' => 1]) }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
                                                 @else
                                                     -
                                                 @endif

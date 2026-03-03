@@ -82,7 +82,7 @@
                 </div>
                 @endif
 
-                <div class=" flex flex-wrap justify-between gap-3 mt-6">
+                <div class=" flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                     <x-ui.button
                         type="link"
                         href="{{ route('workshop.ticket.flow.complete.download-all', $workshop) }}"

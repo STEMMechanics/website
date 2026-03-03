@@ -100,6 +100,11 @@
                                 @if($squarePaymentId !== '')
                                     <div class="lg:hidden text-xs font-mono text-gray-600">{{ $squarePaymentId }}</div>
                                 @endif
+                                @if($amountCents !== null)
+                                    <div class="md:hidden text-xs text-gray-600 mt-1">
+                                        Amount: {{ $amountCents < 0 ? '-' : '' }}${{ number_format(abs($amountCents) / 100, 2) }}{{ $amountCurrency !== '' ? ' '.$amountCurrency : '' }}
+                                    </div>
+                                @endif
                                 @if($isIgnored)
                                     <div class="text-xs mt-1 text-amber-700">Ignored Square payment</div>
                                 @endif
@@ -174,6 +179,11 @@
                                     <div>{{ $childEvent->processed_at?->format('M j, Y g:i a') ?? '-' }}</div>
                                     <div class="text-xs text-gray-600 mt-1">{{ $childEvent->event_type ?: '-' }}</div>
                                     <div class="text-xs font-mono text-gray-600">{{ $childEvent->event_id ?: '-' }}</div>
+                                    @if($childAmountCents !== null)
+                                        <div class="md:hidden text-xs text-gray-600 mt-1">
+                                            Amount: {{ $childAmountCents < 0 ? '-' : '' }}${{ number_format(abs($childAmountCents) / 100, 2) }}{{ $childAmountCurrency !== '' ? ' '.$childAmountCurrency : '' }}
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="hidden md:table-cell">
                                     @if($childAmountCents !== null)

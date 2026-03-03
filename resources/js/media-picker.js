@@ -1,4 +1,154 @@
 const SMMediaPicker = {
+    cameraStream: null,
+
+    cameraSupported: () => {
+        return typeof navigator !== 'undefined'
+            && !!navigator.mediaDevices
+            && typeof navigator.mediaDevices.getUserMedia === 'function';
+    },
+
+    stopCamera: () => {
+        if (SMMediaPicker.cameraStream) {
+            SMMediaPicker.cameraStream.getTracks().forEach((track) => track.stop());
+            SMMediaPicker.cameraStream = null;
+        }
+
+        const video = document.getElementById('media_camera_preview');
+        if (video) {
+            video.pause?.();
+            video.srcObject = null;
+        }
+
+        if (typeof Alpine !== 'undefined' && Alpine.store('media')) {
+            Alpine.store('media').camera_ready = false;
+            Alpine.store('media').camera_starting = false;
+            Alpine.store('media').camera_countdown_active = false;
+            Alpine.store('media').camera_countdown = 0;
+        }
+    },
+
+    startCamera: async () => {
+        const store = Alpine.store('media');
+        if (!store?.camera_supported) {
+            return;
+        }
+
+        const video = document.getElementById('media_camera_preview');
+        if (!video) {
+            return;
+        }
+
+        store.camera_error = null;
+        store.camera_starting = true;
+
+        try {
+            if (!SMMediaPicker.cameraStream) {
+                SMMediaPicker.cameraStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                    },
+                    audio: false,
+                });
+            }
+
+            video.srcObject = SMMediaPicker.cameraStream;
+            await video.play();
+            store.camera_ready = true;
+        } catch (_error) {
+            store.camera_error = 'Camera access is not available in this browser or has been denied.';
+            store.camera_ready = false;
+            SMMediaPicker.stopCamera();
+        } finally {
+            store.camera_starting = false;
+        }
+    },
+
+    captureCameraPhoto: () => {
+        const store = Alpine.store('media');
+        const video = document.getElementById('media_camera_preview');
+
+        if (!video || !store?.camera_ready) {
+            store.camera_error = 'Camera preview is not ready yet.';
+            return;
+        }
+
+        const width = video.videoWidth || 1280;
+        const height = video.videoHeight || 720;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            store.camera_error = 'Could not capture the photo.';
+            return;
+        }
+
+        context.save();
+        context.translate(store.camera_flip_x ? width : 0, store.camera_flip_y ? height : 0);
+        context.scale(store.camera_flip_x ? -1 : 1, store.camera_flip_y ? -1 : 1);
+        context.drawImage(video, 0, 0, width, height);
+        context.restore();
+
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                store.camera_error = 'Could not capture the photo.';
+                return;
+            }
+
+            const file = new File([blob], `camera-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            SMMediaPicker.stopCamera();
+            SMMediaPicker.upload([file]);
+        }, 'image/jpeg', 0.92);
+    },
+
+    startCameraCountdown: () => {
+        const store = Alpine.store('media');
+        if (!store?.camera_ready || store.camera_countdown_active) {
+            return;
+        }
+
+        store.camera_error = null;
+        store.camera_countdown_active = true;
+        store.camera_countdown = 3;
+
+        const tick = () => {
+            if (!store.camera_countdown_active) {
+                return;
+            }
+
+            if (store.camera_countdown <= 1) {
+                store.camera_countdown_active = false;
+                store.camera_countdown = 0;
+                SMMediaPicker.captureCameraPhoto();
+                return;
+            }
+
+            store.camera_countdown -= 1;
+            window.setTimeout(tick, 1000);
+        };
+
+        window.setTimeout(tick, 1000);
+    },
+
+    toggleCameraFlipX: () => {
+        const store = Alpine.store('media');
+        if (!store) {
+            return;
+        }
+
+        store.camera_flip_x = !store.camera_flip_x;
+    },
+
+    toggleCameraFlipY: () => {
+        const store = Alpine.store('media');
+        if (!store) {
+            return;
+        }
+
+        store.camera_flip_y = !store.camera_flip_y;
+    },
+
     upload: (files) => {
         const validFiles = Array.from(files).filter((file) => {
             return SM.mimeMatches(file.type, Alpine.store('media').require_mime_type);
@@ -26,7 +176,8 @@ const SMMediaPicker = {
                 {
                     require_mime_type: Alpine.store('media').require_mime_type,
                     allow_multiple: Alpine.store('media').allow_multiple,
-                    allow_uploads: Alpine.store('media').allow_uploads
+                    allow_uploads: Alpine.store('media').allow_uploads,
+                    allow_camera: Alpine.store('media').allow_camera
                 },
                 Alpine.store('media').callback
             );
@@ -63,6 +214,68 @@ const SMMediaPicker = {
 
     search: () => {
         SMMediaPicker.query(null, document.querySelector('input[name="search"]').value);
+    },
+
+    confirmDelete: (item, event = null) => {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
+        if (!item?.can_delete || !item?.delete_url) {
+            return;
+        }
+
+        if (!window.SM || typeof window.SM.confirm !== 'function') {
+            SMMediaPicker.deleteItem(item);
+            return;
+        }
+
+        window.SM.confirm(
+            'Delete media?',
+            'Are you sure you want to delete this media? This action cannot be undone.',
+            'Delete',
+            (isConfirmed) => {
+                if (!isConfirmed) {
+                    return;
+                }
+
+                SMMediaPicker.deleteItem(item);
+            }
+        );
+    },
+
+    deleteItem: (item) => {
+        if (!item?.delete_url) {
+            return;
+        }
+
+        axios.delete(item.delete_url, {
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then((response) => {
+                if (response.data?.success !== true) {
+                    throw new Error('Delete failed');
+                }
+
+                Alpine.store('media').selected = Alpine.store('media').selected.filter((name) => name !== item.name);
+                Alpine.store('media').items = Alpine.store('media').items.filter((entry) => entry.name !== item.name);
+
+                const search = document.querySelector('input[name="search"]')?.value || '';
+                SMMediaPicker.query(Alpine.store('media').current_page || 1, search);
+
+                if (window.SM?.alert) {
+                    window.SM.alert('Media deleted', 'The selected media has been deleted.', 'success');
+                }
+            })
+            .catch(() => {
+                if (window.SM?.alert) {
+                    window.SM.alert('Delete failed', 'Could not delete this media item.', 'danger');
+                }
+            });
     },
 
     query: (page, search) => {
@@ -124,8 +337,9 @@ const SMMediaPicker = {
                 </div>
             </template>
             <ul class="flex -mb-[1px] z-10">
-                <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'upload', 'border-b-white': tab === 'upload', 'border-transparent': tab !== 'upload' }" x-on:click.prevent="tab='upload'">Upload</li>
-                <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'">Browser</li>
+                <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'upload', 'border-b-white': tab === 'upload', 'border-transparent': tab !== 'upload' }" x-on:click.prevent="tab='upload'; SMMediaPicker.stopCamera()">Upload</li>
+                <li x-show="$store.media.camera_supported" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'camera', 'border-b-white': tab === 'camera', 'border-transparent': tab !== 'camera' }" x-on:click.prevent="tab='camera'; $nextTick(() => SMMediaPicker.startCamera())">Camera</li>
+                <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'; SMMediaPicker.stopCamera()">Browser</li>
             </ul>
             <div
                 class="flex-1 min-h-0 border border-gray-300 overflow-hidden"
@@ -137,9 +351,85 @@ const SMMediaPicker = {
                     x-show="tab === 'upload'">
                     <h3 class="text-2xl font-bold mb-2">Drop files to upload</h3>
                     <p>or</p>
-                    <label class="inline-block my-2 bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
+                    <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+                        <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
+                        <label
+                            x-show="$store.media.allow_camera"
+                            class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                            for="media_camera_upload"
+                        >
+                            Take photo
+                        </label>
+                    </div>
                     <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" />
+                    <input class="hidden" id="media_camera_upload" name="media_camera_upload" type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" capture="environment" />
                     <p class="text-xs">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
+                </div>
+                <div
+                    id="content-camera"
+                    class="w-full h-full flex flex-col px-4 py-6 items-center"
+                    x-show="tab === 'camera'"
+                >
+                    <div class="w-full max-w-3xl flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
+                        <div class="relative w-full aspect-video max-h-[24rem] overflow-hidden rounded-xl bg-gray-900 flex items-center justify-center">
+                            <video id="media_camera_preview" class="h-full w-full object-cover" :style="'transform: scale(' + ($store.media.camera_flip_x ? -1 : 1) + ', ' + ($store.media.camera_flip_y ? -1 : 1) + ');'" autoplay playsinline muted></video>
+                            <div
+                                x-show="$store.media.camera_countdown_active"
+                                class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/35 text-red-400"
+                            >
+                                <div class="text-7xl font-bold drop-shadow-lg" x-text="$store.media.camera_countdown"></div>
+                            </div>
+                        </div>
+                        <template x-if="$store.media.camera_starting">
+                            <p class="text-sm text-gray-500">Starting camera…</p>
+                        </template>
+                        <template x-if="$store.media.camera_error">
+                            <p class="text-sm text-red-600 text-center" x-text="$store.media.camera_error"></p>
+                        </template>
+                        <div class="flex flex-wrap items-center justify-center gap-3">
+                            <div>
+                                <div class="my-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+                                  <i class="fa-solid fa-warning mr-2"></i>Anything you capture here may be publicly visible. Only photograph persons with consent and not sensitive information.
+                                </div>
+                            </div>
+                            <div>
+                                <button
+                                    type="button"
+                                    class="bg-primary-color hover:bg-primary-color-dark justify-center rounded-md text-white px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition mr-6"
+                                    x-bind:disabled="!$store.media.camera_ready || $store.media.camera_countdown_active"
+                                    x-on:click.prevent="SMMediaPicker.startCameraCountdown()"
+                                >
+                                    <span>Capture photo</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    x-bind:disabled="$store.media.camera_countdown_active"
+                                    x-on:click.prevent="SMMediaPicker.toggleCameraFlipX()"
+                                    title="Flip horizontally"
+                                >
+                                    <i class="fa-solid fa-left-right"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    x-bind:disabled="$store.media.camera_countdown_active"
+                                    x-on:click.prevent="SMMediaPicker.toggleCameraFlipY()"
+                                    title="Flip vertically"
+                                >
+                                    <i class="fa-solid fa-up-down"></i>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="bg-white w-8 h-8 border border-gray-300 hover:bg-gray-100 justify-center rounded-md text-gray-700 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                    x-on:click.prevent="SMMediaPicker.stopCamera(); $nextTick(() => SMMediaPicker.startCamera())"
+                                    title="Restart Camera"
+                                >
+                                    <i class="fa-solid fa-power-off"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" x-show="tab === 'browser'">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
@@ -156,10 +446,13 @@ const SMMediaPicker = {
                             x-on:click="SMMediaPicker.updateSelection(item.name)"
                             x-on:dblclick="SMMediaPicker.doubleClick(item.name)"
                             >
-                            <i x-show="item.password" class="fa-solid fa-lock text-xl text-gray-600 absolute -top-2 -left-1" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
-                            <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
-                            <div class="flex-grow flex items-center justify-center pointer-events-none select-none">
-                                <img x-bind:src="item.thumbnail" class="rounded max-h-32" />
+                            <div class="absolute top-0 left-0 flex flex-col gap-1 z-10">
+                                <i x-show="item.is_private" class="fa-solid fa-eye  text-gray-600 bg-white p-0.75 rounded-full" title="Private media" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
+                                <i x-show="item.password" class="fa-solid fa-lock text-gray-600 bg-white p-0.75 rounded-full" title="Password protected" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
+                            </div>
+                            <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white z-10 flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
+                            <div class="group/image relative flex-grow flex items-center justify-center select-none">
+                                <img x-bind:src="item.thumbnail" class="rounded max-h-32 pointer-events-none" />
                             </div>
                             <div class="text-xs whitespace-nowrap overflow-hidden text-ellipsis" x-text="item.name" x-bind:title="item.name"></div>
                         </li>
@@ -235,13 +528,14 @@ const SMMediaPicker = {
     },
 
     preClose: () => {
-        /* empty */
+        SMMediaPicker.stopCamera();
     },
 
     open: (selected, options = {}, callback = null) => {
         if(!options.hasOwnProperty('require_mime_type')) options.require_mime_type = '*';
         if(!options.hasOwnProperty('allow_multiple')) options.allow_multiple = false;
         if(!options.hasOwnProperty('allow_uploads')) options.allow_uploads = false;
+        if(!options.hasOwnProperty('allow_camera')) options.allow_camera = false;
 
         if(selected === null || selected === '') selected = [];
         if(!Array.isArray(selected)) selected = [selected];
@@ -250,6 +544,15 @@ const SMMediaPicker = {
         Alpine.store('media').require_mime_type = options.require_mime_type;
         Alpine.store('media').allow_multiple = options.allow_multiple;
         Alpine.store('media').allow_uploads = options.allow_uploads;
+        Alpine.store('media').allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
+        Alpine.store('media').camera_supported = Alpine.store('media').allow_camera && SMMediaPicker.cameraSupported();
+        Alpine.store('media').camera_ready = false;
+        Alpine.store('media').camera_starting = false;
+        Alpine.store('media').camera_countdown_active = false;
+        Alpine.store('media').camera_countdown = 0;
+        Alpine.store('media').camera_flip_x = false;
+        Alpine.store('media').camera_flip_y = false;
+        Alpine.store('media').camera_error = null;
         Alpine.store('media').callback = callback;
 
         Swal.fire({
@@ -263,6 +566,7 @@ const SMMediaPicker = {
             reverseButtons: true,
             didOpen: SMMediaPicker.onOpen,
             preConfirm: SMMediaPicker.preClose,
+            willClose: SMMediaPicker.stopCamera,
             customClass: {
                 container: 'sm-media-picker-container',
                 popup: 'sm-media-picker',
@@ -311,6 +615,15 @@ document.addEventListener('DOMContentLoaded', () => {
         require_mime_type: '*',
         allow_multiple: true,
         allow_uploads: false,
+        allow_camera: false,
+        camera_supported: false,
+        camera_ready: false,
+        camera_starting: false,
+        camera_countdown_active: false,
+        camera_countdown: 0,
+        camera_flip_x: false,
+        camera_flip_y: false,
+        camera_error: null,
         current_page: 1,
         per_page: 24,
         to: 0,

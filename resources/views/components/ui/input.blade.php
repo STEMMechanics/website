@@ -1,4 +1,4 @@
-@props(['type' => 'text', 'name', 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false ])
+@props(['type' => 'text', 'name' => null, 'label' => '', 'labelInfo' => '', 'value' => '', 'floating' => false, 'noLabel' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'labelNotice' => null, 'placeholder' => '', 'fieldClasses' => '', 'suggestions' => [], 'moneyFormat' => false, 'inline' => false, 'showSuggestionsOnFocus' => false ])
 
 @php
     if ($error === null) {
@@ -8,10 +8,25 @@
     $hasError = $error !== '';
     $classes = 'disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 '.($hasError ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300');
     $value = old($name, $value);
+    if (is_array($value)) {
+        $value = implode($type === 'textarea' ? PHP_EOL : ', ', array_map(function ($item) {
+            if (is_array($item)) {
+                return implode(', ', array_map(fn ($nested) => (string) $nested, $item));
+            }
+
+            return (string) $item;
+        }, $value));
+    }
     $moneyFormat = filter_var($moneyFormat, FILTER_VALIDATE_BOOLEAN);
     $readonly = filter_var($readonly, FILTER_VALIDATE_BOOLEAN);
     $disabled = filter_var($disabled, FILTER_VALIDATE_BOOLEAN);
-    $suggestions = collect(is_array($suggestions) ? $suggestions : [])->map(fn ($item) => trim((string) $item))->filter(fn ($item) => $item !== '')->unique()->values()->all();
+    $showSuggestionsOnFocus = filter_var($showSuggestionsOnFocus, FILTER_VALIDATE_BOOLEAN);
+    $suggestions = collect($suggestions ?? [])
+        ->map(fn ($item) => trim((string) $item))
+        ->filter(fn ($item) => $item !== '')
+        ->unique()
+        ->values()
+        ->all();
     $hasSuggestions = $type === 'text' && !filter_var($readonly, FILTER_VALIDATE_BOOLEAN) && ! $disabled && count($suggestions) > 0;
     $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
     $isFileInput = $type === 'file';
@@ -74,6 +89,12 @@
                         }
                         const needle = (this.rawValue || '').toLowerCase().trim();
                         if (needle === '') {
+                            if (@js($showSuggestionsOnFocus)) {
+                                this.filtered = this.options.slice(0, 8);
+                                this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
+                                this.open = this.filtered.length > 0;
+                                return;
+                            }
                             this.filtered = [];
                             this.selectedIndex = -1;
                             this.open = false;
@@ -154,19 +175,19 @@
                         });
                     @endif
                 "
+                @if($xModelBinding !== '')
                 x-effect="
-                    @if($xModelBinding !== '')
-                        let __incoming = '';
-                        try {
-                            __incoming = {{ $xModelBinding }};
-                        } catch (e) {
-                            __incoming = '';
-                        }
-                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                            rawValue = (__incoming ?? '');
-                        }
-                    @endif
+                    let __incoming = '';
+                    try {
+                        __incoming = {{ $xModelBinding }};
+                    } catch (e) {
+                        __incoming = '';
+                    }
+                    if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                        rawValue = (__incoming ?? '');
+                    }
                 "
+                @endif
                 x-on:click.away="open = false"
             >
                 <input
@@ -177,7 +198,7 @@
                     type="{{ $type }}"
                     name="{{ $name }}"
                     x-model="rawValue"
-                    x-on:focus="open = false"
+                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
                     x-on:input="hasTyped = true; refresh()"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
@@ -240,6 +261,12 @@
                             }
                             const needle = (this.rawValue || '').toLowerCase().trim();
                             if (needle === '') {
+                                if (@js($showSuggestionsOnFocus)) {
+                                    this.filtered = this.options.slice(0, 8);
+                                    this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
+                                    this.open = this.filtered.length > 0;
+                                    return;
+                                }
                                 this.filtered = [];
                                 this.selectedIndex = -1;
                                 this.open = false;
@@ -320,19 +347,19 @@
                             });
                         @endif
                     "
+                    @if($xModelBinding !== '')
                     x-effect="
-                        @if($xModelBinding !== '')
-                            let __incoming = '';
-                            try {
-                                __incoming = {{ $xModelBinding }};
-                            } catch (e) {
-                                __incoming = '';
-                            }
-                            if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                                rawValue = (__incoming ?? '');
-                            }
-                        @endif
+                        let __incoming = '';
+                        try {
+                            __incoming = {{ $xModelBinding }};
+                        } catch (e) {
+                            __incoming = '';
+                        }
+                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                            rawValue = (__incoming ?? '');
+                        }
                     "
+                    @endif
                     x-on:click.away="open = false"
                 >
                     <input
@@ -343,7 +370,7 @@
                         type="{{ $type }}"
                         name="{{ $name }}"
                         x-model="rawValue"
-                        x-on:focus="open = false"
+                        x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
                         x-on:input="hasTyped = true; refresh()"
                         x-on:keydown.arrow-down.prevent="move(1)"
                         x-on:keydown.arrow-up.prevent="move(-1)"
@@ -404,6 +431,12 @@
                             }
                             const needle = (this.rawValue || '').toLowerCase().trim();
                             if (needle === '') {
+                                if (@js($showSuggestionsOnFocus)) {
+                                    this.filtered = this.options.slice(0, 8);
+                                    this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
+                                    this.open = this.filtered.length > 0;
+                                    return;
+                                }
                                 this.filtered = [];
                                 this.selectedIndex = -1;
                                 this.open = false;
@@ -484,19 +517,19 @@
                             });
                         @endif
                     "
+                    @if($xModelBinding !== '')
                     x-effect="
-                        @if($xModelBinding !== '')
-                            let __incoming = '';
-                            try {
-                                __incoming = {{ $xModelBinding }};
-                            } catch (e) {
-                                __incoming = '';
-                            }
-                            if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
-                                rawValue = (__incoming ?? '');
-                            }
-                        @endif
+                        let __incoming = '';
+                        try {
+                            __incoming = {{ $xModelBinding }};
+                        } catch (e) {
+                            __incoming = '';
+                        }
+                        if (!hasTyped && String(rawValue ?? '') !== String(__incoming ?? '')) {
+                            rawValue = (__incoming ?? '');
+                        }
                     "
+                    @endif
                     x-on:click.away="open = false"
                 >
                     <input
@@ -507,7 +540,7 @@
                         type="{{ $type }}"
                         name="{{ $name }}"
                         x-model="rawValue"
-                        x-on:focus="open = false"
+                        x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
                         x-on:input="hasTyped = true; refresh()"
                         x-on:keydown.arrow-down.prevent="move(1)"
                         x-on:keydown.arrow-up.prevent="move(-1)"

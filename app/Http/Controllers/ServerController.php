@@ -756,7 +756,8 @@ class ServerController extends Controller
     public function admin_square_webhook_show(SquareWebhookEvent $event): View
     {
         $event->loadMissing('customerPayment');
-        $squarePaymentId = $this->extractSquarePaymentIdFromPayload(is_array($event->payload) ? $event->payload : null);
+        $payload = is_array($event->payload) ? $event->payload : null;
+        $squarePaymentId = $this->extractSquarePaymentIdFromPayload($payload);
         $ignoredRecord = $squarePaymentId !== ''
             ? SquareIgnoredPayment::query()->where('square_payment_id', $squarePaymentId)->first()
             : null;
@@ -765,6 +766,8 @@ class ServerController extends Controller
             'event' => $event,
             'payloadPretty' => json_encode($event->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
             'squarePaymentId' => $squarePaymentId,
+            'amountCents' => $this->extractSquareAmountCentsFromPayload($payload),
+            'amountCurrency' => $this->extractSquareAmountCurrencyFromPayload($payload),
             'ignoredRecord' => $ignoredRecord,
             'ignoreReasonOptions' => $this->squareIgnoreReasonOptions(),
         ]);

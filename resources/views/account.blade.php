@@ -14,85 +14,311 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
+$avatarPreviewUrl = old('avatar_media_name', $user->avatar_media_name)
+    ? ($user->avatarMedia?->thumbnail ?? '')
+    : '';
+$avatarZoom = (int) old('avatar_zoom', $user->avatar_zoom ?? 100);
+$avatarOffsetX = (int) old('avatar_offset_x', $user->avatar_offset_x ?? 0);
+$avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
+$discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
 @endphp
 
 <x-layout>
-    <x-mast>Account Settings</x-mast>
-    <x-container>
-        <form method="POST" action="{{ route('account.update') }}" x-data x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
+    <x-mast description="Manage your public profile, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
+
+    <x-container inner-class="max-w-6xl">
+        <form
+            method="POST"
+            action="{{ route('account.update') }}"
+            id="account-settings-form"
+            class="my-8"
+            x-data="{
+                avatarMediaName: @js((string) old('avatar_media_name', $user->avatar_media_name ?? '')),
+                avatarPreviewUrl: @js($avatarPreviewUrl),
+                avatarMediaLabel: '',
+                avatarMediaSize: '',
+                avatarZoom: {{ max(100, min(250, $avatarZoom)) }},
+                avatarOffsetX: {{ max(-50, min(50, $avatarOffsetX)) }},
+                avatarOffsetY: {{ max(-50, min(50, $avatarOffsetY)) }},
+                avatarDragging: false,
+                avatarDragStartX: 0,
+                avatarDragStartY: 0,
+                avatarDragOriginX: 0,
+                avatarDragOriginY: 0,
+                avatarDragFrameWidth: 1,
+                avatarDragFrameHeight: 1,
+                init() {
+                    const loadAvatarDetails = (mediaName) => {
+                        if (!mediaName || !window.SM?.mediaDetails) {
+                            if (!mediaName) {
+                                this.avatarPreviewUrl = '';
+                                this.avatarMediaLabel = '';
+                                this.avatarMediaSize = '';
+                            }
+                            return;
+                        }
+
+                        window.SM.mediaDetails(mediaName, (details) => {
+                            this.avatarPreviewUrl = String(details?.thumbnail || '');
+                            this.avatarMediaLabel = String(details?.name || '');
+                            this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
+                        });
+                    };
+
+                    loadAvatarDetails(this.avatarMediaName);
+                    window.addEventListener('pointermove', (event) => this.handleAvatarDrag(event));
+                    window.addEventListener('pointerup', () => this.endAvatarDrag());
+                    window.addEventListener('pointercancel', () => this.endAvatarDrag());
+                },
+                avatarStyle() {
+                    return `transform: translate(${this.avatarOffsetX}%, ${this.avatarOffsetY}%) scale(${(this.avatarZoom / 100).toFixed(2)}); transform-origin: center center;`;
+                },
+                openAvatarPicker() {
+                    window.SMMediaPicker.open(this.avatarMediaName || '', {
+                        require_mime_type: 'image/*',
+                        allow_multiple: false,
+                        allow_uploads: true,
+                        allow_camera: true,
+                    }, (value) => this.setAvatarMedia(value));
+                },
+                setAvatarMedia(value) {
+                    this.avatarMediaName = String(value || '');
+
+                    if (this.avatarMediaName === '') {
+                        this.avatarPreviewUrl = '';
+                        this.avatarMediaLabel = '';
+                        this.avatarMediaSize = '';
+                        this.avatarZoom = 100;
+                        this.avatarOffsetX = 0;
+                        this.avatarOffsetY = 0;
+                        return;
+                    }
+
+                    window.SM.mediaDetails(this.avatarMediaName, (details) => {
+                        this.avatarPreviewUrl = String(details?.thumbnail || '');
+                        this.avatarMediaLabel = String(details?.name || '');
+                        this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
+                        this.avatarZoom = 100;
+                        this.avatarOffsetX = 0;
+                        this.avatarOffsetY = 0;
+                    });
+                },
+                startAvatarDrag(event) {
+                    if (!this.avatarPreviewUrl) {
+                        return;
+                    }
+
+                    const point = event.touches?.[0] || event;
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    this.avatarDragging = true;
+                    this.avatarDragStartX = point.clientX;
+                    this.avatarDragStartY = point.clientY;
+                    this.avatarDragOriginX = this.avatarOffsetX;
+                    this.avatarDragOriginY = this.avatarOffsetY;
+                    this.avatarDragFrameWidth = rect.width || 1;
+                    this.avatarDragFrameHeight = rect.height || 1;
+                },
+                handleAvatarDrag(event) {
+                    if (!this.avatarDragging) {
+                        return;
+                    }
+
+                    const point = event.touches?.[0] || event;
+                    const zoomScale = this.avatarZoom / 100;
+                    const deltaX = ((point.clientX - this.avatarDragStartX) / this.avatarDragFrameWidth) * 100 / zoomScale;
+                    const deltaY = ((point.clientY - this.avatarDragStartY) / this.avatarDragFrameHeight) * 100 / zoomScale;
+                    this.avatarOffsetX = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginX + deltaX)));
+                    this.avatarOffsetY = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginY + deltaY)));
+                },
+                endAvatarDrag() {
+                    this.avatarDragging = false;
+                },
+            }"
+            x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()"
+        >
             @csrf
             <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />
             <input type="hidden" name="remembered_device_touch_points" id="remembered_device_touch_points" value="" />
-            <h3 class="text-lg font-bold mt-4 mb-3">Contact Information</h3>
-            <div class="flex flex-col sm:gap-8 sm:flex-row">
-                <div class="flex-1">
-                    <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
+
+            <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+                <div class="space-y-6">
+                    <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Profile Details</h2>
+                                <p class="mt-1 text-sm text-gray-600">Update the information used for your account, invoices, and contact history.</p>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 grid gap-4 md:grid-cols-2">
+                            <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
+                            <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
+                            <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
+                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site." />
+                            <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
+                            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+                        </div>
+                    </section>
+
+                    <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Addresses</h2>
+                            <p class="mt-1 text-sm text-gray-600">Keep your billing and shipping details current for orders and invoices.</p>
+                        </div>
+
+                        <div class="mt-6 grid gap-6 xl:grid-cols-2">
+                            <div class="rounded-2xl bg-gray-50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-900">Billing address</h3>
+                                <div class="mt-4">
+                                    <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
+                                    <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" />
+                                    <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" />
+                                    <div class="flex flex-col sm:gap-8 sm:flex-row">
+                                        <div class="flex-1">
+                                            <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" />
+                                        </div>
+                                        <div class="flex-1">
+                                            <x-ui.input label="Postcode" name="billing_postcode" value="{{ $user->billing_postcode }}" />
+                                        </div>
+                                    </div>
+                                    <x-ui.input label="Country" name="billing_country" value="{{ $user->billing_country }}" />
+                                </div>
+                            </div>
+
+                            <div class="rounded-2xl bg-gray-50 p-4">
+                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-gray-900">Shipping address</h3>
+                                        <x-ui.checkbox class="mt-4" label="Same as billing" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="SM.updateShippingAddress" />
+                                    </div>
+                                </div>
+                                <div class="mt-0">
+                                    <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
+                                    <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
+                                    <x-ui.input label="City" name="shipping_city" value="{{ $user->shipping_city }}" readonly="{{ $shipping_same_billing }}" />
+                                    <div class="flex flex-col sm:gap-8 sm:flex-row">
+                                        <div class="flex-1">
+                                            <x-ui.input label="State" name="shipping_state" value="{{ $user->shipping_state }}" readonly="{{ $shipping_same_billing }}" />
+                                        </div>
+                                        <div class="flex-1">
+                                            <x-ui.input label="Postcode" name="shipping_postcode" value="{{ $user->shipping_postcode }}" readonly="{{ $shipping_same_billing }}" />
+                                        </div>
+                                    </div>
+                                    <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
-                <div class="flex-1">
-                    <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
+
+                <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+                    <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                        <h2 class="text-lg font-semibold text-gray-900">Account Overview</h2>
+                        <div class="mt-5 space-y-4">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Display name</div>
+                                <div class="mt-1 text-sm text-gray-900">{{ $user->getName() }}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Username</div>
+                                <div class="mt-1 text-sm text-gray-900">{{ $user->username ?: '-' }}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
+                                <div class="mt-1 break-all text-sm text-gray-900">{{ $user->email }}</div>
+                                @if($user->email_update_pending)
+                                    <div class="mt-1 text-xs text-amber-700">Pending change to {{ $user->email_update_pending }}</div>
+                                @endif
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Remembered devices</div>
+                                <div class="mt-1 text-sm text-gray-900">{{ $rememberedDevices->count() }}</div>
+                            </div>
+                        </div>
+
+                        @if($groupSlugs !== [])
+                            <div class="mt-6 border-t border-gray-100 pt-5">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Your groups</div>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    @foreach($groupSlugs as $groupSlug)
+                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </section>
+
+                    @include('account.partials.avatar-card')
                 </div>
             </div>
-            <div class="flex flex-col sm:gap-8 sm:flex-row">
-                <div class="flex-1">
-                    <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
-                </div>
-                <div class="flex-1">
-                    <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
-                </div>
-            </div>
-            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
-            @if($groupSlugs !== [])
-                <section x-data="{ open: true }">
-                    <a href="#" class="flex items-center" @click.prevent="open = !open">
-                        <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                        <h3 class="text-lg font-bold mt-4 mb-3">Your Groups</h3>
-                    </a>
-                    <div x-show="open" class="mb-4">
-                        <div class="flex flex-wrap gap-2">
-                            @foreach($groupSlugs as $groupSlug)
-                                <span class="inline-flex items-center rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
-                            @endforeach
+
+            <div class="mt-6 space-y-6">
+                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Preferences</h2>
+                            <p class="mt-1 text-sm text-gray-600">Lightweight settings that affect notifications and this device.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid gap-6 md:grid-cols-2">
+                        <div class="rounded-2xl bg-gray-50 p-4">
+                            <h3 class="text-sm font-semibold text-gray-900">Email subscriptions</h3>
+                            <p class="mt-1 text-sm text-gray-600">Choose whether to receive workshop updates and announcements.</p>
+                            <div class="mt-4">
+                                <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
+                            </div>
+                        </div>
+
+                        <div class="rounded-2xl bg-gray-50 p-4">
+                            <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
+                            <p class="mt-1 text-sm text-gray-600">
+                                You are subscribed to
+                                <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
+                                {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
+                            </p>
+                            <div class="mt-4">
+                                <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all discussions</x-ui.button>
+                            </div>
                         </div>
                     </div>
                 </section>
-            @endif
 
-            <section x-data="{ open: true }">
-                <a href="#" class="flex items-center" @click.prevent="open = !open">
-                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Email Subscriptions</h3>
-                </a>
-                <div x-show="open">
-                    <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
-                </div>
-            </section>
+                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
+                            <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
+                        </div>
+                        <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
+                    </div>
 
-            <section x-data="{ open: true }">
-                <a href="#" class="flex items-center" @click.prevent="open = !open">
-                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Remembered Devices</h3>
-                </a>
-                <div x-show="open">
-                    <input type="hidden" name="keep_signed_in_device" value="0" />
-                    <x-ui.checkbox
-                        id="keep_signed_in_device"
-                        label="Keep me signed in on this device"
-                        name="keep_signed_in_device"
-                        checked="{{ $keepSignedInDeviceChecked }}"
-                    />
+                    <div class="rounded-2xl mt-4 bg-gray-50 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">This device</h3>
+                        <p class="mt-1 text-sm text-gray-600">Control whether this browser stays signed in between visits.</p>
+                        <div class="mt-4">
+                            <input type="hidden" name="keep_signed_in_device" value="0" />
+                            <x-ui.checkbox
+                                    id="keep_signed_in_device"
+                                    label="Keep me signed in on this device"
+                                    name="keep_signed_in_device"
+                                    checked="{{ $keepSignedInDeviceChecked }}"
+                            />
+                        </div>
+                    </div>
 
-                    <p id="remembered-devices-empty" class="text-sm text-gray-500 mb-4 {{ $rememberedDevices->isEmpty() ? '' : 'hidden' }}">No remembered devices have been saved.</p>
-                    <div id="remembered-devices-list" data-current-token-id="{{ $currentRememberedTokenId }}" class="space-y-3 mb-4 {{ $rememberedDevices->isEmpty() ? 'hidden' : '' }}">
+                    <p id="remembered-devices-empty" class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500 {{ $rememberedDevices->isEmpty() ? '' : 'hidden' }}">No remembered devices have been saved.</p>
+                    <div id="remembered-devices-list" data-current-token-id="{{ $currentRememberedTokenId }}" class="mt-5 space-y-3 {{ $rememberedDevices->isEmpty() ? 'hidden' : '' }}">
                         @foreach($rememberedDevices as $device)
-                            <div class="rounded-lg border border-gray-200 bg-white px-4 py-3" data-device-row data-device-id="{{ $device['id'] }}">
+                            <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4" data-device-row data-device-id="{{ $device['id'] }}">
                                 @php
                                     $defaultDeviceTitle = (string) ($device['default_title'] ?? 'Browser Device');
                                     $displayDeviceTitle = (string) ($device['title'] ?? $defaultDeviceTitle);
                                 @endphp
-                                <div class="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                                    <div>
-                                        <div class="flex items-center gap-2">
-                                            <div class="font-semibold" data-device-title>{{ $displayDeviceTitle }}</div>
+                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div class="min-w-0">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <div class="font-semibold text-gray-900" data-device-title>{{ $displayDeviceTitle }}</div>
                                             <button
                                                 type="button"
                                                 class="text-gray-500 hover:text-primary-color"
@@ -106,15 +332,17 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                                                 <i class="fa-solid fa-pen"></i>
                                             </button>
                                             @if(! empty($device['is_current']))
-                                                <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs text-green-800">Current device</div>
+                                                <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Current device</div>
                                             @endif
                                         </div>
-                                        <div class="text-xs text-gray-600">IP: {{ $device['ip_address'] ?? '-' }}</div>
-                                        @if(! empty($device['browser']))
-                                            <div class="text-xs text-gray-600">Browser: {{ $device['browser'] }}</div>
-                                        @endif
-                                        <div class="text-xs text-gray-600">Added: {{ $device['created_label'] ?? '-' }}</div>
-                                        <div class="text-xs text-gray-600">Last used: {{ $device['last_used_label'] ?? '-' }}</div>
+                                        <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                                            <div>IP: {{ $device['ip_address'] ?? '-' }}</div>
+                                            @if(! empty($device['browser']))
+                                                <div>Browser: {{ $device['browser'] }}</div>
+                                            @endif
+                                            <div>Added: {{ $device['created_label'] ?? '-' }}</div>
+                                            <div>Last used: {{ $device['last_used_label'] ?? '-' }}</div>
+                                        </div>
                                     </div>
                                     <x-ui.button
                                         type="button"
@@ -129,135 +357,32 @@ $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
                             </div>
                         @endforeach
                     </div>
-                </div>
-            </section>
-
-            <section x-data="{ open: false }">
-                <a href="#" class="flex items-center" @click.prevent="open = !open">
-                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}"
-                       class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Two Factor Authentication</h3>
-                </a>
-                <div class="px-4 mb-4" x-show="open">
-                    <div class="flex items-center border border-gray-300 rounded bg-white pl-2 pr-4 py-3 mb-4">
-                        <div class="bg-gray-200 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
-                            <i class="fa-solid fa-envelope text-2xl"></i>
-                        </div>
-                        <div class="mx-4 flex-grow">
-                            <p class="flex mb-2">
-                                <span class="text-sm font-bold mr-2">Use Email</span>
-                                <span class="text-xs bg-green-500 text-white rounded px-2 py-0.5">Enabled</span>
-                            </p>
-                            <p class="text-xs">Use the security link sent to your email address as your two-factor authentication (2FA). The security link will be sent to the address associated with your account.</p>
-                        </div>
-                    </div>
-                    <div class="border border-gray-300 rounded bg-white pl-2 pr-4 py-3">
-                        <div class="flex items-center">
-                            <div class="bg-gray-200 rounded-full w-14 h-14 flex items-center justify-center flex-shrink-0">
-                                <i class="fa-solid fa-mobile-screen-button text-2xl"></i>
-                            </div>
-                            <div class="mx-4 flex-grow">
-                                <p class="flex mb-2">
-                                    <span class="text-sm font-bold mr-2">Use Authenticator App</span>
-                                    <span x-cloak x-show="!$store.tfa.enabled" class="text-xs bg-red-500 text-white rounded px-2 py-0.5">Disabled</span>
-                                    <span x-cloak x-show="$store.tfa.enabled" class="text-xs bg-green-500 text-white rounded px-2 py-0.5">Enabled</span>
-                                </p>
-                                <p class="text-xs">Use an Authenticator App as your two-factor authenticator. When you sign in you'll be asked to use the security code provided by your Authenticator App.</p>
-                            </div>
-                            <div class="flex flex-col text-nowrap gap-2">
-                                <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
-                                <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
-                                <a href="#" x-show="$store.tfa.enabled" x-on:click.prevent="resetBackupCodes($event)" class="text-xs link">Reset Backup Codes</a>
-                            </div>
-                        </div>
-                        <div class="mt-4 pt-4 border-t flex items-center justify-center gap-4" x-cloak x-show="$store.tfa.show && !$store.tfa.loading">
-                            <img src="/loading.gif" id="tfa_image_loader" alt="loading" width="100" height="100"/>
-                            <img src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" onload="handleTfaImageLoad()"/>
-                            <div>
-                                <p class="text-xs mb-2">Scan the QR Code or enter the key <span class="font-bold" id="tfa_key"></span> into your Authenticator App and enter the code provided below</p>
-                                <div class="flex items-center gap-4 justify-center">
-                                    <x-ui.input name="code" id="code" class="mb-0" />
-                                    <x-ui.button class="mt-1 mb-4" type="button" color="primary-outline" x-on:click.prevent="linkTFA()">Link</x-ui.button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="mt-4 pt-4 border-t flex justify-center" x-cloak x-show="$store.tfa.loading">
-                            <img src="/loading.gif" alt="loading" width="100" height="100"/>
-                        </div>
-                        <div class="mt-4 pt-4 border-t flex justify-center" x-cloak x-show="$store.tfa.codes && !$store.tfa.loading">
-                            <div class="w-[34rem] flex items-center gap-4">
-                                <div class="w-[18rem] mx-auto">
-                                    <p class="text-sm font-bold mb-1">Save your Backup Codes</p>
-                                    <ul class="ml-6 mb-4 text-xs list-disc">
-                                        <li>Keep these backup codes safe</li>
-                                        <li>You can only use each one once</li>
-                                        <li>They will not be shown again</li>
-                                        <li>Any existing codes can no longer be used</li>
-                                    </ul>
-                                </div>
-                                <div class="w-[16rem] bg-gray-200 p-4 text-sm font-mono flex flex-wrap justify-center">
-                                    <template x-for="(code, idx) in $store.tfa.codes" :key="idx">
-                                        <p class="mx-4" x-text="code"></p>
-                                    </template>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section x-data="{ open: true }">
-                <a href="#" class="flex items-center" @click.prevent="open = !open">
-                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Billing Address</h3>
-                </a>
-                <div x-show="open">
-                    <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
-                    <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" />
-                    <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" />
-                    <div class="flex flex-col sm:gap-8 sm:flex-row">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" />
-                        </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="billing_postcode" value="{{ $user->billing_postcode }}" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="billing_country" value="{{ $user->billing_country }}" />
-                </div>
-            </section>
-
-            <section x-data="{ open: true }">
-                <a href="#" class="flex items-center" @click.prevent="open = !open">
-                    <i :class="{'transform': !open, '-rotate-90': !open, 'translate-y-0.5': true}" class="fa-solid fa-angle-down text-lg transition-transform mr-2"></i>
-                    <h3 class="text-lg font-bold mt-4 mb-3">Shipping Address</h3>
-                </a>
-                <div x-show="open">
-                    <x-ui.checkbox label="Same as billing address" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="SM.updateShippingAddress" />
-                    <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
-                    <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
-                    <x-ui.input label="City" name="shipping_city" value="{{ $user->shipping_city }}" readonly="{{ $shipping_same_billing }}" />
-                    <div class="flex flex-col sm:gap-8 sm:flex-row">
-                        <div class="flex-1">
-                            <x-ui.input label="State" name="shipping_state" value="{{ $user->shipping_state }}" readonly="{{ $shipping_same_billing }}" />
-                        </div>
-                        <div class="flex-1">
-                            <x-ui.input label="Postcode" name="shipping_postcode" value="{{ $user->shipping_postcode }}" readonly="{{ $shipping_same_billing }}" />
-                        </div>
-                    </div>
-                    <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
-                </div>
-            </section>
-
-            <div class="flex justify-between mt-8">
-                @if($user->id !== 1)
-                    <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete your account? This action cannot be undone.<br /><br />Any workshop tickets will remain valid.', '{{ route('account.destroy') }}')">Delete</x-ui.button>
-                @else
-                    <div></div>
-                @endif
-                <x-ui.button type="submit">Save</x-ui.button>
+                </section>
             </div>
         </form>
+
+        <form id="discussion-unsubscribe-form" method="POST" action="{{ route('account.discussions.unsubscribe-all') }}" class="hidden">
+            @csrf
+        </form>
+
+        <div class="mb-8 space-y-6">
+            @include('account.partials.two-factor-card')
+
+            <div class="rounded-3xl border border-primary-color/15 bg-primary-color-light/30 p-5 shadow-sm sm:p-6">
+                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="text-sm font-semibold text-gray-900">Ready to save?</div>
+                        <p class="text-sm text-gray-600">Your profile, preferences, and address changes are saved together.</p>
+                    </div>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        @if($user->id !== 1)
+                            <x-ui.button type="button" color="danger-outline" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete your account? This action cannot be undone.<br /><br />Any workshop tickets will remain valid.', '{{ route('account.destroy') }}')">Delete account</x-ui.button>
+                        @endif
+                        <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </x-container>
 </x-layout>
 

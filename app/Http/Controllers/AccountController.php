@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\UserDelete;
 use App\Mail\UserEmailUpdateRequest;
+use App\Models\ForumTopicUserState;
+use App\Models\Media;
 use App\Models\Token;
 use App\Models\User;
 use App\Providers\QRCodeProvider;
+use App\Rules\UsernameRule;
 use App\Support\RememberedDeviceManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -38,10 +41,16 @@ class AccountController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
+        $discussionNotificationCount = ForumTopicUserState::query()
+            ->where('user_id', (string) $user->id)
+            ->where('notifications_enabled', true)
+            ->count();
+
         return view('account', [
             'user' => $user,
             'rememberedDevices' => $this->rememberedDeviceManager->listRememberedDevices($user, $request),
             'currentRememberedTokenId' => $this->rememberedDeviceManager->currentTokenId($request),
+            'discussionNotificationCount' => $discussionNotificationCount,
         ]);
     }
 
@@ -66,6 +75,30 @@ class AccountController extends Controller
             'surname' => 'required_with:surname,phone',
             'company' => 'nullable|string|max:255',
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
+            'avatar_media_name' => [
+                'nullable',
+                'string',
+                'exists:media,name',
+                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                    $mediaName = trim((string) $value);
+                    if ($mediaName === '') {
+                        return;
+                    }
+
+                    $media = Media::query()->find($mediaName);
+                    if (! $media) {
+                        return;
+                    }
+
+                    if (! $user->isAdmin() && (string) $media->user_id !== (string) $user->id) {
+                        $fail('You can only use media that you uploaded for your avatar.');
+                    }
+                },
+            ],
+            'avatar_zoom' => ['nullable', 'integer', 'min:100', 'max:250'],
+            'avatar_offset_x' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            'avatar_offset_y' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            'username' => ['required', 'string', 'max:32', 'unique:users,username,'.$user->id, new UsernameRule($user->isAdmin())],
             'phone' => 'required_with:surname,phone',
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
@@ -105,6 +138,17 @@ class AccountController extends Controller
         }
 
         $userData = $validator->validated();
+        $userData['username'] = User::normalizeUsername((string) $userData['username']);
+        $userData['avatar_media_name'] = trim((string) ($userData['avatar_media_name'] ?? '')) ?: null;
+        $userData['avatar_zoom'] = (int) ($userData['avatar_zoom'] ?? 100);
+        $userData['avatar_offset_x'] = (int) ($userData['avatar_offset_x'] ?? 0);
+        $userData['avatar_offset_y'] = (int) ($userData['avatar_offset_y'] ?? 0);
+
+        if ($userData['avatar_media_name'] === null) {
+            $userData['avatar_zoom'] = 100;
+            $userData['avatar_offset_x'] = 0;
+            $userData['avatar_offset_y'] = 0;
+        }
 
         $newEmail = $userData['email'];
         unset($userData['email']);
@@ -154,6 +198,31 @@ class AccountController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    public function unsubscribeAllDiscussionNotifications(): RedirectResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $updated = ForumTopicUserState::query()
+            ->where('user_id', (string) $user->id)
+            ->where('notifications_enabled', true)
+            ->update([
+                'notifications_enabled' => false,
+            ]);
+
+        if ($updated > 0) {
+            session()->flash('message', 'All discussion notifications have been unsubscribed.');
+            session()->flash('message-title', 'Preferences updated');
+            session()->flash('message-type', 'success');
+        } else {
+            session()->flash('message', 'You are already unsubscribed from discussion notifications.');
+            session()->flash('message-title', 'No changes made');
+            session()->flash('message-type', 'info');
+        }
+
+        return redirect()->route('account.show');
     }
 
     public function destroyRememberedDevice(Request $request, Token $token): RedirectResponse|JsonResponse

@@ -31,6 +31,22 @@ class PrivateWorkshopMediaAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_owner_can_view_and_download_their_own_private_media(): void
+    {
+        [$media, , $owner] = $this->createPrivateWorkshopMedia();
+
+        $this->actingAs($owner)
+            ->getJson(route('media.show', $media))
+            ->assertOk()
+            ->assertJsonPath('name', $media->name)
+            ->assertJsonPath('is_private', true)
+            ->assertJsonPath('can_delete', true);
+
+        $this->actingAs($owner)
+            ->get(route('media.download', $media))
+            ->assertOk();
+    }
+
     public function test_admin_can_view_and_download_private_workshop_media(): void
     {
         [$media] = $this->createPrivateWorkshopMedia();
@@ -72,8 +88,22 @@ class PrivateWorkshopMediaAccessTest extends TestCase
         $response->assertJsonMissing(['name' => $privateMedia->name]);
     }
 
+    public function test_owner_media_index_includes_their_own_private_media(): void
+    {
+        [$privateMedia, , $owner] = $this->createPrivateWorkshopMedia();
+
+        $response = $this->actingAs($owner)->getJson(route('media.index'));
+
+        $response->assertOk();
+        $response->assertJsonFragment([
+            'name' => $privateMedia->name,
+            'is_private' => true,
+            'can_delete' => true,
+        ]);
+    }
+
     /**
-     * @return array{0: Media, 1: Workshop}
+     * @return array{0: Media, 1: Workshop, 2: User}
      */
     private function createPrivateWorkshopMedia(): array
     {
@@ -125,7 +155,6 @@ class PrivateWorkshopMediaAccessTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        return [$media, $workshop];
+        return [$media, $workshop, $owner];
     }
 }
-

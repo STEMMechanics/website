@@ -118,6 +118,7 @@
             <tr>
                 <th>Date</th>
                 <th>Customer</th>
+                <th>Summary</th>
                 <th class="right">Amount Ex GST</th>
                 <th class="right">GST</th>
                 <th class="right">Total incl GST</th>
@@ -128,13 +129,14 @@
                 <tr>
                     <td>{{ $payment->received_on?->format('Y-m-d H:i') ?? '-' }}</td>
                     <td>{{ $payment->user?->getName() ?? '-' }}</td>
+                    <td>{{ $payment->bas_summary ?? '-' }}</td>
                     <td class="right">{{ money((float) ($payment->bas_ex_amount ?? (($payment->bas_total_amount ?? $payment->total_amount) - ($payment->bas_gst_amount ?? $payment->gst_amount)))) }}</td>
                     <td class="right">{{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</td>
                     <td class="right">{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="5">No processed payments in this period.</td>
+                    <td colspan="6">No processed payments in this period.</td>
                 </tr>
             @endforelse
         </tbody>

@@ -4,6 +4,18 @@
 
 - Fixed minor issues around workshop SEO
 - Added support for tables and better media handling in editor
+- Improved UI on mobile devices
+- Added forum support
+- Added direct camera support for media manager
+- Added support for usernames
+- Includes descriptions for payments/expenses in BAS reports
+- Media manager shows icon for private images (with hover)
+- Updated copy across the website
+- Square Webhooks now shows amounts in mobile views
+- STEMCraft management is now available
+- STEMCraft pages updated
+- Updated dependencies
+- Improved attendance and payment flows
 
 ## 1.3.14
 

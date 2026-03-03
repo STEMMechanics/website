@@ -54,7 +54,7 @@ class AuthController extends Controller
         }
 
         return view('auth.login', [
-            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail($request),
+            'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
     }
 
@@ -66,27 +66,27 @@ class AuthController extends Controller
      */
     public function postLogin(Request $request): View|RedirectResponse
     {
+        $login = trim((string) $request->input('login', $request->input('email', '')));
         $rememberEmailProvided = $request->has('remember_email');
         $rememberEmail = $rememberEmailProvided && $request->boolean('remember_email');
 
         if ($request->has('remember_email')) {
             if ($rememberEmail) {
-                $this->rememberedDeviceManager->queueRememberedEmail((string) $request->input('email', ''));
+                $this->rememberedDeviceManager->queueRememberedEmail($login);
             } else {
                 $this->rememberedDeviceManager->queueRememberedEmail(null);
             }
         }
 
         $rules = [
-            'email' => 'required|email',
+            'login' => 'required|string|max:255',
         ];
         if (AltchaTrust::shouldRequire($request)) {
             $rules['altcha'] = ['required', new ValidAltcha()];
         }
 
         $request->validate($rules, [
-            'email.required' => __('validation.custom_messages.email_required'),
-            'email.email' => __('validation.custom_messages.email_invalid'),
+            'login.required' => 'Email or username is required.',
         ]);
         if (array_key_exists('altcha', $rules)) {
             AltchaTrust::markVerified($request);
@@ -97,7 +97,7 @@ class AuthController extends Controller
         $otpCode = trim((string) ($request->input('totp', $request->input('otp', $request->input('code', '')))));
 
         if($otpCode !== '') {
-            $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
+            $user = $this->findVerifiedUserByLogin($login);
             if($user) {
                 if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)) {
                     $data = ['url' => session()->pull('url.intended', null)];
@@ -105,13 +105,13 @@ class AuthController extends Controller
                 }
             }
 
-            return view('auth.login-2fa', ['email' => $request->email])->withErrors([
+            return view('auth.login-2fa', ['login' => $login])->withErrors([
                 'totp' => 'The 2FA code is not valid',
             ]);
         }
 
         if($request->has('backup_code')) {
-            $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
+            $user = $this->findVerifiedUserByLogin($login);
             if($user) {
                 if($user->verifyBackupCode($request->backup_code)) {
                     $data = ['url' => session()->pull('url.intended', null)];
@@ -122,7 +122,7 @@ class AuthController extends Controller
                 }
             }
 
-            return view('auth.login-2fa', ['email' => $request->email, 'method' => 'backup'])->withErrors([
+            return view('auth.login-2fa', ['login' => $login, 'method' => 'backup'])->withErrors([
                 'backup_code' => 'The backup code is not valid',
             ]);
         }
@@ -135,10 +135,10 @@ class AuthController extends Controller
             }
         }
 
-        $user = User::where('email', $request->email)->whereNotNull('email_verified_at')->first();
+        $user = $this->findVerifiedUserByLogin($login);
         if ($user) {
             if (!$forceEmailLogin && $user->tfa_secret !== null) {
-                return view('auth.login-2fa', ['user' => $user]);
+                return view('auth.login-2fa', ['user' => $user, 'login' => $login]);
             }
 
             $token = $user->tokens()->create([
@@ -146,7 +146,7 @@ class AuthController extends Controller
                 'data' => array_filter([
                     'url' => session()->pull('url.intended', null),
                     'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
-                    'remember_email_value' => $rememberEmailProvided ? (string) $request->email : null,
+                    'remember_email_value' => $rememberEmailProvided ? $login : null,
                 ], fn ($value) => $value !== null),
             ]);
 
@@ -156,7 +156,7 @@ class AuthController extends Controller
 
         session()->flash('status', 'not-found');
         return view('auth.login', [
-            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail($request),
+            'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
     }
 
@@ -186,7 +186,7 @@ class AuthController extends Controller
         session()->flash('message-title', 'Log in failed');
         session()->flash('message-type', 'danger');
         return view('auth.login', [
-            'rememberedEmail' => $this->rememberedDeviceManager->getRememberedEmail(request()),
+            'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail(request()),
         ]);
     }
 
@@ -355,6 +355,7 @@ class AuthController extends Controller
         } else {
             $user = User::create([
                 'email' => $request->email,
+                'username' => User::generateUniqueUsernameFromEmail((string) $request->email),
             ]);
         }
 
@@ -408,5 +409,20 @@ class AuthController extends Controller
         session()->flash('message-type', 'danger');
 
         return redirect()->route('index');
+    }
+
+    private function findVerifiedUserByLogin(string $login): ?User
+    {
+        $identifier = trim($login);
+        if ($identifier === '') {
+            return null;
+        }
+
+        $query = User::query()->whereNotNull('email_verified_at');
+        if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+            return $query->where('email', $identifier)->first();
+        }
+
+        return $query->where('username', User::normalizeUsername($identifier))->first();
     }
 }

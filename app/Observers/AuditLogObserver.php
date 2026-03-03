@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 class AuditLogObserver
@@ -67,16 +68,11 @@ class AuditLogObserver
             $actorUserId = $request->user()->id;
         }
 
-        $normalizedActorUserId = null;
-        if ($actorUserId !== null && $actorUserId !== '') {
-            $normalizedActorUserId = (string) $actorUserId;
-        }
-
         AuditLog::query()->create([
             'event' => $event,
             'auditable_type' => $model::class,
             'auditable_id' => (string) $model->getKey(),
-            'actor_user_id' => $normalizedActorUserId,
+            'actor_user_id' => $this->resolveActorUserId($actorUserId),
             'ip_address' => $request?->ip(),
             'user_agent' => $request?->userAgent(),
             'url' => $request?->fullUrl(),
@@ -100,5 +96,17 @@ class AuditLogObserver
         }
 
         return $filtered;
+    }
+
+    private function resolveActorUserId(mixed $actorUserId): ?string
+    {
+        $normalizedActorUserId = trim((string) ($actorUserId ?? ''));
+        if ($normalizedActorUserId === '') {
+            return null;
+        }
+
+        return User::query()->whereKey($normalizedActorUserId)->exists()
+            ? $normalizedActorUserId
+            : null;
     }
 }

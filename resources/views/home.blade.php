@@ -63,11 +63,16 @@
     </section>
     <section id="minecraft" class="bg-center bg-no-repeat bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
         <x-container class="text-white py-32">
-            <h2 class="text-3xl mb-4">Play Minecraft with us</h2>
-            <p class="mb-4">We invite you to join us on our <a href="https://stemcraft.com.au/" class="link">Minecraft server</a> where you can participate in weekly challenges and mini-games.</p>
+            <h2 class="text-3xl mb-4">Play on STEMCraft</h2>
+            <p class="mb-4">STEMCraft is our Minecraft space for collaborative builds, weekly challenges, and family-friendly play. Start with the <a href="{{ route('stemcraft.join') }}" class="link">join guide</a>, read the <a href="{{ route('stemcraft.rules') }}" class="link">rules</a>, or browse the <a href="{{ route('stemcraft.punishments') }}" class="link">public punishments log</a>.</p>
             <div class="mb-4 flex gap-4">
                 <img src="{{  asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12" />
-                <p>We also run workshops on our minecraft server, both online and offline, where you can learn to make it rain rabbits, or grow flowers wherever you walk!</p>
+                <p>We also run workshops on the server, both online and offline, where players experiment, build together, and learn playful mechanics beyond vanilla Minecraft.</p>
+            </div>
+            <div class="flex flex-wrap gap-3 justify-center mb-4">
+                <x-ui.button href="{{ route('stemcraft.index') }}">STEMCraft Overview</x-ui.button>
+                <x-ui.button color="outline" href="{{ route('stemcraft.join') }}">How to Join</x-ui.button>
+                <x-ui.button color="outline" href="{{ route('stemcraft.rules') }}">Rules</x-ui.button>
             </div>
             <div class="flex justify-center">
                 <img src="{{ asset('home-minecraft-address.webp') }}" alt="play.stemcraft.com.au" class="h-12" />

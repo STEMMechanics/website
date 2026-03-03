@@ -4,17 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
 use App\Mail\WorkshopTicketBroadcast;
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\PickListTemplate;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
-use App\Models\PickListTemplate;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -488,7 +493,7 @@ class WorkshopController extends Controller
             return redirect()->back();
         }
 
-        session()->flash('message', 'Email sent to '.count($recipients).' recipient' . (count($recipients) == 1 ? '' : 's') . '.');
+        session()->flash('message', 'Email sent to '.count($recipients).' recipient'.(count($recipients) == 1 ? '' : 's').'.');
         session()->flash('message-title', 'Email queued');
         session()->flash('message-type', 'success');
 
@@ -569,16 +574,120 @@ class WorkshopController extends Controller
     public function admin_attendance(Workshop $workshop): Response|\Illuminate\Contracts\View\View
     {
         $isKiosk = request()->boolean('kiosk') && $workshop->registration !== 'tickets';
+        $search = trim((string) request()->query('search', ''));
+        $showCancelledTickets = request()->boolean('show_cancelled');
 
         $activeTickets = collect();
+        $cancelledTickets = collect();
+        $attendanceInvoiceMeta = [];
+        $paymentMethodLabels = collect(Payment::PAYMENT_METHODS)
+            ->mapWithKeys(fn (string $method): array => [$method => Payment::paymentMethodLabel($method)])
+            ->all();
+        $ticketPaymentRows = [];
         if ($workshop->registration === 'tickets') {
-            $activeTickets = Ticket::query()
+            $applyTicketSearch = function ($builder) use ($search): void {
+                if ($search === '') {
+                    return;
+                }
+
+                $builder->where(function ($query) use ($search): void {
+                    $query->where('reference_code', 'like', '%'.$search.'%')
+                        ->orWhere('firstname', 'like', '%'.$search.'%')
+                        ->orWhere('surname', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('phone', 'like', '%'.$search.'%');
+                });
+            };
+
+            $activeTicketsQuery = Ticket::query()
+                ->with(['invoice', 'invoiceLine'])
                 ->where('workshop_id', $workshop->id)
-                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->whereIn('status', Ticket::activePurchasedStatuses());
+            $applyTicketSearch($activeTicketsQuery);
+
+            $activeTickets = $activeTicketsQuery
                 ->orderBy('firstname')
                 ->orderBy('surname')
                 ->orderBy('id')
                 ->get();
+
+            if ($showCancelledTickets) {
+                $cancelledTicketsQuery = Ticket::query()
+                    ->with('invoice')
+                    ->where('workshop_id', $workshop->id)
+                    ->where('status', Ticket::STATUS_CANCELLED);
+                $applyTicketSearch($cancelledTicketsQuery);
+
+                $cancelledTickets = $cancelledTicketsQuery
+                    ->orderBy('firstname')
+                    ->orderBy('surname')
+                    ->orderBy('id')
+                    ->get();
+            }
+
+            $invoiceIds = $activeTickets->pluck('invoice_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            if ($invoiceIds !== []) {
+                $invoices = Invoice::query()
+                    ->with(['allocations.customerPayment', 'taxAdjustments'])
+                    ->whereIn('id', $invoiceIds)
+                    ->get();
+
+                foreach ($invoices as $invoice) {
+                    $expectedKind = $invoice->expectedSettlementKind();
+                    $settled = round((float) $invoice->allocations
+                        ->filter(function ($allocation) use ($expectedKind): bool {
+                            $payment = $allocation->customerPayment;
+                            if (! $payment || (string) $payment->kind !== $expectedKind) {
+                                return false;
+                            }
+
+                            return ((float) $allocation->allocated_amount) > 0;
+                        })
+                        ->sum('allocated_amount'), 2);
+                    $outstanding = max(0, round($invoice->dueAmount() - $settled, 2));
+
+                    $attendanceInvoiceMeta[(int) $invoice->id] = [
+                        'id' => (int) $invoice->id,
+                        'number' => (string) $invoice->invoice_number,
+                        'status' => (string) $invoice->status,
+                        'outstanding' => $outstanding,
+                    ];
+                }
+            }
+
+            $fallbackTicketPrice = 0.0;
+            $rawWorkshopPrice = trim((string) ($workshop->price ?? ''));
+            if ($rawWorkshopPrice !== '') {
+                $numericWorkshopPrice = preg_replace('/[^0-9.]/', '', $rawWorkshopPrice);
+                if (is_string($numericWorkshopPrice) && $numericWorkshopPrice !== '' && is_numeric($numericWorkshopPrice)) {
+                    $fallbackTicketPrice = round((float) $numericWorkshopPrice, 2);
+                }
+            }
+
+            $ticketPaymentRows = $activeTickets->map(function (Ticket $ticket) use ($attendanceInvoiceMeta, $fallbackTicketPrice): array {
+                $invoiceId = (int) ($ticket->invoice_id ?? 0);
+                $invoiceMeta = $invoiceId > 0 ? ($attendanceInvoiceMeta[$invoiceId] ?? null) : null;
+                $ticketPrice = round((float) ($ticket->invoiceLine?->line_total_inc_tax ?? 0), 2);
+                if ($ticketPrice <= 0.0001) {
+                    $ticketPrice = $fallbackTicketPrice;
+                }
+
+                return [
+                    'id' => (int) $ticket->id,
+                    'reference' => (string) ($ticket->reference_code ?: $ticket->id),
+                    'attendee' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
+                    'invoice_id' => $invoiceId > 0 ? $invoiceId : null,
+                    'invoice_number' => $invoiceMeta['number'] ?? null,
+                    'invoice_outstanding' => (float) ($invoiceMeta['outstanding'] ?? 0),
+                    'ticket_price' => max(0, $ticketPrice),
+                ];
+            })->values()->all();
         }
 
         $dropIns = WorkshopAttendance::query()
@@ -594,6 +703,11 @@ class WorkshopController extends Controller
         return response()->view($view, [
             'workshop' => $workshop->loadMissing('location'),
             'activeTickets' => $activeTickets,
+            'cancelledTickets' => $cancelledTickets,
+            'showCancelledTickets' => $showCancelledTickets,
+            'attendanceInvoiceMeta' => $attendanceInvoiceMeta,
+            'ticketPaymentRows' => $ticketPaymentRows,
+            'paymentMethodLabels' => $paymentMethodLabels,
             'dropIns' => $dropIns,
             'isKiosk' => $isKiosk,
         ]);
@@ -658,7 +772,7 @@ class WorkshopController extends Controller
         ])->stream('workshop-'.$workshop->id.'-attendance.pdf');
     }
 
-    public function admin_attendance_tickets(Request $request, Workshop $workshop)
+    public function admin_attendance_tickets(Request $request, Workshop $workshop): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'attended_ticket_ids' => ['nullable', 'array'],
@@ -666,6 +780,12 @@ class WorkshopController extends Controller
         ]);
 
         if ($workshop->registration !== 'tickets') {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'This workshop does not use managed tickets.',
+                ], 422);
+            }
+
             session()->flash('message', 'This workshop does not use managed tickets.');
             session()->flash('message-title', 'Attendance update skipped');
             session()->flash('message-type', 'warning');
@@ -683,16 +803,30 @@ class WorkshopController extends Controller
         $query = Ticket::query()
             ->where('workshop_id', $workshop->id)
             ->whereIn('status', Ticket::activePurchasedStatuses());
-        $allActiveIds = (clone $query)->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $activeTickets = (clone $query)
+            ->select(['id', 'attended_at'])
+            ->get();
+        $allActiveIds = $activeTickets
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $currentlyAttendedIds = $activeTickets
+            ->filter(fn (Ticket $ticket): bool => $ticket->attended_at !== null)
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
 
         $validSelected = array_values(array_intersect($selectedIds, $allActiveIds));
-        $toClear = array_values(array_diff($allActiveIds, $validSelected));
+        $toMark = array_values(array_diff($validSelected, $currentlyAttendedIds));
+        $toClear = array_values(array_diff($currentlyAttendedIds, $validSelected));
 
-        if ($validSelected !== []) {
+        $savedAt = now();
+
+        if ($toMark !== []) {
             Ticket::query()
                 ->where('workshop_id', $workshop->id)
-                ->whereIn('id', $validSelected)
-                ->update(['attended_at' => now()]);
+                ->whereIn('id', $toMark)
+                ->update(['attended_at' => $savedAt]);
         }
 
         if ($toClear !== []) {
@@ -702,8 +836,246 @@ class WorkshopController extends Controller
                 ->update(['attended_at' => null]);
         }
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Ticket attendance has been updated.',
+                'attended_ticket_ids' => $validSelected,
+                'saved_at_iso' => $savedAt->toIso8601String(),
+                'saved_at_display' => $savedAt->format('M j, Y g:i a'),
+            ]);
+        }
+
         session()->flash('message', 'Ticket attendance has been updated.');
         session()->flash('message-title', 'Attendance saved');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.attendance', $workshop);
+    }
+
+    public function admin_attendance_payments(Request $request, Workshop $workshop): RedirectResponse
+    {
+        if ($workshop->registration !== 'tickets') {
+            session()->flash('message', 'This workshop does not use managed tickets.');
+            session()->flash('message-title', 'Payment not recorded');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.workshop.attendance', $workshop);
+        }
+
+        $validated = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer', 'min:1'],
+            'attended_ticket_ids' => ['nullable', 'array'],
+            'attended_ticket_ids.*' => ['integer', 'min:1'],
+            'payments' => ['required', 'array', 'min:1'],
+            'payments.*.method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
+            'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
+            'payments.*.received_on' => ['nullable', 'date'],
+            'payments.*.reference' => ['nullable', 'string', 'max:255'],
+            'payments.*.notes' => ['nullable', 'string'],
+            'sync_attendance' => ['nullable', 'boolean'],
+            'mark_attended' => ['nullable', 'boolean'],
+        ]);
+
+        $selectedTicketIds = collect($validated['ticket_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        if ($selectedTicketIds === []) {
+            throw ValidationException::withMessages([
+                'ticket_ids' => 'Select at least one ticket.',
+            ]);
+        }
+
+        $tickets = Ticket::query()
+            ->with('invoice')
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->whereIn('id', $selectedTicketIds)
+            ->get();
+        if ($tickets->isEmpty()) {
+            throw ValidationException::withMessages([
+                'ticket_ids' => 'No eligible tickets were selected.',
+            ]);
+        }
+        $selectedTicketIds = $tickets->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+        $attendedTicketIds = collect($validated['attended_ticket_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->intersect($selectedTicketIds)
+            ->unique()
+            ->values()
+            ->all();
+
+        $invoiceIds = $tickets->pluck('invoice_id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        if ($invoiceIds === []) {
+            throw ValidationException::withMessages([
+                'ticket_ids' => 'Selected tickets are not linked to an invoice.',
+            ]);
+        }
+
+        $invoices = Invoice::query()
+            ->whereIn('id', $invoiceIds)
+            ->get()
+            ->keyBy(fn (Invoice $invoice): int => (int) $invoice->id);
+        $outstandingByInvoiceId = [];
+        foreach ($invoiceIds as $invoiceId) {
+            $invoice = $invoices->get($invoiceId);
+            if (! $invoice) {
+                continue;
+            }
+
+            $outstanding = max(0, round((float) $invoice->outstandingAmount(), 2));
+            if ($outstanding > 0.0001) {
+                $outstandingByInvoiceId[$invoiceId] = $outstanding;
+            }
+        }
+
+        if ($outstandingByInvoiceId === []) {
+            session()->flash('message', 'The selected tickets are already fully paid.');
+            session()->flash('message-title', 'No payment needed');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.workshop.attendance', $workshop);
+        }
+
+        $paymentLines = collect($validated['payments'] ?? [])
+            ->filter(fn ($line): bool => is_array($line))
+            ->map(function (array $line): array {
+                return [
+                    'method' => trim((string) ($line['method'] ?? '')),
+                    'amount' => round((float) ($line['amount'] ?? 0), 2),
+                    'received_on' => trim((string) ($line['received_on'] ?? '')),
+                    'reference' => trim((string) ($line['reference'] ?? '')),
+                    'notes' => trim((string) ($line['notes'] ?? '')),
+                ];
+            })
+            ->filter(fn (array $line): bool => $line['amount'] > 0.0001)
+            ->values();
+        if ($paymentLines->isEmpty()) {
+            throw ValidationException::withMessages([
+                'payments' => 'Add at least one payment amount.',
+            ]);
+        }
+
+        $totalOutstanding = round((float) collect($outstandingByInvoiceId)->sum(), 2);
+        $totalPaymentAmount = round((float) $paymentLines->sum('amount'), 2);
+        if ($totalPaymentAmount > ($totalOutstanding + 0.0001)) {
+            throw ValidationException::withMessages([
+                'payments' => 'Payment total cannot exceed outstanding total of $'.number_format($totalOutstanding, 2).'.',
+            ]);
+        }
+
+        $invoiceUserIds = collect($invoiceIds)
+            ->map(fn (int $invoiceId): ?string => (string) ($invoices->get($invoiceId)?->user_id ?? ''))
+            ->filter(fn (string $userId): bool => trim($userId) !== '')
+            ->unique()
+            ->values()
+            ->all();
+        $resolvedUserId = count($invoiceUserIds) === 1 ? $invoiceUserIds[0] : null;
+        $syncAttendance = $request->boolean('sync_attendance', false);
+        $markAttended = $request->boolean('mark_attended', false);
+        $now = now();
+        $syncInvoiceIds = array_keys($outstandingByInvoiceId);
+
+        DB::transaction(function () use (
+            $paymentLines,
+            $outstandingByInvoiceId,
+            $resolvedUserId,
+            $syncInvoiceIds,
+            $selectedTicketIds,
+            $attendedTicketIds,
+            $syncAttendance,
+            $markAttended,
+            $now
+        ): void {
+            $remainingByInvoice = $outstandingByInvoiceId;
+
+            foreach ($paymentLines as $line) {
+                $lineAmount = round((float) ($line['amount'] ?? 0), 2);
+                if ($lineAmount <= 0.0001) {
+                    continue;
+                }
+
+                $payment = new Payment();
+                $payment->kind = Payment::KIND_PAYMENT;
+                $payment->user_id = $resolvedUserId;
+                $payment->created_by = auth()->id();
+                $payment->received_on = ($line['received_on'] ?? '') !== '' ? Carbon::parse((string) $line['received_on']) : $now;
+                $payment->payment_method = (string) ($line['method'] ?? Payment::PAYMENT_METHOD_OTHER);
+                $payment->reference = ($line['reference'] ?? '') !== '' ? (string) $line['reference'] : null;
+                $payment->total_amount = $lineAmount;
+                $payment->gst_amount = 0;
+                $payment->notes = ($line['notes'] ?? '') !== '' ? (string) $line['notes'] : null;
+                $payment->save();
+
+                $unallocatedAmount = $lineAmount;
+                foreach ($remainingByInvoice as $invoiceId => $remainingBalance) {
+                    if ($unallocatedAmount <= 0.0001) {
+                        break;
+                    }
+                    if ($remainingBalance <= 0.0001) {
+                        continue;
+                    }
+
+                    $allocatedAmount = round(min($remainingBalance, $unallocatedAmount), 2);
+                    if ($allocatedAmount <= 0.0001) {
+                        continue;
+                    }
+
+                    $payment->allocations()->create([
+                        'invoice_id' => (int) $invoiceId,
+                        'allocated_amount' => $allocatedAmount,
+                    ]);
+
+                    $remainingByInvoice[$invoiceId] = round($remainingBalance - $allocatedAmount, 2);
+                    $unallocatedAmount = round($unallocatedAmount - $allocatedAmount, 2);
+                }
+            }
+
+            $this->syncTicketInvoicesFromAllocations($syncInvoiceIds);
+
+            if ($syncAttendance) {
+                if ($attendedTicketIds !== []) {
+                    Ticket::query()
+                        ->whereIn('id', $attendedTicketIds)
+                        ->update(['attended_at' => $now]);
+                }
+
+                $toClearAttendance = array_values(array_diff($selectedTicketIds, $attendedTicketIds));
+                if ($toClearAttendance !== []) {
+                    Ticket::query()
+                        ->whereIn('id', $toClearAttendance)
+                        ->update(['attended_at' => null]);
+                }
+
+                return;
+            }
+
+            if ($markAttended && $selectedTicketIds !== []) {
+                Ticket::query()
+                    ->whereIn('id', $selectedTicketIds)
+                    ->update(['attended_at' => $now]);
+            }
+        });
+
+        session()->flash(
+            'message',
+            'Recorded $'.number_format($totalPaymentAmount, 2)
+            .' across '.$paymentLines->count().' payment'.($paymentLines->count() === 1 ? '' : 's').'.'
+        );
+        session()->flash('message-title', 'Ticket payment saved');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.workshop.attendance', $workshop);
@@ -817,6 +1189,7 @@ class WorkshopController extends Controller
                 $entry->save();
 
                 $retainedIds[] = (int) $entry->id;
+
                 continue;
             }
 
@@ -918,6 +1291,48 @@ class WorkshopController extends Controller
         }
 
         return $rows;
+    }
+
+    private function syncTicketInvoicesFromAllocations(array $invoiceIds): void
+    {
+        foreach ($invoiceIds as $invoiceId) {
+            $invoice = Invoice::query()->find((int) $invoiceId);
+            if (! $invoice) {
+                continue;
+            }
+
+            $allocated = $invoice->settledAmount();
+            $invoiceTotal = $invoice->dueAmount();
+            $isPaid = $allocated >= ($invoiceTotal - 0.0001);
+
+            if ($isPaid) {
+                $invoice->status = Invoice::STATUS_PAID;
+                $invoice->save();
+
+                if ($this->invoiceHasTicketContent($invoice)) {
+                    Ticket::query()
+                        ->where('invoice_id', $invoice->id)
+                        ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
+                        ->update(['status' => Ticket::STATUS_DONE]);
+                }
+
+                continue;
+            }
+
+            if ($invoice->status === Invoice::STATUS_PAID) {
+                $invoice->status = Invoice::STATUS_ISSUED;
+                $invoice->save();
+            }
+        }
+    }
+
+    private function invoiceHasTicketContent(Invoice $invoice): bool
+    {
+        if ($invoice->lines()->where('kind', 'ticket')->exists()) {
+            return true;
+        }
+
+        return Ticket::query()->where('invoice_id', $invoice->id)->exists();
     }
 
     public function admin_attendance_dropin_update(Request $request, Workshop $workshop, WorkshopAttendance $attendance)
@@ -1057,6 +1472,7 @@ class WorkshopController extends Controller
         $type = (string) ($workshopData['type'] ?? 'online');
         if ($type !== 'physical') {
             $workshopData['location_id'] = null;
+
             return;
         }
 

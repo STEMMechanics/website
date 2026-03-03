@@ -19,6 +19,11 @@
             return this.reasonOther.trim().length > 0;
         }
     }">
+        @php
+            $hasAmount = is_numeric($amountCents ?? null);
+            $resolvedAmountCents = $hasAmount ? (int) $amountCents : null;
+            $resolvedAmountCurrency = trim((string) ($amountCurrency ?? ''));
+        @endphp
         @if($errors->any())
             <div class="my-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
                 {{ $errors->first() }}
@@ -32,6 +37,12 @@
                 <div class="py-1 border-b border-gray-100"><span class="font-semibold">Event Type:</span> {{ $event->event_type ?: '-' }}</div>
                 <div class="py-1 border-b border-gray-100"><span class="font-semibold">Event ID:</span> <span class="font-mono text-xs">{{ $event->event_id }}</span></div>
                 <div class="py-1 border-b border-gray-100"><span class="font-semibold">Square Payment ID:</span> {{ $squarePaymentId !== '' ? $squarePaymentId : '-' }}</div>
+                @if($hasAmount)
+                    <div class="py-1 border-b border-gray-100">
+                        <span class="font-semibold">Amount:</span>
+                        {{ $resolvedAmountCents < 0 ? '-' : '' }}${{ number_format(abs($resolvedAmountCents) / 100, 2) }}{{ $resolvedAmountCurrency !== '' ? ' '.$resolvedAmountCurrency : '' }}
+                    </div>
+                @endif
                 <div class="py-1 border-b border-gray-100">
                     <span class="font-semibold">Payment:</span>
                     @if($event->customerPayment)

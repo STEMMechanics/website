@@ -56,8 +56,8 @@
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
                 @endphp
                 <tr>
-                    <td class="whitespace-nowrap">{{ $customerPayment->id }}</td>
-                    <td class="w-28">
+                    <td class="!text-center">{{ $customerPayment->id }}</td>
+                    <td class="">
                         <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
@@ -68,8 +68,8 @@
                             {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
                         </div>
                     </td>
-                    <td>{{ money((float) $customerPayment->total_amount) }}</td>
-                    <td class="hidden md:table-cell">{{ $typeLabel }}</td>
+                    <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
+                    <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
                     <td class="hidden lg:table-cell">
                         {{ money((float) $allocated) }}
                         <div class="text-xs text-gray-600">
@@ -91,14 +91,14 @@
                 $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
                 @endphp
                 <tr class="bg-gray-50">
-                    <td class="whitespace-nowrap">{{ $refund->id }}</td>
+                    <td class="!text-center">{{ $refund->id }}</td>
                     <td>
                         <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">Refund</div>
                     </td>
-                    <td>{{ money(-((float) $refund->total_amount)) }}</td>
-                    <td class="hidden md:table-cell">Refund</td>
+                    <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
+                    <td class="text-center hidden md:table-cell">Refund</td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="w-28">

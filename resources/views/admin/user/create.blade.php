@@ -18,8 +18,14 @@
                     <x-ui.input type="email" label="Email" name="email" />
                 </div>
                 <div class="flex-1">
+                    <x-ui.input label="Username" name="username" info="Optional. If left blank it will be generated from the email address." />
+                </div>
+            </div>
+            <div class="flex gap-8">
+                <div class="flex-1">
                     <x-ui.input label="Phone" name="phone" />
                 </div>
+                <div class="flex-1"></div>
             </div>
             <x-ui.input label="Company (Optional)" name="company" />
             <x-ui.input

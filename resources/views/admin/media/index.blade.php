@@ -2,6 +2,12 @@
     <x-mast>Media</x-mast>
 
     <x-container>
+        @if(isset($filteredOwner) && $filteredOwner)
+            <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                Showing media for <strong>{{ $filteredOwner->username ?: $filteredOwner->email ?: $filteredOwner->getName() }}</strong>.
+                <a href="{{ route('admin.media.index') }}" class="ml-2 text-primary-color hover:underline">Clear filter</a>
+            </div>
+        @endif
         <x-ui.toolbar>
             <x-slot:left>
                 <x-ui.button type="link" href="{{ route('admin.media.create') }}">Create</x-ui.button>
@@ -32,6 +38,7 @@
             <x-ui.table>
                 <x-slot:header>
                     <th>Title</th>
+                    <th class="hidden lg:table-cell">Owner</th>
                     <th class="hidden md:table-cell">Type</th>
                     <th class="hidden md:table-cell">Size</th>
                     <th class="hidden md:table-cell">Uploaded</th>
@@ -42,14 +49,23 @@
                         <tr>
                             <td>
                                 <div class="flex items-center">
-                                    <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $medium->title }}" {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }} />
+                                    <div class="relative mr-3 shrink-0">
+                                        <img src="{{ $medium->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 inline rounded" alt="{{ $medium->title }}" {{ in_array($medium->status, ['processing', 'queued'], true) ? 'data-thumbnail=' . $medium->name : '' }} />
+                                        @if($medium->is_private)
+                                            <span class="absolute -left-2 -top-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white" title="Private media">
+                                                <i class="fa-solid fa-user-lock text-[10px]"></i>
+                                            </span>
+                                        @endif
+                                    </div>
                                     <div>
                                         <div class="whitespace-normal">{{ $medium->title }}{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
+                                        <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->username ?: $medium->user?->email ?: 'Unassigned' }}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>
                                     </div>
                                 </div>
                             </td>
+                            <td class="hidden lg:table-cell">{{ $medium->user?->username ?: $medium->user?->email ?: 'Unassigned' }}</td>
                             <td class="hidden md:table-cell">{{ $medium->file_type }}</td>
                             <td class="hidden md:table-cell">{{ \App\Helpers::bytesToString($medium->size) }}</td>
                             <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($medium->created_at)->format('M j Y, g:i a') }}</td>

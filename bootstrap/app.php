@@ -35,6 +35,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->validateCsrfTokens(except: [
             'webhooks/square',
+            'webhooks/stemcraft/server',
+            'webhooks/minecraft/server',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

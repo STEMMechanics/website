@@ -11,8 +11,56 @@
         $hasMyQuotes = $navUser ? $navUser->quotes()->exists() : false;
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
+        $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
+        $forumUnreadCount = $navUser ? \App\Models\ForumTopic::unreadCountForUser($navUser) : 0;
     @endphp
-    <div class="mx-auto max-w-7xl px-2 relative" x-data="{pageMenuOpen:false,userMenuOpen:false}">
+    <div
+        class="mx-auto max-w-7xl px-2 relative"
+        x-data="{
+            pageMenuOpen:false,
+            userMenuOpen:false,
+            forumUnreadCount: {{ $forumUnreadCount }},
+            forumSummaryUrl: @js(auth()->check() ? route('forum.notifications.summary') : null),
+            forumPollHandle: null,
+            async refreshForumNotifications() {
+                if (!this.forumSummaryUrl) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(this.forumSummaryUrl, {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = await response.json();
+                    this.forumUnreadCount = Number(payload?.count || 0);
+                } catch (_error) {
+                }
+            },
+            init() {
+                if (!this.forumSummaryUrl) {
+                    return;
+                }
+
+                this.refreshForumNotifications();
+                this.forumPollHandle = window.setInterval(() => this.refreshForumNotifications(), 30000);
+                window.addEventListener('forum-notifications-refresh', () => this.refreshForumNotifications());
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        this.refreshForumNotifications();
+                    }
+                });
+            },
+        }"
+    >
         <div class="relative flex h-16 items-center justify-between">
             <div class="ml-4 mr-2 {{ !(auth()->user()?->isAdmin() ?? false) ? 'sm:hidden' : '' }}">
                 <button type="button" @click="pageMenuOpen=!pageMenuOpen" @keydown.escape="pageMenuOpen=false" class="relative flex w-6 text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
@@ -29,7 +77,7 @@
             </div>
             <div class="flex items-center">
                 <div class="hidden sm:ml-6 sm:block mr-4">
-                    <div class="flex space-x-2">
+                    <div class="flex space-x-2 items-center">
                         {{-- <a href="{{ route('post.index') }}" class="text-gray-900 hover:text-sky-500 px-3 py-2 text-sm font-medium transition duration-300 ease-in-out" aria-current="page">Blog</a>--}}
                         <a href="{{ route('about') }}" class="text-gray-900 hover:text-sky-500 px-1 md:px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">About</a>
                         <a href="{{ route('workshop.index') }}" class="text-gray-900 hover:text-sky-500 px-1 md:px-3 py-2 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
@@ -37,6 +85,22 @@
                         <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
                             <i class="fa fa-search"></i>
                         </button>
+                        @auth
+                            <a
+                                    href="{{ route('forum.index') }}"
+                                    class="text-gray-900 hover:text-sky-500 pl-1 md:pl-4 py-3 text-sm font-medium transition duration-300 ease-in-out relative"
+                                    title="Discussions"
+                                    aria-label="Discussions"
+                            >
+                                <i class="fa-regular fa-comments text-base"></i>
+                                <span
+                                    x-cloak
+                                    x-show="forumUnreadCount > 0"
+                                    x-text="forumUnreadCount"
+                                    class="bg-red-600 text-white text-xxs absolute -right-3 top-1 min-w-4 px-1 text-center rounded-full"
+                                ></span>
+                            </a>
+                        @endauth
                     </div>
                 </div>
                 <div class="mr-3 md:mx-3">
@@ -76,20 +140,30 @@
                 </div>
                 {{-- <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>--}}
                 <a href="{{ route('about') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-circle-info w-4 mr-2"></i>About</a>
+                @auth
+                    <a href="{{ route('forum.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="bg-red-600 text-white text-xs px-1 rounded ml-2"></span></a>
+                @endauth
                 <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
                 <a href="{{ route('contact') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if(auth()->user()?->isAdmin())
                 <div class="sm:hidden border-t border-gray-200 my-2"></div>
-                <div class="block text-xs font-semibold text-gray-500 px-2 py-1">Admin</div>
+                <div class="block text-xs font-semibold text-gray-500 px-2 py-1">People & Content</div>
+                <a href="{{ route('admin.user.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Users</a>
+                <a href="{{ route('admin.subscription.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-envelope-open-text w-4 mr-2"></i>Subscriptions</a>
+                <a href="{{ route('admin.custom-page.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-file-lines w-4 mr-2"></i>Custom Pages</a>
                 <a href="{{ route('admin.location.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-location-dot w-4 mr-2"></i>Locations</a>
                 <a href="{{ route('admin.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>Media</a>
-                <a href="{{ route('admin.subscription.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-envelope-open-text w-4 mr-2"></i>Subscriptions</a>
-                {{-- <a href="{{ route('admin.post.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Posts</a>--}}
-                <a href="{{ route('admin.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
-                <a href="{{ route('admin.user.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Users</a>
-                <a href="{{ route('admin.workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
 
-                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Finances</div>
+                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Community</div>
+                <a href="{{ route('admin.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
+                <a href="{{ route('admin.forum.category.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussion Categories</a>
+                <a href="{{ route('admin.forum.moderation.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-shield-halved w-4 mr-2"></i>Discussion Moderation</a>
+
+                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Operations</div>
+                <a href="{{ route('admin.workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
+                <a href="{{ route('admin.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
+
+                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Finance & Planning</div>
                 <a href="{{ route('admin.bas.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-calculator w-4 mr-2"></i>BAS Report</a>
                 <a href="{{ route('admin.expense.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-receipt w-4 mr-2"></i>Expenses</a>
                 <a href="{{ route('admin.invoice.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-file-lines w-4 mr-2"></i>Invoices</a>
@@ -97,7 +171,7 @@
                 <a href="{{ route('admin.quote.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-file-lines w-4 mr-2"></i>Quotes</a>
                 <a href="{{ route('admin.pick-list-template.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-list-check w-4 mr-2"></i>Pick List Templates</a>
 
-                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Server</div>
+                <div class="block text-xs font-semibold text-gray-500 px-2 py-1 mt-6">Server & Maintenance</div>
                 <a href="{{ route('admin.analytics.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chart-line w-4 mr-2"></i>Analytics</a>
                 <a href="{{ route('admin.server.audit') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-clipboard-list w-4 mr-2"></i>Audit Log</a>
                 <a href="{{ route('admin.server.orphans') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-link-slash w-4 mr-2"></i>Orphaned Files</a>
@@ -139,6 +213,12 @@
                 @endif
                 @if($hasMyInvoices)
                     <a href="{{ route('account.invoice.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-file-invoice-dollar w-4 mr-2"></i>My Invoices</a>
+                @endif
+                @if($hasMyMedia)
+                    <a href="{{ route('account.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>My Media</a>
+                @endif
+                @if(auth()->user()?->hasMinecraftAccess())
+                    <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
                 @endif
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <form method="POST" action="{{ route('logout') }}">

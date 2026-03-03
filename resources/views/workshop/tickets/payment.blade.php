@@ -88,7 +88,7 @@
                     <div class="text-xs text-red-600 mb-3">{{ $message }}</div>
                     @enderror
 
-                    <div class="flex justify-between mt-6" x-show="!expired" x-cloak>
+                    <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between" x-show="!expired" x-cloak>
                         <x-ui.button type="button" color="danger-outline" x-bind:disabled="isSubmitting || expired" onclick="document.getElementById('ticket-cancel-form').submit();">Cancel</x-ui.button>
                         <x-ui.button type="submit" x-bind:disabled="expired || isSubmitting || (paymentMethod === 'credit_card' && isCardLoading)">
                             <span x-show="!isSubmitting" x-text="submitButtonLabel()"></span>

@@ -263,3 +263,4 @@ phpcbf.phar
 
 ### Deployment ###
 /deploy.sh
+/docs/

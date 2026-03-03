@@ -19,6 +19,19 @@ $variantFilesInfo = collect($mediaFilesInfo ?? [])->filter(fn ($info) => ($info[
                 <x-ui.input label="Title" name="title" value="{{ $medium->title ?? '' }}"/>
             </div>
 
+            @if(isset($mediaOwners))
+                <div class="mb-4">
+                    <x-admin.user-selector-inline
+                        :users="$mediaOwners"
+                        fieldName="user_id"
+                        lookupName="media_owner_lookup"
+                        label="Owner"
+                        info="Admins can reassign media ownership."
+                        :selectedUserId="old('user_id', $medium->user_id ?? '')"
+                    />
+                </div>
+            @endif
+
             @isset($medium)
                 <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
                     <h3 class="text-base font-semibold mb-3">File Details</h3>

@@ -1,23 +1,36 @@
 <footer class="flex flex-col bg-gray-950 text-gray-400 px-4 py-8 sm:px-12 sm:py-16 mt-12">
-    <section class="flex flex-col sm:flex-row gap-8 sm:gap-4 mb-12">
-        <div class="text-center sm:text-left sm:w-2/3 text-sm self-center sm:pr-8">STEMMechanics Australia acknowledges the Traditional Owners of Country throughout Australia and the continuing connection to land, cultures and communities. We pay our respect to Aboriginal and Torres Strait Islander cultures; and to Elders both past, present and emerging.</div>
-        <ul class="sm:w-1/3 flex flex-col gap-0.5 text-center sm:text-left">
+    <section class="grid gap-8 mb-12 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <div class="text-center md:text-left text-sm self-center md:pr-8">STEMMechanics Australia acknowledges the Traditional Owners of Country throughout Australia and the continuing connection to land, cultures and communities. We pay our respect to Aboriginal and Torres Strait Islander cultures; and to Elders both past, present and emerging.</div>
+        <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
             <li><a href="https://github.com/stemmechanics" class="text-sm hover:text-primary-color">GitHub</a></li>
             <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color">Discord</a></li> -->
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color">Facebook</a></li>
-            <li><a href="https://www.stemcraft.com.au/" class="text-sm hover:text-primary-color">STEMCraft (Minecraft)</a></li>
             <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color">Jenkins</a></li>
             <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color">YouTube</a></li>
         </ul>
-        <ul class="sm:w-1/3 flex flex-col gap-0.5 text-center sm:text-left">
+        <ul class="flex flex-col gap-0.5 text-center md:text-left">
+            <li>
+                <h3 class="font-bold mb-2">STEMCraft</h3>
+            </li>
+            <li><a href="{{ route('stemcraft.index') }}" class="text-sm hover:text-primary-color">Overview</a></li>
+            <li><a href="{{ route('stemcraft.join') }}" class="text-sm hover:text-primary-color">Join</a></li>
+            <li><a href="{{ route('stemcraft.rules') }}" class="text-sm hover:text-primary-color">Rules</a></li>
+            <li><a href="{{ route('stemcraft.faqs') }}" class="text-sm hover:text-primary-color">FAQs</a></li>
+            <li><a href="{{ route('stemcraft.punishments') }}" class="text-sm hover:text-primary-color">Punishments</a></li>
+            <li><a href="https://map.stemcraft.com.au/" class="text-sm hover:text-primary-color" target="_blank">Server Map</a></li>
+        </ul>
+        <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
                 <h3 class="font-bold mb-2">STEMMechanics</h3>
             </li>
             <li><a href="{{ route('about') }}" class="text-sm hover:text-primary-color">About</a></li>
             <li><a href="{{ route('contact') }}" class="text-sm hover:text-primary-color">Contact Us</a></li>
+            @auth
+                <li><a href="{{ route('forum.index') }}" class="text-sm hover:text-primary-color">Discussions</a></li>
+            @endauth
             <li><a href="{{ route('tickets.request') }}" class="text-sm hover:text-primary-color">My Tickets</a></li>
             <li><a href="{{ route('code-of-conduct') }}" class="text-sm hover:text-primary-color">Code of Conduct</a></li>
             <li><a href="{{ route('terms-conditions') }}" class="text-sm hover:text-primary-color">Terms & Conditions</a></li>

@@ -161,8 +161,24 @@
                 </x-slot:header>
                 <x-slot:body>
                     @forelse($topWorkshops as $row)
+                        @php
+                            $startsAt = $row->workshop_starts_at ? \Carbon\Carbon::parse($row->workshop_starts_at) : null;
+                            $locationName = trim((string) ($row->workshop_location_name ?? ''));
+                            if ($locationName === '' && $row->workshop_location_id === null && $startsAt) {
+                                $locationName = 'Online';
+                            }
+                            $workshopMeta = collect([
+                                $startsAt?->format('M j, Y g:i a'),
+                                $locationName !== '' ? $locationName : null,
+                            ])->filter()->implode(' | ');
+                        @endphp
                         <tr>
-                            <td>{{ $row->workshop_title }}</td>
+                            <td>
+                                <div>{{ $row->workshop_title }}</div>
+                                @if($workshopMeta !== '')
+                                    <div class="mt-1 text-xs text-gray-500">{{ $workshopMeta }}</div>
+                                @endif
+                            </td>
                             <td>{{ number_format((int) $row->views) }}</td>
                             <td>{{ number_format((int) $row->sessions) }}</td>
                         </tr>

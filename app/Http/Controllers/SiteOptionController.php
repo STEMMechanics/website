@@ -13,7 +13,10 @@ class SiteOptionController extends Controller
 {
     public function index(Request $request): View
     {
+        SiteOption::ensureDefaultOptionsExist();
+
         $query = SiteOption::query();
+        $query->where('name', 'not like', 'moderation.%');
 
         if ($request->filled('search')) {
             $search = $request->string('search')->trim()->value();
@@ -121,6 +124,27 @@ class SiteOptionController extends Controller
         return redirect()->route('admin.site_option.index');
     }
 
+    public function generateSecret(SiteOption $siteOption): RedirectResponse|JsonResponse
+    {
+        abort_unless((string) $siteOption->name === 'minecraft.webhook-secret', 404);
+
+        $siteOption->value = bin2hex(random_bytes(32));
+        $siteOption->save();
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'option' => $this->siteOptionPayload($siteOption),
+            ]);
+        }
+
+        session()->flash('message', 'A new STEMCraft webhook secret has been generated.');
+        session()->flash('message-title', 'Secret regenerated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
     private function validateRequest(Request $request, ?SiteOption $siteOption = null): array
     {
         return $request->validate([
@@ -147,6 +171,29 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 
+        if ($optionName === 'minecraft.rcon-port') {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:65535'];
+        }
+
+        if ($optionName === 'minecraft.rcon-timeout-seconds') {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:30'];
+        }
+
+        if (in_array($optionName, [
+            'moderation.content-filter.min-all-caps-letters',
+            'moderation.content-filter.max-repeated-character-run',
+            'moderation.content-filter.max-repeated-word-run',
+        ], true)) {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:100'];
+        }
+
+        if (in_array($optionName, [
+            'moderation.content-filter.enabled',
+            'moderation.content-filter.block-all-caps',
+        ], true)) {
+            $rules['value'] = ['required', Rule::in(['0', '1'])];
+        }
+
         return $request->validate($rules);
     }
 
@@ -157,6 +204,7 @@ class SiteOptionController extends Controller
             'name' => (string) $siteOption->name,
             'value' => (string) ($siteOption->value ?? ''),
             'has_default' => SiteOption::hasDefault((string) $siteOption->name),
+            'input_type' => SiteOption::inputType((string) $siteOption->name),
         ];
     }
 }

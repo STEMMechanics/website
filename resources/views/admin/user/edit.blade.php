@@ -31,8 +31,14 @@
                     <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" />
                 </div>
                 <div class="flex-1">
+                    <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" />
+                </div>
+            </div>
+            <div class="flex gap-8">
+                <div class="flex-1">
                     <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                 </div>
+                <div class="flex-1"></div>
             </div>
             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
             <x-ui.input

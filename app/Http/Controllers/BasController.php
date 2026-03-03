@@ -7,7 +7,9 @@ use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -106,7 +108,7 @@ class BasController extends Controller
             ->get();
 
         $customerPayments = (clone $paymentsQuery)
-            ->with(['user', 'allocations.invoice', 'refundOf.allocations.invoice'])
+            ->with(['user', 'allocations.invoice.lines', 'refundOf.allocations.invoice.lines'])
             ->orderBy('received_on')
             ->orderBy('id')
             ->get();
@@ -117,6 +119,7 @@ class BasController extends Controller
             $payment->setAttribute('bas_total_amount', $signedTotal);
             $payment->setAttribute('bas_gst_amount', $signedGst);
             $payment->setAttribute('bas_ex_amount', round($signedTotal - $signedGst, 2));
+            $payment->setAttribute('bas_summary', $this->paymentSummary($payment));
         });
 
         $paymentsTotalInc = round((float) $customerPayments->sum(fn (Payment $payment): float => (float) ($payment->bas_total_amount ?? 0)), 2);
@@ -163,11 +166,12 @@ class BasController extends Controller
         fputcsv($stream, []);
 
         fputcsv($stream, ['Processed Payments']);
-        fputcsv($stream, ['Date', 'Customer', 'Amount Ex GST', 'GST', 'Total incl GST']);
+        fputcsv($stream, ['Date', 'Customer', 'Summary', 'Amount Ex GST', 'GST', 'Total incl GST']);
         foreach ($data['customerPayments'] as $payment) {
             fputcsv($stream, [
                 $payment->received_on?->format('Y-m-d H:i') ?? '',
                 $payment->user?->getName() ?? '',
+                (string) ($payment->bas_summary ?? ''),
                 number_format((float) ($payment->bas_ex_amount ?? 0), 2, '.', ''),
                 number_format((float) ($payment->bas_gst_amount ?? $payment->gst_amount), 2, '.', ''),
                 number_format((float) ($payment->bas_total_amount ?? $payment->total_amount), 2, '.', ''),
@@ -243,6 +247,67 @@ class BasController extends Controller
         }
 
         return abs($amount);
+    }
+
+    private function paymentSummary(Payment $payment): string
+    {
+        $sourcePayment = $payment->isRefund() && $payment->refundOf instanceof Payment
+            ? $payment->refundOf
+            : $payment;
+
+        $invoices = $sourcePayment->allocations
+            ->pluck('invoice')
+            ->filter()
+            ->unique(fn ($invoice) => $invoice->id)
+            ->values();
+
+        $lineDescriptions = $invoices
+            ->flatMap(function ($invoice): Collection {
+                return $invoice->lines
+                    ->pluck('description')
+                    ->map(fn ($description) => trim((string) $description))
+                    ->filter();
+            })
+            ->unique()
+            ->values();
+
+        $summary = '';
+
+        if ($lineDescriptions->isNotEmpty()) {
+            $summary = (string) $lineDescriptions->first();
+            $remainingCount = $lineDescriptions->count() - 1;
+            if ($remainingCount > 0) {
+                $summary .= ' +'.$remainingCount.' more';
+            }
+        } elseif ($invoices->isNotEmpty()) {
+            $invoiceNumbers = $invoices
+                ->map(fn ($invoice) => trim((string) ($invoice->invoice_number ?? '')))
+                ->filter()
+                ->values();
+
+            if ($invoiceNumbers->isNotEmpty()) {
+                $summary = $invoiceNumbers->take(2)->implode(', ');
+                $remainingCount = $invoiceNumbers->count() - 2;
+                if ($remainingCount > 0) {
+                    $summary .= ' +'.$remainingCount.' more';
+                }
+            }
+        }
+
+        if ($summary === '') {
+            $summary = trim((string) ($payment->reference ?? ''))
+                ?: trim((string) ($payment->notes ?? ''));
+        }
+
+        if ($summary === '') {
+            $summary = $payment->isRefund() ? 'Refund' : 'Unallocated payment';
+        }
+
+        if ($payment->isRefund() && ! str_starts_with(strtolower($summary), 'refund')) {
+            $summary = 'Refund for '.$summary;
+        }
+
+        return Str::limit($summary, 100);
     }
 
     private function paymentBaseGstAmount(Payment $payment): float

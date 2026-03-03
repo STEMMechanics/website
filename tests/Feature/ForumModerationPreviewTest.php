@@ -1,0 +1,53 @@
+<?php
+
+namespace Tests\Feature;
+
+use Tests\TestCase;
+
+class ForumModerationPreviewTest extends TestCase
+{
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware();
+    }
+
+    public function test_preview_endpoint_reports_custom_regex_match_from_unsaved_settings(): void
+    {
+        $response = $this->postJson(route('admin.forum.moderation.preview'), [
+            'enabled' => '1',
+            'custom_patterns' => '\bfck\b',
+            'block_all_caps' => '1',
+            'min_all_caps_letters' => '12',
+            'max_repeated_character_run' => '6',
+            'max_repeated_word_run' => '4',
+            'test_content' => 'This includes fck directly.',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'blocked' => true,
+            'rule' => 'custom_pattern',
+            'rule_label' => 'Custom regex pattern',
+        ]);
+    }
+
+    public function test_preview_endpoint_reports_allowed_content(): void
+    {
+        $response = $this->postJson(route('admin.forum.moderation.preview'), [
+            'enabled' => '1',
+            'custom_patterns' => '',
+            'block_all_caps' => '1',
+            'min_all_caps_letters' => '12',
+            'max_repeated_character_run' => '6',
+            'max_repeated_word_run' => '4',
+            'test_content' => 'This is a normal sentence.',
+        ]);
+
+        $response->assertOk()->assertJson([
+            'blocked' => false,
+            'rule' => null,
+            'rule_label' => null,
+        ]);
+    }
+}

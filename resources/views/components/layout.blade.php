@@ -69,7 +69,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="smid" content="AC9E94587F163AD93174FBF3DFDF9645B886960F2F8DD6D60F81CDB6DCDA3BC3">
-    <meta name="max-upload-size" content="{{ \App\Helpers::getMaxUploadSize() }}">
+    <meta name="max-upload-size" content="{{ \App\Helpers::getMaxUploadSize(auth()->user()) }}">
+    <meta name="media-upload-url" content="{{ auth()->check() ? route('media.store') : '' }}">
 
     <title>{{ $fullTitle }}</title>
     <meta name="description" content="{{ $metaDescription }}">

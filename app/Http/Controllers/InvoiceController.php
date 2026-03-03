@@ -515,14 +515,14 @@ class InvoiceController extends Controller
         return $this->processInvoiceSquarePayment($request, $invoice, $squareApi, false, $token);
     }
 
-    public function receiptPdf(Request $request, Invoice $invoice, Payment $customerPayment)
+    public function receiptPdf(Request $request, Invoice $invoice, Payment $payment)
     {
-        if (! $this->paymentLinkedToInvoiceForReceipt($invoice, $customerPayment)) {
+        if (! $this->paymentLinkedToInvoiceForReceipt($invoice, $payment)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
-        $pdf = $this->buildPaymentReceiptPdf($invoice, $customerPayment);
-        $filename = $this->getPaymentReceiptPdfFilename($customerPayment);
+        $pdf = $this->buildPaymentReceiptPdf($invoice, $payment);
+        $filename = $this->getPaymentReceiptPdfFilename($payment);
         $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($download) {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Mail\ForumUnreadNotification;
 use App\Models\SentEmail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,7 +68,10 @@ class SendEmail implements ShouldQueue
         $this->sentEmailId = $sentEmail->id;
 
         if (method_exists($this->mailable, 'withUnsubscribeLink')) {
-            $unsubscribeLink = route('unsubscribe', ['email' => $sentEmail->id]);
+            $unsubscribeRoute = $this->mailable instanceof ForumUnreadNotification
+                ? 'unsubscribe.discussions'
+                : 'unsubscribe';
+            $unsubscribeLink = route($unsubscribeRoute, ['email' => $sentEmail->id]);
             $this->mailable->withUnsubscribeLink($unsubscribeLink);
         }
 

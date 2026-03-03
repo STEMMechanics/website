@@ -4,14 +4,21 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceFileController;
+use App\Http\Controllers\ForumCategoryController;
+use App\Http\Controllers\ForumController;
+use App\Http\Controllers\ForumModerationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\MinecraftController;
+use App\Http\Controllers\MinecraftWebhookController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\QuoteController;
 use App\Http\Controllers\SearchController;
@@ -20,6 +27,7 @@ use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteOptionController;
 use App\Http\Controllers\SquareWebhookController;
 use App\Http\Controllers\SubscribeController;
+use App\Http\Controllers\StemcraftController;
 use App\Http\Controllers\TaxAdjustmentController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
@@ -51,6 +59,12 @@ Route::get('workshops/{workshop}/tickets/complete/download-all', [WorkshopTicket
 Route::post('workshops/{workshop}/tickets/cancel', [WorkshopTicketFlowController::class, 'cancel'])->name('workshop.ticket.flow.cancel');
 
 Route::get('search', [SearchController::class, 'index'])->name('search.index');
+Route::get('/stemcraft', [StemcraftController::class, 'index'])->name('stemcraft.index');
+Route::get('/stemcraft/join', [StemcraftController::class, 'join'])->name('stemcraft.join');
+Route::get('/stemcraft/rules', [StemcraftController::class, 'rules'])->name('stemcraft.rules');
+Route::get('/stemcraft/faqs', [StemcraftController::class, 'faqs'])->name('stemcraft.faqs');
+Route::get('/stemcraft/punishments', [StemcraftController::class, 'punishments'])->name('stemcraft.punishments');
+Route::get('unsubscribe/discussions/{email}', [SubscribeController::class, 'destroyDiscussionNotifications'])->name('unsubscribe.discussions');
 Route::get('unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
 Route::get('/tickets', [TicketController::class, 'showRequest'])->name('tickets.request');
 Route::post('/tickets', [TicketController::class, 'sendMagicLink'])->middleware('throttle:magic-link')->name('tickets.send');
@@ -69,11 +83,27 @@ Route::get('/pay/{invoice}', [InvoiceController::class, 'publicPayShow'])->name(
 Route::post('/pay/{invoice}', [InvoiceController::class, 'publicPayProcess'])->middleware('throttle:invoice-public')->name('invoice.public.pay.process');
 Route::post('/pay/{invoice}/email-documents', [InvoiceController::class, 'publicEmailDocuments'])->middleware('throttle:invoice-public')->name('invoice.public.email-documents');
 Route::post('/webhooks/square', [SquareWebhookController::class, 'handle'])->name('webhook.square');
+Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.stemcraft.server');
+Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
+Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
 Route::middleware('auth')->group(function () {
+    Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
+    Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
+    Route::get('/forum/notifications/summary', [ForumController::class, 'unreadSummary'])->name('forum.notifications.summary');
+    Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
+    Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
+    Route::get('/forum/{categorySlug}/create', [ForumController::class, 'createTopic'])->name('forum.topic.create');
+    Route::get('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'showTopic'])->name('forum.topic.show');
+    Route::get('/forum/{categorySlug}/{topicSlug}/snapshot', [ForumController::class, 'topicSnapshot'])->name('forum.topic.snapshot');
+    Route::post('/forum/{categorySlug}/{topicSlug}/notifications', [ForumController::class, 'toggleNotifications'])->name('forum.topic.notifications');
+    Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
     Route::post('/account', [AccountController::class, 'update'])->name('account.update');
+    Route::post('/account/discussions/unsubscribe-all', [AccountController::class, 'unsubscribeAllDiscussionNotifications'])->name('account.discussions.unsubscribe-all');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::get('/account/media', [MediaController::class, 'account_index'])->name('account.media.index');
+    Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
     Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
@@ -92,6 +122,18 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/tickets/{ticket}/cancel', [TicketController::class, 'accountCancel'])->name('account.ticket.cancel');
     Route::get('/account/payments', [PaymentController::class, 'accountIndex'])->name('account.payment.index');
     Route::get('/account/payments/{payment}/receipt', [PaymentController::class, 'accountReceiptPdf'])->name('account.payment.receipt');
+    Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
+    Route::post('/account/stemcraft/accounts', [MinecraftController::class, 'accountStore'])->name('account.stemcraft.store');
+    Route::delete('/account/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'accountDestroy'])->name('account.stemcraft.destroy');
+    Route::post('/forum/{categorySlug}/topics', [ForumController::class, 'storeTopic'])->name('forum.topic.store');
+    Route::post('/forum/{categorySlug}/{topicSlug}/posts', [ForumController::class, 'storePost'])->name('forum.post.store');
+    Route::put('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}', [ForumController::class, 'updatePost'])->name('forum.post.update');
+    Route::post('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}/reaction', [ForumController::class, 'toggleReaction'])->name('forum.post.reaction');
+    Route::post('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}/report', [ForumController::class, 'reportPost'])->middleware('throttle:forum-report')->name('forum.post.report');
+    Route::post('/forum/{categorySlug}/{topicSlug}/lock', [ForumController::class, 'toggleLock'])->name('forum.topic.lock');
+    Route::post('/forum/{categorySlug}/{topicSlug}/pin', [ForumController::class, 'togglePin'])->name('forum.topic.pin');
+    Route::delete('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'destroyTopic'])->name('forum.topic.destroy');
+    Route::delete('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}', [ForumController::class, 'destroyPost'])->name('forum.post.destroy');
     Route::get('/account/2fa', [AccountController::class, 'show_tfa'])->name('account.show.tfa');
     Route::get('/account/2fa/image', [AccountController::class, 'show_tfa_image'])->name('account.show.tfa.image');
     Route::post('/account/2fa', [AccountController::class, 'post_tfa'])->name('account.post.tfa');
@@ -111,9 +153,8 @@ Route::get('/about', function () {
     return view('about');
 })->name('about');
 
-Route::get('/contact', function () {
-    return view('contact');
-})->name('contact');
+Route::get('/contact', [ContactController::class, 'show'])->name('contact');
+Route::post('/contact', [ContactController::class, 'send'])->name('contact.send');
 
 Route::get('/code-of-conduct', function () {
     return view('code-of-conduct');
@@ -164,6 +205,20 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/users/{user}', [UserController::class, 'edit'])->name('admin.user.edit');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
+    Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
+    Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
+    Route::get('/admin/stemcraft/webhooks', [MinecraftController::class, 'adminWebhooksIndex'])->name('admin.stemcraft.webhooks.index');
+    Route::get('/admin/stemcraft/rcon', [MinecraftController::class, 'adminRconIndex'])->name('admin.stemcraft.rcon.index');
+    Route::post('/admin/stemcraft/rcon', [MinecraftController::class, 'adminRconExecute'])->name('admin.stemcraft.rcon.execute');
+    Route::get('/admin/stemcraft/accounts/create', [MinecraftController::class, 'adminCreate'])->name('admin.stemcraft.create');
+    Route::post('/admin/stemcraft/accounts', [MinecraftController::class, 'adminStore'])->name('admin.stemcraft.store');
+    Route::get('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminEdit'])->name('admin.stemcraft.edit');
+    Route::put('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminUpdate'])->name('admin.stemcraft.update');
+    Route::post('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentStore'])->name('admin.stemcraft.punishments.store');
+    Route::delete('/admin/stemcraft/punishments/{minecraftPenalty}', [MinecraftController::class, 'adminPunishmentLift'])->name('admin.stemcraft.punishments.destroy');
+    Route::post('/admin/stemcraft/webhooks/{minecraftWebhookLog}/retry', [MinecraftController::class, 'adminWebhookRetry'])->name('admin.stemcraft.webhooks.retry');
+    Route::post('/admin/stemcraft/blacklist', [MinecraftController::class, 'adminBlacklistStore'])->name('admin.stemcraft.blacklist.store');
+    Route::delete('/admin/stemcraft/blacklist/{minecraftBlacklistEntry}', [MinecraftController::class, 'adminBlacklistLift'])->name('admin.stemcraft.blacklist.destroy');
 
     Route::get('/admin/subscriptions', [EmailSubscriptionController::class, 'index'])->name('admin.subscription.index');
     Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
@@ -180,6 +235,18 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
+    Route::post('/admin/server/options/{siteOption}/generate-secret', [SiteOptionController::class, 'generateSecret'])->name('admin.site_option.generate-secret');
+    Route::get('/admin/pages', [CustomPageController::class, 'adminIndex'])->name('admin.custom-page.index');
+    Route::get('/admin/pages/create', [CustomPageController::class, 'adminCreate'])->name('admin.custom-page.create');
+    Route::post('/admin/pages', [CustomPageController::class, 'adminStore'])->name('admin.custom-page.store');
+    Route::get('/admin/pages/{customPage}', [CustomPageController::class, 'adminEdit'])->name('admin.custom-page.edit');
+    Route::put('/admin/pages/{customPage}', [CustomPageController::class, 'adminUpdate'])->name('admin.custom-page.update');
+    Route::delete('/admin/pages/{customPage}', [CustomPageController::class, 'adminDestroy'])->name('admin.custom-page.destroy');
+    Route::get('/admin/forum/categories', [ForumCategoryController::class, 'index'])->name('admin.forum.category.index');
+    Route::post('/admin/forum/categories', [ForumCategoryController::class, 'save'])->name('admin.forum.category.save');
+    Route::get('/admin/forum/moderation', [ForumModerationController::class, 'show'])->name('admin.forum.moderation.show');
+    Route::post('/admin/forum/moderation', [ForumModerationController::class, 'update'])->name('admin.forum.moderation.update');
+    Route::post('/admin/forum/moderation/preview', [ForumModerationController::class, 'preview'])->name('admin.forum.moderation.preview');
     Route::get('/admin/server/log', [ServerController::class, 'admin_laravel_log'])->name('admin.server.log');
     Route::post('/admin/server/log/clear', [ServerController::class, 'admin_clear_log'])->name('admin.server.log.clear');
     Route::post('/admin/server/deploy/log/clear', [ServerController::class, 'admin_clear_deploy_log'])->name('admin.server.deploy.log.clear');
@@ -219,6 +286,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/{workshop}/attendance/csv', [WorkshopController::class, 'admin_attendance_csv'])->name('admin.workshop.attendance.csv');
     Route::get('/admin/workshops/{workshop}/attendance/pdf', [WorkshopController::class, 'admin_attendance_pdf'])->name('admin.workshop.attendance.pdf');
     Route::post('/admin/workshops/{workshop}/attendance/tickets', [WorkshopController::class, 'admin_attendance_tickets'])->name('admin.workshop.attendance.tickets');
+    Route::post('/admin/workshops/{workshop}/attendance/payments', [WorkshopController::class, 'admin_attendance_payments'])->name('admin.workshop.attendance.payments');
     Route::post('/admin/workshops/{workshop}/attendance/dropins', [WorkshopController::class, 'admin_attendance_dropin_store'])->name('admin.workshop.attendance.dropin.store');
     Route::post('/admin/workshops/{workshop}/attendance/dropins/sync', [WorkshopController::class, 'admin_attendance_dropin_sync'])->name('admin.workshop.attendance.dropin.sync');
     Route::put('/admin/workshops/{workshop}/attendance/dropins/{attendance}', [WorkshopController::class, 'admin_attendance_dropin_update'])->name('admin.workshop.attendance.dropin.update');
@@ -227,6 +295,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'save'])->name('admin.workshop.pick-list.save');
     Route::get('/admin/workshops/{workshop}/pick-list/pdf', [WorkshopPickListController::class, 'pdf'])->name('admin.workshop.pick-list.pdf');
     Route::get('/admin/tickets', [TicketController::class, 'adminIndex'])->name('admin.ticket.index');
+    Route::post('/admin/tickets/cancel/bulk', [TicketController::class, 'adminBulkCancel'])->name('admin.ticket.cancel.bulk');
     Route::post('/admin/tickets/{ticket}/cancel', [TicketController::class, 'adminCancel'])->name('admin.ticket.cancel');
     Route::post('/admin/workshops', [WorkshopController::class, 'admin_store'])->name('admin.workshop.store');
     Route::get('/admin/workshops/{workshop}', [WorkshopController::class, 'admin_edit'])->name('admin.workshop.edit');
@@ -300,6 +369,4 @@ Route::middleware(['admin', 'nocache'])->group(function () {
 
 });
 
-Route::fallback(function () {
-    return response()->view('errors.404', [], 404);
-});
+Route::fallback([CustomPageController::class, 'fallback']);

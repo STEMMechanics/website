@@ -61,8 +61,23 @@ class AnalyticsController extends Controller
         $topWorkshops = (clone $baseQuery)
             ->whereNotNull('analytics_events.workshop_id')
             ->leftJoin('workshops', 'workshops.id', '=', 'analytics_events.workshop_id')
-            ->selectRaw('analytics_events.workshop_id, COALESCE(workshops.title, analytics_events.workshop_id) as workshop_title, COUNT(*) as views, COUNT(DISTINCT analytics_events.session_token) as sessions')
-            ->groupBy('analytics_events.workshop_id', 'workshops.title')
+            ->leftJoin('locations', 'locations.id', '=', 'workshops.location_id')
+            ->selectRaw('
+                analytics_events.workshop_id,
+                COALESCE(workshops.title, analytics_events.workshop_id) as workshop_title,
+                workshops.starts_at as workshop_starts_at,
+                workshops.location_id as workshop_location_id,
+                locations.name as workshop_location_name,
+                COUNT(*) as views,
+                COUNT(DISTINCT analytics_events.session_token) as sessions
+            ')
+            ->groupBy(
+                'analytics_events.workshop_id',
+                'workshops.title',
+                'workshops.starts_at',
+                'workshops.location_id',
+                'locations.name'
+            )
             ->orderByDesc('views')
             ->paginate(10, ['*'], 'top_workshops_page')
             ->onEachSide(1);

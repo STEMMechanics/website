@@ -11,7 +11,7 @@ class SiteOption extends Model
     use HasFactory;
 
     /**
-     * @return array<string, array{value: string, description: string}>
+     * @return array<string, array{value: string, description: string, input_type?: string}>
      */
     public static function defaultDefinitions(): array
     {
@@ -67,6 +67,66 @@ class SiteOption extends Model
             'tickets.hold-minutes' => [
                 'value' => '10',
                 'description' => 'Number of minutes ticket checkout holds remain reserved before expiring.',
+                'input_type' => 'number',
+            ],
+            'users.restricted-usernames' => [
+                'value' => 'stemcraft, stemmechanics, stemmech, admin, administrator, staff, mod, moderator, owner, support',
+                'description' => 'Comma-separated username words blocked for non-admin accounts. Matching is done on whole username parts separated by dots, underscores, or hyphens.',
+            ],
+            'moderation.content-filter.enabled' => [
+                'value' => '1',
+                'description' => 'Master switch for configurable content filtering.',
+                'input_type' => 'boolean',
+            ],
+            'moderation.content-filter.custom-patterns' => [
+                'value' => '',
+                'description' => 'One regex pattern per line, applied after the profanity package. Patterns are wrapped as case-insensitive Unicode regexes.',
+            ],
+            'moderation.content-filter.block-all-caps' => [
+                'value' => '1',
+                'description' => 'Block content that appears to be written entirely in capital letters above the minimum length.',
+                'input_type' => 'boolean',
+            ],
+            'moderation.content-filter.min-all-caps-letters' => [
+                'value' => '12',
+                'description' => 'Minimum number of letters before an all-caps message is blocked.',
+                'input_type' => 'number',
+            ],
+            'moderation.content-filter.max-repeated-character-run' => [
+                'value' => '6',
+                'description' => 'Maximum allowed run of the same letter or number before content is blocked.',
+                'input_type' => 'number',
+            ],
+            'moderation.content-filter.max-repeated-word-run' => [
+                'value' => '4',
+                'description' => 'Maximum allowed run of the same repeated word before content is blocked.',
+                'input_type' => 'number',
+            ],
+            'minecraft.server-webhook-url' => [
+                'value' => '',
+                'description' => 'Outbound webhook URL used to sync STEMCraft whitelist and punishment changes to the server plugin. Example: http://play.example.com:8125/stemcraft/webhook',
+            ],
+            'minecraft.webhook-secret' => [
+                'value' => '',
+                'description' => 'Shared secret used to sign outbound STEMCraft sync requests and verify inbound server webhook calls. Use a long random value, for example from `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`.',
+            ],
+            'minecraft.rcon-host' => [
+                'value' => '127.0.0.1',
+                'description' => 'RCON host used by the admin STEMCraft console. Usually 127.0.0.1 when the Laravel app can reach the server directly.',
+            ],
+            'minecraft.rcon-port' => [
+                'value' => '25575',
+                'description' => 'RCON TCP port for the Minecraft server.',
+                'input_type' => 'number',
+            ],
+            'minecraft.rcon-password' => [
+                'value' => '',
+                'description' => 'RCON password for the Minecraft server. Keep this private.',
+            ],
+            'minecraft.rcon-timeout-seconds' => [
+                'value' => '5',
+                'description' => 'RCON network timeout in seconds.',
+                'input_type' => 'number',
             ],
         ];
     }
@@ -84,6 +144,11 @@ class SiteOption extends Model
     public static function defaultDescription(string $name): ?string
     {
         return static::defaultDefinitions()[$name]['description'] ?? null;
+    }
+
+    public static function inputType(string $name): string
+    {
+        return static::defaultDefinitions()[$name]['input_type'] ?? 'textarea';
     }
 
     public static function resetToDefault(string $name): ?self

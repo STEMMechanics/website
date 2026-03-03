@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('mime_type');
             $table->bigInteger('size');
             $table->json('variants')->nullable();
-            $table->foreignUuid('user_id')->constrained();
+            $table->foreignUuid('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

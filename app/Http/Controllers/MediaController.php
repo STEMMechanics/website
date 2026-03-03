@@ -7,6 +7,7 @@ use App\Exceptions\FileTooLargeException;
 use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
+use App\Models\User;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -44,12 +45,32 @@ class MediaController extends Controller
     public function admin_index(Request $request)
     {
         $media = $this->getMedia($request);
+        $media->getCollection()->load('user');
+        $filteredOwner = null;
+
+        if (trim((string) $request->query('user_id', '')) !== '') {
+            $filteredOwner = User::query()->find((string) $request->query('user_id'));
+        }
 
         return view('admin.media.index', [
             'media' => $media,
+            'filteredOwner' => $filteredOwner,
             'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
         ]);
 
+    }
+
+    public function account_index(Request $request)
+    {
+        /** @var User $user */
+        $user = Auth::user();
+        $request->merge(['owned_only' => '1']);
+        $media = $this->getMedia($request);
+
+        return view('account.media.index', [
+            'media' => $media,
+            'user' => $user,
+        ]);
     }
 
     public function getMedia(Request $request)
@@ -57,14 +78,29 @@ class MediaController extends Controller
         $query = Media::query();
         $perPage = $request->input('per_page', 25);
         $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
+        $user = Auth::user();
+        $ownedOnly = (bool) ($request->boolean('owned_only') && $user);
 
-        if (! $isAdmin) {
-            $query->whereNotExists(function ($builder) {
-                $builder->selectRaw('1')
-                    ->from('mediables')
-                    ->whereColumn('mediables.media_name', 'media.name')
-                    ->where('mediables.collection', 'private');
-            });
+        if ($ownedOnly) {
+            $query->where('user_id', (string) $user->id);
+        } elseif (! $isAdmin) {
+            if ($user) {
+                $query->where('user_id', (string) $user->id);
+            } else {
+                $query->whereNotExists(function ($builder) {
+                    $builder->selectRaw('1')
+                        ->from('mediables')
+                        ->whereColumn('mediables.media_name', 'media.name')
+                        ->where('mediables.collection', 'private');
+                });
+            }
+        }
+
+        if ($isAdmin) {
+            $filterUserId = trim((string) $request->query('user_id', ''));
+            if ($filterUserId !== '') {
+                $query->where('user_id', $filterUserId);
+            }
         }
 
         if(!empty($request->get('search'))) {
@@ -101,9 +137,11 @@ class MediaController extends Controller
 
         $media = $media->paginate($perPage)->onEachSide(1);
 
-        // Transform the 'password' field of each item in the collection
+        // Normalize view-only metadata used by the table and picker UIs.
         $media->getCollection()->transform(function ($item) {
             $item->password = $item->password ? 'yes' : null;
+            $item->is_private = $this->isPrivateMedia($item);
+            $item->can_delete = $this->canDeleteMedia($item);
             return $item;
         });
 
@@ -129,7 +167,14 @@ class MediaController extends Controller
      */
     public function admin_create()
     {
-        return view('admin.media.edit');
+        return view('admin.media.edit', [
+            'mediaOwners' => $this->mediaOwners(),
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        return $this->admin_store($request);
     }
 
     /**
@@ -281,9 +326,14 @@ class MediaController extends Controller
             }
         }
 
+        $ownerId = trim((string) ($request->input('user_id') ?? ''));
+        if (! Auth::user()?->isAdmin()) {
+            $ownerId = '';
+        }
+
         $media = Media::Create([
             'title' => $request->get('title', Helpers::filenameToTitle($fileName)),
-            'user_id' => auth()->id(),
+            'user_id' => $ownerId !== '' ? $ownerId : auth()->id(),
             'name' => $fileName,
             'size' => $file->getSize(),
             'mime_type' => $file->getMimeType(),
@@ -339,6 +389,7 @@ class MediaController extends Controller
         return response()->view('admin.media.edit', [
             'medium' => $media,
             'mediaFilesInfo' => $mediaFilesInfo,
+            'mediaOwners' => $this->mediaOwners(),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, private')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
@@ -349,10 +400,11 @@ class MediaController extends Controller
      */
     public function admin_update(Request $request, Media $media)
     {
-        $max_size = Helpers::getMaxUploadSize();
+        $max_size = Helpers::getMaxUploadSize(Auth::user());
 
         $validator = Validator::make($request->all(), [
             'title' => 'required',
+            'user_id' => 'nullable|exists:users,id',
 //            'file' => 'nullable|file|max:' . (max(round($max_size / 1024),0)),
         ], [
             'title.required' => __('validation.custom_messages.title_required'),
@@ -366,6 +418,7 @@ class MediaController extends Controller
         }
 
         $mediaData = $request->all();
+        $mediaData['user_id'] = trim((string) ($request->input('user_id') ?? '')) ?: null;
 
 //        $file = null;
 //        if($request->has('file')) {
@@ -875,6 +928,25 @@ class MediaController extends Controller
         return redirect()->route('admin.media.index');
     }
 
+    public function account_destroy(Request $request, Media $media): RedirectResponse|JsonResponse
+    {
+        $this->authorizeMediaOwnership($media);
+
+        $media->delete();
+        session()->flash('message', 'Media has been deleted');
+        session()->flash('message-title', 'Media deleted');
+        session()->flash('message-type', 'danger');
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'redirect' => route('account.media.index'),
+            ]);
+        }
+
+        return redirect()->route('account.media.index');
+    }
+
 
     /**
      * @throws FileInvalidException
@@ -1030,6 +1102,9 @@ class MediaController extends Controller
 
     private function publicMediaPayload(Media $media): array
     {
+        $isPrivate = $this->isPrivateMedia($media);
+        $canDelete = $this->canDeleteMedia($media);
+
         return [
             'name' => (string) $media->name,
             'title' => (string) $media->title,
@@ -1039,15 +1114,25 @@ class MediaController extends Controller
             'url' => (string) $media->url,
             'thumbnail' => (string) $media->thumbnail,
             'file_type' => (string) $media->file_type,
+            'is_private' => $isPrivate,
             'password' => Auth::user()?->isAdmin() ? ($media->password ? 'yes' : null) : null,
+            'can_delete' => $canDelete,
+            'delete_url' => $canDelete ? route('account.media.destroy', $media) : null,
         ];
     }
 
     private function authorizeMediaAccess(Media $media): void
     {
         $isAdmin = (bool) (Auth::user()?->isAdmin() ?? false);
-        if (! $isAdmin && $this->isPrivateAdminMedia($media)) {
+        if (! $isAdmin && $this->isPrivateAdminMedia($media) && ! $this->ownsMedia($media)) {
             abort(403, 'You are not authorized to access this file.');
+        }
+    }
+
+    private function authorizeMediaOwnership(Media $media): void
+    {
+        if (! $this->ownsMedia($media)) {
+            abort(403, 'You are not authorized to manage this file.');
         }
     }
 
@@ -1057,5 +1142,48 @@ class MediaController extends Controller
             ->where('media_name', (string) $media->name)
             ->where('collection', 'private')
             ->exists();
+    }
+
+    private function isPrivateMedia(Media $media): bool
+    {
+        if ($this->isPrivateAdminMedia($media)) {
+            return true;
+        }
+
+        $ownerId = trim((string) ($media->user_id ?? ''));
+        if ($ownerId === '') {
+            return false;
+        }
+
+        if ($media->relationLoaded('user') && $media->user instanceof User) {
+            return ! $media->user->isAdmin();
+        }
+
+        return ! DB::table('user_groups')
+            ->where('user_id', $ownerId)
+            ->where('slug', 'admin')
+            ->exists();
+    }
+
+    private function ownsMedia(Media $media): bool
+    {
+        $userId = (string) (Auth::id() ?? '');
+
+        return $userId !== '' && $userId === (string) ($media->user_id ?? '');
+    }
+
+    private function canDeleteMedia(Media $media): bool
+    {
+        return ! Auth::user()?->isAdmin() && $this->ownsMedia($media);
+    }
+
+    private function mediaOwners()
+    {
+        return User::query()
+            ->whereNotNull('email_verified_at')
+            ->orderBy('firstname')
+            ->orderBy('surname')
+            ->orderBy('email')
+            ->get();
     }
 }

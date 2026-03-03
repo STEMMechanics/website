@@ -1,41 +1,41 @@
 @php
-    $rememberedEmailValue = (string) ($rememberedEmail ?? '');
+    $rememberedLoginValue = (string) ($rememberedLogin ?? '');
     $rememberEmailOld = old('remember_email');
     $rememberEmailInitial = $rememberEmailOld !== null
         ? in_array((string) $rememberEmailOld, ['1', 'on', 'true'], true)
-        : ($rememberedEmailValue !== '');
+        : ($rememberedLoginValue !== '');
 @endphp
 
 <x-layout :bodyClass="'image-background'">
     <x-dialog formaction="{{ route('login.store') }}">
         <x-altcha-proof />
         @if(session('status') == 'not-found')
-            <x-slot:title>Sorry, we didn't recognize that email</x-slot:title>
+            <x-slot:title>Sorry, we didn't recognize that login</x-slot:title>
             <x-slot:header>
-                <p>Would you like to sign in with a different email?</p>
+                <p>Would you like to sign in with a different email or username?</p>
             </x-slot:header>
         @else
-        <x-slot:title>Sign in with email</x-slot:title>
+        <x-slot:title>Sign in</x-slot:title>
         <x-slot:header>
-            <p>Enter the email address associated with your account</p>
+            <p>Enter the email address or username associated with your account</p>
         </x-slot:header>
         @endif
         <x-ui.input
-            type="email"
-            name="email"
-            id="login_email"
-            label="Email"
-            value="{{ old('email', $rememberedEmailValue) }}"
+            type="text"
+            name="login"
+            id="login_identifier"
+            label="Email or Username"
+            value="{{ old('login', old('email', $rememberedLoginValue)) }}"
             floating
             autofocus
-            data-remembered-email="{{ $rememberedEmailValue }}"
+            data-remembered-login="{{ $rememberedLoginValue }}"
         />
         <input type="hidden" name="remember_email" value="0" />
         <x-ui.checkbox
             id="remember_email"
             name="remember_email"
             value="1"
-            label="Remember email on this device"
+            label="Remember login on this device"
             checked="{{ $rememberEmailInitial }}"
             small
         />
@@ -48,13 +48,13 @@
     @pushOnce('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', () => {
-                const emailInput = document.getElementById('login_email');
+                const emailInput = document.getElementById('login_identifier');
                 const rememberCheckbox = document.getElementById('remember_email');
                 if (!emailInput || !rememberCheckbox) {
                     return;
                 }
 
-                const remembered = String(emailInput.dataset.rememberedEmail || '').trim().toLowerCase();
+                const remembered = String(emailInput.dataset.rememberedLogin || '').trim().toLowerCase();
                 if (remembered === '') {
                     return;
                 }

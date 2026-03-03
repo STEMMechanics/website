@@ -16,6 +16,7 @@ import {SmileyReplacer} from "./SmileyReplacer.js";
 import {Small} from "./Small.js";
 import {ExtraSmall} from "./ExtraSmall.js";
 import {Box} from "./Box.js";
+import {Spoiler} from "./Spoiler.js";
 
 let cachedLinkOptions = null;
 
@@ -1303,6 +1304,18 @@ document.addEventListener('alpine:init', () => {
         return {
             updatedAt: Date.now(), // force Alpine to rerender on selection change
             content: SM.decodeHtml(content),
+            setExternalContent(html = '', options = {}) {
+                const nextContent = SM.decodeHtml(html);
+                this.content = nextContent;
+
+                if (editor) {
+                    editor.commands.setContent(nextContent, false);
+                    if (options.focusEnd) {
+                        editor.chain().focus('end').run();
+                    }
+                    this.updatedAt = Date.now();
+                }
+            },
             init() {
                 const _this = this
 
@@ -1333,7 +1346,8 @@ document.addEventListener('alpine:init', () => {
                         SmileyReplacer,
                         Small,
                         ExtraSmall,
-                        Box
+                        Box,
+                        Spoiler
                     ],
                     content: content,
                     onCreate({/* editor */}) {
@@ -1543,6 +1557,9 @@ document.addEventListener('alpine:init', () => {
             },
             toggleHighlight() {
                 editor.chain().toggleHighlight().focus().run()
+            },
+            toggleSpoiler() {
+                editor.chain().toggleSpoiler().focus().run()
             },
             toggleSubscript() {
                 editor.chain().toggleSubscript().focus().run()

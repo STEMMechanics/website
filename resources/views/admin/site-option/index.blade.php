@@ -8,6 +8,7 @@
             data-reset-all-url="{{ route('admin.site_option.reset-defaults') }}"
             data-update-url-template="{{ route('admin.site_option.update', ['siteOption' => '__ID__']) }}"
             data-reset-url-template="{{ route('admin.site_option.reset-default', ['siteOption' => '__ID__']) }}"
+            data-generate-secret-url-template="{{ route('admin.site_option.generate-secret', ['siteOption' => '__ID__']) }}"
         >
             <x-ui.toolbar>
                 <x-slot:left>
@@ -39,7 +40,8 @@
                     $defaultDescription = $hasDefault ? (string) (\App\Models\SiteOption::defaultDescription((string) $siteOption->name) ?? '') : '';
                     $valueRawEncoded = base64_encode($valueRaw);
                     $defaultValueEncoded = base64_encode($defaultValue);
-                    $isNumericOption = (string) $siteOption->name === 'tickets.hold-minutes';
+                    $inputType = \App\Models\SiteOption::inputType((string) $siteOption->name);
+                    $canGenerateSecret = (string) $siteOption->name === 'minecraft.webhook-secret';
                     @endphp
                     <tr
                         id="site-option-row-{{ $siteOption->id }}"
@@ -47,7 +49,7 @@
                         data-option-name="{{ $siteOption->name }}"
                         data-option-value-base64="{{ $valueRawEncoded }}"
                         data-option-default-base64="{{ $defaultValueEncoded }}"
-                        data-option-input-type="{{ $isNumericOption ? 'number' : 'textarea' }}"
+                        data-option-input-type="{{ $inputType }}"
                     >
                         <td class="whitespace-nowrap!">
                             <div>{{ $siteOption->name }}</div>
@@ -82,6 +84,16 @@
                                         data-reset-option="{{ $siteOption->id }}"
                                     >
                                         <i class="fa-solid fa-rotate-left"></i>
+                                    </button>
+                                @endif
+                                @if($canGenerateSecret)
+                                    <button
+                                        type="button"
+                                        class="hover:text-primary-color"
+                                        title="Generate new secret"
+                                        data-generate-secret="{{ $siteOption->id }}"
+                                    >
+                                        <i class="fa-solid fa-key"></i>
                                     </button>
                                 @endif
                             </div>
@@ -123,6 +135,13 @@
                             step="1"
                             class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
                         />
+                        <select
+                            id="site-option-modal-boolean"
+                            class="hidden w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        >
+                            <option value="1">Enabled</option>
+                            <option value="0">Disabled</option>
+                        </select>
                     </div>
                     <div class="flex justify-end gap-3 border-t border-gray-200 px-5 py-4">
                         <x-ui.button type="button" color="outline" id="site-option-modal-cancel">Cancel</x-ui.button>
@@ -155,11 +174,13 @@
         const updateUrlTemplate = String(root.dataset.updateUrlTemplate || '');
         const resetUrlTemplate = String(root.dataset.resetUrlTemplate || '');
         const resetAllUrl = String(root.dataset.resetAllUrl || '');
+        const generateSecretUrlTemplate = String(root.dataset.generateSecretUrlTemplate || '');
 
         const modal = document.getElementById('site-option-modal');
         const modalName = document.getElementById('site-option-modal-name');
         const modalValue = document.getElementById('site-option-modal-value');
         const modalNumber = document.getElementById('site-option-modal-number');
+        const modalBoolean = document.getElementById('site-option-modal-boolean');
         const modalClose = document.getElementById('site-option-modal-close');
         const modalCancel = document.getElementById('site-option-modal-cancel');
         const modalSave = document.getElementById('site-option-modal-save');
@@ -244,7 +265,7 @@
 
         const openModal = (id) => {
             const row = rowForId(id);
-            if (!row || !modal || !modalName || !modalValue || !modalNumber) {
+            if (!row || !modal || !modalName || !modalValue || !modalNumber || !modalBoolean) {
                 return;
             }
 
@@ -254,16 +275,28 @@
             const decodedValue = decodeBase64Utf8(row.dataset.optionValueBase64 || '');
             modalValue.value = decodedValue;
             modalNumber.value = decodedValue;
-            modalValue.classList.toggle('hidden', inputType === 'number');
+            modalBoolean.value = decodedValue === '0' ? '0' : '1';
+            modalValue.classList.toggle('hidden', inputType !== 'textarea');
             modalNumber.classList.toggle('hidden', inputType !== 'number');
+            modalBoolean.classList.toggle('hidden', inputType !== 'boolean');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             modal.setAttribute('aria-hidden', 'false');
-            setTimeout(() => (inputType === 'number' ? modalNumber : modalValue).focus(), 0);
+            setTimeout(() => {
+                if (inputType === 'number') {
+                    modalNumber.focus();
+                    return;
+                }
+                if (inputType === 'boolean') {
+                    modalBoolean.focus();
+                    return;
+                }
+                modalValue.focus();
+            }, 0);
         };
 
         const closeModal = () => {
-            if (!modal || !modalValue || !modalNumber) {
+            if (!modal || !modalValue || !modalNumber || !modalBoolean) {
                 return;
             }
 
@@ -273,8 +306,10 @@
             modal.setAttribute('aria-hidden', 'true');
             modalValue.value = '';
             modalNumber.value = '';
+            modalBoolean.value = '1';
             modalValue.classList.remove('hidden');
             modalNumber.classList.add('hidden');
+            modalBoolean.classList.add('hidden');
         };
 
         const confirmDialog = (title, html, confirmButtonText, confirmButtonColor) => {
@@ -331,17 +366,57 @@
                     }
                 }
             }
+
+            const generateSecretButton = event.target.closest('[data-generate-secret]');
+            if (generateSecretButton) {
+                const optionId = Number(generateSecretButton.getAttribute('data-generate-secret'));
+                const row = rowForId(optionId);
+                if (!row) {
+                    return;
+                }
+
+                const result = await confirmDialog(
+                    'Generate a new secret?',
+                    'This will immediately replace the current value for <strong>' + String(row.dataset.optionName || '') + '</strong>. You will need to update the same secret in the STEMCraft Java plugin as well.',
+                    'Generate Secret',
+                    '#1d4ed8'
+                );
+
+                if (!result || result.isConfirmed !== true) {
+                    return;
+                }
+
+                try {
+                    const payload = await fetchJson(generateSecretUrlTemplate.replace('__ID__', String(optionId)), {
+                        method: 'POST',
+                    });
+                    updateRow(payload.option || null);
+                    if (window.SM && typeof window.SM.alert === 'function') {
+                        window.SM.alert('Secret generated', 'A new STEMCraft webhook secret was created. Update the Java plugin to match.', 'success');
+                    }
+                } catch (error) {
+                    if (window.SM && typeof window.SM.notice === 'function') {
+                        window.SM.notice('Generation failed', error.message || 'Could not generate a new secret.', 'danger');
+                    }
+                }
+            }
         });
 
         if (modalSave) {
             modalSave.addEventListener('click', async () => {
-                if (!currentOptionId || !modalValue || !modalNumber) {
+                if (!currentOptionId || !modalValue || !modalNumber || !modalBoolean) {
                     return;
                 }
 
                 const row = rowForId(currentOptionId);
                 const inputType = String(row?.dataset.optionInputType || 'textarea');
-                const valueToSave = inputType === 'number' ? modalNumber.value : modalValue.value;
+                let valueToSave = modalValue.value;
+                if (inputType === 'number') {
+                    valueToSave = modalNumber.value;
+                }
+                if (inputType === 'boolean') {
+                    valueToSave = modalBoolean.value;
+                }
 
                 try {
                     modalSave.disabled = true;

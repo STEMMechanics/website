@@ -58,6 +58,7 @@
                         <x-slot:header>
                             <th>Date</th>
                             <th class="hidden md:table-cell">Customer</th>
+                            <th>Summary</th>
                             <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
                         </x-slot:header>
                         <x-slot:body>
@@ -68,6 +69,7 @@
                                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $payment->user?->getName() ?? '-' }}</div>
                                     </td>
                                     <td class="hidden md:table-cell">{{ $payment->user?->getName() ?? '-' }}</td>
+                                    <td>{{ $payment->bas_summary ?: '-' }}</td>
                                     <td class="text-right">
                                         <div>{{ money((float) ($payment->bas_total_amount ?? $payment->total_amount)) }}</div>
                                         <div class="text-xs">GST: {{ money((float) ($payment->bas_gst_amount ?? $payment->gst_amount)) }}</div>
@@ -89,6 +91,7 @@
                             <th>Date</th>
                             <th class="hidden md:table-cell">Supplier</th>
                             <th class="hidden md:table-cell">Invoice ID</th>
+                            <th>Description</th>
                             <th>Total <span class="font-normal text-xs">(incl GST)</span></th>
                         </x-slot:header>
                         <x-slot:body>
@@ -106,6 +109,7 @@
                                     </td>
                                     <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
                                     <td class="hidden md:table-cell">{{ $expense->invoice_id ?: '-' }}</td>
+                                    <td>{{ $expense->description ?: '-' }}</td>
                                     <td class="text-right">
                                         <div>{{ money($expenseTotal) }}</div>
                                         <div class="text-xs">GST: {{ money($expenseGst) }}</div>

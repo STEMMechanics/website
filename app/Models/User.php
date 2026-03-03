@@ -8,10 +8,13 @@ use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -27,6 +30,11 @@ class User extends Authenticatable implements MustVerifyEmail
         'surname',
         'company',
         'email',
+        'avatar_media_name',
+        'avatar_zoom',
+        'avatar_offset_x',
+        'avatar_offset_y',
+        'username',
         'phone',
         'shipping_address',
         'shipping_address2',
@@ -63,6 +71,9 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'avatar_zoom' => 'integer',
+        'avatar_offset_x' => 'integer',
+        'avatar_offset_y' => 'integer',
     ];
 
     /**
@@ -78,6 +89,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public static function boot()
     {
         parent::boot();
+
+        static::creating(function (self $user): void {
+            $isAdmin = (bool) ($user->admin ?? false) || $user->hasGroup('admin');
+            $user->username = static::ensureUniqueUsername(
+                (string) ($user->username ?? ''),
+                (string) ($user->email ?? ''),
+                $isAdmin,
+                null
+            );
+        });
+
+        static::saving(function (self $user): void {
+            $isAdmin = (bool) ($user->admin ?? false) || $user->hasGroup('admin');
+            $user->username = static::ensureUniqueUsername(
+                (string) ($user->username ?? ''),
+                (string) ($user->email ?? ''),
+                $isAdmin,
+                $user->exists ? (string) $user->id : null
+            );
+        });
 
         static::updating(function ($user) {
             if ($user->isDirty('email')) {
@@ -141,6 +172,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
         if ($this->firstname || $this->surname) {
             $name = implode(' ', [$this->firstname, $this->surname]);
+        } else if ((string) $this->username !== '') {
+            $name = (string) $this->username;
         } else {
             $name = substr($this->email, 0, strpos($this->email, '@'));
         }
@@ -183,6 +216,53 @@ class User extends Authenticatable implements MustVerifyEmail
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * @return HasMany<MinecraftAccount, $this>
+     */
+    public function minecraftAccounts(): HasMany
+    {
+        return $this->hasMany(MinecraftAccount::class);
+    }
+
+    public function forumTopics(): HasMany
+    {
+        return $this->hasMany(ForumTopic::class);
+    }
+
+    public function forumPosts(): HasMany
+    {
+        return $this->hasMany(ForumPost::class);
+    }
+
+    public function forumTopicStates(): HasMany
+    {
+        return $this->hasMany(ForumTopicUserState::class);
+    }
+
+    public function media(): HasMany
+    {
+        return $this->hasMany(Media::class);
+    }
+
+    public function avatarMedia(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'avatar_media_name');
+    }
+
+    public function avatarImageStyle(): string
+    {
+        $zoom = max(100, min(250, (int) ($this->avatar_zoom ?? 100))) / 100;
+        $offsetX = max(-50, min(50, (int) ($this->avatar_offset_x ?? 0)));
+        $offsetY = max(-50, min(50, (int) ($this->avatar_offset_y ?? 0)));
+
+        return sprintf(
+            'width:100%%;height:100%%;object-fit:cover;transform:translate(%d%%,%d%%) scale(%.2F);transform-origin:center center;',
+            $offsetX,
+            $offsetY,
+            $zoom
+        );
     }
 
     public function createdPayments(): HasMany
@@ -228,6 +308,129 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->hasGroup('admin');
+    }
+
+    public function hasMinecraftAccess(): bool
+    {
+        return $this->hasGroup('minecraft');
+    }
+
+    public static function normalizeUsername(string $value): string
+    {
+        $normalized = Str::of($value)
+            ->lower()
+            ->replaceMatches('/[^a-z0-9._-]+/', '-')
+            ->replaceMatches('/[-_.]{2,}/', '-')
+            ->trim('-_.')
+            ->value();
+
+        return substr($normalized, 0, 32);
+    }
+
+    public static function containsRestrictedUsernameTerm(string $username): bool
+    {
+        $tokens = collect(preg_split('/[._-]+/', static::normalizeUsername($username)) ?: [])
+            ->map(fn ($token) => trim((string) $token))
+            ->filter(fn ($token) => $token !== '')
+            ->values();
+
+        if ($tokens->isEmpty()) {
+            return false;
+        }
+
+        $restrictedTerms = static::restrictedUsernameTerms();
+
+        foreach ($restrictedTerms as $term) {
+            if ($tokens->contains($term)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function generateUniqueUsernameFromEmail(string $email, ?string $ignoreUserId = null, bool $allowRestrictedTerms = false): string
+    {
+        $localPart = trim((string) Str::before($email, '@'));
+        $base = static::normalizeUsername($localPart);
+
+        if ($base === '') {
+            $base = 'member';
+        }
+
+        if (! $allowRestrictedTerms && static::containsRestrictedUsernameTerm($base)) {
+            $base = static::normalizeUsername(static::stripRestrictedUsernameTerms($base));
+        }
+
+        if ($base === '' || (! $allowRestrictedTerms && static::containsRestrictedUsernameTerm($base))) {
+            $base = 'member';
+        }
+
+        return static::generateUniqueUsername($base, $ignoreUserId, $allowRestrictedTerms);
+    }
+
+    public static function generateUniqueUsername(string $requestedUsername, ?string $ignoreUserId = null, bool $allowRestrictedTerms = false): string
+    {
+        $base = static::normalizeUsername($requestedUsername);
+        if ($base === '' || (! $allowRestrictedTerms && static::containsRestrictedUsernameTerm($base))) {
+            $base = 'member';
+        }
+
+        $candidate = $base;
+        $counter = 1;
+
+        while (static::query()
+            ->when($ignoreUserId !== null && $ignoreUserId !== '', fn ($query) => $query->where('id', '!=', $ignoreUserId))
+            ->where('username', $candidate)
+            ->exists()) {
+            $suffix = (string) $counter++;
+            $truncatedBase = substr($base, 0, max(1, 32 - strlen($suffix)));
+            $candidate = $truncatedBase.$suffix;
+        }
+
+        return $candidate;
+    }
+
+    public static function ensureUniqueUsername(string $requestedUsername, string $email, bool $allowRestrictedTerms, ?string $ignoreUserId = null): string
+    {
+        $normalized = static::normalizeUsername($requestedUsername);
+        if ($normalized === '') {
+            return static::generateUniqueUsernameFromEmail($email, $ignoreUserId, $allowRestrictedTerms);
+        }
+
+        return static::generateUniqueUsername($normalized, $ignoreUserId, $allowRestrictedTerms);
+    }
+
+    public static function restrictedUsernameTerms(): array
+    {
+        $default = SiteOption::defaultValue('users.restricted-usernames')
+            ?? 'stemcraft, stemmechanics, stemmech, admin, administrator, staff, mod, moderator, owner, support';
+
+        $rawValue = $default;
+        if (Schema::hasTable('site_options')) {
+            $rawValue = SiteOption::value('users.restricted-usernames', $default) ?? $default;
+        }
+
+        return collect(explode(',', strtolower($rawValue)))
+            ->map(fn ($value) => static::normalizeUsername((string) $value))
+            ->filter(fn ($value) => $value !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private static function stripRestrictedUsernameTerms(string $username): string
+    {
+        $tokens = collect(preg_split('/[._-]+/', static::normalizeUsername($username)) ?: [])
+            ->map(fn ($token) => trim((string) $token))
+            ->filter(fn ($token) => $token !== '');
+
+        $remainingTokens = $tokens
+            ->reject(fn ($token) => in_array($token, static::restrictedUsernameTerms(), true))
+            ->values()
+            ->all();
+
+        return implode('-', $remainingTokens);
     }
 
     /**

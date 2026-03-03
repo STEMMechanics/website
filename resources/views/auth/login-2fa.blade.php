@@ -1,8 +1,8 @@
 @php
-if(!isset($email)) {
-$email = '';
+if(!isset($login)) {
+$login = '';
 if(isset($user)) {
-$email = $user->email;
+$login = $user->username ?: $user->email;
 }
 }
 @endphp
@@ -16,7 +16,7 @@ $email = $user->email;
             <x-slot:header>
                 <p class="text-sm">Two-factor authentication (2FA) is enabled for your account. Please enter a code to log in.</p>
             </x-slot:header>
-            <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
+            <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
             <x-altcha-proof />
             <x-ui.input
                 type="tel"
@@ -51,7 +51,7 @@ $email = $user->email;
                 <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
                     @csrf
                     <x-altcha-proof />
-                    <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
+                    <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
                     <input type="hidden" name="method" value="email" />
                     <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>
                 </form>
@@ -71,7 +71,7 @@ $email = $user->email;
                 <p class="text-sm">Enter one of your backup codes below to log in. Once a backup codes are a 1 time use only.</p>
             </x-slot:header>
             <x-altcha-proof />
-            <input type="hidden" name="email" value="{{ $email }}" autocomplete="username" />
+            <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
             <x-ui.input
                 type="text"
                 name="backup_code"

@@ -3,6 +3,8 @@
 namespace App;
 
 use DateTime;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 class Helpers
@@ -10,12 +12,24 @@ class Helpers
     /**
      * Get the maximum upload size in bytes.
      */
-    public static function getMaxUploadSize(): int
+    public static function getMaxUploadSize(?User $user = null): int
     {
+        $user = $user ?: Auth::user();
+
         return min(
+            self::roleUploadCap($user),
             self::stringToBytes(ini_get('post_max_size')),
             self::stringToBytes(ini_get('upload_max_filesize'))
         );
+    }
+
+    public static function roleUploadCap(?User $user = null): int
+    {
+        if ($user?->isAdmin()) {
+            return 512 * 1024 * 1024;
+        }
+
+        return 25 * 1024 * 1024;
     }
     public static function stringToBytes(string $val): int
     {

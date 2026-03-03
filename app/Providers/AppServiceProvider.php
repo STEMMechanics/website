@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\ContentFilter;
 use App\Models\AuditLog;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -13,6 +14,7 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\TicketPolicy;
+use App\Support\SiteOptionContentFilter;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -34,7 +36,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(ContentFilter::class, SiteOptionContentFilter::class);
     }
 
     /**
@@ -60,6 +62,12 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute(20)->by($request->ip())];
         });
 
+        RateLimiter::for('forum-report', function (Request $request): array {
+            $userKey = $request->user()?->id ? (string) $request->user()->id : 'guest';
+
+            return [Limit::perMinute(8)->by($request->ip().'|'.$userKey)];
+        });
+
         $appUrl = (string) config('app.url');
         $shouldForceHttps = str_starts_with($appUrl, 'https://') || $this->app->environment('production');
 
@@ -79,12 +87,16 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Login::class, function (Login $event): void {
             $request = app()->bound('request') ? request() : null;
+            $actorUserId = (string) $event->user->getAuthIdentifier();
+            if (! User::query()->whereKey($actorUserId)->exists()) {
+                $actorUserId = null;
+            }
 
             AuditLog::query()->create([
                 'event' => 'login',
                 'auditable_type' => User::class,
                 'auditable_id' => (string) $event->user->getAuthIdentifier(),
-                'actor_user_id' => (string) $event->user->getAuthIdentifier(),
+                'actor_user_id' => $actorUserId,
                 'ip_address' => $request?->ip(),
                 'user_agent' => $request?->userAgent(),
                 'url' => $request?->fullUrl(),

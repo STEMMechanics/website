@@ -27,6 +27,7 @@ use App\Services\WorkshopTicketService;
 use App\Support\AltchaTrust;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use GrantHolle\Altcha\Rules\ValidAltcha;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -492,6 +493,149 @@ class TicketController extends Controller
         return redirect()->back();
     }
 
+    public function adminBulkCancel(Request $request, SquareApiService $squareApi): RedirectResponse|JsonResponse
+    {
+        $user = $request->user();
+        abort_if(! $user || ! $user->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'ticket_ids' => ['required', 'array', 'min:1'],
+            'ticket_ids.*' => ['integer', 'min:1'],
+            'process_square_refund' => ['nullable', 'boolean'],
+        ]);
+
+        $ticketIds = collect($validated['ticket_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        if ($ticketIds === []) {
+            $message = 'No tickets were selected for cancellation.';
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                ], 422);
+            }
+
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Ticket cancellation failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $tickets = Ticket::query()
+            ->with(['workshop', 'invoice'])
+            ->whereIn('id', $ticketIds)
+            ->get()
+            ->keyBy(fn (Ticket $ticket): int => (int) $ticket->id);
+
+        $processSquareRefunds = $request->boolean('process_square_refund', true);
+        $cancelledCount = 0;
+        $failureMessages = [];
+        $refundedCentsTotal = 0;
+        $manualRefundRequiredCount = 0;
+        $alreadyAdjustedCount = 0;
+
+        foreach ($ticketIds as $ticketId) {
+            $ticket = $tickets->get($ticketId);
+            if (! $ticket instanceof Ticket) {
+                $failureMessages[] = 'Ticket #'.$ticketId.' was not found.';
+                continue;
+            }
+
+            $ticketLabel = (string) ($ticket->reference_code ?: '#'.$ticket->id);
+
+            try {
+                $summary = $this->cancelTicketWithFinancials(
+                    ticket: $ticket,
+                    squareApi: $squareApi,
+                    initiatedByAdmin: true,
+                    reason: 'Admin cancelled ticket',
+                    processSquareRefunds: $processSquareRefunds
+                );
+            } catch (ValidationException $e) {
+                $message = (string) collect($e->errors())->flatten()->first();
+                $failureMessages[] = ($message !== '' ? $message : 'Unable to cancel ticket '.$ticketLabel.'.');
+                continue;
+            } catch (RuntimeException $e) {
+                $failureMessages[] = $e->getMessage() !== '' ? $e->getMessage() : ('Unable to cancel ticket '.$ticketLabel.'.');
+                continue;
+            }
+
+            $cancelledCount++;
+            $refundedCentsTotal += (int) ($summary['refunded_cents'] ?? 0);
+            if ((bool) ($summary['manual_refund_required'] ?? false)) {
+                $manualRefundRequiredCount++;
+            }
+            if ((bool) ($summary['already_adjusted'] ?? false)) {
+                $alreadyAdjustedCount++;
+            }
+
+            try {
+                $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
+                if ($freshTicket instanceof Ticket) {
+                    $refundPaymentIds = array_map('intval', (array) ($summary['refund_payment_ids'] ?? []));
+                    $this->sendRefundReceiptEmailsForTicket($freshTicket, $refundPaymentIds);
+                    $this->sendCancellationDocumentBundleForTicket($request, $freshTicket, $refundPaymentIds);
+                    $this->sendCancellationNoticeEmail($request, $freshTicket, $summary);
+                }
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        if ($cancelledCount === 0) {
+            $message = (string) ($failureMessages[0] ?? 'Unable to cancel selected tickets.');
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'errors' => $failureMessages,
+                ], 422);
+            }
+
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Ticket cancellation failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $message = 'Cancelled '.$cancelledCount.' ticket'.($cancelledCount === 1 ? '' : 's').'.';
+        if ($refundedCentsTotal > 0) {
+            $message .= ' Square refunds issued: $'.number_format($refundedCentsTotal / 100, 2).'.';
+        }
+        if ($manualRefundRequiredCount > 0) {
+            $message .= ' '.$manualRefundRequiredCount.' ticket'.($manualRefundRequiredCount === 1 ? ' requires' : 's require').' manual refund follow-up.';
+        }
+        if ($alreadyAdjustedCount > 0) {
+            $message .= ' '.$alreadyAdjustedCount.' ticket'.($alreadyAdjustedCount === 1 ? ' already had' : 's already had').' refund/credit adjustments.';
+        }
+        if (count($failureMessages) > 0) {
+            $message .= ' '.count($failureMessages).' ticket'.(count($failureMessages) === 1 ? '' : 's').' could not be cancelled.';
+        }
+
+        if ($request->expectsJson()) {
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Ticket cancellation complete');
+            session()->flash('message-type', count($failureMessages) > 0 ? 'warning' : 'success');
+
+            return response()->json([
+                'message' => $message,
+                'cancelled_count' => $cancelledCount,
+                'failed_count' => count($failureMessages),
+                'errors' => $failureMessages,
+            ]);
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Ticket cancellation complete');
+        session()->flash('message-type', count($failureMessages) > 0 ? 'warning' : 'success');
+
+        return redirect()->back();
+    }
+
     public function invoicePdf(Request $request, Ticket $ticket)
     {
         $this->abortIfTicketNotAccessible($request, $ticket);
@@ -945,7 +1089,7 @@ class TicketController extends Controller
         $lineTotalEx = $invoiceLine ? (float) $invoiceLine->line_total_ex_tax : ((float) $invoice->subtotal_amount);
         $lineTotalInc = $invoiceLine ? (float) $invoiceLine->line_total_inc_tax : ((float) $invoice->total_amount);
         $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : 0.10;
-        $description = $invoiceLine->description ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket refund');
+        $description = ($invoiceLine?->description) ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket refund');
         $sourceType = $invoiceLine?->source_type;
         $sourceId = $invoiceLine?->source_id;
         $originalInvoiceLineId = $invoiceLine?->id;

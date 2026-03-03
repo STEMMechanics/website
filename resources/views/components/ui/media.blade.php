@@ -39,6 +39,13 @@
             placeholderElement.classList.add('hidden!');
 
             document.getElementById(name).value = value;
+            window.dispatchEvent(new CustomEvent('sm-media-updated', {
+                detail: {
+                    name,
+                    value,
+                    details,
+                },
+            }));
         });
     }
 

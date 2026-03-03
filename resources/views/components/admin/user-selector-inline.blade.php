@@ -6,6 +6,7 @@
 'label' => 'Linked User',
 'info' => 'Search by name/company/email. Select a suggestion to link this record.',
 'disabled' => false,
+'allowCreate' => true,
 ])
 
 @php
@@ -205,7 +206,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
                         autocomplete="off"
                         placeholder="Search by name/company/email"
                         @if($disabled) disabled @endif />
-                    @if(! $disabled)
+                    @if(! $disabled && $allowCreate)
                     <x-ui.button type="button" x-on:click.prevent="openCreateUser()">New User</x-ui.button>
                     @endif
                 </div>
@@ -230,6 +231,7 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
         </div>
     </div>
 
+    @if($allowCreate)
     <div x-show="createUserOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="closeCreateUser()" x-on:keydown.enter.prevent="submitCreateUser()">
         <div class="w-full max-w-xl rounded-lg bg-white p-4 shadow-lg">
             <div class="mb-3 flex items-center justify-between">
@@ -298,4 +300,5 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             </div>
         </div>
     </div>
+    @endif
 </div>

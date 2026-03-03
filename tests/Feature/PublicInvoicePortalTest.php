@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Invoice;
+use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class PublicInvoicePortalTest extends TestCase
@@ -41,5 +44,32 @@ class PublicInvoicePortalTest extends TestCase
         $response->assertDontSee('pat.client@example.com');
         $response->assertDontSee('Pat Client Pty Ltd');
     }
-}
 
+    public function test_signed_invoice_receipt_pdf_route_resolves_for_linked_payment(): void
+    {
+        $user = User::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 110.00,
+        ]);
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'total_amount' => 110.00,
+        ]);
+
+        InvoicePaymentAllocation::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 110.00,
+        ]);
+
+        $url = URL::signedRoute('invoice.receipt.pdf', [
+            'invoice' => $invoice->id,
+            'payment' => $payment->id,
+        ]);
+
+        $this->get($url)->assertOk();
+    }
+}

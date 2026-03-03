@@ -42,7 +42,7 @@
                     <x-ui.input type="email" name="email" label="Purchaser Email" value="{{ old('email', $prefill['email']) }}" required />
                     <x-ui.input name="phone" label="Purchaser Phone" value="{{ old('phone', $prefill['phone']) }}" required />
 
-                    <div class="flex justify-between mt-6">
+                    <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                         <x-ui.button type="link" color="outline" href="{{ route('workshop.show', $workshop) }}">Back</x-ui.button>
                         <x-ui.button type="submit">{{ $ticketPriceAmount > 0 ? 'Continue to Payment' : 'Reserve Tickets' }}</x-ui.button>
                     </div>

@@ -38,7 +38,7 @@ class RememberedDeviceAuthTest extends TestCase
 
         $response = $this->withSession($this->trustedAltchaSessionPayload())
             ->post(route('login.store'), [
-                'email' => $user->email,
+                'login' => $user->email,
                 'remember_email' => '1',
             ]);
 
@@ -55,7 +55,7 @@ class RememberedDeviceAuthTest extends TestCase
 
         $postResponse = $this->withSession($this->trustedAltchaSessionPayload())
             ->post(route('login.store'), [
-                'email' => $user->email,
+                'login' => $user->email,
                 'remember_email' => '1',
             ]);
 
@@ -85,7 +85,7 @@ class RememberedDeviceAuthTest extends TestCase
         $response = $this->withCookie(RememberedDeviceManager::EMAIL_COOKIE, $user->email)
             ->withSession($this->trustedAltchaSessionPayload())
             ->post(route('login.store'), [
-                'email' => $user->email,
+                'login' => $user->email,
                 'remember_email' => '0',
             ]);
 
@@ -123,6 +123,7 @@ class RememberedDeviceAuthTest extends TestCase
             ->post(route('account.update'), [
                 '_token' => 'test-csrf-token',
                 'email' => $user->email,
+                'username' => $user->username,
                 'keep_signed_in_device' => 'on',
             ]);
 
@@ -246,6 +247,7 @@ class RememberedDeviceAuthTest extends TestCase
             ->post(route('account.update'), [
                 '_token' => 'test-csrf-token',
                 'email' => $user->email,
+                'username' => $user->username,
                 'keep_signed_in_device' => 'on',
                 'remembered_device_hint' => 'ipad',
                 'remembered_device_touch_points' => '5',
@@ -290,6 +292,7 @@ class RememberedDeviceAuthTest extends TestCase
             ->post(route('account.update'), [
                 '_token' => 'test-csrf-token',
                 'email' => $user->email,
+                'username' => $user->username,
                 'keep_signed_in_device' => 'on',
                 'current_device_nickname' => $nickname,
                 'remembered_device_nicknames' => [
@@ -324,6 +327,7 @@ class RememberedDeviceAuthTest extends TestCase
             ->post(route('account.update'), [
                 '_token' => 'test-csrf-token',
                 'email' => 'not-an-email',
+                'username' => $user->username,
                 'keep_signed_in_device' => 'on',
             ]);
 

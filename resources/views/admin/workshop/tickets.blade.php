@@ -72,22 +72,133 @@
             </div>
         </div>
 
-        <div class="flex my-4 items-center gap-2">
-            <div class="flex-1 flex gap-2">
+        <div class="my-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div class="flex flex-1 flex-wrap gap-2">
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
                 <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">Ticket Roll PDF</x-ui.button>
                 <x-ui.button type="button" color="outline" x-on:click.prevent="bulkEmailOpen = true">Email Ticket Contacts</x-ui.button>
             </div>
-            <div class="flex-1">
-                <x-ui.search name="search" label="Search Tickets" />
+            <div class="w-full lg:w-auto lg:min-w-[18rem] lg:flex-1">
+                <x-ui.search name="search" label="Search Tickets" class="w-full" />
             </div>
         </div>
 
         @if($tickets->isEmpty())
         <x-none-found item="tickets" search="{{ request()->get('search') }}" />
         @else
+        <div class="space-y-4 lg:hidden">
+            @foreach($tickets as $ticket)
+                @php
+                $statusText = ucwords(str_replace('-', ' ', (string) ($ticket->status_label ?? '')));
+                $invoice = $ticket->invoice;
+                $hasSquarePayment = $invoice
+                ? $invoice->allocations
+                    ->contains(fn ($allocation) => strtolower((string) ($allocation->customerPayment->gateway_provider ?? '')) === 'square')
+                : false;
+                $hasAnyPayment = $invoice
+                ? $invoice->allocations
+                    ->contains(fn ($allocation) => $allocation->customerPayment !== null && (float) ($allocation->allocated_amount ?? 0) > 0)
+                : false;
+                $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
+                $canOpenTicketPdf = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
+                $isInactiveStatus = in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true);
+                $attendeeName = trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-';
+                @endphp
+                <section class="rounded-2xl border p-4 shadow-sm {{ $isInactiveStatus ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white' }}">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-900">{{ $ticket->reference_code ?: $ticket->id }}</div>
+                            <div class="mt-1 text-sm text-gray-700">{{ $attendeeName }}</div>
+                            <div class="text-xs text-gray-500 break-all">{{ $ticket->email ?: '-' }}</div>
+                        </div>
+                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">{{ $statusText }}</span>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Invoice</div>
+                            <div class="mt-1 text-sm text-gray-700">{{ $invoice?->invoice_number ?? '-' }}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Phone</div>
+                            <div class="mt-1 text-sm text-gray-700">{{ $ticket->phone ?: '-' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        @if($canOpenTicketPdf)
+                            <a href="{{ route('tickets.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open Ticket PDF">
+                                <i class="fa-regular fa-file-pdf"></i>
+                                Ticket PDF
+                            </a>
+                        @endif
+
+                        @if($ticket->invoice_id)
+                            <a href="{{ route('tickets.invoice.pdf', $ticket) }}" target="_blank" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color" title="Open Linked Invoice">
+                                <i class="fa-solid fa-file-invoice-dollar"></i>
+                                Invoice
+                            </a>
+                        @endif
+
+                        @if(in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true))
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 hover:text-primary-color"
+                                title="Edit attendee details"
+                                x-on:click="openEditModal(
+                                                @js(route('tickets.attendee.update', $ticket)),
+                                                @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
+                                                {
+                                                    firstname: @js((string) ($ticket->firstname ?? '')),
+                                                    surname: @js((string) ($ticket->surname ?? '')),
+                                                    email: @js((string) ($ticket->email ?? '')),
+                                                    phone: @js((string) ($ticket->phone ?? ''))
+                                                }
+                                            )">
+                                <i class="fa-solid fa-user-pen"></i>
+                                Reissue
+                            </button>
+                        @endif
+                    </div>
+
+                    @if($canCancel)
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
+                                @csrf
+                                <input type="hidden" name="process_square_refund" value="0">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
+                                    title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
+                                    x-on:click="confirmSubmit($event, @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'), 'Cancel Ticket')">
+                                    <i class="fa-solid fa-ban"></i>
+                                    Cancel
+                                </button>
+                            </form>
+
+                            @if($hasAnyPayment)
+                                <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
+                                    @csrf
+                                    <input type="hidden" name="process_square_refund" value="1">
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 hover:text-red-800"
+                                        title="Cancel and refund now"
+                                        x-on:click="confirmSubmit($event, @js('Cancel this ticket and attempt refund now? A tax adjustment note will be created first.'.($hasSquarePayment ? '' : ' No Square payment is linked; refund may require manual processing.')), 'Cancel and Refund')">
+                                        <i class="fa-solid fa-money-bill-transfer"></i>
+                                        Refund now
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+                </section>
+            @endforeach
+        </div>
+
+        <div class="hidden lg:block">
         <x-ui.table>
             <x-slot:header>
                 <th>Ticket #</th>
@@ -196,6 +307,7 @@
                 @endforeach
             </x-slot:body>
         </x-ui.table>
+        </div>
 
         {{ $tickets->appends(request()->query())->links() }}
         @endif

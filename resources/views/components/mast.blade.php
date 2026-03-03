@@ -12,7 +12,12 @@
 @endphp
 
 <x-container class="bg-primary-color-light text-white py-10">
-    <h1 class="font-bold text-4xl">{{ $title ?? $slot }}</h1>
+    <h1 class="font-bold text-4xl">
+        @isset($image)
+            <img src="{{ $image }}" class="inline w-14 h-auto" alt="" />
+        @endisset
+        {{ $title ?? $slot }}
+    </h1>
     @if(isset($description))
         <div class="text-lg">{{ $description }}</div>
     @endif

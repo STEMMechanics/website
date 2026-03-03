@@ -42,13 +42,15 @@
         @if($users->isEmpty())
         <x-none-found item="posts" search="{{ request()->get('search') }}" />
         @else
-        <x-ui.table>
-            <x-slot:header>
-                <th>Name</th>
-                <th class="hidden md:table-cell">Email</th>
-                <th class="hidden md:table-cell">Groups</th>
-                <th>Actions</th>
-            </x-slot:header>
+            <x-ui.table>
+                <x-slot:header>
+                    <th>Name</th>
+                    <th class="hidden md:table-cell">Username</th>
+                    <th class="hidden md:table-cell">Email</th>
+                    <th class="hidden lg:table-cell">Media</th>
+                    <th class="hidden md:table-cell">Groups</th>
+                    <th>Actions</th>
+                </x-slot:header>
             <x-slot:body>
                 @foreach ($users as $user)
                 @php
@@ -58,6 +60,7 @@
                 <tr class="{{ $isGhostUser ? 'italic text-gray-700' : '' }}">
                     <td>
                         <div>{{ trim(($user->firstname ?? '').' '.($user->surname ?? '')) ?: '-' }}</div>
+                        <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->username ?: '-' }}</div>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->email ?: '-' }}</div>
                         @if($groupSlugs === [])
                         <div class="md:hidden text-xs text-gray-400 mt-1">No groups</div>
@@ -69,7 +72,22 @@
                         </div>
                         @endif
                     </td>
+                    <td class="hidden md:table-cell">{{ $user->username ?: '-' }}</td>
                     <td class="hidden md:table-cell">{{ $user->email ?: '-' }}</td>
+                    <td class="hidden lg:table-cell">
+                        @php
+                            $mediaCount = (int) ($user->media_count ?? 0);
+                            $mediaSize = (int) ($user->media_sum_size ?? 0);
+                        @endphp
+                        @if($mediaCount > 0)
+                            <div>{{ number_format($mediaCount) }} {{ \Illuminate\Support\Str::plural('file', $mediaCount) }}</div>
+                            <a href="{{ route('admin.media.index', ['user_id' => $user->id]) }}" class="text-sm text-primary-color hover:underline">
+                                {{ \App\Helpers::bytesToString($mediaSize) }}
+                            </a>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </td>
                     <td class="hidden md:table-cell">
                         @if($groupSlugs === [])
                         <span class="text-gray-400">-</span>
@@ -84,6 +102,9 @@
                     <td>
                         <div class="flex justify-center gap-3 whitespace-nowrap">
                             <a href="{{ route('admin.user.edit', $user) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                            @if(($user->media_count ?? 0) > 0)
+                                <a href="{{ route('admin.media.index', ['user_id' => $user->id]) }}" class="hover:text-primary-color" title="View user media"><i class="fa-solid fa-photo-film"></i></a>
+                            @endif
                             @if($user->id !== '1')
                             <form method="POST" action="{{ route('admin.user.destroy', $user) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete this account? This action cannot be undone', $el)">
                                 @method('DELETE')
