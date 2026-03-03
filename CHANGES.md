@@ -5,6 +5,7 @@
 ## 1.4.1
 
 - Highlighted not to use your real name as your username
+- STEMMechanics accounts now highlighted in discussions
 
 ## 1.4.0
 

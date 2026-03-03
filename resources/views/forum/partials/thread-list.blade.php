@@ -17,7 +17,11 @@
         </div>
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-                <div class="font-semibold text-gray-900">{{ $authorName }}</div>
+                <div class="font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">{{ $authorName }}
+                    @if($topic->user?->hasGroup('admin'))
+                    <span class="font-normal text-gray-400 text-xs">(STEMMechanics)</span>
+                    @endif
+                </div>
                 <div class="text-sm text-gray-400">{{ $topic->created_at?->format('j M Y g:i a') }}</div>
             </div>
             <div class="mt-1 flex flex-wrap items-center gap-2">
