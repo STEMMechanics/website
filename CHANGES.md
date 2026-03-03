@@ -1,5 +1,11 @@
 # Changes
 
+- Highlighed not to use your real name 
+
+## 1.4.1
+
+- Highlighted not to use your real name as your username
+
 ## 1.4.0
 
 - Fixed minor issues around workshop SEO

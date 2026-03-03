@@ -154,7 +154,7 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                             <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
                             <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
                             <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
-                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site." />
+                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site. Don't use your real name!" />
                             <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
                         </div>
