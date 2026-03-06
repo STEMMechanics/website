@@ -216,7 +216,7 @@
                     <a href="{{ route('account.media.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-photo-film w-4 mr-2"></i>My Media</a>
                 @endif
                 @if(auth()->user()?->hasMinecraftAccess())
-                    <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
+                    <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>My STEMCraft</a>
                 @endif
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <form method="POST" action="{{ route('logout') }}">
