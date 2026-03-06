@@ -161,7 +161,7 @@
                         data-webhook-row-list="desktop"
                         data-webhook-row-key="{{ $log->id }}"
                     >
-                        <td class="whitespace-nowrap">#{{ $log->id }}</td>
+                        <td class="!whitespace-nowrap">#{{ $log->id }}</td>
                         <td>
                             <div class="flex flex-wrap items-center gap-3">
                                 <span class="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $log->direction }}</span>
@@ -223,13 +223,13 @@
                                 <div class="mt-3 text-xs text-amber-700">This webhook is already queued to retry automatically.</div>
                             @endif
                         </td>
-                        <td>
+                        <td class="!whitespace-nowrap">
                             <div class="font-semibold {{ $statusClass }}">{{ $log->status }}</div>
                             @if($log->response_status)
                                 <div class="text-xs text-gray-500">HTTP {{ $log->response_status }}</div>
                             @endif
                         </td>
-                        <td class="hidden xl:table-cell">{{ $log->attempt_count }}</td>
+                        <td class="hidden xl:table-cell text-center">{{ $log->attempt_count }}</td>
                         <td class="hidden xl:table-cell">{{ $log->processed_at?->format('j M Y g:i a') ?? '-' }}</td>
                     </tr>
                 @endforeach
