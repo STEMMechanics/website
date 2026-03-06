@@ -733,6 +733,7 @@ class MinecraftWebhookController extends Controller
             'periods.*.players.*' => ['array'],
             'periods.*.players.*.uuid' => ['required', 'string', 'max:64'],
             'periods.*.players.*.username' => ['required', 'string', 'max:80'],
+            'periods.*.players.*.platform' => ['nullable', Rule::in(MinecraftAccount::PLATFORMS)],
             'periods.*.players.*.updated_at' => ['nullable', 'date'],
             'periods.*.players.*.stats' => ['nullable', 'array'],
             'periods.*.players.*.stats.*' => ['array'],

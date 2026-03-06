@@ -41,6 +41,7 @@ class StemcraftStatsPageTest extends TestCase
 
         MinecraftPlayerStat::query()->create([
             'uuid' => '22222222-2222-2222-2222-222222222222',
+            'platform' => 'bedrock',
             'username' => 'PlayerTwo',
             'period' => 'all',
             'captured_at' => now()->subHours(2),
@@ -86,6 +87,7 @@ class StemcraftStatsPageTest extends TestCase
         $response->assertDontSeeText('Hours played');
         $response->assertSeeText('Mob Kills');
         $response->assertSeeTextInOrder(['PlayerTwo', '120', 'PlayerOne', '42']);
+        $response->assertSeeText('(bedrock)');
         $response->assertSeeText('Play Time');
         $response->assertSeeText('2h');
         $response->assertSeeText('Fish Caught');

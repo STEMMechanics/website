@@ -370,6 +370,7 @@ class MinecraftWebhookEventLoggingTest extends TestCase
                     [
                         'uuid' => '123e4567-e89b-12d3-a456-426614174000',
                         'username' => 'PlayerOne',
+                        'platform' => 'bedrock',
                         'updated_at' => '2026-03-04T23:59:00Z',
                         'stats' => [
                             [
@@ -396,6 +397,7 @@ class MinecraftWebhookEventLoggingTest extends TestCase
 
         $this->assertDatabaseHas('minecraft_player_stats', [
             'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'platform' => 'bedrock',
             'username' => 'PlayerOne',
             'period' => 'month',
             'period_days' => 30,
@@ -403,6 +405,7 @@ class MinecraftWebhookEventLoggingTest extends TestCase
 
         $playerStat = MinecraftPlayerStat::query()
             ->where('uuid', '123e4567-e89b-12d3-a456-426614174000')
+            ->where('platform', 'bedrock')
             ->where('period', 'month')
             ->firstOrFail();
 
@@ -528,6 +531,7 @@ class MinecraftWebhookEventLoggingTest extends TestCase
                 'players' => [[
                     'uuid' => 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
                     'username' => 'FreshMonthA',
+                    'platform' => 'bedrock',
                     'updated_at' => '2026-03-05T12:00:00Z',
                     'stats' => [[
                         'key' => 'mob_kills',
@@ -543,7 +547,13 @@ class MinecraftWebhookEventLoggingTest extends TestCase
 
         $this->assertDatabaseHas('minecraft_player_stats', [
             'uuid' => 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+            'platform' => 'bedrock',
             'username' => 'FreshMonthA',
+            'period' => 'month',
+        ]);
+        $this->assertDatabaseMissing('minecraft_player_stats', [
+            'uuid' => 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb',
+            'platform' => 'java',
             'period' => 'month',
         ]);
         $this->assertDatabaseMissing('minecraft_player_stats', [

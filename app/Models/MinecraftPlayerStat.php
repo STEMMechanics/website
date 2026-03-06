@@ -43,6 +43,7 @@ class MinecraftPlayerStat extends Model
 
     protected $fillable = [
         'uuid',
+        'platform',
         'username',
         'period',
         'period_days',

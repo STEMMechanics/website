@@ -131,6 +131,7 @@ class StemcraftController extends Controller
      *     rows: list<array{
      *         rank: int,
      *         username: string,
+     *         platform: string,
      *         uuid: string,
      *         formatted_value: string,
      *         updated_at: string|null
@@ -159,6 +160,9 @@ class StemcraftController extends Controller
 
                 $statBuckets[$key]['rows'][] = [
                     'username' => (string) $playerStat->username,
+                    'platform' => trim((string) ($playerStat->platform ?? 'java')) !== ''
+                        ? strtolower(trim((string) $playerStat->platform))
+                        : 'java',
                     'uuid' => (string) $playerStat->uuid,
                     'numeric_value' => (float) $value,
                     'formatted_value' => $stat['formatted_value'],
@@ -202,6 +206,7 @@ class StemcraftController extends Controller
                     return [
                         'rank' => $index + 1,
                         'username' => (string) $row['username'],
+                        'platform' => (string) $row['platform'],
                         'uuid' => (string) $row['uuid'],
                         'formatted_value' => (string) $row['formatted_value'],
                         'updated_at' => is_string($row['updated_at'] ?? null) ? $row['updated_at'] : null,

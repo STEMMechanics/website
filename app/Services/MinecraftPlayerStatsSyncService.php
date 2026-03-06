@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\MinecraftAccount;
 use App\Models\MinecraftPlayerStat;
 use App\Support\MinecraftPlayerStatFormatter;
 use Illuminate\Support\Carbon;
@@ -206,8 +207,8 @@ class MinecraftPlayerStatsSyncService
         $responseTimestamp = $this->parseTimestamp($response['timestamp'] ?? null);
         $fetchedAt = $responseTimestamp ?? now();
         $savedCount = 0;
-        $receivedUuids = [];
-        $savedUuids = [];
+        $receivedPlayerKeys = [];
+        $savedPlayerKeys = [];
 
         foreach ($playerRows as $player) {
             if (! is_array($player)) {
@@ -219,7 +220,9 @@ class MinecraftPlayerStatsSyncService
                 continue;
             }
 
-            $receivedUuids[] = $uuid;
+            $platform = $this->normalizePlayerPlatform($player['platform'] ?? null);
+            $playerKey = strtolower($uuid).'|'.$platform;
+            $receivedPlayerKeys[] = $playerKey;
             $username = trim((string) ($player['username'] ?? ''));
             $stats = $this->normalizeStats($player['stats'] ?? [], $definitionMap);
             $capturedAt = $this->parseTimestamp($player['updated_at'] ?? null);
@@ -227,6 +230,7 @@ class MinecraftPlayerStatsSyncService
             MinecraftPlayerStat::query()->updateOrCreate(
                 [
                     'uuid' => $uuid,
+                    'platform' => $platform,
                     'period' => $period,
                 ],
                 [
@@ -239,25 +243,39 @@ class MinecraftPlayerStatsSyncService
             );
 
             $savedCount++;
-            $savedUuids[] = $uuid;
+            $savedPlayerKeys[] = $playerKey;
         }
 
-        if ($receivedUuids === []) {
+        if ($receivedPlayerKeys === []) {
             MinecraftPlayerStat::query()
                 ->forPeriod($period)
                 ->delete();
         } else {
-            MinecraftPlayerStat::query()
+            $receivedLookup = array_fill_keys(array_values(array_unique($receivedPlayerKeys)), true);
+            $staleIds = MinecraftPlayerStat::query()
                 ->forPeriod($period)
-                ->whereNotIn('uuid', array_values(array_unique($receivedUuids)))
-                ->delete();
+                ->get(['id', 'uuid', 'platform'])
+                ->filter(function (MinecraftPlayerStat $playerStat) use ($receivedLookup): bool {
+                    $existingKey = strtolower(trim((string) $playerStat->uuid)).'|'.$this->normalizePlayerPlatform($playerStat->platform);
+
+                    return ! isset($receivedLookup[$existingKey]);
+                })
+                ->pluck('id')
+                ->all();
+
+            if ($staleIds !== []) {
+                MinecraftPlayerStat::query()
+                    ->forPeriod($period)
+                    ->whereIn('id', $staleIds)
+                    ->delete();
+            }
         }
 
         return [
-            'snapshots_received' => count($receivedUuids),
+            'snapshots_received' => count(array_unique($receivedPlayerKeys)),
             'snapshots_saved' => $savedCount,
-            'received_uuids' => array_values(array_unique($receivedUuids)),
-            'saved_uuids' => array_values(array_unique($savedUuids)),
+            'received_uuids' => array_values(array_unique($receivedPlayerKeys)),
+            'saved_uuids' => array_values(array_unique($savedPlayerKeys)),
             'timestamp' => $responseTimestamp?->toIso8601String(),
         ];
     }
@@ -419,5 +437,15 @@ class MinecraftPlayerStatsSyncService
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function normalizePlayerPlatform(mixed $value): string
+    {
+        $platform = strtolower(trim((string) $value));
+        if (! in_array($platform, MinecraftAccount::PLATFORMS, true)) {
+            return MinecraftAccount::PLATFORM_JAVA;
+        }
+
+        return $platform;
     }
 }
