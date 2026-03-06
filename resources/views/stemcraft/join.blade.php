@@ -67,7 +67,7 @@
                             <td class="text-gray-600">play.stemcraft.com.au</td>
                         </tr>
                         <tr>
-                            <th class="text-left font-semibold text-gray-900 py-1">Port</th>
+                            <th class="text-left font-semibold text-gray-900 py-1">Port<span class="ml-1 font-normal text-cs text-gray-500">(bedrock only)</span></th>
                             <td class="text-gray-600">19132</td>
                         </tr>
                         <tr>
