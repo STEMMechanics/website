@@ -323,7 +323,7 @@ class StemcraftController extends Controller
                 ],
                 [
                     'label' => 'Worlds',
-                    'value' => (string) count($allWorlds),
+                    'value' => (string) count($visibleWorlds),
                 ],
                 [
                     'label' => 'Version',
