@@ -64,7 +64,6 @@
                                     @foreach($serverInfo['worlds'] as $world)
                                         <li>
                                             <span>{{ $world['name'] ?? '-' }}</span>
-                                            <span class="ml-1 text-xs text-gray-500">({{ $world['raw'] ?? '-' }})</span>
                                         </li>
                                     @endforeach
                                 </ul>
