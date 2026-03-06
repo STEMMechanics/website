@@ -119,10 +119,6 @@ class MinecraftPlayerStatsSyncService
         $lastTimestamp = $this->parseTimestamp($fallbackTimestamp)?->toIso8601String();
 
         foreach ($snapshots as $snapshot) {
-            if (! is_array($snapshot)) {
-                continue;
-            }
-
             if (! is_string($snapshot['timestamp'] ?? null) && $fallbackTimestamp !== null) {
                 $snapshot['timestamp'] = $fallbackTimestamp;
             }
@@ -365,11 +361,7 @@ class MinecraftPlayerStatsSyncService
         $map = [];
 
         foreach ($definitions as $definition) {
-            if (! is_array($definition)) {
-                continue;
-            }
-
-            $key = trim((string) ($definition['key'] ?? ''));
+            $key = trim((string) $definition['key']);
             if ($key === '') {
                 continue;
             }

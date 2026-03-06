@@ -459,7 +459,10 @@ class MinecraftController extends Controller
         $account = $selectedAccount instanceof MinecraftAccount
             ? $selectedAccount
             : $this->resolveMinecraftAccountFromPunishmentUsername($usernameInput);
-        $username = trim((string) ($account?->username ?? $this->stripPunishmentPlatformSuffix($usernameInput)));
+        $username = $this->stripPunishmentPlatformSuffix($usernameInput);
+        if ($account instanceof MinecraftAccount) {
+            $username = trim((string) $account->username);
+        }
         if ($username === '') {
             throw ValidationException::withMessages([
                 'username' => 'Minecraft username is required.',
@@ -921,8 +924,8 @@ class MinecraftController extends Controller
             return;
         }
 
-        $platform = strtolower(trim((string) ($attributes['platform'] ?? '')));
-        $username = trim((string) ($attributes['username'] ?? ''));
+        $platform = strtolower(trim((string) $attributes['platform']));
+        $username = trim((string) $attributes['username']);
         if ($platform === '' || $username === '') {
             return;
         }
@@ -980,8 +983,8 @@ class MinecraftController extends Controller
             return null;
         }
 
-        $username = trim((string) ($matches['username'] ?? ''));
-        $platform = strtolower(trim((string) ($matches['platform'] ?? '')));
+        $username = trim((string) $matches['username']);
+        $platform = strtolower(trim((string) $matches['platform']));
         if ($username === '' || $platform === '') {
             return null;
         }
@@ -1002,7 +1005,7 @@ class MinecraftController extends Controller
             return $usernameInput;
         }
 
-        return trim((string) ($matches['username'] ?? ''));
+        return trim((string) $matches['username']);
     }
 
     private function formatPunishmentAccountOptionLabel(MinecraftAccount $account): string

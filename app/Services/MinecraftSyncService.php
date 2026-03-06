@@ -52,18 +52,14 @@ class MinecraftSyncService
 
     public function syncBlacklist(MinecraftBlacklistEntry $entry): void
     {
-        $occurredAt = $entry->starts_at instanceof CarbonInterface
-            ? $entry->starts_at
-            : now();
+        $occurredAt = $entry->starts_at ?? now();
 
         $this->dispatch('player.penalty.created', $this->legacyBlacklistPenaltyPayload($entry, $occurredAt));
     }
 
     public function removeBlacklist(MinecraftBlacklistEntry $entry): void
     {
-        $occurredAt = $entry->lifted_at instanceof CarbonInterface
-            ? $entry->lifted_at
-            : now();
+        $occurredAt = $entry->lifted_at ?? now();
 
         $this->dispatch('player.penalty.updated', $this->legacyBlacklistPenaltyPayload(
             entry: $entry,
@@ -84,9 +80,7 @@ class MinecraftSyncService
 
     public function deletePenalty(MinecraftPenalty $penalty, ?CarbonInterface $occurredAt = null): void
     {
-        $startedAt = $penalty->started_at instanceof CarbonInterface
-            ? $penalty->started_at
-            : now();
+        $startedAt = $penalty->started_at ?? now();
         $normalizedStartedAt = $startedAt->copy()->utc()->toIso8601ZuluString();
         $normalizedOccurredAt = ($occurredAt ?? now())->copy()->utc()->toIso8601ZuluString();
         $uuid = trim(strtolower((string) ($penalty->uuid ?? '')));
@@ -177,9 +171,7 @@ class MinecraftSyncService
      */
     private function penaltyPayload(MinecraftPenalty $penalty, CarbonInterface $occurredAt): array
     {
-        $startedAt = $penalty->started_at instanceof CarbonInterface
-            ? $penalty->started_at
-            : now();
+        $startedAt = $penalty->started_at ?? now();
         $normalizedStartedAt = $startedAt->copy()->utc()->toIso8601ZuluString();
         $normalizedOccurredAt = $occurredAt->copy()->utc()->toIso8601ZuluString();
         $normalizedUuid = trim(strtolower((string) ($penalty->uuid ?? '')));
@@ -216,18 +208,17 @@ class MinecraftSyncService
         CarbonInterface $occurredAt,
         bool $includeLiftedDetails = false,
     ): array {
-        $startedAt = $entry->starts_at instanceof CarbonInterface
-            ? $entry->starts_at
-            : now();
+        $startedAt = $entry->starts_at ?? now();
         $normalizedStartedAt = $startedAt->copy()->utc()->toIso8601ZuluString();
         $normalizedOccurredAt = $occurredAt->copy()->utc()->toIso8601ZuluString();
-        $normalizedUuid = trim(strtolower((string) ($entry->uuid ?? $entry->account?->uuid ?? '')));
+        $account = $entry->account;
+        $accountUuid = $account instanceof MinecraftAccount ? $account->uuid : null;
+        $normalizedUuid = trim(strtolower((string) ($entry->uuid ?? $accountUuid ?? '')));
         $durationSeconds = null;
 
         if (
             ! $entry->is_permanent
-            && $entry->starts_at instanceof CarbonInterface
-            && $entry->ends_at instanceof CarbonInterface
+            && $entry->ends_at !== null
             && $entry->ends_at->isAfter($entry->starts_at)
         ) {
             $durationSeconds = $entry->starts_at->diffInSeconds($entry->ends_at);

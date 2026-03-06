@@ -227,7 +227,7 @@ class StemcraftController extends Controller
     private function buildPublicServerInfo(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): array
     {
         $connection = $minecraftWebhookBridgeService->connectionSummary();
-        if (! ($connection['configured'] ?? false)) {
+        if (! $connection['configured']) {
             return [
                 'available' => false,
                 'heading' => 'Live status unavailable',

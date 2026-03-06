@@ -32,9 +32,16 @@ class QaCommand extends Command
 
         if (! $stanOnly) {
             $testArgs = array_values(array_map('strval', (array) $this->option('test')));
+            $phpunit = base_path('vendor/bin/phpunit');
+            if (! is_file($phpunit)) {
+                $this->error('PHPUnit executable not found at vendor/bin/phpunit.');
+
+                return self::FAILURE;
+            }
+
             $testExitCode = $this->runStep(
                 'Running tests',
-                array_merge([PHP_BINARY, base_path('artisan'), '--env=testing', 'test'], $withoutTty ? ['--without-tty'] : [], $testArgs),
+                array_merge([PHP_BINARY, $phpunit], $testArgs),
                 $withoutTty,
                 [
                     'APP_ENV' => 'testing',
@@ -85,6 +92,8 @@ class QaCommand extends Command
         $this->line('<fg=cyan>'.$title.'</>');
 
         $process = new Process($command, base_path(), $env);
+        $process->setTimeout(null);
+        $process->setIdleTimeout(null);
 
         if (! $withoutTty && Process::isTtySupported()) {
             $process->setTty(true);

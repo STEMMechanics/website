@@ -74,7 +74,7 @@ class StemcraftPublicPagesTest extends TestCase
             ->assertSee('3')
             ->assertSee('1.21.11')
             ->assertSee('Lobby')
-            ->assertSee('[world]')
+            ->assertSee('(world)')
             ->assertDontSee('world_nether')
             ->assertDontSee('world_the_end');
     }

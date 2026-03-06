@@ -123,8 +123,7 @@ class MinecraftWebhookController extends Controller
                 'server.health.ping' => $this->handleServerHealthPing($request),
                 'server.sync.players' => $this->handleServerSyncPlayers($request),
                 'server.sync.penalties' => $this->handleServerSyncPenalties($request),
-                'server.sync.players.stats' => $this->handleServerPlayerStatsSync($request),
-                default => response()->json(['ok' => false, 'error' => 'unknown_event'], 422),
+                default => $this->handleServerPlayerStatsSync($request),
             };
             $this->storeInboundEvent(
                 event: $event,
