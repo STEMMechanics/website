@@ -8,8 +8,8 @@
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="max-w-3xl">
                     <div class="inline-flex rounded-full bg-primary-color-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">Powered by Blasp</div>
-                    <h2 class="mt-4 text-2xl font-semibold text-gray-900">Filter discussion content before it is posted</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">Use these settings to filter discussion content wherever moderation checks are enabled, with extra checks for things like shouting and repeated spam.</p>
+                    <h2 class="mt-4 text-2xl font-semibold text-gray-900">Filter discussion content and STEMCraft messages before they go live</h2>
+                    <p class="mt-3 text-sm leading-6 text-gray-600">Use these settings for the shared moderation stack, with extra checks for things like shouting, repeated spam, Minecraft message masking, and admin alert timing.</p>
                 </div>
 
                 <div class="mt-6 rounded-2xl bg-gray-50 p-4">
@@ -105,6 +105,40 @@
                 </div>
             </section>
 
+            <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <h2 class="text-xl font-semibold text-gray-900">Minecraft messaging</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">These settings control how blocked Minecraft messages are masked, displayed, and grouped for admin alerts.</p>
+
+                <div class="mt-6 grid gap-6 lg:grid-cols-2">
+                    <div class="rounded-2xl bg-gray-50 p-4">
+                        <x-ui.input
+                            label="Profanity mask character"
+                            name="profanity_mask_character"
+                            value="{{ $settings['profanity_mask_character'] }}"
+                            info="Used when profanity can be masked for Minecraft chat, books, signs, and similar messages."
+                        />
+                        <x-ui.input
+                            type="textarea"
+                            label="Blocked message placeholder"
+                            name="blocked_message_placeholder"
+                            rows="3"
+                            value="{{ $settings['blocked_message_placeholder'] }}"
+                            info="Shown when a blocked Minecraft message has no filtered text that can be displayed safely."
+                        />
+                    </div>
+
+                    <div class="rounded-2xl bg-gray-50 p-4">
+                        <x-ui.input
+                            type="number"
+                            label="Blocked message alert quiet period (minutes)"
+                            name="message_failure_notification_delay_minutes"
+                            value="{{ $settings['message_failure_notification_delay_minutes'] }}"
+                            info="Admins will be emailed only after there has been a quiet period of this length since the latest blocked Minecraft message."
+                        />
+                    </div>
+                </div>
+            </section>
+
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8" id="filter-tester">
                 <h2 class="text-xl font-semibold text-gray-900">Full filter tester</h2>
                 <p class="mt-2 text-sm leading-6 text-gray-600">Test text against the full moderation stack using the current form values, even before you save them.</p>
@@ -126,7 +160,7 @@
                 </div>
 
                 <div class="mt-4 rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-700" id="filter-tester-result">
-                    Run a test to see whether the current settings would block the text, and which rule would do it.
+                    Run a test to see whether the current settings would block the text, which rule would do it, and whether a Minecraft-safe masked version is available.
                 </div>
             </section>
 
@@ -244,7 +278,19 @@
                 if (data.blocked) {
                     filterStatus.textContent = 'Blocked';
                     filterResult.className = 'mt-4 rounded-2xl bg-amber-50 px-4 py-4 text-sm text-amber-900';
-                    filterResult.textContent = `${data.rule_label || data.rule || 'Blocked'}: ${data.message || 'This text would be blocked.'}`;
+                    const parts = [`${data.rule_label || data.rule || 'Blocked'}: ${data.message || 'This text would be blocked.'}`];
+
+                    if (data.detail) {
+                        parts.push(`Detail: ${data.detail}`);
+                    }
+
+                    if (typeof data.filtered_message === 'string' && data.filtered_message.trim() !== '' && data.filtered_message !== sample) {
+                        parts.push(`Filtered output: ${data.filtered_message}`);
+                    } else if (typeof data.blocked_message_placeholder === 'string' && data.blocked_message_placeholder.trim() !== '') {
+                        parts.push(`Placeholder: ${data.blocked_message_placeholder}`);
+                    }
+
+                    filterResult.textContent = parts.join(' ');
                     return;
                 }
 

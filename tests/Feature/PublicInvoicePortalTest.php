@@ -66,8 +66,8 @@ class PublicInvoicePortalTest extends TestCase
         ]);
 
         $url = URL::signedRoute('invoice.receipt.pdf', [
-            'invoice' => $invoice->id,
-            'payment' => $payment->id,
+            'invoice' => $invoice,
+            'payment' => $payment,
         ]);
 
         $this->get($url)->assertOk();

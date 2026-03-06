@@ -4,6 +4,7 @@
         ['title' => 'Join', 'route' => route('stemcraft.join')],
         ['title' => 'Rules', 'route' => route('stemcraft.rules')],
         ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
+        ['title' => 'Leaderboard', 'route' => route('stemcraft.leaderboards')],
         ['title' => 'Punishments', 'route' => route('stemcraft.punishments')],
     ];
 @endphp
@@ -50,6 +51,7 @@
             <div class="mt-6 space-y-4 md:hidden">
                 @foreach($penalties as $penalty)
                     @php
+                        $platform = strtolower(trim((string) ($penalty->account?->platform ?? '')));
                         $status = 'Expired';
                         if ($penalty->lifted_at) {
                             $status = 'Lifted';
@@ -63,10 +65,15 @@
                     @endphp
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
                         <div class="flex flex-wrap items-center gap-3">
-                            <h3 class="text-lg font-semibold text-gray-900">{{ $penalty->username }}</h3>
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                <div class="font-semibold text-gray-900">{{ $penalty->username }}
+                                    @if($platform !== '')
+                                        <span class="ml-1 text-sm font-normal text-gray-500">({{ $platform }})</span>
+                                    @endif
+                                </div>
+                            </h3>
                             <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $penalty->type }}</span>
                         </div>
-                        <div class="mt-2 text-xs font-mono text-gray-500">{{ $penalty->uuid ?: '-' }}</div>
                         @if($penalty->reason)
                             <div class="mt-4 text-sm text-gray-700">{{ $penalty->reason }}</div>
                         @endif
@@ -104,6 +111,7 @@
                     <x-slot:body>
                         @foreach($penalties as $penalty)
                             @php
+                                $platform = strtolower(trim((string) ($penalty->account?->platform ?? '')));
                                 $status = 'Expired';
                                 if ($penalty->lifted_at) {
                                     $status = 'Lifted';
@@ -117,14 +125,20 @@
                             @endphp
                             <tr>
                                 <td>
-                                    <div class="font-semibold">{{ $penalty->username }}</div>
-                                    <div class="text-xs text-gray-500 font-mono">{{ $penalty->uuid }}</div>
+                                    <div class="font-semibold">
+                                        {{ $penalty->username }}
+                                        @if($platform !== '')
+                                            <span class="ml-1 text-xs font-normal text-gray-500">({{ $platform }})</span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="uppercase">{{ $penalty->type }}</td>
+                                <td>
+                                    <div>{{ $penalty->reason ?: '-' }}</div>
                                     @if($penalty->by_username)
                                         <div class="text-xs text-gray-500 mt-1">By {{ $penalty->by_username }}</div>
                                     @endif
                                 </td>
-                                <td class="uppercase">{{ $penalty->type }}</td>
-                                <td>{{ $penalty->reason ?: '-' }}</td>
                                 <td class="hidden lg:table-cell">{{ $penalty->started_at?->format('j M Y g:i a') ?? '-' }}</td>
                                 <td>
                                     <div>{{ $status }}</div>

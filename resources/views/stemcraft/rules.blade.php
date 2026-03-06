@@ -4,6 +4,7 @@
         ['title' => 'Join', 'route' => route('stemcraft.join')],
         ['title' => 'Rules', 'route' => route('stemcraft.rules')],
         ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
+        ['title' => 'Leaderboard', 'route' => route('stemcraft.leaderboards')],
         ['title' => 'Punishments', 'route' => route('stemcraft.punishments')],
     ];
 @endphp
@@ -42,7 +43,7 @@
                     <h2 class="text-lg font-semibold text-gray-900">How moderation is handled</h2>
                     <p class="mt-3 text-sm leading-6 text-gray-600">Moderation actions can include warnings, mutes, kicks, bans, or account restrictions depending on the issue and whether it is ongoing or repeated.</p>
                     <div class="mt-4 flex justify-end">
-                        <x-ui.button href="{{ route('stemcraft.punishments') }}" color="primary-outline">View punishments log</x-ui.button>
+                        <x-ui.button href="{{ route('stemcraft.punishments') }}" color="primary-outline" class="w-full">View punishments log</x-ui.button>
                     </div>
                 </section>
             </div>

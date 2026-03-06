@@ -10,8 +10,9 @@
         :tabs="[
             ['title' => 'Accounts', 'route' => route('admin.stemcraft.index')],
             ['title' => 'Punishments', 'route' => route('admin.stemcraft.punishments.index')],
+            ['title' => 'Messaging', 'route' => route('admin.stemcraft.messages.index')],
             ['title' => 'Webhooks', 'route' => route('admin.stemcraft.webhooks.index')],
-            ['title' => 'RCON', 'route' => route('admin.stemcraft.rcon.index')],
+            ['title' => 'Management', 'route' => route('admin.stemcraft.management.index')],
         ]"
     >{{ $editing ? 'STEMCraft Account' : 'Add Minecraft Account' }}</x-mast>
 

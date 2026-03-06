@@ -5,6 +5,56 @@ use Symfony\Component\Console\Input\ArgvInput;
 
 define('LARAVEL_START', microtime(true));
 
+/**
+ * Force the dedicated testing environment before the app boots when running
+ * `php artisan test`, so RefreshDatabase cannot target the local database.
+ */
+$argv = $_SERVER['argv'] ?? [];
+$artisanCommand = null;
+for ($index = 1, $count = count($argv); $index < $count; $index++) {
+    $argument = (string) $argv[$index];
+
+    if ($argument === '--') {
+        break;
+    }
+
+    if ($argument === '--env' && isset($argv[$index + 1])) {
+        $index++;
+        continue;
+    }
+
+    if (str_starts_with($argument, '--env=')) {
+        continue;
+    }
+
+    if (str_starts_with($argument, '-')) {
+        continue;
+    }
+
+    $artisanCommand = $argument;
+    break;
+}
+
+if ($artisanCommand === 'test') {
+    $testingEnv = [
+        'APP_ENV' => 'testing',
+        'DB_CONNECTION' => 'sqlite',
+        'DB_DATABASE' => ':memory:',
+        'CACHE_STORE' => 'array',
+        'QUEUE_CONNECTION' => 'sync',
+        'SESSION_DRIVER' => 'array',
+        'MAIL_MAILER' => 'array',
+        'PULSE_ENABLED' => 'false',
+        'TELESCOPE_ENABLED' => 'false',
+    ];
+
+    foreach ($testingEnv as $key => $value) {
+        putenv($key.'='.$value);
+        $_ENV[$key] = $value;
+        $_SERVER[$key] = $value;
+    }
+}
+
 // Register the Composer autoloader...
 require __DIR__.'/vendor/autoload.php';
 

@@ -4,6 +4,7 @@
         ['title' => 'Join', 'route' => route('stemcraft.join')],
         ['title' => 'Rules', 'route' => route('stemcraft.rules')],
         ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
+        ['title' => 'Leaderboard', 'route' => route('stemcraft.leaderboards')],
         ['title' => 'Punishments', 'route' => route('stemcraft.punishments')],
     ];
 @endphp

@@ -2,9 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmail;
+use App\Mail\UpcomingWorkshops;
 use App\Models\EmailSubscriptions;
+use App\Models\SentEmail;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class EmailSubscriptionController extends Controller
 {
@@ -21,8 +27,27 @@ class EmailSubscriptionController extends Controller
             ->paginate(20)
             ->onEachSide(1);
 
+        $subscriptionEmails = $subscriptions->getCollection()
+            ->pluck('email')
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $latestNewsletterByEmail = collect();
+        if ($subscriptionEmails->isNotEmpty()) {
+            $latestNewsletterByEmail = SentEmail::query()
+                ->where('mailable_class', UpcomingWorkshops::class)
+                ->whereIn('recipient', $subscriptionEmails->all())
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->groupBy(fn (SentEmail $sentEmail) => strtolower(trim((string) $sentEmail->recipient)))
+                ->map(fn (Collection $sentEmails) => $sentEmails->first());
+        }
+
         return view('admin.subscription.index', [
             'subscriptions' => $subscriptions,
+            'latestNewsletterByEmail' => $latestNewsletterByEmail,
         ]);
     }
 
@@ -92,5 +117,79 @@ class EmailSubscriptionController extends Controller
         session()->flash('message-type', 'warning');
 
         return redirect()->route('admin.subscription.index');
+    }
+
+    public function sendNow(EmailSubscriptions $subscription): RedirectResponse
+    {
+        $email = strtolower(trim((string) $subscription->email));
+
+        if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            session()->flash('message', 'Unable to send newsletter: subscription email is invalid.');
+            session()->flash('message-title', 'Newsletter failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        if ($subscription->confirmed === null || trim((string) $subscription->confirmed) === '') {
+            session()->flash('message', 'Cannot send newsletter: this subscription is not confirmed.');
+            session()->flash('message-title', 'Newsletter not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        try {
+            dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
+        } catch (Throwable $exception) {
+            session()->flash('message', 'Unable to queue newsletter: '.$exception->getMessage());
+            session()->flash('message-title', 'Newsletter failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        session()->flash('message', 'Newsletter queued for '.$email.'.');
+        session()->flash('message-title', 'Newsletter queued');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function sendAllNow(): RedirectResponse
+    {
+        $emails = EmailSubscriptions::query()
+            ->whereNotNull('confirmed')
+            ->pluck('email')
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn (string $email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
+
+        if ($emails->isEmpty()) {
+            session()->flash('message', 'No confirmed subscriptions with valid email addresses were found.');
+            session()->flash('message-title', 'Newsletter not sent');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        try {
+            foreach ($emails as $email) {
+                dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
+            }
+        } catch (Throwable $exception) {
+            session()->flash('message', 'Unable to queue newsletters: '.$exception->getMessage());
+            session()->flash('message-title', 'Newsletter failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        session()->flash('message', 'Newsletter queued for '.$emails->count().' confirmed subscriber'.($emails->count() === 1 ? '' : 's').'.');
+        session()->flash('message-title', 'Newsletter queued');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
     }
 }

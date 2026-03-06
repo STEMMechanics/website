@@ -9,6 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
+/**
+ * @property int|null $reply_depth
+ * @property-read ForumTopic $topic
+ * @property-read User|null $user
+ * @property-read ForumPost|null $parentPost
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ForumPostReaction> $reactions
+ */
 class ForumPost extends Model
 {
     use HasFactory, UUID;
@@ -25,26 +32,41 @@ class ForumPost extends Model
         'edited_at',
     ];
 
+    /**
+     * @return BelongsTo<ForumTopic, $this>
+     */
     public function topic(): BelongsTo
     {
         return $this->belongsTo(ForumTopic::class, 'forum_topic_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<ForumPost, $this>
+     */
     public function parentPost(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_forum_post_id');
     }
 
+    /**
+     * @return HasMany<ForumPost, $this>
+     */
     public function childPosts(): HasMany
     {
         return $this->hasMany(self::class, 'parent_forum_post_id');
     }
 
+    /**
+     * @return HasMany<ForumPostReaction, $this>
+     */
     public function reactions(): HasMany
     {
         return $this->hasMany(ForumPostReaction::class, 'forum_post_id');
@@ -57,12 +79,21 @@ class ForumPost extends Model
             ->count();
     }
 
+    /**
+     * @return Collection<int, string>
+     */
     public function reactionUsersFor(string $type): Collection
     {
-        return $this->reactions
+        /** @var \Illuminate\Database\Eloquent\Collection<int, ForumPostReaction> $reactions */
+        $reactions = $this->reactions;
+
+        /** @var Collection<int, string> $users */
+        $users = $reactions
             ->where('type', $type)
-            ->map(fn (ForumPostReaction $reaction) => $reaction->user?->username ?: $reaction->user?->getName() ?: 'Deleted user')
+            ->map(fn (ForumPostReaction $reaction): string => (string) ($reaction->user?->username ?: $reaction->user?->getName() ?: 'Deleted user'))
             ->values();
+
+        return $users;
     }
 
     public function reactionTooltipFor(string $type): string

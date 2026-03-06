@@ -13,6 +13,8 @@ class ForumCategory extends Model
 {
     use HasFactory, UUID;
 
+    public const LOGGED_IN_GROUP_SLUG = 'user';
+
     protected $fillable = [
         'name',
         'slug',
@@ -44,11 +46,16 @@ class ForumCategory extends Model
             return true;
         }
 
-        if ($this->read_group_slug === null || $this->read_group_slug === '') {
+        $readGroupSlug = UserGroup::normalizeSlug((string) ($this->read_group_slug ?? ''));
+        if ($readGroupSlug === '') {
             return true;
         }
 
-        return $user?->hasGroup($this->read_group_slug) ?? false;
+        if ($readGroupSlug === self::LOGGED_IN_GROUP_SLUG) {
+            return $user !== null;
+        }
+
+        return $user?->hasGroup($readGroupSlug) ?? false;
     }
 
     public function canWrite(?User $user): bool
@@ -69,11 +76,12 @@ class ForumCategory extends Model
             return false;
         }
 
-        if ($this->write_group_slug === null || $this->write_group_slug === '') {
+        $writeGroupSlug = UserGroup::normalizeSlug((string) ($this->write_group_slug ?? ''));
+        if ($writeGroupSlug === '' || $writeGroupSlug === self::LOGGED_IN_GROUP_SLUG) {
             return true;
         }
 
-        return $user->hasGroup($this->write_group_slug);
+        return $user->hasGroup($writeGroupSlug);
     }
 
     public function readAccessLabel(): string
@@ -82,7 +90,16 @@ class ForumCategory extends Model
             return '-';
         }
 
-        return $this->read_group_slug ?: 'Public';
+        $readGroupSlug = UserGroup::normalizeSlug((string) ($this->read_group_slug ?? ''));
+        if ($readGroupSlug === '') {
+            return 'Public';
+        }
+
+        if ($readGroupSlug === self::LOGGED_IN_GROUP_SLUG) {
+            return 'Logged In Users';
+        }
+
+        return $readGroupSlug;
     }
 
     public function writeAccessLabel(): string
@@ -91,7 +108,12 @@ class ForumCategory extends Model
             return '-';
         }
 
-        return $this->write_group_slug ?: 'Public';
+        $writeGroupSlug = UserGroup::normalizeSlug((string) ($this->write_group_slug ?? ''));
+        if ($writeGroupSlug === '' || $writeGroupSlug === self::LOGGED_IN_GROUP_SLUG) {
+            return 'Logged In Users';
+        }
+
+        return $writeGroupSlug;
     }
 
     public function isDivider(): bool

@@ -166,6 +166,49 @@ let SM = {
         return null;
     },
 
+    replaceHtmlPreservingState: (container, nextHtml) => {
+        if (!(container instanceof HTMLElement)) {
+            return false;
+        }
+
+        const html = typeof nextHtml === 'string' ? nextHtml : '';
+        if (container.innerHTML.trim() === html.trim()) {
+            return false;
+        }
+
+        const activeElement = document.activeElement;
+        const isEditingWithinContainer = activeElement instanceof HTMLElement
+            && container.contains(activeElement)
+            && (
+                ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeElement.tagName)
+                || activeElement.isContentEditable
+            );
+
+        if (isEditingWithinContainer) {
+            return false;
+        }
+
+        const openDetailKeys = Array.from(container.querySelectorAll('details[data-refresh-key][open]'))
+            .map((detail) => detail.dataset.refreshKey || '')
+            .filter((key) => key !== '');
+
+        container.innerHTML = html;
+
+        if (openDetailKeys.length === 0) {
+            return true;
+        }
+
+        const openKeySet = new Set(openDetailKeys);
+        container.querySelectorAll('details[data-refresh-key]').forEach((detail) => {
+            const key = detail.dataset.refreshKey || '';
+            if (openKeySet.has(key)) {
+                detail.open = true;
+            }
+        });
+
+        return true;
+    },
+
     toBoundedInt: (value, options = {}) => {
         const min = Number.parseInt(String(options.min ?? Number.MIN_SAFE_INTEGER), 10);
         const max = Number.parseInt(String(options.max ?? Number.MAX_SAFE_INTEGER), 10);
@@ -386,7 +429,7 @@ let SM = {
         }
     },
 
-    confirmDelete: (token, title, content, urlOrForm) => {
+    confirmDelete: (token, title, content, urlOrForm, confirmButtonText = 'Delete') => {
         Swal.fire({
             position: 'top',
             icon: 'warning',
@@ -394,7 +437,7 @@ let SM = {
             title: title,
             html: content,
             showCancelButton: true,
-            confirmButtonText: 'Delete',
+            confirmButtonText: confirmButtonText,
             confirmButtonColor: '#b91c1c',
             cancelButtonText: 'Cancel',
             reverseButtons: true

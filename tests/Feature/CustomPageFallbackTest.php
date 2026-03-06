@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -10,6 +11,8 @@ use Tests\TestCase;
 
 class CustomPageFallbackTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -84,7 +87,8 @@ class CustomPageFallbackTest extends TestCase
         $response = $this->get('/stemcraft/join');
 
         $response->assertOk();
-        $response->assertSee('Join STEMCraft');
+        $response->assertSee('Join with the right details');
+        $response->assertSee('play.stemcraft.com.au');
         $response->assertDontSee('Old custom content', false);
     }
 

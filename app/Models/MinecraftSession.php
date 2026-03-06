@@ -31,7 +31,7 @@ class MinecraftSession extends Model
 
     public function resolvedDurationSeconds(): ?int
     {
-        if ($this->logged_in_at && $this->logged_out_at) {
+        if ($this->logged_out_at !== null) {
             return max(0, $this->logged_in_at->diffInSeconds($this->logged_out_at));
         }
 

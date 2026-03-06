@@ -12,6 +12,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
+/**
+ * @property-read ForumCategory $category
+ * @property-read User|null $user
+ * @property-read User|null $lastPostUser
+ * @property-read ForumPost|null $firstPost
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ForumPost> $posts
+ */
 class ForumTopic extends Model
 {
     use HasFactory, UUID;
@@ -35,31 +42,49 @@ class ForumTopic extends Model
         'last_post_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<ForumCategory, $this>
+     */
     public function category(): BelongsTo
     {
         return $this->belongsTo(ForumCategory::class, 'forum_category_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function lastPostUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'last_post_user_id');
     }
 
+    /**
+     * @return HasMany<ForumPost, $this>
+     */
     public function posts(): HasMany
     {
         return $this->hasMany(ForumPost::class)->orderBy('created_at')->orderBy('id');
     }
 
+    /**
+     * @return HasMany<ForumTopicUserState, $this>
+     */
     public function userStates(): HasMany
     {
         return $this->hasMany(ForumTopicUserState::class, 'forum_topic_id');
     }
 
+    /**
+     * @return HasOne<ForumPost, $this>
+     */
     public function firstPost(): HasOne
     {
         return $this->hasOne(ForumPost::class)->oldestOfMany('created_at');
@@ -101,9 +126,12 @@ class ForumTopic extends Model
         return $candidate;
     }
 
+    /**
+     * @return Builder<self>
+     */
     public static function unreadForUserQuery(User $user): Builder
     {
-        return static::query()
+        return self::query()
             ->select('forum_topics.*')
             ->join('forum_topic_user_states as forum_topic_state', function ($join) use ($user) {
                 $join->on('forum_topic_state.forum_topic_id', '=', 'forum_topics.id')
@@ -111,7 +139,7 @@ class ForumTopic extends Model
             })
             ->where('forum_topic_state.notifications_enabled', true)
             ->whereNotNull('forum_topics.last_post_at')
-            ->where(function ($query) use ($user) {
+            ->where(function ($query) {
                 $query
                     ->whereNull('forum_topic_state.last_read_at')
                     ->orWhereColumn('forum_topic_state.last_read_at', '<', 'forum_topics.last_post_at');
@@ -126,11 +154,13 @@ class ForumTopic extends Model
 
     public static function unreadCountForUser(User $user): int
     {
-        return static::unreadForUserQuery($user)
-            ->pluck('forum_topics.id')
-            ->count();
+        return (int) static::unreadForUserQuery($user)->count('forum_topics.id');
     }
 
+    /**
+     * @param  Collection<int, ForumTopic>  $topics
+     * @return list<string>
+     */
     public static function unreadTopicIdsForUser(User $user, Collection $topics): array
     {
         $topicIds = $topics

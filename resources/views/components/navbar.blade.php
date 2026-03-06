@@ -85,22 +85,21 @@
                         <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out" @click.prevent="showSearch=true">
                             <i class="fa fa-search"></i>
                         </button>
-                        @auth
-                            <a
-                                    href="{{ route('forum.index') }}"
-                                    class="text-gray-900 hover:text-sky-500 pl-1 md:pl-4 py-3 text-sm font-medium transition duration-300 ease-in-out relative"
-                                    title="Discussions"
-                                    aria-label="Discussions"
-                            >
-                                <i class="fa-regular fa-comments text-base"></i>
-                                <span
-                                    x-cloak
-                                    x-show="forumUnreadCount > 0"
-                                    x-text="forumUnreadCount"
-                                    class="bg-red-600 text-white text-xxs absolute -right-3 top-1 min-w-4 px-1 text-center rounded-full"
-                                ></span>
-                            </a>
-                        @endauth
+                        <a href="{{ route('stemcraft.index') }}" class="pl-1 md:pl-3" title="STEMCraft"><img class="w-6 h-auto" src="/stemcraft-short-logo.webp" alt="STEMCraft"></a>
+                        <a
+                                href="{{ route('forum.index') }}"
+                                class="text-gray-900 hover:text-sky-500 pl-1 md:pl-4 py-3 text-sm font-medium transition duration-300 ease-in-out relative"
+                                title="Discussions"
+                                aria-label="Discussions"
+                        >
+                            <i class="fa-regular fa-comments text-base"></i>
+                            <span
+                                x-cloak
+                                x-show="forumUnreadCount > 0"
+                                x-text="forumUnreadCount"
+                                class="bg-red-600 text-white text-xxs absolute -right-3 top-1 min-w-4 px-1 text-center rounded-full"
+                            ></span>
+                        </a>
                     </div>
                 </div>
                 <div class="mr-3 md:mx-3">
@@ -140,10 +139,9 @@
                 </div>
                 {{-- <a href="{{ route('post.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-newspaper w-4 mr-2"></i>Blog</a>--}}
                 <a href="{{ route('about') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-circle-info w-4 mr-2"></i>About</a>
-                @auth
-                    <a href="{{ route('forum.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="bg-red-600 text-white text-xs px-1 rounded ml-2"></span></a>
-                @endauth
+                <a href="{{ route('forum.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="bg-red-600 text-white text-xs px-1 rounded ml-2"></span></a>
                 <a href="{{ route('workshop.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
+                <a href="{{ route('stemcraft.index') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="/stemcraft-short-logo.webp" alt="STEMCraft">STEMCraft</a>
                 <a href="{{ route('contact') }}" class="sm:hidden block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if(auth()->user()?->isAdmin())
                 <div class="sm:hidden border-t border-gray-200 my-2"></div>

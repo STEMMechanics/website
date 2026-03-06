@@ -82,6 +82,14 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'One regex pattern per line, applied after the profanity package. Patterns are wrapped as case-insensitive Unicode regexes.',
             ],
+            'moderation.content-filter.profanity-mask-character' => [
+                'value' => '*',
+                'description' => 'Single character used when profane Minecraft messages can be masked instead of fully hidden.',
+            ],
+            'moderation.content-filter.blocked-message-placeholder' => [
+                'value' => '[Message blocked by moderation filter]',
+                'description' => 'Placeholder shown on Minecraft messaging views when a blocked message has no filtered version available.',
+            ],
             'moderation.content-filter.block-all-caps' => [
                 'value' => '1',
                 'description' => 'Block content that appears to be written entirely in capital letters above the minimum length.',
@@ -110,22 +118,9 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'Shared secret used to sign outbound STEMCraft sync requests and verify inbound server webhook calls. Use a long random value, for example from `php -r "echo bin2hex(random_bytes(32)), PHP_EOL;"`.',
             ],
-            'minecraft.rcon-host' => [
-                'value' => '127.0.0.1',
-                'description' => 'RCON host used by the admin STEMCraft console. Usually 127.0.0.1 when the Laravel app can reach the server directly.',
-            ],
-            'minecraft.rcon-port' => [
-                'value' => '25575',
-                'description' => 'RCON TCP port for the Minecraft server.',
-                'input_type' => 'number',
-            ],
-            'minecraft.rcon-password' => [
-                'value' => '',
-                'description' => 'RCON password for the Minecraft server. Keep this private.',
-            ],
-            'minecraft.rcon-timeout-seconds' => [
-                'value' => '5',
-                'description' => 'RCON network timeout in seconds.',
+            'minecraft.message-failure-notification-delay-minutes' => [
+                'value' => '20',
+                'description' => 'Quiet period in minutes before blocked Minecraft messages are grouped into an admin email alert.',
                 'input_type' => 'number',
             ],
         ];

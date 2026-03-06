@@ -73,13 +73,9 @@ class MinecraftWebhookLog extends Model
 
         $backoff = DeliverMinecraftWebhook::BACKOFF_SECONDS;
         $index = min(max($this->attempt_count - 1, 0), count($backoff) - 1);
-        $delaySeconds = $backoff[$index] ?? null;
+        $delaySeconds = $backoff[$index];
 
-        if ($delaySeconds === null) {
-            return null;
-        }
-
-        return $this->last_attempted_at->copy()->addSeconds($delaySeconds);
+        return Carbon::instance($this->last_attempted_at)->addSeconds($delaySeconds);
     }
 
     public function errorSummary(): ?string
@@ -90,7 +86,7 @@ class MinecraftWebhookLog extends Model
         }
 
         if (preg_match('/^cURL error \d+:\s*(.+?)(?:\s*\(see https?:\/\/[^)]+\))?(?:\s+for\s+\S+)?$/i', $message, $matches)) {
-            return trim((string) ($matches[1] ?? $message));
+            return trim((string) $matches[1]);
         }
 
         $message = preg_replace('/\s*\(see https?:\/\/[^)]+\)/i', '', $message) ?? $message;

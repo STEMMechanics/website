@@ -15,10 +15,11 @@ class ContactController extends Controller
     public function show(Request $request): View
     {
         $user = $request->user();
+        $defaultEmail = $user !== null ? (string) $user->email : '';
 
         return view('contact', [
             'defaultName' => old('name', $user?->getName() ?? ''),
-            'defaultEmail' => old('email', $user?->email ?? ''),
+            'defaultEmail' => old('email', $defaultEmail),
         ]);
     }
 

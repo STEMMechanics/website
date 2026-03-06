@@ -17,6 +17,8 @@ class SiteOptionController extends Controller
 
         $query = SiteOption::query();
         $query->where('name', 'not like', 'moderation.%');
+        $query->where('name', 'not like', 'minecraft.rcon-%');
+        $query->where('name', 'not like', 'minecraft.management-%');
 
         if ($request->filled('search')) {
             $search = $request->string('search')->trim()->value();
@@ -169,14 +171,6 @@ class SiteOptionController extends Controller
 
         if ($optionName === 'tickets.hold-minutes') {
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
-        }
-
-        if ($optionName === 'minecraft.rcon-port') {
-            $rules['value'] = ['required', 'integer', 'min:1', 'max:65535'];
-        }
-
-        if ($optionName === 'minecraft.rcon-timeout-seconds') {
-            $rules['value'] = ['required', 'integer', 'min:1', 'max:30'];
         }
 
         if (in_array($optionName, [

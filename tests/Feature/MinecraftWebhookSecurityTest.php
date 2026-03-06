@@ -53,10 +53,14 @@ class MinecraftWebhookSecurityTest extends TestCase
                 $table->timestamp('ends_at')->nullable();
                 $table->boolean('is_permanent')->default(false);
                 $table->string('by_uuid', 64)->nullable();
+                $table->uuid('by_user_id')->nullable();
                 $table->string('by_username', 80)->nullable();
                 $table->timestamp('lifted_at')->nullable();
                 $table->string('lifted_by_uuid', 64)->nullable();
+                $table->uuid('lifted_by_user_id')->nullable();
                 $table->string('lifted_by_username', 80)->nullable();
+                $table->text('lift_reason')->nullable();
+                $table->softDeletes();
                 $table->timestamps();
             });
         }
@@ -104,6 +108,36 @@ class MinecraftWebhookSecurityTest extends TestCase
         $secondResponse->assertStatus(409)->assertJson(['ok' => false, 'error' => 'replay_detected']);
     }
 
+    public function test_minecraft_webhook_ignores_duplicate_event_ids_with_new_delivery_ids(): void
+    {
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        $eventId = '11111111-2222-4333-8444-555555555555';
+        $payload = [
+            'event' => 'server.health.ping',
+            'event_id' => $eventId,
+            'server_name' => 'survival',
+            'plugin_version' => '2.5.0',
+            'queue_depth' => 12,
+        ];
+
+        $firstResponse = $this->postSignedMinecraftWebhook($payload, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+        $firstResponse->assertOk()->assertJson([
+            'ok' => true,
+            'event' => 'server.health.pong',
+        ]);
+
+        $secondResponse = $this->postSignedMinecraftWebhook($payload, 'ffffffff-1111-2222-3333-444444444444');
+        $secondResponse->assertOk()->assertJson([
+            'ok' => true,
+            'ignored' => true,
+            'reason' => 'duplicate_event_id',
+        ]);
+    }
+
     public function test_minecraft_webhook_requires_a_delivery_id(): void
     {
         SiteOption::query()->create([
@@ -132,45 +166,239 @@ class MinecraftWebhookSecurityTest extends TestCase
         $response->assertStatus(409)->assertJson(['ok' => false, 'error' => 'replay_detected']);
     }
 
-    public function test_minecraft_webhook_ignores_stale_penalty_create_after_lift_for_same_external_id(): void
+    public function test_minecraft_webhook_ignores_stale_penalty_create_after_lift_for_same_penalty_key(): void
     {
         SiteOption::query()->create([
             'name' => 'minecraft.webhook-secret',
             'value' => 'shared-secret',
         ]);
 
-        $externalId = 'penalty-123';
-        $liftedAt = now();
-        $createdAt = now()->subMinute();
+        $uuid = '123e4567-e89b-12d3-a456-426614174000';
+        $startedAt = now()->subMinutes(10)->startOfSecond();
+        $liftedAt = now()->subMinute()->startOfSecond();
 
-        $liftPayload = [
-            'event' => 'player.penalty.lifted',
-            'external_id' => $externalId,
-            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+        $updatePayload = [
+            'event' => 'player.penalty.updated',
+            'uuid' => $uuid,
+            'username' => 'PlayerOne',
             'type' => 'ban',
+            'started_at' => $startedAt->toIso8601String(),
+            'is_permanent' => true,
+            'lifted_at' => $liftedAt->toIso8601String(),
             'occurred_at' => $liftedAt->toIso8601String(),
         ];
         $createPayload = [
             'event' => 'player.penalty.created',
-            'external_id' => $externalId,
-            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'uuid' => $uuid,
             'username' => 'PlayerOne',
             'type' => 'ban',
-            'occurred_at' => $createdAt->toIso8601String(),
+            'started_at' => $startedAt->toIso8601String(),
+            'occurred_at' => $startedAt->toIso8601String(),
             'is_permanent' => true,
         ];
 
-        $firstResponse = $this->postSignedMinecraftWebhook($liftPayload, '11111111-2222-3333-4444-555555555555');
+        $firstResponse = $this->postSignedMinecraftWebhook($updatePayload, '11111111-2222-3333-4444-555555555555');
         $firstResponse->assertOk()->assertJson(['ok' => true]);
 
         $secondResponse = $this->postSignedMinecraftWebhook($createPayload, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
         $secondResponse->assertOk()->assertJson(['ok' => true, 'ignored' => true]);
 
-        $penalty = Model::resolveConnection()->table('minecraft_penalties')->where('external_id', $externalId)->first();
+        $penalty = Model::resolveConnection()
+            ->table('minecraft_penalties')
+            ->where('uuid', $uuid)
+            ->where('started_at', $startedAt)
+            ->first();
         $this->assertNotNull($penalty);
         $this->assertSame('ban', $penalty->type);
-        $this->assertSame('123e4567-e89b-12d3-a456-426614174000', $penalty->uuid);
+        $this->assertSame($uuid, $penalty->uuid);
         $this->assertNotNull($penalty->lifted_at);
+    }
+
+    public function test_minecraft_webhook_ignores_stale_penalty_update_by_updated_at(): void
+    {
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        $uuid = '123e4567-e89b-12d3-a456-426614174000';
+        $startedAt = now()->subMinutes(10)->startOfSecond();
+
+        $insertedId = Model::resolveConnection()->table('minecraft_penalties')->insertGetId([
+            'uuid' => $uuid,
+            'username' => 'PlayerOne',
+            'type' => 'ban',
+            'reason' => 'Current reason',
+            'started_at' => $startedAt,
+            'is_permanent' => true,
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+        $this->assertGreaterThan(0, $insertedId);
+
+        $updatePayload = [
+            'event' => 'player.penalty.updated',
+            'uuid' => $uuid,
+            'username' => 'PlayerOne',
+            'type' => 'ban',
+            'reason' => 'Older reason should be ignored',
+            'started_at' => $startedAt->toIso8601String(),
+            'is_permanent' => true,
+            'updated_at' => now()->subHours(2)->toIso8601String(),
+            'occurred_at' => now()->subHours(2)->toIso8601String(),
+        ];
+
+        $response = $this->postSignedMinecraftWebhook($updatePayload, '99999999-aaaa-bbbb-cccc-dddddddddddd');
+        $response->assertOk()->assertJson([
+            'ok' => true,
+            'ignored' => true,
+        ]);
+
+        $penalty = Model::resolveConnection()
+            ->table('minecraft_penalties')
+            ->where('uuid', $uuid)
+            ->where('started_at', $startedAt)
+            ->first();
+
+        $this->assertNotNull($penalty);
+        $this->assertSame('Current reason', $penalty->reason);
+    }
+
+    public function test_minecraft_webhook_server_health_ping_returns_pong_shape(): void
+    {
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        $payload = [
+            'event' => 'server.health.ping',
+            'server_name' => 'survival',
+            'plugin_version' => '2.5.0',
+            'queue_depth' => 3,
+        ];
+
+        $response = $this->postSignedMinecraftWebhook($payload, 'abababab-1111-2222-3333-cdcdcdcdcdcd');
+        $response->assertOk()->assertJson([
+            'ok' => true,
+            'event' => 'server.health.pong',
+            'capabilities' => [
+                'supports_event_id' => true,
+            ],
+            'request' => [
+                'server_name' => 'survival',
+                'plugin_version' => '2.5.0',
+                'queue_depth' => 3,
+            ],
+        ]);
+        $this->assertIsArray($response->json('sync.last_inbound_sync_at'));
+        $this->assertIsArray($response->json('sync.required'));
+    }
+
+    public function test_minecraft_webhook_rejects_deprecated_or_unknown_events(): void
+    {
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        $deprecatedLiftPayload = [
+            'event' => 'player.penalty.lifted',
+            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'type' => 'ban',
+            'occurred_at' => now()->toIso8601String(),
+        ];
+        $legacySyncPayload = [
+            'event' => 'server.sync.request',
+            'reason' => 'startup',
+        ];
+        $legacyStatsPayload = [
+            'event' => 'server.player-stats.sync',
+            'period' => 'month',
+            'players' => [],
+        ];
+        $legacyBlacklistSyncPayload = [
+            'event' => 'blacklist.sync',
+            'blacklist' => [
+                'username' => 'PlayerOne',
+            ],
+        ];
+        $legacyBlacklistRemovePayload = [
+            'event' => 'blacklist.remove',
+            'blacklist' => [
+                'username' => 'PlayerOne',
+            ],
+        ];
+        $legacyAccountSyncPayload = [
+            'event' => 'account.sync',
+            'account' => [
+                'username' => 'PlayerOne',
+                'platform' => 'java',
+            ],
+        ];
+        $legacyAccountRemovePayload = [
+            'event' => 'account.remove',
+            'account' => [
+                'username' => 'PlayerOne',
+                'platform' => 'java',
+            ],
+        ];
+
+        $deprecatedResponse = $this->postSignedMinecraftWebhook($deprecatedLiftPayload, 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb');
+        $deprecatedResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacySyncResponse = $this->postSignedMinecraftWebhook($legacySyncPayload, 'cccccccc-1111-2222-3333-dddddddddddd');
+        $legacySyncResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacyStatsResponse = $this->postSignedMinecraftWebhook($legacyStatsPayload, 'eeeeeeee-1111-2222-3333-ffffffffffff');
+        $legacyStatsResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacyBlacklistSyncResponse = $this->postSignedMinecraftWebhook($legacyBlacklistSyncPayload, '11111111-2222-4333-8444-555555555555');
+        $legacyBlacklistSyncResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacyBlacklistRemoveResponse = $this->postSignedMinecraftWebhook($legacyBlacklistRemovePayload, '66666666-7777-4888-8999-000000000000');
+        $legacyBlacklistRemoveResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacyAccountSyncResponse = $this->postSignedMinecraftWebhook($legacyAccountSyncPayload, 'aaaaaaaa-2222-4333-8444-bbbbbbbbbbbb');
+        $legacyAccountSyncResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
+
+        $legacyAccountRemoveResponse = $this->postSignedMinecraftWebhook($legacyAccountRemovePayload, 'cccccccc-2222-4333-8444-dddddddddddd');
+        $legacyAccountRemoveResponse
+            ->assertStatus(422)
+            ->assertJson([
+                'ok' => false,
+                'error' => 'unknown_event',
+            ]);
     }
 
     /**

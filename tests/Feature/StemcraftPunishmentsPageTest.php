@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class StemcraftPunishmentsPageTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -27,10 +30,14 @@ class StemcraftPunishmentsPageTest extends TestCase
                 $table->timestamp('ends_at')->nullable();
                 $table->boolean('is_permanent')->default(false);
                 $table->string('by_uuid', 64)->nullable();
+                $table->uuid('by_user_id')->nullable();
                 $table->string('by_username', 80)->nullable();
                 $table->timestamp('lifted_at')->nullable();
                 $table->string('lifted_by_uuid', 64)->nullable();
+                $table->uuid('lifted_by_user_id')->nullable();
                 $table->string('lifted_by_username', 80)->nullable();
+                $table->text('lift_reason')->nullable();
+                $table->softDeletes();
                 $table->timestamps();
             });
         }
@@ -59,8 +66,18 @@ class StemcraftPunishmentsPageTest extends TestCase
 
     public function test_punishments_page_displays_and_filters_records(): void
     {
+        $accountId = DB::table('minecraft_accounts')->insertGetId([
+            'platform' => 'bedrock',
+            'uuid' => 'uuid-one',
+            'username' => 'PlayerOne',
+            'is_whitelisted' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::table('minecraft_penalties')->insert([
             [
+                'minecraft_account_id' => $accountId,
                 'external_id' => 'stemcraft-test-1',
                 'uuid' => 'uuid-one',
                 'username' => 'PlayerOne',
@@ -74,6 +91,7 @@ class StemcraftPunishmentsPageTest extends TestCase
                 'updated_at' => now(),
             ],
             [
+                'minecraft_account_id' => null,
                 'external_id' => 'stemcraft-test-2',
                 'uuid' => 'uuid-two',
                 'username' => 'PlayerTwo',
@@ -94,5 +112,6 @@ class StemcraftPunishmentsPageTest extends TestCase
         $response->assertSee('PlayerOne');
         $response->assertDontSee('PlayerTwo');
         $response->assertSee('Griefing');
+        $response->assertSee('(bedrock)');
     }
 }

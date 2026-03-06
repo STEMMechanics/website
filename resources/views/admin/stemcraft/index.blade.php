@@ -2,8 +2,9 @@
     <x-mast title="STEMCraft" :tabs="[
         ['title' => 'Accounts', 'route' => route('admin.stemcraft.index')],
         ['title' => 'Punishments', 'route' => route('admin.stemcraft.punishments.index')],
+        ['title' => 'Messaging', 'route' => route('admin.stemcraft.messages.index')],
         ['title' => 'Webhooks', 'route' => route('admin.stemcraft.webhooks.index')],
-        ['title' => 'RCON', 'route' => route('admin.stemcraft.rcon.index')],
+        ['title' => 'Management', 'route' => route('admin.stemcraft.management.index')],
     ]" />
 
     <x-container x-data="{ addAccountOpen: {{ $errors->has('platform') || $errors->has('username') || $errors->has('user_id') || $errors->has('is_whitelisted') || $errors->has('admin_notes') ? 'true' : 'false' }} }">

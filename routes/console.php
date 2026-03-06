@@ -154,3 +154,11 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
 Schedule::command('database:backup --keep=336')
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command('minecraft:messages:send-failure-alerts')
+    ->everyMinute()
+    ->withoutOverlapping();
+
+Schedule::command('minecraft:player-stats:sync')
+    ->everyFourHours()
+    ->withoutOverlapping();

@@ -359,7 +359,7 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         if (! $allowRestrictedTerms && static::containsRestrictedUsernameTerm($base)) {
-            $base = static::normalizeUsername(static::stripRestrictedUsernameTerms($base));
+            $base = static::normalizeUsername(self::stripRestrictedUsernameTerms($base));
         }
 
         if ($base === '' || (! $allowRestrictedTerms && static::containsRestrictedUsernameTerm($base))) {

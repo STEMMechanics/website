@@ -5,10 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MinecraftPenalty extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     public const TYPE_BAN = 'ban';
     public const TYPE_KICK = 'kick';
@@ -32,10 +34,14 @@ class MinecraftPenalty extends Model
         'ends_at',
         'is_permanent',
         'by_uuid',
+        'by_user_id',
         'by_username',
         'lifted_at',
         'lifted_by_uuid',
+        'lifted_by_user_id',
         'lifted_by_username',
+        'lift_reason',
+        'deleted_at',
     ];
 
     protected $casts = [
@@ -43,11 +49,22 @@ class MinecraftPenalty extends Model
         'ends_at' => 'datetime',
         'is_permanent' => 'boolean',
         'lifted_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function account(): BelongsTo
     {
         return $this->belongsTo(MinecraftAccount::class, 'minecraft_account_id');
+    }
+
+    public function byUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'by_user_id');
+    }
+
+    public function liftedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'lifted_by_user_id');
     }
 
     public function isActiveRestriction(): bool
@@ -57,6 +74,10 @@ class MinecraftPenalty extends Model
         }
 
         if ($this->lifted_at !== null) {
+            return false;
+        }
+
+        if ($this->trashed()) {
             return false;
         }
 

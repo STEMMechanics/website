@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class DeliverMinecraftWebhook implements ShouldQueue
 {
@@ -51,24 +52,26 @@ class DeliverMinecraftWebhook implements ShouldQueue
         $log = $this->resolveLog();
         $url = trim((string) SiteOption::value('minecraft.server-webhook-url', SiteOption::defaultValue('minecraft.server-webhook-url')));
         $secret = trim((string) SiteOption::value('minecraft.webhook-secret', SiteOption::defaultValue('minecraft.webhook-secret')));
-        $body = json_encode(array_merge(['event' => $this->event], $this->payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $deliveryId = $this->resolveDeliveryIdForAttempt();
+        $payload = MinecraftSyncService::ensureOccurredAt($this->payload);
+        $body = json_encode(array_merge(['event' => $this->event], $payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $timestamp = (string) time();
 
         if ($log) {
             $log->direction = MinecraftWebhookLog::DIRECTION_OUTBOUND;
             $log->status = MinecraftWebhookLog::STATUS_PENDING;
             $log->event = $this->event;
-            $log->delivery_id = $this->deliveryId;
+            $log->delivery_id = $deliveryId;
             $log->method = 'POST';
             $log->target_url = $url !== '' ? $url : null;
             $log->request_headers = [
                 'X-Minecraft-Timestamp' => $timestamp,
                 'X-Minecraft-Signature' => null,
-                'X-Minecraft-Delivery-Id' => $this->deliveryId,
+                'X-Minecraft-Delivery-Id' => $deliveryId,
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
             ];
-            $log->payload = $this->payload;
+            $log->payload = $payload;
             $log->raw_body = $body === false ? null : $body;
             $log->attempt_count = ((int) $log->attempt_count) + 1;
             $log->last_attempted_at = now();
@@ -100,7 +103,7 @@ class DeliverMinecraftWebhook implements ShouldQueue
                 ->withHeaders([
                     'X-Minecraft-Timestamp' => $timestamp,
                     'X-Minecraft-Signature' => $signature,
-                    'X-Minecraft-Delivery-Id' => $this->deliveryId,
+                    'X-Minecraft-Delivery-Id' => $deliveryId,
                 ])
                 ->withBody($body, 'application/json')
                 ->send('POST', $url);
@@ -143,6 +146,13 @@ class DeliverMinecraftWebhook implements ShouldQueue
 
             throw $e;
         }
+    }
+
+    private function resolveDeliveryIdForAttempt(): string
+    {
+        return $this->attempts() > 1
+            ? (string) Str::uuid()
+            : $this->deliveryId;
     }
 
     private function resolveLog(): ?MinecraftWebhookLog

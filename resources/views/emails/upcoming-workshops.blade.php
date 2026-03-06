@@ -6,7 +6,9 @@
         $currentLocation = null;
     @endphp
     @foreach($workshops as $workshop)
-        @php($locationName = $workshop->getLocationName())
+        @php
+            $locationName = $workshop->getLocationName();
+        @endphp
         @if($locationName !== $currentLocation)
             <h2 style="margin-top: 32px; margin-bottom: 6px">{{ $locationName }}</h2>
             @php

@@ -72,6 +72,12 @@ return new class extends Migration
                     }
                 });
 
+            if (in_array('square_payment_id', $presentLegacyColumns, true) && Schema::hasIndex('payments', 'payments_square_payment_id_index')) {
+                Schema::table('payments', function (Blueprint $table): void {
+                    $table->dropIndex('payments_square_payment_id_index');
+                });
+            }
+
             Schema::table('payments', function (Blueprint $table) use ($presentLegacyColumns): void {
                 $table->dropColumn($presentLegacyColumns);
             });

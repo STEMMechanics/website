@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Support\SiteOptionContentFilter;
 use App\Models\SiteOption;
+use App\Services\MinecraftMessageModerationService;
+use App\Support\SiteOptionContentFilter;
+use Blaspsoft\Blasp\Facades\Blasp;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,8 +16,8 @@ class ForumModerationController extends Controller
 {
     public function __construct(
         private readonly SiteOptionContentFilter $contentFilter,
-    ) {
-    }
+        private readonly MinecraftMessageModerationService $minecraftMessageModerationService,
+    ) {}
 
     /**
      * @var array<string, string>
@@ -23,10 +25,13 @@ class ForumModerationController extends Controller
     private const OPTION_DEFAULTS = [
         'moderation.content-filter.enabled' => '1',
         'moderation.content-filter.custom-patterns' => '',
+        'moderation.content-filter.profanity-mask-character' => '*',
+        'moderation.content-filter.blocked-message-placeholder' => '[Message blocked by moderation filter]',
         'moderation.content-filter.block-all-caps' => '1',
         'moderation.content-filter.min-all-caps-letters' => '12',
         'moderation.content-filter.max-repeated-character-run' => '6',
         'moderation.content-filter.max-repeated-word-run' => '4',
+        'minecraft.message-failure-notification-delay-minutes' => '20',
     ];
 
     public function show(): View
@@ -37,10 +42,13 @@ class ForumModerationController extends Controller
             'settings' => [
                 'enabled' => $this->optionValue('moderation.content-filter.enabled', '1') === '1',
                 'custom_patterns' => $this->optionValue('moderation.content-filter.custom-patterns'),
+                'profanity_mask_character' => $this->optionValue('moderation.content-filter.profanity-mask-character', '*'),
+                'blocked_message_placeholder' => $this->optionValue('moderation.content-filter.blocked-message-placeholder', '[Message blocked by moderation filter]'),
                 'block_all_caps' => $this->optionValue('moderation.content-filter.block-all-caps', '1') === '1',
                 'min_all_caps_letters' => $this->optionValue('moderation.content-filter.min-all-caps-letters', '12'),
                 'max_repeated_character_run' => $this->optionValue('moderation.content-filter.max-repeated-character-run', '6'),
                 'max_repeated_word_run' => $this->optionValue('moderation.content-filter.max-repeated-word-run', '4'),
+                'message_failure_notification_delay_minutes' => $this->optionValue('minecraft.message-failure-notification-delay-minutes', '20'),
             ],
         ]);
     }
@@ -56,10 +64,13 @@ class ForumModerationController extends Controller
 
         $this->storeOption('moderation.content-filter.enabled', (string) $validated['enabled']);
         $this->storeOption('moderation.content-filter.custom-patterns', trim((string) ($validated['custom_patterns'] ?? '')));
+        $this->storeOption('moderation.content-filter.profanity-mask-character', $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')));
+        $this->storeOption('moderation.content-filter.blocked-message-placeholder', trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]');
         $this->storeOption('moderation.content-filter.block-all-caps', (string) $validated['block_all_caps']);
         $this->storeOption('moderation.content-filter.min-all-caps-letters', (string) $validated['min_all_caps_letters']);
         $this->storeOption('moderation.content-filter.max-repeated-character-run', (string) $validated['max_repeated_character_run']);
         $this->storeOption('moderation.content-filter.max-repeated-word-run', (string) $validated['max_repeated_word_run']);
+        $this->storeOption('minecraft.message-failure-notification-delay-minutes', (string) $validated['message_failure_notification_delay_minutes']);
 
         session()->flash('message', 'Discussion moderation settings have been updated.');
         session()->flash('message-title', 'Moderation updated');
@@ -88,6 +99,15 @@ class ForumModerationController extends Controller
             'rule' => $result->rule,
             'rule_label' => $this->ruleLabel($result->rule),
             'message' => $result->message,
+            'detail' => $result->detail,
+            'filtered_message' => $result->rule === 'profanity'
+                ? Blasp::maskWith($this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')))
+                    ->check((string) $validated['test_content'])
+                    ->getCleanString()
+                : null,
+            'blocked_message_placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) !== ''
+                ? trim((string) $validated['blocked_message_placeholder'])
+                : $this->minecraftMessageModerationService->blockedPlaceholder(),
         ]);
     }
 
@@ -100,10 +120,13 @@ class ForumModerationController extends Controller
         return $request->validate(array_merge([
             'enabled' => ['required', 'in:0,1'],
             'custom_patterns' => ['nullable', 'string'],
+            'profanity_mask_character' => ['required', 'string', 'max:10'],
+            'blocked_message_placeholder' => ['required', 'string', 'max:255'],
             'block_all_caps' => ['required', 'in:0,1'],
             'min_all_caps_letters' => ['required', 'integer', 'min:1', 'max:100'],
             'max_repeated_character_run' => ['required', 'integer', 'min:2', 'max:100'],
             'max_repeated_word_run' => ['required', 'integer', 'min:2', 'max:100'],
+            'message_failure_notification_delay_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
         ], $extraRules));
     }
 
@@ -116,10 +139,13 @@ class ForumModerationController extends Controller
         return [
             'moderation.content-filter.enabled' => (string) $validated['enabled'],
             'moderation.content-filter.custom-patterns' => trim((string) ($validated['custom_patterns'] ?? '')),
+            'moderation.content-filter.profanity-mask-character' => $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')),
+            'moderation.content-filter.blocked-message-placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]',
             'moderation.content-filter.block-all-caps' => (string) $validated['block_all_caps'],
             'moderation.content-filter.min-all-caps-letters' => (string) $validated['min_all_caps_letters'],
             'moderation.content-filter.max-repeated-character-run' => (string) $validated['max_repeated_character_run'],
             'moderation.content-filter.max-repeated-word-run' => (string) $validated['max_repeated_word_run'],
+            'minecraft.message-failure-notification-delay-minutes' => (string) $validated['message_failure_notification_delay_minutes'],
         ];
     }
 
@@ -146,6 +172,13 @@ class ForumModerationController extends Controller
             ['name' => $name],
             ['value' => $value]
         );
+    }
+
+    private function normalizedMaskCharacter(string $value): string
+    {
+        $trimmed = trim($value);
+
+        return mb_substr($trimmed !== '' ? $trimmed : '*', 0, 1);
     }
 
     /**

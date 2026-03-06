@@ -7,6 +7,7 @@
         @else
             @php($color = $forumCategoryPalette[$loop->index % count($forumCategoryPalette)])
             @php($iconClass = trim((string) ($category->icon_class ?? '')) ?: 'fa-solid fa-comments')
+            @php($usesStemcraftIcon = str_contains($iconClass, 'forum-icon-stemcraft'))
             @php($customColor = trim((string) ($category->color_hex ?? '')))
             <a
                 href="{{ route('forum.category.show', $category->slug) }}"
@@ -14,7 +15,11 @@
                 @if($customColor !== '') style="--forum-category-card-color: {{ $customColor }}" @endif
             >
                 <div class="forum-category-card__icon">
-                    <i class="{{ $iconClass }}"></i>
+                    @if($usesStemcraftIcon)
+                        <img src="/stemcraft-short-logo.webp" alt="" class="h-5 w-5 object-contain" />
+                    @else
+                        <i class="{{ $iconClass }}"></i>
+                    @endif
                 </div>
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2">

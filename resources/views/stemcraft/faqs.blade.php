@@ -4,6 +4,7 @@
         ['title' => 'Join', 'route' => route('stemcraft.join')],
         ['title' => 'Rules', 'route' => route('stemcraft.rules')],
         ['title' => 'FAQs', 'route' => route('stemcraft.faqs')],
+        ['title' => 'Leaderboard', 'route' => route('stemcraft.leaderboards')],
         ['title' => 'Punishments', 'route' => route('stemcraft.punishments')],
     ];
 @endphp
@@ -61,6 +62,10 @@
                         <p class="mt-2 text-sm leading-6 text-gray-600">Yes, the server does have a live map of the worlds and players. Some worlds, such as survival worlds, have 'hiding' enabled meaning that players can hide themselves on the map if they are under blocks and not visible from the sky.</p>
                         <p class="mt-6 text-center"><x-ui.button href="https://map.stemcraft.com.au/" target="_blank">STEMCraft Map</x-ui.button></p>
                     </div>
+                    <div class="rounded-2xl bg-gray-50 p-5">
+                        <h3 class="text-base font-semibold text-gray-900">How many accounts can I link to my website account?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">We allow a maximum of 5 accounts which allows you to add your family to the same website account. We don't allow people to link Minecraft accounts to their website account if that player is not related. If you need more than 5 accounts, please <a href="{{ route('contact') }}" class="link">contact us</a>.</p>
+                    </div>
                 </div>
             </section>
 
@@ -69,7 +74,7 @@
                     <h2 class="text-lg font-semibold text-gray-900">Still unsure?</h2>
                     <p class="mt-3 text-sm leading-6 text-gray-600">If your question is not covered here, it is better to ask directly than guess and end up stuck on access or account details.</p>
                     <div class="mt-8 text-center">
-                        <x-ui.button href="{{ route('contact') }}">Contact Us</x-ui.button>
+                        <x-ui.button href="{{ route('contact') }}" class="block w-full">Contact Us</x-ui.button>
                     </div>
                 </section>
             </div>

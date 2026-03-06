@@ -34,8 +34,13 @@ class QaCommand extends Command
             $testArgs = array_values(array_map('strval', (array) $this->option('test')));
             $testExitCode = $this->runStep(
                 'Running tests',
-                array_merge([PHP_BINARY, base_path('artisan'), 'test'], $withoutTty ? ['--without-tty'] : [], $testArgs),
-                $withoutTty
+                array_merge([PHP_BINARY, base_path('artisan'), '--env=testing', 'test'], $withoutTty ? ['--without-tty'] : [], $testArgs),
+                $withoutTty,
+                [
+                    'APP_ENV' => 'testing',
+                    'DB_CONNECTION' => 'sqlite',
+                    'DB_DATABASE' => ':memory:',
+                ]
             );
 
             if ($testExitCode !== 0) {
@@ -72,13 +77,14 @@ class QaCommand extends Command
 
     /**
      * @param array<int, string> $command
+     * @param array<string, string> $env
      */
-    private function runStep(string $title, array $command, bool $withoutTty): int
+    private function runStep(string $title, array $command, bool $withoutTty, array $env = []): int
     {
         $this->newLine();
         $this->line('<fg=cyan>'.$title.'</>');
 
-        $process = new Process($command, base_path());
+        $process = new Process($command, base_path(), $env);
 
         if (! $withoutTty && Process::isTtySupported()) {
             $process->setTty(true);

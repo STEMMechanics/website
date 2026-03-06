@@ -6,6 +6,7 @@ use App\Models\Token;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Carbon;
@@ -13,6 +14,8 @@ use Tests\TestCase;
 
 class UsernameLoginTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();

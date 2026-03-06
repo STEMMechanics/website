@@ -146,12 +146,18 @@ class ForumCategoryController extends Controller
 
     private function groupSuggestions(): array
     {
-        return UserGroup::query()
+        $persistedGroups = UserGroup::query()
             ->orderBy('slug')
             ->distinct()
             ->pluck('slug')
             ->map(fn ($slug) => (string) $slug)
             ->filter(fn ($slug) => $slug !== '')
+            ->values()
+            ->all();
+
+        return collect([ForumCategory::LOGGED_IN_GROUP_SLUG])
+            ->merge($persistedGroups)
+            ->unique()
             ->values()
             ->all();
     }

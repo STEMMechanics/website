@@ -77,6 +77,7 @@
         'fa-solid fa-image', 'fa-solid fa-video', 'fa-solid fa-headset',
         'fa-solid fa-laptop', 'fa-solid fa-tablet-screen-button', 'fa-solid fa-mobile-screen-button',
         'fa-solid fa-shop', 'fa-solid fa-cart-shopping', 'fa-solid fa-gift',
+        'forum-icon-stemcraft',
     ];
 @endphp
 
@@ -232,7 +233,7 @@
                 <div class="mb-4 flex items-start justify-between gap-4">
                     <div>
                         <h2 class="text-lg font-semibold">Categories</h2>
-                        <p class="text-sm text-gray-600">Blank read/write access is public. New category slugs are generated from the title on first save and do not change later. Divider rows are stored with dash-only slugs and appear as separators on the discussion index.</p>
+                        <p class="text-sm text-gray-600">Blank read access is public. Blank write access allows any logged-in user. Use <span class="font-mono">user</span> to require login for read/write without requiring a specific group. New category slugs are generated from the title on first save and do not change later. Divider rows are stored with dash-only slugs and appear as separators on the discussion index.</p>
                     </div>
                     <x-ui.button type="button" color="outline" x-on:click="addDivider()">Add Divider</x-ui.button>
                 </div>
@@ -315,7 +316,12 @@
                                                         class="inline-flex h-9 w-9 items-center justify-center rounded-full text-white"
                                                         :style="`background:${category.color_hex || '#475569'}`"
                                                     >
-                                                        <i :class="category.icon_class || 'fa-solid fa-comments'"></i>
+                                                        <template x-if="String(category.icon_class || '').includes('forum-icon-stemcraft')">
+                                                            <img src="/stemcraft-short-logo.webp" alt="" class="h-4 w-4 object-contain" />
+                                                        </template>
+                                                        <template x-if="!String(category.icon_class || '').includes('forum-icon-stemcraft')">
+                                                            <i :class="category.icon_class || 'fa-solid fa-comments'"></i>
+                                                        </template>
                                                     </span>
                                                     <span class="text-left">
                                                         <span class="block font-medium">Appearance</span>
@@ -356,7 +362,7 @@
                                                     :noLabel="true"
                                                     class="mb-0"
                                                     fieldClasses="mt-0"
-                                                    placeholder="Public"
+                                                    placeholder="Logged in users"
                                                     :suggestions="$groupSuggestions"
                                                     x-model="category.write_group_slug"
                                                     x-on:input="category.write_group_slug = $event.target.value; handleRowChange(index)"
@@ -405,7 +411,7 @@
                                                     :noLabel="true"
                                                     class="mb-0"
                                                     fieldClasses="mt-0"
-                                                    placeholder="Public"
+                                                    placeholder="Logged in users"
                                                     :suggestions="$groupSuggestions"
                                                     x-model="category.write_group_slug"
                                                     x-on:input="category.write_group_slug = $event.target.value; handleRowChange(index)"
@@ -467,7 +473,12 @@
                         <div class="space-y-4">
                             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
                                 <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-2xl text-white" :style="`background:${appearanceEditor.color_hex || '#475569'}`">
-                                    <i :class="appearanceEditor.icon_class || 'fa-solid fa-comments'"></i>
+                                    <template x-if="String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
+                                        <img src="/stemcraft-short-logo.webp" alt="" class="h-8 w-8 object-contain" />
+                                    </template>
+                                    <template x-if="!String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
+                                        <i :class="appearanceEditor.icon_class || 'fa-solid fa-comments'"></i>
+                                    </template>
                                 </div>
                                 <div class="mt-4 text-center text-sm font-medium text-gray-700">Live preview</div>
                             </div>
@@ -510,7 +521,12 @@
                                         x-on:click="appearanceEditor.icon_class = iconClass"
                                         :title="iconClass"
                                     >
-                                        <i :class="iconClass"></i>
+                                        <template x-if="String(iconClass || '').includes('forum-icon-stemcraft')">
+                                            <img src="/stemcraft-short-logo.webp" alt="" class="h-6 w-6 object-contain" />
+                                        </template>
+                                        <template x-if="!String(iconClass || '').includes('forum-icon-stemcraft')">
+                                            <i :class="iconClass"></i>
+                                        </template>
                                     </button>
                                 </template>
                             </div>

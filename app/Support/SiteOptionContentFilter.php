@@ -35,10 +35,12 @@ class SiteOptionContentFilter implements ContentFilter
             );
         }
 
-        if ($this->containsCustomPattern($plainText, $settings)) {
+        $matchingCustomPattern = $this->matchingCustomPattern($plainText, $settings);
+        if ($matchingCustomPattern !== null) {
             return ContentFilterResult::block(
                 'custom_pattern',
-                'Your post includes language or patterns that are not allowed in this discussion space. Please revise it and try again.'
+                'Your post includes language or patterns that are not allowed in this discussion space. Please revise it and try again.',
+                $matchingCustomPattern,
             );
         }
 
@@ -91,8 +93,8 @@ class SiteOptionContentFilter implements ContentFilter
         preg_match_all('/\p{Lu}/u', $plainText, $upperMatches);
         preg_match_all('/\p{Ll}/u', $plainText, $lowerMatches);
 
-        return count($upperMatches[0] ?? []) >= $this->optionInteger('moderation.content-filter.min-all-caps-letters', 12, $settings)
-            && count($lowerMatches[0] ?? []) === 0;
+        return count($upperMatches[0]) >= $this->optionInteger('moderation.content-filter.min-all-caps-letters', 12, $settings)
+            && count($lowerMatches[0]) === 0;
     }
 
     /**
@@ -124,15 +126,15 @@ class SiteOptionContentFilter implements ContentFilter
     /**
      * @param  array<string, scalar|null>  $settings
      */
-    private function containsCustomPattern(string $plainText, array $settings = []): bool
+    private function matchingCustomPattern(string $plainText, array $settings = []): ?string
     {
         foreach ($this->customPatterns($settings) as $pattern) {
-            if (@preg_match($pattern, $plainText) === 1) {
-                return true;
+            if (@preg_match((string) $pattern['compiled'], $plainText) === 1) {
+                return (string) $pattern['raw'];
             }
         }
 
-        return false;
+        return null;
     }
 
     /**
@@ -169,7 +171,7 @@ class SiteOptionContentFilter implements ContentFilter
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, array{raw: string, compiled: string}>
      */
     private function customPatterns(array $settings = []): array
     {
@@ -178,7 +180,10 @@ class SiteOptionContentFilter implements ContentFilter
         return collect($lines)
             ->map(fn ($line) => trim((string) $line))
             ->filter()
-            ->map(fn ($line) => '~'.$line.'~iu')
+            ->map(fn ($line) => [
+                'raw' => $line,
+                'compiled' => '~'.$line.'~iu',
+            ])
             ->values()
             ->all();
     }

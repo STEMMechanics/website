@@ -19,12 +19,11 @@ class RenameExpenseDocumentsCommand extends Command
         $renamed = 0;
         $skipped = 0;
         $missing = 0;
-        $conflicts = 0;
 
         Expense::query()
             ->whereNotNull('receipt_document_path')
             ->orderBy('id')
-            ->chunkById(200, function ($expenses) use ($dryRun, &$renamed, &$skipped, &$missing, &$conflicts): void {
+            ->chunkById(200, function ($expenses) use ($dryRun, &$renamed, &$skipped, &$missing): void {
                 foreach ($expenses as $expense) {
                     $path = trim((string) ($expense->receipt_document_path ?? ''));
                     if ($path === '') {
@@ -39,17 +38,10 @@ class RenameExpenseDocumentsCommand extends Command
                     }
 
                     $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
-                    $targetFilename = $this->buildDocumentFilename($expense, $extension);
-                    $targetPath = 'finance/expenses/'.$targetFilename;
+                    $targetPath = $this->resolveDocumentPath($expense, $extension, $path);
 
                     if ($targetPath === $path) {
                         $skipped++;
-                        continue;
-                    }
-
-                    if (Storage::disk('local')->exists($targetPath)) {
-                        $conflicts++;
-                        $this->error('Conflict: Expense #'.$expense->id.' target already exists -> '.$targetPath);
                         continue;
                     }
 
@@ -73,12 +65,27 @@ class RenameExpenseDocumentsCommand extends Command
         $this->line('Renamed: '.$renamed);
         $this->line('Skipped (already correct/empty): '.$skipped);
         $this->line('Missing source files: '.$missing);
-        $this->line('Conflicts: '.$conflicts);
 
-        return $conflicts > 0 || $missing > 0 ? self::FAILURE : self::SUCCESS;
+        return $missing > 0 ? self::FAILURE : self::SUCCESS;
     }
 
-    private function buildDocumentFilename(Expense $expense, string $extension): string
+    private function resolveDocumentPath(Expense $expense, string $extension, ?string $currentPath = null): string
+    {
+        $suffix = 0;
+
+        do {
+            $filename = $this->buildDocumentFilename($expense, $extension, $suffix);
+            $path = 'finance/expenses/'.$filename;
+
+            if ($path === $currentPath || ! Storage::disk('local')->exists($path)) {
+                return $path;
+            }
+
+            $suffix++;
+        } while (true);
+    }
+
+    private function buildDocumentFilename(Expense $expense, string $extension, int $suffix = 0): string
     {
         $datePart = ($expense->paid_on ?? now())->format('ymd');
         $supplier = $this->normalizeFilenamePart((string) ($expense->supplier ?? 'supplier'));
@@ -86,8 +93,9 @@ class RenameExpenseDocumentsCommand extends Command
         $invoiceId = trim((string) ($expense->invoice_id ?? ''));
         $invoicePart = $invoiceId !== '' ? '-INV'.$this->normalizeFilenamePart($invoiceId) : '';
         $normalizedExtension = trim($extension) !== '' ? strtolower(trim($extension)) : 'bin';
+        $suffixPart = $suffix > 0 ? '-'.$suffix : '';
 
-        return $datePart.'-'.$supplier.'-'.$expenseIdPart.$invoicePart.'.'.$normalizedExtension;
+        return $datePart.'-'.$supplier.'-'.$expenseIdPart.$invoicePart.$suffixPart.'.'.$normalizedExtension;
     }
 
     private function normalizeFilenamePart(string $value): string

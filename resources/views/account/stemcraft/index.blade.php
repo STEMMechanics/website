@@ -32,44 +32,45 @@
                 @else
                     <div class="mt-8 space-y-6">
                         @foreach($accounts as $account)
-                            @php($status = $account->statusSummary())
+                            @php
+                                $status = $account->statusSummary();
+                                $playerStat = $account->playerStat;
+                                $featuredStats = $playerStat?->featuredStatRows() ?? [];
+                                $additionalStats = $playerStat?->additionalStatRows() ?? [];
+                            @endphp
                             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                                 <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                                    <div class="min-w-0">
-                                        <div class="flex flex-wrap items-center gap-3">
-                                            <h3 class="text-xl font-semibold text-gray-900">{{ $account->username }}</h3>
-                                            <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $account->platform }}</span>
-                                            <span class="text-sm font-semibold {{ $status['class'] }}">{{ $status['label'] }}</span>
+                                    <div class="min-w-0 w-full">
+                                        <div class="flex flex-col gap-4 md:flex-row md:justify-between mb-8">
+                                            <div class="flex flex-col gap-1">
+                                                <div class="flex flex-wrap items-center gap-3">
+                                                    <h3 class="text-xl font-semibold text-gray-900">{{ $account->username }}</h3>
+                                                    <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $account->platform }}</span>
+                                                    <span class="text-sm font-semibold {{ $status['class'] }}">{{ $status['label'] }}</span>
+                                                </div>
+                                                <div class="text-xs text-gray-900 font-mono">{{ $account->uuid ?: 'Pending first login' }}</div>
+                                            </div>
+                                            <form method="POST" action="{{ route('account.stemcraft.destroy', $account) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove STEMCraft account?', 'This will de-whitelist the account and disconnect it from your website profile.', $el)">
+                                                @csrf
+                                                @method('DELETE')
+                                                <x-ui.button class="w-full" type="submit" color="danger-outline">Remove account</x-ui.button>
+                                            </form>
                                         </div>
 
-                                        <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                                            <div class="rounded-2xl bg-gray-50 px-4 py-3">
-                                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">UUID</div>
-                                                <div class="mt-1 break-all text-sm text-gray-900 font-mono">{{ $account->uuid ?: 'Pending first login' }}</div>
-                                            </div>
-                                            <div class="rounded-2xl bg-gray-50 px-4 py-3">
-                                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Whitelist</div>
-                                                <div class="mt-1 text-sm text-gray-900">{{ $account->is_whitelisted ? 'Enabled' : 'Not enabled' }}</div>
-                                            </div>
+                                        <div class="mt-4 grid gap-4 sm:grid-cols-3">
                                             <div class="rounded-2xl bg-gray-50 px-4 py-3">
                                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last seen</div>
                                                 <div class="mt-1 text-sm text-gray-900">{{ $account->last_seen_at?->format('j M Y g:i a') ?? 'Never' }}</div>
                                             </div>
                                             <div class="rounded-2xl bg-gray-50 px-4 py-3">
-                                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Recent sessions</div>
-                                                <div class="mt-1 text-sm text-gray-900">{{ $account->sessions->take(5)->count() }}</div>
+                                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Sessions</div>
+                                                <div class="mt-1 text-sm text-gray-900">{{ $account->sessions->count() }}</div>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <form method="POST" action="{{ route('account.stemcraft.destroy', $account) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Remove STEMCraft account?', 'This will de-whitelist the account and disconnect it from your website profile.', $el)">
-                                        @csrf
-                                        @method('DELETE')
-                                        <x-ui.button type="submit" color="danger-outline">Remove account</x-ui.button>
-                                    </form>
                                 </div>
 
-                                <div class="mt-6 grid gap-6 xl:grid-cols-2">
+                                <div class="mt-6 grid gap-6">
                                     <section class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                                         <h4 class="text-sm font-semibold text-gray-900">Recent sessions</h4>
                                         <p class="mt-1 text-sm text-gray-600">The latest login activity recorded for this player.</p>
@@ -109,15 +110,30 @@
                                         @else
                                             <div class="mt-4 space-y-3">
                                                 @foreach($account->penalties->take(5) as $penalty)
+                                                    @php
+                                                        $historyStatus = 'Recorded';
+                                                        $historyStatusClass = 'text-gray-600';
+                                                        if ($penalty->lifted_at) {
+                                                            $historyStatus = 'Lifted '.($penalty->lifted_at->format('j M Y g:i a') ?? '-');
+                                                            $historyStatusClass = 'text-green-700';
+                                                        } elseif ($penalty->is_permanent) {
+                                                            $historyStatus = 'Permanent';
+                                                            $historyStatusClass = $penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'text-red-700' : 'text-amber-700';
+                                                        } elseif ($penalty->ends_at) {
+                                                            if ($penalty->ends_at->isFuture()) {
+                                                                $historyStatus = 'Until '.$penalty->ends_at->format('j M Y g:i a');
+                                                                $historyStatusClass = $penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'text-red-700' : 'text-amber-700';
+                                                            } else {
+                                                                $historyStatus = 'Expired '.$penalty->ends_at->format('j M Y g:i a');
+                                                                $historyStatusClass = 'text-gray-600';
+                                                            }
+                                                        }
+                                                    @endphp
                                                     <div class="rounded-2xl bg-white px-4 py-3">
                                                         <div class="flex flex-wrap items-center gap-3">
                                                             <span class="text-sm font-semibold uppercase tracking-wide text-gray-900">{{ $penalty->type }}</span>
                                                             <span class="text-sm text-gray-600">{{ $penalty->started_at?->format('j M Y g:i a') ?? '-' }}</span>
-                                                            @if($penalty->is_permanent)
-                                                                <span class="text-sm text-red-700">Permanent</span>
-                                                            @elseif($penalty->ends_at)
-                                                                <span class="text-sm text-gray-600">Until {{ $penalty->ends_at->format('j M Y g:i a') }}</span>
-                                                            @endif
+                                                            <span class="text-sm {{ $historyStatusClass }}">{{ $historyStatus }}</span>
                                                         </div>
                                                         @if($penalty->reason)
                                                             <div class="mt-2 text-sm text-gray-700">{{ $penalty->reason }}</div>
@@ -125,12 +141,67 @@
                                                         @if($penalty->by_username)
                                                             <div class="mt-2 text-xs text-gray-500">By {{ $penalty->by_username }}</div>
                                                         @endif
+                                                        @if($penalty->lift_reason)
+                                                            <div class="mt-2 text-xs text-gray-500">Lift reason: {{ $penalty->lift_reason }}</div>
+                                                        @endif
                                                     </div>
                                                 @endforeach
                                             </div>
                                         @endif
                                     </section>
                                 </div>
+
+                                <section class="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                                        <div>
+                                            <h4 class="text-sm font-semibold text-gray-900">Player stats</h4>
+                                            <p class="mt-1 text-sm text-gray-600">All-time cached server stats for this player. These refresh from the server roughly every 4 hours.</p>
+                                        </div>
+                                        @if($playerStat)
+                                            <div class="text-xs text-gray-500">
+                                                Updated {{ $playerStat->captured_at?->format('j M Y g:i a') ?? '-' }}
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    @if(! $playerStat)
+                                        <p class="mt-4 text-sm text-gray-500">No cached player stats are available yet for this account.</p>
+                                    @else
+                                        @if($featuredStats !== [])
+                                            <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                @foreach($featuredStats as $stat)
+                                                    <div class="rounded-2xl bg-white px-4 py-3">
+                                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $stat['title'] }}</div>
+                                                        <div class="mt-1 text-sm font-semibold text-gray-900">{{ $stat['formatted_value'] }}</div>
+                                                        @if($stat['description'] !== '')
+                                                            <div class="mt-2 text-xs leading-5 text-gray-500">{{ $stat['description'] }}</div>
+                                                        @endif
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
+                                        @if($additionalStats !== [])
+                                            <details class="mt-6 rounded-2xl bg-white px-4 py-3">
+                                                <summary class="cursor-pointer text-sm font-semibold text-gray-900">All cached stats</summary>
+                                                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                                    @foreach($additionalStats as $stat)
+                                                        <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $stat['title'] }}</div>
+                                                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $stat['formatted_value'] }}</div>
+                                                            @if($stat['description'] !== '')
+                                                                <div class="mt-2 text-xs leading-5 text-gray-500">{{ $stat['description'] }}</div>
+                                                            @endif
+                                                            @if($stat['updated_at'])
+                                                                <div class="mt-2 text-xs text-gray-400">Updated {{ \Carbon\Carbon::parse($stat['updated_at'])->format('j M Y g:i a') }}</div>
+                                                            @endif
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </details>
+                                        @endif
+                                    @endif
+                                </section>
                             </section>
                         @endforeach
                     </div>
@@ -169,6 +240,7 @@
                     <h2 class="text-lg font-semibold text-gray-900">Need help?</h2>
                     <p class="mt-3 text-sm leading-6 text-gray-600">If an account is not linking correctly, or if you need help with whitelist access, get in touch and include the username you are trying to use.</p>
                     <div class="mt-5 flex flex-col gap-3">
+                        <x-ui.button href="{{ route('stemcraft.leaderboards') }}" color="primary-outline">Leaderboards</x-ui.button>
                         <x-ui.button href="{{ route('contact') }}">Contact support</x-ui.button>
                         <x-ui.button href="{{ route('account.show') }}" color="primary-outline">Back to account settings</x-ui.button>
                     </div>

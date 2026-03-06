@@ -673,7 +673,7 @@ class WorkshopController extends Controller
             $ticketPaymentRows = $activeTickets->map(function (Ticket $ticket) use ($attendanceInvoiceMeta, $fallbackTicketPrice): array {
                 $invoiceId = (int) ($ticket->invoice_id ?? 0);
                 $invoiceMeta = $invoiceId > 0 ? ($attendanceInvoiceMeta[$invoiceId] ?? null) : null;
-                $ticketPrice = round((float) ($ticket->invoiceLine?->line_total_inc_tax ?? 0), 2);
+                $ticketPrice = round((float) ($ticket->invoice_line_id !== null ? $ticket->invoiceLine->line_total_inc_tax : 0), 2);
                 if ($ticketPrice <= 0.0001) {
                     $ticketPrice = $fallbackTicketPrice;
                 }
@@ -978,7 +978,11 @@ class WorkshopController extends Controller
         }
 
         $invoiceUserIds = collect($invoiceIds)
-            ->map(fn (int $invoiceId): ?string => (string) ($invoices->get($invoiceId)?->user_id ?? ''))
+            ->map(function (int $invoiceId) use ($invoices): string {
+                $invoice = $invoices->get($invoiceId);
+
+                return $invoice !== null ? (string) $invoice->user_id : '';
+            })
             ->filter(fn (string $userId): bool => trim($userId) !== '')
             ->unique()
             ->values()
@@ -1003,7 +1007,7 @@ class WorkshopController extends Controller
             $remainingByInvoice = $outstandingByInvoiceId;
 
             foreach ($paymentLines as $line) {
-                $lineAmount = round((float) ($line['amount'] ?? 0), 2);
+                $lineAmount = round((float) $line['amount'], 2);
                 if ($lineAmount <= 0.0001) {
                     continue;
                 }
@@ -1012,12 +1016,12 @@ class WorkshopController extends Controller
                 $payment->kind = Payment::KIND_PAYMENT;
                 $payment->user_id = $resolvedUserId;
                 $payment->created_by = auth()->id();
-                $payment->received_on = ($line['received_on'] ?? '') !== '' ? Carbon::parse((string) $line['received_on']) : $now;
-                $payment->payment_method = (string) ($line['method'] ?? Payment::PAYMENT_METHOD_OTHER);
-                $payment->reference = ($line['reference'] ?? '') !== '' ? (string) $line['reference'] : null;
+                $payment->received_on = $line['received_on'] !== '' ? Carbon::parse($line['received_on']) : $now;
+                $payment->payment_method = $line['method'];
+                $payment->reference = $line['reference'] !== '' ? $line['reference'] : null;
                 $payment->total_amount = $lineAmount;
                 $payment->gst_amount = 0;
-                $payment->notes = ($line['notes'] ?? '') !== '' ? (string) $line['notes'] : null;
+                $payment->notes = $line['notes'] !== '' ? $line['notes'] : null;
                 $payment->save();
 
                 $unallocatedAmount = $lineAmount;

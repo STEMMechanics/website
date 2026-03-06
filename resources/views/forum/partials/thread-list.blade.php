@@ -24,7 +24,7 @@
                 </div>
                 <div class="text-sm text-gray-400">{{ $topic->created_at?->format('j M Y g:i a') }}</div>
             </div>
-            <div class="mt-1 flex flex-wrap items-center gap-2">
+            <div class="mt-2 flex flex-wrap items-center gap-2">
                 @if($topic->is_pinned)
                     <i class="fa-solid fa-thumbtack"></i>
                 @endif

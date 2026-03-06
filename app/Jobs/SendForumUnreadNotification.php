@@ -39,6 +39,7 @@ class SendForumUnreadNotification implements ShouldQueue, ShouldBeUnique
             return;
         }
 
+        /** @var Collection<int, ForumTopic> $topics */
         $topics = ForumTopic::unreadForUserQuery($user)
             ->with('category')
             ->get();
@@ -47,6 +48,7 @@ class SendForumUnreadNotification implements ShouldQueue, ShouldBeUnique
             return;
         }
 
+        /** @var Collection<int, array{topic: ForumTopic, posts: Collection<int, ForumPost>, url: string}> $topicDigests */
         $topicDigests = collect();
         $emailedTopicIds = [];
 
@@ -63,6 +65,7 @@ class SendForumUnreadNotification implements ShouldQueue, ShouldBeUnique
                 $cutoff = $state->last_emailed_at;
             }
 
+            /** @var Collection<int, ForumPost> $posts */
             $posts = ForumPost::query()
                 ->with('user')
                 ->where('forum_topic_id', $topic->id)
@@ -102,7 +105,11 @@ class SendForumUnreadNotification implements ShouldQueue, ShouldBeUnique
         }
 
         $topicDigests = $topicDigests
-            ->sortByDesc(fn (array $digest) => $digest['posts']->last()?->created_at?->timestamp ?? 0)
+            ->sortByDesc(function (array $digest): int {
+                $lastPost = $digest['posts']->last();
+
+                return $lastPost !== null ? $lastPost->created_at->getTimestamp() : 0;
+            })
             ->values();
 
         dispatch(new SendEmail($user->email, new ForumUnreadNotification($user, $topicDigests)))->onQueue('mail');

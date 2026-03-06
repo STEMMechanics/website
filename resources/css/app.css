@@ -830,6 +830,16 @@ body.image-resize-active {
 .forum-category-card--rose .forum-category-card__icon { background: linear-gradient(135deg, #f43f5e, #fb7185); }
 .forum-category-card--slate .forum-category-card__icon { background: linear-gradient(135deg, #475569, #94a3b8); }
 
+.forum-icon-stemcraft {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    background-image: url('/stemcraft-short-logo.webp');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
 .forum-thread-card,
 .forum-post-card {
     display: flex;

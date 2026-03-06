@@ -151,11 +151,11 @@ class ExpenseController extends Controller
 
         $this->deleteDocument($expense->receipt_document_path);
 
-        $filename = $this->buildDocumentFilename($expense, $file->getClientOriginalExtension());
-        $path = $file->storeAs('finance/expenses', $filename, 'local');
+        $path = $this->resolveDocumentPath($expense, $file->getClientOriginalExtension());
+        $storedPath = $file->storeAs(dirname($path), basename($path), 'local');
 
-        $expense->receipt_document_path = $path;
-        $expense->receipt_document_name = basename($path);
+        $expense->receipt_document_path = $storedPath;
+        $expense->receipt_document_name = basename($storedPath);
     }
 
     private function renameDocumentToCurrentConvention(Expense $expense): void
@@ -166,8 +166,7 @@ class ExpenseController extends Controller
         }
 
         $extension = strtolower(trim((string) pathinfo($path, PATHINFO_EXTENSION)));
-        $targetFilename = $this->buildDocumentFilename($expense, $extension);
-        $targetPath = 'finance/expenses/'.$targetFilename;
+        $targetPath = $this->resolveDocumentPath($expense, $extension, $path);
         if ($targetPath === $path) {
             $expense->receipt_document_name = basename($targetPath);
             return;
@@ -178,7 +177,23 @@ class ExpenseController extends Controller
         $expense->receipt_document_name = basename($targetPath);
     }
 
-    private function buildDocumentFilename(Expense $expense, string $extension): string
+    private function resolveDocumentPath(Expense $expense, string $extension, ?string $currentPath = null): string
+    {
+        $suffix = 0;
+
+        do {
+            $filename = $this->buildDocumentFilename($expense, $extension, $suffix);
+            $path = 'finance/expenses/'.$filename;
+
+            if ($path === $currentPath || ! Storage::disk('local')->exists($path)) {
+                return $path;
+            }
+
+            $suffix++;
+        } while (true);
+    }
+
+    private function buildDocumentFilename(Expense $expense, string $extension, int $suffix = 0): string
     {
         $datePart = ($expense->paid_on ?? now())->format('ymd');
         $supplier = $this->normalizeFilenamePart((string) ($expense->supplier ?? 'supplier'));
@@ -186,8 +201,9 @@ class ExpenseController extends Controller
         $invoiceId = trim((string) ($expense->invoice_id ?? ''));
         $invoicePart = $invoiceId !== '' ? '-INV'.$this->normalizeFilenamePart($invoiceId) : '';
         $normalizedExtension = trim($extension) !== '' ? strtolower(trim($extension)) : 'bin';
+        $suffixPart = $suffix > 0 ? '-'.$suffix : '';
 
-        return $datePart.'-'.$supplier.'-'.$expenseIdPart.$invoicePart.'.'.$normalizedExtension;
+        return $datePart.'-'.$supplier.'-'.$expenseIdPart.$invoicePart.$suffixPart.'.'.$normalizedExtension;
     }
 
     private function normalizeFilenamePart(string $value): string

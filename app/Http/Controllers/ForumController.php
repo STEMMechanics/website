@@ -36,12 +36,15 @@ class ForumController extends Controller
         ]);
     }
 
-    public function showCategory(Request $request, string $categorySlug): View
+    public function showCategory(Request $request, string $categorySlug): View|RedirectResponse
     {
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
         $user = $request->user();
-        abort_unless($category->canRead($user), 404);
+
+        if ($response = $this->forumReadAccessWebResponse($request, $category->canRead($user), 'discussion category')) {
+            return $response;
+        }
 
         [
             'topics' => $topics,
@@ -137,11 +140,14 @@ class ForumController extends Controller
         ]).'#post-'.$post->id);
     }
 
-    public function showTopic(Request $request, string $categorySlug, string $topicSlug): View
+    public function showTopic(Request $request, string $categorySlug, string $topicSlug): View|RedirectResponse
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         $user = $request->user();
-        abort_unless($topic->canRead($user), 404);
+
+        if ($response = $this->forumReadAccessWebResponse($request, $topic->canRead($user), 'discussion thread')) {
+            return $response;
+        }
 
         $this->recordTopicView($request, $topic);
 
@@ -375,7 +381,10 @@ class ForumController extends Controller
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
         $user = $request->user();
-        abort_unless($category->canRead($user), 404);
+
+        if ($response = $this->forumReadAccessJsonResponse($request, $category->canRead($user), 'discussion category')) {
+            return $response;
+        }
 
         [
             'topics' => $topics,
@@ -413,7 +422,10 @@ class ForumController extends Controller
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         $user = $request->user();
-        abort_unless($topic->canRead($user), 404);
+
+        if ($response = $this->forumReadAccessJsonResponse($request, $topic->canRead($user), 'discussion thread')) {
+            return $response;
+        }
 
         $this->markTopicRead($topic, $user, $topic->last_post_at ?? now());
 
@@ -461,7 +473,7 @@ class ForumController extends Controller
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         $user = $request->user();
-        abort_unless($topic->canRead($user), 404);
+        abort_unless($topic->canRead($user), 403);
 
         $enabled = $request->boolean('notifications_enabled');
 
@@ -544,6 +556,7 @@ class ForumController extends Controller
         abort_unless($request->user()?->isAdmin(), 403);
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
 
+        /** @var ForumPost|null $firstPost */
         $firstPost = $topic->firstPost()->first();
         if ($firstPost && (string) $forumPost->id === (string) $firstPost->id) {
             session()->flash('message', 'Delete the thread to remove its first post.');
@@ -572,6 +585,40 @@ class ForumController extends Controller
         return ForumCategory::query()
             ->where('slug', ForumCategory::normalizeSlug($slug))
             ->firstOrFail();
+    }
+
+    private function forumReadAccessWebResponse(Request $request, bool $canRead, string $resource): ?RedirectResponse
+    {
+        if ($canRead) {
+            return null;
+        }
+
+        if (! $request->user()) {
+            return redirect()->guest(route('login'));
+        }
+
+        session()->flash('message', 'You do not have access to this '.$resource.'.');
+        session()->flash('message-title', 'Access denied');
+        session()->flash('message-type', 'warning');
+
+        return redirect()->route('forum.index');
+    }
+
+    private function forumReadAccessJsonResponse(Request $request, bool $canRead, string $resource): ?JsonResponse
+    {
+        if ($canRead) {
+            return null;
+        }
+
+        if (! $request->user()) {
+            return response()->json([
+                'message' => 'Authentication is required to access this '.$resource.'.',
+            ], 401);
+        }
+
+        return response()->json([
+            'message' => 'You do not have access to this '.$resource.'.',
+        ], 403);
     }
 
     private function findTopicOrFail(string $categorySlug, string $topicSlug): ForumTopic
@@ -710,26 +757,32 @@ class ForumController extends Controller
     private function buildTopicViewData(ForumTopic $topic, Request $request): array
     {
         $replySort = $this->normalizedReplySort($request->query('sort'));
+        /** @var ForumPost|null $firstPost */
         $firstPost = $topic->firstPost()
             ->with(['user.avatarMedia', 'reactions.user'])
             ->first();
 
+        /** @var Collection<int, ForumPost> $allPosts */
         $allPosts = ForumPost::query()
             ->with(['user.avatarMedia', 'reactions.user', 'parentPost.user.avatarMedia'])
             ->where('forum_topic_id', $topic->id)
-            ->when($firstPost !== null, fn ($query) => $query->where('id', '!=', $firstPost->id))
+            ->when($firstPost !== null, function ($query) use ($firstPost) {
+                return $query->where('id', '!=', $firstPost->id);
+            })
             ->get();
 
         $posts = $this->paginateThreadedPosts(
             $this->threadedPosts($allPosts, $firstPost, $replySort),
             $request
         );
+        /** @var ForumTopicUserState|null $topicState */
         $topicState = $request->user()
             ? ForumTopicUserState::query()
                 ->where('forum_topic_id', $topic->id)
                 ->where('user_id', (string) $request->user()->id)
                 ->first()
             : null;
+        /** @var ForumPost|null $lastCommentPost */
         $lastCommentPost = $allPosts
             ->sortByDesc(fn (ForumPost $post) => sprintf('%s-%s', optional($post->created_at)?->format('YmdHis.u') ?? '', (string) $post->id))
             ->first();
@@ -743,7 +796,7 @@ class ForumController extends Controller
             'commentCount' => max(0, $allPosts->count()),
             'lastCommentPost' => $lastCommentPost,
             'lastCommentAuthorName' => $lastCommentPost?->user?->username ?: $lastCommentPost?->user?->getName() ?: 'Deleted user',
-            'notificationsEnabled' => (bool) ($topicState?->notifications_enabled ?? false),
+            'notificationsEnabled' => (bool) $topicState?->notifications_enabled,
         ];
     }
 
@@ -761,7 +814,7 @@ class ForumController extends Controller
                 return 0;
             }
 
-            if (isset($post->reply_depth) && is_int($post->reply_depth)) {
+            if ($post->reply_depth !== null) {
                 return $post->reply_depth;
             }
 
@@ -888,6 +941,7 @@ class ForumController extends Controller
         $viewCount = (int) ForumTopic::query()
             ->where('forum_category_id', $category->id)
             ->sum('view_count');
+        /** @var ForumTopic|null $latestTopic */
         $latestTopic = ForumTopic::query()
             ->with('lastPostUser')
             ->where('forum_category_id', $category->id)

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 class MinecraftAccount extends Model
@@ -13,6 +14,7 @@ class MinecraftAccount extends Model
     use HasFactory;
 
     public const PLATFORM_JAVA = 'java';
+
     public const PLATFORM_BEDROCK = 'bedrock';
 
     public const PLATFORMS = [
@@ -57,6 +59,17 @@ class MinecraftAccount extends Model
     public function blacklistEntries(): HasMany
     {
         return $this->hasMany(MinecraftBlacklistEntry::class, 'minecraft_account_id')->orderByDesc('starts_at');
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(MinecraftMessage::class, 'minecraft_account_id')->orderByDesc('occurred_at');
+    }
+
+    public function playerStat(): HasOne
+    {
+        return $this->hasOne(MinecraftPlayerStat::class, 'uuid', 'uuid')
+            ->where('period', MinecraftPlayerStat::PERIOD_ALL);
     }
 
     public function activeBlacklistEntry(): ?MinecraftBlacklistEntry

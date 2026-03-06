@@ -7,6 +7,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read ForumPost $post
+ * @property-read User|null $user
+ */
 class ForumPostReaction extends Model
 {
     use HasFactory, UUID;
@@ -27,11 +31,17 @@ class ForumPostReaction extends Model
         'type',
     ];
 
+    /**
+     * @return BelongsTo<ForumPost, $this>
+     */
     public function post(): BelongsTo
     {
         return $this->belongsTo(ForumPost::class, 'forum_post_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

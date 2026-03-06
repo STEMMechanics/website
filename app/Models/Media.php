@@ -14,6 +14,8 @@ use Illuminate\Support\Facades\Storage;
  * @property string $url
  * @property string $thumbnail
  * @property string $file_type
+ * @property bool|null $is_private
+ * @property bool|null $can_delete
  */
 class Media extends Model
 {

@@ -63,6 +63,7 @@ Route::get('/stemcraft', [StemcraftController::class, 'index'])->name('stemcraft
 Route::get('/stemcraft/join', [StemcraftController::class, 'join'])->name('stemcraft.join');
 Route::get('/stemcraft/rules', [StemcraftController::class, 'rules'])->name('stemcraft.rules');
 Route::get('/stemcraft/faqs', [StemcraftController::class, 'faqs'])->name('stemcraft.faqs');
+Route::get('/stemcraft/leaderboards', [StemcraftController::class, 'stats'])->name('stemcraft.leaderboards');
 Route::get('/stemcraft/punishments', [StemcraftController::class, 'punishments'])->name('stemcraft.punishments');
 Route::get('unsubscribe/discussions/{email}', [SubscribeController::class, 'destroyDiscussionNotifications'])->name('unsubscribe.discussions');
 Route::get('unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
@@ -87,15 +88,14 @@ Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'h
 Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
 Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
+Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
+Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
+Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
+Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
+
 Route::middleware('auth')->group(function () {
-    Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
-    Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
     Route::get('/forum/notifications/summary', [ForumController::class, 'unreadSummary'])->name('forum.notifications.summary');
-    Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
-    Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
     Route::get('/forum/{categorySlug}/create', [ForumController::class, 'createTopic'])->name('forum.topic.create');
-    Route::get('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'showTopic'])->name('forum.topic.show');
-    Route::get('/forum/{categorySlug}/{topicSlug}/snapshot', [ForumController::class, 'topicSnapshot'])->name('forum.topic.snapshot');
     Route::post('/forum/{categorySlug}/{topicSlug}/notifications', [ForumController::class, 'toggleNotifications'])->name('forum.topic.notifications');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
@@ -140,6 +140,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/2fa/reset-backup-codes', [AccountController::class, 'post_tfa_reset_backup_codes'])->name('account.post.tfa.reset-backup-codes');
     Route::delete('/account/2fa', [AccountController::class, 'destroy_tfa'])->name('account.destroy.tfa');
 });
+
+Route::get('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'showTopic'])->name('forum.topic.show');
+Route::get('/forum/{categorySlug}/{topicSlug}/snapshot', [ForumController::class, 'topicSnapshot'])->name('forum.topic.snapshot');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'postLogin'])->middleware('throttle:login')->name('login.store');
@@ -207,9 +210,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
     Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
     Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
+    Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');
+    Route::get('/admin/stemcraft/messages/snapshot', [MinecraftController::class, 'adminMessagesSnapshot'])->name('admin.stemcraft.messages.snapshot');
     Route::get('/admin/stemcraft/webhooks', [MinecraftController::class, 'adminWebhooksIndex'])->name('admin.stemcraft.webhooks.index');
-    Route::get('/admin/stemcraft/rcon', [MinecraftController::class, 'adminRconIndex'])->name('admin.stemcraft.rcon.index');
-    Route::post('/admin/stemcraft/rcon', [MinecraftController::class, 'adminRconExecute'])->name('admin.stemcraft.rcon.execute');
+    Route::get('/admin/stemcraft/webhooks/snapshot', [MinecraftController::class, 'adminWebhooksSnapshot'])->name('admin.stemcraft.webhooks.snapshot');
+    Route::get('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementIndex'])->name('admin.stemcraft.management.index');
+    Route::get('/admin/stemcraft/management/snapshot', [MinecraftController::class, 'adminManagementSnapshot'])->name('admin.stemcraft.management.snapshot');
+    Route::post('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementExecute'])->name('admin.stemcraft.management.execute');
     Route::get('/admin/stemcraft/accounts/create', [MinecraftController::class, 'adminCreate'])->name('admin.stemcraft.create');
     Route::post('/admin/stemcraft/accounts', [MinecraftController::class, 'adminStore'])->name('admin.stemcraft.store');
     Route::get('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminEdit'])->name('admin.stemcraft.edit');
@@ -223,6 +230,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/subscriptions', [EmailSubscriptionController::class, 'index'])->name('admin.subscription.index');
     Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
     Route::post('/admin/subscriptions', [EmailSubscriptionController::class, 'store'])->name('admin.subscription.store');
+    Route::post('/admin/subscriptions/send-all-now', [EmailSubscriptionController::class, 'sendAllNow'])->name('admin.subscription.send-all-now');
+    Route::post('/admin/subscriptions/{subscription}/send-now', [EmailSubscriptionController::class, 'sendNow'])->name('admin.subscription.send-now');
     Route::get('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'edit'])->name('admin.subscription.edit');
     Route::put('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'update'])->name('admin.subscription.update');
     Route::delete('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'destroy'])->name('admin.subscription.destroy');

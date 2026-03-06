@@ -2,25 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers;
 use App\Models\MinecraftAccount;
 use App\Models\MinecraftBlacklistEntry;
+use App\Models\MinecraftMessage;
 use App\Models\MinecraftPenalty;
 use App\Models\MinecraftWebhookLog;
-use App\Models\SiteOption;
 use App\Models\User;
 use App\Models\UserGroup;
-use App\Services\MinecraftRconService;
+use App\Services\MinecraftWebhookBridgeService;
 use App\Services\MinecraftSyncService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class MinecraftController extends Controller
 {
+    private const MAX_LINKED_ACCOUNTS = 5;
+
     public function __construct(
         private readonly MinecraftSyncService $minecraftSyncService
     ) {}
@@ -32,7 +35,7 @@ class MinecraftController extends Controller
         $this->ensureMinecraftAccess($user);
 
         $accounts = $user->minecraftAccounts()
-            ->with(['sessions', 'penalties', 'blacklistEntries'])
+            ->with(['sessions', 'penalties', 'blacklistEntries', 'playerStat'])
             ->orderBy('username')
             ->get();
 
@@ -51,6 +54,8 @@ class MinecraftController extends Controller
             'platform' => ['required', Rule::in(MinecraftAccount::PLATFORMS)],
             'username' => ['required', 'string', 'max:80'],
         ]);
+
+        $this->enforceLinkedAccountLimit($user, $validated);
 
         $account = $this->saveMinecraftAccount(
             owner: $user,
@@ -125,7 +130,7 @@ class MinecraftController extends Controller
     public function adminPunishmentsIndex(Request $request): View
     {
         $activePenalties = MinecraftPenalty::query()
-            ->with('account.user')
+            ->with(['account.user', 'byUser', 'liftedByUser'])
             ->whereIn('type', [MinecraftPenalty::TYPE_BAN, MinecraftPenalty::TYPE_MUTE])
             ->whereNull('lifted_at')
             ->orderByDesc('started_at')
@@ -141,15 +146,29 @@ class MinecraftController extends Controller
             ->values();
 
         $recentPenalties = MinecraftPenalty::query()
-            ->with('account.user')
+            ->with(['account.user', 'byUser', 'liftedByUser'])
             ->orderByDesc('started_at')
             ->paginate(20)
             ->onEachSide(1);
 
-        $savedUsernames = MinecraftAccount::query()
+        $savedAccounts = MinecraftAccount::query()
             ->orderBy('username')
-            ->pluck('username')
-            ->filter(fn (?string $username): bool => trim((string) $username) !== '')
+            ->orderBy('platform')
+            ->orderBy('uuid')
+            ->get(['id', 'platform', 'uuid', 'username'])
+            ->filter(fn (MinecraftAccount $account): bool => trim((string) $account->username) !== '')
+            ->map(function (MinecraftAccount $account): array {
+                return [
+                    'id' => (string) $account->id,
+                    'username' => (string) $account->username,
+                    'label' => $this->formatPunishmentAccountOptionLabel($account),
+                ];
+            })
+            ->values()
+            ->all();
+        $savedUsernames = collect($savedAccounts)
+            ->pluck('label')
+            ->unique()
             ->values()
             ->all();
 
@@ -157,72 +176,54 @@ class MinecraftController extends Controller
             'activePenalties' => $activePenalties,
             'legacyActiveBans' => $legacyActiveBans,
             'recentPenalties' => $recentPenalties,
+            'savedAccounts' => $savedAccounts,
             'savedUsernames' => $savedUsernames,
         ]);
     }
 
+    public function adminMessagesIndex(Request $request): View
+    {
+        return view('admin.stemcraft.messages', $this->buildAdminMessagesViewData($request));
+    }
+
+    public function adminMessagesSnapshot(Request $request): JsonResponse
+    {
+        $viewData = $this->buildAdminMessagesViewData($request);
+
+        return response()->json([
+            'resultsHtml' => view('admin.stemcraft.partials.messages-results', $viewData)->render(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
     public function adminWebhooksIndex(Request $request): View
     {
-        $query = MinecraftWebhookLog::query()
-            ->with('retriedFrom')
-            ->orderByDesc('created_at')
-            ->orderByDesc('id');
-
-        $search = trim((string) $request->query('search', ''));
-        $direction = trim((string) $request->query('direction', ''));
-        $status = trim((string) $request->query('status', ''));
-
-        if ($search !== '') {
-            $query->where(function ($builder) use ($search): void {
-                $builder->where('event', 'like', '%'.$search.'%')
-                    ->orWhere('delivery_id', 'like', '%'.$search.'%')
-                    ->orWhere('target_url', 'like', '%'.$search.'%')
-                    ->orWhere('error_message', 'like', '%'.$search.'%')
-                    ->orWhere('raw_body', 'like', '%'.$search.'%');
-            });
-        }
-
-        if (in_array($direction, [MinecraftWebhookLog::DIRECTION_INBOUND, MinecraftWebhookLog::DIRECTION_OUTBOUND], true)) {
-            $query->where('direction', $direction);
-        }
-
-        $allowedStatuses = [
-            MinecraftWebhookLog::STATUS_QUEUED,
-            MinecraftWebhookLog::STATUS_PENDING,
-            MinecraftWebhookLog::STATUS_DELIVERED,
-            MinecraftWebhookLog::STATUS_FAILED,
-            MinecraftWebhookLog::STATUS_RECEIVED,
-            MinecraftWebhookLog::STATUS_IGNORED,
-            MinecraftWebhookLog::STATUS_REJECTED,
-            MinecraftWebhookLog::STATUS_DUPLICATE,
-        ];
-        if (in_array($status, $allowedStatuses, true)) {
-            $query->where('status', $status);
-        }
-
-        return view('admin.stemcraft.webhooks', [
-            'webhookLogs' => $query->paginate(30)->onEachSide(1),
-            'search' => $search,
-            'selectedDirection' => $direction,
-            'selectedStatus' => $status,
-        ]);
+        return view('admin.stemcraft.webhooks', $this->buildAdminWebhooksViewData($request));
     }
 
-    public function adminRconIndex(): View
+    public function adminWebhooksSnapshot(Request $request): JsonResponse
     {
-        $host = trim((string) SiteOption::value('minecraft.rcon-host', SiteOption::defaultValue('minecraft.rcon-host')));
-        $port = (int) SiteOption::value('minecraft.rcon-port', SiteOption::defaultValue('minecraft.rcon-port'));
+        $viewData = $this->buildAdminWebhooksViewData($request);
 
-        return view('admin.stemcraft.rcon', [
-            'configuredHost' => $host !== '' ? $host : 'Not configured',
-            'configuredPort' => $port > 0 ? $port : null,
-            'lastCommand' => (string) session('minecraft_rcon.command', ''),
-            'lastOutput' => session('minecraft_rcon.output'),
-            'lastError' => session('minecraft_rcon.error'),
-        ]);
+        return response()->json([
+            'resultsHtml' => view('admin.stemcraft.partials.webhooks-results', $viewData)->render(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
-    public function adminRconExecute(Request $request, MinecraftRconService $minecraftRconService): RedirectResponse
+    public function adminManagementIndex(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): View
+    {
+        return view('admin.stemcraft.management', $this->buildAdminManagementViewData($minecraftWebhookBridgeService));
+    }
+
+    public function adminManagementSnapshot(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): JsonResponse
+    {
+        $viewData = $this->buildAdminManagementViewData($minecraftWebhookBridgeService);
+
+        return response()->json([
+            'resultsHtml' => view('admin.stemcraft.partials.management-status', $viewData)->render(),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    public function adminManagementExecute(Request $request, MinecraftWebhookBridgeService $minecraftWebhookBridgeService): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'command' => ['required', 'string', 'max:1000'],
@@ -236,24 +237,41 @@ class MinecraftController extends Controller
         }
 
         try {
-            $output = $minecraftRconService->execute($command);
+            $result = $minecraftWebhookBridgeService->requestCommand($command);
+            $commandSucceeded = (bool) ($result['success'] ?? false);
 
-            session()->flash('message', 'RCON command sent successfully.');
-            session()->flash('message-title', 'STEMCraft RCON');
-            session()->flash('message-type', 'success');
-            session()->flash('minecraft_rcon.command', $command);
-            session()->flash('minecraft_rcon.output', $output !== '' ? $output : '(No response text returned.)');
-            session()->flash('minecraft_rcon.error', null);
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'command' => $command,
+                    'result' => $result,
+                ]);
+            }
+
+            session()->flash('message', $commandSucceeded ? 'Server command executed successfully.' : 'Server command returned an unsuccessful result.');
+            session()->flash('message-title', 'STEMCraft Management');
+            session()->flash('message-type', $commandSucceeded ? 'success' : 'danger');
+            session()->flash('minecraft_management.command', $command);
+            session()->flash('minecraft_management.command_result', $result);
+            session()->flash('minecraft_management.command_error', null);
         } catch (\Throwable $exception) {
-            session()->flash('message', 'RCON command failed: '.$exception->getMessage());
-            session()->flash('message-title', 'STEMCraft RCON');
+            session()->flash('message', 'Server command failed: '.$exception->getMessage());
+            session()->flash('message-title', 'STEMCraft Management');
             session()->flash('message-type', 'danger');
-            session()->flash('minecraft_rcon.command', $command);
-            session()->flash('minecraft_rcon.output', null);
-            session()->flash('minecraft_rcon.error', $exception->getMessage());
+            session()->flash('minecraft_management.command', $command);
+            session()->flash('minecraft_management.command_result', null);
+            session()->flash('minecraft_management.command_error', $exception->getMessage());
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'command' => $command,
+                    'error' => $exception->getMessage(),
+                ], 500);
+            }
         }
 
-        return redirect()->route('admin.stemcraft.rcon.index');
+        return redirect()->route('admin.stemcraft.management.index');
     }
 
     public function adminWebhookRetry(MinecraftWebhookLog $minecraftWebhookLog): RedirectResponse
@@ -425,16 +443,29 @@ class MinecraftController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'username' => ['required', 'string', 'max:80'],
+            'minecraft_account_id' => ['nullable', 'integer', 'exists:minecraft_accounts,id'],
+            'username' => ['nullable', 'string', 'max:80', 'required_without:minecraft_account_id'],
             'type' => ['required', Rule::in(MinecraftPenalty::TYPES)],
             'reason' => ['nullable', 'string'],
             'ends_at' => ['nullable', 'date', 'after:now'],
         ]);
 
         $type = (string) $validated['type'];
-        $username = trim((string) $validated['username']);
-        $account = $this->findMinecraftAccountByUsername($username);
-        $uuid = trim((string) ($account?->uuid ?? ''));
+        $selectedAccountId = (int) ($validated['minecraft_account_id'] ?? 0);
+        $selectedAccount = $selectedAccountId > 0
+            ? MinecraftAccount::query()->find($selectedAccountId)
+            : null;
+        $usernameInput = trim((string) ($validated['username'] ?? ''));
+        $account = $selectedAccount instanceof MinecraftAccount
+            ? $selectedAccount
+            : $this->resolveMinecraftAccountFromPunishmentUsername($usernameInput);
+        $username = trim((string) ($account?->username ?? $this->stripPunishmentPlatformSuffix($usernameInput)));
+        if ($username === '') {
+            throw ValidationException::withMessages([
+                'username' => 'Minecraft username is required.',
+            ]);
+        }
+        $uuid = trim((string) ($account !== null ? $account->uuid : ''));
         $startedAt = now();
         $isPermanent = $type !== MinecraftPenalty::TYPE_KICK && empty($validated['ends_at']);
         $endsAt = $type === MinecraftPenalty::TYPE_KICK
@@ -446,7 +477,6 @@ class MinecraftController extends Controller
 
         $penalty = MinecraftPenalty::query()->create([
             'minecraft_account_id' => $account?->id,
-            'external_id' => (string) Str::uuid(),
             'uuid' => $uuid !== '' ? strtolower($uuid) : null,
             'username' => $username,
             'type' => $type,
@@ -456,6 +486,7 @@ class MinecraftController extends Controller
             'ends_at' => $endsAt,
             'is_permanent' => $type === MinecraftPenalty::TYPE_KICK ? false : $isPermanent,
             'by_uuid' => null,
+            'by_user_id' => (string) $user->id,
             'by_username' => $user->getName(),
         ]);
 
@@ -476,9 +507,15 @@ class MinecraftController extends Controller
         abort_unless(in_array($minecraftPenalty->type, [MinecraftPenalty::TYPE_BAN, MinecraftPenalty::TYPE_MUTE], true), 422);
         abort_unless($minecraftPenalty->isActiveRestriction(), 422);
 
+        $validated = $request->validate([
+            'lift_reason' => ['nullable', 'string'],
+        ]);
+
         $minecraftPenalty->lifted_at = now();
         $minecraftPenalty->lifted_by_uuid = null;
+        $minecraftPenalty->lifted_by_user_id = (string) $user->id;
         $minecraftPenalty->lifted_by_username = $user->getName();
+        $minecraftPenalty->lift_reason = trim((string) ($validated['lift_reason'] ?? '')) ?: null;
         $minecraftPenalty->save();
 
         $this->minecraftSyncService->liftPenalty($minecraftPenalty);
@@ -490,9 +527,422 @@ class MinecraftController extends Controller
         return redirect()->route('admin.stemcraft.punishments.index');
     }
 
+    /**
+     * @return array{messages: mixed, search: string, selectedMessageType: string, selectedStatus: string, messageTypes: list<string>}
+     */
+    private function buildAdminMessagesViewData(Request $request): array
+    {
+        $query = MinecraftMessage::query()
+            ->with('account.user')
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id');
+
+        $search = trim((string) $request->query('search', ''));
+        $messageType = trim((string) $request->query('message_type', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder->where('username', 'like', '%'.$search.'%')
+                    ->orWhere('uuid', 'like', '%'.$search.'%')
+                    ->orWhere('server_name', 'like', '%'.$search.'%')
+                    ->orWhere('world', 'like', '%'.$search.'%')
+                    ->orWhere('raw_message', 'like', '%'.$search.'%')
+                    ->orWhere('filtered_message', 'like', '%'.$search.'%')
+                    ->orWhere('failure_detail', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($messageType !== '') {
+            $query->where('message_type', $messageType);
+        }
+
+        if ($status === 'passed') {
+            $query->where('passed', true);
+        } elseif ($status === 'blocked') {
+            $query->where('passed', false);
+        }
+
+        return [
+            'messages' => $query->paginate(30)->onEachSide(1),
+            'search' => $search,
+            'selectedMessageType' => $messageType,
+            'selectedStatus' => $status,
+            'messageTypes' => MinecraftMessage::query()
+                ->select('message_type')
+                ->distinct()
+                ->orderBy('message_type')
+                ->pluck('message_type')
+                ->map(fn ($value) => (string) $value)
+                ->filter(fn ($value) => $value !== '')
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array{webhookLogs: mixed, search: string, selectedDirection: string, selectedStatus: string}
+     */
+    private function buildAdminWebhooksViewData(Request $request): array
+    {
+        $query = MinecraftWebhookLog::query()
+            ->with('retriedFrom')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        $search = trim((string) $request->query('search', ''));
+        $direction = trim((string) $request->query('direction', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder->where('event', 'like', '%'.$search.'%')
+                    ->orWhere('delivery_id', 'like', '%'.$search.'%')
+                    ->orWhere('target_url', 'like', '%'.$search.'%')
+                    ->orWhere('error_message', 'like', '%'.$search.'%')
+                    ->orWhere('raw_body', 'like', '%'.$search.'%');
+            });
+        }
+
+        if (in_array($direction, [MinecraftWebhookLog::DIRECTION_INBOUND, MinecraftWebhookLog::DIRECTION_OUTBOUND], true)) {
+            $query->where('direction', $direction);
+        }
+
+        $allowedStatuses = [
+            MinecraftWebhookLog::STATUS_QUEUED,
+            MinecraftWebhookLog::STATUS_PENDING,
+            MinecraftWebhookLog::STATUS_DELIVERED,
+            MinecraftWebhookLog::STATUS_FAILED,
+            MinecraftWebhookLog::STATUS_RECEIVED,
+            MinecraftWebhookLog::STATUS_IGNORED,
+            MinecraftWebhookLog::STATUS_REJECTED,
+            MinecraftWebhookLog::STATUS_DUPLICATE,
+        ];
+        if (in_array($status, $allowedStatuses, true)) {
+            $query->where('status', $status);
+        }
+
+        return [
+            'webhookLogs' => $query->paginate(30)->onEachSide(1),
+            'search' => $search,
+            'selectedDirection' => $direction,
+            'selectedStatus' => $status,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     connection: array{configured: bool, target: string},
+     *     status: array<string, mixed>|null,
+     *     statusError: string|null,
+     *     statusCards: list<array{
+     *         label: string,
+     *         value: string,
+     *         segments?: list<array{label: string, value: string, class: string}>
+     *     }>,
+     *     worldRows: list<array{name: string, players: string, loaded_chunks: string}>,
+     *     serverDetails: list<array{label: string, value: string}>,
+     *     lastCommand: string,
+     *     lastCommandResult: array<string, mixed>|null,
+     *     lastCommandError: string|null
+     * }
+     */
+    private function buildAdminManagementViewData(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): array
+    {
+        $connection = $minecraftWebhookBridgeService->connectionSummary();
+        $status = null;
+        $statusError = null;
+        $statusCards = [];
+        $worldRows = [];
+        $serverDetails = [];
+
+        if ($connection['configured']) {
+            try {
+                $status = $minecraftWebhookBridgeService->requestStatus();
+                $statusCards = $this->buildManagementStatusCards($status);
+                $worldRows = $this->buildManagementWorldRows($status);
+                $serverDetails = $this->buildManagementServerDetails($status);
+            } catch (\Throwable $exception) {
+                $statusError = $exception->getMessage();
+            }
+        }
+
+        return [
+            'connection' => $connection,
+            'status' => $status,
+            'statusError' => $statusError,
+            'statusCards' => $statusCards,
+            'worldRows' => $worldRows,
+            'serverDetails' => $serverDetails,
+            'lastCommand' => (string) session('minecraft_management.command', ''),
+            'lastCommandResult' => session('minecraft_management.command_result'),
+            'lastCommandError' => session('minecraft_management.command_error'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $status
+     * @return list<array{
+     *     label: string,
+     *     value: string,
+     *     segments?: list<array{label: string, value: string, class: string}>
+     * }>
+     */
+    private function buildManagementStatusCards(array $status): array
+    {
+        $cards = [];
+        $cards[] = [
+            'label' => 'Server',
+            'value' => trim((string) ($status['server_name'] ?? 'STEMCraft')),
+        ];
+
+        $cards[] = [
+            'label' => 'Version',
+            'value' => trim((string) ($status['minecraft_version'] ?? '-')),
+        ];
+
+        $onlinePlayers = (int) data_get($status, 'players.online', 0);
+        $maxPlayers = (int) data_get($status, 'players.max', 0);
+        $cards[] = [
+            'label' => 'Players',
+            'value' => sprintf('%d / %d', $onlinePlayers, $maxPlayers),
+        ];
+
+        $cards[] = [
+            'label' => 'TPS',
+            'value' => $this->formatTpsSummary(data_get($status, 'tps', [])),
+            'segments' => $this->buildManagementTpsSegments($status),
+        ];
+
+        $cards[] = [
+            'label' => 'Memory',
+            'value' => $this->formatMemorySummary(data_get($status, 'memory', [])),
+        ];
+
+        $cards[] = [
+            'label' => 'Chunks',
+            'value' => (string) ((int) ($status['loaded_chunks'] ?? 0)),
+        ];
+
+        $cards[] = [
+            'label' => 'Worlds',
+            'value' => (string) count(is_array($status['worlds'] ?? null) ? $status['worlds'] : []),
+        ];
+
+        $cards[] = [
+            'label' => 'Online Mode',
+            'value' => (bool) ($status['online_mode'] ?? false) ? 'Enabled' : 'Disabled',
+        ];
+
+        return $cards;
+    }
+
+    /**
+     * @param  array<string, mixed>  $status
+     * @return list<array{name: string, players: string, loaded_chunks: string}>
+     */
+    private function buildManagementWorldRows(array $status): array
+    {
+        $rows = [];
+        $worlds = $status['worlds'] ?? null;
+        if (! is_array($worlds)) {
+            return [];
+        }
+
+        foreach ($worlds as $world) {
+            if (! is_array($world)) {
+                continue;
+            }
+
+            $rows[] = [
+                'name' => trim((string) ($world['name'] ?? '-')),
+                'players' => (string) ((int) ($world['players'] ?? 0)),
+                'loaded_chunks' => (string) ((int) ($world['loaded_chunks'] ?? 0)),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $status
+     * @return list<array{label: string, value: string}>
+     */
+    private function buildManagementServerDetails(array $status): array
+    {
+        return array_values(array_filter([
+            [
+                'label' => 'Implementation',
+                'value' => trim((string) ($status['bukkit_name'] ?? '')),
+            ],
+            [
+                'label' => 'Implementation version',
+                'value' => trim((string) ($status['bukkit_version'] ?? '')),
+            ],
+            [
+                'label' => 'Plugin version',
+                'value' => trim((string) ($status['plugin_version'] ?? '')),
+            ],
+            [
+                'label' => 'Free memory',
+                'value' => $this->formatBytesValue(data_get($status, 'memory.free_bytes'), 0),
+            ],
+            [
+                'label' => 'Captured at',
+                'value' => trim((string) ($status['timestamp'] ?? '')),
+            ],
+        ], static fn (array $detail): bool => $detail['value'] !== ''));
+    }
+
+    /**
+     * @param  array<string, mixed>|mixed  $memory
+     */
+    private function formatMemorySummary(mixed $memory): string
+    {
+        if (! is_array($memory)) {
+            return '-';
+        }
+
+        $used = $memory['used_bytes'] ?? null;
+        $max = $memory['max_bytes'] ?? null;
+        if (! is_numeric($used) || ! is_numeric($max)) {
+            return '-';
+        }
+
+        return $this->formatBytesValue($used).' / '.$this->formatBytesValue($max);
+    }
+
+    /**
+     * @param  array<string, mixed>|mixed  $tps
+     */
+    private function formatTpsSummary(mixed $tps): string
+    {
+        if (! is_array($tps)) {
+            return '-';
+        }
+
+        $values = [];
+        foreach (['one_minute', 'five_minute', 'fifteen_minute'] as $key) {
+            $value = $tps[$key] ?? null;
+            if (! is_numeric($value)) {
+                $values[] = '-';
+                continue;
+            }
+
+            $values[] = number_format((float) $value, 2);
+        }
+
+        return implode(' / ', $values);
+    }
+
+    private function formatBytesValue(mixed $bytes, int $precision = 2): string
+    {
+        if (! is_numeric($bytes)) {
+            return '-';
+        }
+
+        $value = (float) $bytes;
+        $units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+        $unitIndex = 0;
+
+        while ($value >= 1024 && $unitIndex < count($units) - 1) {
+            $value /= 1024;
+            $unitIndex++;
+        }
+
+        $rounded = round($value, max(0, $precision));
+
+        return $rounded.' '.$units[$unitIndex];
+    }
+
+    /**
+     * @param  array<string, mixed>  $status
+     * @return list<array{label: string, value: string, class: string}>
+     */
+    private function buildManagementTpsSegments(array $status): array
+    {
+        $segments = [];
+        $tps = data_get($status, 'tps', []);
+        if (! is_array($tps)) {
+            return $segments;
+        }
+
+        foreach ([
+            'one_minute' => '1m',
+            'five_minute' => '5m',
+            'fifteen_minute' => '15m',
+        ] as $key => $label) {
+            $value = $tps[$key] ?? null;
+
+            if (! is_numeric($value)) {
+                $segments[] = [
+                    'label' => $label,
+                    'value' => '-',
+                    'class' => 'text-gray-500',
+                ];
+
+                continue;
+            }
+
+            $segments[] = [
+                'label' => $label,
+                'value' => number_format((float) $value, 2),
+                'class' => $this->managementTpsColorClass((float) $value),
+            ];
+        }
+
+        return $segments;
+    }
+
+    private function managementTpsColorClass(float $tps): string
+    {
+        if ($tps >= 19.8) {
+            return 'text-green-700';
+        }
+
+        if ($tps >= 18.0) {
+            return 'text-amber-700';
+        }
+
+        return 'text-red-700';
+    }
+
     private function ensureMinecraftAccess(User $user): void
     {
         abort_unless($user->hasMinecraftAccess(), 403);
+    }
+
+    /**
+     * @param  array{platform: string, username: string}  $attributes
+     */
+    private function enforceLinkedAccountLimit(User $user, array $attributes): void
+    {
+        if ($user->hasGroup('admin') || $user->hasGroup('minecraft-org')) {
+            return;
+        }
+
+        $platform = strtolower(trim((string) ($attributes['platform'] ?? '')));
+        $username = trim((string) ($attributes['username'] ?? ''));
+        if ($platform === '' || $username === '') {
+            return;
+        }
+
+        $alreadyLinkedToUser = $user->minecraftAccounts()
+            ->where('platform', $platform)
+            ->where('username', $username)
+            ->exists();
+        if ($alreadyLinkedToUser) {
+            return;
+        }
+
+        if ($user->minecraftAccounts()->count() >= self::MAX_LINKED_ACCOUNTS) {
+            throw ValidationException::withMessages([
+                'username' => sprintf(
+                    'You can only link up to %d Minecraft accounts. Remove an existing account before adding another.',
+                    self::MAX_LINKED_ACCOUNTS
+                ),
+            ]);
+        }
     }
 
     private function minecraftUsers(): Collection
@@ -512,6 +962,57 @@ class MinecraftController extends Controller
             ->orderByRaw('user_id IS NULL')
             ->orderByDesc('is_whitelisted')
             ->first();
+    }
+
+    private function resolveMinecraftAccountFromPunishmentUsername(string $usernameInput): ?MinecraftAccount
+    {
+        $usernameInput = trim($usernameInput);
+        if ($usernameInput === '') {
+            return null;
+        }
+
+        $matchedAccount = $this->findMinecraftAccountByUsername($usernameInput);
+        if ($matchedAccount instanceof MinecraftAccount) {
+            return $matchedAccount;
+        }
+
+        if (preg_match('/^(?<username>.+?)\s*\((?<platform>java|bedrock)\)$/i', $usernameInput, $matches) !== 1) {
+            return null;
+        }
+
+        $username = trim((string) ($matches['username'] ?? ''));
+        $platform = strtolower(trim((string) ($matches['platform'] ?? '')));
+        if ($username === '' || $platform === '') {
+            return null;
+        }
+
+        return MinecraftAccount::query()
+            ->where('username', $username)
+            ->where('platform', $platform)
+            ->orderByRaw('uuid IS NULL')
+            ->orderByRaw('user_id IS NULL')
+            ->orderByDesc('is_whitelisted')
+            ->first();
+    }
+
+    private function stripPunishmentPlatformSuffix(string $usernameInput): string
+    {
+        $usernameInput = trim($usernameInput);
+        if (preg_match('/^(?<username>.+?)\s*\((?<platform>java|bedrock)\)$/i', $usernameInput, $matches) !== 1) {
+            return $usernameInput;
+        }
+
+        return trim((string) ($matches['username'] ?? ''));
+    }
+
+    private function formatPunishmentAccountOptionLabel(MinecraftAccount $account): string
+    {
+        $platform = strtolower(trim((string) $account->platform));
+        if ($platform === '') {
+            $platform = 'unknown';
+        }
+
+        return sprintf('%s (%s)', trim((string) $account->username), $platform);
     }
 
     private function saveMinecraftAccount(?User $owner, array $attributes, ?MinecraftAccount $account, ?bool $forceWhitelist = null): MinecraftAccount
