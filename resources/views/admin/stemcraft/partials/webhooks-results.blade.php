@@ -35,6 +35,9 @@
                     'duplicate', 'ignored' => 'text-amber-700',
                     default => 'text-gray-700',
                 };
+                $payloadPretty = is_array($log->payload)
+                    ? json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                    : null;
                 $formattedResponseBody = $formatWebhookResponseBody($log->response_body);
             @endphp
             <section
@@ -76,14 +79,36 @@
                     <div class="mt-3 space-y-3 text-sm text-gray-700">
                         @if($log->payload)
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Payload</div>
-                                <pre class="mt-1 overflow-auto rounded-xl bg-white p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Payload</div>
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+                                        data-copy-json-target="webhook-payload-{{ $log->id }}-mobile"
+                                        title="Copy payload JSON"
+                                        aria-label="Copy payload JSON"
+                                    >
+                                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <pre id="webhook-payload-{{ $log->id }}-mobile" class="mt-1 overflow-auto rounded-xl bg-white p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $payloadPretty }}</pre>
                             </div>
                         @endif
                         @if($formattedResponseBody)
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Response</div>
-                                <pre class="mt-1 overflow-auto rounded-xl bg-white p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $formattedResponseBody }}</pre>
+                                <div class="flex items-center justify-between gap-2">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Response</div>
+                                    <button
+                                        type="button"
+                                        class="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+                                        data-copy-json-target="webhook-response-{{ $log->id }}-mobile"
+                                        title="Copy response JSON"
+                                        aria-label="Copy response JSON"
+                                    >
+                                        <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                                <pre id="webhook-response-{{ $log->id }}-mobile" class="mt-1 overflow-auto rounded-xl bg-white p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $formattedResponseBody }}</pre>
                             </div>
                         @endif
                     </div>
@@ -126,6 +151,9 @@
                             'duplicate', 'ignored' => 'text-amber-700',
                             default => 'text-gray-700',
                         };
+                        $payloadPretty = is_array($log->payload)
+                            ? json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+                            : null;
                         $formattedResponseBody = $formatWebhookResponseBody($log->response_body);
                     @endphp
                     <tr
@@ -153,11 +181,34 @@
                                 <details class="mt-3" data-refresh-key="webhook-{{ $log->id }}-desktop-content">
                                     <summary class="cursor-pointer text-xs font-semibold text-gray-700">View content</summary>
                                     @if($log->payload)
-                                        <pre class="mt-2 max-h-56 overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) }}</pre>
+                                        <div class="mt-2 flex items-center justify-between gap-2">
+                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Payload</div>
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+                                                data-copy-json-target="webhook-payload-{{ $log->id }}-desktop"
+                                                title="Copy payload JSON"
+                                                aria-label="Copy payload JSON"
+                                            >
+                                                <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                        <pre id="webhook-payload-{{ $log->id }}-desktop" class="mt-1 max-h-56 overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $payloadPretty }}</pre>
                                     @endif
                                     @if($formattedResponseBody)
-                                        <div class="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Response</div>
-                                        <pre class="mt-1 max-h-40 overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $formattedResponseBody }}</pre>
+                                        <div class="mt-2 flex items-center justify-between gap-2">
+                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Response</div>
+                                            <button
+                                                type="button"
+                                                class="inline-flex items-center rounded-md border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-900"
+                                                data-copy-json-target="webhook-response-{{ $log->id }}-desktop"
+                                                title="Copy response JSON"
+                                                aria-label="Copy response JSON"
+                                            >
+                                                <i class="fa-regular fa-copy" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                        <pre id="webhook-response-{{ $log->id }}-desktop" class="mt-1 max-h-40 overflow-auto rounded-xl bg-gray-50 p-3 text-xs text-gray-800 whitespace-pre-wrap">{{ $formattedResponseBody }}</pre>
                                     @endif
                                 </details>
                             @endif

@@ -75,6 +75,92 @@
                     });
                 };
 
+                const hasSelectionWithin = (container) => {
+                    if (!(container instanceof HTMLElement) || typeof window.getSelection !== 'function') {
+                        return false;
+                    }
+
+                    const selection = window.getSelection();
+                    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+                        return false;
+                    }
+
+                    for (let index = 0; index < selection.rangeCount; index += 1) {
+                        const range = selection.getRangeAt(index);
+                        if (container.contains(range.commonAncestorContainer)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                };
+
+                const copyText = async (value) => {
+                    const text = String(value || '');
+                    if (text === '') {
+                        return false;
+                    }
+
+                    try {
+                        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                            await navigator.clipboard.writeText(text);
+                            return true;
+                        }
+                    } catch (_error) {
+                    }
+
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.setAttribute('readonly', 'readonly');
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+
+                    let copied = false;
+
+                    try {
+                        copied = document.execCommand('copy');
+                    } catch (_error) {
+                        copied = false;
+                    } finally {
+                        textarea.remove();
+                    }
+
+                    return copied;
+                };
+
+                results.addEventListener('click', async (event) => {
+                    const target = event.target instanceof Element
+                        ? event.target.closest('[data-copy-json-target]')
+                        : null;
+
+                    if (!(target instanceof HTMLElement)) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    const targetId = (target.dataset.copyJsonTarget || '').trim();
+                    if (targetId === '') {
+                        return;
+                    }
+
+                    const contentNode = document.getElementById(targetId);
+                    const content = contentNode instanceof HTMLElement ? String(contentNode.textContent || '').trim() : '';
+                    if (content === '') {
+                        return;
+                    }
+
+                    const copied = await copyText(content);
+                    if (copied) {
+                        SM.notice('JSON copied', 'Payload JSON copied to clipboard.', 'success', { toast: true });
+                        return;
+                    }
+
+                    SM.notice('Copy failed', 'Could not copy payload JSON to the clipboard.', 'danger', { toast: true });
+                });
+
                 const updateWebhookRows = (currentRows, nextRows) => {
                     if (currentRows.length === 0 || nextRows.length === 0) {
                         return false;
@@ -175,6 +261,10 @@
                 };
 
                 const refresh = async () => {
+                    if (hasSelectionWithin(results)) {
+                        return;
+                    }
+
                     try {
                         const response = await fetch(buildSnapshotUrl(), {
                             headers: {
