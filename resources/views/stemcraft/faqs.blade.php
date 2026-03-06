@@ -75,7 +75,9 @@
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
                         <h3 class="text-base font-semibold text-gray-900">How many accounts can I link to my website account?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">We allow a maximum of 5 accounts which allows you to add your family to the same website account. We don't allow people to link Minecraft accounts to their website account if that player is not related. If you need more than 5 accounts, please <a href="{{ route('contact') }}" class="link">contact us</a>.</p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">You can link up to 5 player accounts to a single website account. This allows families to manage their children’s accounts in one place.</p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Linked accounts should only be for members of your household. Minecraft accounts that belong to friends or other players should not be added.</p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">If your family needs to link more than 5 accounts, please contact us and we can help.</p>
                     </div>
                 </div>
             </section>
