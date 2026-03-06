@@ -34,8 +34,19 @@
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
                         <h3 class="text-base font-semibold text-gray-900">Can I join using Java/Bedrock</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Sure! The server supports both Java and Bedrock players. Generally you require the latest version and a valid Minecraft account to join. You can visit the <a href="{{ route("forum.index") }}" class="link">STEMCraft Discussions</a><sup>*</sup> to see the current version and other news.</p>
-                        <p class="text-xs mt-4 text-gray-600"><sup>*</sup> To view and participant in discussions on this site requires an active website account.</p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Sure! The server supports both Java and Bedrock players. Generally you require the latest version and a valid Minecraft account to join. You can visit the <a href="{{ route("forum.index") }}" class="link">STEMCraft Discussions</a> to see the current version and other news.</p>
+                    </div>
+                    <div class="rounded-2xl bg-gray-50 p-5">
+                        <h3 class="text-base font-semibold text-gray-900">What Minecraft version does the server run?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Just like Minecraft at home, STEMCraft server runs on a specific Minecraft version. You can see the current server version on the <a href="{{ route('stemcraft.index') }}" class="link">STEMCraft Overview</a> page.
+                        </p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            Newer Minecraft game versions can sometimes still join, but mobs, blocks, or items added after the server’s version may not appear in the game yet.
+                        </p>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">
+                            For news about upgrades and upcoming updates, visit the <a href="{{ route('forum.index') }}" class="link">STEMCraft Discussions</a>.
+                        </p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
                         <h3 class="text-base font-semibold text-gray-900">Why does my linked account say UUID pending?</h3>

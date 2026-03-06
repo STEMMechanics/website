@@ -323,20 +323,20 @@ class StemcraftController extends Controller
                     'value' => $maxPlayers > 0 ? sprintf('%d / %d', $onlinePlayers, $maxPlayers) : (string) $onlinePlayers,
                 ],
                 [
-                    'label' => 'Worlds',
-                    'value' => (string) count($visibleWorlds),
+                    'label' => 'Version',
+                    'value' => trim((string) ($status['minecraft_version'] ?? '-')) ?: '-',
                 ],
                 [
                     'label' => 'Hours played',
                     'value' => $communityTotals['hours_played'],
                 ],
                 [
-                    'label' => 'Blocks placed',
-                    'value' => $communityTotals['blocks_placed'],
+                    'label' => 'Dist travelled',
+                    'value' => $communityTotals['distance_travelled'],
                 ],
                 [
-                    'label' => 'Version',
-                    'value' => trim((string) ($status['minecraft_version'] ?? '-')) ?: '-',
+                    'label' => 'Blocks placed',
+                    'value' => $communityTotals['blocks_placed'],
                 ],
                 [
                     'label' => 'TPS',
@@ -351,7 +351,7 @@ class StemcraftController extends Controller
     }
 
     /**
-     * @return array{hours_played: string, blocks_placed: string}
+     * @return array{hours_played: string, blocks_placed: string, distance_travelled: string}
      */
     private function buildPublicCommunityTotals(): array
     {
@@ -361,21 +361,24 @@ class StemcraftController extends Controller
             is_array($cached)
             && is_string($cached['hours_played'] ?? null)
             && is_string($cached['blocks_placed'] ?? null)
+            && is_string($cached['distance_travelled'] ?? null)
         ) {
             return [
                 'hours_played' => $cached['hours_played'],
                 'blocks_placed' => $cached['blocks_placed'],
+                'distance_travelled' => $cached['distance_travelled'],
             ];
         }
 
         $totalPlayHours = 0.0;
         $totalBlocksPlaced = 0.0;
+        $totalDistanceTravelledMeters = 0.0;
 
         MinecraftPlayerStat::query()
             ->forPeriod(MinecraftPlayerStat::PERIOD_ALL)
             ->select(['id', 'stats'])
             ->orderBy('id')
-            ->chunkById(200, function (Collection $rows) use (&$totalPlayHours, &$totalBlocksPlaced): void {
+            ->chunkById(200, function (Collection $rows) use (&$totalPlayHours, &$totalBlocksPlaced, &$totalDistanceTravelledMeters): void {
                 foreach ($rows as $playerStat) {
                     if (! $playerStat instanceof MinecraftPlayerStat) {
                         continue;
@@ -400,6 +403,21 @@ class StemcraftController extends Controller
 
                         if (str_starts_with($key, 'blocks_placed_')) {
                             $totalBlocksPlaced += (float) $value;
+                            continue;
+                        }
+
+                        if (in_array($key, ['distance_walked_km', 'distance_sprinted_km'], true)) {
+                            $totalDistanceTravelledMeters += ((float) $value) * 1000;
+                            continue;
+                        }
+
+                        if (in_array($key, ['distance_walked_m', 'distance_sprinted_m'], true)) {
+                            $totalDistanceTravelledMeters += (float) $value;
+                            continue;
+                        }
+
+                        if (in_array($key, ['distance_walked_cm', 'distance_sprinted_cm', 'distance_walk_one_cm', 'distance_sprint_one_cm'], true)) {
+                            $totalDistanceTravelledMeters += ((float) $value) / 100;
                         }
                     }
                 }
@@ -408,11 +426,31 @@ class StemcraftController extends Controller
         $totals = [
             'hours_played' => number_format($totalPlayHours, 2),
             'blocks_placed' => number_format((int) round($totalBlocksPlaced)),
+            'distance_travelled' => $this->formatPublicDistanceMeters($totalDistanceTravelledMeters),
         ];
 
         Cache::put($cacheKey, $totals, now()->addMinutes(15));
 
         return $totals;
+    }
+
+    private function formatPublicDistanceMeters(int|float $meters): string
+    {
+        $absoluteMeters = abs((float) $meters);
+
+        if ($absoluteMeters >= 1000) {
+            return number_format(((float) $meters) / 1000, 2).' km';
+        }
+
+        if ($absoluteMeters >= 100) {
+            return number_format((float) $meters, 0).' m';
+        }
+
+        if ($absoluteMeters >= 10) {
+            return number_format((float) $meters, 1).' m';
+        }
+
+        return number_format((float) $meters, 2).' m';
     }
 
     private function formatPublicTps(mixed $value): string
