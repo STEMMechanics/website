@@ -80,7 +80,7 @@
                                         <div class="flex items-center gap-3">
                                             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-color text-xs font-semibold text-white">{{ $row['rank'] }}</span>
                                             <div class="min-w-0">
-                                                <div class="truncate text-sm font-semibold text-gray-900">{{ $row['username'] }}<span class="truncate text-xs font-mono text-gray-500 font-normal ml-2">({{ ucfirst($row['platform']) ?? '-' }})</span></div>
+                                                <div class="truncate text-sm font-semibold text-gray-900">{{ $row['username'] }}<span class="truncate text-xs font-mono text-gray-500 font-normal ml-2">({{ strtolower((string) ($row['platform'] ?: '-')) }})</span></div>
                                             </div>
                                         </div>
                                     </div>

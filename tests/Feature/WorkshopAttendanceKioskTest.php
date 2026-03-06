@@ -25,7 +25,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->withoutMiddleware(ValidateCsrfToken::class);
     }
 
-    public function test_non_ticketed_workshop_can_use_kiosk_sign_in_and_redirects_back_to_blank_form(): void
+    public function test_non_ticketed_workshop_standard_kiosk_sign_in_redirects_back_to_blank_form(): void
     {
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop('none');
@@ -39,6 +39,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $response = $this->actingAs($admin)
             ->post(route('admin.workshop.attendance.dropin.store', $workshop), [
                 'kiosk' => 1,
+                'submit_action' => 'save',
                 'child_name' => 'Ada Lovelace',
                 'guardian_name' => 'Mary Lovelace',
                 'email' => 'mary@example.com',
@@ -47,6 +48,41 @@ class WorkshopAttendanceKioskTest extends TestCase
             ]);
 
         $response->assertRedirect(route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]));
+        $response->assertSessionMissing('_old_input');
+
+        $this->assertDatabaseHas('workshop_attendances', [
+            'workshop_id' => $workshop->id,
+            'child_name' => 'Ada Lovelace',
+            'guardian_name' => 'Mary Lovelace',
+            'email' => 'mary@example.com',
+            'phone' => '0400000000',
+            'media_consent' => 1,
+            'source' => 'dropin',
+        ]);
+    }
+
+    public function test_non_ticketed_workshop_can_sign_in_and_prefill_parent_details_for_another_child(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('none');
+
+        $response = $this->actingAs($admin)
+            ->post(route('admin.workshop.attendance.dropin.store', $workshop), [
+                'kiosk' => 1,
+                'submit_action' => 'save_and_add_another',
+                'child_name' => 'Ada Lovelace',
+                'guardian_name' => 'Mary Lovelace',
+                'email' => 'mary@example.com',
+                'phone' => '0400000000',
+                'media_consent' => 1,
+            ]);
+
+        $response->assertRedirect(route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]));
+        $response->assertSessionHasInput('child_name', '');
+        $response->assertSessionHasInput('guardian_name', 'Mary Lovelace');
+        $response->assertSessionHasInput('email', 'mary@example.com');
+        $response->assertSessionHasInput('phone', '0400000000');
+        $response->assertSessionHasInput('media_consent', 1);
 
         $this->assertDatabaseHas('workshop_attendances', [
             'workshop_id' => $workshop->id,

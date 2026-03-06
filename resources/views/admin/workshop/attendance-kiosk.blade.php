@@ -22,12 +22,15 @@
 
                 <div>
                     <input type="hidden" name="media_consent" value="0">
-                    <x-ui.checkbox name="media_consent" value="1" label="Media consent" />
+                    <x-ui.checkbox name="media_consent" value="1" label="Media consent" :checked="(bool) old('media_consent', false)" />
                 </div>
 
                 <p class="text-xs border-y border-gray-300 py-4">By signing this page and indicating consent by the Media Consent checkbox, I give permission for myself and or my child to be photographed, filmed, or recorded during this workshop, and for any artworks, animations, recordings, or other creative works produced as part of the workshop to be used. I consent to STEMMechanics reproducing, editing, and sharing these materials for educational, promotional, and reporting purposes, including websites, social media, newsletters, displays, and sharing with stakeholders and funding partners. This consent applies to this workshop only. I release STEMMechanics from any claims relating to this use. Personal information is handled in accordance with the Information Privacy Act 2009.</p>
 
-                <x-ui.button type="submit" class="mt-4">Sign In</x-ui.button>
+                <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <x-ui.button type="submit" color="secondary" name="submit_action" value="save_and_add_another">Sign In and Add Another Child</x-ui.button>
+                    <x-ui.button type="submit" name="submit_action" value="save">Sign In</x-ui.button>
+                </div>
             </form>
         </div>
     </main>

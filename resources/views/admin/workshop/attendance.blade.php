@@ -1045,7 +1045,6 @@
                                 <x-ui.input
                                     label="Child Name"
                                     name="mobile_child_name_placeholder"
-                                    class="mb-0"
                                     fieldClasses="mt-1"
                                     x-model="entry.child_name"
                                     x-bind:name="!isDesktop ? `entries[${index}][child_name]` : null"
@@ -1054,7 +1053,6 @@
                                 <x-ui.input
                                     label="Parent/Guardian"
                                     name="mobile_guardian_name_placeholder"
-                                    class="mb-0"
                                     fieldClasses="mt-1"
                                     x-model="entry.guardian_name"
                                     x-bind:name="!isDesktop ? `entries[${index}][guardian_name]` : null"
@@ -1064,7 +1062,6 @@
                                     type="email"
                                     label="Email"
                                     name="mobile_email_placeholder"
-                                    class="mb-0"
                                     fieldClasses="mt-1"
                                     x-model="entry.email"
                                     x-bind:name="!isDesktop ? `entries[${index}][email]` : null"
@@ -1073,23 +1070,21 @@
                                 <x-ui.input
                                     label="Phone"
                                     name="mobile_phone_placeholder"
-                                    class="mb-0"
                                     fieldClasses="mt-1"
                                     x-model="entry.phone"
                                     x-bind:name="!isDesktop ? `entries[${index}][phone]` : null"
                                     x-on:input="entry.phone = $event.target.value; handleRowChange(index)"
                                     x-on:change="entry.phone = $event.target.value; handleRowChange(index)" />
                                 <div>
-                                    <div class="text-sm font-medium text-gray-700">Media consent</div>
-                                    <div class="mt-2 flex items-center gap-3">
+                                    <div class="mt-8 mb-4 flex items-center gap-3">
                                         <input type="hidden" x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null" value="0">
                                         <input type="checkbox"
-                                               class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                               class="h-6 w-6 rounded border-gray-400 text-primary-color focus:ring-primary-color"
                                                x-bind:name="!isDesktop ? `entries[${index}][media_consent]` : null"
                                                value="1"
                                                x-model="entry.media_consent"
                                                x-on:change="entry.media_consent = $event.target.checked; handleRowChange(index)">
-                                        <span class="text-sm text-gray-600">Consent given</span>
+                                        <span class="text-sm text-gray-600">Media Consent</span>
                                     </div>
                                 </div>
                             </div>

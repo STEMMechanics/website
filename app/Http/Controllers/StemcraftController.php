@@ -6,10 +6,10 @@ use App\Models\MinecraftPenalty;
 use App\Models\MinecraftPlayerStat;
 use App\Services\MinecraftWebhookBridgeService;
 use App\Support\MinecraftPlayerStatFormatter;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Collection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class StemcraftController extends Controller
@@ -380,12 +380,7 @@ class StemcraftController extends Controller
             ->orderBy('id')
             ->chunkById(200, function (Collection $rows) use (&$totalPlayHours, &$totalBlocksPlaced, &$totalDistanceTravelledMeters): void {
                 foreach ($rows as $playerStat) {
-                    if (! $playerStat instanceof MinecraftPlayerStat) {
-                        continue;
-                    }
-
-                    $statRows = is_array($playerStat->stats) ? $playerStat->stats : [];
-                    foreach ($statRows as $stat) {
+                    foreach ($playerStat->stats as $stat) {
                         if (! is_array($stat)) {
                             continue;
                         }
@@ -398,21 +393,25 @@ class StemcraftController extends Controller
 
                         if ($key === 'play_time') {
                             $totalPlayHours += (float) $value;
+
                             continue;
                         }
 
                         if (str_starts_with($key, 'blocks_placed_')) {
                             $totalBlocksPlaced += (float) $value;
+
                             continue;
                         }
 
                         if (in_array($key, ['distance_walked_km', 'distance_sprinted_km'], true)) {
                             $totalDistanceTravelledMeters += ((float) $value) * 1000;
+
                             continue;
                         }
 
                         if (in_array($key, ['distance_walked_m', 'distance_sprinted_m'], true)) {
                             $totalDistanceTravelledMeters += (float) $value;
+
                             continue;
                         }
 

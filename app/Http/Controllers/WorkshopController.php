@@ -1094,6 +1094,7 @@ class WorkshopController extends Controller
             'phone' => ['nullable', 'string', 'max:60'],
             'media_consent' => ['nullable', 'boolean'],
             'kiosk' => ['nullable', 'boolean'],
+            'submit_action' => ['nullable', 'string', Rule::in(['save', 'save_and_add_another'])],
         ]);
 
         $email = strtolower(trim((string) ($validated['email'] ?? '')));
@@ -1127,8 +1128,21 @@ class WorkshopController extends Controller
         session()->flash('message-type', 'success');
 
         $routeParams = ['workshop' => $workshop];
-        if ($request->boolean('kiosk') && $workshop->registration !== 'tickets') {
+        $isKiosk = $request->boolean('kiosk') && $workshop->registration !== 'tickets';
+        if ($isKiosk) {
             $routeParams['kiosk'] = 1;
+        }
+
+        if ($isKiosk && ($validated['submit_action'] ?? 'save') === 'save_and_add_another') {
+            return redirect()
+                ->route('admin.workshop.attendance', $routeParams)
+                ->withInput([
+                    'child_name' => '',
+                    'guardian_name' => $guardianName,
+                    'email' => $email,
+                    'phone' => $phone,
+                    'media_consent' => $mediaConsent ? 1 : 0,
+                ]);
         }
 
         return redirect()->route('admin.workshop.attendance', $routeParams);
