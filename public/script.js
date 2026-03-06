@@ -232,7 +232,32 @@ let SM = {
             return '';
         }
 
-        return Number.parseInt(String(count ?? 0), 10) === 1 ? safeWord : `${safeWord}s`;
+        if (Number.parseInt(String(count ?? 0), 10) === 1) {
+            return safeWord;
+        }
+
+        const words = safeWord.split(/\s+/);
+        const lastWord = words[words.length - 1] || '';
+        const lowerLastWord = lastWord.toLowerCase();
+        const alreadyPlural = /(ies|ves|ches|shes|sses|xes|zes)$/.test(lowerLastWord)
+            || (lowerLastWord.endsWith('s') && !/(ss|us|is)$/.test(lowerLastWord));
+
+        if (alreadyPlural) {
+            return safeWord;
+        }
+
+        if (/(s|x|z|ch|sh)$/i.test(lastWord)) {
+            words[words.length - 1] = `${lastWord}es`;
+            return words.join(' ');
+        }
+
+        if (/[^aeiou]y$/i.test(lastWord)) {
+            words[words.length - 1] = `${lastWord.slice(0, -1)}ies`;
+            return words.join(' ');
+        }
+
+        words[words.length - 1] = `${lastWord}s`;
+        return words.join(' ');
     },
 
     autosaveJson: async (url, csrfToken, payload, options = {}) => {
