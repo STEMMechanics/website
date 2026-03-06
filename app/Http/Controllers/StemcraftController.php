@@ -309,6 +309,7 @@ class StemcraftController extends Controller
                 $refreshedAtHuman = null;
             }
         }
+        $communityTotals = $this->buildPublicCommunityTotals();
 
         return [
             'available' => true,
@@ -326,6 +327,14 @@ class StemcraftController extends Controller
                     'value' => (string) count($visibleWorlds),
                 ],
                 [
+                    'label' => 'Hours played',
+                    'value' => $communityTotals['hours_played'],
+                ],
+                [
+                    'label' => 'Blocks placed',
+                    'value' => $communityTotals['blocks_placed'],
+                ],
+                [
                     'label' => 'Version',
                     'value' => trim((string) ($status['minecraft_version'] ?? '-')) ?: '-',
                 ],
@@ -339,6 +348,71 @@ class StemcraftController extends Controller
                 'raw' => (string) $world['raw'],
             ], array_slice($visibleWorlds, 0, 8)),
         ];
+    }
+
+    /**
+     * @return array{hours_played: string, blocks_placed: string}
+     */
+    private function buildPublicCommunityTotals(): array
+    {
+        $cacheKey = 'stemcraft:public-community-totals:v1';
+        $cached = Cache::get($cacheKey);
+        if (
+            is_array($cached)
+            && is_string($cached['hours_played'] ?? null)
+            && is_string($cached['blocks_placed'] ?? null)
+        ) {
+            return [
+                'hours_played' => $cached['hours_played'],
+                'blocks_placed' => $cached['blocks_placed'],
+            ];
+        }
+
+        $totalPlayHours = 0.0;
+        $totalBlocksPlaced = 0.0;
+
+        MinecraftPlayerStat::query()
+            ->forPeriod(MinecraftPlayerStat::PERIOD_ALL)
+            ->select(['id', 'stats'])
+            ->orderBy('id')
+            ->chunkById(200, function (Collection $rows) use (&$totalPlayHours, &$totalBlocksPlaced): void {
+                foreach ($rows as $playerStat) {
+                    if (! $playerStat instanceof MinecraftPlayerStat) {
+                        continue;
+                    }
+
+                    $statRows = is_array($playerStat->stats) ? $playerStat->stats : [];
+                    foreach ($statRows as $stat) {
+                        if (! is_array($stat)) {
+                            continue;
+                        }
+
+                        $key = trim((string) ($stat['key'] ?? ''));
+                        $value = $stat['value'] ?? null;
+                        if (! is_numeric($value)) {
+                            continue;
+                        }
+
+                        if ($key === 'play_time') {
+                            $totalPlayHours += (float) $value;
+                            continue;
+                        }
+
+                        if (str_starts_with($key, 'blocks_placed_')) {
+                            $totalBlocksPlaced += (float) $value;
+                        }
+                    }
+                }
+            });
+
+        $totals = [
+            'hours_played' => number_format($totalPlayHours, 2),
+            'blocks_placed' => number_format((int) round($totalBlocksPlaced)),
+        ];
+
+        Cache::put($cacheKey, $totals, now()->addMinutes(15));
+
+        return $totals;
     }
 
     private function formatPublicTps(mixed $value): string
