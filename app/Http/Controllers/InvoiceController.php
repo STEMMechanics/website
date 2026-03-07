@@ -33,7 +33,9 @@ use Throwable;
 
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly DocumentNumberService $documentNumbers)
+    public function __construct(
+        private readonly DocumentNumberService $documentNumbers
+    )
     {
     }
 

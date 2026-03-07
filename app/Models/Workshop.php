@@ -32,6 +32,7 @@ class Workshop extends Model
         'is_private',
         'is_hidden',
         'max_tickets',
+        'ticket_group_slug',
         'pick_list_template_id',
         'pick_list_participants',
         'pick_list_checked_item_ids',

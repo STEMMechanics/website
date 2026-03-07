@@ -9,6 +9,7 @@ use App\Models\Payment;
 use App\Models\PickListTemplate;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
 use App\Services\WorkshopTicketService;
@@ -85,6 +86,7 @@ class WorkshopController extends Controller
     {
         return view('admin.workshop.edit', [
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+            'groupSuggestions' => $this->groupSuggestions(),
         ]);
     }
 
@@ -110,6 +112,7 @@ class WorkshopController extends Controller
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
             'tickets_json' => 'nullable|string',
@@ -143,6 +146,10 @@ class WorkshopController extends Controller
         }
         if (($workshopData['registration'] ?? 'none') !== 'tickets') {
             $workshopData['max_tickets'] = null;
+            $workshopData['ticket_group_slug'] = null;
+        } else {
+            $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
+            $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
@@ -225,6 +232,7 @@ class WorkshopController extends Controller
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
+            'groupSuggestions' => $this->groupSuggestions(),
         ]);
     }
 
@@ -250,6 +258,7 @@ class WorkshopController extends Controller
             'private_code' => 'nullable|string|max:120',
             'hosted_for' => 'nullable|string|max:255',
             'max_tickets' => 'nullable|integer|min:1|required_if:registration,tickets',
+            'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
             'tickets_json' => 'nullable|string',
@@ -282,6 +291,10 @@ class WorkshopController extends Controller
         }
         if (($workshopData['registration'] ?? 'none') !== 'tickets') {
             $workshopData['max_tickets'] = null;
+            $workshopData['ticket_group_slug'] = null;
+        } else {
+            $ticketGroupSlug = UserGroup::normalizeSlug((string) ($workshopData['ticket_group_slug'] ?? ''));
+            $workshopData['ticket_group_slug'] = $ticketGroupSlug !== '' ? $ticketGroupSlug : null;
         }
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
@@ -1546,6 +1559,19 @@ class WorkshopController extends Controller
             $email !== '' ? $email : null,
             $name !== '' ? $name : null,
         ];
+    }
+
+    private function groupSuggestions(): array
+    {
+        return UserGroup::query()
+            ->select('slug')
+            ->distinct()
+            ->orderBy('slug')
+            ->pluck('slug')
+            ->map(fn ($slug) => (string) $slug)
+            ->filter(fn ($slug) => $slug !== '')
+            ->values()
+            ->all();
     }
 
     private function isSafeHttpUrl(string $url): bool

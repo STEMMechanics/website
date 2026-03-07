@@ -18,6 +18,7 @@
 - Improved attendance and payment flows
 - Highlighted not to use your real name as your username
 - STEMMechanics accounts now highlighted in discussions
+- Add group to workshop registrations
 
 ## 1.3.14
 

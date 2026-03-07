@@ -16,6 +16,7 @@ use App\Models\Workshop;
 use App\Providers\QRCodeProvider;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
+use App\Services\WorkshopRegistrationGroupService;
 use App\Services\WorkshopTicketService;
 use App\Support\AltchaTrust;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,8 @@ class WorkshopTicketFlowController extends Controller
     private const SESSION_KEY_PREFIX = 'ticket_checkout_flow.';
 
     public function __construct(
-        private readonly DocumentNumberService $documentNumbers
+        private readonly DocumentNumberService $documentNumbers,
+        private readonly WorkshopRegistrationGroupService $workshopRegistrationGroups
     )
     {
     }
@@ -418,6 +420,15 @@ class WorkshopTicketFlowController extends Controller
         $session['payment_complete'] = true;
         $this->putFlowSession($workshop, $session);
 
+        $this->workshopRegistrationGroups->assignForTickets(
+            Ticket::query()
+                ->with('workshop')
+                ->where('workshop_id', $workshop->id)
+                ->whereIn('id', $holdIds)
+                ->get(),
+            trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
+        );
+
         try {
             $invoice = isset($result['invoice_id']) ? Invoice::query()->find($result['invoice_id']) : null;
             $tickets = Ticket::query()
@@ -502,6 +513,15 @@ class WorkshopTicketFlowController extends Controller
         $session['payment_id'] = $result['payment_id'];
         $session['payment_complete'] = true;
         $this->putFlowSession($workshop, $session);
+
+        $this->workshopRegistrationGroups->assignForTickets(
+            Ticket::query()
+                ->with('workshop')
+                ->where('workshop_id', $workshop->id)
+                ->whereIn('id', $holdIds)
+                ->get(),
+            trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
+        );
 
         return redirect()->route('workshop.ticket.flow.details', $workshop);
     }

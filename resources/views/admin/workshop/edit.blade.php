@@ -33,6 +33,7 @@ $savedTickets = isset($workshop)
             isHidden: @js((bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)),
             registration: @js(old('registration', $workshop->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshop->max_tickets ?? '')),
+            ticketGroupRaw: @js(old('ticket_group_slug', $workshop->ticket_group_slug ?? '')),
             locations: @js(\App\Models\Location::orderByRaw(" name='Online' DESC, name ASC")->get()->map(fn ($location) => [
             'id' => (string) $location->id,
             'name' => (string) $location->name,
@@ -379,6 +380,20 @@ $savedTickets = isset($workshop)
                         </span>
                         <input type="hidden" name="registration_data" id="registration_data" value="{{ $workshop->registration_data ?? '' }}">
                     </div>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='tickets'">
+                    <div class="flex-1">
+                        <x-ui.input
+                            label="Group Granted on Checkout Completion"
+                            name="ticket_group_slug"
+                            :suggestions="$groupSuggestions ?? []"
+                            :value="old('ticket_group_slug', $workshop->ticket_group_slug ?? '')"
+                            info="Optional. Grants this group to the purchaser-linked account as soon as checkout completes, including pay-later methods."
+                            x-model="ticketGroupRaw"
+                            x-on:input="ticketGroupRaw = ticketGroupRaw.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/-+/g, '-').replace(/^[-_]+|[-_]+$/g, '')"
+                        />
+                    </div>
+                    <div class="flex-1"></div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
