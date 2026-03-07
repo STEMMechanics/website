@@ -6,7 +6,6 @@ use App\Models\Ticket;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Collection;
 
 class WorkshopRegistrationGroupService
 {
@@ -15,12 +14,13 @@ class WorkshopRegistrationGroupService
      */
     public function assignForTickets(iterable $tickets, ?string $fallbackUserId = null): int
     {
-        $collection = new EloquentCollection(
-            Collection::make($tickets)
-                ->filter(fn ($ticket) => $ticket instanceof Ticket)
-                ->values()
-                ->all()
-        );
+        if ($tickets instanceof EloquentCollection) {
+            $collection = $tickets;
+        } elseif (is_array($tickets)) {
+            $collection = new EloquentCollection(array_values($tickets));
+        } else {
+            $collection = new EloquentCollection(iterator_to_array($tickets, false));
+        }
 
         if ($collection->isEmpty()) {
             return 0;
