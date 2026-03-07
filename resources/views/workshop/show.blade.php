@@ -82,7 +82,7 @@
                 <article class="content mb-4">{!! $workshop->content !!}</article>
                 <x-ui.filelist class="mt-16" value="{!! $workshop->files()->orderBy('name')->get() !!}" />
             </div>
-            <div class="flex flex-col sm:pt-8 basis-64 flex-grow-0 flex-shrink-0">
+            <div class="flex flex-col sm:pt-8 basis-64 grow-0 shrink-0">
                 @if($workshop->status === 'closed')
                     <div class="sm-registration-closed">Registration for this event has closed.</div>
                 @elseif($workshop->status === 'full')
@@ -96,58 +96,60 @@
                 @elseif($workshop->isPrivate())
                     <div class="sm-registration-private">This workshop is a private event and is not open to public registration.</div>
                 @endif
-                @if($workshop->registration === 'tickets' && $availableTickets !== null)
-                    @if((int) $availableTickets > 0)
-                        <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Tickets</x-ui.button>
-                        @if($workshop->requiresPrivateTicketCode())
-                            <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>
-                        @endif
-                        <p class="text-xs text-gray-600 text-center mb-2">
-                            @if($availableTickets === null)
-                                Tickets available now.
-                            @else
-                                {{ $availableTickets }} ticket{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
+                @if($workshop->status === 'open')
+                    @if($workshop->registration === 'tickets' && $availableTickets !== null)
+                        @if((int) $availableTickets > 0)
+                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Tickets</x-ui.button>
+                            @if($workshop->requiresPrivateTicketCode())
+                                <p class="text-xs text-gray-600 text-center mb-1 font-semibold">Access code required</p>
                             @endif
-                        </p>
-                    @else
-                        <div class="sm-registration-full">This workshop is currently full.</div>
-                    @endif
-                @elseif($workshop->registration === 'link')
-                    @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
-                        <div x-data="{ privateAccessModalOpen: {{ $errors->has('private_code') ? 'true' : 'false' }} }" class="flex flex-col mb-4">
-                            <x-ui.button type="button" x-on:click="privateAccessModalOpen = true">Register for Event</x-ui.button>
+                            <p class="text-xs text-gray-600 text-center mb-2">
+                                @if($availableTickets === null)
+                                    Tickets available now.
+                                @else
+                                    {{ $availableTickets }} ticket{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
+                                @endif
+                            </p>
+                        @else
+                            <div class="sm-registration-full">This workshop is currently full.</div>
+                        @endif
+                    @elseif($workshop->registration === 'link')
+                        @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
+                            <div x-data="{ privateAccessModalOpen: {{ $errors->has('private_code') ? 'true' : 'false' }} }" class="flex flex-col mb-4">
+                                <x-ui.button type="button" x-on:click="privateAccessModalOpen = true">Register for Event</x-ui.button>
 
-                            <div
-                                    x-show="privateAccessModalOpen"
-                                    x-cloak
-                                    class="fixed inset-0 z-50 flex items-center justify-center p-4"
-                                    x-on:keydown.escape.window="privateAccessModalOpen = false"
-                            >
-                                <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="privateAccessModalOpen = false"></div>
-                                <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
-                                    <h3 class="text-lg font-bold text-gray-900">Private Event Registration</h3>
-                                    <p class="mt-2 text-sm text-gray-700">
-                                        This is a private event. Enter your access code to register.<br>If you don’t have a code, contact the organiser.
-                                    </p>
+                                <div
+                                        x-show="privateAccessModalOpen"
+                                        x-cloak
+                                        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                        x-on:keydown.escape.window="privateAccessModalOpen = false"
+                                >
+                                    <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="privateAccessModalOpen = false"></div>
+                                    <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+                                        <h3 class="text-lg font-bold text-gray-900">Private Event Registration</h3>
+                                        <p class="mt-2 text-sm text-gray-700">
+                                            This is a private event. Enter your access code to register.<br>If you don’t have a code, contact the organiser.
+                                        </p>
 
-                                    <form method="POST" action="{{ route('workshop.private-access', $workshop) }}" class="mt-6">
-                                        @csrf
-                                        <x-ui.input name="private_code" label="Access Code" value="{{ old('private_code') }}" required autofocus />
-                                        <div class="pt-2 flex justify-end gap-3">
-                                            <x-ui.button type="button" color="primary-outline" x-on:click="privateAccessModalOpen = false">Cancel</x-ui.button>
-                                            <x-ui.button type="submit">Unlock Registration</x-ui.button>
-                                        </div>
-                                    </form>
+                                        <form method="POST" action="{{ route('workshop.private-access', $workshop) }}" class="mt-6">
+                                            @csrf
+                                            <x-ui.input name="private_code" label="Access Code" value="{{ old('private_code') }}" required autofocus />
+                                            <div class="pt-2 flex justify-end gap-3">
+                                                <x-ui.button type="button" color="primary-outline" x-on:click="privateAccessModalOpen = false">Cancel</x-ui.button>
+                                                <x-ui.button type="submit">Unlock Registration</x-ui.button>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    @elseif(!$workshop->isPrivate())
-                        <x-ui.button href="{{ $workshop->registration_data }}" class="my-4">Register for Event</x-ui.button>
+                        @elseif(!$workshop->isPrivate())
+                            <x-ui.button href="{{ $workshop->registration_data }}" class="my-4">Register for Event</x-ui.button>
+                        @endif
+                    @elseif($workshop->registration === 'email')
+                        <div class="sm-registration-email">Registration for this event by emailing <a href="mailto:{{ $workshop->registration_data }}" class="link">{{ $workshop->registration_data }}</a>.</div>
+                    @elseif($workshop->registration === 'message')
+                        <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
                     @endif
-                @elseif($workshop->registration === 'email')
-                    <div class="sm-registration-email">Registration for this event by emailing <a href="mailto:{{ $workshop->registration_data }}" class="link">{{ $workshop->registration_data }}</a>.</div>
-                @elseif($workshop->registration === 'message')
-                    <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>

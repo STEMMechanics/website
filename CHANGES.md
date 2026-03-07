@@ -19,6 +19,7 @@
 - Highlighted not to use your real name as your username
 - STEMMechanics accounts now highlighted in discussions
 - Add group to workshop registrations
+- Hide registration button on non-open workshops
 
 ## 1.3.14
 
