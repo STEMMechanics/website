@@ -294,6 +294,9 @@ class StemcraftController extends Controller
         }
         $allWorlds = array_values($allWorlds);
         $visibleWorlds = array_values(array_filter($allWorlds, static fn (array $world): bool => $world['hidden'] !== true));
+        usort($visibleWorlds, static function (array $left, array $right): int {
+            return strnatcasecmp((string) $left['name'], (string) $right['name']);
+        });
 
         $refreshedAt = null;
         if (is_string($status['timestamp'] ?? null) && trim((string) $status['timestamp']) !== '') {
