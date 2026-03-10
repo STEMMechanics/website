@@ -20,9 +20,21 @@ class PaymentReceiptPdf extends Mailable
 
     public string $paidOn;
 
+    public string $paymentMethod;
+
     public ?string $receiptUrl;
 
     public bool $isRefund;
+
+    public ?string $invoiceSummary;
+
+    public ?string $statusSummary;
+
+    public ?string $outstandingBeforeSummary;
+
+    public ?string $appliedAmountSummary;
+
+    public ?string $creditSummary;
 
     private string $pdfContentBase64;
 
@@ -34,18 +46,30 @@ class PaymentReceiptPdf extends Mailable
         string $receiptNumber,
         string $amount,
         string $paidOn,
+        string $paymentMethod,
         ?string $receiptUrl,
         bool $isRefund,
         string $pdfContent,
-        string $pdfFilename
+        string $pdfFilename,
+        ?string $invoiceSummary = null,
+        ?string $statusSummary = null,
+        ?string $outstandingBeforeSummary = null,
+        ?string $appliedAmountSummary = null,
+        ?string $creditSummary = null
     ) {
         $this->recipientName = $recipientName;
         $this->invoiceNumber = $invoiceNumber;
         $this->receiptNumber = $receiptNumber;
         $this->amount = $amount;
         $this->paidOn = $paidOn;
+        $this->paymentMethod = $paymentMethod;
         $this->receiptUrl = $receiptUrl;
         $this->isRefund = $isRefund;
+        $this->invoiceSummary = $invoiceSummary;
+        $this->statusSummary = $statusSummary;
+        $this->outstandingBeforeSummary = $outstandingBeforeSummary;
+        $this->appliedAmountSummary = $appliedAmountSummary;
+        $this->creditSummary = $creditSummary;
         $this->pdfContentBase64 = $pdfContent !== '' ? base64_encode($pdfContent) : '';
         $this->pdfFilename = $pdfFilename;
     }

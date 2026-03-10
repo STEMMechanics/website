@@ -173,6 +173,14 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 
+        if ($optionName === 'store.shipping.max-satchel-weight-grams' || $optionName === 'shop.shipping.max-satchel-weight-grams') {
+            $rules['value'] = ['required', 'integer', 'min:0', 'max:50000'];
+        }
+
+        if ($optionName === 'store.shipping.boxed-shipping-amount' || $optionName === 'shop.shipping.boxed-shipping-amount') {
+            $rules['value'] = ['nullable', 'numeric', 'min:0', 'max:9999.99'];
+        }
+
         if (in_array($optionName, [
             'moderation.content-filter.min-all-caps-letters',
             'moderation.content-filter.max-repeated-character-run',

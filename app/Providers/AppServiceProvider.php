@@ -14,6 +14,7 @@ use App\Policies\AuditLogPolicy;
 use App\Policies\InvoicePolicy;
 use App\Policies\PaymentPolicy;
 use App\Policies\TicketPolicy;
+use App\Support\ShopAvailability;
 use App\Support\SiteOptionContentFilter;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -135,6 +136,12 @@ class AppServiceProvider extends ServiceProvider
             }
 
             $view->with('appNotice', $notice);
+        });
+
+        View::composer(['components.layout', 'components.navbar', 'components.footer'], function ($view): void {
+            $shopAvailability = app(ShopAvailability::class);
+
+            $view->with('publicShopAvailable', $shopAvailability->isPubliclyAvailable());
         });
     }
 

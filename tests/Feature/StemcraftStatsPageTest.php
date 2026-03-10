@@ -87,7 +87,7 @@ class StemcraftStatsPageTest extends TestCase
         $response->assertDontSeeText('Hours played');
         $response->assertSeeText('Mob Kills');
         $response->assertSeeTextInOrder(['PlayerTwo', '120', 'PlayerOne', '42']);
-        $response->assertSeeText('(bedrock)');
+        $response->assertSeeText('PlayerTwo(Bedrock)');
         $response->assertSeeText('Play Time');
         $response->assertSeeText('2h');
         $response->assertSeeText('Fish Caught');

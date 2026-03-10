@@ -566,6 +566,118 @@ class MinecraftWebhookEventLoggingTest extends TestCase
         ]);
     }
 
+    public function test_player_stats_sync_event_skips_unsupported_periods_and_processes_supported_periods(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'minecraft.webhook-secret'],
+            ['value' => 'shared-secret']
+        );
+
+        $payload = [
+            'event' => 'server.sync.players.stats',
+            'timestamp' => '2026-03-05T12:00:00Z',
+            'stats' => [
+                [
+                    'key' => 'mob_kills',
+                    'title' => 'Mob Kills',
+                    'description' => 'Number of mob kills made by the player.',
+                ],
+            ],
+            'periods' => [
+                [
+                    'period' => 'day',
+                    'period_days' => 1,
+                    'players' => [[
+                        'uuid' => '11111111-2222-3333-4444-555555555555',
+                        'username' => 'DayPlayer',
+                        'platform' => 'bedrock',
+                        'stats' => [[
+                            'key' => 'mob_kills',
+                            'value' => 5,
+                        ]],
+                    ]],
+                ],
+                [
+                    'period' => 'month',
+                    'period_days' => 30,
+                    'players' => [[
+                        'uuid' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                        'username' => 'MonthPlayer',
+                        'platform' => 'bedrock',
+                        'updated_at' => '2026-03-05T11:59:00Z',
+                        'stats' => [[
+                            'key' => 'mob_kills',
+                            'value' => 99,
+                            'updated_at' => '2026-03-05T11:58:00Z',
+                        ]],
+                    ]],
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook($payload, '23232323-7777-4777-8777-bbbbbbbbbbbb');
+        $response->assertOk()->assertJson([
+            'ok' => true,
+            'partial' => true,
+            'processed_periods' => ['month'],
+            'unsupported_periods' => ['day'],
+        ]);
+
+        $this->assertDatabaseHas('minecraft_player_stats', [
+            'uuid' => 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            'platform' => 'bedrock',
+            'username' => 'MonthPlayer',
+            'period' => 'month',
+            'period_days' => 30,
+        ]);
+        $this->assertDatabaseMissing('minecraft_player_stats', [
+            'uuid' => '11111111-2222-3333-4444-555555555555',
+        ]);
+    }
+
+    public function test_player_stats_sync_event_returns_partial_response_when_all_periods_are_unsupported(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'minecraft.webhook-secret'],
+            ['value' => 'shared-secret']
+        );
+
+        $payload = [
+            'event' => 'server.sync.players.stats',
+            'timestamp' => '2026-03-05T12:00:00Z',
+            'stats' => [
+                [
+                    'key' => 'mob_kills',
+                    'title' => 'Mob Kills',
+                    'description' => 'Number of mob kills made by the player.',
+                ],
+            ],
+            'periods' => [[
+                'period' => 'day',
+                'period_days' => 1,
+                'players' => [[
+                    'uuid' => '11111111-2222-3333-4444-555555555555',
+                    'username' => 'DayPlayer',
+                    'platform' => 'bedrock',
+                    'stats' => [[
+                        'key' => 'mob_kills',
+                        'value' => 5,
+                    ]],
+                ]],
+            ]],
+        ];
+
+        $response = $this->postSignedWebhook($payload, '34343434-7777-4777-8777-bbbbbbbbbbbb');
+        $response->assertOk()->assertJson([
+            'ok' => true,
+            'partial' => true,
+            'processed_periods' => [],
+            'unsupported_periods' => ['day'],
+        ]);
+
+        $this->assertSame(0, MinecraftPlayerStat::query()->count());
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */

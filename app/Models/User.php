@@ -219,6 +219,14 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * @return HasMany<StoreOrder, $this>
+     */
+    public function storeOrders(): HasMany
+    {
+        return $this->hasMany(StoreOrder::class);
+    }
+
+    /**
      * @return HasMany<MinecraftAccount, $this>
      */
     public function minecraftAccounts(): HasMany

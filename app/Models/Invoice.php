@@ -117,6 +117,14 @@ class Invoice extends Model
     }
 
     /**
+     * @return HasMany<StoreOrder, $this>
+     */
+    public function storeOrders(): HasMany
+    {
+        return $this->hasMany(StoreOrder::class);
+    }
+
+    /**
      * @return MorphToMany<FinanceFile, $this>
      */
     public function financeFiles(): MorphToMany

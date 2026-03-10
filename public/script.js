@@ -226,6 +226,15 @@ let SM = {
         return Math.min(parsed, max);
     },
 
+    escapeHtml: (value) => {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    },
+
     pluralize: (word, count) => {
         const safeWord = String(word ?? '').trim();
         if (safeWord === '') {
@@ -770,6 +779,474 @@ let SM = {
         elements.forEach(element => {
             SM.updateThumbnail(element.getAttribute('data-thumbnail'), element);
         });
+    },
+
+    shopCart: {
+        config: {
+            showUrl: '/shop/cart',
+            updateUrl: '/shop/cart/update',
+            removeUrl: '/shop/cart/remove',
+        },
+        state: {
+            shipping_country: 'Australia',
+            coupon_code: null,
+            is_empty: true,
+            cart_url: '/shop/cart',
+            checkout_url: '/shop/checkout',
+            lines: [],
+            summary: {
+                item_count: 0,
+                subtotal: 0,
+                shipping: 0,
+                discount: 0,
+                gst: 0,
+                total: 0,
+                can_checkout: false,
+                coupon_code: null,
+                shipping_quote: {
+                    boxed_shipping_required: false,
+                    method: '',
+                    reason: null,
+                    package_summary: null,
+                    known_weight_grams: 0,
+                },
+            },
+        },
+        subscribers: [],
+
+        configure(config = {}) {
+            this.config = {
+                ...this.config,
+                ...(config || {}),
+            };
+
+            if (config.initialState) {
+                this.setState(config.initialState);
+            }
+        },
+
+        getState() {
+            return this.state;
+        },
+
+        subscribe(callback) {
+            if (typeof callback !== 'function') {
+                return () => {};
+            }
+
+            this.subscribers.push(callback);
+            callback(this.state);
+
+            return () => {
+                this.subscribers = this.subscribers.filter((item) => item !== callback);
+            };
+        },
+
+        notify() {
+            this.subscribers.forEach((callback) => {
+                try {
+                    callback(this.state);
+                } catch (_error) {
+                }
+            });
+
+            window.dispatchEvent(new CustomEvent('shop-cart-updated', {
+                detail: { cart: this.state },
+            }));
+        },
+
+        setState(state = {}) {
+            const nextState = state && typeof state === 'object' ? state : {};
+            this.state = {
+                ...this.state,
+                ...nextState,
+                lines: Array.isArray(nextState.lines) ? nextState.lines : [],
+                summary: {
+                    ...this.state.summary,
+                    ...(nextState.summary || {}),
+                    shipping_quote: {
+                        ...this.state.summary.shipping_quote,
+                        ...((nextState.summary || {}).shipping_quote || {}),
+                    },
+                },
+            };
+            this.notify();
+            return this.state;
+        },
+
+        csrfToken() {
+            return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        },
+
+        errorMessageFromPayload(payload, fallback = 'Unable to update the cart right now.') {
+            if (!payload || typeof payload !== 'object') {
+                return fallback;
+            }
+
+            if (typeof payload.message === 'string' && payload.message.trim() !== '') {
+                return payload.message.trim();
+            }
+
+            if (payload.errors && typeof payload.errors === 'object') {
+                for (const value of Object.values(payload.errors)) {
+                    if (Array.isArray(value) && value.length > 0) {
+                        return String(value[0]);
+                    }
+                    if (typeof value === 'string' && value.trim() !== '') {
+                        return value.trim();
+                    }
+                }
+            }
+
+            return fallback;
+        },
+
+        lineByKey(lineKey, state = null) {
+            const resolvedState = state && typeof state === 'object' ? state : this.state;
+            if (!lineKey || !Array.isArray(resolvedState?.lines)) {
+                return null;
+            }
+
+            return resolvedState.lines.find((line) => String(line?.key || '') === String(lineKey)) || null;
+        },
+
+        async request(url, options = {}) {
+            const response = await fetch(url, {
+                method: options.method || 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': this.csrfToken(),
+                    ...(options.headers || {}),
+                },
+                credentials: 'same-origin',
+                body: options.body || null,
+            });
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.success === false) {
+                throw new Error(this.errorMessageFromPayload(payload));
+            }
+
+            return payload;
+        },
+
+        showSuccess(message) {
+            if (!message || !window.SM) {
+                return;
+            }
+
+            if (typeof window.SM.notice === 'function') {
+                window.SM.notice('Cart updated', message, 'success', { toast: true });
+                return;
+            }
+
+            if (typeof window.SM.alert === 'function') {
+                window.SM.alert('Cart updated', message, 'success');
+            }
+        },
+
+        showError(message) {
+            if (!window.SM) {
+                return;
+            }
+
+            if (typeof window.SM.notice === 'function') {
+                window.SM.notice('Cart update failed', message, 'danger');
+                return;
+            }
+
+            if (typeof window.SM.alert === 'function') {
+                window.SM.alert('Cart update failed', message, 'danger');
+            }
+        },
+
+        ensureAddSheetStyles() {
+            if (document.getElementById('sm-shop-add-sheet-styles')) {
+                return;
+            }
+
+            const style = document.createElement('style');
+            style.id = 'sm-shop-add-sheet-styles';
+            style.textContent = `
+                .swal2-container.sm-shop-add-sheet-container {
+                    padding: 0 0.5rem 0.75rem !important;
+                }
+
+                .swal2-popup.sm-shop-add-sheet-popup {
+                    margin: 0 !important;
+                    transform: translateY(calc(100% + 1.5rem));
+                    opacity: 0;
+                    border-radius: .5rem !important;
+                }
+
+                .swal2-popup.sm-shop-add-sheet-popup.sm-shop-add-sheet-popup-show {
+                    animation: sm-shop-add-sheet-slide-up 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+                }
+
+                .swal2-popup.sm-shop-add-sheet-popup.sm-shop-add-sheet-popup-hide {
+                    animation: sm-shop-add-sheet-slide-down 180ms ease-in forwards;
+                }
+
+                @keyframes sm-shop-add-sheet-slide-up {
+                    from {
+                        transform: translateY(calc(100% + 1.5rem));
+                        opacity: 0;
+                    }
+
+                    to {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+                }
+
+                @keyframes sm-shop-add-sheet-slide-down {
+                    from {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+
+                    to {
+                        transform: translateY(calc(100% + 1.5rem));
+                        opacity: 0;
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .swal2-popup.sm-shop-add-sheet-popup,
+                    .swal2-popup.sm-shop-add-sheet-popup.sm-shop-add-sheet-popup-show,
+                    .swal2-popup.sm-shop-add-sheet-popup.sm-shop-add-sheet-popup-hide {
+                        animation: none !important;
+                        transform: none !important;
+                        opacity: 1 !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        },
+
+        showAddSheet(line, options = {}) {
+            const reviewUrl = options.reviewUrl || this.state.cart_url || '/shop/cart';
+            const itemTitle = options.itemTitle
+                || line?.display_title
+                || line?.product?.title
+                || 'Item';
+            const itemImageUrl = options.imageUrl
+                || line?.product?.image_url
+                || '';
+
+            if (typeof Swal === 'undefined') {
+                this.showSuccess(options.fallbackMessage || 'Added to cart.');
+                return Promise.resolve(null);
+            }
+
+            this.ensureAddSheetStyles();
+
+            const imageHtml = itemImageUrl !== ''
+                ? `<div style="display:flex;height:96px;width:96px;align-items:center;justify-content:center;overflow:hidden;border-radius:1.25rem;background:#ffffff;"><img src="${SM.escapeHtml(itemImageUrl)}" alt="${SM.escapeHtml(itemTitle)}" style="max-height:100%;max-width:100%;object-fit:cover;"></div>`
+                : '';
+            let outsidePointerHandler = null;
+            let bindOutsidePointerTimer = null;
+
+            return Swal.fire({
+                position: 'bottom',
+                toast: true,
+                showConfirmButton: false,
+                allowOutsideClick: true,
+                allowEscapeKey: true,
+                backdrop: false,
+                width: 'min(72rem, calc(100vw - 1rem))',
+                padding: 0,
+                customClass: {
+                    container: 'sm-shop-add-sheet-container',
+                    popup: 'sm-shop-add-sheet-popup',
+                },
+                showClass: {
+                    popup: 'sm-shop-add-sheet-popup-show',
+                },
+                hideClass: {
+                    popup: 'sm-shop-add-sheet-popup-hide',
+                },
+                html: `
+                    <div style="position:relative;padding:.5rem;text-align:left;">
+                        <button
+                            type="button"
+                            aria-label="Close"
+                            data-shop-add-sheet-close
+                            x-data="{ hover:false }"
+                            @mouseenter="hover=true"
+                            @mouseleave="hover=false"
+                            :style="'position:absolute;top:.5rem;right:.5rem;display:inline-flex;font-size:1rem;color:' + (hover ? '#EF4444' : '#1f2937')"
+                        >
+                            <span aria-hidden="true"><i class="fa-solid fa-close"></i></span>
+                        </button>
+                        <div style="display:flex;align-items:center;gap:1rem;">
+                            ${imageHtml}
+                            <div style="min-width:0;flex:1;">
+                                <div style="display:flex;align-items:center;gap:0.75rem;font-size:1.1rem;font-weight:700;color:#1f2937;">
+                                    <span aria-hidden="true" style="display:inline-flex;height:1.9rem;width:1.9rem;align-items:center;justify-content:center;border-radius:999px;background:rgba(2, 132, 199, 0.12);color:#0f766e;font-size:1.1rem;">✓</span>
+                                    <span>Item added to your cart</span>
+                                </div>
+                                <div style="margin-top:0.5rem;font-size:1.05rem;color:#1f2937;">${SM.escapeHtml(itemTitle)}</div>
+                            </div>
+                        </div>
+                        <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;">
+                            <button type="button" data-shop-add-sheet-continue style="height:2.5rem;border-radius:.25rem;border:1px solid #1f2937;background:#ffffff;font-weight:700;color:#1f2937;">Continue shopping</button>
+                            <button type="button" data-shop-add-sheet-review style="height:2.5rem;border-radius:.25rem;border:0;background:#0284c7;font-weight:700;color:#ffffff;">Review cart</button>
+                        </div>
+                    </div>
+                `,
+                didOpen: (popup) => {
+                    popup.style.borderRadius = '2rem';
+                    popup.style.background = '#f3f4f6';
+                    popup.style.boxShadow = '0 -18px 48px rgba(15, 23, 42, 0.22)';
+                    popup.style.pointerEvents = 'auto';
+
+                    popup.querySelector('[data-shop-add-sheet-close]')?.addEventListener('click', () => {
+                        Swal.close();
+                    });
+
+                    popup.querySelector('[data-shop-add-sheet-continue]')?.addEventListener('click', () => {
+                        Swal.close();
+                    });
+
+                    popup.querySelector('[data-shop-add-sheet-review]')?.addEventListener('click', () => {
+                        Swal.close();
+                        SM.redirectIfSafe(reviewUrl);
+                    });
+
+                    bindOutsidePointerTimer = window.setTimeout(() => {
+                        outsidePointerHandler = (event) => {
+                            const target = event?.target;
+                            if (!(target instanceof Node)) {
+                                return;
+                            }
+                            if (popup.contains(target)) {
+                                return;
+                            }
+
+                            Swal.close();
+                        };
+
+                        document.addEventListener('pointerdown', outsidePointerHandler, true);
+                    }, 0);
+                },
+                willClose: () => {
+                    if (bindOutsidePointerTimer !== null) {
+                        window.clearTimeout(bindOutsidePointerTimer);
+                        bindOutsidePointerTimer = null;
+                    }
+
+                    if (typeof outsidePointerHandler === 'function') {
+                        document.removeEventListener('pointerdown', outsidePointerHandler, true);
+                        outsidePointerHandler = null;
+                    }
+                },
+            });
+        },
+
+        quantitiesFormData(overrides = {}, shippingCountry = null) {
+            const data = new FormData();
+            const resolvedCountry = shippingCountry || this.state.shipping_country || 'Australia';
+
+            (this.state.lines || []).forEach((line) => {
+                const nextQuantity = Object.prototype.hasOwnProperty.call(overrides, line.key)
+                    ? overrides[line.key]
+                    : line.quantity;
+
+                data.append(`quantities[${line.key}]`, String(nextQuantity));
+            });
+            data.append('shipping_country', resolvedCountry);
+
+            return data;
+        },
+
+        async submitAddForm(form, options = {}) {
+            if (!(form instanceof HTMLFormElement)) {
+                return null;
+            }
+
+            try {
+                const addedLineKey = typeof options.addedLineKey === 'string' ? options.addedLineKey : '';
+                const previousLine = addedLineKey !== '' ? this.lineByKey(addedLineKey) : null;
+                const previousQuantity = Number.parseInt(String(previousLine?.quantity ?? 0), 10) || 0;
+                const payload = await this.request(form.action, {
+                    method: form.method || 'POST',
+                    body: new FormData(form),
+                });
+                this.setState(payload.cart || {});
+                if (options.showAddSheet === true && previousQuantity <= 0) {
+                    this.showAddSheet(this.lineByKey(addedLineKey), {
+                        reviewUrl: this.state.cart_url || payload?.cart?.cart_url || '/shop/cart',
+                        fallbackMessage: payload.message || 'Added to cart.',
+                    });
+                } else if (options.showNotice === true) {
+                    this.showSuccess(payload.message || 'Added to cart.');
+                }
+                return payload;
+            } catch (error) {
+                this.showError(error.message || 'Unable to add this item to the cart.');
+                throw error;
+            }
+        },
+
+        async updateQuantity(lineKey, quantity, options = {}) {
+            try {
+                const nextQuantity = SM.toBoundedInt(quantity, {
+                    min: 0,
+                    max: Number.parseInt(String(options.max ?? 99), 10) || 99,
+                    allowNull: false,
+                });
+                const payload = await this.request(this.config.updateUrl, {
+                    method: 'POST',
+                    body: this.quantitiesFormData({ [lineKey]: nextQuantity }, options.shippingCountry || null),
+                });
+                this.setState(payload.cart || {});
+                if (options.showNotice !== false) {
+                    this.showSuccess(payload.message || 'Your cart has been updated.');
+                }
+                return payload;
+            } catch (error) {
+                this.showError(error.message || 'Unable to update the item quantity.');
+                throw error;
+            }
+        },
+
+        async removeLine(lineKey, options = {}) {
+            try {
+                const data = new FormData();
+                data.append('line_key', lineKey);
+                data.append('shipping_country', options.shippingCountry || this.state.shipping_country || 'Australia');
+
+                const payload = await this.request(this.config.removeUrl, {
+                    method: 'POST',
+                    body: data,
+                });
+                this.setState(payload.cart || {});
+                if (options.showNotice !== false) {
+                    this.showSuccess(payload.message || 'Removed that item from your cart.');
+                }
+                return payload;
+            } catch (error) {
+                this.showError(error.message || 'Unable to remove that item right now.');
+                throw error;
+            }
+        },
+
+        async refresh(shippingCountry = null) {
+            try {
+                const url = new URL(this.config.showUrl, window.location.origin);
+                url.searchParams.set('shipping_country', shippingCountry || this.state.shipping_country || 'Australia');
+                const payload = await this.request(url.toString(), {
+                    method: 'GET',
+                });
+                this.setState(payload.cart || {});
+                return payload;
+            } catch (error) {
+                this.showError(error.message || 'Unable to refresh the cart.');
+                throw error;
+            }
+        },
     }
 };
 

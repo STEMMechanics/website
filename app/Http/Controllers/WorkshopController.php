@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
+use App\Mail\PaymentReceiptPdf;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -19,6 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -593,6 +595,7 @@ class WorkshopController extends Controller
         $activeTickets = collect();
         $cancelledTickets = collect();
         $attendanceInvoiceMeta = [];
+        $availableEftposPayments = [];
         $paymentMethodLabels = collect(Payment::PAYMENT_METHODS)
             ->mapWithKeys(fn (string $method): array => [$method => Payment::paymentMethodLabel($method)])
             ->all();
@@ -650,6 +653,7 @@ class WorkshopController extends Controller
                     ->with(['allocations.customerPayment', 'taxAdjustments'])
                     ->whereIn('id', $invoiceIds)
                     ->get();
+                $relevantInvoiceUserIds = [];
 
                 foreach ($invoices as $invoice) {
                     $expectedKind = $invoice->expectedSettlementKind();
@@ -671,7 +675,14 @@ class WorkshopController extends Controller
                         'status' => (string) $invoice->status,
                         'outstanding' => $outstanding,
                     ];
+
+                    $invoiceUserId = trim((string) ($invoice->user_id ?? ''));
+                    if ($invoiceUserId !== '') {
+                        $relevantInvoiceUserIds[] = $invoiceUserId;
+                    }
                 }
+
+                $availableEftposPayments = $this->buildAttendanceEftposPaymentOptions($relevantInvoiceUserIds);
             }
 
             $fallbackTicketPrice = 0.0;
@@ -697,6 +708,7 @@ class WorkshopController extends Controller
                     'attendee' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
                     'invoice_id' => $invoiceId > 0 ? $invoiceId : null,
                     'invoice_number' => $invoiceMeta['number'] ?? null,
+                    'invoice_user_id' => $ticket->invoice ? (string) ($ticket->invoice->user_id ?? '') : '',
                     'invoice_outstanding' => (float) ($invoiceMeta['outstanding'] ?? 0),
                     'ticket_price' => max(0, $ticketPrice),
                 ];
@@ -720,6 +732,7 @@ class WorkshopController extends Controller
             'showCancelledTickets' => $showCancelledTickets,
             'attendanceInvoiceMeta' => $attendanceInvoiceMeta,
             'ticketPaymentRows' => $ticketPaymentRows,
+            'availableEftposPayments' => $availableEftposPayments,
             'paymentMethodLabels' => $paymentMethodLabels,
             'dropIns' => $dropIns,
             'isKiosk' => $isKiosk,
@@ -875,12 +888,42 @@ class WorkshopController extends Controller
             return redirect()->route('admin.workshop.attendance', $workshop);
         }
 
+        $rawPaymentRows = $request->input('payments', []);
+        if (is_array($rawPaymentRows)) {
+            $request->merge([
+                'payments' => collect($rawPaymentRows)
+                    ->map(function ($row): ?array {
+                        if (! is_array($row)) {
+                            return null;
+                        }
+
+                        return [
+                            'method' => trim((string) ($row['method'] ?? '')),
+                            'amount' => trim((string) ($row['amount'] ?? '')),
+                            'received_on' => trim((string) ($row['received_on'] ?? '')),
+                            'reference' => trim((string) ($row['reference'] ?? '')),
+                            'notes' => trim((string) ($row['notes'] ?? '')),
+                        ];
+                    })
+                    ->filter()
+                    ->filter(function (array $row): bool {
+                        return $row['amount'] !== ''
+                            || $row['reference'] !== ''
+                            || $row['notes'] !== '';
+                    })
+                    ->values()
+                    ->all(),
+            ]);
+        }
+
         $validated = $request->validate([
             'ticket_ids' => ['required', 'array', 'min:1'],
             'ticket_ids.*' => ['integer', 'min:1'],
             'attended_ticket_ids' => ['nullable', 'array'],
             'attended_ticket_ids.*' => ['integer', 'min:1'],
-            'payments' => ['required', 'array', 'min:1'],
+            'existing_payment_ids' => ['nullable', 'array'],
+            'existing_payment_ids.*' => ['integer', 'min:1'],
+            'payments' => ['nullable', 'array'],
             'payments.*.method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
             'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
             'payments.*.received_on' => ['nullable', 'date'],
@@ -963,6 +1006,18 @@ class WorkshopController extends Controller
             return redirect()->route('admin.workshop.attendance', $workshop);
         }
 
+        $invoiceUserIds = collect($invoiceIds)
+            ->map(function (int $invoiceId) use ($invoices): string {
+                $invoice = $invoices->get($invoiceId);
+
+                return $invoice !== null ? (string) $invoice->user_id : '';
+            })
+            ->filter(fn (string $userId): bool => trim($userId) !== '')
+            ->unique()
+            ->values()
+            ->all();
+        $resolvedUserId = count($invoiceUserIds) === 1 ? $invoiceUserIds[0] : null;
+
         $paymentLines = collect($validated['payments'] ?? [])
             ->filter(fn ($line): bool => is_array($line))
             ->map(function (array $line): array {
@@ -976,37 +1031,64 @@ class WorkshopController extends Controller
             })
             ->filter(fn (array $line): bool => $line['amount'] > 0.0001)
             ->values();
-        if ($paymentLines->isEmpty()) {
+        $selectedExistingPaymentIds = collect($validated['existing_payment_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+        if ($paymentLines->isEmpty() && $selectedExistingPaymentIds === []) {
             throw ValidationException::withMessages([
-                'payments' => 'Add at least one payment amount.',
+                'payments' => 'Select an existing EFTPOS transaction or add at least one payment amount.',
             ]);
         }
 
         $totalOutstanding = round((float) collect($outstandingByInvoiceId)->sum(), 2);
         $totalPaymentAmount = round((float) $paymentLines->sum('amount'), 2);
-        if ($totalPaymentAmount > ($totalOutstanding + 0.0001)) {
+        if ($selectedExistingPaymentIds !== []) {
+            $existingPayments = Payment::query()
+                ->whereIn('id', $selectedExistingPaymentIds)
+                ->get()
+                ->keyBy(fn (Payment $payment): int => (int) $payment->id);
+            $existingAvailableAmount = 0.0;
+
+            foreach ($selectedExistingPaymentIds as $paymentId) {
+                $existingPayment = $existingPayments->get($paymentId);
+                if (! $existingPayment instanceof Payment) {
+                    throw ValidationException::withMessages([
+                        'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
+                    ]);
+                }
+
+                $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
+                if ($eligibilityError !== null) {
+                    throw ValidationException::withMessages([
+                        'existing_payment_ids' => $eligibilityError,
+                    ]);
+                }
+
+                $existingAvailableAmount += $this->attendancePaymentUnallocatedAmount($existingPayment);
+            }
+
+            $remainingAfterExisting = max(0, round($totalOutstanding - min($totalOutstanding, $existingAvailableAmount), 2));
+        } else {
+            $remainingAfterExisting = $totalOutstanding;
+        }
+
+        if ($totalPaymentAmount > ($remainingAfterExisting + 0.0001)) {
             throw ValidationException::withMessages([
-                'payments' => 'Payment total cannot exceed outstanding total of $'.number_format($totalOutstanding, 2).'.',
+                'payments' => 'Payment total cannot exceed remaining outstanding total of $'.number_format($remainingAfterExisting, 2).' after linked EFTPOS transactions.',
             ]);
         }
 
-        $invoiceUserIds = collect($invoiceIds)
-            ->map(function (int $invoiceId) use ($invoices): string {
-                $invoice = $invoices->get($invoiceId);
-
-                return $invoice !== null ? (string) $invoice->user_id : '';
-            })
-            ->filter(fn (string $userId): bool => trim($userId) !== '')
-            ->unique()
-            ->values()
-            ->all();
-        $resolvedUserId = count($invoiceUserIds) === 1 ? $invoiceUserIds[0] : null;
         $syncAttendance = $request->boolean('sync_attendance', false);
         $markAttended = $request->boolean('mark_attended', false);
         $now = now();
         $syncInvoiceIds = array_keys($outstandingByInvoiceId);
+        $receiptEmailPayloads = [];
 
         DB::transaction(function () use (
+            $selectedExistingPaymentIds,
             $paymentLines,
             $outstandingByInvoiceId,
             $resolvedUserId,
@@ -1015,14 +1097,67 @@ class WorkshopController extends Controller
             $attendedTicketIds,
             $syncAttendance,
             $markAttended,
-            $now
+            $now,
+            &$receiptEmailPayloads
         ): void {
             $remainingByInvoice = $outstandingByInvoiceId;
+
+            foreach ($selectedExistingPaymentIds as $paymentId) {
+                $existingPayment = Payment::query()->lockForUpdate()->find($paymentId);
+                if (! $existingPayment instanceof Payment) {
+                    throw ValidationException::withMessages([
+                        'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
+                    ]);
+                }
+
+                $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
+                if ($eligibilityError !== null) {
+                    throw ValidationException::withMessages([
+                        'existing_payment_ids' => $eligibilityError,
+                    ]);
+                }
+
+                $availableAmount = $this->attendancePaymentUnallocatedAmount($existingPayment);
+                if ($availableAmount <= 0.0001) {
+                    continue;
+                }
+
+                if ($resolvedUserId !== null && trim((string) ($existingPayment->user_id ?? '')) === '') {
+                    $existingPayment->user_id = $resolvedUserId;
+                    $existingPayment->save();
+                }
+
+                $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($existingPayment, $remainingByInvoice, $availableAmount);
+                if ($allocationSummary['allocated_total'] > 0.0001) {
+                    $receiptEmailPayloads[] = [
+                        'payment_id' => (int) $existingPayment->id,
+                        'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
+                            (float) ($allocationSummary['outstanding_before_total'] ?? 0),
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                        'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
+                            (float) $allocationSummary['allocated_total'],
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                        'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
+                            (float) ($allocationSummary['outstanding_after_total'] ?? 0),
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                    ];
+                }
+            }
 
             foreach ($paymentLines as $line) {
                 $lineAmount = round((float) $line['amount'], 2);
                 if ($lineAmount <= 0.0001) {
                     continue;
+                }
+
+                $remainingOutstandingTotal = round((float) collect($remainingByInvoice)->sum(), 2);
+                if ($lineAmount > ($remainingOutstandingTotal + 0.0001)) {
+                    throw ValidationException::withMessages([
+                        'payments' => 'Outstanding balance changed while saving. Refresh and try again.',
+                    ]);
                 }
 
                 $payment = new Payment();
@@ -1037,27 +1172,23 @@ class WorkshopController extends Controller
                 $payment->notes = $line['notes'] !== '' ? $line['notes'] : null;
                 $payment->save();
 
-                $unallocatedAmount = $lineAmount;
-                foreach ($remainingByInvoice as $invoiceId => $remainingBalance) {
-                    if ($unallocatedAmount <= 0.0001) {
-                        break;
-                    }
-                    if ($remainingBalance <= 0.0001) {
-                        continue;
-                    }
-
-                    $allocatedAmount = round(min($remainingBalance, $unallocatedAmount), 2);
-                    if ($allocatedAmount <= 0.0001) {
-                        continue;
-                    }
-
-                    $payment->allocations()->create([
-                        'invoice_id' => (int) $invoiceId,
-                        'allocated_amount' => $allocatedAmount,
-                    ]);
-
-                    $remainingByInvoice[$invoiceId] = round($remainingBalance - $allocatedAmount, 2);
-                    $unallocatedAmount = round($unallocatedAmount - $allocatedAmount, 2);
+                $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($payment, $remainingByInvoice, $lineAmount);
+                if ($allocationSummary['allocated_total'] > 0.0001) {
+                    $receiptEmailPayloads[] = [
+                        'payment_id' => (int) $payment->id,
+                        'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
+                            (float) ($allocationSummary['outstanding_before_total'] ?? 0),
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                        'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
+                            (float) $allocationSummary['allocated_total'],
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                        'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
+                            (float) ($allocationSummary['outstanding_after_total'] ?? 0),
+                            count($allocationSummary['invoice_ids'] ?? [])
+                        ),
+                    ];
                 }
             }
 
@@ -1087,10 +1218,41 @@ class WorkshopController extends Controller
             }
         });
 
+        $receiptEmailPayloads = collect($receiptEmailPayloads)
+            ->filter(fn (array $payload): bool => $payload['payment_id'] > 0)
+            ->unique('payment_id')
+            ->values()
+            ->all();
+        $queuedReceiptEmails = 0;
+        $skippedReceiptEmails = 0;
+        foreach ($receiptEmailPayloads as $receiptPayload) {
+            $payment = Payment::query()->find((int) $receiptPayload['payment_id']);
+            if (! $payment instanceof Payment) {
+                continue;
+            }
+
+            if ($this->sendAttendancePaymentReceiptEmail($payment, $receiptPayload)) {
+                $queuedReceiptEmails++;
+            } else {
+                $skippedReceiptEmails++;
+            }
+        }
+
+        $messageParts = [];
+        if ($selectedExistingPaymentIds !== []) {
+            $messageParts[] = 'linked '.count($selectedExistingPaymentIds).' existing EFTPOS transaction'.(count($selectedExistingPaymentIds) === 1 ? '' : 's');
+        }
+        if ($paymentLines->isNotEmpty()) {
+            $messageParts[] = 'recorded '.$paymentLines->count().' new payment'.($paymentLines->count() === 1 ? '' : 's');
+        }
+        $appliedTotal = round(min($totalOutstanding, max(0, ($totalOutstanding - $remainingAfterExisting) + $totalPaymentAmount)), 2);
+
         session()->flash(
             'message',
-            'Recorded $'.number_format($totalPaymentAmount, 2)
-            .' across '.$paymentLines->count().' payment'.($paymentLines->count() === 1 ? '' : 's').'.'
+            'Applied $'.number_format($appliedTotal, 2)
+            .($messageParts !== [] ? ' by '.implode(' and ', $messageParts).'.' : '.')
+            .($queuedReceiptEmails > 0 ? ' Queued '.number_format($queuedReceiptEmails).' receipt email'.($queuedReceiptEmails === 1 ? '' : 's').'.' : '')
+            .($skippedReceiptEmails > 0 ? ' Could not email '.number_format($skippedReceiptEmails).' receipt'.($skippedReceiptEmails === 1 ? '' : 's').' because no single recipient email could be resolved.' : '')
         );
         session()->flash('message-title', 'Ticket payment saved');
         session()->flash('message-type', 'success');
@@ -1364,6 +1526,473 @@ class WorkshopController extends Controller
         }
 
         return Ticket::query()->where('invoice_id', $invoice->id)->exists();
+    }
+
+    private function buildAttendanceEftposPaymentOptions(array $relevantUserIds = []): array
+    {
+        $relevantUserIds = collect($relevantUserIds)
+            ->map(fn ($id): string => trim((string) $id))
+            ->filter(fn (string $id): bool => $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $query = Payment::query()
+            ->with('user')
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->where('payment_method', Payment::PAYMENT_METHOD_EFTPOS);
+
+        if ($relevantUserIds !== []) {
+            $query->where(function ($builder) use ($relevantUserIds): void {
+                $builder->whereNull('user_id')
+                    ->orWhereIn('user_id', $relevantUserIds);
+            });
+        } else {
+            $query->whereNull('user_id');
+        }
+
+        return $query
+            ->orderByDesc('received_on')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get()
+            ->map(function (Payment $payment): ?array {
+                $availableAmount = max(0, round(
+                    (float) $payment->total_amount
+                    - (float) ($payment->allocated_amount_sum ?? 0)
+                    - (float) ($payment->refunded_amount_sum ?? 0),
+                    2
+                ));
+                if ($availableAmount <= 0.0001) {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $payment->id,
+                    'user_id' => trim((string) ($payment->user_id ?? '')),
+                    'customer_name' => $payment->user?->getName() ?? '',
+                    'received_on' => $payment->received_on?->format('Y-m-d\TH:i') ?? '',
+                    'received_on_display' => $payment->received_on?->format('M j, Y g:i a') ?? '-',
+                    'reference' => (string) ($payment->reference ?? ''),
+                    'notes' => (string) ($payment->notes ?? ''),
+                    'available_amount' => $availableAmount,
+                    'square_payment_id' => trim((string) ($payment->square_payment_id ?? '')),
+                    'square_receipt_url' => (string) ($payment->square_receipt_url ?? ''),
+                    'payment_edit_url' => route('admin.payment.edit', $payment),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function attendanceExistingPaymentEligibilityError(Payment $payment, ?string $resolvedUserId = null): ?string
+    {
+        if ($payment->refund_of_payment_id !== null || $payment->isRefund()) {
+            return 'Selected EFTPOS transaction #'.$payment->id.' is a refund and cannot be linked here.';
+        }
+
+        if ((string) ($payment->kind ?? Payment::KIND_PAYMENT) !== Payment::KIND_PAYMENT) {
+            return 'Selected EFTPOS transaction #'.$payment->id.' is not a customer payment.';
+        }
+
+        if ((string) ($payment->payment_method ?? '') !== Payment::PAYMENT_METHOD_EFTPOS) {
+            return 'Selected transaction #'.$payment->id.' is not an EFTPOS payment.';
+        }
+
+        $paymentUserId = trim((string) ($payment->user_id ?? ''));
+        if ($resolvedUserId !== null && $paymentUserId !== '' && $paymentUserId !== $resolvedUserId) {
+            return 'Selected EFTPOS transaction #'.$payment->id.' belongs to a different customer.';
+        }
+
+        if ($this->attendancePaymentUnallocatedAmount($payment) <= 0.0001) {
+            return 'Selected EFTPOS transaction #'.$payment->id.' no longer has any unallocated balance.';
+        }
+
+        return null;
+    }
+
+    private function attendancePaymentUnallocatedAmount(Payment $payment): float
+    {
+        $allocated = (float) $payment->allocations()->sum('allocated_amount');
+        $refunded = (float) $payment->refunds()->sum('total_amount');
+        $unallocatedBeforeRefund = max(0, round((float) $payment->total_amount - $allocated, 2));
+
+        return max(0, round($unallocatedBeforeRefund - $refunded, 2));
+    }
+
+    private function allocateAttendancePaymentAcrossInvoices(Payment $payment, array &$remainingByInvoice, float $availableAmount): array
+    {
+        $unallocatedAmount = round(max(0, $availableAmount), 2);
+        $allocatedTotal = 0.0;
+        $allocatedInvoiceIds = [];
+        $outstandingBeforeTotal = 0.0;
+        $outstandingAfterTotal = 0.0;
+
+        foreach ($remainingByInvoice as $invoiceId => $remainingBalance) {
+            if ($unallocatedAmount <= 0.0001) {
+                break;
+            }
+            if ($remainingBalance <= 0.0001) {
+                continue;
+            }
+
+            $allocatedAmount = round(min($remainingBalance, $unallocatedAmount), 2);
+            if ($allocatedAmount <= 0.0001) {
+                continue;
+            }
+
+            $allocatedInvoiceIds[] = (int) $invoiceId;
+            $outstandingBeforeTotal = round($outstandingBeforeTotal + (float) $remainingBalance, 2);
+
+            $payment->allocations()->create([
+                'invoice_id' => (int) $invoiceId,
+                'allocated_amount' => $allocatedAmount,
+            ]);
+
+            $remainingByInvoice[$invoiceId] = round($remainingBalance - $allocatedAmount, 2);
+            $unallocatedAmount = round($unallocatedAmount - $allocatedAmount, 2);
+            $allocatedTotal = round($allocatedTotal + $allocatedAmount, 2);
+            $outstandingAfterTotal = round($outstandingAfterTotal + (float) $remainingByInvoice[$invoiceId], 2);
+        }
+
+        return [
+            'allocated_total' => $allocatedTotal,
+            'invoice_ids' => array_values(array_unique($allocatedInvoiceIds)),
+            'outstanding_before_total' => $outstandingBeforeTotal,
+            'outstanding_after_total' => $outstandingAfterTotal,
+        ];
+    }
+
+    private function sendAttendancePaymentReceiptEmail(Payment $payment, array $emailSnapshot = []): bool
+    {
+        $payment->loadMissing('user', 'allocations.invoice.user', 'allocations.taxAdjustment');
+
+        [$recipientEmail, $recipientName] = $this->resolveAttendancePaymentReceiptRecipient($payment);
+        if ($recipientEmail === '') {
+            return false;
+        }
+
+        [, $invoiceSummary] = $this->attendancePaymentReceiptInvoiceSummary($payment);
+        $pdfBinary = $this->buildAttendancePaymentReceiptPdf($payment)->output();
+
+        dispatch(new SendEmail($recipientEmail, new PaymentReceiptPdf(
+            recipientName: $recipientName !== '' ? $recipientName : $recipientEmail,
+            invoiceNumber: $invoiceSummary,
+            receiptNumber: (string) $payment->id,
+            amount: money(abs((float) $payment->total_amount)),
+            paidOn: $payment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
+            paymentMethod: Payment::paymentMethodLabel((string) ($payment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
+            receiptUrl: (string) ($payment->square_receipt_url ?? ''),
+            isRefund: $payment->isRefund(),
+            pdfContent: $pdfBinary,
+            pdfFilename: ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').((int) $payment->id).'.pdf',
+            invoiceSummary: $this->attendancePaymentReceiptItemSummary($payment),
+            statusSummary: (string) ($emailSnapshot['status_summary'] ?? $this->attendancePaymentReceiptStatusSummary($payment)),
+            outstandingBeforeSummary: (string) ($emailSnapshot['outstanding_before_summary'] ?? $this->attendancePaymentReceiptOutstandingBeforeSummary($payment)),
+            appliedAmountSummary: (string) ($emailSnapshot['applied_amount_summary'] ?? $this->attendancePaymentReceiptAppliedAmountSummary($payment)),
+            creditSummary: $this->attendancePaymentReceiptCreditSummary($payment),
+        )))->onQueue('mail');
+
+        return true;
+    }
+
+    private function resolveAttendancePaymentReceiptRecipient(Payment $payment): array
+    {
+        $payment->loadMissing('user', 'allocations.invoice.user');
+
+        $invoiceRecipients = $payment->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice instanceof Invoice)
+            ->map(function ($allocation): array {
+                $invoice = $allocation->invoice;
+                $invoiceUser = $invoice->user;
+                $email = strtolower(trim((string) ($invoice->billing_email ?: ($invoiceUser instanceof User ? $invoiceUser->email : ''))));
+                $name = trim((string) ($invoice->billing_name ?: ($invoiceUser instanceof User ? $invoiceUser->getName() : '')));
+
+                return [
+                    'email' => $email,
+                    'name' => $name,
+                ];
+            })
+            ->filter(fn (array $recipient): bool => $recipient['email'] !== '')
+            ->unique('email')
+            ->values();
+
+        if ($invoiceRecipients->count() === 1) {
+            $recipient = $invoiceRecipients->first();
+
+            return [
+                (string) ($recipient['email'] ?? ''),
+                (string) ($recipient['name'] ?? ''),
+            ];
+        }
+
+        if ($invoiceRecipients->count() > 1) {
+            return ['', ''];
+        }
+
+        $paymentUser = $payment->user;
+
+        return [
+            strtolower(trim((string) ($paymentUser instanceof User ? $paymentUser->email : ''))),
+            trim((string) ($paymentUser instanceof User ? $paymentUser->getName() : '')),
+        ];
+    }
+
+    private function attendancePaymentReceiptInvoiceSummary(Payment $payment): array
+    {
+        $allocationRows = $payment->allocations
+            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && ($allocation->invoice || $allocation->taxAdjustment))
+            ->map(fn ($allocation) => [
+                'document' => $allocation->taxAdjustment
+                    ? ('Tax Adjustment '.$allocation->taxAdjustment->adjustment_number)
+                    : ('Invoice '.(string) ($allocation->invoice->invoice_number ?? '-')),
+                'amount' => (float) $allocation->allocated_amount,
+            ])
+            ->values();
+
+        $invoiceNumbers = $payment->allocations
+            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
+            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
+            ->filter(fn ($number) => $number !== '')
+            ->unique()
+            ->values();
+        $hasTaxAdjustmentAllocations = $payment->allocations
+            ->contains(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->taxAdjustment);
+
+        $allocatedTotal = (float) $allocationRows->sum('amount');
+        $totalAmount = abs((float) $payment->total_amount);
+        $creditAmount = max(0, round($totalAmount - $allocatedTotal, 2));
+
+        $invoiceSummaryParts = $allocationRows
+            ->map(function ($row) {
+                $amount = (float) $row['amount'];
+                $prefix = $amount < 0 ? '-' : '';
+
+                return $row['document'].' ('.$prefix.'$'.number_format(abs($amount), 2).')';
+            })
+            ->values()
+            ->all();
+        if ($creditAmount > 0.0001 || count($invoiceSummaryParts) === 0) {
+            $invoiceSummaryParts[] = 'CREDIT ($'.number_format($creditAmount, 2).')';
+        }
+
+        $invoiceLabel = 'Invoice / Credit Allocation (as at '.now()->format('M j, Y').')';
+        $invoiceSummary = implode(', ', $invoiceSummaryParts);
+
+        if (! $hasTaxAdjustmentAllocations && $invoiceNumbers->isNotEmpty()) {
+            $invoiceLabel = $invoiceNumbers->count() > 1 ? 'Invoice Numbers' : 'Invoice Number';
+            $invoiceSummary = $invoiceNumbers->implode(', ');
+        }
+
+        return [$invoiceLabel, $invoiceSummary];
+    }
+
+    private function attendancePaymentReceiptItemSummary(Payment $payment): ?string
+    {
+        $invoices = $this->attendancePaymentReceiptAllocatedInvoices($payment);
+        if ($invoices->isEmpty()) {
+            return null;
+        }
+
+        $lineSummaries = $invoices
+            ->flatMap(function (Invoice $invoice) {
+                $invoice->loadMissing('lines');
+
+                return $invoice->lines
+                    ->map(function ($line): ?array {
+                        $description = preg_replace('/\s+/', ' ', trim((string) ($line->description ?? ''))) ?? '';
+                        if ($description === '') {
+                            return null;
+                        }
+
+                        $quantity = round(max(0.01, (float) ($line->quantity ?? 1)), 2);
+
+                        return [
+                            'description' => $description,
+                            'quantity' => $quantity,
+                        ];
+                    })
+                    ->filter()
+                    ->values()
+                    ->all();
+            })
+            ->groupBy('description')
+            ->map(function ($rows, string $description): string {
+                $quantity = round((float) collect($rows)->sum('quantity'), 2);
+                if (abs($quantity - 1.0) <= 0.0001) {
+                    return $description;
+                }
+
+                $quantityLabel = floor($quantity) === $quantity
+                    ? (string) ((int) $quantity)
+                    : rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
+
+                return $quantityLabel.' x '.$description;
+            })
+            ->values();
+
+        if ($lineSummaries->isEmpty()) {
+            $ticketCount = Ticket::query()
+                ->whereIn('invoice_id', $invoices->pluck('id')->all())
+                ->count();
+            if ($ticketCount > 0) {
+                return $ticketCount.' workshop ticket'.($ticketCount === 1 ? '' : 's');
+            }
+
+            return null;
+        }
+
+        $summary = $lineSummaries->take(3)->implode(', ');
+        if ($lineSummaries->count() > 3) {
+            $summary .= ', +'.($lineSummaries->count() - 3).' more';
+        }
+
+        return $summary;
+    }
+
+    private function attendancePaymentReceiptStatusSummary(Payment $payment): ?string
+    {
+        $invoices = $this->attendancePaymentReceiptAllocatedInvoices($payment);
+        if ($invoices->isEmpty()) {
+            return null;
+        }
+
+        $outstanding = round((float) $invoices->sum(fn (Invoice $invoice): float => $invoice->outstandingAmount()), 2);
+        if ($outstanding <= 0.0001) {
+            return $invoices->count() === 1
+                ? 'Paid in full'
+                : 'Paid in full across '.$invoices->count().' linked invoices';
+        }
+
+        return $invoices->count() === 1
+            ? money($outstanding).' still owing'
+            : money($outstanding).' still owing across '.$invoices->count().' linked invoices';
+    }
+
+    private function attendancePaymentReceiptOutstandingBeforeSummary(Payment $payment): ?string
+    {
+        $invoices = $this->attendancePaymentReceiptAllocatedInvoices($payment);
+        if ($invoices->isEmpty()) {
+            return null;
+        }
+
+        $outstandingBefore = round((float) $invoices->sum(
+            fn (Invoice $invoice): float => $invoice->outstandingAmount((int) $payment->id)
+        ), 2);
+
+        return $invoices->count() === 1
+            ? money($outstandingBefore)
+            : money($outstandingBefore).' across '.$invoices->count().' linked invoices';
+    }
+
+    private function attendancePaymentReceiptAppliedAmountSummary(Payment $payment): ?string
+    {
+        $invoices = $this->attendancePaymentReceiptAllocatedInvoices($payment);
+        if ($invoices->isEmpty()) {
+            return null;
+        }
+
+        $appliedAmount = round((float) $payment->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice instanceof Invoice)
+            ->sum('allocated_amount'), 2);
+
+        return $invoices->count() === 1
+            ? money($appliedAmount)
+            : money($appliedAmount).' across '.$invoices->count().' linked invoices';
+    }
+
+    private function attendancePaymentReceiptCreditSummary(Payment $payment): ?string
+    {
+        $creditAmount = $this->attendancePaymentUnallocatedAmount($payment);
+        if ($creditAmount <= 0.0001) {
+            return null;
+        }
+
+        return 'You now have '.money($creditAmount).' sitting in credit on your account. Please contact us to discuss your options.';
+    }
+
+    private function formatAttendanceReceiptMoneySummary(float $amount, int $invoiceCount): string
+    {
+        return $invoiceCount <= 1
+            ? money($amount)
+            : money($amount).' across '.$invoiceCount.' linked invoices';
+    }
+
+    private function formatAttendanceReceiptOutstandingSummary(float $outstandingAmount, int $invoiceCount): string
+    {
+        if ($outstandingAmount <= 0.0001) {
+            return $invoiceCount <= 1
+                ? 'This invoice is now paid in full.'
+                : 'These linked invoices are now paid in full.';
+        }
+
+        return $invoiceCount <= 1
+            ? 'There is '.money($outstandingAmount).' now remaining on this invoice.'
+            : 'There is '.money($outstandingAmount).' now remaining across these linked invoices.';
+    }
+
+    /**
+     * @return Collection<int, Invoice>
+     */
+    private function attendancePaymentReceiptAllocatedInvoices(Payment $payment)
+    {
+        return $payment->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice instanceof Invoice)
+            ->map(fn ($allocation) => $allocation->invoice)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
+    private function buildAttendancePaymentReceiptPdf(Payment $payment): \Barryvdh\DomPDF\PDF
+    {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            abort(500, 'Payment receipt PDF generation requires barryvdh/laravel-dompdf.');
+        }
+
+        [$invoiceLabel, $invoiceSummary] = $this->attendancePaymentReceiptInvoiceSummary($payment);
+
+        $amountRaw = (float) $payment->total_amount;
+        $isRefund = $payment->isRefund();
+        $gatewayProcessedAtRaw = trim((string) ($payment->square_gateway_updated_at ?? $payment->square_gateway_created_at ?? ''));
+        $gatewayProcessedAt = '';
+        if ($gatewayProcessedAtRaw !== '') {
+            try {
+                $gatewayProcessedAt = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+            } catch (\Throwable) {
+                $gatewayProcessedAt = '';
+            }
+        }
+
+        return DomPdf::loadView('pdf.payment-receipt', [
+            'isRefund' => $isRefund,
+            'receiptTitle' => $isRefund ? 'Refund Receipt' : 'Payment Receipt',
+            'amountLabel' => $isRefund ? 'Amount Refunded' : 'Amount Paid',
+            'receiptNumber' => (string) $payment->id,
+            'invoiceLabel' => $invoiceLabel,
+            'invoiceNumber' => $invoiceSummary,
+            'customerName' => $payment->user?->getName() ?: 'Customer',
+            'amountPaid' => $amountRaw,
+            'gstAmount' => abs((float) $payment->gst_amount),
+            'paymentMethod' => Payment::paymentMethodLabel((string) ($payment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
+            'paidOn' => $payment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
+            'reference' => (string) ($payment->reference ?? ''),
+            'gatewayProvider' => (string) ($payment->gateway_provider ?? ''),
+            'gatewayStatus' => (string) ($payment->gateway_status ?? ''),
+            'transactionId' => trim((string) ($payment->square_payment_id ?: $payment->gateway_reference_id)),
+            'squareOrderId' => (string) ($payment->square_order_id ?? ''),
+            'cardBrand' => (string) ($payment->square_card_brand ?? ''),
+            'cardLast4' => (string) ($payment->square_card_last4 ?? ''),
+            'squareReceiptUrl' => (string) ($payment->square_receipt_url ?? ''),
+            'gatewayProcessedAt' => $gatewayProcessedAt,
+            'footerMessage' => $isRefund ? 'This receipt confirms the refund transaction.' : 'Thank you for your payment.',
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ]);
     }
 
     public function admin_attendance_dropin_update(Request $request, Workshop $workshop, WorkshopAttendance $attendance)

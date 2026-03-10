@@ -745,6 +745,7 @@ class MinecraftWebhookController extends Controller
         ]);
 
         $snapshots = [];
+        $unsupportedPeriods = [];
         $rootTimestamp = is_string($validated['timestamp'] ?? null)
             ? (string) $validated['timestamp']
             : null;
@@ -756,9 +757,9 @@ class MinecraftWebhookController extends Controller
 
             $period = trim((string) ($periodSnapshot['period'] ?? ''));
             if (MinecraftPlayerStat::resolvePeriod($period) === null) {
-                throw ValidationException::withMessages([
-                    'periods' => ['Unsupported STEMCraft player stats period.'],
-                ]);
+                $unsupportedPeriods[] = $period;
+
+                continue;
             }
 
             $players = is_array($periodSnapshot['players'] ?? null) ? $periodSnapshot['players'] : [];
@@ -773,11 +774,32 @@ class MinecraftWebhookController extends Controller
             ];
         }
 
-        $this->minecraftPlayerStatsSyncService->storeSnapshots(
-            snapshots: $snapshots,
-            fallbackTimestamp: $rootTimestamp,
-            statDefinitions: is_array($validated['stats'] ?? null) ? $validated['stats'] : [],
-        );
+        if ($snapshots !== []) {
+            $this->minecraftPlayerStatsSyncService->storeSnapshots(
+                snapshots: $snapshots,
+                fallbackTimestamp: $rootTimestamp,
+                statDefinitions: is_array($validated['stats'] ?? null) ? $validated['stats'] : [],
+            );
+        }
+
+        $processedPeriods = array_values(array_unique(array_map(
+            static fn (array $snapshot): string => $snapshot['period'],
+            $snapshots,
+        )));
+
+        if ($unsupportedPeriods !== []) {
+            $unsupportedPeriods = array_values(array_unique($unsupportedPeriods));
+
+            return response()->json([
+                'ok' => true,
+                'partial' => true,
+                'message' => $processedPeriods !== []
+                    ? 'Processed supported STEMCraft player stats periods. Unsupported periods were skipped.'
+                    : 'No supported STEMCraft player stats periods were provided. Unsupported periods were skipped.',
+                'processed_periods' => $processedPeriods,
+                'unsupported_periods' => $unsupportedPeriods,
+            ]);
+        }
 
         return response()->json([
             'ok' => true,

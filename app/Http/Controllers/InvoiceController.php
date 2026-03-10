@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\InvoicePaymentLink;
 use App\Mail\PaymentReceiptPdf;
-use App\Jobs\SendEmail;
-use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
 use App\Models\Quote;
+use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\Token;
-use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
@@ -25,8 +25,8 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use RuntimeException;
 use Throwable;
@@ -35,9 +35,7 @@ class InvoiceController extends Controller
 {
     public function __construct(
         private readonly DocumentNumberService $documentNumbers
-    )
-    {
-    }
+    ) {}
 
     public function index(Request $request)
     {
@@ -543,7 +541,6 @@ class InvoiceController extends Controller
             $authUserId = (string) ($request->user()->id ?? '');
             $paymentUserId = (string) ($payment->user_id ?? '');
 
-
             if ($authUserId === '' || $paymentUserId === '' || $authUserId !== $paymentUserId) {
                 abort(Response::HTTP_NOT_FOUND);
             }
@@ -1042,6 +1039,7 @@ class InvoiceController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 
@@ -1111,6 +1109,7 @@ class InvoiceController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 
@@ -1151,6 +1150,7 @@ class InvoiceController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 
@@ -1191,6 +1191,7 @@ class InvoiceController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 
@@ -1262,11 +1263,112 @@ class InvoiceController extends Controller
             receiptNumber: $receiptNumber,
             amount: money(abs((float) $customerPayment->total_amount)),
             paidOn: ($customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
+            paymentMethod: Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
             receiptUrl: (string) ($customerPayment->square_receipt_url ?? ''),
             isRefund: $customerPayment->isRefund(),
             pdfContent: $pdfBinary,
             pdfFilename: $this->getPaymentReceiptPdfFilename($customerPayment),
+            invoiceSummary: $this->paymentReceiptInvoiceSummary($invoice),
+            statusSummary: $this->paymentReceiptStatusSummary($invoice),
+            outstandingBeforeSummary: $this->paymentReceiptOutstandingBeforeSummary($invoice, $customerPayment),
+            appliedAmountSummary: $this->paymentReceiptAppliedAmountSummary($invoice, $customerPayment),
+            creditSummary: $this->paymentReceiptCreditSummary($customerPayment),
         )))->onQueue('mail');
+    }
+
+    private function paymentReceiptInvoiceSummary(Invoice $invoice): ?string
+    {
+        $invoice->loadMissing('lines');
+
+        $lineSummaries = $invoice->lines
+            ->map(function (InvoiceLine $line): ?array {
+                $description = preg_replace('/\s+/', ' ', trim((string) ($line->description ?? '')));
+                if ($description === '') {
+                    return null;
+                }
+
+                $quantity = round(max(0.01, (float) ($line->quantity ?? 1)), 2);
+
+                return [
+                    'description' => $description,
+                    'quantity' => $quantity,
+                ];
+            })
+            ->filter()
+            ->groupBy('description')
+            ->map(function ($rows, string $description): string {
+                $quantity = round((float) collect($rows)->sum('quantity'), 2);
+                if (abs($quantity - 1.0) <= 0.0001) {
+                    return $description;
+                }
+
+                $quantityLabel = floor($quantity) === $quantity
+                    ? (string) ((int) $quantity)
+                    : rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
+
+                return $quantityLabel.' x '.$description;
+            })
+            ->values();
+
+        if ($lineSummaries->isEmpty()) {
+            $ticketCount = Ticket::query()->where('invoice_id', $invoice->id)->count();
+            if ($ticketCount > 0) {
+                return $ticketCount.' workshop ticket'.($ticketCount === 1 ? '' : 's');
+            }
+
+            return null;
+        }
+
+        $summary = $lineSummaries->take(3)->implode(', ');
+        if ($lineSummaries->count() > 3) {
+            $summary .= ', +'.($lineSummaries->count() - 3).' more';
+        }
+
+        return $summary;
+    }
+
+    private function paymentReceiptStatusSummary(Invoice $invoice): string
+    {
+        $outstanding = $invoice->outstandingAmount();
+
+        if ($outstanding <= 0.0001) {
+            return 'This invoice is now paid in full.';
+        }
+
+        return 'There is '.money($outstanding).' now remaining on this invoice.';
+    }
+
+    private function paymentReceiptOutstandingBeforeSummary(Invoice $invoice, Payment $customerPayment): string
+    {
+        return money($invoice->outstandingAmount((int) $customerPayment->id));
+    }
+
+    private function paymentReceiptAppliedAmountSummary(Invoice $invoice, Payment $customerPayment): string
+    {
+        $appliedAmount = round((float) $customerPayment->allocations()
+            ->where('invoice_id', $invoice->id)
+            ->sum('allocated_amount'), 2);
+
+        return money($appliedAmount);
+    }
+
+    private function paymentReceiptCreditSummary(Payment $customerPayment): ?string
+    {
+        $creditAmount = $this->paymentUnallocatedAmount($customerPayment);
+        if ($creditAmount <= 0.0001) {
+            return null;
+        }
+
+        return 'You now have '.money($creditAmount).' sitting in credit on your account. Please contact us to discuss your options.';
+    }
+
+    private function paymentUnallocatedAmount(Payment $payment): float
+    {
+        $allocated = (float) $payment->allocations()->sum('allocated_amount');
+        $refunded = (float) $payment->refunds()->sum('total_amount');
+        $unallocatedBeforeRefund = max(0, round((float) $payment->total_amount - $allocated, 2));
+
+        return max(0, round($unallocatedBeforeRefund - $refunded, 2));
     }
 
     private function buildPaymentReceiptPdf(Invoice $invoice, Payment $customerPayment): \Barryvdh\DomPDF\PDF
@@ -1770,6 +1872,7 @@ class InvoiceController extends Controller
     private function invoiceLineItemsForPayload(Invoice $invoice): array
     {
         $invoice->loadMissing('lines');
+
         return $invoice->lines->map(function (InvoiceLine $line): array {
             return [
                 'id' => $line->id,

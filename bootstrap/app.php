@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\Admin;
+use App\Http\Middleware\EnsurePublicShopAvailable;
 use App\Http\Middleware\NoCache;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackAnalytics;
@@ -28,6 +29,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => Admin::class,
             'nocache' => NoCache::class,
+            'shop.public' => EnsurePublicShopAvailable::class,
         ]);
         $middleware->web(append: [
             SecurityHeaders::class,

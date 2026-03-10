@@ -52,6 +52,33 @@ class SiteOption extends Model
                 'value' => 'EFTPOS and cash are available at the venue. Please bring correct change if paying by cash.',
                 'description' => 'Shown on ticket checkout when Pay at Door is selected.',
             ],
+            'store.shipping.satchels' => [
+                'value' => json_encode(config('store.shipping.satchels', []), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]',
+                'description' => 'JSON list of satchel options used by the store shipping calculator. Prefer editing this from the Store Settings admin page.',
+            ],
+            'store.shipping.max-satchel-weight-grams' => [
+                'value' => (string) config('store.shipping.max_satchel_weight_grams', 5000),
+                'description' => 'Maximum known packed weight allowed in a satchel before the cart is split into another parcel.',
+                'input_type' => 'number',
+            ],
+            'store.shipping.boxed-shipping-label' => [
+                'value' => (string) config('store.shipping.boxed_shipping.label', 'Boxed shipping required'),
+                'description' => 'Label shown when an order must ship in a box instead of satchels.',
+            ],
+            'store.shipping.boxed-shipping-message' => [
+                'value' => (string) config('store.shipping.boxed_shipping.message', 'This order cannot be packed into satchels and needs boxed shipping.'),
+                'description' => 'Message shown when boxed shipping is required.',
+            ],
+            'store.shipping.boxed-shipping-amount' => [
+                'value' => config('store.shipping.boxed_shipping.amount') !== null ? (string) config('store.shipping.boxed_shipping.amount') : '',
+                'description' => 'Optional boxed shipping charge. Leave blank to require a manual quote.',
+                'input_type' => 'number',
+            ],
+            'store.public-enabled' => [
+                'value' => '1',
+                'description' => 'Master switch for the public store storefront, cart, and checkout. Existing order links still work when disabled.',
+                'input_type' => 'boolean',
+            ],
             'payments.bank-account-name' => [
                 'value' => 'STEMMechanics',
                 'description' => 'Bank account name shown for bank transfer payments.',
@@ -112,7 +139,7 @@ class SiteOption extends Model
             ],
             'minecraft.server-webhook-url' => [
                 'value' => '',
-                'description' => 'Outbound webhook URL used to sync STEMCraft whitelist and punishment changes to the server plugin. Example: http://play.example.com:8125/stemcraft/webhook',
+                'description' => 'Outbound webhook URL used to sync STEMCraft whitelist and punishment changes to the server plugin. Example: http://play.example.com:8125/stemcraft/webhook. Prefer a private/internal HTTP address when Laravel can reach the plugin directly on the same host or network.',
             ],
             'minecraft.webhook-secret' => [
                 'value' => '',

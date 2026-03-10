@@ -5,15 +5,15 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
-use App\Mail\TicketCancelledNotice;
 use App\Mail\TicketAttendeeUpdate;
+use App\Mail\TicketCancelledNotice;
 use App\Mail\TicketMagicLink;
 use App\Mail\TicketNoTickets;
 use App\Mail\TicketOrderConfirmation;
-use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
 use App\Models\SquareRefundOperation;
 use App\Models\TaxAdjustment;
 use App\Models\Ticket;
@@ -27,17 +27,17 @@ use App\Services\WorkshopTicketService;
 use App\Support\AltchaTrust;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use GrantHolle\Altcha\Rules\ValidAltcha;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use RuntimeException;
 use Throwable;
-use Illuminate\View\View;
 
 class TicketController extends Controller
 {
@@ -45,9 +45,7 @@ class TicketController extends Controller
         private readonly DocumentNumberService $documentNumbers,
         private readonly TicketReissueService $ticketReissueService,
         private readonly WorkshopTicketService $workshopTicketService
-    )
-    {
-    }
+    ) {}
 
     public function accountIndex(Request $request): View
     {
@@ -270,6 +268,7 @@ class TicketController extends Controller
     public function accountInvoicePdf(Request $request, Ticket $ticket)
     {
         $this->authorize('view', $ticket);
+
         return $this->invoicePdf($request, $ticket);
     }
 
@@ -542,6 +541,7 @@ class TicketController extends Controller
             $ticket = $tickets->get($ticketId);
             if (! $ticket instanceof Ticket) {
                 $failureMessages[] = 'Ticket #'.$ticketId.' was not found.';
+
                 continue;
             }
 
@@ -558,9 +558,11 @@ class TicketController extends Controller
             } catch (ValidationException $e) {
                 $message = (string) collect($e->errors())->flatten()->first();
                 $failureMessages[] = ($message !== '' ? $message : 'Unable to cancel ticket '.$ticketLabel.'.');
+
                 continue;
             } catch (RuntimeException $e) {
                 $failureMessages[] = $e->getMessage() !== '' ? $e->getMessage() : ('Unable to cancel ticket '.$ticketLabel.'.');
+
                 continue;
             }
 
@@ -1251,6 +1253,7 @@ class TicketController extends Controller
 
             if ($operation->status === SquareRefundOperation::STATUS_COMPLETED) {
                 $refundedCents += (int) $operation->refunded_cents;
+
                 continue;
             }
 
@@ -1260,6 +1263,7 @@ class TicketController extends Controller
                 $operation->failure_message = 'Customer payment record is missing.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -1268,6 +1272,7 @@ class TicketController extends Controller
                 $operation->failure_message = 'Square integration is not enabled.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -1276,6 +1281,7 @@ class TicketController extends Controller
                 $operation->failure_message = 'Square payment id is missing on the customer payment.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -1286,6 +1292,7 @@ class TicketController extends Controller
                 $operation->failure_message = 'No remaining refundable Square balance on the payment.';
                 $operation->processed_at = now();
                 $operation->save();
+
                 continue;
             }
 
@@ -1434,6 +1441,7 @@ class TicketController extends Controller
                 receiptNumber: (string) $refundPayment->id,
                 amount: money(abs((float) $refundPayment->total_amount)),
                 paidOn: ($refundPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
+                paymentMethod: Payment::paymentMethodLabel((string) ($refundPayment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
                 receiptUrl: (string) ($refundPayment->square_receipt_url ?? ''),
                 isRefund: true,
                 pdfContent: $pdfBinary,
@@ -1464,6 +1472,7 @@ class TicketController extends Controller
                 'invoice_id' => (int) ($ticket->invoice_id ?? 0),
             ]);
             report(new RuntimeException('Ticket cancellation email skipped: no recipient email for ticket #'.$ticket->id));
+
             return;
         }
 
@@ -1498,6 +1507,7 @@ class TicketController extends Controller
                 'invoice_id' => (int) ($ticket->invoice_id ?? 0),
             ]);
             report(new RuntimeException('Ticket cancellation email skipped: no PDF attachments generated for ticket #'.$ticket->id));
+
             return;
         }
 

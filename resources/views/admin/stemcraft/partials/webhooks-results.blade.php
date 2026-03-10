@@ -29,6 +29,7 @@
                 $canRetry = $isOutbound && $log->status === \App\Models\MinecraftWebhookLog::STATUS_FAILED;
                 $nextRetryAt = $log->nextRetryAt();
                 $errorSummary = $log->errorSummary();
+                $troubleshootingHint = $log->troubleshootingHint();
                 $statusClass = match ($log->status) {
                     'delivered', 'received' => 'text-green-700',
                     'failed', 'rejected' => 'text-red-700',
@@ -73,6 +74,9 @@
                 </div>
                 @if($errorSummary)
                     <div class="mt-3 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800" title="{{ $log->error_message }}">{{ $errorSummary }}</div>
+                @endif
+                @if($troubleshootingHint)
+                    <div class="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{{ $troubleshootingHint }}</div>
                 @endif
                 <details class="mt-4 rounded-2xl bg-gray-50 px-4 py-3" data-refresh-key="webhook-{{ $log->id }}-mobile-content">
                     <summary class="cursor-pointer text-sm font-semibold text-gray-900">View content</summary>
@@ -145,6 +149,7 @@
                         $canRetry = $isOutbound && $log->status === \App\Models\MinecraftWebhookLog::STATUS_FAILED;
                         $nextRetryAt = $log->nextRetryAt();
                         $errorSummary = $log->errorSummary();
+                        $troubleshootingHint = $log->troubleshootingHint();
                         $statusClass = match ($log->status) {
                             'delivered', 'received' => 'text-green-700',
                             'failed', 'rejected' => 'text-red-700',
@@ -173,6 +178,9 @@
                             @endif
                             @if($errorSummary)
                                 <div class="mt-2 text-xs text-red-700" title="{{ $log->error_message }}">{{ $errorSummary }}</div>
+                            @endif
+                            @if($troubleshootingHint)
+                                <div class="mt-2 text-xs text-amber-800">{{ $troubleshootingHint }}</div>
                             @endif
                             @if($nextRetryAt)
                                 <div class="mt-2 text-xs text-amber-700">Next retry {{ $nextRetryAt->format('j M Y g:i a') }}</div>

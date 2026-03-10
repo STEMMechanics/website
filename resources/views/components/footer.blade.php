@@ -5,11 +5,11 @@
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
-            <li><a href="https://github.com/stemmechanics" class="text-sm hover:text-primary-color">GitHub</a></li>
-            <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color">Discord</a></li> -->
-            <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color">Facebook</a></li>
-            <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color">Jenkins</a></li>
-            <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color">YouTube</a></li>
+            <li><a href="https://github.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">GitHub</a></li>
+            <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li> -->
+            <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
+            <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Jenkins</a></li>
+            <li><a href="https://youtube.com/@STEMMechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">YouTube</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
@@ -21,7 +21,7 @@
             <li><a href="{{ route('stemcraft.faqs') }}" class="text-sm hover:text-primary-color">FAQs</a></li>
             <li><a href="{{ route('stemcraft.leaderboards') }}" class="text-sm hover:text-primary-color">Leaderboards</a></li>
             <li><a href="{{ route('stemcraft.punishments') }}" class="text-sm hover:text-primary-color">Punishments</a></li>
-            <li><a href="https://map.stemcraft.com.au/" class="text-sm hover:text-primary-color" target="_blank">Server Map</a></li>
+            <li><a href="https://map.stemcraft.com.au/" class="text-sm hover:text-primary-color" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Server Map</a></li>
         </ul>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">
             <li>
@@ -42,7 +42,7 @@
         <div>
             Made with ❤️&nbsp;© {{ date('Y') }} STEMMechanics
             @php($appVersion = (string) config('app.version'))
-            • <a href="https://git.stemmechanics.com.au/STEMMechanics/Website" target="_blank">{{ preg_match('/^\d/', $appVersion) ? 'v' . $appVersion : $appVersion }}</a>
+            • <a href="https://git.stemmechanics.com.au/STEMMechanics/Website" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">{{ preg_match('/^\d/', $appVersion) ? 'v' . $appVersion : $appVersion }}</a>
             @if(!empty($commit))
                 ({{ substr($commit, 0, 10) }})
             @endif

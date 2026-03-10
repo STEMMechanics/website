@@ -18,6 +18,7 @@
         ->values();
     $seedEntries = old('entries');
     $ticketPaymentRows = is_array($ticketPaymentRows ?? null) ? $ticketPaymentRows : [];
+    $availableEftposPayments = is_array($availableEftposPayments ?? null) ? $availableEftposPayments : [];
     $paymentMethodLabels = is_array($paymentMethodLabels ?? null) ? $paymentMethodLabels : [];
     $paymentMethodOptions = collect($paymentMethodLabels)
         ->map(fn ($label, $value): array => ['value' => (string) $value, 'label' => (string) $label])
@@ -47,6 +48,11 @@
         ->filter(fn (int $id): bool => $id > 0)
         ->values()
         ->all();
+    $oldExistingPaymentIds = collect(old('existing_payment_ids', []))
+        ->map(fn ($id): int => (int) $id)
+        ->filter(fn (int $id): bool => $id > 0)
+        ->values()
+        ->all();
     $oldAttendedTicketIds = collect(old('attended_ticket_ids', []))
         ->map(fn ($id): int => (int) $id)
         ->filter(fn (int $id): bool => $id > 0)
@@ -55,6 +61,7 @@
     $hasPaymentErrors = collect($errors->keys())->contains(function (string $key): bool {
         return str_starts_with($key, 'ticket_ids')
             || str_starts_with($key, 'attended_ticket_ids')
+            || str_starts_with($key, 'existing_payment_ids')
             || str_starts_with($key, 'payments')
             || $key === 'mark_attended';
     });
@@ -132,7 +139,9 @@
                     ticketAttendanceSaveQueued: false,
                     lastAttendanceSavedAtDisplay: null,
                     paymentMethodOptions: @js($paymentMethodOptions),
+                    availableEftposPayments: @js($availableEftposPayments),
                     selectedPaymentTicketIds: @js($oldPaymentTicketIds),
+                    selectedExistingPaymentIds: @js($oldExistingPaymentIds),
                     paymentAttendanceByTicketId: {},
                     paymentLines: [],
                     paymentModalOpen: {{ $hasPaymentErrors ? 'true' : 'false' }},
@@ -153,12 +162,36 @@
                         return parsed;
                     },
                     toNumber(value) {
-                        const parsed = Number.parseFloat(String(value ?? '').trim());
+                        const parsed = Number.parseFloat(String(value ?? '').trim().replace(/,/g, '.'));
                         if (!Number.isFinite(parsed) || parsed < 0) {
                             return 0;
                         }
 
                         return parsed;
+                    },
+                    normalizeMoney(value) {
+                        const raw = String(value ?? '').trim().replace(/,/g, '.');
+                        if (raw === '') {
+                            return '';
+                        }
+
+                        const parsed = Number.parseFloat(raw);
+                        if (!Number.isFinite(parsed) || parsed < 0) {
+                            return '';
+                        }
+
+                        return parsed.toFixed(2);
+                    },
+                    normalizePaymentLineAmount(index) {
+                        if (!Array.isArray(this.paymentLines) || !this.paymentLines[index]) {
+                            return;
+                        }
+
+                        this.paymentLines[index].amount = this.normalizeMoney(this.paymentLines[index].amount);
+                    },
+                    normalizeUserId(value) {
+                        const normalized = String(value ?? '').trim();
+                        return normalized !== '' ? normalized : null;
                     },
                     ticketsForInvoice(invoiceId) {
                         const normalizedInvoiceId = this.normalizeTicketId(invoiceId);
@@ -316,7 +349,6 @@
                         if (this.paymentLines.length === 0) {
                             this.paymentLines = [this.newPaymentLine()];
                         }
-                        this.syncPaymentPrimaryAmount();
                     },
                     ticketAttendanceIds() {
                         return Object.entries(this.ticketAttendance)
@@ -460,28 +492,82 @@
 
                         return Object.values(grouped);
                     },
+                    selectedPaymentInvoiceUserIds() {
+                        return Array.from(new Set(
+                            this.selectedPaymentTickets()
+                                .map((ticket) => this.normalizeUserId(ticket.invoice_user_id))
+                                .filter((userId) => userId !== null)
+                        ));
+                    },
                     selectedOutstandingTotal() {
                         return this.selectedInvoiceSummary().reduce((sum, invoice) => {
                             return sum + this.toNumber(invoice.outstanding);
                         }, 0);
+                    },
+                    visibleExistingEftposPayments() {
+                        const selectedUserIds = this.selectedPaymentInvoiceUserIds();
+                        if (selectedUserIds.length === 0) {
+                            return this.availableEftposPayments;
+                        }
+
+                        const allowedUsers = new Set(selectedUserIds);
+                        return this.availableEftposPayments.filter((payment) => {
+                            const paymentUserId = this.normalizeUserId(payment.user_id);
+                            return paymentUserId === null || allowedUsers.has(paymentUserId);
+                        });
+                    },
+                    selectedExistingPayments() {
+                        const selectedSet = new Set(
+                            this.selectedExistingPaymentIds
+                                .map((id) => this.normalizeTicketId(id))
+                                .filter((id) => id !== null)
+                        );
+
+                        return this.availableEftposPayments.filter((payment) => {
+                            return selectedSet.has(this.normalizeTicketId(payment.id));
+                        });
+                    },
+                    selectedExistingPaymentsTotal() {
+                        return this.selectedExistingPayments().reduce((sum, payment) => {
+                            return sum + this.toNumber(payment.available_amount);
+                        }, 0);
+                    },
+                    isExistingPaymentSelected(paymentId) {
+                        const normalizedPaymentId = this.normalizeTicketId(paymentId);
+                        if (normalizedPaymentId === null) {
+                            return false;
+                        }
+
+                        return this.selectedExistingPaymentIds.some((id) => this.normalizeTicketId(id) === normalizedPaymentId);
+                    },
+                    toggleExistingPayment(paymentId, selected) {
+                        const normalizedPaymentId = this.normalizeTicketId(paymentId);
+                        if (normalizedPaymentId === null) {
+                            return;
+                        }
+
+                        const nextIds = this.selectedExistingPaymentIds
+                            .map((id) => this.normalizeTicketId(id))
+                            .filter((id) => id !== null && id !== normalizedPaymentId);
+                        if (selected) {
+                            nextIds.push(normalizedPaymentId);
+                        }
+
+                        this.selectedExistingPaymentIds = Array.from(new Set(nextIds));
                     },
                     paymentLinesTotal() {
                         return this.paymentLines.reduce((sum, line) => {
                             return sum + this.toNumber(line.amount);
                         }, 0);
                     },
+                    paymentSourcesTotal() {
+                        return this.selectedExistingPaymentsTotal() + this.paymentLinesTotal();
+                    },
                     recommendedPaymentAmount() {
                         const attendedTotal = this.selectedAttendedTicketTotal();
                         const outstanding = this.selectedOutstandingTotal();
 
-                        return Math.max(0, Math.min(attendedTotal, outstanding));
-                    },
-                    syncPaymentPrimaryAmount() {
-                        if (!Array.isArray(this.paymentLines) || this.paymentLines.length !== 1) {
-                            return;
-                        }
-                        const amount = this.recommendedPaymentAmount();
-                        this.paymentLines[0].amount = amount > 0 ? amount.toFixed(2) : '';
+                        return Math.max(0, Math.min(attendedTotal, outstanding) - this.selectedExistingPaymentsTotal());
                     },
                     seedPaymentAttendance(attendedTicketIds = null) {
                         const selectedIds = this.selectedPaymentTicketIds
@@ -517,10 +603,9 @@
                             return;
                         }
                         this.paymentAttendanceByTicketId[String(normalizedId)] = Boolean(attended);
-                        this.syncPaymentPrimaryAmount();
                     },
                     remainingBalance() {
-                        return this.selectedOutstandingTotal() - this.paymentLinesTotal();
+                        return Math.max(0, this.selectedOutstandingTotal() - this.paymentSourcesTotal());
                     },
                     openPaymentModal(ticketIds) {
                         const requested = Array.isArray(ticketIds)
@@ -538,9 +623,9 @@
                             return;
                         }
 
+                        this.selectedExistingPaymentIds = [];
                         this.resetPaymentLines();
                         this.seedPaymentAttendance();
-                        this.syncPaymentPrimaryAmount();
 
                         this.paymentModalOpen = true;
                     },
@@ -562,7 +647,6 @@
                     if ({{ $hasPaymentErrors ? 'true' : 'false' }}) {
                         resetPaymentLines(@js($oldPaymentLines));
                         seedPaymentAttendance(@js($oldAttendedTicketIds));
-                        syncPaymentPrimaryAmount();
                     } else {
                         resetPaymentLines();
                     }
@@ -602,7 +686,7 @@
                     @if($hasPaymentErrors)
                         <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                             <div class="font-semibold">Could not save ticket payment</div>
-                            <div class="mt-1">{{ $errors->first('ticket_ids') ?: $errors->first('attended_ticket_ids') ?: $errors->first('payments') ?: $errors->first('payments.*.amount') ?: $errors->first('payments.*.method') }}</div>
+                            <div class="mt-1">{{ $errors->first('ticket_ids') ?: $errors->first('attended_ticket_ids') ?: $errors->first('existing_payment_ids') ?: $errors->first('payments') ?: $errors->first('payments.*.amount') ?: $errors->first('payments.*.method') }}</div>
                         </div>
                     @endif
                     <div>
@@ -842,10 +926,11 @@
                     <div
                         x-cloak
                         x-show="paymentModalOpen"
-                        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+                        class="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4"
                         x-on:click.self="paymentModalOpen = false"
                     >
-                        <div class="w-full max-w-5xl rounded-3xl border border-gray-200 bg-white p-5 shadow-xl sm:p-6">
+                        <div class="flex min-h-full items-start justify-center py-4 sm:items-center">
+                        <div class="w-full max-w-5xl max-h-[calc(100vh-2rem)] overflow-y-auto rounded-3xl border border-gray-200 bg-white p-5 shadow-xl sm:p-6">
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <h3 class="text-xl font-semibold text-gray-900">Record Ticket Payment</h3>
@@ -861,6 +946,9 @@
 
                                 <template x-for="ticketId in selectedPaymentTicketIds" :key="`payment-ticket-${ticketId}`">
                                     <input type="hidden" name="ticket_ids[]" x-bind:value="ticketId">
+                                </template>
+                                <template x-for="paymentId in selectedExistingPaymentIds" :key="`existing-payment-${paymentId}`">
+                                    <input type="hidden" name="existing_payment_ids[]" x-bind:value="paymentId">
                                 </template>
                                 <template x-for="ticketId in selectedAttendedTicketIds()" :key="`attended-ticket-${ticketId}`">
                                     <input type="hidden" name="attended_ticket_ids[]" x-bind:value="ticketId">
@@ -878,7 +966,11 @@
                                     </div>
                                     <div>
                                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Outstanding</div>
-                                        <div class="mt-1 text-sm text-gray-900" x-text="'$' + selectedOutstandingTotal().toFixed(2)"></div>
+                                        <div
+                                            class="mt-1 text-sm text-gray-900"
+                                            x-bind:class="remainingBalance() > 0.0001 ? 'font-bold text-red-600' : ''"
+                                            x-text="'$' + remainingBalance().toFixed(2)"
+                                        ></div>
                                     </div>
                                 </div>
 
@@ -917,6 +1009,52 @@
                                     </div>
                                 </div>
 
+                                <div class="mt-5">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Available Unlinked EFTPOS Transactions</div>
+                                        <div class="text-xs text-gray-500" x-text="selectedExistingPayments().length > 0 ? (selectedExistingPayments().length + ' selected') : 'Optional'"></div>
+                                    </div>
+                                    <div class="mt-2 rounded-2xl border border-gray-200 bg-white">
+                                        <template x-if="visibleExistingEftposPayments().length === 0">
+                                            <div class="px-4 py-3 text-sm text-gray-500">No unallocated EFTPOS transactions are available for this ticket selection.</div>
+                                        </template>
+                                        <div class="max-h-72 space-y-2 overflow-y-auto p-3" x-show="visibleExistingEftposPayments().length > 0">
+                                            <template x-for="payment in visibleExistingEftposPayments()" :key="`existing-eftpos-${payment.id}`">
+                                                <label class="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-3 py-3 transition hover:border-gray-300 hover:bg-gray-50">
+                                                    <span class="inline-flex items-start gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                                            x-bind:checked="isExistingPaymentSelected(payment.id)"
+                                                            x-on:change="toggleExistingPayment(payment.id, $event.target.checked)"
+                                                        >
+                                                        <span class="min-w-0">
+                                                            <span class="block text-sm font-semibold text-gray-900" x-text="'Payment #' + payment.id"></span>
+                                                            <span class="mt-0.5 block text-xs text-gray-500" x-text="payment.received_on_display"></span>
+                                                            <span class="mt-1 block text-xs text-gray-600" x-text="payment.customer_name || 'Unassigned EFTPOS transaction'"></span>
+                                                            <span class="mt-1 block text-xs text-gray-500" x-show="payment.reference" x-text="'Ref: ' + payment.reference"></span>
+                                                            <span class="mt-1 block truncate text-xs text-gray-500" x-show="payment.square_payment_id" x-text="'Square: ' + payment.square_payment_id"></span>
+                                                        </span>
+                                                    </span>
+                                                    <span class="shrink-0 text-right">
+                                                        <span class="block text-sm font-semibold text-gray-900" x-text="'$' + Number(payment.available_amount || 0).toFixed(2)"></span>
+                                                        <span class="mt-2 inline-flex gap-3 text-xs">
+                                                            <a class="text-primary-color hover:underline" x-bind:href="payment.payment_edit_url">Open</a>
+                                                            <a
+                                                                class="text-primary-color hover:underline"
+                                                                x-show="payment.square_receipt_url"
+                                                                x-bind:href="payment.square_receipt_url"
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                            >Receipt</a>
+                                                        </span>
+                                                    </span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="mt-5 space-y-3">
                                     <template x-for="(line, index) in paymentLines" :key="line.uid">
                                         <div class="rounded-2xl border border-gray-200 p-4">
@@ -931,7 +1069,7 @@
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
-                                                    <input type="number" min="0.01" step="0.01" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`">
+                                                    <input type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-on:blur="normalizePaymentLineAmount(index)">
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Received</label>
@@ -955,6 +1093,7 @@
 
                                 <div class="mt-4">
                                     <x-ui.button type="button" color="outline" x-on:click="addPaymentLine()">Add Split Payment Line</x-ui.button>
+                                    <div class="mt-2 text-xs text-gray-500" x-text="'Remaining to record now: $' + remainingBalance().toFixed(2)"></div>
                                 </div>
 
                                 <div class="mt-6 flex justify-end gap-2">
@@ -962,6 +1101,7 @@
                                     <x-ui.button type="submit">Save Payment</x-ui.button>
                                 </div>
                             </form>
+                        </div>
                         </div>
                     </div>
                 @endif

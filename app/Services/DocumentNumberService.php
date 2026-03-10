@@ -37,6 +37,16 @@ class DocumentNumberService
         return $this->next('tax_adjustment_number', 'tax_adjustments', 'adjustment_number', 7100);
     }
 
+    public function previewStoreOrderNumber(): string
+    {
+        return $this->previewNext('store_order_number', 'store_orders', 'order_number', 1000);
+    }
+
+    public function nextStoreOrderNumber(): string
+    {
+        return $this->next('store_order_number', 'store_orders', 'order_number', 1000);
+    }
+
     private function previewNext(string $sequenceKey, string $table, string $column, int $minimum): string
     {
         $sequenceLast = (int) (DB::table('document_sequences')
@@ -118,5 +128,4 @@ class DocumentNumberService
             ->selectRaw("MAX(CAST({$column} AS UNSIGNED)) as max_number")
             ->value('max_number');
     }
-
 }

@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEmail;
+use App\Mail\PaymentReceiptPdf;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Location;
@@ -13,6 +15,7 @@ use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class WorkshopAttendanceKioskTest extends TestCase
@@ -379,6 +382,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop('tickets');
         $customer = User::factory()->create();
+        Queue::fake();
 
         $invoice = Invoice::query()->create([
             'invoice_number' => 'INV-ATTEND-1001',
@@ -461,6 +465,187 @@ class WorkshopAttendanceKioskTest extends TestCase
             $this->assertSame(Ticket::STATUS_DONE, (int) $ticket->status);
             $this->assertNotNull($ticket->attended_at);
         }
+
+        Queue::assertPushed(SendEmail::class, 2);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'family@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->invoiceSummary === '3 workshop tickets'
+                && $job->mailable->paymentMethod === 'EFTPOS'
+                && $job->mailable->statusSummary === 'There is $5.00 now remaining on this invoice.'
+                && $job->mailable->creditSummary === null;
+        });
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'family@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->invoiceSummary === '3 workshop tickets'
+                && $job->mailable->paymentMethod === 'Cash'
+                && $job->mailable->statusSummary === 'This invoice is now paid in full.'
+                && $job->mailable->creditSummary === null;
+        });
+    }
+
+    public function test_ticketed_attendance_page_surfaces_relevant_unallocated_eftpos_transactions(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        $otherCustomer = User::factory()->create();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1007',
+            'user_id' => $customer->id,
+            'billing_name' => 'Relevant EFTPOS Family',
+            'billing_email' => 'relevant@example.com',
+            'billing_phone' => '0400111666',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 13.64,
+            'gst_amount' => 1.36,
+            'total_amount' => 15.00,
+            'notes' => null,
+        ]);
+
+        Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Visible',
+            'surname' => 'Student',
+            'email' => 'relevant@example.com',
+            'phone' => '0400111666',
+            'attended_at' => null,
+        ]);
+
+        Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-LINK-ME',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => null,
+        ]);
+
+        Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $otherCustomer->id,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-HIDE-ME',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.attendance', $workshop))
+            ->assertOk()
+            ->assertSee('EFTPOS-LINK-ME')
+            ->assertDontSee('EFTPOS-HIDE-ME');
+    }
+
+    public function test_admin_can_link_existing_unallocated_eftpos_payment_from_attendance(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1008',
+            'user_id' => $customer->id,
+            'billing_name' => 'Link EFTPOS Family',
+            'billing_email' => 'linkeftpos@example.com',
+            'billing_phone' => '0400111777',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 13.64,
+            'gst_amount' => 1.36,
+            'total_amount' => 15.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Linked',
+            'surname' => 'Student',
+            'email' => 'linkeftpos@example.com',
+            'phone' => '0400111777',
+            'attended_at' => null,
+        ]);
+
+        $existingPayment = Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => null,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-LINK-ONLY',
+            'total_amount' => 20.00,
+            'gst_amount' => 0,
+            'notes' => 'Square terminal payment',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => [$ticket->id],
+            'existing_payment_ids' => [$existingPayment->id],
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => [$ticket->id],
+            'payments' => [
+                [
+                    'method' => Payment::PAYMENT_METHOD_EFTPOS,
+                    'amount' => '',
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => '',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.workshop.attendance', $workshop));
+        $response->assertSessionHasNoErrors();
+
+        $invoice->refresh();
+        $ticket->refresh();
+        $existingPayment->refresh();
+
+        $this->assertSame(Invoice::STATUS_PAID, (string) $invoice->status);
+        $this->assertSame(Ticket::STATUS_DONE, (int) $ticket->status);
+        $this->assertNotNull($ticket->attended_at);
+        $this->assertSame((string) $customer->id, (string) $existingPayment->user_id);
+
+        $this->assertDatabaseHas('invoice_payment_allocations', [
+            'invoice_id' => $invoice->id,
+            'payment_id' => $existingPayment->id,
+            'allocated_amount' => 15.00,
+        ]);
+
+        $this->assertSame(15.0, round((float) InvoicePaymentAllocation::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('payment_id', $existingPayment->id)
+            ->sum('allocated_amount'), 2));
+
+        Queue::assertPushed(SendEmail::class, 1);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'linkeftpos@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->invoiceSummary === '1 workshop ticket'
+                && $job->mailable->paymentMethod === 'EFTPOS'
+                && $job->mailable->statusSummary === 'This invoice is now paid in full.'
+                && $job->mailable->creditSummary === 'You now have $5.00 sitting in credit on your account. Please contact us to discuss your options.';
+        });
     }
 
     public function test_payment_modal_attendance_updates_only_checked_tickets(): void
