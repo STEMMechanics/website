@@ -7,19 +7,33 @@ on:
 jobs:
   semgrep:
     runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:latest
     steps:
       - uses: actions/checkout@v6
-      - uses: semgrep/semgrep-action@v1
-        with:
-          config: p/php
+      - name: Run Semgrep
+        run: semgrep scan --config p/php
 
   phpstan:
     runs-on: ubuntu-latest
+    container:
+      image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
+
     steps:
       - uses: actions/checkout@v6
-      - uses: shivammathur/setup-php@v2
+
+      - name: Cache Composer
+        uses: actions/cache@v4
         with:
-          php-version: "8.4"
-          tools: composer:v2
-      - run: composer install --no-interaction --no-progress --prefer-dist
-      - run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+          path: /tmp/composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
+          restore-keys: |
+            composer-${{ runner.os }}-
+
+      - name: Install PHP Dependencies
+        env:
+          COMPOSER_CACHE_DIR: /tmp/composer-cache
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Run PHPStan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
