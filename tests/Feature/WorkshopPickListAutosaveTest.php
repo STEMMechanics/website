@@ -11,6 +11,7 @@ use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -73,6 +74,106 @@ class WorkshopPickListAutosaveTest extends TestCase
         $this->assertSame([$allowedItem->id], array_map('intval', $freshWorkshop->pick_list_checked_item_ids ?? []));
     }
 
+    public function test_pick_list_autosave_persists_editable_canvas_json_and_thumbnail_and_clears_them(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+        $thumbnailPath = 'workshop-pick-list-thumbnails/workshop-'.$workshop->id.'.png';
+        $canvasPayload = [
+            'schema_version' => 1,
+            'viewport' => [
+                'transform' => [1.4, 0, 0, 1.4, 120, -40],
+            ],
+            'brush' => [
+                'color' => '#16a34a',
+                'size' => 6,
+            ],
+            'canvas' => [
+                'version' => '7.2.0',
+                'objects' => [
+                    [
+                        'type' => 'path',
+                        'version' => '7.2.0',
+                        'originX' => 'left',
+                        'originY' => 'top',
+                        'left' => 100,
+                        'top' => 80,
+                        'width' => 50,
+                        'height' => 20,
+                        'fill' => null,
+                        'stroke' => '#16a34a',
+                        'strokeWidth' => 6,
+                        'strokeLineCap' => 'round',
+                        'strokeLineJoin' => 'round',
+                        'strokeMiterLimit' => 10,
+                        'scaleX' => 1,
+                        'scaleY' => 1,
+                        'angle' => 0,
+                        'flipX' => false,
+                        'flipY' => false,
+                        'opacity' => 1,
+                        'shadow' => null,
+                        'visible' => true,
+                        'backgroundColor' => '',
+                        'fillRule' => 'nonzero',
+                        'paintFirst' => 'fill',
+                        'globalCompositeOperation' => 'source-over',
+                        'skewX' => 0,
+                        'skewY' => 0,
+                        'path' => [
+                            ['M', 0, 0],
+                            ['Q', 10, 10, 20, 5],
+                        ],
+                        'smIsEraser' => false,
+                        'selectable' => false,
+                        'evented' => false,
+                        'hasControls' => false,
+                        'hasBorders' => false,
+                    ],
+                ],
+                'background' => '#ffffff',
+            ],
+        ];
+
+        $saveResponse = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.pick-list.save', $workshop), [
+                'pick_list_participants' => 3,
+                'pick_list_notes' => 'Marked up on iPad',
+                'pick_list_canvas_data' => json_encode($canvasPayload, JSON_UNESCAPED_SLASHES),
+                'pick_list_canvas_thumbnail_data' => $this->samplePngDataUrl(),
+            ]);
+
+        $saveResponse->assertOk();
+        $saveResponse->assertJsonPath('ok', true);
+        $saveResponse->assertJsonPath('pick_list_canvas_has_content', true);
+        $this->assertStringContainsString($thumbnailPath, (string) $saveResponse->json('pick_list_canvas_thumbnail_url'));
+
+        $savedWorkshop = $workshop->fresh();
+
+        $this->assertSame($canvasPayload, json_decode((string) $savedWorkshop->pick_list_canvas_data, true));
+        $this->assertSame($thumbnailPath, $savedWorkshop->pick_list_canvas_thumbnail_path);
+        Storage::disk('public')->assertExists($thumbnailPath);
+
+        $clearResponse = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.pick-list.save', $workshop), [
+                'pick_list_canvas_data' => '',
+                'pick_list_canvas_thumbnail_data' => '',
+            ]);
+
+        $clearResponse->assertOk();
+        $clearResponse->assertJsonPath('ok', true);
+        $clearResponse->assertJsonPath('pick_list_canvas_has_content', false);
+        $clearResponse->assertJsonPath('pick_list_canvas_thumbnail_url', null);
+
+        $clearedWorkshop = $workshop->fresh();
+
+        $this->assertNull($clearedWorkshop->pick_list_canvas_data);
+        $this->assertNull($clearedWorkshop->pick_list_canvas_thumbnail_path);
+        Storage::disk('public')->assertMissing($thumbnailPath);
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();
@@ -112,5 +213,10 @@ class WorkshopPickListAutosaveTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
         ]);
+    }
+
+    private function samplePngDataUrl(): string
+    {
+        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4////fwAJ+wP9KobjigAAAABJRU5ErkJggg==';
     }
 }

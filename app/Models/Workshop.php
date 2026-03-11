@@ -37,6 +37,8 @@ class Workshop extends Model
         'pick_list_participants',
         'pick_list_checked_item_ids',
         'pick_list_notes',
+        'pick_list_canvas_data',
+        'pick_list_canvas_thumbnail_path',
         'location_id',
         'user_id',
         'hero_media_name',

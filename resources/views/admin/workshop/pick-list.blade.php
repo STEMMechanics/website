@@ -25,116 +25,30 @@
             method="POST"
             action="{{ route('admin.workshop.pick-list.save', $workshop) }}"
             class="rounded-lg border border-gray-200 p-4 mb-6 bg-white"
-            x-data="{
+            x-data="SM.workshopPickListPage({
                 saveUrl: @js(route('admin.workshop.pick-list.save', $workshop)),
                 csrfToken: @js(csrf_token()),
                 templateItems: @js($templateItems ?? []),
                 allItemIds: @js(collect($templateItems ?? [])->pluck('id')->map(fn ($id) => (string) $id)->values()->all()),
-                checkedIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
+                checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 participantsInput: @js((string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants)),
                 notes: @js((string) old('pick_list_notes', $workshop->pick_list_notes ?? '')),
                 defaultParticipants: @js((int) $participants),
-                submitting: false,
-                saving: false,
-                saveError: '',
-                autosaveTimer: null,
-                relativeTimer: null,
+                pickListCanvasDataJson: @js((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')),
+                pickListCanvasThumbnailUrl: @js((string) ($pickListCanvasThumbnailUrl ?? '')),
                 lastSavedAtIso: @js($lastSavedAt?->toIso8601String()),
                 lastSavedAbsolute: @js($lastSavedAt?->format('M j, Y g:i a')),
-                lastSavedRelative: '',
-                init() {
-                    this.checkedIds = this.checkedIds.filter((id) => this.allItemIds.includes(String(id)));
-                    this.relativeTimer = SM.startRelativeTimeTicker(() => {
-                        this.refreshSavedRelative();
-                    });
-                },
-                destroy() {
-                    this.relativeTimer = SM.clearInterval(this.relativeTimer);
-                    this.autosaveTimer = SM.clearTimer(this.autosaveTimer);
-                },
-                normalizeParticipants() {
-                    return SM.toBoundedInt(this.participantsInput, {
-                        min: 1,
-                        max: 5000,
-                        allowNull: true,
-                    });
-                },
-                effectiveParticipants() {
-                    return this.normalizeParticipants() ?? this.defaultParticipants;
-                },
-                quantityFor(item) {
-                    const participants = this.effectiveParticipants();
-                    const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
-                    if (String(item.quantity_type) === 'per_participant') {
-                        return Math.max(0, quantityValue * participants);
-                    }
-                    return quantityValue;
-                },
-                itemLabel(item) {
-                    const quantity = this.quantityFor(item);
-                    const name = String(item.item_name ?? '').trim();
-                    const label = SM.pluralize(name, quantity);
-                    return `${quantity} x ${label}`;
-                },
-                typeNote(item) {
-                    if (String(item.quantity_type) !== 'per_participant') {
-                        return '';
-                    }
-                    const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
-                    return `(${quantityValue} per participant)`;
-                },
-                clearAllChecks() {
-                    this.checkedIds = [];
-                    this.scheduleAutosave();
-                },
-                checkAllItems() {
-                    this.checkedIds = this.allItemIds.slice();
-                    this.scheduleAutosave();
-                },
-                scheduleAutosave() {
-                    if (this.submitting) {
-                        return;
-                    }
-                    this.autosaveTimer = SM.scheduleDebounce(this.autosaveTimer, () => {
-                        this.autosave();
-                    }, 700);
-                },
-                async autosave() {
-                    if (this.submitting || this.saving) {
-                        return;
-                    }
-
-                    const payload = {
-                        pick_list_participants: this.normalizeParticipants(),
-                        pick_list_notes: this.notes,
-                        checked_item_ids: this.checkedIds,
-                    };
-
-                    this.saving = true;
-                    this.saveError = '';
-
-                    try {
-                        const data = await SM.autosaveJson(this.saveUrl, this.csrfToken, payload);
-                        this.lastSavedAtIso = data.saved_at_iso ?? null;
-                        this.lastSavedAbsolute = data.saved_at_display ?? null;
-                        if (Array.isArray(data.checked_item_ids)) {
-                            this.checkedIds = data.checked_item_ids.map((id) => String(id));
-                        }
-                        this.refreshSavedRelative();
-                    } catch (error) {
-                        this.saveError = 'Autosave failed. Use Save to retry.';
-                    } finally {
-                        this.saving = false;
-                    }
-                },
-                refreshSavedRelative() {
-                    this.lastSavedRelative = SM.relativeTimeFromIso(this.lastSavedAtIso);
-                }
-            }"
+            })"
             x-init="init()"
-            x-on:submit="submitting = true; autosaveTimer = SM.clearTimer(autosaveTimer);"
+            x-on:submit.prevent="submitForm($event)"
         >
             @csrf
+            <template x-for="id in checkedIds" :key="`checked-${id}`">
+                <input type="hidden" name="checked_item_ids[]" :value="id">
+            </template>
+            <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
+            <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
+
             @if(! $workshop->pickListTemplate)
                 <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
                     Select a template to generate this workshop's pick list.
@@ -143,10 +57,6 @@
                 <div class="ml-auto w-48">
                     <x-ui.input label="Participants" inline type="number" min="1" max="5000" step="1" name="pick_list_participants" x-model="participantsInput" x-on:input="scheduleAutosave()" />
                 </div>
-
-                <template x-for="id in checkedIds" :key="`checked-${id}`">
-                    <input type="hidden" name="checked_item_ids[]" :value="id">
-                </template>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-2">
                     <template x-for="item in templateItems" :key="item.id">
@@ -172,16 +82,90 @@
                 </div>
 
             @endif
-            <div class="mt-8">
-                <label for="pick_list_notes" class="block text-sm pl-1">Workshop Notes</label>
-                <textarea
-                    id="pick_list_notes"
-                    name="pick_list_notes"
-                    class="disabled:bg-gray-100 bg-white block px-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border appearance-none focus:outline-none focus:ring-0 border-gray-300 focus:border-indigo-300 focus:ring-indigo-300 h-72"
-                    x-model="notes"
-                    x-on:input="scheduleAutosave()"
-                ></textarea>
+            <div class="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
+                </div>
+
+                <div class="mt-4 rounded-2xl bg-white">
+                    <textarea
+                        id="pick_list_notes"
+                        name="pick_list_notes"
+                        rows="4"
+                        x-ref="pickListNotes"
+                        class="disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
+                        x-model="notes"
+                        x-on:input="resizeNotesField(); scheduleAutosave()"
+                    ></textarea>
+                </div>
             </div>
+
+            <div class="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Sketch Pad</h2>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
+                    <button type="button" x-bind:class="canvasToolButtonClass('erase')" x-on:click="setCanvasTool('erase')"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
+                    <button type="button" x-bind:class="canvasToolButtonClass('pan')" x-on:click="setCanvasTool('pan')"><i class="fa-solid fa-hand"></i><span>Pan</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()"><i class="fa-solid fa-rotate-left"></i><span>Undo</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()"><i class="fa-solid fa-rotate-right"></i><span>Redo</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()"><i class="fa-solid fa-magnifying-glass-plus"></i><span>Zoom In</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()"><i class="fa-solid fa-magnifying-glass-minus"></i><span>Zoom Out</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()"><i class="fa-solid fa-arrows-to-dot"></i><span>Reset View</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()"><i class="fa-solid fa-trash-can"></i><span>Clear</span></button>
+                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="manualCanvasSave()"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+                </div>
+
+                <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
+                    <label class="block">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Colour</span>
+                        <input
+                            type="color"
+                            class="h-11 w-20 rounded-md border border-gray-300 bg-white p-1"
+                            x-model="canvasColor"
+                            x-on:input="setCanvasColor($event.target.value)"
+                        >
+                    </label>
+                    <label class="block grow lg:max-w-xs">
+                        <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Brush Size</span>
+                        <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                            <input
+                                type="range"
+                                min="1"
+                                max="48"
+                                step="1"
+                                class="w-full"
+                                x-model="canvasBrushSize"
+                                x-on:input="setCanvasBrushSize($event.target.value)"
+                            >
+                            <span class="w-12 shrink-0 text-right text-sm font-semibold text-gray-700" x-text="canvasBrushSize + 'px'"></span>
+                        </div>
+                    </label>
+                    <div class="text-sm text-gray-500 lg:ml-auto">
+                        Zoom <span class="font-semibold text-gray-700" x-text="canvasZoomPercent + '%'"></span>
+                    </div>
+                </div>
+
+                <div class="mt-4 rounded-2xl border border-gray-300 bg-white p-3 shadow-sm">
+                    <div class="mb-3 flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                        <div>Apple Pencil, touch, and mouse are supported. Use Pan mode to move around the canvas, and the zoom controls to change scale.</div>
+                        <div class="font-medium text-gray-600" x-show="canvasLoading">Loading canvas...</div>
+                    </div>
+
+                    <div x-show="canvasError" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="canvasError"></div>
+
+                    <div
+                        x-ref="pickListCanvasViewport"
+                        class="relative h-[72vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white"
+                        style="touch-action: none; overscroll-behavior: contain;"
+                    >
+                        <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <div class="mt-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-end">
                 <div class="text-xs text-gray-500 md:mr-2" x-show="lastSavedAbsolute">
                     Last saved <span x-text="lastSavedAbsolute"></span><span x-show="lastSavedRelative"> (<span x-text="lastSavedRelative"></span>)</span>

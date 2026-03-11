@@ -8,10 +8,13 @@ use App\Models\Ticket;
 use App\Models\Workshop;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
+use JsonException;
 
 class WorkshopPickListController extends Controller
 {
@@ -26,6 +29,8 @@ class WorkshopPickListController extends Controller
             'participants' => $participants,
             'activeTicketCount' => $this->activeTicketCount($workshop),
             'checkedItemIds' => collect($workshop->pick_list_checked_item_ids ?? [])->map(fn ($id) => (int) $id)->filter(fn ($id) => $id > 0)->values()->all(),
+            'pickListCanvasDataJson' => is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null,
+            'pickListCanvasThumbnailUrl' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
             'templateItems' => ($workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect())
                 ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
                 ->map(function (PickListTemplateItem $item): array {
@@ -54,6 +59,8 @@ class WorkshopPickListController extends Controller
             'pick_list_notes' => ['nullable', 'string'],
             'checked_item_ids' => ['nullable', 'array'],
             'checked_item_ids.*' => ['integer'],
+            'pick_list_canvas_data' => ['nullable'],
+            'pick_list_canvas_thumbnail_data' => ['sometimes', 'nullable', 'string'],
         ]);
 
         $templateId = array_key_exists('pick_list_template_id', $validated)
@@ -88,7 +95,25 @@ class WorkshopPickListController extends Controller
         $allowedLookup = array_fill_keys($allowedIds, true);
         $selectedIds = array_values(array_filter($selectedIds, fn (int $id) => isset($allowedLookup[$id])));
 
+        $canvasDataWasProvided = $request->exists('pick_list_canvas_data');
+        $canvasThumbnailWasProvided = $request->exists('pick_list_canvas_thumbnail_data');
+        $canvasData = $canvasDataWasProvided
+            ? $this->normalizePickListCanvasData($request->input('pick_list_canvas_data'))
+            : (is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null);
+
         $workshop->pick_list_checked_item_ids = $selectedIds;
+        if ($canvasDataWasProvided) {
+            $workshop->pick_list_canvas_data = $canvasData;
+        }
+        if ($canvasDataWasProvided && $canvasData === null) {
+            $this->deletePickListCanvasThumbnail($workshop->pick_list_canvas_thumbnail_path);
+            $workshop->pick_list_canvas_thumbnail_path = null;
+        } elseif ($canvasThumbnailWasProvided) {
+            $thumbnailData = trim((string) $request->input('pick_list_canvas_thumbnail_data', ''));
+            if ($thumbnailData !== '') {
+                $workshop->pick_list_canvas_thumbnail_path = $this->storePickListCanvasThumbnail($workshop, $thumbnailData);
+            }
+        }
         $workshop->save();
 
         if ($request->expectsJson()) {
@@ -98,6 +123,8 @@ class WorkshopPickListController extends Controller
                 'saved_at_display' => $workshop->updated_at?->format('M j, Y g:i a'),
                 'pick_list_participants' => $workshop->pick_list_participants,
                 'checked_item_ids' => $selectedIds,
+                'pick_list_canvas_has_content' => is_string($workshop->pick_list_canvas_data) && trim($workshop->pick_list_canvas_data) !== '',
+                'pick_list_canvas_thumbnail_url' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
             ]);
         }
 
@@ -183,5 +210,99 @@ class WorkshopPickListController extends Controller
                 ];
             })
             ->values();
+    }
+
+    private function normalizePickListCanvasData(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            if (strlen($trimmed) > 6_000_000) {
+                throw ValidationException::withMessages([
+                    'pick_list_canvas_data' => 'Canvas data is too large to save.',
+                ]);
+            }
+
+            try {
+                $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException) {
+                throw ValidationException::withMessages([
+                    'pick_list_canvas_data' => 'Canvas data could not be parsed.',
+                ]);
+            }
+        } elseif (is_array($value)) {
+            $decoded = $value;
+        } else {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_data' => 'Canvas data format is invalid.',
+            ]);
+        }
+
+        if (! is_array($decoded)) {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_data' => 'Canvas data format is invalid.',
+            ]);
+        }
+
+        try {
+            $normalized = json_encode($decoded, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_data' => 'Canvas data could not be encoded.',
+            ]);
+        }
+
+        return $normalized;
+    }
+
+    private function storePickListCanvasThumbnail(Workshop $workshop, string $dataUrl): string
+    {
+        if (! preg_match('/^data:image\/png;base64,(.+)$/', $dataUrl, $matches)) {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_thumbnail_data' => 'Canvas preview image format is invalid.',
+            ]);
+        }
+
+        $binary = base64_decode(str_replace(' ', '+', (string) $matches[1]), true);
+        if ($binary === false || $binary === '') {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_thumbnail_data' => 'Canvas preview image could not be decoded.',
+            ]);
+        }
+
+        if (strlen($binary) > 4_000_000) {
+            throw ValidationException::withMessages([
+                'pick_list_canvas_thumbnail_data' => 'Canvas preview image is too large to save.',
+            ]);
+        }
+
+        $path = 'workshop-pick-list-thumbnails/workshop-'.$workshop->id.'.png';
+        Storage::disk('public')->put($path, $binary);
+
+        return $path;
+    }
+
+    private function deletePickListCanvasThumbnail(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return;
+        }
+
+        Storage::disk('public')->delete($path);
+    }
+
+    private function pickListCanvasThumbnailUrl(?string $path): ?string
+    {
+        $path = trim((string) $path);
+
+        return $path !== '' ? Storage::disk('public')->url($path) : null;
     }
 }

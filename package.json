@@ -30,6 +30,7 @@
         "@tiptap/extension-underline": "^3.18.0",
         "@tiptap/pm": "^3.10.7",
         "@tiptap/starter-kit": "^3.18.0",
+        "fabric": "^7.2.0",
         "tailwindcss": "^4.1.17"
     }
 }
