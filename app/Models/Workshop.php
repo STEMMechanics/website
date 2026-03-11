@@ -7,8 +7,8 @@ use App\Traits\HasFiles;
 use App\Traits\Slug;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Workshop extends Model
@@ -100,6 +100,14 @@ class Workshop extends Model
     public function attendances(): HasMany
     {
         return $this->hasMany(WorkshopAttendance::class);
+    }
+
+    /**
+     * @return HasMany<WorkshopInterest, $this>
+     */
+    public function interests(): HasMany
+    {
+        return $this->hasMany(WorkshopInterest::class);
     }
 
     public function getLocationName(): string

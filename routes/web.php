@@ -52,6 +52,7 @@ Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.in
 Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('workshop.past.index');
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');
+Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'interest'])->name('workshop.interest');
 Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
 Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
 Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');

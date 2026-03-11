@@ -377,7 +377,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->assertNull($secondTicket->attended_at);
     }
 
-    public function test_admin_can_record_split_ticket_payments_from_attendance_and_mark_tickets_attended(): void
+    public function test_admin_can_record_split_ticket_payments_from_attendance_without_emailing_receipts_by_default(): void
     {
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop('tickets');
@@ -465,6 +465,73 @@ class WorkshopAttendanceKioskTest extends TestCase
             $this->assertSame(Ticket::STATUS_DONE, (int) $ticket->status);
             $this->assertNotNull($ticket->attended_at);
         }
+
+        Queue::assertNotPushed(SendEmail::class);
+    }
+
+    public function test_admin_can_opt_in_to_email_receipts_for_split_ticket_payments_from_attendance(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1001A',
+            'user_id' => $customer->id,
+            'billing_name' => 'Attendance Family',
+            'billing_email' => 'family@example.com',
+            'billing_phone' => '0400000000',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 40.91,
+            'gst_amount' => 4.09,
+            'total_amount' => 45.00,
+            'notes' => null,
+        ]);
+
+        $tickets = collect();
+        foreach (['A', 'B', 'C'] as $suffix) {
+            $tickets->push(Ticket::query()->create([
+                'status' => Ticket::STATUS_PENDING_DOOR,
+                'user_id' => $customer->id,
+                'workshop_id' => $workshop->id,
+                'invoice_id' => $invoice->id,
+                'firstname' => 'Child',
+                'surname' => 'Ticket'.$suffix,
+                'email' => 'family@example.com',
+                'phone' => '0400000000',
+                'attended_at' => null,
+            ]));
+        }
+
+        $response = $this->actingAs($admin)->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => $tickets->pluck('id')->all(),
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => $tickets->pluck('id')->all(),
+            'email_receipt' => 1,
+            'payments' => [
+                [
+                    'method' => Payment::PAYMENT_METHOD_EFTPOS,
+                    'amount' => 40.00,
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => 'EFTPOS-1',
+                    'notes' => 'Counter payment',
+                ],
+                [
+                    'method' => Payment::PAYMENT_METHOD_CASH,
+                    'amount' => 5.00,
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => 'CASH-1',
+                    'notes' => 'Cash top-up',
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.workshop.attendance', $workshop));
+        $response->assertSessionHasNoErrors();
 
         Queue::assertPushed(SendEmail::class, 2);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
@@ -603,6 +670,7 @@ class WorkshopAttendanceKioskTest extends TestCase
             'existing_payment_ids' => [$existingPayment->id],
             'sync_attendance' => 1,
             'attended_ticket_ids' => [$ticket->id],
+            'email_receipt' => 1,
             'payments' => [
                 [
                     'method' => Payment::PAYMENT_METHOD_EFTPOS,

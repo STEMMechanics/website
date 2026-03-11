@@ -144,6 +144,7 @@
                     selectedExistingPaymentIds: @js($oldExistingPaymentIds),
                     paymentAttendanceByTicketId: {},
                     paymentLines: [],
+                    emailReceiptChecked: false,
                     paymentModalOpen: {{ $hasPaymentErrors ? 'true' : 'false' }},
                     nextPaymentLineId: 1,
                     cancelTicketsUrl: @js(route('admin.ticket.cancel.bulk')),
@@ -626,6 +627,7 @@
                         this.selectedExistingPaymentIds = [];
                         this.resetPaymentLines();
                         this.seedPaymentAttendance();
+                        this.emailReceiptChecked = false;
 
                         this.paymentModalOpen = true;
                     },
@@ -647,6 +649,7 @@
                     if ({{ $hasPaymentErrors ? 'true' : 'false' }}) {
                         resetPaymentLines(@js($oldPaymentLines));
                         seedPaymentAttendance(@js($oldAttendedTicketIds));
+                        emailReceiptChecked = {{ old('email_receipt') ? 'true' : 'false' }};
                     } else {
                         resetPaymentLines();
                     }
@@ -1095,6 +1098,20 @@
                                     <x-ui.button type="button" color="outline" x-on:click="addPaymentLine()">Add Split Payment Line</x-ui.button>
                                     <div class="mt-2 text-xs text-gray-500" x-text="'Remaining to record now: $' + remainingBalance().toFixed(2)"></div>
                                 </div>
+
+                                <label class="mt-5 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                    <input
+                                        type="checkbox"
+                                        name="email_receipt"
+                                        value="1"
+                                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                        x-model="emailReceiptChecked"
+                                    >
+                                    <span>
+                                        <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
+                                        <span class="mt-1 block text-xs text-gray-500">Optional. A receipt email will only be sent if this is checked and one clear recipient email can be resolved.</span>
+                                    </span>
+                                </label>
 
                                 <div class="mt-6 flex justify-end gap-2">
                                     <x-ui.button type="button" color="outline" x-on:click="paymentModalOpen = false">Cancel</x-ui.button>

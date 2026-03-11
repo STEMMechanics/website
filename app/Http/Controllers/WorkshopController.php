@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
+use App\Models\WorkshopInterest;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
@@ -22,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -206,6 +208,10 @@ class WorkshopController extends Controller
         $ticketService->cleanupExpiredHolds($workshop);
         $availableTickets = $ticketService->availableTickets($workshop);
         $ticketPriceAmount = $ticketService->ticketPriceAmount($workshop);
+        $interestCount = $workshop->interests()->count();
+        $currentUserInterest = auth()->check()
+            ? $workshop->interests()->where('user_id', auth()->id())->first()
+            : null;
         $requiresPrivateAccessCode = $workshop->requiresPrivateAccessCode();
         $privateAccessKey = $this->privateAccessSessionKey($workshop);
         $hasPrivateAccess = ! $workshop->isPrivate()
@@ -217,6 +223,8 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'availableTickets' => $availableTickets,
             'canGetTickets' => $ticketService->canStartTicketCheckout($workshop),
+            'interestCount' => $interestCount,
+            'currentUserInterest' => $currentUserInterest,
             'ticketPriceAmount' => $ticketPriceAmount,
             'ticketHoldMinutes' => $ticketService->holdWindowMinutes(),
             'adminCanViewTickets' => (bool) (auth()->user()?->isAdmin() ?? false) && $workshop->registration === 'tickets',
@@ -398,6 +406,113 @@ class WorkshopController extends Controller
                 return redirect()->away($registrationUrl);
             }
         }
+
+        return redirect()->route('workshop.show', $workshop);
+    }
+
+    public function interest(Request $request, Workshop $workshop): RedirectResponse
+    {
+        if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! $workshop->isPubliclyVisible()) {
+            abort(404);
+        }
+
+        if ($workshop->status !== 'open' || $workshop->registration !== 'interest') {
+            abort(404);
+        }
+
+        $requiresPrivateAccessCode = $workshop->requiresPrivateAccessCode();
+        $hasPrivateAccess = ! $workshop->isPrivate()
+            || (bool) (auth()->user()?->isAdmin() ?? false)
+            || ($requiresPrivateAccessCode && (bool) session($this->privateAccessSessionKey($workshop), false));
+        if (! $hasPrivateAccess) {
+            abort(404);
+        }
+
+        if (auth()->check()) {
+            $action = trim((string) $request->input('action', 'add'));
+            $user = $request->user();
+            if (! $user instanceof User) {
+                abort(403);
+            }
+
+            if ($action === 'remove') {
+                WorkshopInterest::query()
+                    ->where('workshop_id', $workshop->id)
+                    ->where('user_id', $user->id)
+                    ->delete();
+
+                session()->flash('message', 'Your interest has been removed.');
+                session()->flash('message-title', 'Interest updated');
+                session()->flash('message-type', 'success');
+
+                return redirect()->route('workshop.show', $workshop);
+            }
+
+            WorkshopInterest::query()->firstOrCreate(
+                [
+                    'workshop_id' => $workshop->id,
+                    'user_id' => $user->id,
+                ],
+                [
+                    'name' => trim((string) $user->getName()),
+                    'email' => strtolower(trim((string) $user->email)),
+                    'phone' => trim((string) ($user->phone ?? '')),
+                ],
+            );
+
+            session()->flash('message', 'Thanks, your interest has been recorded.');
+            session()->flash('message-title', 'Interest recorded');
+            session()->flash('message-type', 'success');
+
+            return redirect()->route('workshop.show', $workshop);
+        }
+
+        $validated = Validator::make($request->all(), [
+            'interest_name' => ['required', 'string', 'max:120'],
+            'interest_email' => ['required', 'email', 'max:255'],
+            'interest_phone' => ['nullable', 'string', 'max:60'],
+        ])->validate();
+
+        $name = trim((string) ($validated['interest_name'] ?? ''));
+        $email = strtolower(trim((string) ($validated['interest_email'] ?? '')));
+        $phone = trim((string) ($validated['interest_phone'] ?? ''));
+
+        $existingUser = User::query()->whereRaw('LOWER(email) = ?', [$email])->first();
+        if ($existingUser instanceof User) {
+            $alreadyInterested = WorkshopInterest::query()
+                ->where('workshop_id', $workshop->id)
+                ->where('user_id', $existingUser->id)
+                ->exists();
+
+            if ($alreadyInterested) {
+                session()->flash('message', 'Your interest has already been recorded.');
+                session()->flash('message-title', 'Already interested');
+                session()->flash('message-type', 'warning');
+
+                return redirect()->route('workshop.show', $workshop);
+            }
+        }
+
+        [$firstname, $surname] = $this->splitFullName($name);
+        $userId = $this->resolveAttendanceUserId($email, $firstname, $surname, $phone);
+
+        if ($userId === null || $userId === '') {
+            throw ValidationException::withMessages([
+                'interest_email' => 'We could not create a contact for this expression of interest.',
+            ]);
+        }
+
+        WorkshopInterest::query()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $userId,
+            'name' => $name,
+            'email' => $email,
+            'phone' => $phone,
+        ]);
+
+        session()->flash('message', 'Thanks, your interest has been recorded.');
+        session()->flash('message-title', 'Interest recorded');
+        session()->flash('message-type', 'success');
 
         return redirect()->route('workshop.show', $workshop);
     }
@@ -931,6 +1046,7 @@ class WorkshopController extends Controller
             'payments.*.notes' => ['nullable', 'string'],
             'sync_attendance' => ['nullable', 'boolean'],
             'mark_attended' => ['nullable', 'boolean'],
+            'email_receipt' => ['nullable', 'boolean'],
         ]);
 
         $selectedTicketIds = collect($validated['ticket_ids'] ?? [])
@@ -1083,6 +1199,7 @@ class WorkshopController extends Controller
 
         $syncAttendance = $request->boolean('sync_attendance', false);
         $markAttended = $request->boolean('mark_attended', false);
+        $emailReceipt = $request->boolean('email_receipt', false);
         $now = now();
         $syncInvoiceIds = array_keys($outstandingByInvoiceId);
         $receiptEmailPayloads = [];
@@ -1225,16 +1342,18 @@ class WorkshopController extends Controller
             ->all();
         $queuedReceiptEmails = 0;
         $skippedReceiptEmails = 0;
-        foreach ($receiptEmailPayloads as $receiptPayload) {
-            $payment = Payment::query()->find((int) $receiptPayload['payment_id']);
-            if (! $payment instanceof Payment) {
-                continue;
-            }
+        if ($emailReceipt) {
+            foreach ($receiptEmailPayloads as $receiptPayload) {
+                $payment = Payment::query()->find((int) $receiptPayload['payment_id']);
+                if (! $payment instanceof Payment) {
+                    continue;
+                }
 
-            if ($this->sendAttendancePaymentReceiptEmail($payment, $receiptPayload)) {
-                $queuedReceiptEmails++;
-            } else {
-                $skippedReceiptEmails++;
+                if ($this->sendAttendancePaymentReceiptEmail($payment, $receiptPayload)) {
+                    $queuedReceiptEmails++;
+                } else {
+                    $skippedReceiptEmails++;
+                }
             }
         }
 
@@ -2100,6 +2219,23 @@ class WorkshopController extends Controller
         }
 
         return (string) $user->id;
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function splitFullName(string $name): array
+    {
+        $parts = preg_split('/\s+/', trim($name)) ?: [];
+        $parts = array_values(array_filter($parts, static fn ($part): bool => trim((string) $part) !== ''));
+        if ($parts === []) {
+            return ['', ''];
+        }
+
+        $firstname = (string) array_shift($parts);
+        $surname = trim(implode(' ', $parts));
+
+        return [$firstname, $surname];
     }
 
     private function privateAccessSessionKey(Workshop $workshop): string

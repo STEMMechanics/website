@@ -1,6 +1,11 @@
 @php
     $seoDescription = \Illuminate\Support\Str::limit(trim(strip_tags((string) ($workshop->content ?? ''))), 160, '...');
     $heroImageUrl = $workshop->hero?->url ? url((string) $workshop->hero->url) : null;
+    $interestPrefillName = old('interest_name', trim((string) (auth()->user()?->getName() ?? '')));
+    $interestPrefillEmail = old('interest_email', trim((string) (auth()->user()?->email ?? '')));
+    $interestPrefillPhone = old('interest_phone', trim((string) (auth()->user()?->phone ?? '')));
+    $interestModalOpen = $errors->has('interest_name') || $errors->has('interest_email') || $errors->has('interest_phone');
+    $userHasInterest = $currentUserInterest !== null;
 
     $eventLocation = $workshop->location_id
         ? [
@@ -147,6 +152,59 @@
                         @endif
                     @elseif($workshop->registration === 'email')
                         <div class="sm-registration-email">Registration for this event by emailing <a href="mailto:{{ $workshop->registration_data }}" class="link">{{ $workshop->registration_data }}</a>.</div>
+                    @elseif($workshop->registration === 'interest' && ($hasPrivateAccess ?? false))
+                        <div class="flex flex-col mb-4">
+                            @auth
+                                <form method="POST" action="{{ route('workshop.interest', $workshop) }}">
+                                    @csrf
+                                    <input type="hidden" name="action" value="{{ $userHasInterest ? 'remove' : 'add' }}">
+                                    <x-ui.button type="submit" class="w-full" color="{{ $userHasInterest ? 'primary-outline' : 'primary' }}">
+                                        {{ $userHasInterest ? 'Cancel Interest' : "I'm Interested" }}
+                                    </x-ui.button>
+                                </form>
+                            @else
+                                <div x-data="{ interestModalOpen: {{ $interestModalOpen ? 'true' : 'false' }} }">
+                                    <x-ui.button type="button" class="w-full" x-on:click="interestModalOpen = true">I'm Interested</x-ui.button>
+
+                                    <div
+                                        x-show="interestModalOpen"
+                                        x-cloak
+                                        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                        x-on:keydown.escape.window="interestModalOpen = false"
+                                    >
+                                        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="interestModalOpen = false"></div>
+                                        <div class="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-xl border border-gray-200 p-6">
+                                            <div class="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <h3 class="text-lg font-bold text-gray-900">I'm Interested</h3>
+                                                    <p class="mt-2 text-sm text-gray-700">Leave your details and we’ll record your interest for this workshop.</p>
+                                                </div>
+                                                <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="interestModalOpen = false" aria-label="Close">
+                                                    <i class="fa-solid fa-xmark"></i>
+                                                </button>
+                                            </div>
+
+                                            <form method="POST" action="{{ route('workshop.interest', $workshop) }}" class="mt-6">
+                                                @csrf
+                                                <x-ui.input label="Name" name="interest_name" value="{{ $interestPrefillName }}" error="{{ $errors->first('interest_name') }}" required autofocus />
+                                                <x-ui.input label="Email" name="interest_email" value="{{ $interestPrefillEmail }}" error="{{ $errors->first('interest_email') }}" required />
+                                                <x-ui.input label="Phone" name="interest_phone" value="{{ $interestPrefillPhone }}" error="{{ $errors->first('interest_phone') }}" />
+                                                <div class="pt-2 flex justify-end gap-3">
+                                                    <x-ui.button type="button" color="primary-outline" x-on:click="interestModalOpen = false">Cancel</x-ui.button>
+                                                    <x-ui.button type="submit">Submit Interest</x-ui.button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endauth
+                            <p class="text-xs text-gray-600 text-center mt-2">{{ (int) ($interestCount ?? 0) }} interested so far</p>
+                            @auth
+                                @if($userHasInterest)
+{{--                                    <p class="text-xs text-gray-500 text-center mt-1">You’re currently marked as interested.</p>--}}
+                                @endif
+                            @endauth
+                        </div>
                     @elseif($workshop->registration === 'message')
                         <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
                     @endif
