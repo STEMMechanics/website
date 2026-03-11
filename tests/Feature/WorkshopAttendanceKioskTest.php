@@ -772,6 +772,200 @@ class WorkshopAttendanceKioskTest extends TestCase
         });
     }
 
+    public function test_attendance_payment_marks_remaining_pay_at_door_ticket_paid_after_sibling_ticket_cancellation_adjustment(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1008B',
+            'user_id' => $customer->id,
+            'billing_name' => 'Sibling Cancel Family',
+            'billing_email' => 'siblingcancel@example.com',
+            'billing_phone' => '0400111888',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 27.27,
+            'gst_amount' => 2.73,
+            'total_amount' => 30.00,
+            'notes' => null,
+        ]);
+
+        $firstTicket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Sibling',
+            'surname' => 'One',
+            'email' => 'siblingcancel@example.com',
+            'phone' => '0400111888',
+            'attended_at' => null,
+        ]);
+        $secondTicket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Sibling',
+            'surname' => 'Two',
+            'email' => 'siblingcancel@example.com',
+            'phone' => '0400111888',
+            'attended_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.ticket.cancel.bulk'), [
+                'ticket_ids' => [$secondTicket->id],
+                'process_square_refund' => 1,
+                'email_customer' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonPath('cancelled_count', 1)
+            ->assertJsonPath('failed_count', 0);
+
+        $existingPayment = Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => null,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-SIBLING-CANCEL',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => 'Square terminal payment',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => [$firstTicket->id],
+            'existing_payment_ids' => [$existingPayment->id],
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => [$firstTicket->id],
+            'payments' => [
+                [
+                    'method' => Payment::PAYMENT_METHOD_EFTPOS,
+                    'amount' => '',
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => '',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.workshop.attendance', $workshop));
+        $response->assertSessionHasNoErrors();
+
+        $invoice->refresh();
+        $firstTicket->refresh();
+        $secondTicket->refresh();
+
+        $this->assertSame(Invoice::STATUS_PAID, (string) $invoice->status);
+        $this->assertSame(Ticket::STATUS_DONE, (int) $firstTicket->status);
+        $this->assertSame('Paid', $firstTicket->customer_status_label);
+        $this->assertSame(Ticket::STATUS_CANCELLED, (int) $secondTicket->status);
+    }
+
+    public function test_cancelling_second_pay_at_door_ticket_after_partial_attendance_payment_marks_remaining_ticket_paid(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1008C',
+            'user_id' => $customer->id,
+            'billing_name' => 'Sibling Cancel Family',
+            'billing_email' => 'siblingcancel@example.com',
+            'billing_phone' => '0400111888',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 27.27,
+            'gst_amount' => 2.73,
+            'total_amount' => 30.00,
+            'notes' => null,
+        ]);
+
+        $firstTicket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Sibling',
+            'surname' => 'One',
+            'email' => 'siblingcancel@example.com',
+            'phone' => '0400111888',
+            'attended_at' => null,
+        ]);
+        $secondTicket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Sibling',
+            'surname' => 'Two',
+            'email' => 'siblingcancel@example.com',
+            'phone' => '0400111888',
+            'attended_at' => null,
+        ]);
+
+        $existingPayment = Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => null,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-SIBLING-CANCEL-FIRST',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => 'Square terminal payment',
+        ]);
+
+        $paymentResponse = $this->actingAs($admin)->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => [$firstTicket->id],
+            'existing_payment_ids' => [$existingPayment->id],
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => [$firstTicket->id],
+            'payments' => [
+                [
+                    'method' => Payment::PAYMENT_METHOD_EFTPOS,
+                    'amount' => '',
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => '',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+        $paymentResponse->assertRedirect(route('admin.workshop.attendance', $workshop));
+        $paymentResponse->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.ticket.cancel.bulk'), [
+                'ticket_ids' => [$secondTicket->id],
+                'process_square_refund' => 1,
+                'email_customer' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonPath('cancelled_count', 1)
+            ->assertJsonPath('failed_count', 0);
+
+        $invoice->refresh();
+        $firstTicket->refresh();
+        $secondTicket->refresh();
+
+        $this->assertSame(Invoice::STATUS_PAID, (string) $invoice->status);
+        $this->assertSame(Ticket::STATUS_DONE, (int) $firstTicket->status);
+        $this->assertSame('Paid', $firstTicket->customer_status_label);
+        $this->assertSame(Ticket::STATUS_CANCELLED, (int) $secondTicket->status);
+    }
+
     public function test_payment_modal_attendance_updates_only_checked_tickets(): void
     {
         $admin = $this->createAdminUser();

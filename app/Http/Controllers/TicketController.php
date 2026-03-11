@@ -1008,6 +1008,7 @@ class TicketController extends Controller
             $creditLine = $this->buildCreditLineForTicket($lockedTicket, $invoice, $invoiceLine);
             $adjustmentNote = $this->createTaxAdjustmentNoteForTicketCancellation($lockedTicket, $invoice, $creditLine, $reason);
             $reconciliation = $this->reconcileCreditAllocationsForAdjustment($invoice, $adjustmentNote);
+            $this->syncInvoicePaidStateAfterTicketAdjustment($invoice);
 
             $expectedRefundCents = max(0, (int) round(((float) ($reconciliation['allocated'] ?? 0)) * 100));
             $hasSquarePayment = InvoicePaymentAllocation::query()
@@ -1404,6 +1405,30 @@ class TicketController extends Controller
         $refundPayment->save();
 
         return $refundPayment;
+    }
+
+    private function syncInvoicePaidStateAfterTicketAdjustment(Invoice $invoice): void
+    {
+        $allocated = $invoice->settledAmount();
+        $invoiceTotal = $invoice->dueAmount();
+        $isPaid = $allocated >= ($invoiceTotal - 0.0001);
+
+        if ($isPaid) {
+            $invoice->status = Invoice::STATUS_PAID;
+            $invoice->save();
+
+            Ticket::query()
+                ->where('invoice_id', $invoice->id)
+                ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
+                ->update(['status' => Ticket::STATUS_DONE]);
+
+            return;
+        }
+
+        if ((string) $invoice->status === Invoice::STATUS_PAID) {
+            $invoice->status = Invoice::STATUS_ISSUED;
+            $invoice->save();
+        }
     }
 
     private function sendRefundReceiptEmailsForTicket(Ticket $ticket, array $refundPaymentIds): void
