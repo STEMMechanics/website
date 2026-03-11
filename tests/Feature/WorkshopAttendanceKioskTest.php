@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
+use App\Mail\TicketCancelledNotice;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Location;
@@ -263,6 +264,7 @@ class WorkshopAttendanceKioskTest extends TestCase
         $admin = $this->createAdminUser();
         $workshop = $this->createWorkshop('tickets');
         $customer = User::factory()->create();
+        Queue::fake();
 
         $invoice = Invoice::query()->create([
             'invoice_number' => 'INV-ATTEND-1006',
@@ -316,6 +318,60 @@ class WorkshopAttendanceKioskTest extends TestCase
         $secondTicket->refresh();
         $this->assertSame(Ticket::STATUS_CANCELLED, (int) $firstTicket->status);
         $this->assertSame(Ticket::STATUS_CANCELLED, (int) $secondTicket->status);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'bulkcancel@example.com'
+                && $job->mailable instanceof TicketCancelledNotice;
+        });
+    }
+
+    public function test_admin_can_bulk_cancel_tickets_from_attendance_without_emailing_customer(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1006B',
+            'user_id' => $customer->id,
+            'billing_name' => 'Bulk Cancel Family',
+            'billing_email' => 'bulkcancel@example.com',
+            'billing_phone' => '0400111555',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 13.64,
+            'gst_amount' => 1.36,
+            'total_amount' => 15.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Bulk',
+            'surname' => 'Solo',
+            'email' => 'bulkcancel@example.com',
+            'phone' => '0400111555',
+            'attended_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.ticket.cancel.bulk'), [
+                'ticket_ids' => [$ticket->id],
+                'process_square_refund' => 1,
+                'email_customer' => 0,
+            ])
+            ->assertOk()
+            ->assertJsonPath('cancelled_count', 1)
+            ->assertJsonPath('failed_count', 0);
+
+        $ticket->refresh();
+        $this->assertSame(Ticket::STATUS_CANCELLED, (int) $ticket->status);
+        Queue::assertNotPushed(SendEmail::class);
     }
 
     public function test_admin_can_autosave_ticket_attendance_with_json(): void

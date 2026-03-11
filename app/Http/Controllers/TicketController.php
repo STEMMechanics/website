@@ -501,6 +501,7 @@ class TicketController extends Controller
             'ticket_ids' => ['required', 'array', 'min:1'],
             'ticket_ids.*' => ['integer', 'min:1'],
             'process_square_refund' => ['nullable', 'boolean'],
+            'email_customer' => ['nullable', 'boolean'],
         ]);
 
         $ticketIds = collect($validated['ticket_ids'] ?? [])
@@ -531,6 +532,7 @@ class TicketController extends Controller
             ->keyBy(fn (Ticket $ticket): int => (int) $ticket->id);
 
         $processSquareRefunds = $request->boolean('process_square_refund', true);
+        $emailCustomer = $request->boolean('email_customer', true);
         $cancelledCount = 0;
         $failureMessages = [];
         $refundedCentsTotal = 0;
@@ -577,7 +579,7 @@ class TicketController extends Controller
 
             try {
                 $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
-                if ($freshTicket instanceof Ticket) {
+                if ($emailCustomer && $freshTicket instanceof Ticket) {
                     $refundPaymentIds = array_map('intval', (array) ($summary['refund_payment_ids'] ?? []));
                     $this->sendRefundReceiptEmailsForTicket($freshTicket, $refundPaymentIds);
                     $this->sendCancellationDocumentBundleForTicket($request, $freshTicket, $refundPaymentIds);

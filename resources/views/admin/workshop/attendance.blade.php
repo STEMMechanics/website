@@ -149,9 +149,9 @@
                     nextPaymentLineId: 1,
                     cancelTicketsUrl: @js(route('admin.ticket.cancel.bulk')),
                     cancelModalOpen: false,
-                    cancelModalInvoiceId: null,
                     cancelModalTicketIds: [],
                     cancelModalSelection: {},
+                    cancelEmailCustomer: true,
                     cancelModalSubmitting: false,
                     cancelModalError: '',
                     normalizeTicketId(value) {
@@ -203,19 +203,6 @@
                         return this.tickets
                             .filter((ticket) => this.normalizeTicketId(ticket.invoice_id) === normalizedInvoiceId);
                     },
-                    ticketLabelById(ticketId) {
-                        const normalizedTicketId = this.normalizeTicketId(ticketId);
-                        if (normalizedTicketId === null) {
-                            return 'this ticket';
-                        }
-
-                        const ticket = this.tickets.find((item) => this.normalizeTicketId(item.id) === normalizedTicketId);
-                        if (!ticket) {
-                            return `ticket #${normalizedTicketId}`;
-                        }
-
-                        return String(ticket.reference || `#${normalizedTicketId}`);
-                    },
                     openCancelTicketModal(ticketId, invoiceId) {
                         const normalizedTicketId = this.normalizeTicketId(ticketId);
                         if (normalizedTicketId === null) {
@@ -233,34 +220,20 @@
                             return [normalizedTicketId];
                         })();
 
-                        if (candidates.length <= 1) {
-                            const label = this.ticketLabelById(normalizedTicketId);
-                            const message = `Cancel ${label}?`;
-                            const submitSingle = () => this.submitCancelTickets([normalizedTicketId]);
-
-                            if (window.SM && typeof window.SM.confirm === 'function') {
-                                window.SM.confirm('Cancel ticket', message, 'Cancel Ticket', (isConfirmed) => {
-                                    if (isConfirmed) {
-                                        submitSingle();
-                                    }
-                                });
-                                return;
-                            }
-
-                            if (window.confirm(message)) {
-                                submitSingle();
-                            }
-                            return;
-                        }
-
                         this.cancelModalTicketIds = candidates;
-                        this.cancelModalInvoiceId = this.normalizeTicketId(invoiceId);
                         this.cancelModalSelection = {};
                         candidates.forEach((id) => {
                             this.cancelModalSelection[String(id)] = id === normalizedTicketId;
                         });
+                        this.cancelEmailCustomer = true;
                         this.cancelModalError = '';
                         this.cancelModalOpen = true;
+                    },
+                    cancelModalTickets() {
+                        const selectedSet = new Set(this.cancelModalTicketIds);
+
+                        return this.tickets
+                            .filter((ticket) => selectedSet.has(this.normalizeTicketId(ticket.id)));
                     },
                     selectedCancelTicketIds() {
                         return this.cancelModalTicketIds
@@ -272,9 +245,9 @@
                         }
 
                         this.cancelModalOpen = false;
-                        this.cancelModalInvoiceId = null;
                         this.cancelModalTicketIds = [];
                         this.cancelModalSelection = {};
+                        this.cancelEmailCustomer = true;
                         this.cancelModalError = '';
                     },
                     async submitCancelTickets(ticketIds = null) {
@@ -296,6 +269,7 @@
                         const formData = new FormData();
                         formData.append('_token', this.csrfToken);
                         formData.append('process_square_refund', '1');
+                        formData.append('email_customer', this.cancelEmailCustomer ? '1' : '0');
                         selectedIds.forEach((id) => {
                             formData.append('ticket_ids[]', String(id));
                         });
@@ -892,7 +866,7 @@
                             </div>
 
                             <div class="mt-4 space-y-2">
-                                <template x-for="ticket in ticketsForInvoice(cancelModalInvoiceId)" :key="`cancel-ticket-${ticket.id}`">
+                                <template x-for="ticket in cancelModalTickets()" :key="`cancel-ticket-${ticket.id}`">
                                     <label class="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2">
                                         <span class="inline-flex items-center gap-3">
                                             <input
@@ -910,6 +884,18 @@
                                     </label>
                                 </template>
                             </div>
+
+                            <label class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                <input
+                                    type="checkbox"
+                                    class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                    x-model="cancelEmailCustomer"
+                                >
+                                <span>
+                                    <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
+                                    <span class="mt-1 block text-xs text-gray-500">Enabled by default. This sends the cancellation notice and any related cancellation documents or refund receipts.</span>
+                                </span>
+                            </label>
 
                             <div class="mt-4 text-xs text-red-600" x-show="cancelModalError" x-text="cancelModalError"></div>
 
