@@ -37,6 +37,7 @@ class PickListCanvasController {
         this.isPanning = false;
         this.lastPanPoint = null;
         this.activeTouchPointers = new Map();
+        this.isTouchGestureActive = false;
         this.pinchState = null;
         this.history = [];
         this.historyIndex = -1;
@@ -235,10 +236,11 @@ class PickListCanvasController {
             });
 
             if (this.activeTouchPointers.size === 2) {
-                this.pinchState = {
-                    distance: this.touchDistance(),
-                    zoom: this.canvas.getZoom(),
-                };
+                this.beginTouchGesture();
+            }
+
+            if (this.activeTouchPointers.size > 1) {
+                event.preventDefault();
             }
         };
 
@@ -256,7 +258,7 @@ class PickListCanvasController {
                 y: event.clientY,
             });
 
-            if (this.activeTouchPointers.size !== 2 || !this.pinchState) {
+            if (this.activeTouchPointers.size < 2 || !this.pinchState) {
                 return;
             }
 
@@ -269,8 +271,17 @@ class PickListCanvasController {
 
             const zoom = clamp(this.pinchState.zoom * (distance / this.pinchState.distance), MIN_ZOOM, MAX_ZOOM);
             const midpoint = this.touchMidpoint();
-            const point = this.fabricPointFromClient(midpoint.x, midpoint.y);
-            this.canvas.zoomToPoint(point, zoom);
+            const scale = zoom / this.pinchState.zoom;
+            const viewport = [...this.pinchState.viewportTransform];
+
+            viewport[0] = zoom;
+            viewport[1] = 0;
+            viewport[2] = 0;
+            viewport[3] = zoom;
+            viewport[4] = midpoint.x - (scale * this.pinchState.midpoint.x) + (scale * this.pinchState.viewportTransform[4]);
+            viewport[5] = midpoint.y - (scale * this.pinchState.midpoint.y) + (scale * this.pinchState.viewportTransform[5]);
+
+            this.canvas.setViewportTransform(viewport);
             this.canvas.requestRenderAll();
             this.invalidateExportCache();
             this.emitState();
@@ -285,6 +296,14 @@ class PickListCanvasController {
 
             if (this.activeTouchPointers.size < 2) {
                 this.pinchState = null;
+            }
+
+            if (this.activeTouchPointers.size === 0 && this.isTouchGestureActive) {
+                this.isTouchGestureActive = false;
+                this.applyToolMode();
+            }
+
+            if (this.activeTouchPointers.size < 2) {
                 this.invalidateExportCache();
                 this.onDirty();
                 this.emitState();
@@ -330,19 +349,7 @@ class PickListCanvasController {
     setTool(tool, options = {}) {
         const nextTool = ['draw', 'erase', 'pan'].includes(tool) ? tool : 'draw';
         this.tool = nextTool;
-
-        if (nextTool === 'pan') {
-            this.canvas.isDrawingMode = false;
-            this.canvas.defaultCursor = 'grab';
-            this.canvas.hoverCursor = 'grab';
-            this.canvas.freeDrawingCursor = 'crosshair';
-        } else {
-            this.canvas.isDrawingMode = true;
-            this.canvas.defaultCursor = 'crosshair';
-            this.canvas.hoverCursor = 'crosshair';
-            this.canvas.freeDrawingCursor = nextTool === 'erase' ? 'cell' : 'crosshair';
-            this.applyBrushSettings();
-        }
+        this.applyToolMode();
 
         if (options.markDirty !== false) {
             this.invalidateExportCache();
@@ -554,6 +561,55 @@ class PickListCanvasController {
         brush.width = this.brushSize;
         brush.color = this.tool === 'erase' ? '#000000' : this.brushColor;
         this.canvas.freeDrawingBrush = brush;
+    }
+
+    applyToolMode() {
+        if (!this.canvas) {
+            return;
+        }
+
+        if (this.tool === 'pan' || this.isTouchGestureActive) {
+            this.canvas.isDrawingMode = false;
+            this.canvas.defaultCursor = this.tool === 'pan' ? 'grab' : 'crosshair';
+            this.canvas.hoverCursor = this.tool === 'pan' ? 'grab' : 'crosshair';
+            this.canvas.freeDrawingCursor = this.tool === 'erase' ? 'cell' : 'crosshair';
+            return;
+        }
+
+        this.canvas.isDrawingMode = true;
+        this.canvas.defaultCursor = 'crosshair';
+        this.canvas.hoverCursor = 'crosshair';
+        this.canvas.freeDrawingCursor = this.tool === 'erase' ? 'cell' : 'crosshair';
+        this.applyBrushSettings();
+    }
+
+    beginTouchGesture() {
+        this.cancelCurrentStroke();
+        this.isTouchGestureActive = true;
+        this.isPanning = false;
+        this.lastPanPoint = null;
+        this.pinchState = {
+            distance: this.touchDistance(),
+            midpoint: this.touchMidpoint(),
+            zoom: this.canvas.getZoom(),
+            viewportTransform: Array.isArray(this.canvas.viewportTransform)
+                ? [...this.canvas.viewportTransform]
+                : [...DEFAULT_VIEWPORT],
+        };
+        this.applyToolMode();
+    }
+
+    cancelCurrentStroke() {
+        if (!this.canvas) {
+            return;
+        }
+
+        this.canvas._isCurrentlyDrawing = false;
+        this.canvas.clearContext(this.canvas.contextTop);
+
+        if (typeof this.canvas.freeDrawingBrush?._reset === 'function') {
+            this.canvas.freeDrawingBrush._reset();
+        }
     }
 
     removeUserObjects() {

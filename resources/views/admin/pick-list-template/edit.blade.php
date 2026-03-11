@@ -5,6 +5,7 @@
     if (! is_array($seedItems)) {
         $seedItems = $editing
             ? $template->items->map(fn ($item) => [
+                'id' => (int) $item->id,
                 'item_name' => (string) $item->item_name,
                 'quantity_type' => (string) $item->quantity_type,
                 'quantity_value' => (int) $item->quantity_value,
@@ -23,6 +24,7 @@
             submitting: false,
             newBlankItem() {
                 return {
+                    id: null,
                     item_name: '',
                     quantity_type: 'per_participant',
                     quantity_value: 1,
@@ -134,6 +136,7 @@
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="border-b last:border-b-0">
                                     <td class="p-2 align-top">
+                                        <input type="hidden" x-model="item.id" :name="!isBlankItem(item) && item.id ? `items[${index}][id]` : null">
                                         <input type="hidden" x-model="item.sort_order" :name="!isBlankItem(item) ? `items[${index}][sort_order]` : null">
                                         <input type="hidden" x-model="item.item_name" x-bind:name="!isBlankItem(item) ? `items[${index}][item_name]` : null">
                                         <input type="hidden" x-model="item.quantity_type" x-bind:name="!isBlankItem(item) ? `items[${index}][quantity_type]` : null">

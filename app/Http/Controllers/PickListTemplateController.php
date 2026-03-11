@@ -6,6 +6,7 @@ use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class PickListTemplateController extends Controller
 {
@@ -67,7 +68,7 @@ class PickListTemplateController extends Controller
 
     public function update(Request $request, PickListTemplate $pickListTemplate): RedirectResponse
     {
-        $validated = $this->validateRequest($request);
+        $validated = $this->validateRequest($request, $pickListTemplate);
 
         $pickListTemplate->fill([
             'name' => $validated['name'],
@@ -120,12 +121,19 @@ class PickListTemplateController extends Controller
         return redirect()->route('admin.pick-list-template.edit', $copy);
     }
 
-    private function validateRequest(Request $request): array
+    private function validateRequest(Request $request, ?PickListTemplate $template = null): array
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'items' => ['nullable', 'array'],
+            'items.*.id' => array_filter([
+                'nullable',
+                'integer',
+                $template ? Rule::exists('pick_list_template_items', 'id')->where(
+                    fn ($query) => $query->where('pick_list_template_id', $template->id)
+                ) : null,
+            ]),
             'items.*.item_name' => ['required', 'string', 'max:255'],
             'items.*.quantity_type' => ['required', 'string', 'in:'.implode(',', PickListTemplateItem::TYPES)],
             'items.*.quantity_value' => ['required', 'integer', 'min:1'],
@@ -135,6 +143,7 @@ class PickListTemplateController extends Controller
         $validated['items'] = collect($validated['items'] ?? [])
             ->map(function (array $row): array {
                 return [
+                    'id' => isset($row['id']) && (int) $row['id'] > 0 ? (int) $row['id'] : null,
                     'item_name' => trim((string) ($row['item_name'] ?? '')),
                     'quantity_type' => (string) ($row['quantity_type'] ?? PickListTemplateItem::TYPE_PER_PARTICIPANT),
                     'quantity_value' => max(1, (int) ($row['quantity_value'] ?? 1)),
@@ -150,16 +159,36 @@ class PickListTemplateController extends Controller
 
     private function syncItems(PickListTemplate $template, array $items): void
     {
-        $template->items()->delete();
+        $existingItems = $template->items()->get()->keyBy(fn (PickListTemplateItem $item): int => (int) $item->id);
+        $keptIds = [];
 
         foreach ($items as $index => $row) {
-            $template->items()->create([
+            $payload = [
                 'item_name' => $row['item_name'],
                 'quantity_type' => $row['quantity_type'],
                 'quantity_value' => $row['quantity_value'],
                 'sort_order' => $row['sort_order'] ?: (($index + 1) * 10),
-            ]);
+            ];
+            $itemId = isset($row['id']) ? (int) $row['id'] : null;
+
+            if ($itemId !== null && $existingItems->has($itemId)) {
+                $item = $existingItems->get($itemId);
+                $item->fill($payload);
+                $item->save();
+                $keptIds[] = $itemId;
+                continue;
+            }
+
+            $item = $template->items()->create($payload);
+            $keptIds[] = (int) $item->id;
         }
+
+        if ($keptIds === []) {
+            $template->items()->delete();
+            return;
+        }
+
+        $template->items()->whereNotIn('id', $keptIds)->delete();
     }
 
     /**

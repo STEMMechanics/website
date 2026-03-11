@@ -114,6 +114,27 @@ class RememberedDeviceAuthTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_protected_route_auto_signs_in_with_valid_remembered_device_cookie(): void
+    {
+        $user = User::factory()->create();
+
+        $token = $user->tokens()->create([
+            'type' => RememberedDeviceManager::DEVICE_TOKEN_TYPE,
+            'data' => [
+                'user_agent' => 'Mac Safari',
+                'ip_address' => '127.0.0.1',
+                'last_used_at' => now()->subHours(6)->toIso8601String(),
+            ],
+            'expires_at' => null,
+        ]);
+
+        $response = $this->withCookie(RememberedDeviceManager::DEVICE_COOKIE, (string) $token->id)
+            ->get(route('account.show'));
+
+        $response->assertOk();
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_account_can_enable_and_remove_current_remembered_device(): void
     {
         $user = User::factory()->create();
