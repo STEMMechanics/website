@@ -20,6 +20,7 @@
 - STEMMechanics accounts now highlighted in discussions
 - Add group to workshop registrations
 - Hide registration button on non-open workshops
+- Implemented bot protection on forms
 
 ## 1.3.14
 

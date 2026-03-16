@@ -63,6 +63,13 @@ class AppServiceProvider extends ServiceProvider
             return [Limit::perMinute(20)->by($request->ip())];
         });
 
+        RateLimiter::for('public-form', function (Request $request): array {
+            $routeKey = (string) ($request->route()?->getName() ?? $request->path());
+            $maxAttempts = max(1, (int) config('security.form_protection.rate_limit_per_minute', 5));
+
+            return [Limit::perMinute($maxAttempts)->by($request->ip().'|'.$routeKey)];
+        });
+
         RateLimiter::for('forum-report', function (Request $request): array {
             $userKey = $request->user()?->id ? (string) $request->user()->id : 'guest';
 

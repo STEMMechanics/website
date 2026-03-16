@@ -13,6 +13,8 @@
                 <form method="POST" action="{{ route('contact.send') }}" class="mt-8 space-y-5">
                     @csrf
 
+                    <x-form-guard form="contact" />
+
                     <div class="grid gap-4 md:grid-cols-2">
                         <x-ui.input
                             label="Your name"

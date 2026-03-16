@@ -192,7 +192,9 @@ Route::get('/about', function () {
 })->name('about');
 
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
-Route::post('/contact', [ContactController::class, 'send'])->name('contact.send');
+Route::post('/contact', [ContactController::class, 'send'])
+    ->middleware(['throttle:public-form', 'form.guard:contact'])
+    ->name('contact.send');
 
 Route::get('/code-of-conduct', function () {
     return view('code-of-conduct');

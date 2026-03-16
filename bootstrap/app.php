@@ -4,6 +4,7 @@ use App\Http\Middleware\Admin;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\EnsurePublicShopAvailable;
 use App\Http\Middleware\NoCache;
+use App\Http\Middleware\ProtectFormSubmission;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackAnalytics;
 use Illuminate\Foundation\Application;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => Admin::class,
             'auth' => Authenticate::class,
+            'form.guard' => ProtectFormSubmission::class,
             'nocache' => NoCache::class,
             'shop.public' => EnsurePublicShopAvailable::class,
         ]);
