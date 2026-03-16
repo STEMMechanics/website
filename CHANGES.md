@@ -21,6 +21,7 @@
 - Add group to workshop registrations
 - Hide registration button on non-open workshops
 - Implemented bot protection on forms
+- Newsletter now excludes private and hidden workshops
 
 ## 1.3.14
 

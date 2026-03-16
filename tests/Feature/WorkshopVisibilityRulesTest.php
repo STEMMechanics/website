@@ -41,6 +41,23 @@ class WorkshopVisibilityRulesTest extends TestCase
         );
     }
 
+    public function test_private_workshops_are_excluded_from_upcoming_email(): void
+    {
+        $privateWorkshop = $this->createWorkshop(
+            title: 'Private Robotics Session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            isPrivate: true
+        );
+
+        $mailable = new UpcomingWorkshops('tester@example.com');
+
+        $this->assertFalse(
+            $mailable->workshops->contains(fn (Workshop $workshop) => $workshop->id === $privateWorkshop->id)
+        );
+    }
+
     public function test_hidden_workshop_is_accessible_by_direct_url_even_before_publish_date(): void
     {
         $hiddenWorkshop = $this->createWorkshop(
@@ -82,7 +99,13 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertRedirect(route('workshop.show', $workshop));
     }
 
-    private function createWorkshop(string $title, string $status, bool $isHidden, \DateTimeInterface $publishAt): Workshop
+    private function createWorkshop(
+        string $title,
+        string $status,
+        bool $isHidden,
+        \DateTimeInterface $publishAt,
+        bool $isPrivate = false
+    ): Workshop
     {
         $owner = User::factory()->create();
         $location = Location::factory()->create(['name' => 'City Lab']);
@@ -105,6 +128,7 @@ class WorkshopVisibilityRulesTest extends TestCase
             'publish_at' => $publishAt,
             'closes_at' => now()->addDays(9),
             'status' => $status,
+            'is_private' => $isPrivate,
             'is_hidden' => $isHidden,
             'registration' => 'none',
             'location_id' => $location->id,
