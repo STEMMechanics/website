@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\StoreCartService;
 use App\Services\StoreOrderService;
@@ -19,6 +20,21 @@ class ShopController extends Controller
     private const CHECKOUT_SESSION_KEY = 'store.checkout.flow';
 
     private const LEGACY_CHECKOUT_SESSION_KEY = 'shop.checkout.flow';
+
+    private const ORDER_DOCUMENT_ACCESS_SESSION_KEY = 'store.order.document-access-tokens';
+
+    private const AUSTRALIA_SHIPPING_COUNTRY = 'Australia';
+
+    private const AUSTRALIAN_STATES = [
+        'ACT' => 'Australian Capital Territory',
+        'NSW' => 'New South Wales',
+        'NT' => 'Northern Territory',
+        'QLD' => 'Queensland',
+        'SA' => 'South Australia',
+        'TAS' => 'Tasmania',
+        'VIC' => 'Victoria',
+        'WA' => 'Western Australia',
+    ];
 
     public function index(Request $request, StoreCartService $cart): View
     {
@@ -95,7 +111,13 @@ class ShopController extends Controller
 
     public function cart(Request $request, StoreCartService $cart): View|JsonResponse
     {
-        $shippingCountry = trim((string) ($request->query('shipping_country') ?? 'Australia')) ?: 'Australia';
+        $shippingCountry = self::AUSTRALIA_SHIPPING_COUNTRY;
+        $summary = $cart->summary([
+            'shipping_country' => $shippingCountry,
+            'shipping_method_code' => $cart->shippingMethodCode(),
+            'consolidate_shipments' => $cart->consolidateShipments(),
+            'user' => $request->user(),
+        ]);
         $cartPayload = $cart->payload([
             'shipping_country' => $shippingCountry,
             'user' => $request->user(),
@@ -110,12 +132,9 @@ class ShopController extends Controller
 
         return view('shop.cart', [
             'lines' => $cart->lines(),
-            'summary' => $cart->summary([
-                'shipping_country' => $shippingCountry,
-                'user' => $request->user(),
-            ]),
+            'summary' => $summary,
             'shippingCountry' => $shippingCountry,
-            'couponCode' => $cart->couponCode(),
+            'couponCode' => $summary['coupon_code'] ?? null,
             'cartPayload' => $cartPayload,
         ]);
     }
@@ -127,24 +146,35 @@ class ShopController extends Controller
         $validated = $request->validate([
             'quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
             'product_variant_id' => ['nullable', 'integer'],
+            'preorder_acknowledged' => ['nullable', 'boolean'],
             'return_to' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'preorder_acknowledged.accepted' => 'Please confirm you understand this item is a pre-order before continuing.',
         ]);
 
         $product->load(['variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name')]);
         $variant = $this->resolveVariantSelection($product, $validated['product_variant_id'] ?? null);
 
-        if (! $product->isInStock($variant)) {
+        if ($product->isPreorder($variant) && ! $request->boolean('preorder_acknowledged')) {
+            throw ValidationException::withMessages([
+                'preorder_acknowledged' => 'Please confirm you understand this item is a pre-order before continuing.',
+            ]);
+        }
+
+        if (! $product->isSelectionPurchasable($variant)) {
             throw ValidationException::withMessages([
                 'product_variant_id' => 'That item is currently out of stock.',
             ]);
         }
 
-        $cart->add($product, $variant, (int) ($validated['quantity'] ?? 1));
+        $resolvedQuantity = (int) ($validated['quantity'] ?? 1);
+
+        $cart->add($product, $variant, $resolvedQuantity);
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
                 'success' => true,
-                'message' => 'Added '.($variant ? $product->title.' - '.$variant->name : $product->title).' to your cart.',
+                'message' => 'Added '.$product->displayTitle($variant).' to your cart.',
                 'cart' => $cart->payload([
                     'shipping_country' => trim((string) $request->input('shipping_country', 'Australia')) ?: 'Australia',
                     'user' => $request->user(),
@@ -152,11 +182,75 @@ class ShopController extends Controller
             ]);
         }
 
-        session()->flash('message', 'Added '.($variant ? $product->title.' - '.$variant->name : $product->title).' to your cart.');
+        session()->flash('message', 'Added '.$product->displayTitle($variant).' to your cart.');
         session()->flash('message-title', 'Cart updated');
         session()->flash('message-type', 'success');
 
         return redirect()->to($this->cartReturnUrl($request, route('shop.cart.show')));
+    }
+
+    public function updateCartPreferences(Request $request, StoreCartService $cart): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'shipping_method_code' => ['nullable', 'string', 'max:40'],
+            'consolidate_shipments' => ['nullable', 'boolean'],
+            'shipping_country' => $this->australianShippingCountryRules(),
+        ]);
+
+        $shippingCountry = self::AUSTRALIA_SHIPPING_COUNTRY;
+
+        $summary = $cart->summary([
+            'shipping_country' => $shippingCountry,
+            'shipping_method_code' => $validated['shipping_method_code'] ?? null,
+            'consolidate_shipments' => $request->boolean('consolidate_shipments'),
+            'user' => $request->user(),
+        ]);
+
+        $availableShippingCodes = collect($summary['shipping_methods'] ?? [])
+            ->pluck('code')
+            ->filter(fn ($code) => trim((string) $code) !== '')
+            ->values()
+            ->all();
+
+        $requestedShippingMethodCode = trim((string) ($validated['shipping_method_code'] ?? ''));
+        if ($requestedShippingMethodCode !== '' && ! in_array($requestedShippingMethodCode, $availableShippingCodes, true)) {
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'success' => false,
+                    'errors' => [
+                        'shipping_method_code' => ['Please choose a valid shipping option.'],
+                    ],
+                ], 422);
+            }
+
+            return redirect()->route('shop.cart.show')->withErrors([
+                'shipping_method_code' => 'Please choose a valid shipping option.',
+            ]);
+        }
+
+        $cart->updatePreferences(
+            $summary['shipping_method_code'] ?? null,
+            (bool) ($summary['shipping_quote']['offers_consolidation'] ?? false) && $request->boolean('consolidate_shipments'),
+        );
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Delivery options updated.',
+                'cart' => $cart->payload([
+                    'shipping_country' => $shippingCountry,
+                    'user' => $request->user(),
+                ]),
+            ]);
+        }
+
+        session()->flash('message', 'Delivery options updated.');
+        session()->flash('message-title', 'Cart updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('shop.cart.show', [
+            'shipping_country' => $shippingCountry,
+        ]);
     }
 
     public function updateCart(Request $request, StoreCartService $cart): RedirectResponse|JsonResponse
@@ -228,58 +322,112 @@ class ShopController extends Controller
         ])));
     }
 
-    public function applyCoupon(Request $request, StoreCartService $cart): RedirectResponse
+    public function applyCoupon(Request $request, StoreCartService $cart): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'coupon_code' => ['nullable', 'string', 'max:60'],
             'shipping_country' => ['nullable', 'string', 'max:120'],
+            'return_to' => ['nullable', 'string', 'max:2000'],
         ]);
+        $shippingCountry = trim((string) ($validated['shipping_country'] ?? '')) ?: 'Australia';
+        $redirectUrl = $this->cartReturnUrl($request, route('shop.cart.show', [
+            'shipping_country' => $shippingCountry,
+        ]));
 
         $couponCode = trim((string) ($validated['coupon_code'] ?? ''));
         if ($couponCode === '') {
             $cart->clearCoupon();
-            session()->flash('message', 'Coupon removed.');
-            session()->flash('message-title', 'Coupon updated');
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Voucher removed.',
+                    'cart' => $cart->payload([
+                        'shipping_country' => $shippingCountry,
+                        'user' => $request->user(),
+                    ]),
+                ]);
+            }
+            session()->flash('message', 'Voucher removed.');
+            session()->flash('message-title', 'Voucher updated');
             session()->flash('message-type', 'success');
 
-            return redirect()->route('shop.cart.show', [
-                'shipping_country' => trim((string) ($validated['shipping_country'] ?? '')) ?: 'Australia',
-            ]);
+            return redirect()->to($redirectUrl);
         }
 
         $cart->applyCoupon($couponCode);
         $summary = $cart->summary([
-            'shipping_country' => trim((string) ($validated['shipping_country'] ?? '')) ?: 'Australia',
+            'shipping_country' => $shippingCountry,
             'user' => $request->user(),
         ]);
 
         if ($summary['coupon_error']) {
+            $cart->clearCoupon();
+            if ($this->shouldReturnJson($request)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $summary['coupon_error'],
+                    'errors' => [
+                        'coupon_code' => [$summary['coupon_error']],
+                    ],
+                    'cart' => $cart->payload([
+                        'shipping_country' => $shippingCountry,
+                        'user' => $request->user(),
+                    ]),
+                ], 422);
+            }
             session()->flash('message', $summary['coupon_error']);
-            session()->flash('message-title', 'Coupon not applied');
+            session()->flash('message-title', 'Voucher not applied');
             session()->flash('message-type', 'danger');
-        } else {
-            session()->flash('message', 'Coupon applied successfully.');
-            session()->flash('message-title', 'Coupon applied');
-            session()->flash('message-type', 'success');
+            return redirect()->to($redirectUrl)->withInput([
+                'coupon_code' => $couponCode,
+            ]);
         }
 
-        return redirect()->route('shop.cart.show', [
-            'shipping_country' => trim((string) ($validated['shipping_country'] ?? '')) ?: 'Australia',
-        ]);
-    }
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Voucher applied successfully.',
+                'cart' => $cart->payload([
+                    'shipping_country' => $shippingCountry,
+                    'user' => $request->user(),
+                ]),
+            ]);
+        }
 
-    public function removeCoupon(Request $request, StoreCartService $cart): RedirectResponse
-    {
-        $shippingCountry = trim((string) $request->input('shipping_country', 'Australia')) ?: 'Australia';
-        $cart->clearCoupon();
-
-        session()->flash('message', 'Coupon removed.');
-        session()->flash('message-title', 'Coupon updated');
+        session()->flash('message', 'Voucher applied successfully.');
+        session()->flash('message-title', 'Voucher applied');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('shop.cart.show', [
-            'shipping_country' => $shippingCountry,
+        return redirect()->to($redirectUrl);
+    }
+
+    public function removeCoupon(Request $request, StoreCartService $cart): RedirectResponse|JsonResponse
+    {
+        $validated = $request->validate([
+            'shipping_country' => ['nullable', 'string', 'max:120'],
+            'return_to' => ['nullable', 'string', 'max:2000'],
         ]);
+        $shippingCountry = trim((string) ($validated['shipping_country'] ?? 'Australia')) ?: 'Australia';
+        $cart->clearCoupon();
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Voucher removed.',
+                'cart' => $cart->payload([
+                    'shipping_country' => $shippingCountry,
+                    'user' => $request->user(),
+                ]),
+            ]);
+        }
+
+        session()->flash('message', 'Voucher removed.');
+        session()->flash('message-title', 'Voucher updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->to($this->cartReturnUrl($request, route('shop.cart.show', [
+            'shipping_country' => $shippingCountry,
+        ])));
     }
 
     public function checkout(Request $request, StoreCartService $cart): View|RedirectResponse
@@ -296,24 +444,50 @@ class ShopController extends Controller
         $userEmail = $user instanceof User ? trim((string) $user->email) : '';
         $userPhone = $user instanceof User ? trim((string) $user->phone) : '';
         $userCompany = $user instanceof User ? trim((string) $user->company) : '';
+        $userShippingCountry = $user instanceof User ? trim((string) $user->shipping_country) : '';
         $userShippingAddress = $user instanceof User ? trim((string) $user->shipping_address) : '';
         $userShippingAddress2 = $user instanceof User ? trim((string) $user->shipping_address2) : '';
         $userShippingCity = $user instanceof User ? trim((string) $user->shipping_city) : '';
         $userShippingState = $user instanceof User ? trim((string) $user->shipping_state) : '';
         $userShippingPostcode = $user instanceof User ? trim((string) $user->shipping_postcode) : '';
-        $userShippingCountry = $user instanceof User ? trim((string) $user->shipping_country) : '';
-        $shippingCountry = trim((string) old('shipping_country', $storedCustomer['shipping_country'] ?? $userShippingCountry ?: 'Australia')) ?: 'Australia';
+
+        if ($userShippingCountry !== '' && strcasecmp($userShippingCountry, self::AUSTRALIA_SHIPPING_COUNTRY) !== 0) {
+            $userShippingAddress = '';
+            $userShippingAddress2 = '';
+            $userShippingCity = '';
+            $userShippingState = '';
+            $userShippingPostcode = '';
+        }
+
+        $shippingCountry = self::AUSTRALIA_SHIPPING_COUNTRY;
         $billingEmail = trim((string) old('billing_email', $storedCustomer['billing_email'] ?? $userEmail));
+        $shippingMethodCode = trim((string) old('shipping_method_code', $storedCustomer['shipping_method_code'] ?? $cart->shippingMethodCode() ?? ''));
+        $consolidateShipments = (bool) old('consolidate_shipments', $storedCustomer['consolidate_shipments'] ?? $cart->consolidateShipments());
+        $lines = $cart->lines();
         $summary = $cart->summary([
             'shipping_country' => $shippingCountry,
+            'shipping_method_code' => $shippingMethodCode,
+            'consolidate_shipments' => $consolidateShipments,
             'user' => $user,
             'billing_email' => $billingEmail,
         ]);
 
         return view('shop.checkout', [
-            'lines' => $cart->lines(),
+            'lines' => $lines,
             'summary' => $summary,
-            'couponCode' => $cart->couponCode(),
+            'couponCode' => $summary['coupon_code'] ?? null,
+            'cartPayload' => $cart->payload([
+                'shipping_country' => $shippingCountry,
+                'shipping_method_code' => $summary['shipping_method_code'] ?? $shippingMethodCode,
+                'consolidate_shipments' => $summary['consolidate_shipments'] ?? $consolidateShipments,
+                'user' => $user,
+                'billing_email' => $billingEmail,
+            ]),
+            'inventoryChangeNotices' => $cart->inventoryChangeNotices(),
+            'squareEnabled' => (bool) config('services.square.enabled'),
+            'squareApplicationId' => (string) config('services.square.application_id'),
+            'squareLocationId' => (string) config('services.square.location_id'),
+            'squareEnvironment' => (string) config('services.square.environment'),
             'prefill' => [
                 'billing_name' => trim((string) old('billing_name', $storedCustomer['billing_name'] ?? $userName)),
                 'billing_email' => $billingEmail,
@@ -324,11 +498,14 @@ class ShopController extends Controller
                 'shipping_address' => trim((string) old('shipping_address', $storedCustomer['shipping_address'] ?? $userShippingAddress)),
                 'shipping_address2' => trim((string) old('shipping_address2', $storedCustomer['shipping_address2'] ?? $userShippingAddress2)),
                 'shipping_city' => trim((string) old('shipping_city', $storedCustomer['shipping_city'] ?? $userShippingCity)),
-                'shipping_state' => trim((string) old('shipping_state', $storedCustomer['shipping_state'] ?? $userShippingState)),
+                'shipping_state' => $this->normalizeAustralianState(old('shipping_state', $storedCustomer['shipping_state'] ?? $userShippingState)),
                 'shipping_postcode' => trim((string) old('shipping_postcode', $storedCustomer['shipping_postcode'] ?? $userShippingPostcode)),
                 'shipping_country' => $shippingCountry,
+                'shipping_method_code' => trim((string) old('shipping_method_code', $storedCustomer['shipping_method_code'] ?? ($summary['shipping_method_code'] ?? $shippingMethodCode))),
+                'consolidate_shipments' => (bool) old('consolidate_shipments', $storedCustomer['consolidate_shipments'] ?? ($summary['consolidate_shipments'] ?? $consolidateShipments)),
                 'notes' => trim((string) old('notes', $storedCustomer['notes'] ?? '')),
             ],
+            'australianStates' => self::AUSTRALIAN_STATES,
         ]);
     }
 
@@ -341,35 +518,81 @@ class ShopController extends Controller
             return redirect()->route('shop.cart.show');
         }
 
-        $summary = $cart->summary();
-        $shippingRequired = (bool) ($summary['contains_physical'] ?? false);
+        $requestedShippingCountry = trim((string) $request->input('shipping_country', self::AUSTRALIA_SHIPPING_COUNTRY)) ?: self::AUSTRALIA_SHIPPING_COUNTRY;
+        $requestedShippingMethodCode = trim((string) $request->input('shipping_method_code', $cart->shippingMethodCode() ?? ''));
+        $requestedConsolidateShipments = $request->boolean('consolidate_shipments', $cart->consolidateShipments());
+        $billingEmail = trim((string) $request->input('billing_email', ''));
+        $checkoutPreview = $cart->summary([
+            'shipping_country' => $requestedShippingCountry,
+            'shipping_method_code' => $requestedShippingMethodCode,
+            'consolidate_shipments' => $requestedConsolidateShipments,
+            'user' => $request->user(),
+            'billing_email' => $billingEmail !== '' ? $billingEmail : null,
+            'coupon_code' => $cart->couponCode(),
+        ]);
+        $shippingRequired = (bool) ($checkoutPreview['contains_physical'] ?? false)
+            && ! (bool) ($checkoutPreview['shipping_quote']['is_pickup'] ?? false);
+        $containsPreorder = (bool) ($checkoutPreview['contains_preorder'] ?? false);
+        $normalizedShippingState = $this->normalizeAustralianState($request->input('shipping_state'));
+
+        if ($normalizedShippingState !== '') {
+            $request->merge([
+                'shipping_state' => $normalizedShippingState,
+            ]);
+        }
 
         $validated = $request->validate([
             'billing_name' => ['required', 'string', 'max:120'],
             'billing_email' => ['required', 'email', 'max:255'],
             'billing_phone' => ['required', 'string', 'max:60'],
             'billing_company' => ['nullable', 'string', 'max:120'],
+            'shipping_method_code' => ['nullable', 'string', 'max:40'],
+            'consolidate_shipments' => ['nullable', 'boolean'],
             'shipping_name' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
             'shipping_phone' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:60'],
             'shipping_address' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:255'],
             'shipping_address2' => ['nullable', 'string', 'max:255'],
             'shipping_city' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
-            'shipping_state' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
-            'shipping_postcode' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:20'],
-            'shipping_country' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', 'max:120'],
+            'shipping_state' => [Rule::requiredIf($shippingRequired), 'nullable', 'string', Rule::in(array_keys(self::AUSTRALIAN_STATES))],
+            'shipping_postcode' => [Rule::requiredIf($shippingRequired), 'nullable', 'regex:/^\d{4}$/'],
+            'shipping_country' => $this->australianShippingCountryRules($shippingRequired),
             'notes' => ['nullable', 'string'],
         ]);
+
+        $availableShippingCodes = collect($checkoutPreview['shipping_methods'] ?? [])
+            ->pluck('code')
+            ->filter(fn ($code) => trim((string) $code) !== '')
+            ->values()
+            ->all();
+
+        if ($requestedShippingMethodCode !== '' && ! in_array($requestedShippingMethodCode, $availableShippingCodes, true)) {
+            return redirect()->back()->withErrors([
+                'shipping_method_code' => 'Please choose a valid shipping option.',
+            ])->withInput();
+        }
+
+        $validated['shipping_method_code'] = $checkoutPreview['shipping_method_code'] ?? null;
+        $validated['consolidate_shipments'] = (bool) ($checkoutPreview['shipping_quote']['offers_consolidation'] ?? false)
+            && $request->boolean('consolidate_shipments');
+        $validated['shipping_country'] = self::AUSTRALIA_SHIPPING_COUNTRY;
 
         if (! $shippingRequired) {
             $validated['shipping_name'] = $validated['billing_name'];
             $validated['shipping_phone'] = $validated['billing_phone'];
-            $validated['shipping_country'] = $validated['shipping_country'] ?? 'Australia';
+            $validated['shipping_address'] = '';
+            $validated['shipping_address2'] = '';
+            $validated['shipping_city'] = '';
+            $validated['shipping_state'] = '';
+            $validated['shipping_postcode'] = '';
         }
 
+        $validated['preorder_acknowledged'] = $containsPreorder;
         $validated['coupon_code'] = $cart->couponCode();
 
         $summary = $cart->summary([
             'shipping_country' => $validated['shipping_country'] ?? 'Australia',
+            'shipping_method_code' => $validated['shipping_method_code'] ?? null,
+            'consolidate_shipments' => $validated['consolidate_shipments'] ?? false,
             'user' => $request->user(),
             'billing_email' => $validated['billing_email'],
             'coupon_code' => $validated['coupon_code'],
@@ -387,10 +610,13 @@ class ShopController extends Controller
             ])->withInput();
         }
 
+        $this->putCheckoutSessionCustomer($validated);
+
         if ((float) ($summary['total'] ?? 0) <= 0.0001) {
             $order = $orders->createFromCart($lines, $validated, $request->user());
             $cart->clear();
             $this->clearCheckoutSession();
+            $this->rememberGuestOrderDocumentAccess($order, $request);
 
             session()->flash('message', 'Your order is complete.');
             session()->flash('message-title', 'Order created');
@@ -398,15 +624,55 @@ class ShopController extends Controller
 
             return $request->user()
                 ? redirect()->route('account.order.show', $order)
-                : redirect()->route('shop.order.show', ['storeOrder' => $order, 'accessToken' => $order->access_token]);
+                : redirect()->route('shop.order.tracking', ['accessToken' => $order->access_token]);
         }
 
-        $this->putCheckoutSessionCustomer($validated);
+        if (! (bool) config('services.square.enabled')) {
+            return redirect()->route('shop.checkout')
+                ->withErrors(['source_id' => 'Online card payments are currently unavailable.'])
+                ->withInput()
+                ->with('shop_checkout_step', 'payment');
+        }
 
-        return redirect()->route('shop.checkout.payment');
+        $payment = $request->validate([
+            'source_id' => ['required', 'string', 'max:255'],
+        ], [
+            'source_id.required' => 'Card details are required.',
+        ]);
+
+        try {
+            $order = $orders->createAndChargeFromCart($lines, $validated, (string) $payment['source_id'], $request->user());
+        } catch (ValidationException $e) {
+            return redirect()->route('shop.checkout')
+                ->withErrors($e->errors())
+                ->withInput()
+                ->with('shop_checkout_step', 'payment');
+        } catch (\Throwable $e) {
+            report($e);
+
+            session()->flash('message', 'Unable to process payment right now.');
+            session()->flash('message-title', 'Payment failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('shop.checkout')
+                ->withInput()
+                ->with('shop_checkout_step', 'payment');
+        }
+
+        $cart->clear();
+        $this->clearCheckoutSession();
+        $this->rememberGuestOrderDocumentAccess($order, $request);
+
+        session()->flash('message', 'Payment completed successfully.');
+        session()->flash('message-title', 'Payment success');
+        session()->flash('message-type', 'success');
+
+        return $request->user()
+            ? redirect()->route('account.order.show', $order)
+            : redirect()->route('shop.order.tracking', ['accessToken' => $order->access_token]);
     }
 
-    public function checkoutPayment(Request $request, StoreCartService $cart): View|RedirectResponse
+    public function checkoutPayment(Request $request, StoreCartService $cart): RedirectResponse
     {
         if ($cart->isEmpty()) {
             $this->clearCheckoutSession();
@@ -419,134 +685,35 @@ class ShopController extends Controller
             return redirect()->route('shop.checkout');
         }
 
-        $summary = $cart->summary([
-            'shipping_country' => $customer['shipping_country'] ?? 'Australia',
-            'user' => $request->user(),
-            'billing_email' => $customer['billing_email'] ?? null,
-            'coupon_code' => $cart->couponCode(),
-        ]);
-
-        if ($summary['coupon_error']) {
-            return redirect()->route('shop.checkout')
-                ->withErrors(['coupon_code' => $summary['coupon_error']])
-                ->withInput();
-        }
-
-        if (! ($summary['can_checkout'] ?? true)) {
-            return redirect()->route('shop.checkout')
-                ->withErrors(['shipping_country' => (string) ($summary['shipping_quote']['reason'] ?? 'Shipping could not be calculated for this order.')])
-                ->withInput();
-        }
-
-        $lines = $cart->lines();
-
-        return view('shop.payment', [
-            'lines' => $lines,
-            'heroLine' => $lines->shuffle()->first(),
-            'summary' => $summary,
-            'couponCode' => $cart->couponCode(),
-            'customer' => $customer,
-            'squareEnabled' => (bool) config('services.square.enabled'),
-            'squareApplicationId' => (string) config('services.square.application_id'),
-            'squareLocationId' => (string) config('services.square.location_id'),
-            'squareEnvironment' => (string) config('services.square.environment'),
-        ]);
+        return redirect()->route('shop.checkout')
+            ->with('shop_checkout_step', 'payment');
     }
 
     public function processCheckoutPayment(Request $request, StoreCartService $cart, StoreOrderService $orders): RedirectResponse
     {
-        $lines = $cart->lines();
-        if ($lines->isEmpty()) {
-            $this->clearCheckoutSession();
-
-            return redirect()->route('shop.cart.show');
-        }
-
         $customer = $this->checkoutSessionCustomer();
         if ($customer === []) {
             return redirect()->route('shop.checkout');
         }
 
-        $payload = array_merge($customer, [
-            'coupon_code' => $cart->couponCode(),
-        ]);
-
-        $summary = $cart->summary([
-            'shipping_country' => $payload['shipping_country'] ?? 'Australia',
-            'user' => $request->user(),
-            'billing_email' => $payload['billing_email'] ?? null,
-            'coupon_code' => $payload['coupon_code'] ?? null,
-        ]);
-
-        if ($summary['coupon_error']) {
+        if (! $request->filled('source_id')) {
             return redirect()->route('shop.checkout')
-                ->withErrors(['coupon_code' => $summary['coupon_error']])
-                ->withInput();
+                ->withErrors(['source_id' => 'Card details are required.'])
+                ->with('shop_checkout_step', 'payment');
         }
 
-        if (! ($summary['can_checkout'] ?? true)) {
-            return redirect()->route('shop.checkout')
-                ->withErrors(['shipping_country' => (string) ($summary['shipping_quote']['reason'] ?? 'Shipping could not be calculated for this order.')])
-                ->withInput();
-        }
+        $request->merge($customer);
 
-        if ((float) ($summary['total'] ?? 0) <= 0.0001) {
-            try {
-                $order = $orders->createFromCart($lines, $payload, $request->user());
-            } catch (ValidationException $e) {
-                return redirect()->route('shop.checkout')
-                    ->withErrors($e->errors())
-                    ->withInput();
-            }
-
-            $cart->clear();
-            $this->clearCheckoutSession();
-
-            session()->flash('message', 'Your order is complete.');
-            session()->flash('message-title', 'Order created');
-            session()->flash('message-type', 'success');
-
-            return $request->user()
-                ? redirect()->route('account.order.show', $order)
-                : redirect()->route('shop.order.show', ['storeOrder' => $order, 'accessToken' => $order->access_token]);
-        }
-
-        $validated = $request->validate([
-            'source_id' => ['required', 'string', 'max:255'],
-        ], [
-            'source_id.required' => 'Card details are required.',
-        ]);
-
-        try {
-            $order = $orders->createAndChargeFromCart($lines, $payload, (string) $validated['source_id'], $request->user());
-        } catch (ValidationException $e) {
-            return redirect()->route('shop.checkout.payment')
-                ->withErrors($e->errors());
-        } catch (\Throwable $e) {
-            report($e);
-
-            session()->flash('message', 'Unable to process payment right now.');
-            session()->flash('message-title', 'Payment failed');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('shop.checkout.payment');
-        }
-
-        $cart->clear();
-        $this->clearCheckoutSession();
-
-        session()->flash('message', 'Payment completed successfully.');
-        session()->flash('message-title', 'Payment success');
-        session()->flash('message-type', 'success');
-
-        return $request->user()
-            ? redirect()->route('account.order.show', $order)
-            : redirect()->route('shop.order.show', ['storeOrder' => $order, 'accessToken' => $order->access_token]);
+        return $this->placeOrder($request, $cart, $orders);
     }
 
     private function resolveVariantSelection(Product $product, mixed $variantId): ?ProductVariant
     {
         if (! $product->hasVariants()) {
+            return null;
+        }
+
+        if ($variantId === null || (string) $variantId === '') {
             return null;
         }
 
@@ -636,6 +803,44 @@ class ShopController extends Controller
         return $request->expectsJson() || $request->wantsJson() || $request->ajax();
     }
 
+    private function australianShippingCountryRules(bool $required = false): array
+    {
+        return [
+            Rule::requiredIf($required),
+            'nullable',
+            'string',
+            'max:120',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                $country = trim((string) $value);
+
+                if ($country !== '' && strcasecmp($country, self::AUSTRALIA_SHIPPING_COUNTRY) !== 0) {
+                    $fail('Shipping and checkout are currently only available to Australian addresses.');
+                }
+            },
+        ];
+    }
+
+    private function normalizeAustralianState(mixed $value): string
+    {
+        $state = trim((string) $value);
+        if ($state === '') {
+            return '';
+        }
+
+        $code = strtoupper($state);
+        if (array_key_exists($code, self::AUSTRALIAN_STATES)) {
+            return $code;
+        }
+
+        foreach (self::AUSTRALIAN_STATES as $stateCode => $label) {
+            if (strcasecmp($state, $label) === 0) {
+                return $stateCode;
+            }
+        }
+
+        return '';
+    }
+
     private function checkoutSessionCustomer(): array
     {
         $customer = session()->get(self::CHECKOUT_SESSION_KEY.'.customer', []);
@@ -663,5 +868,23 @@ class ShopController extends Controller
     {
         session()->forget(self::CHECKOUT_SESSION_KEY);
         session()->forget(self::LEGACY_CHECKOUT_SESSION_KEY);
+    }
+
+    private function rememberGuestOrderDocumentAccess(StoreOrder $order, Request $request): void
+    {
+        if ($request->user() || trim((string) ($order->access_token ?? '')) === '') {
+            return;
+        }
+
+        $tokens = collect((array) session()->get(self::ORDER_DOCUMENT_ACCESS_SESSION_KEY, []))
+            ->map(fn ($token) => trim((string) $token))
+            ->filter()
+            ->push((string) $order->access_token)
+            ->unique()
+            ->take(-20)
+            ->values()
+            ->all();
+
+        session()->put(self::ORDER_DOCUMENT_ACCESS_SESSION_KEY, $tokens);
     }
 }

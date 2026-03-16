@@ -22,7 +22,7 @@ class EnsurePublicShopAvailable
         }
 
         $reason = $this->shopAvailability->isPublicEnabled()
-            ? 'There are no products currently available for sale.'
+            ? 'There are no products currently available.'
             : 'The store has been temporarily disabled.';
 
         if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {

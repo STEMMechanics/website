@@ -198,7 +198,7 @@
                                     </div>
                                 </div>
                             @endauth
-                            <p class="text-xs text-gray-600 text-center mt-2">{{ (int) ($interestCount ?? 0) }} interested so far</p>
+                            <p class="text-xs text-gray-600 text-center mt-2">{{ (int)( ($interestCount ?? 0) + 1) }} interested so far</p>
                             @auth
                                 @if($userHasInterest)
 {{--                                    <p class="text-xs text-gray-500 text-center mt-1">You’re currently marked as interested.</p>--}}

@@ -346,53 +346,6 @@
                     </aside>
                 @endif
 
-                <div class="flex flex-col gap-6">
-{{--                    <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">--}}
-{{--                        <div>--}}
-{{--                            @if($selectedCategory !== '')--}}
-{{--                                <div class="mt-3 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sm font-medium text-sky-800">--}}
-{{--                                    <span>{{ $selectedCategory }}</span>--}}
-{{--                                    <a--}}
-{{--                                        href="{{ $clearCategoryUrl }}"--}}
-{{--                                        data-shop-view-link--}}
-{{--                                        data-shop-view-base="{{ $clearCategoryUrl }}"--}}
-{{--                                        class="text-sky-700 hover:text-sky-900"--}}
-{{--                                    >Clear</a>--}}
-{{--                                </div>--}}
-{{--                            @endif--}}
-{{--                        </div>--}}
-
-{{--                        <form method="GET" action="{{ route('shop.index') }}" class="w-full xl:max-w-xl">--}}
-{{--                            @if($selectedCategory !== '')--}}
-{{--                                <input type="hidden" name="category" value="{{ $selectedCategory }}">--}}
-{{--                            @endif--}}
-{{--                            <input type="hidden" name="sort" value="{{ $selectedSort }}">--}}
-{{--                            <input type="hidden" name="view" value="{{ $selectedView }}" data-shop-view-input>--}}
-
-{{--                            <div class="relative flex">--}}
-{{--                                <input--}}
-{{--                                    class="block flex-grow rounded-l-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"--}}
-{{--                                    autocomplete="off"--}}
-{{--                                    placeholder="Search shop"--}}
-{{--                                    type="search"--}}
-{{--                                    name="search"--}}
-{{--                                    value="{{ $searchValue }}"--}}
-{{--                                />--}}
-{{--                                <x-ui.button type="submit" class="rounded-l-none !rounded-r-2xl px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>--}}
-{{--                                @if($searchValue !== '')--}}
-{{--                                    <a--}}
-{{--                                        href="{{ $clearSearchUrl }}"--}}
-{{--                                        data-shop-view-link--}}
-{{--                                        data-shop-view-base="{{ $clearSearchUrl }}"--}}
-{{--                                        class="absolute right-[4.75rem] top-1/2 z-10 -translate-y-1/2 text-gray-300 hover:text-gray-400"--}}
-{{--                                        aria-label="Clear search"--}}
-{{--                                    ><i class="fa-solid fa-circle-xmark"></i></a>--}}
-{{--                                @endif--}}
-{{--                            </div>--}}
-{{--                        </form>--}}
-{{--                    </div>--}}
-                </div>
-
                 <div class="flex flex-col gap-6 w-full">
                     @if(($categories ?? collect())->isNotEmpty())
                         <section class="lg:hidden -mt-3 mb-2">
@@ -407,16 +360,15 @@
                                     </span>
                                     <i class="fa-solid fa-chevron-down text-xs text-gray-400" data-shop-mobile-categories-chevron></i>
                                 </summary>
-                                <div class="border-t border-gray-200 p-4">
-                                    <div class="space-y-2">
+                                <div class="border-t border-gray-200 p-2">
+                                    <div class="space-y-1">
                                         <a
                                             href="{{ $clearCategoryUrl }}"
                                             data-shop-view-link
                                             data-shop-view-base="{{ $clearCategoryUrl }}"
-                                            class="flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-medium transition {{ $selectedCategory === '' ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
+                                            class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategory === '' ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
                                         >
                                             <span>All Products</span>
-                                            <span class="text-xs opacity-80">View all</span>
                                         </a>
                                         @foreach($categories as $category)
                                             @php
@@ -426,9 +378,9 @@
                                                 href="{{ $categoryUrl }}"
                                                 data-shop-view-link
                                                 data-shop-view-base="{{ $categoryUrl }}"
-                                                class="block rounded-2xl border px-4 py-3 text-sm font-medium transition {{ $selectedCategory === $category ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-white text-gray-700' }}"
+                                                class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategory === $category ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
                                             >
-                                                {{ $category }}
+                                                {{ ucfirst($category) }}
                                             </a>
                                         @endforeach
                                     </div>
@@ -498,18 +450,31 @@
                             @foreach($products as $product)
                                 @php
                                     $variants = $product->purchasableVariants();
-                                    $variantCount = $variants->count();
-                                    $hasVariants = $variantCount > 0;
+                                    $variantCount = $product->optionChoiceCount();
+                                    $hasVariants = $product->hasOptionChoices();
                                     $defaultVariant = $variantCount === 1 ? $variants->first() : null;
-                                    $inStock = $product->isInStock();
+                                    $inStock = $product->isPurchasable();
                                     $lineKey = $product->id.':'.($defaultVariant?->id ?? 0);
-                                    $fallbackMaxQuantity = $defaultVariant?->availableInventory();
+                                    $fallbackMaxQuantity = $product->availableInventoryForPurchase($defaultVariant);
                                     if ($fallbackMaxQuantity === null) {
-                                        $fallbackMaxQuantity = $product->availableInventory();
+                                        $fallbackMaxQuantity = $product->availableInventoryForPurchase();
                                     }
                                     $fallbackMaxQuantity = $fallbackMaxQuantity !== null ? max(1, (int) $fallbackMaxQuantity) : 99;
                                     $removeMessage = $product->title.' has been removed from your cart.';
                                     $shortDescription = trim((string) $product->short_description);
+                                    $priceRangeLabel = $product->priceRangeLabel();
+                                    $priceIsFromRange = \Illuminate\Support\Str::startsWith($priceRangeLabel, 'From ');
+                                    $priceRangeAmountLabel = $priceIsFromRange
+                                        ? \Illuminate\Support\Str::after($priceRangeLabel, 'From ')
+                                        : $priceRangeLabel;
+                                    $preorderEstimate = $product->preorderShippingEstimateLabel();
+                                    $backorderEstimate = $product->backorderShippingEstimateLabel();
+                                    $backorderNowInventory = null;
+                                    if (! $hasVariants) {
+                                        $backorderNowInventory = $product->availableInventory();
+                                    } elseif ($defaultVariant) {
+                                        $backorderNowInventory = $product->availableInventory($defaultVariant);
+                                    }
                                 @endphp
                                 <article class="shop-product-card flex flex-col group relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
                                     <a href="{{ route('shop.product.show', $product) }}" class="absolute inset-0 z-10" aria-label="View {{ $product->title }}"></a>
@@ -524,24 +489,27 @@
                                         </div>
 
                                         <div class="shop-product-card-body pointer-events-none flex-1 flex flex-col">
-                                            <div class="shop-product-card-header mb-3 flex items-center justify-between gap-3">
-                                                <div class="flex flex-wrap items-center gap-2">
-                                                    @if($product->isDigital())
-                                                        <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-emerald-800">
-                                                            {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
-                                                        </span>
-                                                    @endif
-                                                    @if(trim((string) $product->category) !== '')
-                                                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">{{ \Illuminate\Support\Str::ucfirst((string) $product->category) }}</span>
-                                                    @endif
+                                            <div class="shop-product-card-header mb-3 flex items-start justify-between gap-3">
+                                                <div class="shop-product-card-title">
+                                                    <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
+                                                    <div class="flex flex-wrap items-center gap-2 -ml-1">
+                                                        @if($product->isDigital())
+                                                            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                                                {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
                                                 </div>
-                                                <div class="text-left sm:text-right">
-                                                    <div class="text-xl font-bold text-gray-900">{{ $product->priceRangeLabel() }}</div>
+                                                <div class="text-right">
+                                                    <div class="flex items-baseline gap-1 text-xl font-bold text-gray-900 sm:justify-end">
+                                                        @if($priceIsFromRange)
+                                                            <span class="text-sm font-medium text-gray-500">From</span>
+                                                        @endif
+                                                        <span>{{ $priceRangeAmountLabel }}</span>
+                                                    </div>
                                                     <div class="text-xs text-gray-500">(inc GST)</div>
                                                 </div>
                                             </div>
-
-                                            <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
 
                                             @if($shortDescription !== '')
                                                 <p class="shop-product-card-description text-sm text-gray-600 flex-1 min-h-18">{{ $shortDescription }}</p>
@@ -550,10 +518,24 @@
                                             <div class="shop-product-card-stock text-xs text-gray-500">
                                                 @if(!$inStock)
                                                     <span class="font-semibold text-red-600">Out of stock</span>
+                                                @elseif($product->isDigital())
+                                                    Instant download after checkout
                                                 @elseif($hasVariants)
                                                     {{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available
+                                                @elseif($product->isPreorder())
+                                                    Pre-order available.<br>{{ $preorderEstimate ? 'Shipping expected ' . $preorderEstimate : 'Will ship when available' }}
+                                                @elseif($product->allowsBackorder())
+                                                    @if($hasVariants && ! $defaultVariant)
+                                                        {{ $backorderEstimate ? 'Available now. More expected '.$backorderEstimate : 'Available now. More coming soon' }}
+                                                    @elseif($backorderNowInventory === null)
+                                                        {{ $backorderEstimate ? 'Available now. More expected '.$backorderEstimate : 'Available now. More coming soon' }}
+                                                    @elseif($backorderNowInventory > 0)
+                                                        {{ $backorderNowInventory }} available now. {{ $backorderEstimate ? 'More expected '.$backorderEstimate : 'More coming soon' }}
+                                                    @else
+                                                        {{ $backorderEstimate ? 'Available to order. More expected '.$backorderEstimate : 'Available to order. More coming soon' }}
+                                                    @endif
                                                 @else
-                                                    {{ $product->availableInventory() !== null ? $product->availableInventory().' in stock' : 'In stock' }}
+                                                    {{ $product->availableInventoryForPurchase() !== null ? $product->availableInventoryForPurchase().' in stock' : 'In stock' }}
                                                 @endif
                                             </div>
                                         </div>
@@ -567,8 +549,13 @@
                                                     'fallbackMaxQuantity' => $fallbackMaxQuantity,
                                                     'removeMessage' => $removeMessage,
                                                 ])
+                                            @elseif($inStock && $variantCount > 1)
+                                                @include('shop.partials.catalog-option-control', [
+                                                    'product' => $product,
+                                                    'cartPayload' => $cartPayload,
+                                                ])
                                             @else
-                                                <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link !px-5">View</x-ui.button>
+                                                <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link px-5!">{{ $variantCount > 1 ? 'View Product' : 'View' }}</x-ui.button>
                                             @endif
                                         </div>
                                     </div>

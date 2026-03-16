@@ -149,39 +149,145 @@ const SMMediaPicker = {
         store.camera_flip_y = !store.camera_flip_y;
     },
 
+    syncDialogInteractivity: () => {
+        const store = Alpine.store('media');
+        const uploading = !!store?.uploading;
+        const confirmButton = Swal.getConfirmButton?.();
+        const cancelButton = Swal.getCancelButton?.();
+
+        [confirmButton, cancelButton].forEach((button) => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.disabled = uploading;
+            button.setAttribute('aria-disabled', uploading ? 'true' : 'false');
+        });
+    },
+
+    setUploadingState: (uploading, options = {}) => {
+        const store = Alpine.store('media');
+        if (!store) {
+            return;
+        }
+
+        store.uploading = uploading;
+
+        if (Object.prototype.hasOwnProperty.call(options, 'progress')) {
+            store.upload_progress = Math.max(0, Math.min(100, Number(options.progress) || 0));
+        }
+
+        if (Object.prototype.hasOwnProperty.call(options, 'message')) {
+            store.upload_message = options.message;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(options, 'notice')) {
+            store.upload_notice = options.notice;
+        }
+
+        SMMediaPicker.syncDialogInteractivity();
+    },
+
+    addUploadedSelection: (name) => {
+        const store = Alpine.store('media');
+        if (!store || typeof name !== 'string' || name === '') {
+            return;
+        }
+
+        if (!store.allow_multiple) {
+            store.selected = [name];
+            return;
+        }
+
+        if (!store.selected.some((item) => item === name)) {
+            store.selected.push(name);
+        }
+    },
+
     upload: (files) => {
+        const store = Alpine.store('media');
+        if (!store || store.uploading) {
+            return;
+        }
+
         const validFiles = Array.from(files).filter((file) => {
-            return SM.mimeMatches(file.type, Alpine.store('media').require_mime_type);
+            return SM.mimeMatches(file.type, store.require_mime_type);
         });
 
         if(validFiles.length === 0) {
-            Alpine.store('media').error = 'No files where uploaded as they do not meet the requirements.';
+            store.error = 'No files were uploaded because they do not meet the requirements.';
         } else if(validFiles.length !== files.length) {
-            Alpine.store('media').error = 'Some files where not uploaded as they do not meet the requirements.';
+            store.error = 'Some files were skipped because they do not meet the requirements.';
         } else {
-            Alpine.store('media').error = null;
+            store.error = null;
+        }
+
+        if (validFiles.length === 0) {
+            return;
         }
 
         const titles = Array.from(validFiles).map((file) => SM.toTitleCase(file.name));
+        store.upload_notice = null;
+        SMMediaPicker.setUploadingState(true, {
+            progress: 0,
+            message: validFiles.length > 1 ? `Preparing ${validFiles.length} uploads...` : `Preparing ${validFiles[0].name}...`,
+        });
 
         SM.upload(validFiles, (response) => {
+            if (response.success !== true) {
+                return;
+            }
+
             if(response.files) {
                 response.files.forEach((file) => {
-                    SMMediaPicker.updateSelection(file.data.name);
+                    SMMediaPicker.addUploadedSelection(file.data.name);
                 });
             }
 
-            SMMediaPicker.open(
-                Alpine.store('media').selected,
-                {
-                    require_mime_type: Alpine.store('media').require_mime_type,
-                    allow_multiple: Alpine.store('media').allow_multiple,
-                    allow_uploads: Alpine.store('media').allow_uploads,
-                    allow_camera: Alpine.store('media').allow_camera
-                },
-                Alpine.store('media').callback
-            );
-        }, titles);
+            const searchInput = document.querySelector('input[name="search"]');
+            if (searchInput instanceof HTMLInputElement) {
+                searchInput.value = '';
+            }
+
+            SMMediaPicker.setUploadingState(false, {
+                progress: 100,
+                message: null,
+                notice: validFiles.length > 1 ? `${validFiles.length} files uploaded successfully.` : `${validFiles[0].name} uploaded successfully.`,
+            });
+            store.active_tab = 'browser';
+            SMMediaPicker.query(1, '');
+
+            window.setTimeout(() => {
+                if (store.upload_notice === (validFiles.length > 1 ? `${validFiles.length} files uploaded successfully.` : `${validFiles[0].name} uploaded successfully.`)) {
+                    store.upload_notice = null;
+                }
+            }, 4000);
+        }, titles, {
+            showModal: false,
+            successDelayMs: 0,
+            onProgress: ({ file, index, count, percent }) => {
+                SMMediaPicker.setUploadingState(true, {
+                    progress: percent,
+                    message: count > 1
+                        ? `Uploading ${index + 1} of ${count}: ${file.name}`
+                        : `Uploading ${file.name}`,
+                });
+            },
+            onError: (message) => {
+                SMMediaPicker.setUploadingState(false, {
+                    progress: 0,
+                    message: null,
+                });
+                store.error = message;
+            },
+        });
+
+        ['media_upload', 'media_camera_upload'].forEach((inputId) => {
+            const input = document.getElementById(inputId);
+            if (input instanceof HTMLInputElement) {
+                input.value = '';
+            }
+        });
     },
 
     gotoLink: (url) => {
@@ -330,45 +436,63 @@ const SMMediaPicker = {
     },
 
     html: `
-        <div class="flex flex-col h-full w-full" x-data="{tab: 'browser', showFileDrop: false}">
+        <div class="flex flex-col h-full w-full" x-data="{showFileDrop: false}">
             <template x-if="$store.media.error">
                 <div class="flex justify-center" role="alert">
                     <p class="relative bg-red-100 border border-red-400 text-red-700 py-2 pl-4 pr-8 text-xs rounded mb-4"><span x-text="$store.media.error"></span><i class="fa-solid fa-close text-red-900 hover:text-red-700 cursor-pointer absolute top-2 right-2" x-on:click="$store.media.error=null;"></i></p>
                 </div>
             </template>
+            <template x-if="$store.media.upload_notice">
+                <div class="flex justify-center" role="status">
+                    <p class="relative bg-emerald-100 border border-emerald-300 text-emerald-800 py-2 pl-4 pr-8 text-xs rounded mb-4"><span x-text="$store.media.upload_notice"></span><i class="fa-solid fa-close text-emerald-900 hover:text-emerald-700 cursor-pointer absolute top-2 right-2" x-on:click="$store.media.upload_notice=null;"></i></p>
+                </div>
+            </template>
             <ul class="flex -mb-[1px] z-10">
-                <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'upload', 'border-b-white': tab === 'upload', 'border-transparent': tab !== 'upload' }" x-on:click.prevent="tab='upload'; SMMediaPicker.stopCamera()">Upload</li>
-                <li x-show="$store.media.camera_supported" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'camera', 'border-b-white': tab === 'camera', 'border-transparent': tab !== 'camera' }" x-on:click.prevent="tab='camera'; $nextTick(() => SMMediaPicker.startCamera())">Camera</li>
-                <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': tab === 'browser', 'border-b-white': tab === 'browser', 'border-transparent': tab !== 'browser' }" x-on:click.prevent="tab='browser'; SMMediaPicker.stopCamera()">Browser</li>
+                <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'upload', 'border-b-white': $store.media.active_tab === 'upload', 'border-transparent': $store.media.active_tab !== 'upload', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='upload'; SMMediaPicker.stopCamera()">Upload</li>
+                <li x-show="$store.media.camera_supported" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'camera', 'border-b-white': $store.media.active_tab === 'camera', 'border-transparent': $store.media.active_tab !== 'camera', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='camera'; $nextTick(() => SMMediaPicker.startCamera())">Camera</li>
+                <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'browser', 'border-b-white': $store.media.active_tab === 'browser', 'border-transparent': $store.media.active_tab !== 'browser', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='browser'; SMMediaPicker.stopCamera()">Browser</li>
             </ul>
             <div
                 class="flex-1 min-h-0 border border-gray-300 overflow-hidden"
-                x-on:dragenter.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false"
-                x-on:dragover.prevent="$store.media.allow_uploads ? showFileDrop = true : showFileDrop = false">
+                x-on:dragenter.prevent="$store.media.allow_uploads && !$store.media.uploading ? showFileDrop = true : showFileDrop = false"
+                x-on:dragover.prevent="$store.media.allow_uploads && !$store.media.uploading ? showFileDrop = true : showFileDrop = false">
                 <div
                     id="content-upload"
                     class="w-full h-full flex flex-col px-4 py-8 justify-center items-center"
-                    x-show="tab === 'upload'">
-                    <h3 class="text-2xl font-bold mb-2">Drop files to upload</h3>
-                    <p>or</p>
-                    <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
-                        <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
-                        <label
-                            x-show="$store.media.allow_camera"
-                            class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                            for="media_camera_upload"
-                        >
-                            Take photo
-                        </label>
+                    x-show="$store.media.active_tab === 'upload'">
+                    <div x-show="!$store.media.uploading" class="flex h-full w-full flex-col items-center justify-center">
+                        <h3 class="text-2xl font-bold mb-2">Drop files to upload</h3>
+                        <p>or</p>
+                        <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
+                            <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
+                            <label
+                                x-show="$store.media.allow_camera"
+                                class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
+                                for="media_camera_upload"
+                            >
+                                Take photo
+                            </label>
+                        </div>
+                        <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" />
+                        <input class="hidden" id="media_camera_upload" name="media_camera_upload" type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" capture="environment" />
+                        <p class="text-xs mt-2">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
                     </div>
-                    <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" />
-                    <input class="hidden" id="media_camera_upload" name="media_camera_upload" type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" capture="environment" />
-                    <p class="text-xs">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
+                    <div x-show="$store.media.uploading" x-cloak class="flex h-full w-full flex-col items-center justify-center">
+                        <div class="w-full max-w-md rounded-2xl border border-sky-100 bg-sky-50 px-5 py-5 text-center">
+                            <div class="text-sm font-semibold uppercase tracking-[0.18em] text-sky-700">Uploading</div>
+                            <div class="mt-2 text-lg font-semibold text-gray-900">Media upload in progress</div>
+                            <p class="mt-2 text-sm text-gray-600" x-text="$store.media.upload_message || 'Preparing upload...'"></p>
+                            <div class="mt-5 h-3 overflow-hidden rounded-full bg-sky-100">
+                                <div class="h-full rounded-full bg-sky-600 transition-all duration-200" :style="'width: ' + Math.max(0, Math.min(100, Number($store.media.upload_progress || 0))) + '%'"></div>
+                            </div>
+                            <div class="mt-2 text-xs font-medium text-sky-800" x-text="Math.round(Number($store.media.upload_progress || 0)) + '% complete'"></div>
+                        </div>
+                    </div>
                 </div>
                 <div
                     id="content-camera"
                     class="w-full h-full flex flex-col px-4 py-6 items-center"
-                    x-show="tab === 'camera'"
+                    x-show="$store.media.active_tab === 'camera'"
                 >
                     <div class="w-full max-w-3xl flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
                         <div class="relative w-full aspect-video max-h-[24rem] overflow-hidden rounded-xl bg-gray-900 flex items-center justify-center">
@@ -431,14 +555,14 @@ const SMMediaPicker = {
                         </div>
                     </div>
                 </div>
-                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" x-show="tab === 'browser'">
+                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" x-show="$store.media.active_tab === 'browser'">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
-                            <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" />
-                            <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"><i class="fa-solid fa-magnifying-glass"></i></button>
+                            <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
+                            <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </form>
-                    <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap">
+                    <ul class="flex-1 min-h-0 overflow-y-auto p-2 gap-4 justify-center content-start flex flex-row flex-wrap" :class="{ 'pointer-events-none opacity-60': $store.media.uploading }">
                     <template x-for="item in $store.media.items" :key="item.name">
                         <li
                             class="cursor-pointer flex text-center p-1 flex-items-center flex-col h-40 w-56 border-2 rounded relative"
@@ -509,11 +633,11 @@ const SMMediaPicker = {
                 </div>
             </div>
             <div
-                x-show="showFileDrop"
+                x-show="showFileDrop && !$store.media.uploading"
                 class="fixed flex top-0 left-0 w-full h-full z-10 bg-sky-800 bg-opacity-95 text-white items-center p-4"
                 x-on:dragenter.prevent="showFileDrop = true"
                 x-on:dragover.prevent="showFileDrop = true"
-                x-on:drop.prevent="SMMediaPicker.upload($event.dataTransfer.files); showFileDrop = false;"
+                x-on:drop.prevent="if ($store.media.uploading) { showFileDrop = false; return; } SMMediaPicker.upload($event.dataTransfer.files); showFileDrop = false;"
                 x-on:dragleave.prevent="showFileDrop = false">
                 <h2
                     class="pointer-events-none flex w-full h-full justify-center items-center text-lg font-bold border-dashed border">
@@ -525,9 +649,14 @@ const SMMediaPicker = {
 
     onOpen: () => {
         SMMediaPicker.query(null, '');
+        SMMediaPicker.syncDialogInteractivity();
     },
 
     preClose: () => {
+        if (Alpine.store('media')?.uploading) {
+            return false;
+        }
+
         SMMediaPicker.stopCamera();
     },
 
@@ -553,6 +682,11 @@ const SMMediaPicker = {
         Alpine.store('media').camera_flip_x = false;
         Alpine.store('media').camera_flip_y = false;
         Alpine.store('media').camera_error = null;
+        Alpine.store('media').active_tab = 'browser';
+        Alpine.store('media').uploading = false;
+        Alpine.store('media').upload_progress = 0;
+        Alpine.store('media').upload_message = null;
+        Alpine.store('media').upload_notice = null;
         Alpine.store('media').callback = callback;
 
         Swal.fire({
@@ -564,6 +698,8 @@ const SMMediaPicker = {
             showCancelButton: true,
             focusConfirm: false,
             reverseButtons: true,
+            allowOutsideClick: () => !Alpine.store('media')?.uploading,
+            allowEscapeKey: () => !Alpine.store('media')?.uploading,
             didOpen: SMMediaPicker.onOpen,
             preConfirm: SMMediaPicker.preClose,
             willClose: SMMediaPicker.stopCamera,
@@ -624,6 +760,11 @@ document.addEventListener('DOMContentLoaded', () => {
         camera_flip_x: false,
         camera_flip_y: false,
         camera_error: null,
+        active_tab: 'browser',
+        uploading: false,
+        upload_progress: 0,
+        upload_message: null,
+        upload_notice: null,
         current_page: 1,
         per_page: 24,
         to: 0,

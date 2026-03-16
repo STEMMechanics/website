@@ -117,7 +117,8 @@ class InvoiceController extends Controller
             'privateFinanceFiles',
             'taxAdjustments.lines',
             'allocations.customerPayment.user',
-            'allocations.customerPayment.refundOf'
+            'allocations.customerPayment.refundOf',
+            'allocations.customerPayment.refunds.user'
         );
 
         return view('admin.invoice.edit', [
@@ -392,7 +393,12 @@ class InvoiceController extends Controller
 
     public function publicEmailDocuments(Request $request, Invoice $invoice): RedirectResponse
     {
-        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true) || (float) $invoice->total_amount <= 0) {
+        $returnUrl = $this->safePublicReturnUrl(
+            $request,
+            route('invoice.public.pay.show', $invoice)
+        );
+
+        if (in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true)) {
             abort(Response::HTTP_NOT_FOUND);
         }
 
@@ -402,7 +408,7 @@ class InvoiceController extends Controller
             session()->flash('message-title', 'Email failed');
             session()->flash('message-type', 'danger');
 
-            return redirect()->route('invoice.public.pay.show', $invoice);
+            return redirect()->to($returnUrl);
         }
 
         $invoice->loadMissing('user', 'allocations.customerPayment', 'taxAdjustments.lines');
@@ -450,7 +456,7 @@ class InvoiceController extends Controller
                 invoiceNumber: (string) $invoice->invoice_number,
                 attachments: $attachments,
                 outstandingAmount: $invoice->outstandingAmount(),
-                payUrl: route('invoice.public.pay.show', $invoice),
+                payUrl: $invoice->outstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
                 initiatedByEmail: $initiatedByEmail,
                 initiatedByName: $initiatedByName,
             )))->onQueue('mail');
@@ -461,22 +467,22 @@ class InvoiceController extends Controller
             session()->flash('message-title', 'Email failed');
             session()->flash('message-type', 'danger');
 
-            return redirect()->route('invoice.public.pay.show', $invoice);
+            return redirect()->to($returnUrl);
         }
 
         session()->flash('message', 'Invoice, tax adjustment, and receipt documents have been emailed.');
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('invoice.public.pay.show', $invoice);
+        return redirect()->to($returnUrl);
     }
 
-    public function accountPdf(Invoice $invoice)
+    public function accountPdf(Request $request, Invoice $invoice)
     {
         $this->authorize('view', $invoice);
         $this->abortIfInvoiceNotAccessible($invoice);
 
-        return $this->pdfWithAdjustments($invoice);
+        return $this->invoicePdfResponse($request, $invoice, true);
     }
 
     public function showByMagicToken(Request $request): View
@@ -500,7 +506,7 @@ class InvoiceController extends Controller
     {
         $this->abortIfInvoiceNotAccessibleForRequest($request, $invoice);
 
-        return $this->pdfWithAdjustments($invoice);
+        return $this->invoicePdfResponse($request, $invoice, true);
     }
 
     public function magicPay(Request $request, Invoice $invoice, SquareApiService $squareApi): RedirectResponse
@@ -523,6 +529,19 @@ class InvoiceController extends Controller
 
         $pdf = $this->buildPaymentReceiptPdf($invoice, $payment);
         $filename = $this->getPaymentReceiptPdfFilename($payment);
+        $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
+
+        if ($download) {
+            return $pdf->download($filename);
+        }
+
+        return $pdf->stream($filename);
+    }
+
+    private function invoicePdfResponse(Request $request, Invoice $invoice, bool $includeAdjustments = false)
+    {
+        $pdf = $this->buildInvoicePdf($invoice, includeAdjustments: $includeAdjustments);
+        $filename = $this->getInvoicePdfFilename($invoice);
         $download = filter_var($request->query('download', false), FILTER_VALIDATE_BOOLEAN);
 
         if ($download) {
@@ -1244,6 +1263,25 @@ class InvoiceController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function safePublicReturnUrl(Request $request, string $fallback): string
+    {
+        $returnTo = trim((string) $request->input('return_to', ''));
+        if ($returnTo === '' || str_starts_with($returnTo, '//')) {
+            return $fallback;
+        }
+
+        if (str_starts_with($returnTo, '/')) {
+            return $returnTo;
+        }
+
+        $appUrl = rtrim((string) config('app.url'), '/');
+        if ($appUrl !== '' && str_starts_with($returnTo, $appUrl.'/')) {
+            return substr($returnTo, strlen($appUrl)) ?: $fallback;
+        }
+
+        return $fallback;
     }
 
     private function sendPaymentReceiptEmail(Invoice $invoice, Payment $customerPayment): void

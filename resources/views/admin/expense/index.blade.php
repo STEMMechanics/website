@@ -27,7 +27,7 @@
                     @foreach ($expenses as $expense)
                         <tr>
                             <td>
-                                <div>{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</div>
+                                <a href="{{ route('admin.expense.edit', $expense) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $expense->paid_on?->format('M j, Y') ?? '-' }}</a>
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                 <div class="lg:hidden text-xs text-gray-600">{{ $expense->description ?: '-' }}</div>

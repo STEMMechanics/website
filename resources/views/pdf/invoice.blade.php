@@ -165,10 +165,15 @@
                     $taxRate = (float) ($item['tax_rate'] ?? (($item['gst_applicable'] ?? true) ? 0.1 : 0));
                     $gstApplicable = $taxRate > 0.0001;
                     $lineNotes = trim((string) ($item['notes'] ?? ''));
+                    $lineKind = trim((string) ($item['kind'] ?? ''));
+                    $lineDescription = (string) ($item['description'] ?? '');
+                    if ($lineKind === 'shipping') {
+                    $lineDescription = trim((string) preg_replace('/\s+-\s+.+$/', '', $lineDescription));
+                    }
                     @endphp
                     <tr>
                         <td>
-                            <div class="line-desc">{{ $item['description'] ?? '' }}{{ $gstApplicable ? '' : '*' }}</div>
+                            <div class="line-desc">{{ $lineDescription }}{{ $gstApplicable ? '' : '*' }}</div>
                             @if($lineNotes !== '')
                             {!! $renderLineNotes($lineNotes) !!}
                             @endif

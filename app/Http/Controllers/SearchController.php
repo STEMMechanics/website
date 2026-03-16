@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Post;
 use App\Models\Workshop;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class SearchController extends Controller
@@ -14,25 +12,41 @@ class SearchController extends Controller
      */
     public function index(Request $request)
     {
-        $search = $request->get('q', '');
-        $search_words = explode(' ', $search); // Split the search query into words[1]
+        $search = trim((string) $request->query('q', ''));
+        $searchWords = collect(preg_split('/\s+/', $search) ?: [])
+            ->map(fn ($word) => trim((string) $word))
+            ->filter()
+            ->values();
 
         $workshopQuery = Workshop::query()->publiclyVisible();
 
-        $workshopQuery->where(function ($query) use ($search_words) {
-            foreach ($search_words as $word) {
+        if ($searchWords->isEmpty()) {
+            $workshops = $workshopQuery
+                ->whereRaw('1 = 0')
+                ->paginate(6, ['*'], 'workshop')
+                ->onEachSide(1);
+
+            return view('search', [
+                'workshops' => $workshops,
+                'search' => $search,
+            ]);
+        }
+
+        $workshopQuery->where(function ($query) use ($searchWords) {
+            foreach ($searchWords as $word) {
                 $query->orWhere(function ($subQuery) use ($word) {
-                    $subQuery->where('title', 'like', '%' . $word . '%')
-                        ->orWhere('content', 'like', '%' . $word . '%')
+                    $subQuery->where('title', 'like', '%'.$word.'%')
+                        ->orWhere('content', 'like', '%'.$word.'%')
                         ->orWhereHas('location', function ($locationQuery) use ($word) {
-                            $locationQuery->where('name', 'like', '%' . $word . '%');
+                            $locationQuery->where('name', 'like', '%'.$word.'%');
                         });
                 });
             }
         });
 
         $workshops = $workshopQuery->orderBy('starts_at', 'desc')
-            ->paginate(6, ['*'], 'workshop');
+            ->paginate(6, ['*'], 'workshop')
+            ->onEachSide(1);
 
 //        $postQuery = Post::query()->where('status', 'published');
 //        $postQuery->where(function ($query) use ($search_words) {
@@ -51,7 +65,7 @@ class SearchController extends Controller
         return view('search', [
             'workshops' => $workshops,
 //            'posts'     => $posts,
-            'search'    => $search,
+            'search' => $search,
         ]);
     }
 }

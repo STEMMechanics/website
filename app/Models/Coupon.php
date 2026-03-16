@@ -144,24 +144,24 @@ class Coupon extends Model
     public function ineligibilityReason(float $subtotal, ?User $user = null, ?string $billingEmail = null): ?string
     {
         if ((string) $this->status !== self::STATUS_ACTIVE) {
-            return 'That coupon is not active.';
+            return 'That voucher is not active.';
         }
 
         if (! $this->isAvailableNow()) {
-            return 'That coupon is not available right now.';
+            return 'That voucher is not available right now.';
         }
 
         $minimum = $this->minimum_order_amount;
         if ($minimum !== null && $subtotal + 0.0001 < (float) $minimum) {
-            return 'That coupon requires a minimum order of $'.number_format((float) $minimum, 2).'.';
+            return 'That voucher requires a minimum order of $'.number_format((float) $minimum, 2).'.';
         }
 
         if ($this->usage_limit !== null && $this->redeemedCount() >= (int) $this->usage_limit) {
-            return 'That coupon has reached its usage limit.';
+            return 'That voucher has reached its usage limit.';
         }
 
         if ($this->usage_limit_per_user !== null && $this->redeemedCountFor($user, $billingEmail) >= (int) $this->usage_limit_per_user) {
-            return 'You have already used that coupon the maximum number of times.';
+            return 'You have already used that voucher the maximum number of times.';
         }
 
         return null;

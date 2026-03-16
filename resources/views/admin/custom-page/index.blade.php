@@ -28,7 +28,9 @@
                 <x-slot:body>
                     @foreach($pages as $page)
                         <tr>
-                            <td>{{ $page->title }}</td>
+                            <td>
+                                <a href="{{ route('admin.custom-page.edit', $page) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $page->title }}</a>
+                            </td>
                             <td class="hidden md:table-cell"><a href="{{ url($page->path) }}" class="font-mono text-primary-color hover:underline">{{ $page->path }}</a></td>
                             <td class="hidden md:table-cell">{{ $page->is_published ? 'Published' : 'Draft' }}</td>
                             <td class="hidden lg:table-cell">{{ $page->updated_at?->format('j M Y g:i a') ?? '-' }}</td>

@@ -56,7 +56,9 @@
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
                 @endphp
                 <tr>
-                    <td class="!text-center">{{ $customerPayment->id }}</td>
+                    <td class="!text-center">
+                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $customerPayment->id }}</a>
+                    </td>
                     <td class="">
                         <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
@@ -91,7 +93,9 @@
                 $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
                 @endphp
                 <tr class="bg-gray-50">
-                    <td class="!text-center">{{ $refund->id }}</td>
+                    <td class="!text-center">
+                        <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $refund->id }}</a>
+                    </td>
                     <td>
                         <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>

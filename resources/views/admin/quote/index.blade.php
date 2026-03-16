@@ -26,7 +26,7 @@
                     @foreach ($quotes as $quote)
                         <tr>
                             <td>
-                                <div>{{ $quote->quote_number }}</div>
+                                <a href="{{ route('admin.quote.edit', $quote) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $quote->quote_number }}</a>
                                 @if(trim((string) ($quote->title ?? '')) !== '')
                                     <div class="text-xs text-gray-600 mt-1">{{ $quote->title }}</div>
                                 @endif

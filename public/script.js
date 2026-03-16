@@ -503,25 +503,54 @@ let SM = {
         });
     },
 
-    upload: (files, callback, titles = []) => {
+    upload: (files, callback, titles = [], options = {}) => {
         let uploadedFiles = [];
+        const showModal = options.showModal !== false;
+        const successDelayMs = Number.isFinite(Number(options.successDelayMs))
+            ? Math.max(0, Number(options.successDelayMs))
+            : (showModal ? 3000 : 0);
+        const onStart = typeof options.onStart === 'function' ? options.onStart : null;
+        const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
+        const onSuccess = typeof options.onSuccess === 'function' ? options.onSuccess : null;
+        const onError = typeof options.onError === 'function' ? options.onError : null;
 
         if(files.length === 0) {
             return;
         }
 
-        const data = {
-            title: "Checking...",
-            text: "Please wait",
-            imageUrl: "/loading.gif",
-            imageHeight: 100,
-            showConfirmButton: false,
-            allowOutsideClick: false,
-            allowEscapeKey: false,
+        if (onStart) {
+            onStart({
+                files,
+                count: files.length,
+            });
         }
-        Swal.fire(data);
+
+        if (showModal) {
+            const data = {
+                title: "Checking...",
+                text: "Please wait",
+                imageUrl: "/loading.gif",
+                imageHeight: 100,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+            };
+            Swal.fire(data);
+        }
 
         const showError = (message) => {
+            if (onError) {
+                onError(message);
+            }
+
+            if (!showModal) {
+                if(callback) {
+                    callback({ success: false, message });
+                }
+
+                return;
+            }
+
             Swal.fire({
                 position: 'top',
                 icon: 'error',
@@ -531,7 +560,7 @@ let SM = {
                 confirmButtonColor: '#b91c1c',
             }).then(() => {
                 if(callback) {
-                    callback({success: false});
+                    callback({ success: false, message });
                 }
             });
         }
@@ -540,7 +569,7 @@ let SM = {
             if (file.size > SM.maxUploadSize()) {
                 const size = SM.bytesToString(file.size);
                 const maxSize = SM.bytesToString(SM.maxUploadSize());
-                showError('The file size is too large (' + size + ').<br />Please upload a file less than ' + maxSize + '.');
+                showError('The file size is too large (' + size + '). Please upload a file less than ' + maxSize + '.');
                 return;
             }
         }
@@ -585,15 +614,29 @@ let SM = {
                         percent = Math.round(percent);
                     }
 
-                    let title = 'Uploading';
+                    let progressTitle = 'Uploading';
                     if(count > 1) {
-                        title += ' ' + (idx + 1) + ' of ' + count;
+                        progressTitle += ' ' + (idx + 1) + ' of ' + count;
                     }
 
-                    Swal.update({
-                        title: title + '...',
-                        html: `${file.name} - ${percent}%`,
-                    });
+                    if (showModal) {
+                        Swal.update({
+                            title: progressTitle + '...',
+                            html: `${file.name} - ${percent}%`,
+                        });
+                    }
+
+                    if (onProgress) {
+                        onProgress({
+                            file,
+                            title,
+                            index: idx,
+                            count,
+                            percent: Number(percent),
+                            loaded: start + progressEvent.loaded,
+                            total: file.size,
+                        });
+                    }
                 }
             }).then((response) => {
                 if (response.status === 200) {
@@ -605,19 +648,27 @@ let SM = {
                         uploadedFiles.push({ file: file, title: title, data: response.data });
 
                         if (idx === count - 1) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Success',
-                                html: count > 1 ? `Uploaded ${count} files successfully` : `${response.data.name || file.name} uploaded successfully`,
-                                showConfirmButton: false,
-                                timer: 3000
-                            });
+                            const successPayload = { success: true, files: uploadedFiles };
 
-                            if (callback) {
-                                window.setTimeout(() => {
-                                    callback({ success: true, files: uploadedFiles });
-                                }, 3000);
+                            if (showModal) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Success',
+                                    html: count > 1 ? `Uploaded ${count} files successfully` : `${response.data.name || file.name} uploaded successfully`,
+                                    showConfirmButton: false,
+                                    timer: successDelayMs || 3000
+                                });
                             }
+
+                            window.setTimeout(() => {
+                                if (onSuccess) {
+                                    onSuccess(successPayload);
+                                }
+
+                                if (callback) {
+                                    callback(successPayload);
+                                }
+                            }, successDelayMs);
 
                             return;
                         } else {
@@ -692,7 +743,7 @@ let SM = {
     },
 
     mediaDetails: (name, callback) => {
-        axios.get('/media/' + name, {
+        axios.get('/media/' + encodeURIComponent(name), {
             headers: {
                 'Accept': 'application/json'
             }
@@ -786,6 +837,9 @@ let SM = {
             showUrl: '/shop/cart',
             updateUrl: '/shop/cart/update',
             removeUrl: '/shop/cart/remove',
+            preferencesUrl: '/shop/cart/preferences',
+            couponApplyUrl: '/shop/cart/coupon',
+            couponRemoveUrl: '/shop/cart/coupon/remove',
         },
         state: {
             shipping_country: 'Australia',
@@ -899,6 +953,37 @@ let SM = {
             }
 
             return fallback;
+        },
+
+        setFormInput(form, name, value) {
+            if (!(form instanceof HTMLFormElement)) {
+                return null;
+            }
+
+            const resolvedName = typeof name === 'string' ? name.trim() : '';
+            if (resolvedName === '') {
+                return null;
+            }
+
+            const existingInput = Array.from(form.elements || []).find((field) => (
+                field instanceof HTMLInputElement
+                && field.type === 'hidden'
+                && field.name === resolvedName
+            ));
+
+            const input = existingInput instanceof HTMLInputElement
+                ? existingInput
+                : document.createElement('input');
+
+            if (!existingInput) {
+                input.type = 'hidden';
+                input.name = resolvedName;
+                form.appendChild(input);
+            }
+
+            input.value = String(value ?? '');
+
+            return input;
         },
 
         lineByKey(lineKey, state = null) {
@@ -1025,124 +1110,166 @@ let SM = {
             document.head.appendChild(style);
         },
 
-        showAddSheet(line, options = {}) {
-            const reviewUrl = options.reviewUrl || this.state.cart_url || '/shop/cart';
-            const itemTitle = options.itemTitle
-                || line?.display_title
-                || line?.product?.title
-                || 'Item';
-            const itemImageUrl = options.imageUrl
-                || line?.product?.image_url
-                || '';
+        async confirmPreorder(options = {}) {
+            const itemTitle = String(options.itemTitle || 'This item').trim() || 'This item';
+            const shippingEstimate = String(options.shippingEstimate || '').trim();
+            const confirmText = String(options.confirmText || 'Add to cart').trim() || 'Add to cart';
+            const cancelText = String(options.cancelText || 'Cancel').trim() || 'Cancel';
+            const acknowledgementText = String(options.acknowledgementText || 'I understand this item is a pre-order and my order will ship when it becomes available.').trim()
+                || 'I understand this item is a pre-order and my order will ship when it becomes available.';
 
             if (typeof Swal === 'undefined') {
-                this.showSuccess(options.fallbackMessage || 'Added to cart.');
+                return window.confirm(
+                    shippingEstimate !== ''
+                        ? `${itemTitle} is a pre-order item expected to ship ${shippingEstimate}. Continue?`
+                        : `${itemTitle} is a pre-order item and will ship when it becomes available. Continue?`,
+                );
+            }
+
+            const checkboxId = `sm-preorder-ack-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+            const shippingHtml = shippingEstimate !== ''
+                ? `
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.9rem;border-radius:1rem;border:1px solid #cbd5e1;background:#f8fafc;padding:0.95rem 1rem;">
+                        <div style="font-size:0.85rem;font-weight:700;color:#0f172a;">Estimated shipping date</div>
+                        <div style="font-size:0.95rem;color:#334155;">${SM.escapeHtml(shippingEstimate)}</div>
+                    </div>
+                `
+                : '';
+
+            const result = await Swal.fire({
+                title: itemTitle,
+                html: `
+                    <div style="text-align:left;">
+                        <div style="margin-top:0.75rem;font-size:0.97rem;line-height:1.6;color:#374151;">
+                            <span class="font-bold">Pre-order notice:</span> This item is not yet instock or available.
+                        </div>
+                        ${shippingHtml}
+                        <label for="${checkboxId}" style="margin-top:1rem;display:flex;align-items:flex-start;gap:0.85rem;border-radius:1rem;border:1px solid #d1d5db;background:#f9fafb;padding:1rem;cursor:pointer;">
+                            <input id="${checkboxId}" type="checkbox" data-preorder-ack style="margin-top:0.15rem;height:1.1rem;width:1.1rem;border-radius:0.25rem;">
+                            <span style="font-size:0.95rem;line-height:1.5;color:#374151;">${SM.escapeHtml(acknowledgementText)}</span>
+                        </label>
+                    </div>
+                `,
+                showCancelButton: true,
+                focusConfirm: false,
+                allowOutsideClick: true,
+                confirmButtonText: confirmText,
+                cancelButtonText: cancelText,
+                reverseButtons: true,
+                buttonsStyling: false,
+                customClass: {
+                    popup: 'w-full! max-w-xl! rounded-3xl! p-6! text-left',
+                    actions: 'flex w-full flex-col gap-3 sm:flex-row sm:justify-end',
+                    confirmButton: 'inline-flex items-center justify-center rounded-md bg-orange-500 px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-orange-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-500 disabled:cursor-not-allowed disabled:bg-orange-300 disabled:opacity-60 disabled:shadow-none',
+                    cancelButton: 'inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-8 py-1.5 text-sm font-semibold leading-6 text-slate-900! shadow-sm transition hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-300',
+                    validationMessage: '!mt-3 !rounded-xl !border !border-red-200 !bg-red-50 !px-4 !py-3 !text-left !text-sm !text-red-700',
+                },
+                didOpen: (popup) => {
+                    const checkbox = popup.querySelector('[data-preorder-ack]');
+                    const confirmButton = Swal.getConfirmButton();
+                    const syncConfirmState = () => {
+                        if (checkbox instanceof HTMLInputElement && checkbox.checked && typeof Swal.resetValidationMessage === 'function') {
+                            Swal.resetValidationMessage();
+                        }
+
+                        if (confirmButton instanceof HTMLButtonElement) {
+                            const isEnabled = checkbox instanceof HTMLInputElement && checkbox.checked;
+                            confirmButton.disabled = !isEnabled;
+                            confirmButton.setAttribute('aria-disabled', isEnabled ? 'false' : 'true');
+                        }
+                    };
+
+                    syncConfirmState();
+                    checkbox?.addEventListener('change', syncConfirmState);
+                },
+                preConfirm: () => {
+                    const checkbox = Swal.getPopup()?.querySelector('[data-preorder-ack]');
+
+                    if (!(checkbox instanceof HTMLInputElement) || !checkbox.checked) {
+                        Swal.showValidationMessage('Please confirm you understand the pre-order shipping timing before continuing.');
+                        return false;
+                    }
+
+                    return true;
+                },
+            });
+
+            return Boolean(result.isConfirmed);
+        },
+
+        showAddSheet(line, options = {}) {
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+                window.dispatchEvent(new CustomEvent('shop-cart-open'));
                 return Promise.resolve(null);
             }
 
-            this.ensureAddSheetStyles();
+            this.showSuccess(options.fallbackMessage || 'Added to cart.');
+            return Promise.resolve(null);
+        },
 
-            const imageHtml = itemImageUrl !== ''
-                ? `<div style="display:flex;height:96px;width:96px;align-items:center;justify-content:center;overflow:hidden;border-radius:1.25rem;background:#ffffff;"><img src="${SM.escapeHtml(itemImageUrl)}" alt="${SM.escapeHtml(itemTitle)}" style="max-height:100%;max-width:100%;object-fit:cover;"></div>`
-                : '';
-            let outsidePointerHandler = null;
-            let bindOutsidePointerTimer = null;
+        stripNonNumericQuantityInput(input) {
+            if (!(input instanceof HTMLInputElement)) {
+                return '';
+            }
 
-            return Swal.fire({
-                position: 'bottom',
-                toast: true,
-                showConfirmButton: false,
-                allowOutsideClick: true,
-                allowEscapeKey: true,
-                backdrop: false,
-                width: 'min(72rem, calc(100vw - 1rem))',
-                padding: 0,
-                customClass: {
-                    container: 'sm-shop-add-sheet-container',
-                    popup: 'sm-shop-add-sheet-popup',
-                },
-                showClass: {
-                    popup: 'sm-shop-add-sheet-popup-show',
-                },
-                hideClass: {
-                    popup: 'sm-shop-add-sheet-popup-hide',
-                },
-                html: `
-                    <div style="position:relative;padding:.5rem;text-align:left;">
-                        <button
-                            type="button"
-                            aria-label="Close"
-                            data-shop-add-sheet-close
-                            x-data="{ hover:false }"
-                            @mouseenter="hover=true"
-                            @mouseleave="hover=false"
-                            :style="'position:absolute;top:.5rem;right:.5rem;display:inline-flex;font-size:1rem;color:' + (hover ? '#EF4444' : '#1f2937')"
-                        >
-                            <span aria-hidden="true"><i class="fa-solid fa-close"></i></span>
-                        </button>
-                        <div style="display:flex;align-items:center;gap:1rem;">
-                            ${imageHtml}
-                            <div style="min-width:0;flex:1;">
-                                <div style="display:flex;align-items:center;gap:0.75rem;font-size:1.1rem;font-weight:700;color:#1f2937;">
-                                    <span aria-hidden="true" style="display:inline-flex;height:1.9rem;width:1.9rem;align-items:center;justify-content:center;border-radius:999px;background:rgba(2, 132, 199, 0.12);color:#0f766e;font-size:1.1rem;">✓</span>
-                                    <span>Item added to your cart</span>
-                                </div>
-                                <div style="margin-top:0.5rem;font-size:1.05rem;color:#1f2937;">${SM.escapeHtml(itemTitle)}</div>
-                            </div>
-                        </div>
-                        <div style="margin-top:1rem;display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:1rem;">
-                            <button type="button" data-shop-add-sheet-continue style="height:2.5rem;border-radius:.25rem;border:1px solid #1f2937;background:#ffffff;font-weight:700;color:#1f2937;">Continue shopping</button>
-                            <button type="button" data-shop-add-sheet-review style="height:2.5rem;border-radius:.25rem;border:0;background:#0284c7;font-weight:700;color:#ffffff;">Review cart</button>
-                        </div>
-                    </div>
-                `,
-                didOpen: (popup) => {
-                    popup.style.borderRadius = '2rem';
-                    popup.style.background = '#f3f4f6';
-                    popup.style.boxShadow = '0 -18px 48px rgba(15, 23, 42, 0.22)';
-                    popup.style.pointerEvents = 'auto';
+            const sanitizedValue = String(input.value ?? '').replace(/\D+/g, '');
+            if (input.value !== sanitizedValue) {
+                input.value = sanitizedValue;
+            }
 
-                    popup.querySelector('[data-shop-add-sheet-close]')?.addEventListener('click', () => {
-                        Swal.close();
-                    });
+            return sanitizedValue;
+        },
 
-                    popup.querySelector('[data-shop-add-sheet-continue]')?.addEventListener('click', () => {
-                        Swal.close();
-                    });
-
-                    popup.querySelector('[data-shop-add-sheet-review]')?.addEventListener('click', () => {
-                        Swal.close();
-                        SM.redirectIfSafe(reviewUrl);
-                    });
-
-                    bindOutsidePointerTimer = window.setTimeout(() => {
-                        outsidePointerHandler = (event) => {
-                            const target = event?.target;
-                            if (!(target instanceof Node)) {
-                                return;
-                            }
-                            if (popup.contains(target)) {
-                                return;
-                            }
-
-                            Swal.close();
-                        };
-
-                        document.addEventListener('pointerdown', outsidePointerHandler, true);
-                    }, 0);
-                },
-                willClose: () => {
-                    if (bindOutsidePointerTimer !== null) {
-                        window.clearTimeout(bindOutsidePointerTimer);
-                        bindOutsidePointerTimer = null;
-                    }
-
-                    if (typeof outsidePointerHandler === 'function') {
-                        document.removeEventListener('pointerdown', outsidePointerHandler, true);
-                        outsidePointerHandler = null;
-                    }
-                },
+        prepareQuantityUpdate(quantity, options = {}) {
+            const max = Number.parseInt(String(options.max ?? 99), 10) || 99;
+            const fallbackQuantity = SM.toBoundedInt(options.fallbackQuantity ?? 1, {
+                min: 1,
+                max,
+                allowNull: false,
             });
+            const input = options.input instanceof HTMLInputElement ? options.input : null;
+
+            if (input) {
+                const sanitizedValue = this.stripNonNumericQuantityInput(input);
+                if (sanitizedValue === '') {
+                    input.value = String(fallbackQuantity);
+
+                    return {
+                        quantity: fallbackQuantity,
+                        shouldSubmit: false,
+                        value: String(fallbackQuantity),
+                    };
+                }
+
+                const nextQuantity = SM.toBoundedInt(sanitizedValue, {
+                    min: 0,
+                    max,
+                    allowNull: false,
+                });
+                const normalizedValue = String(nextQuantity);
+                input.value = normalizedValue;
+
+                return {
+                    quantity: nextQuantity,
+                    shouldSubmit: nextQuantity !== fallbackQuantity,
+                    value: normalizedValue,
+                };
+            }
+
+            const sourceQuantity = typeof quantity === 'string'
+                ? quantity.replace(/\D+/g, '')
+                : quantity;
+            const nextQuantity = SM.toBoundedInt(sourceQuantity, {
+                min: 0,
+                max,
+                allowNull: false,
+            });
+
+            return {
+                quantity: nextQuantity,
+                shouldSubmit: nextQuantity !== fallbackQuantity,
+                value: String(nextQuantity),
+            };
         },
 
         quantitiesFormData(overrides = {}, shippingCountry = null) {
@@ -1207,7 +1334,9 @@ let SM = {
                 }
                 return payload;
             } catch (error) {
-                this.showError(error.message || 'Unable to update the item quantity.');
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to update the item quantity.');
+                }
                 throw error;
             }
         },
@@ -1228,12 +1357,101 @@ let SM = {
                 }
                 return payload;
             } catch (error) {
-                this.showError(error.message || 'Unable to remove that item right now.');
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to remove that item right now.');
+                }
                 throw error;
             }
         },
 
-        async refresh(shippingCountry = null) {
+        async updatePreferences(options = {}) {
+            try {
+                const data = new FormData();
+                const shippingMethodCode = String(options.shippingMethodCode ?? this.state?.summary?.shipping_method_code ?? '').trim();
+                const shippingCountry = String(options.shippingCountry || this.state.shipping_country || 'Australia').trim() || 'Australia';
+
+                if (shippingMethodCode !== '') {
+                    data.append('shipping_method_code', shippingMethodCode);
+                }
+                data.append('consolidate_shipments', options.consolidateShipments ? '1' : '0');
+                data.append('shipping_country', shippingCountry);
+
+                const payload = await this.request(this.config.preferencesUrl, {
+                    method: 'POST',
+                    body: data,
+                });
+                this.setState(payload.cart || {});
+                if (options.showNotice !== false) {
+                    this.showSuccess(payload.message || 'Delivery options updated.');
+                }
+                return payload;
+            } catch (error) {
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to update delivery options right now.');
+                }
+                throw error;
+            }
+        },
+
+        async applyCoupon(options = {}) {
+            try {
+                const data = new FormData();
+                const couponCode = String(options.couponCode || '').trim();
+                const shippingCountry = String(options.shippingCountry || this.state.shipping_country || 'Australia').trim() || 'Australia';
+                const returnTo = String(options.returnTo || '').trim();
+
+                data.append('coupon_code', couponCode);
+                data.append('shipping_country', shippingCountry);
+                if (returnTo !== '') {
+                    data.append('return_to', returnTo);
+                }
+
+                const payload = await this.request(this.config.couponApplyUrl, {
+                    method: 'POST',
+                    body: data,
+                });
+                this.setState(payload.cart || {});
+                if (options.showNotice !== false) {
+                    this.showSuccess(payload.message || 'Voucher applied successfully.');
+                }
+                return payload;
+            } catch (error) {
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to update the voucher right now.');
+                }
+                throw error;
+            }
+        },
+
+        async removeCoupon(options = {}) {
+            try {
+                const data = new FormData();
+                const shippingCountry = String(options.shippingCountry || this.state.shipping_country || 'Australia').trim() || 'Australia';
+                const returnTo = String(options.returnTo || '').trim();
+
+                data.append('shipping_country', shippingCountry);
+                if (returnTo !== '') {
+                    data.append('return_to', returnTo);
+                }
+
+                const payload = await this.request(this.config.couponRemoveUrl, {
+                    method: 'POST',
+                    body: data,
+                });
+                this.setState(payload.cart || {});
+                if (options.showNotice !== false) {
+                    this.showSuccess(payload.message || 'Voucher removed.');
+                }
+                return payload;
+            } catch (error) {
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to remove the voucher right now.');
+                }
+                throw error;
+            }
+        },
+
+        async refresh(shippingCountry = null, options = {}) {
             try {
                 const url = new URL(this.config.showUrl, window.location.origin);
                 url.searchParams.set('shipping_country', shippingCountry || this.state.shipping_country || 'Australia');
@@ -1243,7 +1461,9 @@ let SM = {
                 this.setState(payload.cart || {});
                 return payload;
             } catch (error) {
-                this.showError(error.message || 'Unable to refresh the cart.');
+                if (options.showError !== false) {
+                    this.showError(error.message || 'Unable to refresh the cart.');
+                }
                 throw error;
             }
         },

@@ -69,6 +69,7 @@ Route::middleware('shop.public')->group(function () {
     Route::get('/store', [ShopController::class, 'index'])->name('shop.index');
     Route::get('/store/cart', [ShopController::class, 'cart'])->name('shop.cart.show');
     Route::post('/store/cart/update', [ShopController::class, 'updateCart'])->name('shop.cart.update');
+    Route::post('/store/cart/preferences', [ShopController::class, 'updateCartPreferences'])->name('shop.cart.preferences');
     Route::post('/store/cart/remove', [ShopController::class, 'removeFromCart'])->name('shop.cart.remove');
     Route::post('/store/cart/coupon', [ShopController::class, 'applyCoupon'])->name('shop.cart.coupon.apply');
     Route::post('/store/cart/coupon/remove', [ShopController::class, 'removeCoupon'])->name('shop.cart.coupon.remove');
@@ -80,9 +81,10 @@ Route::middleware('shop.public')->group(function () {
     Route::get('/store/{product}', [ShopController::class, 'show'])->name('shop.product.show');
 });
 
-Route::get('/store/orders/{storeOrder}/{accessToken}', [StoreOrderController::class, 'publicShow'])->name('shop.order.show');
-Route::post('/store/orders/{storeOrder}/{accessToken}/pay', [StoreOrderController::class, 'publicPay'])->name('shop.order.pay');
-Route::get('/store/orders/{storeOrder}/{accessToken}/downloads/{storeOrderItemDownload}', [StoreOrderController::class, 'publicDownload'])->name('shop.order.download');
+Route::get('/tracking/{accessToken}', [StoreOrderController::class, 'trackingShow'])->name('shop.order.tracking');
+Route::post('/tracking/{accessToken}/pay', [StoreOrderController::class, 'trackingPay'])->name('shop.order.tracking.pay');
+Route::get('/tracking/{accessToken}/downloads/{storeOrderItemDownload}', [StoreOrderController::class, 'trackingDownload'])->name('shop.order.tracking.download');
+Route::post('/tracking/{accessToken}/downloads/{storeOrderItemDownload}/verify', [StoreOrderController::class, 'trackingVerifyDownload'])->name('shop.order.tracking.download.verify');
 
 Route::redirect('/shop', '/store', 302);
 Route::redirect('/shop/{path}', '/store/{path}', 302)->where('path', '.*');
@@ -414,6 +416,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/orders', [ShopAdminOrderController::class, 'index'])->name('admin.shop.order.index');
     Route::get('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'edit'])->name('admin.shop.order.edit');
     Route::put('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'update'])->name('admin.shop.order.update');
+    Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/cancel', [ShopAdminOrderController::class, 'cancelItem'])->name('admin.shop.order.item.cancel');
+    Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/tracking', [ShopAdminOrderController::class, 'storeItemTracking'])->name('admin.shop.order.item.tracking.store');
     Route::redirect('/admin/shop', '/admin/store', 302);
     Route::redirect('/admin/shop/{path}', '/admin/store/{path}', 302)->where('path', '.*');
     Route::get('/admin/pick-list-templates', [PickListTemplateController::class, 'index'])->name('admin.pick-list-template.index');

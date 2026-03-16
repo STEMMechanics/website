@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEmail;
+use App\Mail\WorkshopInterestAdminNotification;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
 use App\Models\Workshop;
 use App\Models\WorkshopInterest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class WorkshopInterestRegistrationTest extends TestCase
@@ -38,7 +41,7 @@ class WorkshopInterestRegistrationTest extends TestCase
         $this->get(route('workshop.show', $workshop))
             ->assertOk()
             ->assertSeeText("I'm Interested", false)
-            ->assertSeeText('2 interested so far', false);
+            ->assertSeeText('3 interested so far', false);
     }
 
     public function test_logged_in_interest_workshop_page_shows_direct_toggle_without_popup_fields(): void
@@ -62,6 +65,8 @@ class WorkshopInterestRegistrationTest extends TestCase
 
     public function test_guest_can_register_interest_and_creates_ghost_user(): void
     {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
         $workshop = $this->createInterestWorkshop();
 
         $response = $this->post(route('workshop.interest', $workshop), [
@@ -84,6 +89,13 @@ class WorkshopInterestRegistrationTest extends TestCase
             'email' => 'alex@example.com',
             'phone' => '0400000000',
         ]);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($workshop): bool {
+            return $job->to === 'ops@example.com'
+                && $job->mailable instanceof WorkshopInterestAdminNotification
+                && (string) $job->mailable->workshop->id === (string) $workshop->id
+                && $job->mailable->interest->email === 'alex@example.com';
+        });
     }
 
     public function test_guest_can_register_interest_without_phone(): void
@@ -113,6 +125,9 @@ class WorkshopInterestRegistrationTest extends TestCase
 
     public function test_logged_in_user_interest_uses_their_account_link_and_can_cancel(): void
     {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
+
         $user = User::factory()->create([
             'firstname' => 'Jamie',
             'surname' => 'Coder',
@@ -136,6 +151,13 @@ class WorkshopInterestRegistrationTest extends TestCase
             'phone' => '0411222333',
         ]);
 
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($workshop): bool {
+            return $job->to === 'ops@example.com'
+                && $job->mailable instanceof WorkshopInterestAdminNotification
+                && (string) $job->mailable->workshop->id === (string) $workshop->id
+                && $job->mailable->interest->email === 'jamie@example.com';
+        });
+
         $this->actingAs($user)
             ->post(route('workshop.interest', $workshop), [
                 'action' => 'remove',
@@ -151,6 +173,9 @@ class WorkshopInterestRegistrationTest extends TestCase
 
     public function test_guest_cannot_register_interest_twice_for_same_workshop(): void
     {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
+
         $workshop = $this->createInterestWorkshop();
 
         $this->post(route('workshop.interest', $workshop), [
@@ -174,6 +199,8 @@ class WorkshopInterestRegistrationTest extends TestCase
             'email' => 'alex@example.com',
             'phone' => '0400000000',
         ]);
+
+        Queue::assertPushed(SendEmail::class, 1);
     }
 
     /**

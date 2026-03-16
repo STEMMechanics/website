@@ -155,6 +155,15 @@ Schedule::command('database:backup --keep=336')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('store:orders:send-update-digests')
+    ->dailyAt('20:00')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
+
+Schedule::command('store:products:send-low-stock-alerts')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('minecraft:messages:send-failure-alerts')
     ->everyMinute()
     ->withoutOverlapping();

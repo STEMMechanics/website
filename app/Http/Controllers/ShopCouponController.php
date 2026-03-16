@@ -37,8 +37,8 @@ class ShopCouponController extends Controller
         $coupon = new Coupon();
         $this->saveCoupon($request, $coupon);
 
-        session()->flash('message', 'Coupon created.');
-        session()->flash('message-title', 'Coupon created');
+        session()->flash('message', 'Voucher created.');
+        session()->flash('message-title', 'Voucher created');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.shop.coupon.index');
@@ -55,8 +55,8 @@ class ShopCouponController extends Controller
     {
         $this->saveCoupon($request, $coupon);
 
-        session()->flash('message', 'Coupon updated.');
-        session()->flash('message-title', 'Coupon updated');
+        session()->flash('message', 'Voucher updated.');
+        session()->flash('message-title', 'Voucher updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
@@ -65,7 +65,7 @@ class ShopCouponController extends Controller
     public function destroy(Coupon $coupon): RedirectResponse
     {
         if ($coupon->orders()->exists()) {
-            session()->flash('message', 'This coupon has been used on orders and cannot be deleted. Set it to inactive instead.');
+            session()->flash('message', 'This voucher has been used on orders and cannot be deleted. Set it to inactive instead.');
             session()->flash('message-title', 'Delete blocked');
             session()->flash('message-type', 'danger');
 
@@ -74,8 +74,8 @@ class ShopCouponController extends Controller
 
         $coupon->delete();
 
-        session()->flash('message', 'Coupon deleted.');
-        session()->flash('message-title', 'Coupon deleted');
+        session()->flash('message', 'Voucher deleted.');
+        session()->flash('message-title', 'Voucher deleted');
         session()->flash('message-type', 'success');
 
         return redirect()->route('admin.shop.coupon.index');

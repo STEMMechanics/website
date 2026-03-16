@@ -28,7 +28,7 @@
                             <td class="flex items-center">
                                 <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
                                 <div>
-                                    <div class="whitespace-normal">{{ $workshop->title }}</div>
+                                    <a href="{{ route('admin.workshop.edit', $workshop) }}" class="whitespace-normal font-semibold text-gray-900 hover:text-primary-color">{{ $workshop->title }}</a>
                                     <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->publicStatusLabel() }})</div>
                                     <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
                                     @if($workshop->pick_list_template_id && $workshop->pick_list_canvas_thumbnail_path)

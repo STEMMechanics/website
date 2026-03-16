@@ -23,7 +23,7 @@ class AdminShopCouponTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.coupon.create'))
             ->assertOk()
-            ->assertSee('Create Coupon');
+            ->assertSee('Create Voucher');
 
         $this->actingAs($admin)
             ->post(route('admin.shop.coupon.store'), [

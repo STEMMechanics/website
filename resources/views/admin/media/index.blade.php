@@ -58,7 +58,9 @@
                                         @endif
                                     </div>
                                     <div>
-                                        <div class="whitespace-normal">{{ $medium->title }}{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}</div>
+                                        <a href="{{ route('admin.media.edit', $medium) }}" class="whitespace-normal font-semibold text-gray-900 hover:text-primary-color">
+                                            {{ $medium->title }}
+                                        </a>{!! $medium->password !== null ? '<i class="fa-solid fa-lock text-xs text-gray-400 ml-0.5 -translate-y-1.5 scale-75"></i>': '' !!}
                                         <div class="md:hidden text-xs text-gray-500">{{ $medium->file_type }}</div>
                                         <div class="lg:hidden text-xs text-gray-500">{{ $medium->user?->username ?: $medium->user?->email ?: 'Unassigned' }}</div>
                                         <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($medium->created_at)->format('j/m/Y') }} - {{ \App\Helpers::bytesToString($medium->size) }}</div>

@@ -85,7 +85,7 @@
                 <td>
                     @foreach($column as $row)
                         <div class="line">
-                            <div><span class="box"></span>{{ $row['quantity_text'] }} x {{ \Illuminate\Support\Str::plural((string) $row['item_name'], (int) $row['quantity']) }}</div>
+                            <div><span class="box"></span>{{ $row['quantity_text'] }} x {{ \App\Support\ItemLabelFormatter::forQuantity((string) ($row['item_name'] ?? ''), (int) ($row['quantity'] ?? 0)) }}</div>
                             @php
                                 $typeNoteHtml = $renderMarkdown((string) ($row['type_note'] ?? ''));
                             @endphp

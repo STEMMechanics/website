@@ -20,8 +20,15 @@ class ProductFactory extends Factory
             'sku' => 'SKU-'.fake()->unique()->numerify('####'),
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'is_preorder' => false,
+            'preorder_shipping_estimate' => null,
+            'allow_backorder' => false,
+            'backorder_shipping_estimate' => null,
             'short_description' => fake()->sentence(),
             'description' => fake()->paragraph(),
+            'base_variant_name' => null,
+            'base_variant_description' => null,
+            'private_notes' => null,
             'hero_media_name' => null,
             'price' => fake()->randomFloat(2, 5, 150),
             'compare_at_price' => null,
@@ -37,6 +44,8 @@ class ProductFactory extends Factory
             'height_cm' => null,
             'is_featured' => false,
             'sort_order' => 0,
+            'low_stock_threshold' => 5,
+            'low_stock_alert_sent_at' => null,
         ];
     }
 }

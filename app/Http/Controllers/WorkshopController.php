@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
+use App\Mail\WorkshopInterestAdminNotification;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
 use App\Models\Payment;
@@ -199,8 +200,13 @@ class WorkshopController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Workshop $workshop, WorkshopTicketService $ticketService)
+    public function show(Request $request, Workshop $workshop, WorkshopTicketService $ticketService)
     {
+        $requestedSlug = trim((string) $request->segment(2));
+        if ($requestedSlug !== '' && $requestedSlug !== (string) $workshop->slug) {
+            return redirect()->route('workshop.show', $workshop, 301);
+        }
+
         if (! (bool) (auth()->user()?->isAdmin() ?? false) && ! $workshop->isPubliclyVisible()) {
             abort(404);
         }
@@ -448,7 +454,7 @@ class WorkshopController extends Controller
                 return redirect()->route('workshop.show', $workshop);
             }
 
-            WorkshopInterest::query()->firstOrCreate(
+            $interest = WorkshopInterest::query()->firstOrCreate(
                 [
                     'workshop_id' => $workshop->id,
                     'user_id' => $user->id,
@@ -459,6 +465,10 @@ class WorkshopController extends Controller
                     'phone' => trim((string) ($user->phone ?? '')),
                 ],
             );
+
+            if ($interest->wasRecentlyCreated) {
+                $this->notifyAdminOfWorkshopInterest($workshop, $interest);
+            }
 
             session()->flash('message', 'Thanks, your interest has been recorded.');
             session()->flash('message-title', 'Interest recorded');
@@ -502,7 +512,7 @@ class WorkshopController extends Controller
             ]);
         }
 
-        WorkshopInterest::query()->create([
+        $interest = WorkshopInterest::query()->create([
             'workshop_id' => $workshop->id,
             'user_id' => $userId,
             'name' => $name,
@@ -510,11 +520,47 @@ class WorkshopController extends Controller
             'phone' => $phone,
         ]);
 
+        $this->notifyAdminOfWorkshopInterest($workshop, $interest);
+
         session()->flash('message', 'Thanks, your interest has been recorded.');
         session()->flash('message-title', 'Interest recorded');
         session()->flash('message-type', 'success');
 
         return redirect()->route('workshop.show', $workshop);
+    }
+
+    private function notifyAdminOfWorkshopInterest(Workshop $workshop, WorkshopInterest $interest): void
+    {
+        $recipients = $this->workshopInterestAdminRecipients();
+        if ($recipients === []) {
+            return;
+        }
+
+        $workshop->loadMissing('location');
+        $adminUrl = route('admin.workshop.edit', $workshop);
+        $publicUrl = route('workshop.show', $workshop);
+
+        foreach ($recipients as $recipient) {
+            dispatch(new SendEmail(
+                $recipient,
+                new WorkshopInterestAdminNotification($workshop, $interest, $adminUrl, $publicUrl)
+            ))->onQueue('mail');
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function workshopInterestAdminRecipients(): array
+    {
+        $configured = preg_split('/[;,]+/', (string) config('mail.admin_bcc', 'admin@stemmechanics.com.au')) ?: [];
+
+        return collect($configured)
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function admin_tickets(Workshop $workshop, Request $request)

@@ -4,11 +4,12 @@ namespace Tests\Unit;
 
 use App\Models\Product;
 use App\Services\StoreShippingService;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class StoreShippingServiceTest extends TestCase
 {
-    public function test_it_packs_small_items_into_the_smallest_satchel(): void
+    public function test_it_packs_small_items_into_the_smallest_package(): void
     {
         $quote = $this->service()->quote(collect([
             $this->line('Microbit', [
@@ -20,7 +21,7 @@ class StoreShippingServiceTest extends TestCase
 
         $this->assertTrue($quote['can_checkout']);
         $this->assertFalse($quote['boxed_shipping_required']);
-        $this->assertSame('1 x Small Satchel', $quote['package_summary']);
+        $this->assertSame('1 x Small', $quote['package_summary']);
         $this->assertSame(9.95, round((float) $quote['amount'], 2));
         $this->assertSame(1, (int) $quote['parcel_count']);
     }
@@ -41,7 +42,7 @@ class StoreShippingServiceTest extends TestCase
         ]));
 
         $this->assertTrue($quote['can_checkout']);
-        $this->assertSame('1 x Large Satchel', $quote['package_summary']);
+        $this->assertSame('1 x Large', $quote['package_summary']);
         $this->assertSame(15.95, round((float) $quote['amount'], 2));
         $this->assertSame('large', $quote['parcels'][0]['code']);
     }
@@ -57,12 +58,12 @@ class StoreShippingServiceTest extends TestCase
         ]));
 
         $this->assertTrue($quote['can_checkout']);
-        $this->assertSame('2 x Small Satchels', $quote['package_summary']);
+        $this->assertSame('2 x Small', $quote['package_summary']);
         $this->assertSame(19.90, round((float) $quote['amount'], 2));
         $this->assertSame(2, (int) $quote['parcel_count']);
     }
 
-    public function test_it_falls_back_to_boxed_shipping_for_box_only_items(): void
+    public function test_box_only_items_can_use_rigid_package_channels(): void
     {
         $quote = $this->service()->quote(collect([
             $this->line('Framed print', [
@@ -72,12 +73,13 @@ class StoreShippingServiceTest extends TestCase
             ]),
         ]));
 
-        $this->assertFalse($quote['can_checkout']);
-        $this->assertTrue($quote['boxed_shipping_required']);
-        $this->assertTrue($quote['requires_manual_quote']);
+        $this->assertTrue($quote['can_checkout']);
+        $this->assertFalse($quote['boxed_shipping_required']);
+        $this->assertSame('1 x Extra Large', $quote['package_summary']);
+        $this->assertSame(18.95, round((float) $quote['amount'], 2));
     }
 
-    public function test_it_falls_back_to_boxed_shipping_when_satchel_units_are_missing(): void
+    public function test_it_falls_back_to_boxed_shipping_when_package_units_are_missing(): void
     {
         $quote = $this->service()->quote(collect([
             $this->line('Unknown pack size', [
@@ -88,7 +90,101 @@ class StoreShippingServiceTest extends TestCase
 
         $this->assertFalse($quote['can_checkout']);
         $this->assertTrue($quote['boxed_shipping_required']);
-        $this->assertSame('Some physical products do not have satchel shipping units configured.', $quote['reason']);
+        $this->assertSame('Some physical products do not have package units configured.', $quote['reason']);
+    }
+
+    public function test_pickup_method_returns_a_free_quote(): void
+    {
+        $quote = $this->service()->quote(collect([
+            $this->line('Workshop kit', [
+                'shipping_units' => 1.0,
+                'min_satchel_rank' => 2,
+                'weight_grams' => 700,
+            ]),
+        ]), 'Australia', 'pickup');
+
+        $this->assertTrue($quote['can_checkout']);
+        $this->assertSame('pickup', $quote['selected_method_code']);
+        $this->assertSame('Pick up', $quote['method']);
+        $this->assertTrue($quote['is_pickup']);
+        $this->assertSame(0.00, round((float) $quote['amount'], 2));
+    }
+
+    public function test_express_method_uses_its_own_eta_and_rate_multiplier(): void
+    {
+        $quote = $this->service()->quote(collect([
+            $this->line('Workshop kit', [
+                'shipping_units' => 1.0,
+                'min_satchel_rank' => 1,
+                'weight_grams' => 700,
+            ]),
+        ]), 'Australia', 'express');
+
+        $this->assertTrue($quote['can_checkout']);
+        $this->assertSame('express', $quote['selected_method_code']);
+        $this->assertSame('Express shipping', $quote['method']);
+        $this->assertSame('1-3 business days', $quote['delivery_estimate_label']);
+        $this->assertSame(13.43, round((float) $quote['amount'], 2));
+    }
+
+    public function test_it_can_split_and_consolidate_delayed_shipments(): void
+    {
+        $lines = collect([
+            $this->line('Circuit kit', [
+                'shipping_units' => 0.5,
+                'min_satchel_rank' => 1,
+                'weight_grams' => 150,
+                'quantity' => 2,
+                'available_now_quantity' => 1,
+                'delayed_quantity' => 1,
+                'delayed_fulfilment_type' => 'backorder',
+                'delayed_shipping_estimate' => Carbon::parse('2026-04-20'),
+            ], 2),
+        ]);
+
+        $splitQuote = $this->service()->quote($lines, 'Australia', 'regular', false);
+        $consolidatedQuote = $this->service()->quote($lines, 'Australia', 'regular', true);
+
+        $this->assertTrue($splitQuote['split_shipments']);
+        $this->assertSame(2, (int) $splitQuote['shipment_count']);
+        $this->assertSame(9.95, round((float) $splitQuote['second_shipment_charge_amount'], 2));
+        $this->assertSame(9.95, round((float) $splitQuote['consolidation_savings_amount'], 2));
+        $this->assertSame(19.90, round((float) $splitQuote['amount'], 2));
+        $this->assertSame('Shipment 2: Ships later - Estimated April 20th 2026', $splitQuote['shipments'][1]['title']);
+        $this->assertSame('Shipment 2: Ships later', $splitQuote['shipments'][1]['title_primary']);
+        $this->assertSame('Estimated April 20th 2026', $splitQuote['shipments'][1]['title_meta']);
+        $this->assertArrayNotHasKey('shipping_estimate', $splitQuote['shipments'][0]['items'][0]);
+        $this->assertArrayNotHasKey('shipping_estimate', $splitQuote['shipments'][1]['items'][0]);
+
+        $this->assertFalse($consolidatedQuote['split_shipments']);
+        $this->assertTrue($consolidatedQuote['consolidate_shipments']);
+        $this->assertSame(1, (int) $consolidatedQuote['shipment_count']);
+        $this->assertSame(9.95, round((float) $consolidatedQuote['amount'], 2));
+        $this->assertSame(9.95, round((float) $consolidatedQuote['consolidation_savings_amount'], 2));
+        $this->assertSame('Single shipment once all items are available - Estimated April 20th 2026', $consolidatedQuote['shipments'][0]['title']);
+        $this->assertSame('Single shipment once all items are available', $consolidatedQuote['shipments'][0]['title_primary']);
+        $this->assertSame('Estimated April 20th 2026', $consolidatedQuote['shipments'][0]['title_meta']);
+    }
+
+    public function test_pickup_uses_collection_terminology_for_split_availability(): void
+    {
+        $lines = collect([
+            $this->line('Workshop kit', [
+                'shipping_units' => 0.5,
+                'min_satchel_rank' => 1,
+                'weight_grams' => 150,
+                'quantity' => 2,
+                'available_now_quantity' => 1,
+                'delayed_quantity' => 1,
+                'delayed_fulfilment_type' => 'backorder',
+            ], 2),
+        ]);
+
+        $quote = $this->service()->quote($lines, 'Australia', 'pickup', false);
+
+        $this->assertTrue($quote['is_pickup']);
+        $this->assertSame('Collection 1: Available now', $quote['shipments'][0]['title']);
+        $this->assertSame('Collection 2: Available later', $quote['shipments'][1]['title']);
     }
 
     private function service(): StoreShippingService
@@ -111,6 +207,12 @@ class StoreShippingServiceTest extends TestCase
             'unit_min_satchel_rank' => (int) ($attributes['min_satchel_rank'] ?? 1),
             'unit_weight_grams' => $attributes['weight_grams'] ?? null,
             'box_only' => (bool) ($attributes['box_only'] ?? false),
+            'available_now_quantity' => $attributes['available_now_quantity'] ?? $quantity,
+            'delayed_quantity' => $attributes['delayed_quantity'] ?? 0,
+            'delayed_fulfilment_type' => $attributes['delayed_fulfilment_type'] ?? null,
+            'delayed_shipping_estimate' => $attributes['delayed_shipping_estimate'] ?? null,
+            'is_preorder' => (bool) ($attributes['is_preorder'] ?? false),
+            'unit_price' => 0,
         ];
     }
 }

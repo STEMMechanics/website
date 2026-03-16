@@ -77,4 +77,21 @@ class ShopPublicAvailabilityTest extends TestCase
     {
         $this->get('/shop')->assertRedirect('/store');
     }
+
+    public function test_public_store_lists_free_digital_products_as_instant_downloads(): void
+    {
+        Product::factory()->create([
+            'title' => 'Digital Guide',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 0,
+        ]);
+
+        $this->get(route('shop.index'))
+            ->assertOk()
+            ->assertSeeText('Digital Guide')
+            ->assertSeeText('Free')
+            ->assertSeeText('Instant download after checkout')
+            ->assertDontSeeText('In stock');
+    }
 }

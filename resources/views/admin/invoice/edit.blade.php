@@ -58,11 +58,24 @@
     $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0
         ? max(0, min(100, round(($invoiceNetAllocatedAmount / $invoiceDueAmount) * 100, 1)))
         : 0.0;
-    $invoiceAllocations = isset($invoice)
+    $invoicePaymentRows = isset($invoice)
         ? $invoice->allocations
             ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
             ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $invoiceSettlementKind)
-            ->sortByDesc(fn ($allocation) => optional($allocation->customerPayment?->received_on)->timestamp ?? optional($allocation->customerPayment?->created_at)->timestamp ?? 0)
+            ->groupBy('payment_id')
+            ->map(function ($allocations) {
+                $payment = $allocations->first()?->customerPayment;
+
+                return [
+                    'payment' => $payment,
+                    'allocated_amount' => round((float) $allocations->sum('allocated_amount'), 2),
+                    'refunds' => $payment instanceof \App\Models\Payment
+                        ? $payment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0)->values()
+                        : collect(),
+                ];
+            })
+            ->sortByDesc(fn ($row) => optional($row['payment']?->received_on)->timestamp ?? optional($row['payment']?->created_at)->timestamp ?? 0)
+            ->values()
         : collect();
     $invoiceAdjustments = isset($invoice)
         ? $invoice->taxAdjustments->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0)
@@ -196,7 +209,7 @@
                 </div>
                 <div class="mt-3">
                     <h3 class="font-semibold mb-2">Associated Payments</h3>
-                    @if($invoiceAllocations->isEmpty())
+                    @if($invoicePaymentRows->isEmpty())
                         <div class="text-sm text-gray-500">No payments allocated to this invoice yet.</div>
                     @else
                         <div class="overflow-x-auto">
@@ -206,18 +219,23 @@
                                         <th class="text-left py-2 pr-3">Date</th>
                                         <th class="text-left py-2 pr-3">Payment #</th>
                                         <th class="text-left py-2 pr-3">Method</th>
-                                        <th class="text-right py-2 pr-3">Allocated</th>
+                                        <th class="text-right py-2 pr-3">Invoice Effect</th>
                                         <th class="text-left py-2">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($invoiceAllocations as $allocation)
-                                        @php $payment = $allocation->customerPayment; @endphp
+                                    @foreach($invoicePaymentRows as $row)
+                                        @php
+                                            $payment = $row['payment'];
+                                            $refunds = $row['refunds'];
+                                        @endphp
                                         <tr class="border-b border-gray-100">
                                             <td class="py-2 pr-3">{{ $payment?->received_on?->format('M j, Y g:i a') ?? $payment?->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
                                             <td class="py-2 pr-3">{{ $payment?->id ? '#'.$payment->id : '-' }}</td>
                                             <td class="py-2 pr-3">{{ $payment?->payment_method ? \App\Models\Payment::paymentMethodLabel((string) $payment->payment_method) : '-' }}</td>
-                                            <td class="py-2 pr-3 text-right">${{ number_format((float) $allocation->allocated_amount, 2) }}</td>
+                                            <td class="py-2 pr-3 text-right">
+                                                ${{ number_format((float) $row['allocated_amount'], 2) }}
+                                            </td>
                                             <td class="py-2">
                                                 @if($payment)
                                                     <a href="{{ route('admin.payment.edit', $payment) }}" class="hover:text-primary-color mr-2" title="Open payment"><i class="fa-solid fa-pen-to-square"></i></a>
@@ -228,6 +246,25 @@
                                                 @endif
                                             </td>
                                         </tr>
+                                        @foreach($refunds as $refund)
+                                            <tr class="border-b border-gray-100 bg-gray-50">
+                                                <td class="py-2 pr-3">{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
+                                                <td class="py-2 pr-3">
+                                                    #{{ $refund->id }}
+                                                    <div class="text-xs text-gray-500">Refund for #{{ $payment?->id ?? '-' }}</div>
+                                                </td>
+                                                <td class="py-2 pr-3">
+                                                    {{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}
+                                                    <div class="text-xs text-gray-500">Refund</div>
+                                                </td>
+                                                <td class="py-2 pr-3 text-right">-${{ number_format((float) $refund->total_amount, 2) }}</td>
+                                                <td class="py-2">
+                                                    <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color mr-2" title="Open refund record"><i class="fa-solid fa-pen-to-square"></i></a>
+                                                    <a href="{{ route('admin.payment.receipt', ['payment' => $refund]) }}" target="_blank" class="hover:text-primary-color mr-2" title="View refund receipt"><i class="fa-regular fa-file-lines"></i></a>
+                                                    <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="hover:text-primary-color" title="Download refund receipt"><i class="fa-solid fa-download"></i></a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
                                     @endforeach
                                 </tbody>
                             </table>

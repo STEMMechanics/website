@@ -30,6 +30,7 @@ $wrapperClasses = $noWrapper ? '' : 'mb-4';
             @if($disabled) disabled @endif
             @if($resolvedId) id="{{ $resolvedId }}" @endif
             @if($name) name="{{ $name }}" @endif
+            @if(!$attributes->has('value')) value="1" @endif
             class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
             {{ $attributes->except('class') }} />
 

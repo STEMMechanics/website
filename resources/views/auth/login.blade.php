@@ -7,7 +7,7 @@
 @endphp
 
 <x-layout :bodyClass="'image-background'">
-    <x-dialog formaction="{{ route('login.store') }}">
+    <x-dialog formaction="{{ route('login.store') }}" id="login-identifier-form">
         <x-altcha-proof />
         @if(session('status') == 'not-found')
             <x-slot:title>Sorry, we didn't recognize that login</x-slot:title>
@@ -48,8 +48,15 @@
     @pushOnce('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', () => {
+                const loginForm = document.getElementById('login-identifier-form');
                 const emailInput = document.getElementById('login_identifier');
                 const rememberCheckbox = document.getElementById('remember_email');
+                if (loginForm && window.SM && typeof window.SM.bindFormProcessingOnSubmit === 'function') {
+                    window.SM.bindFormProcessingOnSubmit(loginForm, {
+                        submitLabel: 'Logging in...',
+                    });
+                }
+
                 if (!emailInput || !rememberCheckbox) {
                     return;
                 }

@@ -114,6 +114,18 @@ class RememberedDeviceAuthTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_unknown_login_retry_view_keeps_processing_bound_form_id(): void
+    {
+        $response = $this->withSession($this->trustedAltchaSessionPayload())
+            ->post(route('login.store'), [
+                'login' => 'missing@example.com',
+                'remember_email' => '0',
+            ]);
+
+        $response->assertOk();
+        $response->assertSee('id="login-identifier-form"', false);
+    }
+
     public function test_protected_route_auto_signs_in_with_valid_remembered_device_cookie(): void
     {
         $user = User::factory()->create();

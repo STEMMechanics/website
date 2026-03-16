@@ -1,9 +1,14 @@
 @php
     $hasAmountDue = (float) ($summary['total'] ?? 0) > 0.0001;
+    $selectedShippingLabel = (string) ($summary['shipping_quote']['method'] ?? 'Shipping');
+    $usesPickup = (bool) ($summary['shipping_quote']['is_pickup'] ?? false);
+    $preorderItems = $lines->filter(fn ($line) => (bool) ($line->is_preorder ?? false))->values();
+    $hasBackorderItems = (bool) ($summary['contains_backorder'] ?? false);
+    $shipmentQuote = $summary['shipping_quote'] ?? [];
     $summaryRows = [
         ['label' => 'Items', 'value' => $lines->sum('quantity').' item'.($lines->sum('quantity') === 1 ? '' : 's')],
         ['label' => 'Subtotal', 'value' => '$'.number_format((float) $summary['subtotal'], 2)],
-        ['label' => 'Shipping', 'value' => '$'.number_format((float) $summary['shipping'], 2)],
+        ['label' => $selectedShippingLabel, 'value' => '$'.number_format((float) $summary['shipping'], 2)],
     ];
 
     if ((float) $summary['discount'] > 0) {
@@ -54,6 +59,18 @@
                     <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">{{ $message }}</div>
                 @enderror
 
+                @if(!empty($inventoryChangeNotices))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        <div class="font-semibold mb-1">Stock availability changed</div>
+                        <div>Review these updates before completing payment.</div>
+                        <div class="mt-3 space-y-2">
+                            @foreach($inventoryChangeNotices as $notice)
+                                <div class="rounded-xl border border-amber-200 bg-white/80 px-3 py-2">{{ $notice['message'] ?? 'An item in your cart changed.' }}</div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="mb-6">
                     <div class="text-sm font-semibold text-gray-900 mb-3">Items</div>
                     <div class="space-y-3">
@@ -62,12 +79,35 @@
                                 <div>
                                     <div class="font-semibold text-gray-900">{{ $line->display_title }}</div>
                                     <div class="text-sm text-gray-500">Qty {{ $line->quantity }}</div>
+                                    @if((bool) ($line->is_preorder ?? false))
+                                        <div class="mt-1 text-sm text-amber-800">Pre-order · Estimated shipping {{ $line->preorder_shipping_estimate ?: 'to be confirmed' }}</div>
+                                    @elseif((int) $line->delayed_quantity > 0)
+                                        <div class="mt-1 text-sm text-sky-800">
+                                            @if((int) $line->available_now_quantity > 0)
+                                                {{ (int) $line->available_now_quantity }} ships now, {{ (int) $line->delayed_quantity }} ships later{{ $line->delayed_shipping_estimate ? ' from '.$line->delayed_shipping_estimate : '' }}
+                                            @else
+                                                Backorder · Expected shipping {{ $line->delayed_shipping_estimate ?: 'to be confirmed' }}
+                                            @endif
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="text-sm font-semibold text-gray-900">${{ number_format((float) $line->line_price, 2) }}</div>
                             </div>
                         @endforeach
                     </div>
                 </div>
+
+                @if($preorderItems->isNotEmpty())
+                    <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        This order includes pre-order items and will ship once those items become available.
+                    </div>
+                @endif
+
+                @if($hasBackorderItems)
+                    <div class="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                        This order also includes delayed backorder quantities. The shipment breakdown below reflects the extra later shipment unless you chose consolidation.
+                    </div>
+                @endif
 
                 <div class="border-t border-gray-200 pt-6">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Contact</h3>
@@ -83,22 +123,41 @@
 
                 @if($summary['contains_physical'])
                     <div class="border-t border-gray-200 pt-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Shipping</h3>
-                        <div class="space-y-1 text-sm text-gray-700">
-                            <div>{{ $customer['shipping_name'] ?? '-' }}</div>
-                            <div>{{ $customer['shipping_address'] ?? '-' }}</div>
-                            @if(trim((string) ($customer['shipping_address2'] ?? '')) !== '')
-                                <div>{{ $customer['shipping_address2'] }}</div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Delivery</h3>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                            <div class="font-semibold text-gray-900">{{ $selectedShippingLabel }}</div>
+                            @if(trim((string) ($summary['shipping_quote']['note'] ?? '')) !== '')
+                                <div class="mt-1">{{ $summary['shipping_quote']['note'] }}</div>
                             @endif
-                            <div>{{ collect([$customer['shipping_city'] ?? null, $customer['shipping_state'] ?? null, $customer['shipping_postcode'] ?? null])->filter()->implode(', ') }}</div>
-                            <div>{{ $customer['shipping_country'] ?? '-' }}</div>
                         </div>
+                        @if(!empty($shipmentQuote['shipments']))
+                            <div class="mt-4">
+                                @include('shop.partials.shipping-breakdown', [
+                                    'shipments' => $shipmentQuote['shipments'],
+                                ])
+                            </div>
+                        @endif
+                        @if($usesPickup)
+                            <div class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                                We will contact you when your order is available to collect.
+                            </div>
+                        @else
+                            <div class="mt-4 space-y-1 text-sm text-gray-700">
+                                <div>{{ $customer['shipping_name'] ?? '-' }}</div>
+                                <div>{{ $customer['shipping_address'] ?? '-' }}</div>
+                                @if(trim((string) ($customer['shipping_address2'] ?? '')) !== '')
+                                    <div>{{ $customer['shipping_address2'] }}</div>
+                                @endif
+                                <div>{{ collect([$customer['shipping_city'] ?? null, $customer['shipping_state'] ?? null, $customer['shipping_postcode'] ?? null])->filter()->implode(', ') }}</div>
+                                <div>{{ $customer['shipping_country'] ?? '-' }}</div>
+                            </div>
+                        @endif
                     </div>
                 @endif
 
                 @if($summary['contains_digital'])
                     <div class="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-                        Digital downloads unlock automatically after payment succeeds.
+                        Digital downloads unlock automatically after payment.
                     </div>
                 @endif
 

@@ -11,6 +11,7 @@ class QaCommand extends Command
         {--without-tty : Disable TTY output for child processes}
         {--tests-only : Run tests only}
         {--stan-only : Run PHPStan only}
+        {--test-memory-limit=1G : Memory limit passed to PHPUnit, e.g. 512M or 1G}
         {--stan-memory-limit=1G : Memory limit passed to phpstan, e.g. 1G or 2G}
         {--test=* : Additional args passed to artisan test}
         {--stan=* : Additional args passed to phpstan analyse}';
@@ -32,6 +33,8 @@ class QaCommand extends Command
 
         if (! $stanOnly) {
             $testArgs = array_values(array_map('strval', (array) $this->option('test')));
+            $testMemoryLimit = trim((string) $this->option('test-memory-limit'));
+            $memoryArgs = $testMemoryLimit !== '' ? ['-d', 'memory_limit='.$testMemoryLimit] : [];
             $phpunit = base_path('vendor/bin/phpunit');
             if (! is_file($phpunit)) {
                 $this->error('PHPUnit executable not found at vendor/bin/phpunit.');
@@ -41,7 +44,7 @@ class QaCommand extends Command
 
             $testExitCode = $this->runStep(
                 'Running tests',
-                array_merge([PHP_BINARY, $phpunit], $testArgs),
+                array_merge([PHP_BINARY], $memoryArgs, [$phpunit], $testArgs),
                 $withoutTty,
                 [
                     'APP_ENV' => 'testing',

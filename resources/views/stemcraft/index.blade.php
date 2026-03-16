@@ -60,11 +60,27 @@
                         @if(!empty($serverInfo['worlds'] ?? []))
                             <div class="mt-4">
                                 <h3 class="text-xs font-medium uppercase tracking-wide text-gray-500">Worlds</h3>
-                                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+                                <ul class="mt-2 space-y-2 text-sm text-gray-700">
                                     @foreach($serverInfo['worlds'] as $world)
-                                        <li>
-                                            <span>{{ $world['name'] ?? '-' }}</span>
-                                        </li>
+                                        @if(($world['type'] ?? 'single') === 'group')
+                                            <li class="rounded-2xl bg-gray-50 px-3 py-2">
+                                                <details>
+                                                    <summary class="cursor-pointer select-none font-medium text-gray-900">
+                                                        {{ $world['summary'] ?? ($world['name'] ?? '-') }}
+                                                    </summary>
+                                                    <ul class="mt-2 list-disc space-y-1 pl-5 text-gray-700">
+                                                        @foreach($world['children'] ?? [] as $child)
+                                                            <li>{{ $child['name'] ?? '-' }}</li>
+                                                        @endforeach
+                                                    </ul>
+                                                </details>
+                                            </li>
+                                        @else
+                                            <li class="flex items-start gap-2 rounded-2xl bg-gray-50 px-3 py-2">
+                                                <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400"></span>
+                                                <span>{{ $world['name'] ?? '-' }}</span>
+                                            </li>
+                                        @endif
                                     @endforeach
                                 </ul>
                             </div>

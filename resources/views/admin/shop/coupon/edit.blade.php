@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="admin.shop.coupon.index" backTitle="Store Coupons">{{ isset($coupon) ? 'Edit' : 'Create' }} Coupon</x-mast>
+    <x-mast backRoute="admin.shop.coupon.index" backTitle="Store Vouchers">{{ isset($coupon) ? 'Edit' : 'Create' }} Voucher</x-mast>
 
     <x-container class="mt-4">
         <form method="POST" action="{{ route('admin.shop.coupon.'.(isset($coupon) ? 'update' : 'store'), $coupon ?? []) }}">
@@ -10,7 +10,7 @@
 
             <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
                 <div class="grid gap-4 md:grid-cols-2">
-                    <x-ui.input name="code" label="Coupon Code" :value="$coupon->code ?? ''" />
+                    <x-ui.input name="code" label="Voucher Code" :value="$coupon->code ?? ''" />
                     <x-ui.input name="description" label="Description" :value="$coupon->description ?? ''" />
                 </div>
                 <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -36,14 +36,14 @@
             </div>
 
             <div class="mt-6 flex flex-wrap gap-3">
-                <x-ui.button type="submit">Save Coupon</x-ui.button>
+                <x-ui.button type="submit">Save Voucher</x-ui.button>
                 @isset($coupon)
                     <button
                         type="button"
                         class="inline-flex items-center justify-center rounded-md bg-danger-color px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-danger-color-dark"
                         x-data
-                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete coupon?', 'Are you sure you want to delete this coupon? This action cannot be undone.', '{{ route('admin.shop.coupon.destroy', $coupon) }}')"
-                    >Delete Coupon</button>
+                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete voucher?', 'Are you sure you want to delete this voucher? This action cannot be undone.', '{{ route('admin.shop.coupon.destroy', $coupon) }}')"
+                    >Delete Voucher</button>
                 @endisset
             </div>
         </form>

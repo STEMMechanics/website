@@ -59,7 +59,9 @@
                 @endphp
                 <tr class="{{ $isGhostUser ? 'italic text-gray-700' : '' }}">
                     <td>
-                        <div>{{ trim(($user->firstname ?? '').' '.($user->surname ?? '')) ?: '-' }}</div>
+                        <a href="{{ route('admin.user.edit', $user) }}" class="font-semibold text-gray-900 hover:text-primary-color">
+                            {{ trim(($user->firstname ?? '').' '.($user->surname ?? '')) ?: '-' }}
+                        </a>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->username ?: '-' }}</div>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->email ?: '-' }}</div>
                         @if($groupSlugs === [])

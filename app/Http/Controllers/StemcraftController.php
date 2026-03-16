@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\MinecraftPenalty;
 use App\Models\MinecraftPlayerStat;
+use App\Models\SiteOption;
 use App\Services\MinecraftWebhookBridgeService;
 use App\Support\MinecraftPlayerStatFormatter;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -226,7 +227,13 @@ class StemcraftController extends Controller
      *     refreshed_at: string|null,
      *     refreshed_at_human: string|null,
      *     cards: list<array{label: string, value: string}>,
-     *     worlds: list<array{name: string, raw: string}>
+     *     worlds: list<array{
+     *         type: 'single'|'group',
+     *         name: string,
+     *         raw: string|null,
+     *         summary: string|null,
+     *         children: list<array{name: string, raw: string}>
+     *     }>
      * }
      */
     private function buildPublicServerInfo(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): array
@@ -294,9 +301,6 @@ class StemcraftController extends Controller
         }
         $allWorlds = array_values($allWorlds);
         $visibleWorlds = array_values(array_filter($allWorlds, static fn (array $world): bool => $world['hidden'] !== true));
-        usort($visibleWorlds, static function (array $left, array $right): int {
-            return strnatcasecmp((string) $left['name'], (string) $right['name']);
-        });
 
         $refreshedAt = null;
         if (is_string($status['timestamp'] ?? null) && trim((string) $status['timestamp']) !== '') {
@@ -346,10 +350,7 @@ class StemcraftController extends Controller
                     'value' => $this->formatPublicTps(data_get($status, 'tps.one_minute')),
                 ],
             ],
-            'worlds' => array_map(static fn (array $world): array => [
-                'name' => (string) $world['name'],
-                'raw' => (string) $world['raw'],
-            ], array_slice($visibleWorlds, 0, 8)),
+            'worlds' => $this->buildPublicWorldEntries($visibleWorlds),
         ];
     }
 
@@ -465,6 +466,470 @@ class StemcraftController extends Controller
     }
 
     /**
+     * @param  list<array{name: string, raw: string, hidden: bool}>  $worlds
+     * @return list<array{
+     *     type: 'single'|'group',
+     *     name: string,
+     *     raw: string|null,
+     *     summary: string|null,
+     *     children: list<array{name: string, raw: string}>
+     * }>
+     */
+    private function buildPublicWorldEntries(array $worlds): array
+    {
+        $singleWorlds = [];
+        $groupBuckets = [];
+        $activeGroups = $this->buildActivePublicWorldGroups($worlds);
+
+        foreach ($worlds as $world) {
+            $group = $this->resolvePublicWorldGroup($world, $activeGroups);
+            if ($group === null) {
+                $singleWorlds[] = $world;
+
+                continue;
+            }
+
+            $groupBuckets[$group['key']] ??= [
+                'key' => $group['key'],
+                'name' => $group['name'],
+                'item_label' => $group['item_label'],
+                'members' => [],
+            ];
+            $groupBuckets[$group['key']]['members'][] = [
+                'world' => $world,
+                'child_token' => $group['child_token'],
+            ];
+        }
+
+        foreach ($groupBuckets as $group) {
+            if (count($group['members']) < 2) {
+                foreach ($group['members'] as $member) {
+                    $singleWorlds[] = $member['world'];
+                }
+            }
+        }
+
+        $singleWorlds = $this->deduplicatePublicWorldsByName($singleWorlds);
+        usort($singleWorlds, function (array $left, array $right): int {
+            $priorityComparison = $this->publicWorldPriority($left) <=> $this->publicWorldPriority($right);
+
+            if ($priorityComparison !== 0) {
+                return $priorityComparison;
+            }
+
+            return strnatcasecmp((string) $left['name'], (string) $right['name']);
+        });
+
+        $entries = array_map(static fn (array $world): array => [
+            'type' => 'single',
+            'name' => (string) $world['name'],
+            'raw' => (string) $world['raw'],
+            'summary' => null,
+            'children' => [],
+        ], $singleWorlds);
+
+        foreach ($groupBuckets as $group) {
+            if (count($group['members']) < 2) {
+                continue;
+            }
+
+            $childTokens = array_values(array_map(
+                static fn (array $member): string => trim((string) $member['child_token']),
+                $group['members'],
+            ));
+            $usesDimensionLabels = $this->publicWorldGroupUsesDimensionLabels($childTokens);
+            $children = [];
+            foreach ($group['members'] as $member) {
+                $childName = $this->formatPublicWorldGroupChildName(
+                    (string) $group['name'],
+                    trim((string) $member['child_token']),
+                    $childTokens,
+                );
+                if ($childName === '') {
+                    $childName = (string) $member['world']['name'];
+                }
+
+                $children[strtolower($childName)] = [
+                    'name' => $childName,
+                    'raw' => (string) $member['world']['raw'],
+                ];
+            }
+
+            $children = array_values($children);
+            usort($children, function (array $left, array $right) use ($usesDimensionLabels): int {
+                $priorityComparison = $this->publicWorldGroupChildPriority((string) $left['name'], $usesDimensionLabels)
+                    <=> $this->publicWorldGroupChildPriority((string) $right['name'], $usesDimensionLabels);
+                if ($priorityComparison !== 0) {
+                    return $priorityComparison;
+                }
+
+                return strnatcasecmp((string) $left['name'], (string) $right['name']);
+            });
+
+            $entries[] = [
+                'type' => 'group',
+                'name' => (string) $group['name'],
+                'raw' => null,
+                'summary' => $this->formatPublicWorldGroupSummary(
+                    (string) $group['name'],
+                    count($children),
+                    (string) ($group['item_label'] ?? 'world'),
+                ),
+                'children' => $children,
+            ];
+        }
+
+        usort($entries, function (array $left, array $right): int {
+            $priorityComparison = $this->publicWorldEntryPriority($left) <=> $this->publicWorldEntryPriority($right);
+            if ($priorityComparison !== 0) {
+                return $priorityComparison;
+            }
+
+            return strnatcasecmp((string) $left['name'], (string) $right['name']);
+        });
+
+        return $entries;
+    }
+
+    /**
+     * @param  list<array{name: string, raw: string, hidden: bool}>  $worlds
+     * @return array<string, array{key: string, name: string, item_label: string}>
+     */
+    private function buildActivePublicWorldGroups(array $worlds): array
+    {
+        $candidateKeys = [];
+
+        foreach ($worlds as $world) {
+            $rawName = trim((string) ($world['raw'] ?? ''));
+            foreach ($this->publicWorldGroupCandidateKeys($rawName) as $candidateKey) {
+                $candidateKeys[$candidateKey] = true;
+            }
+        }
+
+        $activeGroups = [];
+        foreach (array_keys($candidateKeys) as $candidateKey) {
+            $memberCount = 0;
+
+            foreach ($worlds as $world) {
+                if ($this->worldMatchesPublicGroupKey((string) ($world['raw'] ?? ''), $candidateKey)) {
+                    $memberCount++;
+                }
+            }
+
+            if ($memberCount < 2) {
+                continue;
+            }
+
+            $definition = $this->publicWorldGroupDefinitions()[$candidateKey] ?? null;
+            $activeGroups[$candidateKey] = [
+                'key' => $candidateKey,
+                'name' => is_array($definition)
+                    ? (string) ($definition['name'] ?? $this->formatPublicWorldLabel($candidateKey))
+                    : $this->formatPublicWorldLabel($candidateKey),
+                'item_label' => $this->publicWorldGroupItemLabel($candidateKey),
+            ];
+        }
+
+        return $activeGroups;
+    }
+
+    /**
+     * @param  array{name: string, raw: string, hidden: bool}  $world
+     * @return array{key: string, name: string, item_label: string, child_token: string}|null
+     */
+    private function resolvePublicWorldGroup(array $world, array $activeGroups): ?array
+    {
+        $rawName = trim((string) ($world['raw'] ?? ''));
+        $matchingGroups = array_values(array_filter(
+            $activeGroups,
+            fn (array $group): bool => $this->worldMatchesPublicGroupKey($rawName, (string) ($group['key'] ?? '')),
+        ));
+
+        if ($matchingGroups === []) {
+            return null;
+        }
+
+        usort($matchingGroups, static function (array $left, array $right): int {
+            $lengthComparison = mb_strlen((string) ($right['key'] ?? '')) <=> mb_strlen((string) ($left['key'] ?? ''));
+
+            if ($lengthComparison !== 0) {
+                return $lengthComparison;
+            }
+
+            return strnatcasecmp((string) ($left['key'] ?? ''), (string) ($right['key'] ?? ''));
+        });
+
+        $group = $matchingGroups[0];
+
+        return [
+            'key' => (string) $group['key'],
+            'name' => (string) $group['name'],
+            'item_label' => (string) $group['item_label'],
+            'child_token' => $this->extractPublicWorldGroupChildToken($rawName, (string) $group['key']),
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function publicWorldGroupCandidateKeys(string $rawName): array
+    {
+        $normalizedRawName = strtolower(trim($rawName));
+        if ($normalizedRawName === '') {
+            return [];
+        }
+
+        $candidates = [];
+        foreach (array_keys($this->publicWorldGroupDefinitions()) as $knownKey) {
+            if ($this->worldMatchesPublicGroupKey($normalizedRawName, $knownKey)) {
+                $candidates[$knownKey] = true;
+            }
+        }
+
+        $parts = preg_split('/[\s:_-]+/', $normalizedRawName, -1, PREG_SPLIT_NO_EMPTY);
+        if (! is_array($parts)) {
+            return array_keys($candidates);
+        }
+
+        for ($index = 1; $index < count($parts); $index++) {
+            $candidateKey = implode('_', array_slice($parts, 0, $index));
+
+            if ($this->shouldSkipPublicWorldGroupKey($candidateKey)) {
+                continue;
+            }
+
+            $candidates[$candidateKey] = true;
+        }
+
+        return array_keys($candidates);
+    }
+
+    private function shouldSkipPublicWorldGroupKey(string $candidateKey): bool
+    {
+        return in_array(strtolower(trim($candidateKey)), ['world'], true);
+    }
+
+    private function worldMatchesPublicGroupKey(string $rawName, string $groupKey): bool
+    {
+        $normalizedRawName = strtolower(trim($rawName));
+        $normalizedGroupKey = strtolower(trim($groupKey));
+
+        if ($normalizedRawName === '' || $normalizedGroupKey === '') {
+            return false;
+        }
+
+        if ($normalizedRawName === $normalizedGroupKey) {
+            return true;
+        }
+
+        return preg_match('/^'.preg_quote($normalizedGroupKey, '/').'[\s:_-]+.+$/', $normalizedRawName) === 1;
+    }
+
+    private function extractPublicWorldGroupChildToken(string $rawName, string $groupKey): string
+    {
+        if (strcasecmp(trim($rawName), trim($groupKey)) === 0) {
+            return '';
+        }
+
+        if (preg_match('/^'.preg_quote(trim($groupKey), '/').'[\s:_-]+(.+)$/i', trim($rawName), $matches) === 1) {
+            return trim((string) $matches[1]);
+        }
+
+        return '';
+    }
+
+    /**
+     * @return array<string, array{name: string}>
+     */
+    private function publicWorldGroupDefinitions(): array
+    {
+        return [
+            'bridge' => [
+                'name' => 'Bridge',
+            ],
+        ];
+    }
+
+    private function publicWorldGroupItemLabel(string $groupKey): string
+    {
+        return in_array($this->normalizePublicWorldGroupKey($groupKey), $this->publicWorldArenaGroupKeys(), true)
+            ? 'arena'
+            : 'world';
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function publicWorldArenaGroupKeys(): array
+    {
+        $default = SiteOption::defaultValue('minecraft.public-status-arena-groups') ?? '';
+        $rawValue = trim((string) SiteOption::value('minecraft.public-status-arena-groups', $default));
+
+        if ($rawValue === '') {
+            return [];
+        }
+
+        $keys = [];
+        foreach (explode(',', $rawValue) as $value) {
+            $normalized = $this->normalizePublicWorldGroupKey($value);
+            if ($normalized === '') {
+                continue;
+            }
+
+            $keys[$normalized] = $normalized;
+        }
+
+        return array_values($keys);
+    }
+
+    /**
+     * @param  list<array{name: string, raw: string, hidden: bool}>  $worlds
+     * @return list<array{name: string, raw: string, hidden: bool}>
+     */
+    private function deduplicatePublicWorldsByName(array $worlds): array
+    {
+        $uniqueWorlds = [];
+
+        foreach ($worlds as $world) {
+            $name = trim((string) ($world['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $uniqueWorlds[strtolower($name)] ??= $world;
+        }
+
+        return array_values($uniqueWorlds);
+    }
+
+    /**
+     * @param  array{
+     *     type: 'single'|'group',
+     *     name: string,
+     *     raw: string|null,
+     *     summary: string|null,
+     *     children: list<array{name: string, raw: string}>
+     * }  $entry
+     */
+    private function publicWorldEntryPriority(array $entry): int
+    {
+        return match (strtolower(trim((string) ($entry['name'] ?? '')))) {
+            'lobby' => 0,
+            'survival' => 10,
+            'overworld' => 10,
+            'nether' => 20,
+            'the end' => 30,
+            default => 100,
+        };
+    }
+
+    /**
+     * @param  array{name: string, raw: string, hidden: bool}  $world
+     */
+    private function publicWorldPriority(array $world): int
+    {
+        return $this->publicWorldEntryPriority([
+            'type' => 'single',
+            'name' => (string) ($world['name'] ?? ''),
+            'raw' => (string) ($world['raw'] ?? ''),
+            'summary' => null,
+            'children' => [],
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $allChildTokens
+     */
+    private function formatPublicWorldGroupChildName(string $groupName, string $childToken, array $allChildTokens): string
+    {
+        $normalizedToken = $this->normalizePublicWorldGroupChildToken($childToken);
+
+        if ($this->publicWorldGroupUsesDimensionLabels($allChildTokens)) {
+            return match ($normalizedToken) {
+                '', 'overworld' => 'Overworld',
+                'nether' => 'Nether',
+                'the_end' => 'The End',
+                default => $this->formatPublicWorldLabel($childToken),
+            };
+        }
+
+        if ($normalizedToken === '') {
+            return trim($groupName);
+        }
+
+        return $this->formatPublicWorldLabel($childToken);
+    }
+
+    /**
+     * @param  list<string>  $allChildTokens
+     */
+    private function publicWorldGroupUsesDimensionLabels(array $allChildTokens): bool
+    {
+        $normalizedTokens = array_values(array_unique(array_map(
+            fn (string $token): string => $this->normalizePublicWorldGroupChildToken($token),
+            $allChildTokens,
+        )));
+
+        if (
+            ! in_array('overworld', $normalizedTokens, true)
+            && ! in_array('nether', $normalizedTokens, true)
+            && ! in_array('the_end', $normalizedTokens, true)
+            && ! in_array('', $normalizedTokens, true)
+        ) {
+            return false;
+        }
+
+        return array_diff($normalizedTokens, ['', 'overworld', 'nether', 'the_end']) === [];
+    }
+
+    private function publicWorldGroupChildPriority(string $childName, bool $usesDimensionLabels): int
+    {
+        if (! $usesDimensionLabels) {
+            return 100;
+        }
+
+        return match (strtolower(trim($childName))) {
+            'overworld' => 0,
+            'nether' => 10,
+            'the end' => 20,
+            default => 100,
+        };
+    }
+
+    private function normalizePublicWorldGroupChildToken(string $value): string
+    {
+        return match (strtolower(trim($value))) {
+            'end', 'the_end', 'the-end', 'the end' => 'the_end',
+            default => strtolower(trim($value)),
+        };
+    }
+
+    private function normalizePublicWorldGroupKey(string $value): string
+    {
+        $normalized = strtolower(trim($value));
+        $normalized = preg_replace('/[\s:-]+/', '_', $normalized) ?? $normalized;
+        $normalized = preg_replace('/_+/', '_', $normalized) ?? $normalized;
+
+        return trim($normalized, '_');
+    }
+
+    private function formatPublicWorldGroupSummary(string $groupName, int $count, string $itemLabel): string
+    {
+        $pluralizedLabel = $count === 1 ? $itemLabel : str($itemLabel)->plural($count)->toString();
+
+        return sprintf('%s (%d %s)', $groupName, $count, $pluralizedLabel);
+    }
+
+    private function formatPublicWorldLabel(string $value): string
+    {
+        return (string) str($value)
+            ->replace(['_', '-'], ' ')
+            ->squish()
+            ->title()
+            ->trim();
+    }
+
+    /**
      * @return array{name: string, raw: string, hidden: bool}
      */
     private function normalizePublicWorldDefinition(string $rawName): array
@@ -478,10 +943,7 @@ class StemcraftController extends Controller
                 'hidden' => false,
             ],
             'world_nether', 'world_the_end' => [
-                'name' => (string) str($rawName)
-                    ->replace(['_', '-'], ' ')
-                    ->title()
-                    ->trim(),
+                'name' => $this->formatPublicWorldLabel($rawName),
                 'raw' => $rawName,
                 'hidden' => true,
             ],
@@ -501,10 +963,7 @@ class StemcraftController extends Controller
                 'hidden' => false,
             ],
             default => [
-                'name' => (string) str($rawName)
-                    ->replace(['_', '-'], ' ')
-                    ->title()
-                    ->trim(),
+                'name' => $this->formatPublicWorldLabel($rawName),
                 'raw' => $rawName,
                 'hidden' => false,
             ],

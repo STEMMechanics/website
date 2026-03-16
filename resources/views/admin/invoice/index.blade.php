@@ -35,7 +35,9 @@
                 $isCreditDocument = ((float) $invoice->total_amount) < 0;
                     @endphp
                     <tr>
-                    <td>{{ $invoice->invoice_number }}</td>
+                    <td>
+                        <a href="{{ route('admin.invoice.edit', $invoice) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $invoice->invoice_number }}</a>
+                    </td>
                     <td>
                         <div>{{ $invoice->user?->getName() ?? '-' }}</div>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ \App\Models\Invoice::statusLabel((string) $invoice->status) }}</div>

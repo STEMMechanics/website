@@ -1,10 +1,10 @@
 <x-layout>
-    <x-mast>Store Coupons</x-mast>
+    <x-mast>Store Vouchers</x-mast>
 
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.shop.coupon.create') }}">Create</x-ui.button>
+                <x-ui.button type="link" href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />
@@ -12,7 +12,7 @@
         </x-ui.toolbar>
 
         @if($coupons->isEmpty())
-            <x-none-found item="coupons" search="{{ request()->get('search') }}" />
+            <x-none-found item="vouchers" search="{{ request()->get('search') }}" />
         @else
             <x-ui.table>
                 <x-slot:header>
@@ -27,7 +27,7 @@
                     @foreach($coupons as $coupon)
                         <tr>
                             <td>
-                                <div class="font-semibold">{{ $coupon->code }}</div>
+                                <a href="{{ route('admin.shop.coupon.edit', $coupon) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $coupon->code }}</a>
                                 @if($coupon->description)
                                     <div class="text-xs text-gray-500">{{ $coupon->description }}</div>
                                 @endif

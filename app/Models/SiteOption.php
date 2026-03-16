@@ -79,6 +79,10 @@ class SiteOption extends Model
                 'description' => 'Master switch for the public store storefront, cart, and checkout. Existing order links still work when disabled.',
                 'input_type' => 'boolean',
             ],
+            'store.order.ready-for-pickup-message' => [
+                'value' => 'To arrange a suitable collection time, please contact James on 0400 130 190.',
+                'description' => 'Customer-facing sentence added to order update emails when an order becomes ready for pickup.',
+            ],
             'payments.bank-account-name' => [
                 'value' => 'STEMMechanics',
                 'description' => 'Bank account name shown for bank transfer payments.',
@@ -149,6 +153,10 @@ class SiteOption extends Model
                 'value' => '20',
                 'description' => 'Quiet period in minutes before blocked Minecraft messages are grouped into an admin email alert.',
                 'input_type' => 'number',
+            ],
+            'minecraft.public-status-arena-groups' => [
+                'value' => 'bridge, parkour, bedwars',
+                'description' => 'Comma-separated STEMCraft public-status world group prefixes that should be labelled as arenas instead of worlds. Prefix matching normalizes spaces, hyphens, and underscores.',
             ],
         ];
     }

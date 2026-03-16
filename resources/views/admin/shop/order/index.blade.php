@@ -23,7 +23,7 @@
                     @foreach($orders as $order)
                         <tr>
                             <td>
-                                <div class="font-semibold">{{ $order->order_number }}</div>
+                                <a href="{{ route('admin.shop.order.edit', $order) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $order->order_number }}</a>
                                 <div class="text-xs text-gray-500">{{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </td>
                             <td class="hidden md:table-cell">

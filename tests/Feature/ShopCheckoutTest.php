@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StoreOrder;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,8 +13,12 @@ class ShopCheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_paid_shop_checkout_redirects_to_payment_before_creating_an_order(): void
+    public function test_paid_shop_checkout_stays_on_checkout_until_card_details_are_provided(): void
     {
+        config()->set('services.square.enabled', true);
+        config()->set('services.square.location_id', 'L123');
+        config()->set('services.square.application_id', 'A123');
+
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_DIGITAL,
@@ -23,19 +29,391 @@ class ShopCheckoutTest extends TestCase
             'quantity' => 2,
         ])->assertRedirect(route('shop.cart.show'));
 
-        $response = $this->post(route('shop.checkout.place-order'), [
+        $response = $this->from(route('shop.checkout'))->post(route('shop.checkout.place-order'), [
             'billing_name' => 'Avery Example',
             'billing_email' => 'avery@example.com',
             'billing_phone' => '0400123456',
             'notes' => 'Please email me once it is ready.',
         ]);
 
-        $response->assertRedirect(route('shop.checkout.payment'));
+        $response->assertRedirect(route('shop.checkout'));
+        $response->assertSessionHasErrors('source_id');
         $this->assertSame(0, StoreOrder::query()->count());
 
-        $this->get(route('shop.checkout.payment'))
+        $this->get(route('shop.checkout'))
             ->assertOk()
+            ->assertSee('Shipping Details')
             ->assertSee('Step 2 of 2')
-            ->assertSee('Your order is created only after this payment step succeeds.');
+            ->assertSee('Payment Details')
+            ->assertSee('Add voucher')
+            ->assertSee('GST Included')
+            ->assertSee('Place Order');
+
+        $this->get(route('shop.checkout.payment'))
+            ->assertRedirect(route('shop.checkout'));
+    }
+
+    public function test_digital_products_can_be_added_in_multiple_quantities(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 19.95,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 5,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
+            ->assertOk()
+            ->assertJsonPath('cart.lines.0.quantity', 5)
+            ->assertJsonPath('cart.lines.0.max_quantity', 99)
+            ->assertJsonPath('cart.lines.0.is_digital', true);
+
+        $this->get(route('shop.cart.show'))
+            ->assertOk()
+            ->assertSee('Qty')
+            ->assertDontSee('1 licence');
+    }
+
+    public function test_digital_product_page_shows_licence_tiers(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'title' => 'Digital Project Pack',
+            'price' => 12.00,
+            'base_variant_name' => 'Home Licence',
+        ]);
+
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Classroom Licence',
+            'description' => 'For one classroom.',
+            'price' => 60.00,
+            'sort_order' => 0,
+        ]);
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Organisation Licence',
+            'description' => 'For one school.',
+            'price' => 240.00,
+            'sort_order' => 1,
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText('Choose a licence')
+            ->assertSeeText('Home Licence')
+            ->assertSeeText('Classroom Licence')
+            ->assertSeeText('Organisation Licence')
+            ->assertSeeText('For one classroom.')
+            ->assertSeeText('For one school.')
+            ->assertSeeText('Add to Cart')
+            ->assertSeeText('Instant download after checkout')
+            ->assertDontSee('type="radio"', false)
+            ->assertDontSee('id="product-variant-select"', false);
+    }
+
+    public function test_physical_variant_without_inventory_shows_sold_out_on_product_page(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Class Kit',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'base_variant_name' => 'Starter Kit',
+        ]);
+
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Extended Kit',
+            'price' => 29.95,
+            'inventory_quantity' => null,
+            'sort_order' => 0,
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText('Extended Kit')
+            ->assertSeeText('Out of stock')
+            ->assertSeeText('Sold out');
+    }
+
+    public function test_product_page_shows_variant_specific_preorder_and_backorder_dates(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Class Kit',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'base_variant_name' => 'Starter Kit',
+        ]);
+
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Pre-order Blue',
+            'price' => 29.95,
+            'inventory_quantity' => null,
+            'is_preorder' => true,
+            'preorder_shipping_estimate' => '2026-05-15',
+            'sort_order' => 0,
+        ]);
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Backorder Red',
+            'price' => 27.95,
+            'inventory_quantity' => 0,
+            'allow_backorder' => true,
+            'backorder_shipping_estimate' => '2026-05-20',
+            'sort_order' => 1,
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText('Pre-order Blue')
+            ->assertSeeText('Pre-order. Estimated shipping May 15th, 2026')
+            ->assertSeeText('Backorder Red')
+            ->assertSeeText('Available to order. More expected May 20th, 2026');
+    }
+
+    public function test_single_option_product_page_shows_price_and_listing_style_cart_control(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Microbit Base',
+            'price' => 24.95,
+            'inventory_quantity' => 10,
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText('Microbit Base')
+            ->assertSeeText('$24.95')
+            ->assertSeeText('10 in stock')
+            ->assertSeeText('Add to Cart')
+            ->assertDontSee('id="product-quantity"', false);
+    }
+
+    public function test_cart_payload_marks_physical_items_for_checkout_state(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
+            ->assertOk()
+            ->assertJsonPath('cart.summary.contains_physical', true)
+            ->assertJsonPath('cart.summary.contains_digital', false);
+    }
+
+    public function test_checkout_does_not_show_internal_shipping_packaging_labels_in_item_list(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Microbit Base',
+            'price' => 24.95,
+            'inventory_quantity' => 8,
+            'shipping_units' => 1.0,
+            'min_satchel_rank' => 1,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertDontSeeText('Fits Small package or larger')
+            ->assertDontSeeText('Final shipping is based on the whole cart.');
+    }
+
+    public function test_invalid_discount_code_is_not_kept_as_applied(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->from(route('shop.checkout'))->post(route('shop.cart.coupon.apply'), [
+            'coupon_code' => 'NOTREAL',
+            'shipping_country' => 'Australia',
+            'return_to' => route('shop.checkout'),
+        ])->assertRedirect(route('shop.checkout'));
+
+        $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
+            ->assertOk()
+            ->assertJsonPath('cart.summary.coupon_code', null)
+            ->assertJsonPath('cart.summary.discount', 0);
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSee('Add voucher')
+            ->assertDontSee('Applied voucher:');
+    }
+
+    public function test_physical_checkout_only_accepts_australian_shipping_addresses(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->from(route('shop.checkout'))->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Avery Example',
+            'billing_email' => 'avery@example.com',
+            'billing_phone' => '0400123456',
+            'shipping_name' => 'Avery Example',
+            'shipping_phone' => '0400123456',
+            'shipping_address' => '123 Example Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+            'shipping_country' => 'New Zealand',
+            'shipping_method_code' => 'regular',
+        ])
+            ->assertRedirect(route('shop.checkout'))
+            ->assertSessionHasErrors('shipping_country');
+
+        $this->assertSame(0, StoreOrder::query()->count());
+    }
+
+    public function test_checkout_does_not_prefill_non_australian_profile_address_details(): void
+    {
+        $user = User::factory()->create([
+            'shipping_country' => 'New Zealand',
+            'shipping_address' => '1 Queen Street',
+            'shipping_address2' => 'Unit 4',
+            'shipping_city' => 'Auckland',
+            'shipping_state' => 'AUK',
+            'shipping_postcode' => '1010',
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('shop.cart.add', $product), [
+                'quantity' => 1,
+            ])->assertRedirect(route('shop.cart.show'));
+
+        $this->actingAs($user)
+            ->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSee('Select state')
+            ->assertDontSee('1 Queen Street')
+            ->assertDontSee('Unit 4')
+            ->assertDontSee('Auckland')
+            ->assertDontSee('1010');
+    }
+
+    public function test_physical_checkout_requires_valid_australian_state_and_four_digit_postcode(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->from(route('shop.checkout'))->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Avery Example',
+            'billing_email' => 'avery@example.com',
+            'billing_phone' => '0400123456',
+            'shipping_name' => 'Avery Example',
+            'shipping_phone' => '0400123456',
+            'shipping_address' => '123 Example Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'Atlantis',
+            'shipping_postcode' => '40000',
+            'shipping_country' => 'Australia',
+            'shipping_method_code' => 'regular',
+        ])
+            ->assertRedirect(route('shop.checkout'))
+            ->assertSessionHasErrors(['shipping_state', 'shipping_postcode']);
+
+        $this->assertSame(0, StoreOrder::query()->count());
+    }
+
+    public function test_checkout_renders_contact_to_recipient_prefill_hooks_for_shipping_fields(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSee("syncRecipientField('billing_name', 'shipping_name')", false)
+            ->assertSee("syncRecipientField('billing_phone', 'shipping_phone')", false)
+            ->assertSee("markRecipientFieldEdited('shipping_name', 'billing_name')", false)
+            ->assertSee("markRecipientFieldEdited('shipping_phone', 'billing_phone')", false);
+    }
+
+    public function test_checkout_disables_cart_and_voucher_actions_while_payment_submit_is_running(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 24.95,
+            'shipping_units' => 0.5,
+            'min_satchel_rank' => 1,
+            'weight_grams' => 250,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSee(':disabled="busyLineKey === line.key || isSubmitting"', false)
+            ->assertSee(':disabled="couponBusy || isSubmitting"', false)
+            ->assertSee('if (this.isSubmitting || this.busyLineKey || !window.SM?.shopCart)', false)
+            ->assertSee('if (this.isSubmitting || this.couponBusy || !(form instanceof HTMLFormElement) || !window.SM?.shopCart)', false);
     }
 }

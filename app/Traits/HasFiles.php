@@ -24,11 +24,42 @@ trait HasFiles
             $files = '';
         }
 
+        if ($files instanceof \Illuminate\Support\Collection) {
+            $files = $files->all();
+        }
+
         if (is_string($files)) {
-            $files = Helpers::stringToArray($files);
+            $trimmedFiles = html_entity_decode(trim($files), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            if ($trimmedFiles === '') {
+                $files = [];
+            } else {
+                $decodedFiles = json_decode($trimmedFiles, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decodedFiles)) {
+                    $files = $decodedFiles;
+                } else {
+                    $files = Helpers::stringToArray($trimmedFiles);
+                }
+            }
         }
 
         if (is_array($files)) {
+            $files = array_values(array_filter(array_map(function ($file) {
+                if (is_string($file)) {
+                    return trim($file);
+                }
+
+                if (is_array($file)) {
+                    return isset($file['name']) ? trim((string) $file['name']) : null;
+                }
+
+                if (is_object($file) && isset($file->name)) {
+                    return trim((string) $file->name);
+                }
+
+                return null;
+            }, $files), fn ($fileName) => is_string($fileName) && $fileName !== ''));
+
             // Remove duplicates from the array
             $files = array_unique($files);
 

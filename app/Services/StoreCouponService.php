@@ -32,10 +32,10 @@ class StoreCouponService
         if (! $coupon instanceof Coupon) {
             return [
                 'coupon' => null,
-                'coupon_code' => $normalizedCode,
+                'coupon_code' => null,
                 'discount_type' => null,
                 'discount_amount' => 0.0,
-                'error' => 'That coupon code was not found.',
+                'error' => 'That voucher was not found.',
             ];
         }
 
@@ -43,7 +43,7 @@ class StoreCouponService
         if ($error !== null) {
             return [
                 'coupon' => $coupon,
-                'coupon_code' => $coupon->code,
+                'coupon_code' => null,
                 'discount_type' => (string) $coupon->discount_type,
                 'discount_amount' => 0.0,
                 'error' => $error,

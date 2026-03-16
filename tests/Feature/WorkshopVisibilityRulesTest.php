@@ -69,6 +69,19 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_workshop_show_redirects_non_canonical_slugs_to_the_canonical_url(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'Canonical Robotics Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+
+        $this->get('/workshops/old-title-'.$workshop->id)
+            ->assertRedirect(route('workshop.show', $workshop));
+    }
+
     private function createWorkshop(string $title, string $status, bool $isHidden, \DateTimeInterface $publishAt): Workshop
     {
         $owner = User::factory()->create();

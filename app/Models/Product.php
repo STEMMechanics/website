@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class Product extends Model
@@ -43,8 +45,15 @@ class Product extends Model
         'sku',
         'status',
         'product_type',
+        'is_preorder',
+        'preorder_shipping_estimate',
+        'allow_backorder',
+        'backorder_shipping_estimate',
         'short_description',
         'description',
+        'base_variant_name',
+        'base_variant_description',
+        'private_notes',
         'hero_media_name',
         'price',
         'compare_at_price',
@@ -60,6 +69,8 @@ class Product extends Model
         'height_cm',
         'is_featured',
         'sort_order',
+        'low_stock_threshold',
+        'low_stock_alert_sent_at',
     ];
 
     protected $casts = [
@@ -67,6 +78,10 @@ class Product extends Model
         'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
         'tax_rate' => 'decimal:4',
+        'is_preorder' => 'boolean',
+        'preorder_shipping_estimate' => 'date',
+        'allow_backorder' => 'boolean',
+        'backorder_shipping_estimate' => 'date',
         'inventory_quantity' => 'integer',
         'shipping_units' => 'decimal:2',
         'min_satchel_rank' => 'integer',
@@ -77,6 +92,8 @@ class Product extends Model
         'height_cm' => 'decimal:2',
         'is_featured' => 'boolean',
         'sort_order' => 'integer',
+        'low_stock_threshold' => 'integer',
+        'low_stock_alert_sent_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -136,6 +153,24 @@ class Product extends Model
     public function isPhysical(): bool
     {
         return (string) $this->product_type === self::PRODUCT_TYPE_PHYSICAL;
+    }
+
+    public function isPreorder(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            return $variant->isPreorder();
+        }
+
+        return (bool) $this->is_preorder;
+    }
+
+    public function allowsBackorder(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            return $variant->allowsBackorder();
+        }
+
+        return (bool) $this->allow_backorder;
     }
 
     public function galleryMedia()
@@ -215,7 +250,61 @@ class Product extends Model
 
     public function shippingUnitsForVariant(?ProductVariant $variant = null): float
     {
+        if ($variant instanceof ProductVariant) {
+            return $variant->effectiveShippingUnits();
+        }
+
         return round(max(0, (float) $this->shipping_units), 2);
+    }
+
+    public function defaultVariantName(): string
+    {
+        return $this->isDigital() ? 'Home' : 'Base';
+    }
+
+    public function baseOptionName(): string
+    {
+        $name = trim((string) ($this->base_variant_name ?? ''));
+
+        return $name !== '' ? $name : $this->defaultVariantName();
+    }
+
+    public function baseOptionDescription(): ?string
+    {
+        $description = trim((string) ($this->base_variant_description ?? ''));
+
+        return $description !== '' ? $description : null;
+    }
+
+    public function hasOptionChoices(): bool
+    {
+        return $this->hasVariants();
+    }
+
+    public function optionChoiceCount(): int
+    {
+        return $this->hasOptionChoices() ? $this->purchasableVariants()->count() + 1 : 0;
+    }
+
+    public function variantDisplayName(?ProductVariant $variant = null): ?string
+    {
+        if (! $variant instanceof ProductVariant) {
+            return $this->hasOptionChoices() ? $this->baseOptionName() : null;
+        }
+
+        $name = trim((string) $variant->name);
+
+        return $name !== '' ? $name : 'Variant';
+    }
+
+    public function displayTitle(?ProductVariant $variant = null): string
+    {
+        $variantLabel = $this->variantDisplayName($variant);
+        if ($variantLabel === null) {
+            return (string) $this->title;
+        }
+
+        return (string) $this->title.' - '.$variantLabel;
     }
 
     public function minSatchelRankForVariant(?ProductVariant $variant = null): int
@@ -238,6 +327,10 @@ class Product extends Model
     public function tracksInventory(?ProductVariant $variant = null): bool
     {
         if ($variant instanceof ProductVariant) {
+            if ($this->isPhysical()) {
+                return true;
+            }
+
             return $variant->tracksInventory();
         }
 
@@ -247,46 +340,141 @@ class Product extends Model
     public function availableInventory(?ProductVariant $variant = null): ?int
     {
         if ($variant instanceof ProductVariant) {
+            if ($this->isPhysical() && $variant->inventory_quantity === null) {
+                return 0;
+            }
+
             return $variant->availableInventory();
         }
 
         return $this->inventory_quantity !== null ? max(0, (int) $this->inventory_quantity) : null;
     }
 
-    public function isInStock(?ProductVariant $variant = null): bool
+    public function availableInventoryForPurchase(?ProductVariant $variant = null): ?int
     {
-        if ($variant instanceof ProductVariant) {
-            return $variant->is_active && $variant->isInStock();
+        if ($this->isPreorder($variant) || $this->allowsBackorder($variant)) {
+            return null;
         }
 
-        if ($this->hasVariants()) {
-            return $this->purchasableVariants()->contains(fn (ProductVariant $item) => $item->isInStock());
+        return $this->availableInventory($variant);
+    }
+
+    public function tracksInventoryForPurchase(?ProductVariant $variant = null): bool
+    {
+        if ($this->isPreorder($variant) || $this->allowsBackorder($variant)) {
+            return false;
+        }
+
+        return $this->tracksInventory($variant);
+    }
+
+    public function isSelectionInStock(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            if (! $variant->is_active) {
+                return false;
+            }
+
+            $available = $this->availableInventory($variant);
+
+            return $available === null || $available > 0;
         }
 
         return $this->availableInventory() === null || $this->availableInventory() > 0;
     }
 
-    public function shippingModeLabel(): string
+    public function isSelectionPurchasable(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            return $variant->is_active && ($this->isPreorder($variant) || $this->allowsBackorder($variant) || $this->isSelectionInStock($variant));
+        }
+
+        return $this->isPreorder() || $this->allowsBackorder() || $this->isSelectionInStock();
+    }
+
+    public function isInStock(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            return $this->isSelectionInStock($variant);
+        }
+
+        if ($this->hasOptionChoices()) {
+            if ($this->isSelectionInStock()) {
+                return true;
+            }
+
+            return $this->purchasableVariants()->contains(fn (ProductVariant $item) => $this->isSelectionInStock($item));
+        }
+
+        return $this->isSelectionInStock();
+    }
+
+    public function isPurchasable(?ProductVariant $variant = null): bool
+    {
+        if ($variant instanceof ProductVariant) {
+            return $this->isSelectionPurchasable($variant);
+        }
+
+        if ($this->hasOptionChoices()) {
+            if ($this->isSelectionPurchasable()) {
+                return true;
+            }
+
+            return $this->purchasableVariants()->contains(
+                fn (ProductVariant $item) => $this->isSelectionPurchasable($item)
+            );
+        }
+
+        return $this->isSelectionPurchasable();
+    }
+
+    public function preorderShippingEstimateLabel(string $format = 'F jS', ?ProductVariant $variant = null): ?string
+    {
+        if ($variant instanceof ProductVariant) {
+            return $variant->preorderShippingEstimateLabel($format);
+        }
+
+        if (! $this->preorder_shipping_estimate instanceof Carbon) {
+            return null;
+        }
+
+        return $this->preorder_shipping_estimate->format($format);
+    }
+
+    public function backorderShippingEstimateLabel(string $format = 'F jS', ?ProductVariant $variant = null): ?string
+    {
+        if ($variant instanceof ProductVariant) {
+            return $variant->backorderShippingEstimateLabel($format);
+        }
+
+        if (! $this->backorder_shipping_estimate instanceof Carbon) {
+            return null;
+        }
+
+        return $this->backorder_shipping_estimate->format($format);
+    }
+
+    public function shippingModeLabel(?ProductVariant $variant = null): string
     {
         if ($this->isDigital()) {
             return 'Instant digital access after payment';
         }
 
-        if ($this->boxOnlyForVariant()) {
-            return 'Requires boxed shipping';
+        if ($this->boxOnlyForVariant($variant)) {
+            return 'Requires rigid parcel shipping';
         }
 
-        $satchel = $this->satchelLabelForRank($this->minSatchelRankForVariant());
+        $satchel = $this->satchelLabelForRank($this->minSatchelRankForVariant($variant));
         if ($satchel === null) {
-            return 'Satchel shipping';
+            return 'Package shipping';
         }
 
-        return 'Fits '.$satchel.' satchel or larger';
+        return 'Fits '.$satchel.' package or larger';
     }
 
     public function priceLabel(?ProductVariant $variant = null): string
     {
-        return '$'.number_format($this->priceForVariant($variant), 2);
+        return self::priceAmountLabel($this->priceForVariant($variant));
     }
 
     public function priceRangeLabel(): string
@@ -296,16 +484,108 @@ class Product extends Model
             return $this->priceLabel();
         }
 
-        $prices = $variants->map(fn (ProductVariant $variant) => $variant->effectivePrice())->unique()->sort()->values();
+        $prices = $variants
+            ->map(fn (ProductVariant $variant) => $variant->effectivePrice())
+            ->prepend($this->priceForVariant())
+            ->unique()
+            ->sort()
+            ->values();
         if ($prices->count() <= 1) {
-            return '$'.number_format((float) $prices->first(), 2);
+            return self::priceAmountLabel((float) $prices->first());
         }
 
-        return 'From $'.number_format((float) $prices->first(), 2);
+        return 'From '.self::priceAmountLabel((float) $prices->first());
+    }
+
+    public function trackedInventoryTotal(): ?int
+    {
+        $trackedInventories = [];
+
+        if ($this->inventory_quantity !== null) {
+            $trackedInventories[] = max(0, (int) $this->inventory_quantity);
+        }
+
+        $variants = $this->relationLoaded('variants')
+            ? $this->variants
+            : $this->variants()->get();
+
+        foreach ($variants as $variant) {
+            if (! $variant instanceof ProductVariant || ! $variant->is_active || $variant->inventory_quantity === null) {
+                continue;
+            }
+
+            $trackedInventories[] = max(0, (int) $variant->inventory_quantity);
+        }
+
+        return $trackedInventories === [] ? null : array_sum($trackedInventories);
+    }
+
+    public function effectiveLowStockThreshold(): ?int
+    {
+        if (! $this->isPhysical()) {
+            return null;
+        }
+
+        $threshold = $this->low_stock_threshold !== null ? (int) $this->low_stock_threshold : null;
+
+        return $threshold !== null && $threshold > 0 ? $threshold : null;
+    }
+
+    public function isLowStock(?int $available = null): bool
+    {
+        $threshold = $this->effectiveLowStockThreshold();
+        $resolvedAvailable = $available ?? $this->trackedInventoryTotal();
+
+        return $threshold !== null
+            && $resolvedAvailable !== null
+            && $resolvedAvailable <= $threshold;
+    }
+
+    public static function priceAmountLabel(float $amount): string
+    {
+        $normalizedAmount = round(max(0, $amount), 2);
+
+        if ($normalizedAmount <= 0.0001) {
+            return 'Free';
+        }
+
+        return '$'.number_format($normalizedAmount, 2);
     }
 
     public static function satchelOptions(): Collection
     {
+        if (Schema::hasTable('store_shipping_methods') && Schema::hasTable('store_shipping_method_packages')) {
+            $method = StoreShippingMethod::query()
+                ->where('is_active', true)
+                ->where('is_pickup', false)
+                ->with([
+                    'packageOptions' => fn ($query) => $query
+                        ->where('is_active', true)
+                        ->orderBy('sort_order')
+                        ->orderBy('id'),
+                ])
+                ->orderByDesc('is_default')
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->first();
+
+            if ($method instanceof StoreShippingMethod && $method->packageOptions->isNotEmpty()) {
+                return $method->packageOptions
+                    ->map(function (StoreShippingMethodPackage $package): array {
+                        return [
+                            'code' => (string) $package->code,
+                            'label' => (string) $package->label,
+                            'rank' => max(1, (int) $package->sort_order),
+                            'capacity' => round((float) $package->capacity, 2),
+                            'price' => round((float) $package->price, 2),
+                            'active' => (bool) $package->is_active,
+                        ];
+                    })
+                    ->sortBy('rank')
+                    ->values();
+            }
+        }
+
         return ShopShippingSettings::satchels()
             ->filter(fn (array $satchel): bool => $satchel['active'] !== false)
             ->sortBy('rank')
