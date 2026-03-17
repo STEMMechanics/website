@@ -73,6 +73,19 @@ class AdminSubscriptionNewsletterTest extends TestCase
         });
     }
 
+    public function test_upcoming_workshops_mailable_includes_list_unsubscribe_header_when_link_is_present(): void
+    {
+        $mailable = new UpcomingWorkshops('subscriber@example.com');
+        $mailable->withUnsubscribeLink('https://www.stemmechanics.com.au/unsubscribe/test-token');
+
+        $headers = $mailable->headers();
+
+        $this->assertSame(
+            '<https://www.stemmechanics.com.au/unsubscribe/test-token>',
+            $headers->text['List-Unsubscribe'] ?? null
+        );
+    }
+
     public function test_admin_test_newsletter_requires_valid_email(): void
     {
         Queue::fake();

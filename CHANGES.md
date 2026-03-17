@@ -26,6 +26,7 @@
 - STEMMechanics users now prefixed with toolbox in discussions
 - Discussion titles now support basic markdown
 - Added ability to send a subscription email to a manual address
+- Added List-Unsubscribe header to subscription emails
 
 ## 1.3.14
 
