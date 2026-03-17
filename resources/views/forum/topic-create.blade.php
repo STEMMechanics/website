@@ -6,7 +6,12 @@
             <form method="POST" action="{{ route('forum.topic.store', $category->slug) }}">
                 @csrf
 
-                <x-ui.input name="title" label="Thread Title" value="{{ old('title') }}" />
+                <x-ui.input
+                    name="title"
+                    label="Thread Title"
+                    value="{{ old('title') }}"
+                    info="Supports *italic*, **bold**, and ~~strikethrough~~."
+                />
                 <x-ui.editor name="body" value="{!! old('body') !!}" label="Opening Post" :allowHeadings="false" />
 
                 <div class="mt-6 flex justify-end">

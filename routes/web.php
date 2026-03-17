@@ -161,6 +161,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/stemcraft/accounts', [MinecraftController::class, 'accountStore'])->name('account.stemcraft.store');
     Route::delete('/account/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'accountDestroy'])->name('account.stemcraft.destroy');
     Route::post('/forum/{categorySlug}/topics', [ForumController::class, 'storeTopic'])->name('forum.topic.store');
+    Route::put('/forum/{categorySlug}/{topicSlug}/title', [ForumController::class, 'updateTitle'])->name('forum.topic.title.update');
     Route::post('/forum/{categorySlug}/{topicSlug}/posts', [ForumController::class, 'storePost'])->name('forum.post.store');
     Route::put('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}', [ForumController::class, 'updatePost'])->name('forum.post.update');
     Route::post('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}/reaction', [ForumController::class, 'toggleReaction'])->name('forum.post.reaction');

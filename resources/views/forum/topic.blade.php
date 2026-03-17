@@ -37,6 +37,7 @@
     $reportAction = trim((string) old('report_action', ''));
     $reportPostId = trim((string) old('report_post_id', ''));
     $reportAuthor = trim((string) old('report_author', ''));
+    $titleModalOpen = $errors->has('title');
 
     $topicPageConfig = [
         'reactionState' => $reactionState,
@@ -53,6 +54,7 @@
         'initialReportAction' => $reportAction,
         'initialReportPostId' => $reportPostId,
         'initialReportAuthor' => $reportAuthor,
+        'titleModalOpen' => $titleModalOpen,
     ];
 @endphp
 
@@ -61,7 +63,7 @@
 </script>
 
 <x-layout>
-    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">{{ $topic->title }}</x-mast>
+    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">{!! $topic->formattedTitle() !!}</x-mast>
 
     <x-container class="py-8" id="forum-topic-page">
         <div id="forum-topic-meta">
@@ -108,6 +110,38 @@
 
         <div id="forum-topic-reply-panel">
             @include('forum.partials.reply-panel', ['topic' => $topic, 'canReply' => $canReply])
+        </div>
+
+        <div
+            id="forum-title-modal"
+            class="{{ $titleModalOpen ? 'fixed' : 'hidden' }} inset-0 z-50 items-center justify-center bg-black/50 p-4"
+        >
+            <div class="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl" data-forum-title-modal-panel>
+                <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Edit thread title</h2>
+                        <p class="text-sm text-gray-500">Type markdown directly. Supports italic, bold, and strikethrough.</p>
+                    </div>
+                    <button type="button" class="text-gray-500 transition hover:text-gray-900" data-forum-title-close title="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <form method="POST" action="{{ route('forum.topic.title.update', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]) }}" class="space-y-5 px-6 py-5">
+                    @csrf
+                    @method('PUT')
+                    <x-ui.input
+                        id="forum-title-input"
+                        name="title"
+                        label="Thread Title"
+                        :value="old('title', $topic->title)"
+                        info="Supports *italic*, **bold**, and ~~strikethrough~~."
+                    />
+                    <div class="flex justify-end gap-3 border-t border-gray-200 pt-5">
+                        <x-ui.button type="button" color="outline" data-forum-title-close>Cancel</x-ui.button>
+                        <x-ui.button type="submit">Save Title</x-ui.button>
+                    </div>
+                </form>
+            </div>
         </div>
 
         <div
@@ -191,10 +225,12 @@
         const snapshotUrl = config.snapshotUrl || '';
         const modal = document.getElementById('forum-reply-modal');
         const reportModal = document.getElementById('forum-report-modal');
+        const titleModal = document.getElementById('forum-title-modal');
         const modalTitle = document.getElementById('forum-reply-modal-title');
         const modalDescription = document.getElementById('forum-reply-modal-description');
         const replyForm = modal?.querySelector('form') || null;
         const reportForm = document.getElementById('forum-report-form');
+        const titleInput = document.getElementById('forum-title-input');
         const replyMethodInput = document.getElementById('forum-reply-modal-method');
         const replyModeInput = document.getElementById('forum-reply-modal-mode');
         const replyEditPostIdInput = document.getElementById('forum-reply-edit-post-id');
@@ -321,6 +357,29 @@
             reportModal.classList.remove('flex');
         };
 
+        const openTitleModal = () => {
+            if (!titleModal) {
+                return;
+            }
+
+            titleModal.classList.remove('hidden');
+            titleModal.classList.add('fixed', 'flex');
+
+            requestAnimationFrame(() => {
+                titleInput?.focus();
+                titleInput?.select();
+            });
+        };
+
+        const closeTitleModal = () => {
+            if (!titleModal) {
+                return;
+            }
+
+            titleModal.classList.add('hidden');
+            titleModal.classList.remove('flex');
+        };
+
         const saveNotificationsPreference = async (form, checkbox) => {
             if (!form || !checkbox || form.dataset.loading === 'true') {
                 return;
@@ -389,6 +448,15 @@
                         author: button.dataset.reportAuthor || 'this post',
                         postId: button.dataset.reportPostId || '',
                     });
+                });
+            });
+        };
+
+        const bindTitleButtons = () => {
+            root.querySelectorAll('[data-forum-title-button]').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    openTitleModal();
                 });
             });
         };
@@ -462,6 +530,7 @@
         const bindTopicInteractions = () => {
             bindReactionButtons();
             bindComposerButtons();
+            bindTitleButtons();
         };
 
         root.addEventListener('change', (event) => {
@@ -500,6 +569,19 @@
             }
         });
 
+        root.querySelectorAll('[data-forum-title-close]').forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                closeTitleModal();
+            });
+        });
+
+        titleModal?.addEventListener('click', (event) => {
+            if (event.target === titleModal) {
+                closeTitleModal();
+            }
+        });
+
         replyForm?.addEventListener('keydown', (event) => {
             if (event.key !== 'Enter' || (!event.metaKey && !event.ctrlKey)) {
                 return;
@@ -520,7 +602,7 @@
                 return;
             }
 
-            if ((modal && !modal.classList.contains('hidden')) || (reportModal && !reportModal.classList.contains('hidden'))) {
+            if ((modal && !modal.classList.contains('hidden')) || (reportModal && !reportModal.classList.contains('hidden')) || (titleModal && !titleModal.classList.contains('hidden'))) {
                 return;
             }
 
@@ -565,6 +647,10 @@
             if (event.key === 'Escape' && reportModal && !reportModal.classList.contains('hidden')) {
                 closeReportModal();
             }
+
+            if (event.key === 'Escape' && titleModal && !titleModal.classList.contains('hidden')) {
+                closeTitleModal();
+            }
         });
 
         if (config.replyModalOpen) {
@@ -586,6 +672,10 @@
                 author: config.initialReportAuthor || 'this post',
                 postId: config.initialReportPostId || '',
             });
+        }
+
+        if (config.titleModalOpen) {
+            openTitleModal();
         }
 
         bindTopicInteractions();

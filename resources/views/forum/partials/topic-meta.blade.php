@@ -45,6 +45,12 @@
                     </x-ui.button>
                 @endif
 
+                @if($topic->canEditTitle(auth()->user()))
+                    <x-ui.button type="button" color="outline" data-forum-title-button>
+                        <i class="fa-solid fa-pen mr-2"></i>Edit Title
+                    </x-ui.button>
+                @endif
+
                 @if(auth()->user()?->isAdmin())
                     <form method="POST" action="{{ route('forum.topic.pin', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}">
                         @csrf

@@ -11,20 +11,19 @@ use Illuminate\Support\Collection;
 
 class ForumUnreadNotification extends Mailable
 {
-    use Queueable, SerializesModels, HasUnsubscribeLink;
+    use HasUnsubscribeLink, Queueable, SerializesModels;
 
     public function __construct(
         public User $user,
         public Collection $threadDigests,
-    ) {
-    }
+    ) {}
 
     public function build()
     {
         $threadCount = $this->threadDigests->count();
         $totalUnreadPosts = $this->threadDigests->sum(fn ($digest) => $digest['posts']->count());
         $subject = $threadCount === 1
-            ? 'New replies in discussion '.$this->threadDigests->first()['topic']->title
+            ? 'New replies in discussion '.$this->threadDigests->first()['topic']->plainTitle()
             : 'New replies in '.$threadCount.' discussions';
 
         return $this

@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Support\ForumContent;
 use App\Traits\UUID;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 /**
@@ -104,9 +106,28 @@ class ForumTopic extends Model
         return ! $this->is_locked;
     }
 
+    public function canEditTitle(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $user->isAdmin() || (string) $this->user_id === (string) $user->id;
+    }
+
+    public function formattedTitle(): HtmlString
+    {
+        return new HtmlString(ForumContent::renderTitleMarkdown((string) $this->title));
+    }
+
+    public function plainTitle(): string
+    {
+        return ForumContent::plainTitleMarkdown((string) $this->title);
+    }
+
     public static function generateUniqueSlug(string $title, string $categoryId, ?string $ignoreTopicId = null): string
     {
-        $base = trim((string) Str::slug($title));
+        $base = trim((string) Str::slug(ForumContent::plainTitleMarkdown($title)));
         if ($base === '') {
             $base = 'topic';
         }

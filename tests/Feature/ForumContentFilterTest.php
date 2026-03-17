@@ -39,6 +39,24 @@ class ForumContentFilterTest extends TestCase
         $this->assertDatabaseCount('forum_posts', 0);
     }
 
+    public function test_forum_topic_creation_blocks_profanity_hidden_inside_title_markdown(): void
+    {
+        $user = User::factory()->create();
+        $category = ForumCategory::query()->create([
+            'name' => 'General Discussion',
+            'slug' => 'general-discussion',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('forum.topic.store', $category->slug), [
+            'title' => 'Need f**u**ck help',
+            'body' => '<p>This body is clean.</p>',
+        ]);
+
+        $response->assertSessionHasErrors('title');
+        $this->assertDatabaseCount('forum_topics', 0);
+        $this->assertDatabaseCount('forum_posts', 0);
+    }
+
     public function test_forum_reply_is_blocked_for_all_caps_when_enabled(): void
     {
         $user = User::factory()->create();

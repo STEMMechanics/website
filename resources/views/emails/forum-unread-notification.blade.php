@@ -32,7 +32,7 @@ There are **{{ $totalUnreadPosts }} unread {{ \Illuminate\Support\Str::plural('r
     $threadUnreadCount = (int) $threadDigest['posts']->count();
     $threadLatestAt = $threadDigest['posts']->last()?->created_at?->format('j M Y g:i a') ?? '-';
 @endphp
-- [{{ $threadDigest['topic']->title }}]({{ $threadDigest['url'] }}) - {{ $threadUnreadCount }} unread {{ \Illuminate\Support\Str::plural('reply', $threadUnreadCount) }} - latest {{ $threadLatestAt }}
+- [{{ $threadDigest['topic']->plainTitle() }}]({{ $threadDigest['url'] }}) - {{ $threadUnreadCount }} unread {{ \Illuminate\Support\Str::plural('reply', $threadUnreadCount) }} - latest {{ $threadLatestAt }}
 @endforeach
 @endforeach
 

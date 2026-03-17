@@ -23,8 +23,7 @@ class ForumController extends Controller
 {
     public function __construct(
         private readonly ContentFilter $contentFilter,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): View
     {
@@ -98,7 +97,15 @@ class ForumController extends Controller
                 ->withInput();
         }
 
-        $titleFilter = $this->contentFilter->inspect((string) $validated['title'], 'forum');
+        $title = trim((string) $validated['title']);
+        $plainTitle = ForumContent::plainTitleMarkdown($title);
+        if ($plainTitle === '') {
+            return back()
+                ->withErrors(['title' => 'Thread title cannot be empty.'])
+                ->withInput();
+        }
+
+        $titleFilter = $this->contentFilter->inspect($plainTitle, 'forum');
         if ($titleFilter->blocked) {
             return back()
                 ->withErrors(['title' => $titleFilter->message ?? 'Thread title is not allowed.'])
@@ -115,7 +122,7 @@ class ForumController extends Controller
         $topic = new ForumTopic();
         $topic->forum_category_id = (string) $category->id;
         $topic->user_id = (string) $request->user()->id;
-        $topic->title = trim((string) $validated['title']);
+        $topic->title = $title;
         $topic->slug = ForumTopic::generateUniqueSlug($topic->title, (string) $category->id);
         $topic->last_post_at = now();
         $topic->last_post_user_id = (string) $request->user()->id;
@@ -162,6 +169,47 @@ class ForumController extends Controller
             'topic' => $topic,
             ...$topicView,
         ]);
+    }
+
+    public function updateTitle(Request $request, string $categorySlug, string $topicSlug): RedirectResponse
+    {
+        $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
+        $user = $request->user();
+        abort_unless($topic->canRead($user), 403);
+        abort_unless($topic->canEditTitle($user), 403);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:200'],
+        ]);
+
+        $title = trim((string) $validated['title']);
+        $plainTitle = ForumContent::plainTitleMarkdown($title);
+        if ($plainTitle === '') {
+            return back()
+                ->withErrors(['title' => 'Thread title cannot be empty.'])
+                ->withInput();
+        }
+
+        $titleFilter = $this->contentFilter->inspect($plainTitle, 'forum');
+        if ($titleFilter->blocked) {
+            return back()
+                ->withErrors(['title' => $titleFilter->message ?? 'Thread title is not allowed.'])
+                ->withInput();
+        }
+
+        $topic->title = $title;
+        $topic->slug = ForumTopic::generateUniqueSlug($title, (string) $topic->forum_category_id, (string) $topic->id);
+        $topic->save();
+
+        session()->flash('message', 'Thread title updated.');
+        session()->flash('message-title', 'Thread updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->to(route('forum.topic.show', [
+            'categorySlug' => $topic->category->slug,
+            'topicSlug' => $topic->slug,
+            'sort' => $this->normalizedReplySort($request->query('sort')),
+        ]));
     }
 
     public function storePost(Request $request, string $categorySlug, string $topicSlug): RedirectResponse
@@ -440,6 +488,7 @@ class ForumController extends Controller
                 'lastCommentPost' => $topicView['lastCommentPost'],
                 'lastCommentAuthorName' => $topicView['lastCommentAuthorName'],
                 'notificationsEnabled' => $topicView['notificationsEnabled'],
+                'replySort' => $topicView['replySort'],
             ])->render(),
             'firstPostHtml' => $topicView['firstPost']
                 ? view('forum.partials.post', [
