@@ -22,6 +22,7 @@
 - Hide registration button on non-open workshops
 - Implemented bot protection on forms
 - Newsletter now excludes private and hidden workshops
+- Dependency updates
 
 ## 1.3.14
 
