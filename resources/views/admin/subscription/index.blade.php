@@ -17,6 +17,23 @@
             </x-slot:right>
         </x-ui.toolbar>
 
+        <div class="mb-6 rounded-lg border border-gray-200 bg-white p-4">
+            <form method="POST" action="{{ route('admin.subscription.send-test-now') }}" class="flex flex-col gap-4 md:flex-row md:items-end">
+                @csrf
+                <div class="w-full md:max-w-lg">
+                    <x-ui.input
+                        class="mb-0"
+                        label="Send test newsletter to email"
+                        name="test_email"
+                        type="email"
+                        value="{{ old('test_email') }}"
+                        info="Queues the existing newsletter to this address without creating or updating a subscription."
+                    />
+                </div>
+                <x-ui.button type="submit" color="outline">Send Test Email</x-ui.button>
+            </form>
+        </div>
+
         @if($subscriptions->isEmpty())
             <x-none-found item="subscriptions" search="{{ request()->get('search') }}" />
         @else

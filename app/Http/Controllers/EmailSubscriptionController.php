@@ -19,7 +19,7 @@ class EmailSubscriptionController extends Controller
         $query = EmailSubscriptions::query();
 
         if ($request->has('search') && $request->search !== '') {
-            $query->where('email', 'like', '%' . $request->search . '%');
+            $query->where('email', 'like', '%'.$request->search.'%');
         }
 
         $subscriptions = $query
@@ -140,7 +140,7 @@ class EmailSubscriptionController extends Controller
         }
 
         try {
-            dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
+            $this->queueNewsletter($email);
         } catch (Throwable $exception) {
             session()->flash('message', 'Unable to queue newsletter: '.$exception->getMessage());
             session()->flash('message-title', 'Newsletter failed');
@@ -150,6 +150,34 @@ class EmailSubscriptionController extends Controller
         }
 
         session()->flash('message', 'Newsletter queued for '.$email.'.');
+        session()->flash('message-title', 'Newsletter queued');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    public function sendTestNow(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'test_email' => ['required', 'email', 'max:255'],
+        ], [
+            'test_email.required' => __('validation.custom_messages.email_required'),
+            'test_email.email' => __('validation.custom_messages.email_invalid'),
+        ]);
+
+        $email = strtolower(trim((string) $validated['test_email']));
+
+        try {
+            $this->queueNewsletter($email);
+        } catch (Throwable $exception) {
+            session()->flash('message', 'Unable to queue newsletter: '.$exception->getMessage());
+            session()->flash('message-title', 'Newsletter failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        session()->flash('message', 'Test newsletter queued for '.$email.'.');
         session()->flash('message-title', 'Newsletter queued');
         session()->flash('message-type', 'success');
 
@@ -176,7 +204,7 @@ class EmailSubscriptionController extends Controller
 
         try {
             foreach ($emails as $email) {
-                dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
+                $this->queueNewsletter($email);
             }
         } catch (Throwable $exception) {
             session()->flash('message', 'Unable to queue newsletters: '.$exception->getMessage());
@@ -191,5 +219,10 @@ class EmailSubscriptionController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    private function queueNewsletter(string $email): void
+    {
+        dispatch(new SendEmail($email, new UpcomingWorkshops($email)))->onQueue('mail');
     }
 }

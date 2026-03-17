@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -46,6 +47,47 @@ class AdminSubscriptionNewsletterTest extends TestCase
 
             return true;
         });
+    }
+
+    public function test_admin_can_queue_test_newsletter_for_arbitrary_email(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.subscription.index'))
+            ->post(route('admin.subscription.send-test-now'), [
+                'test_email' => 'SpamTester@Example.com',
+            ]);
+
+        $response->assertRedirect(route('admin.subscription.index'));
+        $response->assertSessionHas('message-title', 'Newsletter queued');
+        $this->assertDatabaseCount('email_subscriptions', 0);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            $this->assertSame('spamtester@example.com', (string) $job->to);
+            $this->assertInstanceOf(UpcomingWorkshops::class, $job->mailable);
+
+            return true;
+        });
+    }
+
+    public function test_admin_test_newsletter_requires_valid_email(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.subscription.index'))
+            ->post(route('admin.subscription.send-test-now'), [
+                'test_email' => 'not-an-email',
+            ]);
+
+        $response->assertRedirect(route('admin.subscription.index'));
+        $response->assertSessionHasErrors('test_email');
+        Queue::assertNothingPushed();
     }
 
     public function test_admin_cannot_queue_newsletter_for_unconfirmed_subscription(): void
@@ -164,7 +206,7 @@ class AdminSubscriptionNewsletterTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('latestNewsletterByEmail', function ($map) use ($latest): bool {
-            if (! $map instanceof \Illuminate\Support\Collection) {
+            if (! $map instanceof Collection) {
                 return false;
             }
 

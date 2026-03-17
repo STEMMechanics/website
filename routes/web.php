@@ -269,6 +269,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/subscriptions/create', [EmailSubscriptionController::class, 'create'])->name('admin.subscription.create');
     Route::post('/admin/subscriptions', [EmailSubscriptionController::class, 'store'])->name('admin.subscription.store');
     Route::post('/admin/subscriptions/send-all-now', [EmailSubscriptionController::class, 'sendAllNow'])->name('admin.subscription.send-all-now');
+    Route::post('/admin/subscriptions/send-test-now', [EmailSubscriptionController::class, 'sendTestNow'])->name('admin.subscription.send-test-now');
     Route::post('/admin/subscriptions/{subscription}/send-now', [EmailSubscriptionController::class, 'sendNow'])->name('admin.subscription.send-now');
     Route::get('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'edit'])->name('admin.subscription.edit');
     Route::put('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'update'])->name('admin.subscription.update');

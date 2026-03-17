@@ -25,6 +25,7 @@
 - Dependency updates
 - STEMMechanics users now prefixed with toolbox in discussions
 - Discussion titles now support basic markdown
+- Added ability to send a subscription email to a manual address
 
 ## 1.3.14
 
