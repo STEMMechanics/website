@@ -30,7 +30,7 @@
         <div class="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-start md:justify-between">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <div class="font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
+                    <div class="flex font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
                         @if($topic->user?->hasGroup('admin'))
                             <img src="/toolbox-sm.png" class="w-7 h-auto" alt="STEMMechanics">
                         @endif

@@ -17,7 +17,7 @@
         </div>
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-                <div class="font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
+                <div class="flex font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
                     @if($topic->user?->hasGroup('admin'))
                         <img src="/toolbox-sm.png" class="w-7 h-auto" alt="STEMMechanics">
                     @endif
