@@ -96,8 +96,8 @@ Route::get('/stemcraft/rules', [StemcraftController::class, 'rules'])->name('ste
 Route::get('/stemcraft/faqs', [StemcraftController::class, 'faqs'])->name('stemcraft.faqs');
 Route::get('/stemcraft/leaderboards', [StemcraftController::class, 'stats'])->name('stemcraft.leaderboards');
 Route::get('/stemcraft/punishments', [StemcraftController::class, 'punishments'])->name('stemcraft.punishments');
-Route::get('unsubscribe/discussions/{email}', [SubscribeController::class, 'destroyDiscussionNotifications'])->name('unsubscribe.discussions');
-Route::get('unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
+Route::match(['GET', 'POST'], 'unsubscribe/discussions/{email}', [SubscribeController::class, 'destroyDiscussionNotifications'])->name('unsubscribe.discussions');
+Route::match(['GET', 'POST'], 'unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
 Route::get('/tickets', [TicketController::class, 'showRequest'])->name('tickets.request');
 Route::post('/tickets', [TicketController::class, 'sendMagicLink'])->middleware('throttle:magic-link')->name('tickets.send');
 Route::get('/tickets/magic', [TicketController::class, 'showByMagicToken'])->name('tickets.magic');

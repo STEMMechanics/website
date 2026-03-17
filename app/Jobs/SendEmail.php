@@ -42,8 +42,8 @@ class SendEmail implements ShouldQueue
     /**
      * Create a new job instance.
      *
-     * @param string   $to       The email receipient.
-     * @param Mailable $mailable The mailable.
+     * @param  string  $to  The email receipient.
+     * @param  Mailable  $mailable  The mailable.
      */
     public function __construct(string $to, Mailable $mailable)
     {
@@ -73,6 +73,20 @@ class SendEmail implements ShouldQueue
                 : 'unsubscribe';
             $unsubscribeLink = route($unsubscribeRoute, ['email' => $sentEmail->id]);
             $this->mailable->withUnsubscribeLink($unsubscribeLink);
+
+            if (method_exists($this->mailable, 'unsubscribeHeaders')) {
+                $unsubscribeHeaders = $this->mailable->unsubscribeHeaders();
+
+                $this->mailable->withSymfonyMessage(function ($message) use ($unsubscribeHeaders) {
+                    $headers = $message->getHeaders();
+
+                    foreach ($unsubscribeHeaders as $name => $value) {
+                        if (! $headers->has($name)) {
+                            $headers->addTextHeader($name, $value);
+                        }
+                    }
+                });
+            }
         }
 
         try {

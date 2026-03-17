@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
+use App\Mail\UserWelcome;
 use App\Models\EmailSubscriptions;
 use App\Models\SentEmail;
 use App\Models\User;
@@ -78,12 +79,59 @@ class AdminSubscriptionNewsletterTest extends TestCase
         $mailable = new UpcomingWorkshops('subscriber@example.com');
         $mailable->withUnsubscribeLink('https://www.stemmechanics.com.au/unsubscribe/test-token');
 
-        $headers = $mailable->headers();
+        $headers = $mailable->unsubscribeHeaders();
 
         $this->assertSame(
             '<https://www.stemmechanics.com.au/unsubscribe/test-token>',
-            $headers->text['List-Unsubscribe'] ?? null
+            $headers['List-Unsubscribe'] ?? null
         );
+        $this->assertSame(
+            'List-Unsubscribe=One-Click',
+            $headers['List-Unsubscribe-Post'] ?? null
+        );
+    }
+
+    public function test_send_email_job_adds_unsubscribe_headers_to_final_subscription_message(): void
+    {
+        config(['mail.default' => 'array']);
+
+        $job = new SendEmail('subscriber@example.com', new UserWelcome('subscriber@example.com'));
+        $job->handle();
+
+        $transport = app('mail.manager')->mailer()->getSymfonyTransport();
+        $sentMessage = $transport->messages()->last();
+        $headers = $sentMessage->getOriginalMessage()->getHeaders();
+
+        $this->assertSame(
+            '<'.route('unsubscribe', ['email' => $job->sentEmailId]).'>',
+            $headers->get('List-Unsubscribe')?->getBodyAsString()
+        );
+        $this->assertSame(
+            'List-Unsubscribe=One-Click',
+            $headers->get('List-Unsubscribe-Post')?->getBodyAsString()
+        );
+    }
+
+    public function test_subscription_unsubscribe_endpoint_accepts_one_click_post_requests(): void
+    {
+        $subscription = EmailSubscriptions::query()->create([
+            'email' => 'subscriber@example.com',
+            'confirmed' => now()->toDateTimeString(),
+        ]);
+        $sentEmail = SentEmail::query()->create([
+            'recipient' => 'subscriber@example.com',
+            'mailable_class' => UserWelcome::class,
+            'status' => SentEmail::STATUS_SENT,
+            'sent_at' => now(),
+        ]);
+
+        $response = $this->post(route('unsubscribe', ['email' => $sentEmail->id]));
+
+        $response->assertOk();
+        $response->assertSeeText('Unsubscribed.');
+        $this->assertDatabaseMissing('email_subscriptions', [
+            'id' => $subscription->id,
+        ]);
     }
 
     public function test_admin_test_newsletter_requires_valid_email(): void

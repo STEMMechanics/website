@@ -2,8 +2,6 @@
 
 namespace App\Traits;
 
-use Illuminate\Mail\Mailables\Headers;
-
 trait HasUnsubscribeLink
 {
     protected ?string $unsubscribeLink = null;
@@ -15,14 +13,21 @@ trait HasUnsubscribeLink
         return $this;
     }
 
-    public function headers(): Headers
+    /**
+     * @return array<string, string>
+     */
+    public function unsubscribeHeaders(): array
     {
         $textHeaders = [];
 
         if ($this->unsubscribeLink !== null && $this->unsubscribeLink !== '') {
             $textHeaders['List-Unsubscribe'] = '<'.$this->unsubscribeLink.'>';
+
+            if (str_starts_with($this->unsubscribeLink, 'https://')) {
+                $textHeaders['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+            }
         }
 
-        return new Headers(text: $textHeaders);
+        return $textHeaders;
     }
 }

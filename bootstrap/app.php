@@ -43,8 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/square',
             'webhooks/stemcraft/server',
             'webhooks/minecraft/server',
+            'unsubscribe/*',
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
-
-    })->create();
+    ->withExceptions(function (Exceptions $exceptions) {})->create();
