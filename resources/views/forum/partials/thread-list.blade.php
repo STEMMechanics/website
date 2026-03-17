@@ -17,10 +17,11 @@
         </div>
         <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-                <div class="font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">{{ $authorName }}
+                <div class="font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
                     @if($topic->user?->hasGroup('admin'))
-                    <span class="font-normal text-gray-400 text-xs">(STEMMechanics)</span>
+                        <img src="/toolbox-sm.png" class="w-7 h-auto" alt="STEMMechanics">
                     @endif
+                    {{ $authorName }}
                 </div>
                 <div class="text-sm text-gray-400">{{ $topic->created_at?->format('j M Y g:i a') }}</div>
             </div>
@@ -32,7 +33,7 @@
                     <i class="fa-solid fa-lock"></i>
                 @endif
                 <span class="text-lg font-bold text-gray-900 transition group-hover:text-primary-color">
-                    {{ $topic->title }}
+                    {!! $topic->formattedTitle() !!}
                 </span>
                 @if(isset($unreadTopicLookup[(string) $topic->id]))
                     <span class="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">New</span>

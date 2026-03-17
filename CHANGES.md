@@ -23,6 +23,7 @@
 - Implemented bot protection on forms
 - Newsletter now excludes private and hidden workshops
 - Dependency updates
+- STEMMechanics users now prefixed with toolbox in discussions
 
 ## 1.3.14
 
