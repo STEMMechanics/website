@@ -7,17 +7,18 @@ on:
 
 jobs:
   semgrep:
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep:latest
+    runs-on: laravel-ci
     steps:
       - uses: actions/checkout@v6
+
+      - name: Install Semgrep
+        run: python3 -m pip install semgrep
+
       - name: Run Semgrep
         run: semgrep scan --config p/php
 
   phpstan:
     runs-on: laravel-ci
-
     steps:
       - uses: actions/checkout@v6
 
