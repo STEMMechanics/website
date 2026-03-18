@@ -27,9 +27,8 @@ jobs:
           restore-keys: |
             composer-${{ runner.os }}-
 
-      - run: php -v
-      - run: php -m
-      - run: composer check-platform-reqs || true
+      - run: node -v
+      - run: npm -v
 
       - name: Install PHP Dependencies
         env:
