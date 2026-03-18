@@ -2,16 +2,13 @@ name: Laravel
 
 on:
   workflow_dispatch:
-#  push:
-#    branches: ["main"]
-#  pull_request:
+  push:
+    branches: ["main"]
+  pull_request:
 
 jobs:
   laravel-tests:
     runs-on: laravel-ci
-    #runs-on: ubuntu-latest
-    #container:
-    #  image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
 
     steps:
       - uses: actions/checkout@v6
@@ -26,9 +23,6 @@ jobs:
           key: composer-${{ runner.os }}-${{ hashFiles('composer.lock') }}
           restore-keys: |
             composer-${{ runner.os }}-
-
-      - run: node -v
-      - run: npm -v
 
       - name: Install PHP Dependencies
         env:
