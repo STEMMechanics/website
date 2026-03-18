@@ -10,8 +10,7 @@ jobs:
   laravel-tests:
     runs-on: ubuntu-latest
     container:
-      image: alpine:3.20
-      #image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
+      image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
 
     steps:
       - uses: actions/checkout@v6
