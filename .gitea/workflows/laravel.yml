@@ -10,8 +10,8 @@ jobs:
   laravel-tests:
     runs-on: laravel-ci
     #runs-on: ubuntu-latest
-    container:
-      image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
+    #container:
+    #  image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
 
     steps:
       - uses: actions/checkout@v6
