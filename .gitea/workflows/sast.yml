@@ -1,8 +1,9 @@
 name: SAST
 
 on:
-#  push:
-#  pull_request:
+  workflow_dispatch:
+  push:
+  pull_request:
 
 jobs:
   semgrep:
@@ -15,9 +16,7 @@ jobs:
         run: semgrep scan --config p/php
 
   phpstan:
-    runs-on: ubuntu-latest
-    container:
-      image: git.stemmechanics.com.au/stemmechanics/laravel-ci:php8.4-node24
+    runs-on: laravel-ci
 
     steps:
       - uses: actions/checkout@v6
