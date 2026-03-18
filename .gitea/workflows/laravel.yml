@@ -27,6 +27,10 @@ jobs:
           restore-keys: |
             composer-${{ runner.os }}-
 
+      - run: php -v
+      - run: php -m
+      - run: composer check-platform-reqs || true
+
       - name: Install PHP Dependencies
         env:
           COMPOSER_CACHE_DIR: /tmp/composer-cache
