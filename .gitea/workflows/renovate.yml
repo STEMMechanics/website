@@ -3,7 +3,7 @@ name: renovate
 on:
   workflow_dispatch:
   schedule:
-    - cron: "@hourly"
+    - cron: "@daily"
 
 jobs:
   renovate:
