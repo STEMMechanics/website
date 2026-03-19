@@ -124,7 +124,20 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('includeSVG', function ($arguments) {
             list($path, $styles) = array_pad(explode(',', str_replace(['(', ')', ' ', "'"], '', $arguments), 2), 2, '');
             $svgContent = file_get_contents(public_path($path));
-            $svgContent = str_replace('<svg ', '<svg style="'.$styles.'" ', $svgContent);
+
+            if ($svgContent === false) {
+                return '';
+            }
+
+            // Inline SVGs must not include XML or DOCTYPE declarations because
+            // they can be parsed as PHP when `short_open_tag` is enabled.
+            $svgContent = preg_replace('/^\s*<\?xml[^>]*\?>\s*/i', '', $svgContent) ?? $svgContent;
+            $svgContent = preg_replace('/^\s*<!DOCTYPE[^>]*>\s*/i', '', $svgContent) ?? $svgContent;
+
+            if ($styles !== '') {
+                $svgContent = str_replace('<svg ', '<svg style="'.$styles.'" ', $svgContent);
+            }
+
             return $svgContent;
         });
 

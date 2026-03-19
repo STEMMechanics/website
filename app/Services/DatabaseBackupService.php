@@ -8,8 +8,8 @@ use Symfony\Component\Process\Process;
 class DatabaseBackupService
 {
     private string $backupDirectory;
-    private string $dumpCommand;
-    private string $mysqlImportCommand;
+    private ?string $dumpCommand;
+    private ?string $mysqlImportCommand;
 
     public function __construct()
     {
@@ -26,6 +26,7 @@ class DatabaseBackupService
     public function createBackup(?string $prefix = null): string
     {
         $this->assertMysqlConnection();
+        $dumpCommand = $this->requireResolvedCommand($this->dumpCommand, ['mysqldump', 'mariadb-dump']);
         $this->ensureCommandAvailable('gzip');
 
         if (! is_dir($this->backupDirectory)) {
@@ -44,7 +45,7 @@ class DatabaseBackupService
         $mysql = $this->mysqlConfig();
 
         $dumpArgs = [
-            $this->dumpCommand,
+            $dumpCommand,
             '--host='.$mysql['host'],
             '--port='.(string) $mysql['port'],
             '--user='.$mysql['username'],
@@ -61,7 +62,7 @@ class DatabaseBackupService
             '--result-file='.$tmpSqlPath,
         ];
 
-        if ($this->supportsSetGtidPurgedFlag($this->dumpCommand)) {
+        if ($this->supportsSetGtidPurgedFlag($dumpCommand)) {
             $dumpArgs[] = '--set-gtid-purged=OFF';
         }
 
@@ -167,6 +168,7 @@ class DatabaseBackupService
     public function restoreBackup(string $sourcePath): void
     {
         $this->assertMysqlConnection();
+        $mysqlImportCommand = $this->requireResolvedCommand($this->mysqlImportCommand, ['mysql', 'mariadb']);
 
         if (! is_file($sourcePath) || ! is_readable($sourcePath)) {
             throw new RuntimeException('Restore file not found or unreadable.');
@@ -183,7 +185,7 @@ class DatabaseBackupService
             ? 'gzip -dc '.escapeshellarg($sourcePath)
             : 'cat '.escapeshellarg($sourcePath);
 
-        $command = $inputCommand.' | '.escapeshellcmd($this->mysqlImportCommand).' '
+        $command = $inputCommand.' | '.escapeshellcmd($mysqlImportCommand).' '
             .'--host='.escapeshellarg($mysql['host']).' '
             .'--port='.escapeshellarg((string) $mysql['port']).' '
             .'--user='.escapeshellarg($mysql['username']);
@@ -255,7 +257,19 @@ class DatabaseBackupService
     /**
      * @param array<int, string> $commands
      */
-    private function resolveAvailableCommand(array $commands): string
+    private function requireResolvedCommand(?string $command, array $alternatives): string
+    {
+        if ($command !== null) {
+            return $command;
+        }
+
+        throw new RuntimeException('Required command is not available on the server. Tried: '.implode(', ', $alternatives));
+    }
+
+    /**
+     * @param array<int, string> $commands
+     */
+    private function resolveAvailableCommand(array $commands): ?string
     {
         foreach ($commands as $command) {
             if (trim($command) === '') {
@@ -271,6 +285,6 @@ class DatabaseBackupService
             }
         }
 
-        throw new RuntimeException('Required command is not available on the server. Tried: '.implode(', ', $commands));
+        return null;
     }
 }
