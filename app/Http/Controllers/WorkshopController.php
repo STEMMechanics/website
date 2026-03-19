@@ -15,6 +15,7 @@ use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
 use App\Models\WorkshopInterest;
+use App\Services\AdminWorkshopTicketService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
@@ -566,6 +567,7 @@ class WorkshopController extends Controller
     public function admin_tickets(Workshop $workshop, Request $request)
     {
         $bulkEmailRecipientCount = count($this->resolveWorkshopTicketEmailRecipients($workshop));
+        $availableTicketCount = app(WorkshopTicketService::class)->availableTickets($workshop);
 
         $activeTicketCount = Ticket::query()
             ->where('workshop_id', $workshop->id)
@@ -607,9 +609,43 @@ class WorkshopController extends Controller
             'workshop' => $workshop,
             'tickets' => $tickets,
             'activeTicketCount' => $activeTicketCount,
+            'availableTicketCount' => $availableTicketCount,
             'showInvoiceColumn' => $showInvoiceColumn,
             'bulkEmailRecipientCount' => $bulkEmailRecipientCount,
         ]);
+    }
+
+    public function admin_tickets_store(Request $request, Workshop $workshop, AdminWorkshopTicketService $adminWorkshopTicketService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'manual_ticket_type' => ['required', Rule::in(['free', 'reserve'])],
+            'firstname' => ['required', 'string', 'max:120'],
+            'surname' => ['required', 'string', 'max:120'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:60'],
+        ]);
+
+        $result = $adminWorkshopTicketService->create($workshop, [
+            'firstname' => trim((string) ($validated['firstname'] ?? '')),
+            'surname' => trim((string) ($validated['surname'] ?? '')),
+            'email' => strtolower(trim((string) ($validated['email'] ?? ''))),
+            'phone' => trim((string) ($validated['phone'] ?? '')),
+        ], (string) ($validated['manual_ticket_type'] ?? 'free'));
+
+        $ticket = $result['ticket'];
+        $invoice = $result['invoice'];
+        $ticketReference = (string) ($ticket->reference_code ?: $ticket->id);
+
+        session()->flash(
+            'message',
+            $invoice
+                ? 'Reserved ticket '.$ticketReference.' created with invoice '.$invoice->invoice_number.'.'
+                : 'Free ticket '.$ticketReference.' created.'
+        );
+        session()->flash('message-title', 'Ticket created');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.workshop.tickets', $workshop);
     }
 
     public function admin_tickets_email(Request $request, Workshop $workshop): RedirectResponse

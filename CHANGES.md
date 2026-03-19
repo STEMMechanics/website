@@ -30,6 +30,7 @@
 - Quote/Invoice Due date now moves to next business day
 - Allow quotes to link to multiple invoices
 - Added child accounts
+- Added ability to create/reserve tickets under admin
 
 ## 1.3.14
 

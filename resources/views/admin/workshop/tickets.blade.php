@@ -70,6 +70,38 @@
                 @endphp
                 Price: {{ $priceDisplay }}
             </div>
+            <div class="text-sm text-gray-600">
+                Available: {{ $availableTicketCount !== null ? (int) $availableTicketCount : 'Unlimited' }}
+            </div>
+        </div>
+
+        <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <div class="mb-1 text-base font-semibold text-gray-900">Create Ticket</div>
+            <div class="mb-4 text-sm text-gray-600">Create a free ticket or a reserved pay-at-door ticket for this workshop.</div>
+
+            <form method="POST" action="{{ route('admin.workshop.tickets.store', $workshop) }}">
+                @csrf
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <x-ui.select name="manual_ticket_type" label="Ticket Type">
+                        <option value="free" @selected(old('manual_ticket_type', 'free') === 'free')>Free ticket</option>
+                        <option value="reserve" @selected(old('manual_ticket_type') === 'reserve')>Reserve ticket (Pay at Door)</option>
+                    </x-ui.select>
+
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                        Free tickets are created as active tickets with no invoice. Reserved tickets are created as pay-at-door tickets and generate an invoice.
+                    </div>
+                </div>
+
+                <div class="grid gap-4 md:grid-cols-2">
+                    <x-ui.input label="First Name" name="firstname" value="{{ old('firstname') }}" />
+                    <x-ui.input label="Surname" name="surname" value="{{ old('surname') }}" />
+                    <x-ui.input type="email" label="Email" name="email" value="{{ old('email') }}" info="If this email matches an existing user, the ticket is linked to their account automatically." />
+                    <x-ui.input label="Phone" name="phone" value="{{ old('phone') }}" />
+                </div>
+
+                <x-ui.button type="submit">Create Ticket</x-ui.button>
+            </form>
         </div>
 
         <div class="my-4 flex flex-col gap-3 lg:flex-row lg:items-center">
