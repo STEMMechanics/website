@@ -381,8 +381,16 @@
                         return;
                     }
 
-                    const dueDate = new Date(this.issueDate + 'T00:00:00');
-                    dueDate.setDate(dueDate.getDate() + 28);
+                    const [year, month, day] = String(this.issueDate).split('-').map((value) => Number.parseInt(value, 10));
+                    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+                        return;
+                    }
+
+                    const dueDate = new Date(Date.UTC(year, month - 1, day));
+                    dueDate.setUTCDate(dueDate.getUTCDate() + 28);
+                    while (dueDate.getUTCDay() === 0 || dueDate.getUTCDay() === 6) {
+                        dueDate.setUTCDate(dueDate.getUTCDate() + 1);
+                    }
                     this.dueDate = dueDate.toISOString().split('T')[0];
                 },
                 normalizeMoney(field) {
@@ -704,7 +712,7 @@
                         <div class="flex items-center justify-between">
                             <label for="due_date" class="block text-sm pl-1">Due Date</label>
                             @if(! $isLocked)
-                                <a href="#" class="text-xs text-primary-color hover:underline" x-on:click.prevent="setDueDateDefault(true)">Use default (+28 days)</a>
+                                <a href="#" class="text-xs text-primary-color hover:underline" x-on:click.prevent="setDueDateDefault(true)">Use default (+28 days, next business day)</a>
                             @endif
                         </div>
                         <input

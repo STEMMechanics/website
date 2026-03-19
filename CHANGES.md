@@ -27,6 +27,7 @@
 - Discussion titles now support basic markdown
 - Added ability to send a subscription email to a manual address
 - Added List-Unsubscribe header to subscription emails
+- Quote/Invoice Due date now moves to next business day
 
 ## 1.3.14
 

@@ -8,6 +8,8 @@ use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\User;
 use App\Services\DocumentNumberService;
+use App\Support\InvoiceDueDate;
+use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -18,9 +20,7 @@ use Throwable;
 
 class QuoteController extends Controller
 {
-    public function __construct(private readonly DocumentNumberService $documentNumbers)
-    {
-    }
+    public function __construct(private readonly DocumentNumberService $documentNumbers) {}
 
     public function index(Request $request)
     {
@@ -262,7 +262,7 @@ class QuoteController extends Controller
         $invoice->purchase_order_number = $quote->purchase_order_number;
         $invoice->status = 'draft';
         $invoice->issue_date = Carbon::now()->startOfDay();
-        $invoice->due_date = Carbon::now()->startOfDay()->addDays(28);
+        $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
         $invoice->subtotal_amount = $this->calculateSubtotal($sourceLineItems);
         $invoice->gst_amount = $this->calculateGst($sourceLineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
@@ -564,7 +564,7 @@ class QuoteController extends Controller
         return 1.0 + min($lineCount * 0.35, 4.0);
     }
 
-    private function buildQuotePdf(Quote $quote): \Barryvdh\DomPDF\PDF
+    private function buildQuotePdf(Quote $quote): PDF
     {
         $quote->loadMissing('user');
 
@@ -627,6 +627,7 @@ class QuoteController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 
@@ -680,6 +681,7 @@ class QuoteController extends Controller
 
             if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $invalid[] = $email;
+
                 continue;
             }
 

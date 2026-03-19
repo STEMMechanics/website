@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\Media;
 use App\Models\Quote;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
@@ -32,13 +34,11 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'line_items' => [],
         ]);
         /** @var Quote $quote */
-
         $invoice = Invoice::factory()->create([
             'user_id' => $invoiceOwner->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
         /** @var Invoice $invoice */
-
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => 'Q-TEST-'.uniqid(),
             'user_id' => $quoteOwner->id,
@@ -74,7 +74,6 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'status' => Invoice::STATUS_DRAFT,
         ]);
         /** @var Invoice $invoice */
-
         $media = Media::query()->create([
             'name' => 'invoice-private-doc.txt',
             'title' => 'Invoice Private File',
@@ -109,6 +108,28 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         ]);
     }
 
+    public function test_invoice_store_defaults_due_date_to_next_business_day_when_issue_date_is_on_weekend(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $response = $this->actingAs($admin)->post(route('admin.invoice.store'), [
+            'invoice_number' => 'INV-TEST-'.uniqid(),
+            'issue_date' => '2026-03-21',
+            'due_date' => '',
+            'purchase_order_number' => 'PO-1234',
+            'notes' => 'Weekend due date test',
+            'line_items_json' => json_encode([]),
+        ]);
+
+        $response->assertRedirect(route('admin.invoice.index'));
+        $response->assertSessionHasNoErrors();
+
+        $invoice = Invoice::query()->latest('id')->first();
+
+        $this->assertInstanceOf(Invoice::class, $invoice);
+        $this->assertSame('2026-04-20', $invoice->due_date?->toDateString());
+    }
+
     public function test_quote_private_files_are_saved_to_private_collection(): void
     {
         $admin = $this->createAdminUser();
@@ -118,7 +139,6 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'line_items' => [],
         ]);
         /** @var Quote $quote */
-
         $media = Media::query()->create([
             'name' => 'quote-private-doc.txt',
             'title' => 'Quote Private File',
@@ -166,7 +186,6 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'line_items' => [],
         ]);
         /** @var Quote $quote */
-
         $newQuoteNumber = 'Q-TEST-'.uniqid();
 
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
@@ -194,74 +213,79 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
 
     public function test_create_invoice_from_quote_links_quote_copies_files_and_unlinks_previous_invoice(): void
     {
-        $admin = $this->createAdminUser();
-        $owner = User::factory()->create();
+        Carbon::setTestNow('2026-03-21 10:00:00');
+        try {
+            $admin = $this->createAdminUser();
+            $owner = User::factory()->create();
 
-        $quote = Quote::factory()->create([
-            'user_id' => $owner->id,
-            'title' => 'Pinball Workshop',
-            'description' => 'Delivered onsite',
-            'notes' => 'Bring safety glasses',
-            'line_items' => [
-                [
-                    'description' => 'Facilitator',
-                    'notes' => '1 hour',
-                    'quantity' => 2,
-                    'unit_price' => 120,
-                    'gst_applicable' => true,
+            $quote = Quote::factory()->create([
+                'user_id' => $owner->id,
+                'title' => 'Pinball Workshop',
+                'description' => 'Delivered onsite',
+                'notes' => 'Bring safety glasses',
+                'line_items' => [
+                    [
+                        'description' => 'Facilitator',
+                        'notes' => '1 hour',
+                        'quantity' => 2,
+                        'unit_price' => 120,
+                        'gst_applicable' => true,
+                    ],
                 ],
-            ],
-        ]);
-        /** @var Quote $quote */
+            ]);
+            /** @var Quote $quote */
+            $previousInvoice = Invoice::factory()->create([
+                'user_id' => $owner->id,
+                'status' => Invoice::STATUS_DRAFT,
+                'quote_id' => $quote->id,
+            ]);
+            /** @var Invoice $previousInvoice */
+            $media = Media::query()->create([
+                'name' => 'quote-private-invoice-copy.txt',
+                'title' => 'Quote Private File',
+                'hash' => str_repeat('a', 64),
+                'mime_type' => 'text/plain',
+                'size' => 64,
+                'user_id' => $owner->id,
+            ]);
+            $quote->updateFiles($media->name, 'private');
 
-        $previousInvoice = Invoice::factory()->create([
-            'user_id' => $owner->id,
-            'status' => Invoice::STATUS_DRAFT,
-            'quote_id' => $quote->id,
-        ]);
-        /** @var Invoice $previousInvoice */
+            $response = $this->actingAs($admin)
+                ->post(route('admin.quote.create-invoice', $quote));
 
-        $media = Media::query()->create([
-            'name' => 'quote-private-invoice-copy.txt',
-            'title' => 'Quote Private File',
-            'hash' => str_repeat('a', 64),
-            'mime_type' => 'text/plain',
-            'size' => 64,
-            'user_id' => $owner->id,
-        ]);
-        $quote->updateFiles($media->name, 'private');
+            $response->assertRedirect();
+            $response->assertSessionHasNoErrors();
 
-        $response = $this->actingAs($admin)
-            ->post(route('admin.quote.create-invoice', $quote));
+            $newInvoice = Invoice::query()
+                ->where('quote_id', $quote->id)
+                ->where('id', '!=', $previousInvoice->id)
+                ->latest('id')
+                ->first();
 
-        $response->assertRedirect();
-        $response->assertSessionHasNoErrors();
+            $this->assertInstanceOf(Invoice::class, $newInvoice);
+            $this->assertSame((string) $owner->id, (string) $newInvoice->user_id);
+            $this->assertSame('2026-03-21', $newInvoice->issue_date?->toDateString());
+            $this->assertSame('2026-04-20', $newInvoice->due_date?->toDateString());
+            $freshPreviousInvoice = $previousInvoice->fresh();
+            $this->assertInstanceOf(Invoice::class, $freshPreviousInvoice);
+            $this->assertNull($freshPreviousInvoice->quote_id);
 
-        $newInvoice = Invoice::query()
-            ->where('quote_id', $quote->id)
-            ->where('id', '!=', $previousInvoice->id)
-            ->latest('id')
-            ->first();
+            $this->assertSame(1, $newInvoice->lines()->count());
+            $line = $newInvoice->lines()->first();
+            $this->assertInstanceOf(InvoiceLine::class, $line);
+            $this->assertSame('Facilitator', $line->description);
+            $this->assertSame('1 hour', $line->notes);
+            $this->assertSame(2.0, (float) $line->quantity);
 
-        $this->assertInstanceOf(Invoice::class, $newInvoice);
-        $this->assertSame((string) $owner->id, (string) $newInvoice->user_id);
-        $freshPreviousInvoice = $previousInvoice->fresh();
-        $this->assertInstanceOf(Invoice::class, $freshPreviousInvoice);
-        $this->assertNull($freshPreviousInvoice->quote_id);
-
-        $this->assertSame(1, $newInvoice->lines()->count());
-        $line = $newInvoice->lines()->first();
-        $this->assertInstanceOf(\App\Models\InvoiceLine::class, $line);
-        $this->assertSame('Facilitator', $line->description);
-        $this->assertSame('1 hour', $line->notes);
-        $this->assertSame(2.0, (float) $line->quantity);
-
-        $this->assertDatabaseHas('mediables', [
-            'media_name' => $media->name,
-            'mediable_id' => (string) $newInvoice->id,
-            'mediable_type' => Invoice::class,
-            'collection' => 'private',
-        ]);
+            $this->assertDatabaseHas('mediables', [
+                'media_name' => $media->name,
+                'mediable_id' => (string) $newInvoice->id,
+                'mediable_type' => Invoice::class,
+                'collection' => 'private',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function createAdminUser(): User

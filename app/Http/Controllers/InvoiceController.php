@@ -18,6 +18,8 @@ use App\Models\Token;
 use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
+use App\Support\InvoiceDueDate;
+use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -90,7 +92,7 @@ class InvoiceController extends Controller
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
         if (! $invoice->due_date) {
-            $invoice->due_date = Carbon::parse($invoice->issue_date)->addDays(28);
+            $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -177,7 +179,7 @@ class InvoiceController extends Controller
         $invoice->gst_amount = $this->calculateGst($lineItems);
         $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
         if (! $invoice->due_date) {
-            $invoice->due_date = Carbon::parse($invoice->issue_date)->addDays(28);
+            $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
         }
         if ($invoice->status !== Invoice::STATUS_DRAFT && ! $invoice->issued_at) {
             $invoice->issued_at = now();
@@ -1409,7 +1411,7 @@ class InvoiceController extends Controller
         return max(0, round($unallocatedBeforeRefund - $refunded, 2));
     }
 
-    private function buildPaymentReceiptPdf(Invoice $invoice, Payment $customerPayment): \Barryvdh\DomPDF\PDF
+    private function buildPaymentReceiptPdf(Invoice $invoice, Payment $customerPayment): PDF
     {
         if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             abort(500, 'Payment receipt PDF generation requires barryvdh/laravel-dompdf.');
@@ -1437,7 +1439,7 @@ class InvoiceController extends Controller
             'customerName' => $invoice->user?->getName() ?: (string) ($invoice->billing_name ?? 'Customer'),
             'amountPaid' => $amountRaw,
             'gstAmount' => abs((float) $customerPayment->gst_amount),
-            'paymentMethod' => \App\Models\Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_CREDIT_CARD)),
+            'paymentMethod' => Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? Payment::PAYMENT_METHOD_CREDIT_CARD)),
             'paidOn' => $customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
             'reference' => (string) ($customerPayment->reference ?? ''),
             'gatewayProvider' => (string) ($customerPayment->gateway_provider ?? ''),
@@ -1454,7 +1456,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    private function buildTaxAdjustmentPdf(Invoice $invoice, TaxAdjustment $adjustment): \Barryvdh\DomPDF\PDF
+    private function buildTaxAdjustmentPdf(Invoice $invoice, TaxAdjustment $adjustment): PDF
     {
         if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
             abort(500, 'Tax adjustment PDF generation requires barryvdh/laravel-dompdf.');
@@ -1746,7 +1748,7 @@ class InvoiceController extends Controller
         return 1.0 + min($lineCount * 0.35, 4.0);
     }
 
-    private function buildInvoicePdf(Invoice $invoice, bool $includeAdjustments = false): \Barryvdh\DomPDF\PDF
+    private function buildInvoicePdf(Invoice $invoice, bool $includeAdjustments = false): PDF
     {
         $invoice->loadMissing('user', 'lines');
         if ($includeAdjustments) {
