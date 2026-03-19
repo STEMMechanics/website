@@ -314,7 +314,7 @@
 
         const confirmDialog = (title, html, confirmButtonText, confirmButtonColor) => {
             if (!window.SM || typeof window.SM.notice !== 'function') {
-                return Promise.resolve({ isConfirmed: window.confirm(title) });
+                return Promise.resolve({ isConfirmed: false, isDismissed: true });
             }
 
             return window.SM.notice(title, html, {

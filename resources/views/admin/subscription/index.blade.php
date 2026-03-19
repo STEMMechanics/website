@@ -6,7 +6,7 @@
             <x-slot:left>
                 <div class="flex items-center gap-2">
                     <x-ui.button type="link" href="{{ route('admin.subscription.create') }}">Register</x-ui.button>
-                    <form method="POST" action="{{ route('admin.subscription.send-all-now') }}" onsubmit="return confirm('Queue newsletter for all confirmed subscriptions now?');">
+                    <form method="POST" action="{{ route('admin.subscription.send-all-now') }}" x-data x-on:submit.prevent="SM.confirm('Queue newsletter?', 'Queue newsletter for all confirmed subscriptions now?', 'Queue Newsletter', (isConfirmed) => { if (isConfirmed) { $el.submit(); } })">
                         @csrf
                         <x-ui.button type="submit" color="outline">Send All Now</x-ui.button>
                     </form>

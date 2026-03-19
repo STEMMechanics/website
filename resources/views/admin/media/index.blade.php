@@ -270,16 +270,13 @@
         const doStart = () => {
             startRegenerateMissingVariants().catch((error) => {
                 const message = error && error.message ? error.message : 'Could not queue regeneration';
-                if (window.SM && typeof window.SM.alert === 'function') {
-                    window.SM.alert('Regeneration failed', message, 'error');
-                } else {
-                    alert(message);
+                if (window.SM && typeof window.SM.notice === 'function') {
+                    window.SM.notice('Regeneration failed', message, 'danger');
                 }
             });
         };
 
         if (!window.SM || typeof window.SM.confirm !== 'function') {
-            doStart();
             return;
         }
 

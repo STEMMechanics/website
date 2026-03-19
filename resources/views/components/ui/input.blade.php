@@ -129,7 +129,7 @@
                             this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                         });
                     },
-                    confirm() {
+                    applySelection() {
                         if (!this.open) {
                             return;
                         }
@@ -202,7 +202,7 @@
                     x-on:input="hasTyped = true; refresh()"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
-                    x-on:keydown.enter.prevent="confirm()"
+                    x-on:keydown.enter.prevent="applySelection()"
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
@@ -301,7 +301,7 @@
                                 this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                             });
                         },
-                        confirm() {
+                        applySelection() {
                             if (!this.open) {
                                 return;
                             }
@@ -374,7 +374,7 @@
                         x-on:input="hasTyped = true; refresh()"
                         x-on:keydown.arrow-down.prevent="move(1)"
                         x-on:keydown.arrow-up.prevent="move(-1)"
-                        x-on:keydown.enter.prevent="confirm()"
+                        x-on:keydown.enter.prevent="applySelection()"
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)
@@ -471,7 +471,7 @@
                                 this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                             });
                         },
-                        confirm() {
+                        applySelection() {
                             if (!this.open) {
                                 return;
                             }
@@ -544,7 +544,7 @@
                         x-on:input="hasTyped = true; refresh()"
                         x-on:keydown.arrow-down.prevent="move(1)"
                         x-on:keydown.arrow-up.prevent="move(-1)"
-                        x-on:keydown.enter.prevent="confirm()"
+                        x-on:keydown.enter.prevent="applySelection()"
                         x-on:keydown.escape.prevent="open = false"
                         x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                         @disabled($disabled)

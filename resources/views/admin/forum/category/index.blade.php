@@ -164,11 +164,21 @@
                     const insertIndex = Math.max(0, this.categories.length - 1);
                     this.categories.splice(insertIndex, 0, this.newDivider());
                 },
-                removeCategory(index) {
+                async removeCategory(index) {
                     const category = this.categories[index];
                     if (category?.id) {
                         const usage = `${category.topics_count || 0} topics and ${category.posts_count || 0} posts`;
-                        if (!window.confirm(`Delete this discussion category? This will also remove ${usage}.`)) {
+                        if (!window.SM || typeof window.SM.confirm !== 'function') {
+                            return;
+                        }
+
+                        const result = await window.SM.confirm(
+                            'Delete discussion category?',
+                            `This will also remove ${usage}.`,
+                            'Delete'
+                        );
+
+                        if (!result?.isConfirmed) {
                             return;
                         }
                     }

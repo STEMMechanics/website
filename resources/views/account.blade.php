@@ -642,10 +642,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                 });
                 return;
             }
-
-            if (window.confirm('Remove this remembered device?')) {
-                deleteRequest();
-            }
         };
 
         document.querySelectorAll('[data-device-edit]').forEach((button) => {

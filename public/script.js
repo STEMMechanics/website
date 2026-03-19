@@ -351,7 +351,19 @@ let SM = {
     },
 
     confirm: (title, content, button, callback) => {
-        Swal.fire({
+        if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+            const fallbackResult = Promise.resolve({ isConfirmed: false, isDismissed: true });
+
+            if (typeof callback === 'function') {
+                fallbackResult.then((result) => {
+                    callback(result.isConfirmed);
+                });
+            }
+
+            return fallbackResult;
+        }
+
+        return Swal.fire({
             position: 'top',
             icon: 'warning',
             iconColor: '#b91c1c',
@@ -363,7 +375,11 @@ let SM = {
             cancelButtonText: 'Cancel',
             reverseButtons: true
         }).then((result) => {
-            callback(result.isConfirmed);
+            if (typeof callback === 'function') {
+                callback(result.isConfirmed);
+            }
+
+            return result;
         });
     },
 
@@ -1119,11 +1135,7 @@ let SM = {
                 || 'I understand this item is a pre-order and my order will ship when it becomes available.';
 
             if (typeof Swal === 'undefined') {
-                return window.confirm(
-                    shippingEstimate !== ''
-                        ? `${itemTitle} is a pre-order item expected to ship ${shippingEstimate}. Continue?`
-                        : `${itemTitle} is a pre-order item and will ship when it becomes available. Continue?`,
-                );
+                return false;
             }
 
             const checkboxId = `sm-preorder-ack-${Date.now()}-${Math.random().toString(16).slice(2)}`;
