@@ -96,8 +96,8 @@ class ForumTopic extends Model
     public function firstPost(): HasOne
     {
         return $this->hasOne(ForumPost::class)
-            ->where('is_approved', true)
-            ->oldestOfMany('created_at');
+            ->where('is_topic_starter', true)
+            ->where('is_approved', true);
     }
 
     public function canRead(?User $user): bool

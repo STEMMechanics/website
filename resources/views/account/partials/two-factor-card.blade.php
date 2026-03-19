@@ -56,7 +56,7 @@
     <div class="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5" x-cloak x-show="$store.tfa.show && !$store.tfa.loading">
         <div class="grid gap-6 lg:grid-cols-[12rem_minmax(0,1fr)] lg:items-center">
             <div class="flex items-center justify-center">
-                <img src="/loading.gif" id="tfa_image_loader" alt="loading" width="100" height="100"/>
+                <img src="{{ asset('loading.gif') }}" id="tfa_image_loader" alt="loading" width="100" height="100"/>
                 <img src="" id="tfa_image" alt="QR Code" width="150" height="150" style="display:none" onload="handleTfaImageLoad()"/>
             </div>
             <div>
@@ -71,7 +71,7 @@
     </div>
 
     <div class="mt-6 flex justify-center" x-cloak x-show="$store.tfa.loading">
-        <img src="/loading.gif" alt="loading" width="100" height="100"/>
+        <img src="{{ asset('loading.gif') }}" alt="loading" width="100" height="100"/>
     </div>
 
     <div class="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5" x-cloak x-show="$store.tfa.codes && !$store.tfa.loading">

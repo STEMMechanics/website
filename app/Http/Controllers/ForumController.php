@@ -136,6 +136,7 @@ class ForumController extends Controller
         $post = new ForumPost();
         $post->forum_topic_id = (string) $topic->id;
         $post->user_id = (string) $author->id;
+        $post->is_topic_starter = true;
         $post->is_approved = ! $requiresApproval;
         $post->body = $body;
         $post->save();

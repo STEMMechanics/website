@@ -19,7 +19,7 @@
             <div class="flex flex-wrap items-center gap-2">
                 <div class="flex items-center gap-1 font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
                     @if($topic->user?->hasGroup('admin'))
-                        <img src="/toolbox-sm.png" class="w-7 h-auto" alt="STEMMechanics">
+                        <img src="{{ asset('toolbox-sm.png') }}" class="w-7 h-auto" alt="STEMMechanics">
                     @endif
                     {{ $authorName }}
                 </div>

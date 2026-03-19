@@ -21,6 +21,7 @@ class ForumPost extends Model
     use HasFactory, UUID;
 
     protected $casts = [
+        'is_topic_starter' => 'boolean',
         'is_approved' => 'boolean',
         'edited_at' => 'datetime',
         'deleted_at' => 'datetime',
@@ -30,12 +31,31 @@ class ForumPost extends Model
         'forum_topic_id',
         'parent_forum_post_id',
         'user_id',
+        'is_topic_starter',
         'approved_by_user_id',
         'is_approved',
         'body',
         'edited_at',
         'deleted_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $post): void {
+            if (array_key_exists('is_topic_starter', $post->getAttributes())) {
+                return;
+            }
+
+            $topicId = trim((string) $post->forum_topic_id);
+            if ($topicId === '') {
+                return;
+            }
+
+            $post->is_topic_starter = ! static::query()
+                ->where('forum_topic_id', $topicId)
+                ->exists();
+        });
+    }
 
     /**
      * @return BelongsTo<ForumTopic, $this>

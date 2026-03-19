@@ -150,8 +150,7 @@ class ChildAccountController extends Controller
 
         $firstPost = ForumPost::query()
             ->where('forum_topic_id', (string) $forumTopic->id)
-            ->orderBy('created_at')
-            ->orderBy('id')
+            ->where('is_topic_starter', true)
             ->firstOrFail();
 
         $forumTopic->is_approved = true;
@@ -198,16 +197,16 @@ class ChildAccountController extends Controller
 
         $topic = $forumPost->topic;
         if ($topic && $topic->is_approved) {
-            $latestApprovedPost = ForumPost::query()
-                ->where('forum_topic_id', (string) $topic->id)
-                ->where('is_approved', true)
-                ->orderByDesc('created_at')
-                ->orderByDesc('id')
-                ->first();
+            $approvedPostCreatedAt = $forumPost->created_at;
 
-            $topic->last_post_at = $latestApprovedPost?->created_at;
-            $topic->last_post_user_id = $latestApprovedPost?->user_id;
-            $topic->save();
+            if (
+                $topic->last_post_at === null
+                || ($approvedPostCreatedAt !== null && $approvedPostCreatedAt->greaterThanOrEqualTo($topic->last_post_at))
+            ) {
+                $topic->last_post_at = $approvedPostCreatedAt;
+                $topic->last_post_user_id = $forumPost->user_id;
+                $topic->save();
+            }
         }
 
         session()->flash('message', 'Pending reply approved.');
@@ -251,13 +250,12 @@ class ChildAccountController extends Controller
             ->map(function (ForumTopic $topic): array {
                 $firstPost = ForumPost::query()
                     ->where('forum_topic_id', (string) $topic->id)
-                    ->orderBy('created_at')
-                    ->orderBy('id')
-                    ->first();
+                    ->where('is_topic_starter', true)
+                    ->firstOrFail();
 
                 return [
                     'topic' => $topic,
-                    'preview' => ForumContent::plainText((string) ($firstPost?->body ?? '')),
+                    'preview' => ForumContent::plainText((string) $firstPost->body),
                 ];
             });
 

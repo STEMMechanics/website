@@ -6,6 +6,7 @@ use App\Models\EmailSubscriptions;
 use App\Models\ForumPost;
 use App\Models\ForumTopic;
 use App\Models\User;
+use App\Observers\AuditLogObserver;
 use Illuminate\Support\Facades\DB;
 
 class UserAnonymizer
@@ -14,10 +15,16 @@ class UserAnonymizer
     {
         DB::transaction(function () use ($user, $deleteDiscussionThreads, $cascadeChildren): void {
             if ($cascadeChildren) {
-                $user->children()
+                foreach ($user->children()
                     ->whereNull('anonymized_at')
                     ->get()
-                    ->each(fn (User $child) => $this->anonymize($child, $deleteDiscussionThreads, false));
+                    as $child) {
+                    if (! $child instanceof User) {
+                        continue;
+                    }
+
+                    $this->anonymize($child, $deleteDiscussionThreads, false);
+                }
             }
 
             $email = trim((string) ($user->email ?? ''));
@@ -43,6 +50,10 @@ class UserAnonymizer
             $user->backupCodes()->delete();
             $user->groups()->delete();
             $user->forumTopicStates()->delete();
+
+            if (! $user->isAnonymized()) {
+                (new AuditLogObserver)->deleted($user);
+            }
 
             $user->forceFill([
                 'parent_user_id' => null,
