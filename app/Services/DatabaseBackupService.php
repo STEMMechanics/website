@@ -255,7 +255,7 @@ class DatabaseBackupService
     }
 
     /**
-     * @param array<int, string> $commands
+     * @param array<int, string> $alternatives
      */
     private function requireResolvedCommand(?string $command, array $alternatives): string
     {
