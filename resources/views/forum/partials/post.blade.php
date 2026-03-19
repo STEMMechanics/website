@@ -62,7 +62,7 @@
                         data-reply-title="{{ 'Reply to '.$displayName }}"
                         data-reply-body=""
                         data-reply-post-id="{{ $post->id }}"
-                        class="!rounded-full !text-xs !border-0 !shadow-none !bg-gray-200 !py-0 !px-3 !font-semi-bold hover:!bg-gray-300 hover:!text-black"
+                        class="rounded-full! text-xs! border-0! shadow-none! bg-gray-200! py-0! px-3! font-semi-bold! hover:bg-gray-300! hover:text-black!"
                     >
                         <i class="fa-solid fa-reply mr-2"></i>Reply
                     </x-ui.button>

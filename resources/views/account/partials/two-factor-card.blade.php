@@ -44,8 +44,8 @@
                     </div>
                     <p class="mt-2 text-sm text-gray-600">Use a time-based code from your authenticator app during sign-in.</p>
                     <div class="mt-4 flex flex-wrap items-center gap-2">
-                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="!px-5" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
-                        <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="!px-5" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
+                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
+                        <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
                         <a href="#" x-show="$store.tfa.enabled" x-on:click.prevent="resetBackupCodes($event)" class="text-sm font-medium text-primary-color hover:text-primary-color-dark">Reset backup codes</a>
                     </div>
                 </div>
