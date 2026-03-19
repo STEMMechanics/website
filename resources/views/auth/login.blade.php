@@ -30,6 +30,15 @@
             autofocus
             data-remembered-login="{{ $rememberedLoginValue }}"
         />
+        <x-ui.input
+            type="password"
+            name="password"
+            id="login_password"
+            label="Password (optional)"
+            value=""
+            floating
+            info="Leave blank to receive an email link instead. Child accounts require a password."
+        />
         <input type="hidden" name="remember_email" value="0" />
         <x-ui.checkbox
             id="remember_email"

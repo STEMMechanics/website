@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Contracts\ContentFilter;
 use App\Jobs\SendEmail;
+use App\Mail\ChildForumActivityNotification;
 use App\Mail\ForumPostReport;
 use App\Models\ForumCategory;
 use App\Models\ForumPost;
@@ -58,7 +59,7 @@ class ForumController extends Controller
         return view('forum.category', [
             'category' => $category,
             'topics' => $topics,
-            'canWrite' => $category->canWrite($user),
+            'canWrite' => $this->canCreateTopic($user, $category),
             'unreadTopicIds' => $unreadTopicIds,
             'threadCount' => $threadCount,
             'commentCount' => $commentCount,
@@ -72,7 +73,7 @@ class ForumController extends Controller
     {
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
-        abort_unless($category->canWrite($request->user()), 403);
+        abort_unless($this->canCreateTopic($request->user(), $category), 403);
 
         return view('forum.topic-create', [
             'category' => $category,
@@ -83,7 +84,7 @@ class ForumController extends Controller
     {
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
-        abort_unless($category->canWrite($request->user()), 403);
+        abort_unless($this->canCreateTopic($request->user(), $category), 403);
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:200'],
@@ -119,23 +120,53 @@ class ForumController extends Controller
                 ->withInput();
         }
 
+        $author = $request->user();
+        $requiresApproval = $author?->childForumTopicRequiresApproval() ?? false;
+
         $topic = new ForumTopic();
         $topic->forum_category_id = (string) $category->id;
-        $topic->user_id = (string) $request->user()->id;
+        $topic->user_id = (string) $author->id;
         $topic->title = $title;
         $topic->slug = ForumTopic::generateUniqueSlug($topic->title, (string) $category->id);
         $topic->last_post_at = now();
-        $topic->last_post_user_id = (string) $request->user()->id;
+        $topic->last_post_user_id = (string) $author->id;
+        $topic->is_approved = ! $requiresApproval;
         $topic->save();
 
         $post = new ForumPost();
         $post->forum_topic_id = (string) $topic->id;
-        $post->user_id = (string) $request->user()->id;
+        $post->user_id = (string) $author->id;
+        $post->is_approved = ! $requiresApproval;
         $post->body = $body;
         $post->save();
 
-        $this->ensureTopicNotificationsEnabledForPoster($topic, $request->user());
-        $this->markTopicRead($topic, $request->user(), $post->created_at);
+        if ($requiresApproval) {
+            $this->notifyParentOfChildForumActivity(
+                $author,
+                'thread',
+                'submitted',
+                $category,
+                $topic,
+                ForumContent::plainText($body)
+            );
+
+            session()->flash('message', 'Your thread has been submitted for parent approval.');
+            session()->flash('message-title', 'Approval required');
+            session()->flash('message-type', 'info');
+
+            return redirect()->route('forum.category.show', $category->slug);
+        }
+
+        $this->ensureTopicNotificationsEnabledForPoster($topic, $author);
+        $this->markTopicRead($topic, $author, $post->created_at);
+        $this->notifyParentOfChildForumActivity(
+            $author,
+            'thread',
+            'posted',
+            $category,
+            $topic,
+            ForumContent::plainText($body)
+        );
 
         session()->flash('message', 'Your thread has been saved.');
         session()->flash('message-title', 'Thread created');
@@ -236,18 +267,51 @@ class ForumController extends Controller
                 ->withInput();
         }
 
+        $author = $request->user();
+        $requiresApproval = $author?->childForumReplyRequiresApproval() ?? false;
+
         $post = new ForumPost();
         $post->forum_topic_id = (string) $topic->id;
         $post->parent_forum_post_id = $this->validatedReplyParentId($topic, $validated['reply_to_post_id'] ?? null);
-        $post->user_id = (string) $request->user()->id;
+        $post->user_id = (string) $author->id;
+        $post->is_approved = ! $requiresApproval;
         $post->body = $body;
         $post->save();
 
+        if ($requiresApproval) {
+            $this->notifyParentOfChildForumActivity(
+                $author,
+                'reply',
+                'submitted',
+                $topic->category,
+                $topic,
+                ForumContent::plainText($body)
+            );
+
+            session()->flash('message', 'Your reply has been submitted for parent approval.');
+            session()->flash('message-title', 'Approval required');
+            session()->flash('message-type', 'info');
+
+            return redirect()->to(route('forum.topic.show', [
+                'categorySlug' => $topic->category->slug,
+                'topicSlug' => $topic->slug,
+                'sort' => $this->normalizedReplySort($request->query('sort')),
+            ]));
+        }
+
         $topic->last_post_at = $post->created_at;
-        $topic->last_post_user_id = (string) $request->user()->id;
+        $topic->last_post_user_id = (string) $author->id;
         $topic->save();
-        $this->ensureTopicNotificationsEnabledForPoster($topic, $request->user());
-        $this->markTopicRead($topic, $request->user(), $post->created_at);
+        $this->ensureTopicNotificationsEnabledForPoster($topic, $author);
+        $this->markTopicRead($topic, $author, $post->created_at);
+        $this->notifyParentOfChildForumActivity(
+            $author,
+            'reply',
+            'posted',
+            $topic->category,
+            $topic,
+            ForumContent::plainText($body)
+        );
 
         $replySort = $this->normalizedReplySort($request->query('sort'));
         $redirectParams = [
@@ -272,6 +336,7 @@ class ForumController extends Controller
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
+        abort_unless($forumPost->is_approved && ! $forumPost->isDeleted(), 404);
         abort_unless($forumPost->canEdit($request->user()), 403);
 
         $validated = $request->validate([
@@ -316,6 +381,7 @@ class ForumController extends Controller
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         abort_unless($topic->canRead($request->user()), 404);
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
+        abort_if(! $forumPost->is_approved || $forumPost->isDeleted(), 404);
 
         $validated = $request->validate([
             'type' => ['required', 'in:'.implode(',', ForumPostReaction::TYPES)],
@@ -370,6 +436,7 @@ class ForumController extends Controller
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         abort_unless($topic->canRead($request->user()), 404);
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
+        abort_if(! $forumPost->is_approved || $forumPost->isDeleted(), 404);
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
@@ -587,7 +654,11 @@ class ForumController extends Controller
     public function destroyTopic(Request $request, string $categorySlug, string $topicSlug): RedirectResponse
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
-        abort_unless($request->user()?->isAdmin(), 403);
+        $user = $request->user();
+        abort_unless(
+            $user?->isAdmin() || (string) $topic->user_id === (string) $user?->id,
+            403
+        );
 
         $redirectUrl = route('forum.category.show', $topic->category->slug);
         $topic->delete();
@@ -602,7 +673,11 @@ class ForumController extends Controller
     public function destroyPost(Request $request, string $categorySlug, string $topicSlug, ForumPost $forumPost): RedirectResponse
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
-        abort_unless($request->user()?->isAdmin(), 403);
+        $user = $request->user();
+        abort_unless(
+            $user?->isAdmin() || (string) $forumPost->user_id === (string) $user?->id,
+            403
+        );
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
 
         /** @var ForumPost|null $firstPost */
@@ -615,7 +690,7 @@ class ForumController extends Controller
             return back();
         }
 
-        $forumPost->delete();
+        $forumPost->softDeleteToPlaceholder();
         $this->syncTopicActivity($topic);
 
         session()->flash('message', 'Post deleted.');
@@ -679,6 +754,7 @@ class ForumController extends Controller
             ->with(['category', 'user', 'lastPostUser'])
             ->where('forum_category_id', $category->id)
             ->where('slug', $normalizedSlug)
+            ->where('is_approved', true)
             ->firstOrFail();
     }
 
@@ -729,6 +805,7 @@ class ForumController extends Controller
     {
         $latestPost = ForumPost::query()
             ->where('forum_topic_id', $topic->id)
+            ->where('is_approved', true)
             ->orderByDesc('created_at')
             ->orderByDesc('id')
             ->first();
@@ -815,6 +892,7 @@ class ForumController extends Controller
         $allPosts = ForumPost::query()
             ->with(['user.avatarMedia', 'reactions.user', 'parentPost.user.avatarMedia'])
             ->where('forum_topic_id', $topic->id)
+            ->where('is_approved', true)
             ->when($firstPost !== null, function ($query) use ($firstPost) {
                 return $query->where('id', '!=', $firstPost->id);
             })
@@ -844,7 +922,7 @@ class ForumController extends Controller
             'replyPrefillBody' => old('body', $this->replyPrefillBody($topic, $request)),
             'commentCount' => max(0, $allPosts->count()),
             'lastCommentPost' => $lastCommentPost,
-            'lastCommentAuthorName' => $lastCommentPost?->user?->username ?: $lastCommentPost?->user?->getName() ?: 'Deleted user',
+            'lastCommentAuthorName' => $lastCommentPost?->user?->forumDisplayName() ?: 'deleted',
             'notificationsEnabled' => (bool) $topicState?->notifications_enabled,
         ];
     }
@@ -972,6 +1050,7 @@ class ForumController extends Controller
             ->with(['user.avatarMedia', 'lastPostUser.avatarMedia'])
             ->withCount('posts')
             ->where('forum_category_id', $category->id)
+            ->where('is_approved', true)
             ->orderByDesc('is_pinned')
             ->orderByDesc('last_post_at')
             ->orderByDesc('created_at')
@@ -984,6 +1063,7 @@ class ForumController extends Controller
 
         $threadCount = (int) ForumTopic::query()
             ->where('forum_category_id', $category->id)
+            ->where('is_approved', true)
             ->count();
         $postCount = (int) $category->posts()->count();
         $commentCount = max(0, $postCount - $threadCount);
@@ -994,6 +1074,7 @@ class ForumController extends Controller
         $latestTopic = ForumTopic::query()
             ->with('lastPostUser')
             ->where('forum_category_id', $category->id)
+            ->where('is_approved', true)
             ->whereNotNull('last_post_at')
             ->orderByDesc('last_post_at')
             ->orderByDesc('created_at')
@@ -1006,8 +1087,47 @@ class ForumController extends Controller
             'commentCount' => $commentCount,
             'viewCount' => $viewCount,
             'latestActivityAt' => $latestTopic?->last_post_at,
-            'latestActivityAuthorName' => $latestTopic?->lastPostUser?->username ?: $latestTopic?->lastPostUser?->getName() ?: 'Deleted user',
+            'latestActivityAuthorName' => $latestTopic?->lastPostUser?->forumDisplayName() ?: 'deleted',
         ];
+    }
+
+    private function canCreateTopic($user, ForumCategory $category): bool
+    {
+        if (! $category->canWrite($user)) {
+            return false;
+        }
+
+        return $user?->canCreateForumTopics() ?? false;
+    }
+
+    private function notifyParentOfChildForumActivity($child, string $activityLabel, string $statusLabel, ForumCategory $category, ForumTopic $topic, string $preview): void
+    {
+        if (! $child || ! $child->isChildAccount()) {
+            return;
+        }
+
+        $shouldNotify = $activityLabel === 'thread'
+            ? $child->parentShouldBeNotifiedOnForumTopics()
+            : $child->parentShouldBeNotifiedOnForumReplies();
+
+        $parent = $child->parent;
+        if (! $shouldNotify || ! $parent || ! $parent->canReceiveEmail()) {
+            return;
+        }
+
+        dispatch(new SendEmail(
+            $parent->email,
+            new ChildForumActivityNotification(
+                $parent->getName(),
+                $child->forumDisplayName(),
+                $activityLabel,
+                $statusLabel,
+                (string) $category->name,
+                $topic->plainTitle(),
+                mb_substr(trim($preview), 0, 300),
+                route('account.children.edit', $child)
+            )
+        ))->onQueue('mail');
     }
 
     private function moderationRecipientAddress(): string

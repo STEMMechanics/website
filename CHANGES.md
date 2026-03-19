@@ -29,6 +29,7 @@
 - Added List-Unsubscribe header to subscription emails
 - Quote/Invoice Due date now moves to next business day
 - Allow quotes to link to multiple invoices
+- Added child accounts
 
 ## 1.3.14
 

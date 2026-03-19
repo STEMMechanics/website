@@ -28,12 +28,17 @@ class ForumCategory extends Model
 
     public function topics(): HasMany
     {
-        return $this->hasMany(ForumTopic::class)->orderByDesc('is_pinned')->orderByDesc('last_post_at');
+        return $this->hasMany(ForumTopic::class)
+            ->where('is_approved', true)
+            ->orderByDesc('is_pinned')
+            ->orderByDesc('last_post_at');
     }
 
     public function posts(): HasManyThrough
     {
-        return $this->hasManyThrough(ForumPost::class, ForumTopic::class);
+        return $this->hasManyThrough(ForumPost::class, ForumTopic::class)
+            ->where('forum_topics.is_approved', true)
+            ->where('forum_posts.is_approved', true);
     }
 
     public function canRead(?User $user): bool

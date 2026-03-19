@@ -55,7 +55,7 @@
                 @foreach ($users as $user)
                 @php
                 $groupSlugs = $user->groupSlugs();
-                $isGhostUser = is_null($user->email_verified_at);
+                $isGhostUser = is_null($user->email_verified_at) && ! $user->isChildAccount() && ! $user->isAnonymized();
                 @endphp
                 <tr class="{{ $isGhostUser ? 'italic text-gray-700' : '' }}">
                     <td>
@@ -64,6 +64,9 @@
                         </a>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->username ?: '-' }}</div>
                         <div class="md:hidden text-xs text-gray-600 mt-1">{{ $user->email ?: '-' }}</div>
+                        @if($user->isChildAccount())
+                            <div class="md:hidden text-xs text-amber-700 mt-1">Child account</div>
+                        @endif
                         @if($groupSlugs === [])
                         <div class="md:hidden text-xs text-gray-400 mt-1">No groups</div>
                         @else
@@ -75,7 +78,12 @@
                         @endif
                     </td>
                     <td class="hidden md:table-cell">{{ $user->username ?: '-' }}</td>
-                    <td class="hidden md:table-cell">{{ $user->email ?: '-' }}</td>
+                    <td class="hidden md:table-cell">
+                        {{ $user->email ?: '-' }}
+                        @if($user->isChildAccount())
+                            <div class="text-xs text-amber-700">Child account</div>
+                        @endif
+                    </td>
                     <td class="hidden lg:table-cell">
                         @php
                             $mediaCount = (int) ($user->media_count ?? 0);

@@ -5,6 +5,7 @@ if(isset($user)) {
 $login = $user->username ?: $user->email;
 }
 }
+$allowEmailMethod = (bool) ($allowEmailMethod ?? false);
 @endphp
 <x-layout :bodyClass="'image-background'">
     <div x-data="{show:'{{ $method ?? 'tfa' }}'}">
@@ -48,13 +49,15 @@ $login = $user->username ?: $user->email;
             </x-slot:title>
             <x-slot:header>Select the method to sign in to your account</x-slot:header>
             <div class="flex flex-col gap-4 mb-4">
-                <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
-                    @csrf
-                    <x-altcha-proof />
-                    <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
-                    <input type="hidden" name="method" value="email" />
-                    <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>
-                </form>
+                @if($allowEmailMethod)
+                    <form method="post" action="{{ route('login.store') }}" id="login-2fa-email-form">
+                        @csrf
+                        <x-altcha-proof />
+                        <input type="hidden" name="login" value="{{ $login }}" autocomplete="username" />
+                        <input type="hidden" name="method" value="email" />
+                        <x-ui.button type="submit" class="w-full">Email Link</x-ui.button>
+                    </form>
+                @endif
                 <x-ui.button type="button" x-on:click.prevent="show='backup'">Enter Backup Code</x-ui.button>
             </div>
             <x-slot:footer>
@@ -99,6 +102,9 @@ $login = $user->username ?: $user->email;
 
             const bindForm = (formId, submitLabel) => {
                 const form = document.getElementById(formId);
+                if (!form) {
+                    return;
+                }
 
                 form.dataset.sm2faProcessingBound = '1';
                 form.addEventListener('submit', () => {

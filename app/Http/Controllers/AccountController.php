@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Providers\QRCodeProvider;
 use App\Rules\UsernameRule;
 use App\Support\RememberedDeviceManager;
+use App\Support\UserAnonymizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,8 @@ use RobThree\Auth\TwoFactorAuth;
 class AccountController extends Controller
 {
     public function __construct(
-        private readonly RememberedDeviceManager $rememberedDeviceManager
+        private readonly RememberedDeviceManager $rememberedDeviceManager,
+        private readonly UserAnonymizer $userAnonymizer,
     ) {}
 
     /**
@@ -46,11 +48,30 @@ class AccountController extends Controller
             ->where('notifications_enabled', true)
             ->count();
 
-        return view('account', [
+        $baseViewData = [
             'user' => $user,
             'rememberedDevices' => $this->rememberedDeviceManager->listRememberedDevices($user, $request),
             'currentRememberedTokenId' => $this->rememberedDeviceManager->currentTokenId($request),
             'discussionNotificationCount' => $discussionNotificationCount,
+        ];
+
+        if ($user->isChildAccount()) {
+            return view('account-child', $baseViewData);
+        }
+
+        $childAccounts = $user->children()
+            ->whereNull('anonymized_at')
+            ->withCount([
+                'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
+                'forumPosts as pending_reply_count' => fn ($query) => $query
+                    ->where('is_approved', false)
+                    ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
+            ])
+            ->get();
+
+        return view('account', [
+            ...$baseViewData,
+            'childAccounts' => $childAccounts,
         ]);
     }
 
@@ -69,6 +90,10 @@ class AccountController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
+
+        if ($user->isChildAccount()) {
+            return $this->updateChildAccount($request, $user);
+        }
 
         $validator = Validator::make($request->all(), [
             'firstname' => 'required_with:surname,phone',
@@ -171,33 +196,32 @@ class AccountController extends Controller
         $user->update($userData);
         $user->save();
 
-        if ($request->boolean('keep_signed_in_device')) {
-            $token = $this->rememberedDeviceManager->rememberUserOnCurrentDevice($request, $user);
-            $this->rememberedDeviceManager->setDeviceNickname(
-                $user,
-                (string) $token->id,
-                (string) $request->input('current_device_nickname', '')
-            );
-        } else {
-            $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
-        }
-
-        $nicknameMap = $request->input('remembered_device_nicknames', []);
-        if (is_array($nicknameMap)) {
-            foreach ($nicknameMap as $tokenId => $nickname) {
-                if (! is_string($tokenId)) {
-                    continue;
-                }
-
-                $this->rememberedDeviceManager->setDeviceNickname($user, $tokenId, is_string($nickname) ? $nickname : '');
-            }
-        }
+        $this->syncRememberedDevicesFromRequest($request, $user);
 
         session()->flash('message', 'Your account details have been saved');
         session()->flash('message-title', 'Details updated');
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user->password = (string) $validated['password'];
+        $user->save();
+
+        session()->flash('message', 'Password login has been updated.');
+        session()->flash('message-title', 'Security updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('account.show');
     }
 
     public function unsubscribeAllDiscussionNotifications(): RedirectResponse
@@ -279,10 +303,25 @@ class AccountController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
-        dispatch(new SendEmail($user->email, new UserDelete($user->email)))->onQueue('mail');
+
+        if ($user->isChildAccount()) {
+            session()->flash('message', 'Child accounts must be deleted by their parent account.');
+            session()->flash('message-title', 'Delete blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('account.show');
+        }
+
+        $email = trim((string) ($user->email ?? ''));
+        if ($email !== '') {
+            dispatch(new SendEmail($email, new UserDelete($email)))->onQueue('mail');
+        }
+        $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
         auth()->logout();
 
-        $user->delete();
+        $this->userAnonymizer->anonymize($user, $request->boolean('delete_discussion_threads'));
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         session()->flash('message', 'Your account has been deleted');
         session()->flash('message-title', 'Account Deleted');
@@ -347,7 +386,7 @@ class AccountController extends Controller
 
             $qrCodeProvider = new QRCodeProvider();
             $qrCode = $qrCodeProvider->getQRCodeImage(
-                $tfa->getQRText($user->email, $request->get('secret')),
+                $tfa->getQRText($user->canReceiveEmail() ? $user->email : $user->username, $request->get('secret')),
                 200
             );
 
@@ -418,6 +457,91 @@ class AccountController extends Controller
             ]);
         } else {
             abort(403);
+        }
+    }
+
+    private function updateChildAccount(Request $request, User $user): RedirectResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'avatar_media_name' => [
+                'nullable',
+                'string',
+                'exists:media,name',
+                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
+                    $mediaName = trim((string) $value);
+                    if ($mediaName === '') {
+                        return;
+                    }
+
+                    $media = Media::query()->find($mediaName);
+                    if (! $media) {
+                        return;
+                    }
+
+                    if (! $user->isAdmin() && (string) $media->user_id !== (string) $user->id) {
+                        $fail('You can only use media that you uploaded for your avatar.');
+                    }
+                },
+            ],
+            'avatar_zoom' => ['nullable', 'integer', 'min:100', 'max:250'],
+            'avatar_offset_x' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            'avatar_offset_y' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            'username' => ['required', 'string', 'max:32', 'unique:users,username,'.$user->id, new UsernameRule(false)],
+            'current_device_nickname' => 'nullable|string|max:60',
+        ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()->withErrors($validator)->withInput();
+        }
+
+        $userData = $validator->validated();
+        $userData['username'] = User::normalizeUsername((string) $userData['username']);
+        $userData['avatar_media_name'] = trim((string) ($userData['avatar_media_name'] ?? '')) ?: null;
+        $userData['avatar_zoom'] = (int) ($userData['avatar_zoom'] ?? 100);
+        $userData['avatar_offset_x'] = (int) ($userData['avatar_offset_x'] ?? 0);
+        $userData['avatar_offset_y'] = (int) ($userData['avatar_offset_y'] ?? 0);
+
+        if ($userData['avatar_media_name'] === null) {
+            $userData['avatar_zoom'] = 100;
+            $userData['avatar_offset_x'] = 0;
+            $userData['avatar_offset_y'] = 0;
+        }
+
+        $user->update($userData);
+        $user->save();
+        $this->syncRememberedDevicesFromRequest($request, $user);
+
+        session()->flash('message', 'Your child account settings have been saved');
+        session()->flash('message-title', 'Details updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
+    }
+
+    private function syncRememberedDevicesFromRequest(Request $request, User $user): void
+    {
+        if ($request->boolean('keep_signed_in_device')) {
+            $token = $this->rememberedDeviceManager->rememberUserOnCurrentDevice($request, $user);
+            $this->rememberedDeviceManager->setDeviceNickname(
+                $user,
+                (string) $token->id,
+                (string) $request->input('current_device_nickname', '')
+            );
+        } else {
+            $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
+        }
+
+        $nicknameMap = $request->input('remembered_device_nicknames', []);
+        if (! is_array($nicknameMap)) {
+            return;
+        }
+
+        foreach ($nicknameMap as $tokenId => $nickname) {
+            if (! is_string($tokenId)) {
+                continue;
+            }
+
+            $this->rememberedDeviceManager->setDeviceNickname($user, $tokenId, is_string($nickname) ? $nickname : '');
         }
     }
 }

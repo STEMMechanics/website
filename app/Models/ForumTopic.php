@@ -31,6 +31,8 @@ class ForumTopic extends Model
         'last_post_user_id',
         'title',
         'slug',
+        'approved_by_user_id',
+        'is_approved',
         'is_locked',
         'is_pinned',
         'view_count',
@@ -38,6 +40,7 @@ class ForumTopic extends Model
     ];
 
     protected $casts = [
+        'is_approved' => 'boolean',
         'is_locked' => 'boolean',
         'is_pinned' => 'boolean',
         'view_count' => 'integer',
@@ -73,7 +76,10 @@ class ForumTopic extends Model
      */
     public function posts(): HasMany
     {
-        return $this->hasMany(ForumPost::class)->orderBy('created_at')->orderBy('id');
+        return $this->hasMany(ForumPost::class)
+            ->where('is_approved', true)
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 
     /**
@@ -89,7 +95,9 @@ class ForumTopic extends Model
      */
     public function firstPost(): HasOne
     {
-        return $this->hasOne(ForumPost::class)->oldestOfMany('created_at');
+        return $this->hasOne(ForumPost::class)
+            ->where('is_approved', true)
+            ->oldestOfMany('created_at');
     }
 
     public function canRead(?User $user): bool
@@ -103,7 +111,11 @@ class ForumTopic extends Model
             return false;
         }
 
-        return ! $this->is_locked;
+        if (! $user?->canReplyInForum()) {
+            return false;
+        }
+
+        return ! $this->is_locked && $this->is_approved;
     }
 
     public function canEditTitle(?User $user): bool
@@ -154,6 +166,7 @@ class ForumTopic extends Model
     {
         return self::query()
             ->select('forum_topics.*')
+            ->where('forum_topics.is_approved', true)
             ->join('forum_topic_user_states as forum_topic_state', function ($join) use ($user) {
                 $join->on('forum_topic_state.forum_topic_id', '=', 'forum_topics.id')
                     ->where('forum_topic_state.user_id', '=', (string) $user->id);

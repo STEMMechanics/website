@@ -15,20 +15,21 @@ use App\Support\RememberedDeviceManager;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class AuthController extends Controller
 {
+    private const PASSWORD_LOGIN_SESSION_KEY = 'auth.password_login';
+
     public function __construct(
         private readonly RememberedDeviceManager $rememberedDeviceManager
     ) {}
 
     /**
      * Show the login form or if token present, process the login
-     *
-     * @param Request $request
-     * @return View|RedirectResponse
      */
     public function showLogin(Request $request): View|RedirectResponse
     {
@@ -60,9 +61,6 @@ class AuthController extends Controller
 
     /**
      * Process the login form
-     *
-     * @param Request $request
-     * @return View|RedirectResponse
      */
     public function postLogin(Request $request): View|RedirectResponse
     {
@@ -80,6 +78,7 @@ class AuthController extends Controller
 
         $rules = [
             'login' => 'required|string|max:255',
+            'password' => 'nullable|string|max:255',
         ];
         if (AltchaTrust::shouldRequire($request)) {
             $rules['altcha'] = ['required', new ValidAltcha()];
@@ -93,52 +92,123 @@ class AuthController extends Controller
         }
 
         $forceEmailLogin = false;
+        $password = (string) $request->input('password', '');
 
         $otpCode = trim((string) ($request->input('totp', $request->input('otp', $request->input('code', '')))));
 
-        if($otpCode !== '') {
-            $user = $this->findVerifiedUserByLogin($login);
-            if($user) {
+        if ($otpCode !== '') {
+            $user = $this->findUserByLogin($login);
+            if ($user) {
                 if (AccountController::verifyTfaCode((string) $user->tfa_secret, $otpCode)) {
-                    $data = ['url' => session()->pull('url.intended', null)];
-                    return $this->loginByUser($user, $data);
+                    $pendingPasswordData = $this->pullPendingPasswordLoginData($request, $user);
+                    if ($pendingPasswordData !== null) {
+                        return $this->loginByUser($user, $pendingPasswordData);
+                    }
+
+                    if ($user->canUseEmailLogin()) {
+                        return $this->loginByUser($user, ['url' => session()->pull('url.intended', null)]);
+                    }
                 }
             }
 
-            return view('auth.login-2fa', ['login' => $login])->withErrors([
+            return view('auth.login-2fa', [
+                'login' => $login,
+                'allowEmailMethod' => $user?->canUseEmailLogin() ?? false,
+            ])->withErrors([
                 'totp' => 'The 2FA code is not valid',
             ]);
         }
 
-        if($request->has('backup_code')) {
-            $user = $this->findVerifiedUserByLogin($login);
-            if($user) {
-                if($user->verifyBackupCode($request->backup_code)) {
-                    $data = ['url' => session()->pull('url.intended', null)];
+        if ($request->has('backup_code')) {
+            $user = $this->findUserByLogin($login);
+            if ($user) {
+                if ($user->verifyBackupCode($request->backup_code)) {
+                    $pendingPasswordData = $this->pullPendingPasswordLoginData($request, $user);
+                    if ($pendingPasswordData !== null) {
+                        if ($user->canReceiveEmail()) {
+                            dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
+                        }
 
-                    dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
+                        return $this->loginByUser($user, $pendingPasswordData);
+                    }
 
-                    return $this->loginByUser($user, $data);
+                    if ($user->canUseEmailLogin()) {
+                        if ($user->canReceiveEmail()) {
+                            dispatch(new SendEmail($user->email, new UserLoginBackupCode($user->email)))->onQueue('mail');
+                        }
+
+                        return $this->loginByUser($user, ['url' => session()->pull('url.intended', null)]);
+                    }
                 }
             }
 
-            return view('auth.login-2fa', ['login' => $login, 'method' => 'backup'])->withErrors([
+            return view('auth.login-2fa', [
+                'login' => $login,
+                'method' => 'backup',
+                'allowEmailMethod' => $user?->canUseEmailLogin() ?? false,
+            ])->withErrors([
                 'backup_code' => 'The backup code is not valid',
             ]);
         }
 
-        if($request->has('method')) {
-            if($request->get('method') === 'email') {
+        if ($request->has('method')) {
+            if ($request->get('method') === 'email') {
                 $forceEmailLogin = true;
             } else {
                 abort(404);
             }
         }
 
+        $user = $this->findUserByLogin($login);
+
+        if ($password !== '') {
+            if (! $user || ! $user->canUsePasswordLogin() || ! Hash::check($password, (string) $user->password)) {
+                return back()
+                    ->withInput($request->except('password'))
+                    ->withErrors([
+                        'password' => 'The password is not valid.',
+                    ]);
+            }
+
+            if ($user->tfa_secret !== null) {
+                $this->storePendingPasswordLogin($request, $user, array_filter([
+                    'url' => session()->pull('url.intended', null),
+                    'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                    'remember_email_value' => $rememberEmailProvided ? $login : null,
+                ], fn ($value) => $value !== null));
+
+                return view('auth.login-2fa', [
+                    'user' => $user,
+                    'login' => $login,
+                    'allowEmailMethod' => $user->canUseEmailLogin(),
+                ]);
+            }
+
+            $this->forgetPendingPasswordLogin($request);
+
+            return $this->loginByUser($user, array_filter([
+                'url' => session()->pull('url.intended', null),
+                'remember_email' => $rememberEmailProvided ? $rememberEmail : null,
+                'remember_email_value' => $rememberEmailProvided ? $login : null,
+            ], fn ($value) => $value !== null));
+        }
+
+        if ($user && $user->isChildAccount()) {
+            return back()
+                ->withInput($request->except('password'))
+                ->withErrors([
+                    'password' => 'Enter the password for this child account to sign in.',
+                ]);
+        }
+
         $user = $this->findVerifiedUserByLogin($login);
         if ($user) {
-            if (!$forceEmailLogin && $user->tfa_secret !== null) {
-                return view('auth.login-2fa', ['user' => $user, 'login' => $login]);
+            if (! $forceEmailLogin && $user->tfa_secret !== null) {
+                return view('auth.login-2fa', [
+                    'user' => $user,
+                    'login' => $login,
+                    'allowEmailMethod' => $user->canUseEmailLogin(),
+                ]);
             }
 
             $token = $user->tokens()->create([
@@ -151,21 +221,19 @@ class AuthController extends Controller
             ]);
 
             dispatch(new SendEmail($user->email, new UserLogin($token->id, $user->getName(), $user->email)))->onQueue('mail');
+
             return view('auth.login-link');
         }
 
         session()->flash('status', 'not-found');
+
         return view('auth.login', [
             'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
     }
 
-
     /**
      * Process the login by token
-     *
-     * @param string $tokenStr
-     * @return View|RedirectResponse
      */
     public function loginByToken(string $tokenStr): View|RedirectResponse
     {
@@ -176,8 +244,9 @@ class AuthController extends Controller
 
         if ($token) {
             $user = $token->user;
-            if($user) {
+            if ($user) {
                 $token->delete();
+
                 return $this->loginByUser($user, $token->data);
             }
         }
@@ -185,6 +254,7 @@ class AuthController extends Controller
         session()->flash('message', 'That token has expired or is invalid');
         session()->flash('message-title', 'Log in failed');
         session()->flash('message-type', 'danger');
+
         return view('auth.login', [
             'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail(request()),
         ]);
@@ -193,8 +263,6 @@ class AuthController extends Controller
     /**
      * Process the login by user
      *
-     * @param User $user
-     * @param array $data
      * @return RedirectResponse
      */
     public function loginByUser(
@@ -204,8 +272,7 @@ class AuthController extends Controller
         ?string $title = null,
         string $type = 'success',
         bool $flashMessage = true
-    )
-    {
+    ) {
         $url = null;
         if (isset($data['url']) && $data['url']) {
             $url = $data['url'];
@@ -236,7 +303,7 @@ class AuthController extends Controller
             session()->flash('message-type', $type);
         }
 
-        if($url) {
+        if ($url) {
             return redirect($url);
         }
 
@@ -254,8 +321,6 @@ class AuthController extends Controller
 
     /**
      * Process the user logout
-     *
-     * @return RedirectResponse
      */
     public function logout(Request $request): RedirectResponse
     {
@@ -263,6 +328,8 @@ class AuthController extends Controller
         if ($user instanceof User) {
             $this->rememberedDeviceManager->forgetCurrentDevice($request, $user);
         }
+
+        $this->forgetPendingPasswordLogin($request);
 
         auth()->logout();
         AltchaTrust::clear($request);
@@ -272,14 +339,12 @@ class AuthController extends Controller
         session()->flash('message', 'You have been logged out');
         session()->flash('message-title', 'Logged out');
         session()->flash('message-type', 'warning');
+
         return redirect()->route('index');
     }
 
     /**
      * Show the registration form or if token present, process the registration
-     *
-     * @param Request $request
-     * @return View|RedirectResponse
      */
     public function showRegister(Request $request): View|RedirectResponse
     {
@@ -324,9 +389,6 @@ class AuthController extends Controller
 
     /**
      * Process the registration form
-     *
-     * @param Request $request
-     * @return View|RedirectResponse
      */
     public function postRegister(Request $request): View|RedirectResponse
     {
@@ -339,15 +401,15 @@ class AuthController extends Controller
 
         $request->validate($rules, [
             'email.required' => __('validation.custom_messages.email_required'),
-            'email.email' => __('validation.custom_messages.email_invalid')
+            'email.email' => __('validation.custom_messages.email_invalid'),
         ]);
         if (array_key_exists('altcha', $rules)) {
             AltchaTrust::markVerified($request);
         }
 
         $user = User::where('email', $request->email)->first();
-        if($user) {
-            if($user->email_verified_at !== null) {
+        if ($user) {
+            if ($user->email_verified_at !== null) {
                 return redirect()->back()->withInput()->withErrors([
                     'email' => __('validation.custom_messages.email_exists'),
                 ]);
@@ -372,9 +434,6 @@ class AuthController extends Controller
 
     /**
      * Confirm the user email update.
-     *
-     * @param Request $request
-     * @return RedirectResponse
      */
     public function updateEmail(Request $request): RedirectResponse
     {
@@ -385,8 +444,8 @@ class AuthController extends Controller
             ->where('expires_at', '>', now())
             ->first();
 
-        if($token && $token->user) {
-            if($token->data && isset($token->data['email'])) {
+        if ($token && $token->user) {
+            if ($token->data && isset($token->data['email'])) {
                 $user = $token->user;
                 $user->email = $token->data['email'];
                 $user->email_verified_at = now();
@@ -413,16 +472,60 @@ class AuthController extends Controller
 
     private function findVerifiedUserByLogin(string $login): ?User
     {
+        $user = $this->findUserByLogin($login);
+
+        return $user && $user->canUseEmailLogin() ? $user : null;
+    }
+
+    private function findUserByLogin(string $login): ?User
+    {
         $identifier = trim($login);
         if ($identifier === '') {
             return null;
         }
 
-        $query = User::query()->whereNotNull('email_verified_at');
+        $query = User::query()->whereNull('anonymized_at');
         if (filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
-            return $query->where('email', $identifier)->first();
+            return $query->where('email', strtolower($identifier))->first();
         }
 
         return $query->where('username', User::normalizeUsername($identifier))->first();
+    }
+
+    private function storePendingPasswordLogin(Request $request, User $user, array $data): void
+    {
+        $request->session()->put(self::PASSWORD_LOGIN_SESSION_KEY, [
+            'user_id' => (string) $user->id,
+            'expires_at' => now()->addMinutes(10)->toIso8601String(),
+            'data' => $data,
+        ]);
+    }
+
+    private function pullPendingPasswordLoginData(Request $request, User $user): ?array
+    {
+        $payload = $request->session()->get(self::PASSWORD_LOGIN_SESSION_KEY);
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $expiresAt = trim((string) ($payload['expires_at'] ?? ''));
+        if (
+            (string) ($payload['user_id'] ?? '') !== (string) $user->id
+            || $expiresAt === ''
+            || now()->greaterThan(Carbon::parse($expiresAt))
+        ) {
+            $this->forgetPendingPasswordLogin($request);
+
+            return null;
+        }
+
+        $this->forgetPendingPasswordLogin($request);
+
+        return is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    }
+
+    private function forgetPendingPasswordLogin(Request $request): void
+    {
+        $request->session()->forget(self::PASSWORD_LOGIN_SESSION_KEY);
     }
 }

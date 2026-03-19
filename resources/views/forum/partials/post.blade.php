@@ -6,11 +6,13 @@
     ];
     $reactionBaseButtonClasses = 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition';
     $reactionIdleClasses = 'border-gray-200 bg-white text-gray-700 hover:border-primary-color hover:text-primary-color';
-    $displayName = $post->user?->username ?: $post->user?->getName() ?: 'Deleted user';
+    $displayName = $post->user?->forumDisplayName() ?: 'deleted';
     $canEditPost = $post->canEdit(auth()->user());
     $isAdmin = auth()->user()?->isAdmin();
+    $canDeletePost = $isAdmin || (string) ($post->user_id ?? '') === (string) auth()->id();
+    $isDeletedPost = $post->isDeleted();
     $avatarUrl = $post->user?->avatarMedia?->thumbnail;
-    $parentDisplayName = $post->parentPost?->user?->username ?: $post->parentPost?->user?->getName() ?: 'Deleted user';
+    $parentDisplayName = $post->parentPost?->user?->forumDisplayName() ?: 'deleted';
 @endphp
 
 @php($authorInitial = strtoupper(mb_substr($displayName, 0, 1)))
@@ -52,7 +54,7 @@
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                @if(!$isFirstPost && $canReply && !$topic->is_locked)
+                @if(!$isFirstPost && $canReply && !$topic->is_locked && ! $isDeletedPost)
                     <x-ui.button
                         type="button"
                         color="outline"
@@ -74,32 +76,36 @@
             @auth
                 <div class="flex flex-wrap gap-2">
                 @foreach($reactionMeta as $type => $meta)
-                    <button
-                        type="button"
-                        data-forum-reaction-button
-                        data-url="{{ route('forum.post.reaction', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
-                        data-post-id="{{ $post->id }}"
-                        data-type="{{ $type }}"
-                        data-active-classes="{{ $meta['activeClasses'] }}"
-                        data-label="{{ $meta['label'] }}"
-                        title="{{ $meta['label'] }}: {{ $post->reactionTooltipFor($type) }}"
-                        class="{{ $reactionBaseButtonClasses }} {{ $post->reactionTypeFor(auth()->user()) === $type ? $meta['activeClasses'] : $reactionIdleClasses }}"
-                    >
-                        <i class="{{ $meta['icon'] }}"></i>
-                        <span data-forum-reaction-count>{{ $post->reactionCountFor($type) }}</span>
-                    </button>
+                    @if(! $isDeletedPost)
+                        <button
+                            type="button"
+                            data-forum-reaction-button
+                            data-url="{{ route('forum.post.reaction', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
+                            data-post-id="{{ $post->id }}"
+                            data-type="{{ $type }}"
+                            data-active-classes="{{ $meta['activeClasses'] }}"
+                            data-label="{{ $meta['label'] }}"
+                            title="{{ $meta['label'] }}: {{ $post->reactionTooltipFor($type) }}"
+                            class="{{ $reactionBaseButtonClasses }} {{ $post->reactionTypeFor(auth()->user()) === $type ? $meta['activeClasses'] : $reactionIdleClasses }}"
+                        >
+                            <i class="{{ $meta['icon'] }}"></i>
+                            <span data-forum-reaction-count>{{ $post->reactionCountFor($type) }}</span>
+                        </button>
+                    @endif
                 @endforeach
                 </div>
                 <div class="flex flex-wrap gap-4">
-                <button
-                        type="button"
-                        class="text-sm text-gray-600 hover:text-primary-color"
-                        data-forum-report-button
-                        data-report-post-id="{{ $post->id }}"
-                        data-report-action="{{ route('forum.post.report', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
-                        data-report-author="{{ $displayName }}"
-                ><i class="fa-regular fa-flag"></i></button>
-                @if($canEditPost)
+                @if(! $isDeletedPost)
+                    <button
+                            type="button"
+                            class="text-sm text-gray-600 hover:text-primary-color"
+                            data-forum-report-button
+                            data-report-post-id="{{ $post->id }}"
+                            data-report-action="{{ route('forum.post.report', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
+                            data-report-author="{{ $displayName }}"
+                    ><i class="fa-regular fa-flag"></i></button>
+                @endif
+                @if($canEditPost && ! $isDeletedPost)
                     <button
                             type="button"
                             class="text-sm text-gray-600 hover:text-primary-color"
@@ -112,7 +118,7 @@
                             data-submit-label="Save Changes"
                     ><i class="fa-solid fa-pen-to-square"></i></button>
                 @endif
-                @if($isAdmin && ! $isFirstPost)
+                @if($canDeletePost && ! $isFirstPost)
                     <form method="POST" action="{{ route('forum.post.destroy', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this reply?', $el)">
                         @csrf
                         @method('DELETE')

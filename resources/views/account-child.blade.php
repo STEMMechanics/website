@@ -1,13 +1,6 @@
 @php
 $user = auth()->user();
 
-$shipping_same_billing = $user->shipping_address === $user->billing_address
-    && $user->shipping_address2 === $user->billing_address2
-    && $user->shipping_city === $user->billing_city
-    && $user->shipping_state === $user->billing_state
-    && $user->shipping_postcode === $user->billing_postcode
-    && $user->shipping_country === $user->billing_country;
-$groupSlugs = $user->groupSlugs();
 $rememberedDevices = collect($rememberedDevices ?? []);
 $currentRememberedTokenId = (string) ($currentRememberedTokenId ?? '');
 $keepSignedInDeviceOld = old('keep_signed_in_device');
@@ -20,14 +13,12 @@ $avatarPreviewUrl = old('avatar_media_name', $user->avatar_media_name)
 $avatarZoom = (int) old('avatar_zoom', $user->avatar_zoom ?? 100);
 $avatarOffsetX = (int) old('avatar_offset_x', $user->avatar_offset_x ?? 0);
 $avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
-$discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
-$childAccounts = collect($childAccounts ?? []);
 @endphp
 
 <x-layout>
-    <x-mast description="Manage your public profile, addresses, subscriptions, and sign-in settings.">Account Settings</x-mast>
+    <x-mast description="Manage the parts of this child account that are available directly to the child user.">Child Account Settings</x-mast>
 
-    <x-container inner-class="max-w-6xl">
+    <x-container inner-class="max-w-5xl">
         <form
             method="POST"
             action="{{ route('account.update') }}"
@@ -135,7 +126,6 @@ $childAccounts = collect($childAccounts ?? []);
                     this.avatarDragging = false;
                 },
             }"
-            x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()"
         >
             @csrf
             <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />
@@ -146,68 +136,96 @@ $childAccounts = collect($childAccounts ?? []);
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-gray-900">Profile Details</h2>
-                                <p class="mt-1 text-sm text-gray-600">Update the information used for your account, invoices, and contact history.</p>
+                                <h2 class="text-lg font-semibold text-gray-900">Profile</h2>
+                                <p class="mt-1 text-sm text-gray-600">Child accounts can change their username and avatar only.</p>
+                            </div>
+                            <div class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                                Forum-only account
                             </div>
                         </div>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2">
-                            <x-ui.input label="First name" name="firstname" value="{{ $user->firstname }}" />
-                            <x-ui.input label="Surname" name="surname" value="{{ $user->surname }}" />
-                            <x-ui.input type="email" label="Email" name="email" value="{{ $user->email }}" info="{{ $user->email_update_pending ? 'Pending request to change to ' . $user->email_update_pending : '' }}"/>
-                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site. Don't use your real name!" />
-                            <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
-                            <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="Usernames are unique across all accounts." />
+                            <div class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-600">
+                                <div class="font-semibold text-gray-900">Managed by</div>
+                                <div class="mt-1">{{ $user->parent?->forumDisplayName() ?: 'Parent account' }}</div>
+                                <div class="mt-3 text-xs text-gray-500">Purchases, tickets, invoices, and address details are disabled for child accounts.</div>
+                            </div>
                         </div>
                     </section>
 
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Addresses</h2>
-                            <p class="mt-1 text-sm text-gray-600">Keep your billing and shipping details current for orders and invoices.</p>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
+                                <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
+                            </div>
+                            <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
                         </div>
 
-                        <div class="mt-6 grid gap-6 xl:grid-cols-2">
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <h3 class="text-sm font-semibold text-gray-900">Billing address</h3>
-                                <div class="mt-4">
-                                    <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
-                                    <x-ui.input label="Address 2" name="billing_address2" value="{{ $user->billing_address2 }}" />
-                                    <x-ui.input label="City" name="billing_city" value="{{ $user->billing_city }}" />
-                                    <div class="flex flex-col sm:gap-8 sm:flex-row">
-                                        <div class="flex-1">
-                                            <x-ui.input label="State" name="billing_state" value="{{ $user->billing_state }}" />
-                                        </div>
-                                        <div class="flex-1">
-                                            <x-ui.input label="Postcode" name="billing_postcode" value="{{ $user->billing_postcode }}" />
-                                        </div>
-                                    </div>
-                                    <x-ui.input label="Country" name="billing_country" value="{{ $user->billing_country }}" />
-                                </div>
+                        <div class="rounded-2xl mt-4 bg-gray-50 p-4">
+                            <h3 class="text-sm font-semibold text-gray-900">This device</h3>
+                            <p class="mt-1 text-sm text-gray-600">Control whether this browser stays signed in between visits.</p>
+                            <div class="mt-4">
+                                <input type="hidden" name="keep_signed_in_device" value="0" />
+                                <x-ui.checkbox
+                                        id="keep_signed_in_device"
+                                        label="Keep me signed in on this device"
+                                        name="keep_signed_in_device"
+                                        checked="{{ $keepSignedInDeviceChecked }}"
+                                />
                             </div>
+                        </div>
 
-                            <div class="rounded-2xl bg-gray-50 p-4">
-                                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div>
-                                        <h3 class="text-sm font-semibold text-gray-900">Shipping address</h3>
-                                        <x-ui.checkbox class="mt-4" label="Same as billing" name="shipping_same_billing" checked="{{ $shipping_same_billing }}" x-data x-on:click="SM.updateShippingAddress" />
+                        <p id="remembered-devices-empty" class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500 {{ $rememberedDevices->isEmpty() ? '' : 'hidden' }}">No remembered devices have been saved.</p>
+                        <div id="remembered-devices-list" data-current-token-id="{{ $currentRememberedTokenId }}" class="mt-5 space-y-3 {{ $rememberedDevices->isEmpty() ? 'hidden' : '' }}">
+                            @foreach($rememberedDevices as $device)
+                                <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4" data-device-row data-device-id="{{ $device['id'] }}">
+                                    @php
+                                        $defaultDeviceTitle = (string) ($device['default_title'] ?? 'Browser Device');
+                                        $displayDeviceTitle = (string) ($device['title'] ?? $defaultDeviceTitle);
+                                    @endphp
+                                    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div class="min-w-0">
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <div class="font-semibold text-gray-900" data-device-title>{{ $displayDeviceTitle }}</div>
+                                                <button
+                                                    type="button"
+                                                    class="text-gray-500 hover:text-primary-color"
+                                                    title="Edit device name"
+                                                    data-device-edit
+                                                    data-device-id="{{ $device['id'] }}"
+                                                    data-device-title="{{ $displayDeviceTitle }}"
+                                                    data-device-nickname="{{ (string) ($device['nickname'] ?? '') }}"
+                                                    data-device-default-title="{{ $defaultDeviceTitle }}"
+                                                >
+                                                    <i class="fa-solid fa-pen"></i>
+                                                </button>
+                                                @if(! empty($device['is_current']))
+                                                    <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Current device</div>
+                                                @endif
+                                            </div>
+                                            <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
+                                                <div>IP: {{ $device['ip_address'] ?? '-' }}</div>
+                                                @if(! empty($device['browser']))
+                                                    <div>Browser: {{ $device['browser'] }}</div>
+                                                @endif
+                                                <div>Added: {{ $device['created_label'] ?? '-' }}</div>
+                                                <div>Last used: {{ $device['last_used_label'] ?? '-' }}</div>
+                                            </div>
+                                        </div>
+                                        <x-ui.button
+                                            type="button"
+                                            color="danger-outline"
+                                            class="px-4! py-1.5!"
+                                            data-device-remove
+                                            data-device-id="{{ $device['id'] }}"
+                                        >
+                                            Remove
+                                        </x-ui.button>
                                     </div>
                                 </div>
-                                <div class="mt-0">
-                                    <x-ui.input label="Address" name="shipping_address" value="{{ $user->shipping_address }}" readonly="{{ $shipping_same_billing }}" />
-                                    <x-ui.input label="Address 2" name="shipping_address2" value="{{ $user->shipping_address2 }}" readonly="{{ $shipping_same_billing }}" />
-                                    <x-ui.input label="City" name="shipping_city" value="{{ $user->shipping_city }}" readonly="{{ $shipping_same_billing }}" />
-                                    <div class="flex flex-col sm:gap-8 sm:flex-row">
-                                        <div class="flex-1">
-                                            <x-ui.input label="State" name="shipping_state" value="{{ $user->shipping_state }}" readonly="{{ $shipping_same_billing }}" />
-                                        </div>
-                                        <div class="flex-1">
-                                            <x-ui.input label="Postcode" name="shipping_postcode" value="{{ $user->shipping_postcode }}" readonly="{{ $shipping_same_billing }}" />
-                                        </div>
-                                    </div>
-                                    <x-ui.input label="Country" name="shipping_country" value="{{ $user->shipping_country }}" readonly="{{ $shipping_same_billing }}" />
-                                </div>
-                            </div>
+                            @endforeach
                         </div>
                     </section>
                 </div>
@@ -217,189 +235,27 @@ $childAccounts = collect($childAccounts ?? []);
                         <h2 class="text-lg font-semibold text-gray-900">Account Overview</h2>
                         <div class="mt-5 space-y-4">
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Display name</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $user->getName() }}</div>
-                            </div>
-                            <div>
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Username</div>
                                 <div class="mt-1 text-sm text-gray-900">{{ $user->username ?: '-' }}</div>
                             </div>
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
-                                <div class="mt-1 break-all text-sm text-gray-900">{{ $user->email }}</div>
-                                @if($user->email_update_pending)
-                                    <div class="mt-1 text-xs text-amber-700">Pending change to {{ $user->email_update_pending }}</div>
-                                @endif
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Authentication</div>
+                                <div class="mt-1 text-sm text-gray-900">Username + password</div>
+                            </div>
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Parent account</div>
+                                <div class="mt-1 text-sm text-gray-900">{{ $user->parent?->forumDisplayName() ?: '-' }}</div>
                             </div>
                             <div>
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Remembered devices</div>
                                 <div class="mt-1 text-sm text-gray-900">{{ $rememberedDevices->count() }}</div>
                             </div>
                         </div>
-
-                        @if($groupSlugs !== [])
-                            <div class="mt-6 border-t border-gray-100 pt-5">
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Your groups</div>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    @foreach($groupSlugs as $groupSlug)
-                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
-                                    @endforeach
-                                </div>
-                            </div>
-                        @endif
                     </section>
 
                     @include('account.partials.avatar-card')
                 </div>
             </div>
-
-            <div class="mt-6 space-y-6">
-                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Preferences</h2>
-                            <p class="mt-1 text-sm text-gray-600">Lightweight settings that affect notifications and this device.</p>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid gap-6 md:grid-cols-2">
-                        <div class="rounded-2xl bg-gray-50 p-4">
-                            <h3 class="text-sm font-semibold text-gray-900">Email subscriptions</h3>
-                            <p class="mt-1 text-sm text-gray-600">Choose whether to receive workshop updates and announcements.</p>
-                            <div class="mt-4">
-                                <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl bg-gray-50 p-4">
-                            <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
-                            <p class="mt-1 text-sm text-gray-600">
-                                You are subscribed to
-                                <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
-                                {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
-                            </p>
-                            <div class="mt-4">
-                                <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all discussions</x-ui.button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Child Accounts</h2>
-                            <p class="mt-1 text-sm text-gray-600">Create forum-only child logins, review pending discussion approvals, and update permissions.</p>
-                        </div>
-                        <x-ui.button type="link" href="{{ route('account.children.create') }}">Create child account</x-ui.button>
-                    </div>
-
-                    @if($childAccounts->isEmpty())
-                        <div class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                            No child accounts have been created yet.
-                        </div>
-                    @else
-                        <div class="mt-5 grid gap-4 md:grid-cols-2">
-                            @foreach($childAccounts as $childAccount)
-                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <div class="text-sm font-semibold text-gray-900">{{ $childAccount->username }}</div>
-                                            <div class="mt-1 text-xs text-gray-500">Forum-only child account</div>
-                                        </div>
-                                        <x-ui.button type="link" color="outline" href="{{ route('account.children.edit', $childAccount) }}" class="!px-4 !py-1.5">Manage</x-ui.button>
-                                    </div>
-                                    <div class="mt-4 grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-                                        <div>Threads: {{ $childAccount->child_can_create_forum_topics ? 'Allowed' : 'Disabled' }}</div>
-                                        <div>Replies: {{ $childAccount->child_can_reply_in_forum ? 'Allowed' : 'Disabled' }}</div>
-                                        <div>Pending threads: {{ (int) ($childAccount->pending_topic_count ?? 0) }}</div>
-                                        <div>Pending replies: {{ (int) ($childAccount->pending_reply_count ?? 0) }}</div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </section>
-
-                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
-                            <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
-                        </div>
-                        <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
-                    </div>
-
-                    <div class="rounded-2xl mt-4 bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">This device</h3>
-                        <p class="mt-1 text-sm text-gray-600">Control whether this browser stays signed in between visits.</p>
-                        <div class="mt-4">
-                            <input type="hidden" name="keep_signed_in_device" value="0" />
-                            <x-ui.checkbox
-                                    id="keep_signed_in_device"
-                                    label="Keep me signed in on this device"
-                                    name="keep_signed_in_device"
-                                    checked="{{ $keepSignedInDeviceChecked }}"
-                            />
-                        </div>
-                    </div>
-
-                    <p id="remembered-devices-empty" class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500 {{ $rememberedDevices->isEmpty() ? '' : 'hidden' }}">No remembered devices have been saved.</p>
-                    <div id="remembered-devices-list" data-current-token-id="{{ $currentRememberedTokenId }}" class="mt-5 space-y-3 {{ $rememberedDevices->isEmpty() ? 'hidden' : '' }}">
-                        @foreach($rememberedDevices as $device)
-                            <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4" data-device-row data-device-id="{{ $device['id'] }}">
-                                @php
-                                    $defaultDeviceTitle = (string) ($device['default_title'] ?? 'Browser Device');
-                                    $displayDeviceTitle = (string) ($device['title'] ?? $defaultDeviceTitle);
-                                @endphp
-                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                    <div class="min-w-0">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <div class="font-semibold text-gray-900" data-device-title>{{ $displayDeviceTitle }}</div>
-                                            <button
-                                                type="button"
-                                                class="text-gray-500 hover:text-primary-color"
-                                                title="Edit device name"
-                                                data-device-edit
-                                                data-device-id="{{ $device['id'] }}"
-                                                data-device-title="{{ $displayDeviceTitle }}"
-                                                data-device-nickname="{{ (string) ($device['nickname'] ?? '') }}"
-                                                data-device-default-title="{{ $defaultDeviceTitle }}"
-                                            >
-                                                <i class="fa-solid fa-pen"></i>
-                                            </button>
-                                            @if(! empty($device['is_current']))
-                                                <div class="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Current device</div>
-                                            @endif
-                                        </div>
-                                        <div class="mt-2 grid gap-1 text-xs text-gray-600 sm:grid-cols-2">
-                                            <div>IP: {{ $device['ip_address'] ?? '-' }}</div>
-                                            @if(! empty($device['browser']))
-                                                <div>Browser: {{ $device['browser'] }}</div>
-                                            @endif
-                                            <div>Added: {{ $device['created_label'] ?? '-' }}</div>
-                                            <div>Last used: {{ $device['last_used_label'] ?? '-' }}</div>
-                                        </div>
-                                    </div>
-                                    <x-ui.button
-                                        type="button"
-                                        color="danger-outline"
-                                        class="px-4! py-1.5!"
-                                        data-device-remove
-                                        data-device-id="{{ $device['id'] }}"
-                                    >
-                                        Remove
-                                    </x-ui.button>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </section>
-            </div>
-        </form>
-
-        <form id="discussion-unsubscribe-form" method="POST" action="{{ route('account.discussions.unsubscribe-all') }}" class="hidden">
-            @csrf
         </form>
 
         <div class="mb-8 space-y-6">
@@ -407,7 +263,7 @@ $childAccounts = collect($childAccounts ?? []);
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Password Login</h2>
-                        <p class="mt-1 text-sm text-gray-600">Set a password if you want to sign in without waiting for an email link.</p>
+                        <p class="mt-1 text-sm text-gray-600">Update the password used to sign in to this child account.</p>
                     </div>
                 </div>
 
@@ -421,24 +277,15 @@ $childAccounts = collect($childAccounts ?? []);
                 </form>
             </section>
 
-            @include('account.partials.two-factor-card')
+            @include('account.partials.two-factor-card', ['supportsEmailVerification' => false])
 
             <div class="rounded-3xl border border-primary-color/15 bg-primary-color-light/30 p-5 shadow-sm sm:p-6">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <div class="text-sm font-semibold text-gray-900">Ready to save?</div>
-                        <p class="text-sm text-gray-600">Your profile, preferences, and address changes are saved together.</p>
+                        <p class="text-sm text-gray-600">Your username, avatar, and remembered-device preferences are saved together.</p>
                     </div>
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        @if($user->id !== 1)
-                            <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete your account? This action cannot be undone.<br /><br />Any workshop tickets will remain valid.', $el)" class="flex flex-col items-start gap-3 sm:items-end">
-                                @csrf
-                                @method('DELETE')
-                                <input type="hidden" name="delete_discussion_threads" value="0" />
-                                <x-ui.checkbox label="Also delete discussion threads I created and replace my replies with deleted placeholders" name="delete_discussion_threads" value="1" small="true" class="mb-0 max-w-sm text-left" />
-                                <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
-                            </form>
-                        @endif
                         <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
                     </div>
                 </div>
@@ -498,7 +345,6 @@ $childAccounts = collect($childAccounts ?? []);
             secret: Alpine.store('tfa').secret,
         })
             .then(response => {
-                console.log(response.data);
                 if(response.data.success) {
                     SM.alert('2FA Linked', 'Two-factor authentication has been successfully linked to your account', 'success');
                     document.getElementById('tfa_button').disabled = false;
@@ -719,9 +565,7 @@ $childAccounts = collect($childAccounts ?? []);
         updateEmptyState();
     };
 
-    document.addEventListener('DOMContentLoaded', () => {
-        initRememberedDeviceActions();
-
+    const initializeDeviceHints = () => {
         const hintInput = document.getElementById('remembered_device_hint');
         const touchPointsInput = document.getElementById('remembered_device_touch_points');
         if (!hintInput || !touchPointsInput) {
@@ -757,5 +601,15 @@ $childAccounts = collect($childAccounts ?? []);
         }
 
         hintInput.value = 'other';
-    });
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            initRememberedDeviceActions();
+            initializeDeviceHints();
+        }, { once: true });
+    } else {
+        initRememberedDeviceActions();
+        initializeDeviceHints();
+    }
 </script>

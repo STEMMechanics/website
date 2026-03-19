@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Rules\UsernameRule;
-use App\Models\UserGroup;
 use App\Models\User;
+use App\Models\UserGroup;
+use App\Rules\UsernameRule;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -22,7 +23,10 @@ class UserController extends Controller
         $query = User::query();
 
         if (! $showGhostUsers) {
-            $query->whereNotNull('email_verified_at');
+            $query->where(function ($builder): void {
+                $builder->whereNotNull('email_verified_at')
+                    ->orWhereNotNull('parent_user_id');
+            });
         }
 
         if ($request->has('search')) {
@@ -259,7 +263,7 @@ class UserController extends Controller
         return redirect()->route('admin.user.index');
     }
 
-    private function respondDeleteBlocked(Request $request, string $message): JsonResponse|\Illuminate\Http\RedirectResponse
+    private function respondDeleteBlocked(Request $request, string $message): JsonResponse|RedirectResponse
     {
         session()->flash('message', $message);
         session()->flash('message-title', 'User not deleted');

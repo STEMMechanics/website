@@ -1,3 +1,7 @@
+@php
+    $supportsEmailVerification = (bool) ($supportsEmailVerification ?? true);
+@endphp
+
 <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -5,25 +9,27 @@
             <p class="mt-1 text-sm text-gray-600">Manage how sign-in verification works for your account.</p>
         </div>
         <div class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide" :class="$store.tfa.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'">
-            <span x-text="$store.tfa.enabled ? 'Authenticator enabled' : 'Email only'"></span>
+            <span x-text="$store.tfa.enabled ? 'Authenticator enabled' : '{{ $supportsEmailVerification ? 'Email only' : 'Authenticator not linked' }}'"></span>
         </div>
     </div>
 
-    <div class="mt-6 grid gap-4 lg:grid-cols-2">
-        <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <div class="flex items-start gap-4">
-                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-gray-200">
-                    <i class="fa-solid fa-envelope text-xl"></i>
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-sm font-semibold text-gray-900">Email verification</h3>
-                        <span class="rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Enabled</span>
+    <div class="mt-6 grid gap-4 {{ $supportsEmailVerification ? 'lg:grid-cols-2' : '' }}">
+        @if($supportsEmailVerification)
+            <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div class="flex items-start gap-4">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-gray-200">
+                        <i class="fa-solid fa-envelope text-xl"></i>
                     </div>
-                    <p class="mt-2 text-sm text-gray-600">Security links are always sent to your account email when required.</p>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-sm font-semibold text-gray-900">Email verification</h3>
+                            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Enabled</span>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-600">Security links are always sent to your account email when required.</p>
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
 
         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div class="flex items-start gap-4">

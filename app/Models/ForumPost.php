@@ -21,15 +21,20 @@ class ForumPost extends Model
     use HasFactory, UUID;
 
     protected $casts = [
+        'is_approved' => 'boolean',
         'edited_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     protected $fillable = [
         'forum_topic_id',
         'parent_forum_post_id',
         'user_id',
+        'approved_by_user_id',
+        'is_approved',
         'body',
         'edited_at',
+        'deleted_at',
     ];
 
     /**
@@ -90,7 +95,7 @@ class ForumPost extends Model
         /** @var Collection<int, string> $users */
         $users = $reactions
             ->where('type', $type)
-            ->map(fn (ForumPostReaction $reaction): string => (string) ($reaction->user?->username ?: $reaction->user?->getName() ?: 'Deleted user'))
+            ->map(fn (ForumPostReaction $reaction): string => (string) ($reaction->user?->forumDisplayName() ?: 'deleted'))
             ->values();
 
         return $users;
@@ -124,6 +129,27 @@ class ForumPost extends Model
             return false;
         }
 
+        if ($this->isDeleted() || ! $this->is_approved) {
+            return false;
+        }
+
         return (string) $this->user_id === (string) $user->id;
+    }
+
+    public function isDeleted(): bool
+    {
+        return $this->deleted_at !== null;
+    }
+
+    public function softDeleteToPlaceholder(): void
+    {
+        if ($this->isDeleted()) {
+            return;
+        }
+
+        $this->body = '<p><em>deleted</em></p>';
+        $this->deleted_at = now();
+        $this->edited_at = now();
+        $this->save();
     }
 }

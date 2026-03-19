@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\Admin;
 use App\Http\Middleware\Authenticate;
+use App\Http\Middleware\EnsureFullAccount;
 use App\Http\Middleware\EnsurePublicShopAvailable;
 use App\Http\Middleware\NoCache;
 use App\Http\Middleware\ProtectFormSubmission;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => Admin::class,
             'auth' => Authenticate::class,
             'form.guard' => ProtectFormSubmission::class,
+            'full-account' => EnsureFullAccount::class,
             'nocache' => NoCache::class,
             'shop.public' => EnsurePublicShopAvailable::class,
         ]);

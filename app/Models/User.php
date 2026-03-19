@@ -26,10 +26,12 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var list<string>
      */
     protected $fillable = [
+        'parent_user_id',
         'firstname',
         'surname',
         'company',
         'email',
+        'password',
         'avatar_media_name',
         'avatar_zoom',
         'avatar_offset_x',
@@ -50,6 +52,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'billing_country',
         'subscribed',
         'agree_tos',
+        'child_can_create_forum_topics',
+        'child_can_reply_in_forum',
+        'child_forum_topic_requires_approval',
+        'child_forum_reply_requires_approval',
+        'child_parent_notified_on_forum_topics',
+        'child_parent_notified_on_forum_replies',
+        'anonymized_at',
     ];
 
     /**
@@ -63,6 +72,15 @@ class User extends Authenticatable implements MustVerifyEmail
         'tfa_secret',
     ];
 
+    protected $attributes = [
+        'child_can_create_forum_topics' => true,
+        'child_can_reply_in_forum' => true,
+        'child_forum_topic_requires_approval' => false,
+        'child_forum_reply_requires_approval' => false,
+        'child_parent_notified_on_forum_topics' => false,
+        'child_parent_notified_on_forum_replies' => false,
+    ];
+
     /**
      * The attributes that should be cast.
      *
@@ -74,6 +92,13 @@ class User extends Authenticatable implements MustVerifyEmail
         'avatar_zoom' => 'integer',
         'avatar_offset_x' => 'integer',
         'avatar_offset_y' => 'integer',
+        'child_can_create_forum_topics' => 'boolean',
+        'child_can_reply_in_forum' => 'boolean',
+        'child_forum_topic_requires_approval' => 'boolean',
+        'child_forum_reply_requires_approval' => 'boolean',
+        'child_parent_notified_on_forum_topics' => 'boolean',
+        'child_parent_notified_on_forum_replies' => 'boolean',
+        'anonymized_at' => 'datetime',
     ];
 
     /**
@@ -112,42 +137,55 @@ class User extends Authenticatable implements MustVerifyEmail
 
         static::updating(function ($user) {
             if ($user->isDirty('email')) {
-                EmailSubscriptions::where('email', $user->getOriginal('email'))->update(['email' => $user->email]);
+                $originalEmail = trim((string) $user->getOriginal('email'));
+                $newEmail = trim((string) ($user->email ?? ''));
 
-                // remove duplicate email subscriptions, favoring those with confirmed dates
-                $subscriptions = EmailSubscriptions::where('email', $user->email)->orderBy('created_at', 'asc')->get();
-                $confirmed = EmailSubscriptions::where('email', $user->email)->whereNotNull('confirmed')->orderBy('confirmed', 'asc')->first();
-                if ($subscriptions->count() > 1) {
-                    // if there is a confirmed, then delete all the others
-                    if ($confirmed) {
-                        $subscriptions->each(function ($subscription) use ($confirmed) {
-                            if ($subscription->id !== $confirmed->id) {
-                                $subscription->delete();
-                            }
-                        });
-                    } else {
-                        // if there is no confirmed, then delete all but the most recent
-                        $subscriptions->each(function ($subscription) use ($subscriptions) {
-                            if ($subscription->id !== $subscriptions->last()->id) {
-                                $subscription->delete();
-                            }
-                        });
+                if ($originalEmail !== '' && $newEmail !== '') {
+                    EmailSubscriptions::where('email', $originalEmail)->update(['email' => $newEmail]);
+
+                    // remove duplicate email subscriptions, favoring those with confirmed dates
+                    $subscriptions = EmailSubscriptions::where('email', $newEmail)->orderBy('created_at', 'asc')->get();
+                    $confirmed = EmailSubscriptions::where('email', $newEmail)->whereNotNull('confirmed')->orderBy('confirmed', 'asc')->first();
+                    if ($subscriptions->count() > 1) {
+                        // if there is a confirmed, then delete all the others
+                        if ($confirmed) {
+                            $subscriptions->each(function ($subscription) use ($confirmed) {
+                                if ($subscription->id !== $confirmed->id) {
+                                    $subscription->delete();
+                                }
+                            });
+                        } else {
+                            // if there is no confirmed, then delete all but the most recent
+                            $subscriptions->each(function ($subscription) use ($subscriptions) {
+                                if ($subscription->id !== $subscriptions->last()->id) {
+                                    $subscription->delete();
+                                }
+                            });
+                        }
                     }
+                } elseif ($originalEmail !== '') {
+                    EmailSubscriptions::where('email', $originalEmail)->delete();
                 }
             }
 
             if ($user->isDirty('tfa_secret')) {
+                $email = trim((string) ($user->email ?? ''));
                 if ($user->tfa_secret === null) {
                     $user->backupCodes()->delete();
-                    dispatch(new SendEmail($user->email, new UserLoginTFADisabled($user->email)))->onQueue('mail');
-                } else {
-                    dispatch(new SendEmail($user->email, new UserLoginTFAEnabled($user->email)))->onQueue('mail');
+                    if ($email !== '') {
+                        dispatch(new SendEmail($email, new UserLoginTFADisabled($email)))->onQueue('mail');
+                    }
+                } elseif ($email !== '') {
+                    dispatch(new SendEmail($email, new UserLoginTFAEnabled($email)))->onQueue('mail');
                 }
             }
         });
 
         static::deleting(function ($user) {
-            EmailSubscriptions::where('email', $user->email)->delete();
+            $email = trim((string) ($user->email ?? ''));
+            if ($email !== '') {
+                EmailSubscriptions::where('email', $email)->delete();
+            }
         });
 
     }
@@ -168,17 +206,40 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getName(): string
     {
+        if ($this->isAnonymized()) {
+            return 'deleted';
+        }
+
         $name = '';
 
         if ($this->firstname || $this->surname) {
             $name = implode(' ', [$this->firstname, $this->surname]);
-        } else if ((string) $this->username !== '') {
+        } elseif ((string) $this->username !== '') {
             $name = (string) $this->username;
         } else {
-            $name = substr($this->email, 0, strpos($this->email, '@'));
+            $email = trim((string) ($this->email ?? ''));
+            if (str_contains($email, '@')) {
+                $name = substr($email, 0, strpos($email, '@'));
+            } else {
+                $name = 'Member';
+            }
         }
 
         return $name;
+    }
+
+    public function forumDisplayName(): string
+    {
+        if ($this->isAnonymized()) {
+            return 'deleted';
+        }
+
+        $username = trim((string) ($this->username ?? ''));
+        if ($username !== '') {
+            return $username;
+        }
+
+        return $this->getName();
     }
 
     /**
@@ -259,6 +320,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Media::class, 'avatar_media_name');
     }
 
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_user_id');
+    }
+
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_user_id')->orderBy('created_at');
+    }
+
     public function avatarImageStyle(): string
     {
         $zoom = max(100, min(250, (int) ($this->avatar_zoom ?? 100))) / 100;
@@ -280,6 +351,11 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function getSubscribedAttribute()
     {
+        $email = trim((string) ($this->email ?? ''));
+        if ($email === '') {
+            return false;
+        }
+
         return EmailSubscriptions::where('email', $this->email)
             ->whereNotNull('confirmed')
             ->exists();
@@ -287,8 +363,13 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function setSubscribedAttribute($value)
     {
+        $email = trim((string) ($this->email ?? ''));
+        if ($email === '') {
+            return;
+        }
+
         if ($value) {
-            $subscription = EmailSubscriptions::where('email', $this->email)->first();
+            $subscription = EmailSubscriptions::where('email', $email)->first();
             if ($subscription) {
                 if ($subscription->confirmed === null) {
                     $subscription->update(['confirmed' => now()]);
@@ -296,12 +377,12 @@ class User extends Authenticatable implements MustVerifyEmail
                 }
             } else {
                 EmailSubscriptions::Create([
-                    'email' => $this->email,
+                    'email' => $email,
                     'confirmed' => now(),
                 ]);
             }
         } else {
-            EmailSubscriptions::where('email', $this->email)->delete();
+            EmailSubscriptions::where('email', $email)->delete();
         }
     }
 
@@ -316,6 +397,89 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isAdmin(): bool
     {
         return $this->hasGroup('admin');
+    }
+
+    public function isChildAccount(): bool
+    {
+        return (string) ($this->parent_user_id ?? '') !== '';
+    }
+
+    public function isAnonymized(): bool
+    {
+        return $this->anonymized_at !== null;
+    }
+
+    public function canReceiveEmail(): bool
+    {
+        return trim((string) ($this->email ?? '')) !== '';
+    }
+
+    public function canUsePasswordLogin(): bool
+    {
+        if ($this->isAnonymized() || trim((string) ($this->password ?? '')) === '') {
+            return false;
+        }
+
+        if ($this->isChildAccount()) {
+            return true;
+        }
+
+        return $this->email_verified_at !== null;
+    }
+
+    public function canUseEmailLogin(): bool
+    {
+        return ! $this->isAnonymized()
+            && ! $this->isChildAccount()
+            && $this->email_verified_at !== null
+            && $this->canReceiveEmail();
+    }
+
+    public function isFullAccount(): bool
+    {
+        return ! $this->isChildAccount() && ! $this->isAnonymized();
+    }
+
+    public function canPurchaseOrBook(): bool
+    {
+        return $this->isFullAccount();
+    }
+
+    public function canManageChildAccount(self $child): bool
+    {
+        return ! $this->isChildAccount()
+            && ! $this->isAnonymized()
+            && (string) $child->parent_user_id === (string) $this->id;
+    }
+
+    public function canCreateForumTopics(): bool
+    {
+        return ! $this->isChildAccount() || (bool) $this->child_can_create_forum_topics;
+    }
+
+    public function canReplyInForum(): bool
+    {
+        return ! $this->isChildAccount() || (bool) $this->child_can_reply_in_forum;
+    }
+
+    public function childForumTopicRequiresApproval(): bool
+    {
+        return $this->isChildAccount() && (bool) $this->child_forum_topic_requires_approval;
+    }
+
+    public function childForumReplyRequiresApproval(): bool
+    {
+        return $this->isChildAccount() && (bool) $this->child_forum_reply_requires_approval;
+    }
+
+    public function parentShouldBeNotifiedOnForumTopics(): bool
+    {
+        return $this->isChildAccount() && (bool) $this->child_parent_notified_on_forum_topics;
+    }
+
+    public function parentShouldBeNotifiedOnForumReplies(): bool
+    {
+        return $this->isChildAccount() && (bool) $this->child_parent_notified_on_forum_replies;
     }
 
     public function hasMinecraftAccess(): bool

@@ -1,10 +1,10 @@
 @foreach($topics as $topic)
     @php
-        $authorName = $topic->user?->username ?: $topic->user?->getName() ?: 'Deleted user';
+        $authorName = $topic->user?->forumDisplayName() ?: 'deleted';
         $authorInitial = strtoupper(mb_substr($authorName, 0, 1));
         $replyCount = max(0, $topic->posts_count - 1);
         $avatarUrl = $topic->user?->avatarMedia?->thumbnail;
-        $lastPostAuthorName = $topic->lastPostUser?->username ?: $topic->lastPostUser?->getName() ?: 'Deleted user';
+        $lastPostAuthorName = $topic->lastPostUser?->forumDisplayName() ?: 'deleted';
         $threadUrl = route('forum.topic.show', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]);
     @endphp
     <a href="{{ $threadUrl }}" class="forum-thread-card group block text-inherit no-underline hover:no-underline">

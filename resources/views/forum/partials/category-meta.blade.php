@@ -5,7 +5,7 @@
         <p>{{ number_format($commentCount) }} {{ \Illuminate\Support\Str::plural('comment', $commentCount) }} and {{ number_format($viewCount) }} {{ \Illuminate\Support\Str::plural('view', $viewCount) }} across this category.</p>
         <p>
             @if($latestActivityAt)
-                Latest activity was {{ $latestActivityAt->format('j M Y g:i a') }} by {{ $latestActivityAuthorName ?? 'Deleted user' }}.
+                Latest activity was {{ $latestActivityAt->format('j M Y g:i a') }} by {{ $latestActivityAuthorName ?? 'deleted' }}.
             @else
                 Create the first thread to start activity here.
             @endif

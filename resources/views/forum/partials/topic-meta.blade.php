@@ -51,19 +51,21 @@
                     </x-ui.button>
                 @endif
 
-                @if(auth()->user()?->isAdmin())
-                    <form method="POST" action="{{ route('forum.topic.pin', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}">
-                        @csrf
-                        <x-ui.button type="submit" color="outline" class="!px-3" title="{{ $topic->is_pinned ? 'Unpin Thread' : 'Pin Thread' }}">
-                            <i class="fa-solid fa-thumbtack"></i>
-                        </x-ui.button>
-                    </form>
-                    <form method="POST" action="{{ route('forum.topic.lock', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}">
-                        @csrf
-                        <x-ui.button type="submit" color="outline" class="!px-3" title="{{ $topic->is_locked ? 'Unlock Thread' : 'Lock Thread' }}">
-                            <i class="fa-solid {{ $topic->is_locked ? 'fa-lock-open' : 'fa-lock' }}"></i>
-                        </x-ui.button>
-                    </form>
+                @if(auth()->user()?->isAdmin() || (string) $topic->user_id === (string) auth()->id())
+                    @if(auth()->user()?->isAdmin())
+                        <form method="POST" action="{{ route('forum.topic.pin', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}">
+                            @csrf
+                            <x-ui.button type="submit" color="outline" class="!px-3" title="{{ $topic->is_pinned ? 'Unpin Thread' : 'Pin Thread' }}">
+                                <i class="fa-solid fa-thumbtack"></i>
+                            </x-ui.button>
+                        </form>
+                        <form method="POST" action="{{ route('forum.topic.lock', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}">
+                            @csrf
+                            <x-ui.button type="submit" color="outline" class="!px-3" title="{{ $topic->is_locked ? 'Unlock Thread' : 'Lock Thread' }}">
+                                <i class="fa-solid {{ $topic->is_locked ? 'fa-lock-open' : 'fa-lock' }}"></i>
+                            </x-ui.button>
+                        </form>
+                    @endif
                     <form method="POST" action="{{ route('forum.topic.destroy', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete thread?', 'Are you sure you want to delete this thread and all replies?', $el)">
                         @csrf
                         @method('DELETE')
