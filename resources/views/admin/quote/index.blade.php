@@ -46,7 +46,7 @@
                                     </form>
                                     <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
                                         @csrf
-                                        <button type="submit" class="hover:text-primary-color" title="Convert to Invoice"><i class="fa-solid fa-file-invoice-dollar"></i></button>
+                                        <button type="submit" class="hover:text-primary-color" title="Create Invoice From Quote"><i class="fa-solid fa-file-invoice-dollar"></i></button>
                                     </form>
                                     <a href="#" class="hover:text-red-600" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')"><i class="fa-solid fa-trash"></i></a>
                                 </div>

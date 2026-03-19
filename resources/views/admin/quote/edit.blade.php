@@ -2,7 +2,6 @@
     $editing = isset($quote);
     $savedLineItems = old('line_items_json');
     $selectedUserId = (string) old('user_id', $editing ? ($quote->user_id ?? '') : '');
-    $selectedLinkedInvoiceId = (string) old('linked_invoice_id', $linkedInvoiceId ?? '');
     $quoteEmailNameSource = trim((string) ($editing ? ($quote->user?->getName() ?? $quote->billing_name ?? '') : ''));
     $quoteEmailName = trim((string) strtok($quoteEmailNameSource, ' '));
     if ($quoteEmailName === '') {
@@ -16,6 +15,7 @@
     }
 
     $privateFinanceFiles = $editing ? $quote->privateFinanceFiles : collect();
+    $linkedInvoices = $editing ? ($linkedInvoices ?? collect()) : collect();
 @endphp
 
 <x-layout>
@@ -189,52 +189,35 @@
                 info="Search by name/company/email. Select a suggestion to link the quote."
             />
 
-            <div class="mb-4">
-                <div class="flex items-center justify-between">
-                    <label for="linked_invoice_id" class="block text-sm pl-1">Linked Invoice</label>
-                    <button
-                        type="button"
-                        id="open-linked-invoice-button"
-                        class="text-xs text-primary-color hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed"
-                        @disabled($selectedLinkedInvoiceId === '')
-                        onclick="
-                            const select = document.getElementById('linked_invoice_id');
-                            if (!select || !select.value) { return; }
-                            const option = select.options[select.selectedIndex];
-                            const url = option ? option.getAttribute('data-edit-url') : '';
-                            if (!url) { return; }
-                            window.open(url, '_blank', 'noopener,noreferrer');
-                        "
-                    >
-                        Open linked invoice
-                    </button>
+            @if($editing)
+                <div class="mb-4">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm pl-1">Linked Invoices</label>
+                        <span class="text-xs text-gray-500">{{ $linkedInvoices->count() }} linked</span>
+                    </div>
+                    @if($linkedInvoices->isEmpty())
+                        <div class="mt-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600">
+                            No invoices linked yet. Create a new invoice from this quote, or link an existing invoice from the invoice edit page.
+                        </div>
+                    @else
+                        <div class="mt-1 rounded-lg border border-gray-300 bg-white">
+                            @foreach($linkedInvoices as $linkedInvoice)
+                                <a
+                                    href="{{ route('admin.invoice.edit', $linkedInvoice) }}"
+                                    class="flex items-center justify-between px-3 py-3 text-sm text-gray-900 transition hover:bg-gray-50 {{ $loop->last ? '' : 'border-b border-gray-200' }}"
+                                >
+                                    <span>
+                                        <span class="font-medium">{{ $linkedInvoice->invoice_number }}</span>
+                                        <span class="text-gray-500">· {{ $linkedInvoice->issue_date?->format('M j, Y') ?? 'No issue date' }}</span>
+                                    </span>
+                                    <span class="text-gray-500">{{ money($linkedInvoice->total_amount) }}</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    @endif
+                    <div class="text-xs text-gray-500 ml-2 mt-1">Each invoice can link to one quote. A quote can link to multiple invoices for staged or progress billing.</div>
                 </div>
-                <select
-                    id="linked_invoice_id"
-                    name="linked_invoice_id"
-                    onchange="
-                        const button = document.getElementById('open-linked-invoice-button');
-                        if (!button) { return; }
-                        button.disabled = this.value === '';
-                    "
-                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('linked_invoice_id') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                >
-                    <option value="">None</option>
-                    @foreach(($invoices ?? collect()) as $invoiceOption)
-                        <option
-                            value="{{ $invoiceOption->id }}"
-                            data-edit-url="{{ route('admin.invoice.edit', $invoiceOption) }}"
-                            {{ $selectedLinkedInvoiceId === (string) $invoiceOption->id ? 'selected' : '' }}
-                        >
-                            {{ $invoiceOption->invoice_number }} - {{ trim((string) ($invoiceOption->user?->getName() ?? $invoiceOption->user?->email ?? 'No user')) }}
-                        </option>
-                    @endforeach
-                </select>
-                <div class="text-xs text-gray-500 ml-2 mt-1">Can only link invoices for the same user.</div>
-                @if($errors->has('linked_invoice_id'))
-                    <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('linked_invoice_id') }}</div>
-                @endif
-            </div>
+            @endif
 
             <x-ui.input type="date" label="Quote Date" name="quote_date" value="{{ old('quote_date', isset($quote) && $quote->quote_date ? $quote->quote_date->format('Y-m-d') : now()->format('Y-m-d')) }}" />
             <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', $quote->purchase_order_number ?? '') }}" />

@@ -49,16 +49,14 @@ class QuoteController extends Controller
     {
         return view('admin.quote.edit', [
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
-            'invoices' => Invoice::query()->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->get(),
             'nextQuoteNumber' => $this->documentNumbers->previewQuoteNumber(),
-            'linkedInvoiceId' => null,
+            'linkedInvoices' => collect(),
         ]);
     }
 
     public function store(Request $request)
     {
         $validated = $this->validateRequest($request);
-        $this->validateLinkedInvoiceSelection($validated['linked_invoice_id'] ?? null, $validated['user_id'] ?? null, null);
         $lineItems = $this->extractLineItems($request);
 
         if (count($lineItems) === 0) {
@@ -75,7 +73,6 @@ class QuoteController extends Controller
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
 
         $quote->save();
-        $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
         $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
             $quote->updateFiles($request->input('private_files'), 'private');
@@ -90,21 +87,21 @@ class QuoteController extends Controller
 
     public function edit(Quote $quote)
     {
-        $quote->loadMissing('privateFinanceFiles');
-        $linkedInvoiceId = Invoice::query()->where('quote_id', $quote->id)->value('id');
+        $quote->loadMissing([
+            'privateFinanceFiles',
+            'invoices' => fn ($query) => $query->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->orderByDesc('id'),
+        ]);
 
         return view('admin.quote.edit', [
             'quote' => $quote,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
-            'invoices' => Invoice::query()->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->get(),
-            'linkedInvoiceId' => $linkedInvoiceId,
+            'linkedInvoices' => $quote->invoices,
         ]);
     }
 
     public function update(Request $request, Quote $quote)
     {
         $validated = $this->validateRequest($request, $quote);
-        $this->validateLinkedInvoiceSelection($validated['linked_invoice_id'] ?? null, $validated['user_id'] ?? null, $quote);
         $lineItems = $this->extractLineItems($request);
 
         if (count($lineItems) === 0) {
@@ -120,7 +117,6 @@ class QuoteController extends Controller
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
 
         $quote->save();
-        $this->syncLinkedInvoiceLink($quote, $validated['linked_invoice_id'] ?? null);
         $quote->syncPrivateFinanceFiles($this->parsePrivateFileIds($request->input('private_file_ids')));
         if ($request->has('private_files')) {
             $quote->updateFiles($request->input('private_files'), 'private');
@@ -255,7 +251,6 @@ class QuoteController extends Controller
         $sourceLineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
 
         $invoice = new Invoice();
-        Invoice::query()->where('quote_id', $quote->id)->update(['quote_id' => null]);
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->quote_id = $quote->id;
         $invoice->user_id = $quote->user_id;
@@ -333,29 +328,7 @@ class QuoteController extends Controller
             'notes' => ['nullable', 'string'],
             'line_items_json' => ['nullable', 'string'],
             'private_file_ids' => ['nullable', 'string'],
-            'linked_invoice_id' => [
-                'nullable',
-                'integer',
-                'exists:invoices,id',
-                Rule::unique('invoices', 'quote_id')->ignore($quote?->id, 'quote_id'),
-            ],
         ]);
-    }
-
-    private function syncLinkedInvoiceLink(Quote $quote, mixed $linkedInvoiceId): void
-    {
-        $targetInvoiceId = is_numeric($linkedInvoiceId) ? (int) $linkedInvoiceId : 0;
-        $targetInvoice = $targetInvoiceId > 0 ? Invoice::query()->find($targetInvoiceId) : null;
-
-        Invoice::query()
-            ->where('quote_id', $quote->id)
-            ->when($targetInvoiceId > 0, fn ($builder) => $builder->where('id', '!=', $targetInvoiceId))
-            ->update(['quote_id' => null]);
-
-        if ($targetInvoice instanceof Invoice) {
-            $targetInvoice->quote_id = $quote->id;
-            $targetInvoice->save();
-        }
     }
 
     /**
@@ -374,40 +347,6 @@ class QuoteController extends Controller
             ->unique()
             ->values()
             ->all();
-    }
-
-    private function validateLinkedInvoiceSelection(mixed $linkedInvoiceId, mixed $userId, ?Quote $quote): void
-    {
-        $targetInvoiceId = is_numeric($linkedInvoiceId) ? (int) $linkedInvoiceId : 0;
-        if ($targetInvoiceId <= 0) {
-            return;
-        }
-
-        $normalizedUserId = trim((string) ($userId ?? ''));
-        if ($normalizedUserId === '') {
-            throw ValidationException::withMessages([
-                'linked_invoice_id' => 'Select a linked user before linking an invoice.',
-            ]);
-        }
-
-        $targetInvoice = Invoice::query()->find($targetInvoiceId);
-        if (! $targetInvoice instanceof Invoice) {
-            throw ValidationException::withMessages([
-                'linked_invoice_id' => 'Selected invoice could not be found.',
-            ]);
-        }
-
-        if ((string) ($targetInvoice->user_id ?? '') !== $normalizedUserId) {
-            throw ValidationException::withMessages([
-                'linked_invoice_id' => 'Linked invoice must belong to the same user as this quote.',
-            ]);
-        }
-
-        if ($targetInvoice->quote_id !== null && (int) $targetInvoice->quote_id !== (int) ($quote->id ?? 0)) {
-            throw ValidationException::withMessages([
-                'linked_invoice_id' => 'Selected invoice is already linked to another quote.',
-            ]);
-        }
     }
 
     private function extractLineItems(Request $request): array

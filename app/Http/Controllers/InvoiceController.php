@@ -1525,7 +1525,6 @@ class InvoiceController extends Controller
                     'nullable',
                     'integer',
                     'exists:quotes,id',
-                    Rule::unique('invoices', 'quote_id')->ignore($invoice->id),
                 ],
                 'private_file_ids' => ['nullable', 'string'],
             ]);
@@ -1544,7 +1543,6 @@ class InvoiceController extends Controller
                 'nullable',
                 'integer',
                 'exists:quotes,id',
-                Rule::unique('invoices', 'quote_id')->ignore($invoice?->id),
             ],
             'private_file_ids' => ['nullable', 'string'],
         ]);
