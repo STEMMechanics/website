@@ -347,7 +347,7 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
                                     <x-ui.button
                                         type="button"
                                         color="danger-outline"
-                                        class="!px-4 !py-1.5"
+                                        class="px-4! py-1.5!"
                                         data-device-remove
                                         data-device-id="{{ $device['id'] }}"
                                     >
@@ -640,7 +640,6 @@ $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
 
                     deleteRequest();
                 });
-                return;
             }
         };
 

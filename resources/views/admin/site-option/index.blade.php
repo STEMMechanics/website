@@ -158,9 +158,6 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
-    .site-option-value-preview.is-empty {
-        color: rgb(107 114 128);
-    }
 </style>
 
 <script>

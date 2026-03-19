@@ -327,7 +327,7 @@
                                                         :style="`background:${category.color_hex || '#475569'}`"
                                                     >
                                                         <template x-if="String(category.icon_class || '').includes('forum-icon-stemcraft')">
-                                                            <img src="/stemcraft-short-logo.webp" alt="" class="h-4 w-4 object-contain" />
+                                                            <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-4 w-4 object-contain" />
                                                         </template>
                                                         <template x-if="!String(category.icon_class || '').includes('forum-icon-stemcraft')">
                                                             <i :class="category.icon_class || 'fa-solid fa-comments'"></i>
@@ -395,7 +395,7 @@
                                             x-show="!category.is_divider"
                                         />
                                     </td>
-                                    <td class="p-2 align-top hidden md:table-cell min-w-[14rem]">
+                                    <td class="p-2 align-top hidden md:table-cell min-w-56">
                                         <div class="space-y-3">
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold text-gray-600">Read</label>
@@ -484,7 +484,7 @@
                             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
                                 <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-2xl text-white" :style="`background:${appearanceEditor.color_hex || '#475569'}`">
                                     <template x-if="String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
-                                        <img src="/stemcraft-short-logo.webp" alt="" class="h-8 w-8 object-contain" />
+                                        <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-8 w-8 object-contain" />
                                     </template>
                                     <template x-if="!String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
                                         <i :class="appearanceEditor.icon_class || 'fa-solid fa-comments'"></i>
@@ -511,7 +511,7 @@
                                         <button
                                             type="button"
                                             class="h-10 w-10 rounded-full border-2 border-transparent transition hover:scale-105"
-                                            :class="appearanceEditor.color_hex === color ? '!border-gray-900' : ''"
+                                            :class="appearanceEditor.color_hex === color ? 'border-gray-900!' : ''"
                                             :style="`background:${color}`"
                                             x-on:click="appearanceEditor.color_hex = color"
                                         ></button>
@@ -522,17 +522,17 @@
 
                         <div>
                             <label class="mb-2 block text-sm font-semibold text-gray-700">Icon</label>
-                            <div class="flex max-h-[28rem] flex-wrap gap-3 overflow-y-auto rounded-2xl border border-gray-200 p-3 sm:grid-cols-4 lg:grid-cols-5">
+                            <div class="flex max-h-112 flex-wrap gap-3 overflow-y-auto rounded-2xl border border-gray-200 p-3 sm:grid-cols-4 lg:grid-cols-5">
                                 <template x-for="iconClass in iconOptions" :key="iconClass">
                                     <button
                                         type="button"
                                         class="flex h-16 w-16 items-center justify-center rounded-xl border border-gray-200 text-xl text-gray-600 transition hover:border-primary-color hover:text-primary-color"
-                                        :class="appearanceEditor.icon_class === iconClass ? '!border-primary-color bg-primary-color/10 text-primary-color' : ''"
+                                        :class="appearanceEditor.icon_class === iconClass ? 'border-primary-color! bg-primary-color/10 text-primary-color' : ''"
                                         x-on:click="appearanceEditor.icon_class = iconClass"
                                         :title="iconClass"
                                     >
                                         <template x-if="String(iconClass || '').includes('forum-icon-stemcraft')">
-                                            <img src="/stemcraft-short-logo.webp" alt="" class="h-6 w-6 object-contain" />
+                                            <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-6 w-6 object-contain" />
                                         </template>
                                         <template x-if="!String(iconClass || '').includes('forum-icon-stemcraft')">
                                             <i :class="iconClass"></i>
