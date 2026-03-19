@@ -16,12 +16,16 @@
 <body>
     @php
     $isRefundDocument = (bool) ($isRefund ?? false);
+    $inlineLogoSvg = inlineSvgAsset('logo.svg', 'logo');
+    $logoPath = '';
+    if ($inlineLogoSvg === '') {
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
     $logoPath = public_path('logo.png');
     }
     if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
+    }
     }
     $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
 
@@ -52,7 +56,9 @@
         <table class="header">
             <tr>
                 <td class="logo-wrap">
-                    @if(file_exists($logoPath))
+                    @if($inlineLogoSvg !== '')
+                    {!! $inlineLogoSvg !!}
+                    @elseif(file_exists($logoPath))
                     <img class="logo" src="{{ $logoPath }}" alt="Logo" />
                     @endif
                 </td>
