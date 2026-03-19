@@ -12,10 +12,13 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Install Semgrep
-        run: python3 -m pip install semgrep
+        run: |
+          python3 -m venv /tmp/semgrep-venv
+          /tmp/semgrep-venv/bin/pip install --upgrade pip
+          /tmp/semgrep-venv/bin/pip install semgrep
 
       - name: Run Semgrep
-        run: semgrep scan --config p/php
+        run: /tmp/semgrep-venv/bin/semgrep scan --config p/php
 
   phpstan:
     runs-on: laravel-ci
