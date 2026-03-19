@@ -21,7 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-venv \
     ca-certificates \
     gnupg \
-    && docker-php-ext-install pdo pdo_sqlite mbstring zip intl \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_sqlite mbstring zip intl gd \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
     && mkdir -p /etc/apt/keyrings \
