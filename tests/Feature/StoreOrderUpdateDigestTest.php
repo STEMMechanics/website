@@ -404,12 +404,16 @@ class StoreOrderUpdateDigestTest extends TestCase
         $updateTwo = $service->recordTrackingAdded($order, $itemTwo, $trackingTwo);
 
         $payload = $service->payloadForEvents([$updateOne?->id, $updateTwo?->id], false);
+        $expectedDetail = sprintf(
+            'Shipped %s | Estimated arrival: 3-7 business days | Australia Post',
+            $dispatchedAt->format('F jS Y'),
+        );
 
         $this->assertNotNull($payload);
         $this->assertSame('shipped', $payload['orders'][0]['notification_type']);
         $this->assertCount(1, $payload['orders'][0]['item_sections']);
         $this->assertSame('All items shipped', $payload['orders'][0]['item_sections'][0]['heading']);
-        $this->assertSame('Shipped March 14th 2026 | Estimated arrival: 3-7 business days | Australia Post', $payload['orders'][0]['item_sections'][0]['detail']);
+        $this->assertSame($expectedDetail, $payload['orders'][0]['item_sections'][0]['detail']);
         $this->assertCount(2, $payload['orders'][0]['item_sections'][0]['items']);
         $this->assertSame('Microbit', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
         $this->assertSame('Pinball Template', $payload['orders'][0]['item_sections'][0]['items'][1]['title']);

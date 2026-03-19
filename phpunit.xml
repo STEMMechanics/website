@@ -18,6 +18,20 @@
         </include>
     </source>
     <php>
+        <ini name="memory_limit" value="256M"/>
+        <server name="APP_ENV" value="testing" force="true"/>
+        <server name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
+        <server name="BCRYPT_ROUNDS" value="4" force="true"/>
+        <server name="CACHE_STORE" value="array" force="true"/>
+        <server name="DB_CONNECTION" value="sqlite" force="true"/>
+        <server name="DB_DATABASE" value=":memory:" force="true"/>
+        <server name="MAIL_MAILER" value="array" force="true"/>
+        <server name="PULSE_ENABLED" value="false" force="true"/>
+        <server name="QUEUE_CONNECTION" value="sync" force="true"/>
+        <server name="SESSION_DRIVER" value="array" force="true"/>
+        <server name="TELESCOPE_ENABLED" value="false" force="true"/>
+        <server name="ALTCHA_HMAC_KEY" value="testing-secret-key" force="true"/>
+        <server name="ALTCHA_TESTING_BYPASS" value="valid" force="true"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file" force="true"/>
         <env name="BCRYPT_ROUNDS" value="4" force="true"/>
