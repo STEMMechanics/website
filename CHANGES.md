@@ -31,6 +31,7 @@
 - Allow quotes to link to multiple invoices
 - Added child accounts
 - Added ability to create/reserve tickets under admin
+- Fix Cannot drop index 'invoices_quote_id_unique' migration error
 
 ## 1.3.14
 
