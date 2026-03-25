@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
+use App\Models\SquareRefundOperation;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\Ticket;
@@ -12,6 +13,7 @@ use App\Services\SquareApiService;
 use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -134,6 +136,236 @@ class PaymentController extends Controller
         return view('admin.payment.index', [
             'customerPayments' => $payments,
         ]);
+    }
+
+    public function credits(Request $request)
+    {
+        $query = SquareRefundOperation::query()
+            ->with(['invoice.user', 'invoice.storeOrders', 'customerPayment.user', 'ticket.workshop'])
+            ->whereIn('status', [
+                SquareRefundOperation::STATUS_PENDING,
+                SquareRefundOperation::STATUS_COMPLETED,
+                SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+                SquareRefundOperation::STATUS_FAILED,
+            ]);
+
+        $hideCompleted = $request->boolean('hide_completed');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->query('search'));
+            $searchId = ctype_digit($search) ? (int) $search : null;
+
+            $query->where(function ($builder) use ($search, $searchId): void {
+                $builder->whereHas('ticket', function ($ticketQuery) use ($search): void {
+                    $ticketQuery->where('reference_code', 'like', '%'.$search.'%')
+                        ->orWhere('firstname', 'like', '%'.$search.'%')
+                        ->orWhere('surname', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
+                })
+                ->orWhereHas('invoice', function ($invoiceQuery) use ($search): void {
+                    $invoiceQuery->where('invoice_number', 'like', '%'.$search.'%')
+                        ->orWhere('billing_email', 'like', '%'.$search.'%')
+                        ->orWhere('billing_name', 'like', '%'.$search.'%');
+                })
+                ->orWhereHas('invoice.storeOrders', function ($orderQuery) use ($search): void {
+                    $orderQuery->where('order_number', 'like', '%'.$search.'%');
+                })
+                ->orWhereHas('customerPayment', function ($paymentQuery) use ($search): void {
+                    $paymentQuery->where('reference', 'like', '%'.$search.'%')
+                        ->orWhere('payment_method', 'like', '%'.$search.'%')
+                        ->orWhere('gateway_reference_id', 'like', '%'.$search.'%');
+                })
+                ->orWhere('failure_message', 'like', '%'.$search.'%');
+
+                if ($searchId !== null) {
+                    $builder->orWhere('id', $searchId)
+                        ->orWhere('payment_id', $searchId)
+                        ->orWhere('invoice_id', $searchId)
+                        ->orWhere('ticket_id', $searchId);
+                }
+            });
+        }
+
+        $displayQuery = clone $query;
+        if ($hideCompleted) {
+            $displayQuery->where('status', '!=', SquareRefundOperation::STATUS_COMPLETED);
+        }
+
+        $manualRefunds = $displayQuery
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->onEachSide(1);
+
+        $summaryQuery = clone $query;
+        $manualRefundCount = (clone $summaryQuery)->count();
+        $actionRequiredCount = (clone $summaryQuery)
+            ->whereIn('status', [
+                SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+                SquareRefundOperation::STATUS_FAILED,
+            ])
+            ->count();
+        $pendingCount = (clone $summaryQuery)
+            ->where('status', SquareRefundOperation::STATUS_PENDING)
+            ->count();
+        $completedCount = (clone $summaryQuery)
+            ->where('status', SquareRefundOperation::STATUS_COMPLETED)
+            ->count();
+        $manualRefundTotal = (float) ((clone $summaryQuery)->sum('requested_cents') / 100);
+
+        return view('admin.payment.refunds', [
+            'manualRefunds' => $manualRefunds,
+            'manualRefundCount' => $manualRefundCount,
+            'actionRequiredCount' => $actionRequiredCount,
+            'pendingCount' => $pendingCount,
+            'completedCount' => $completedCount,
+            'manualRefundTotal' => $manualRefundTotal,
+            'hideCompleted' => $hideCompleted,
+        ]);
+    }
+
+    public function completeManualRefund(Request $request, SquareRefundOperation $manualRefund): RedirectResponse
+    {
+        if (! in_array($manualRefund->status, [
+            SquareRefundOperation::STATUS_FAILED,
+            SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+        ], true)) {
+            session()->flash('message', 'This refund item is already completed.');
+            session()->flash('message-title', 'Nothing to do');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $leaveAsCredit = $request->boolean('leave_as_credit');
+
+        $validated = $request->validate([
+            'amount' => ['nullable', 'numeric', 'min:0.01'],
+            'leave_as_credit' => ['nullable', 'boolean'],
+            'payment_method' => [($leaveAsCredit ? 'nullable' : 'required'), Rule::in([
+                Payment::PAYMENT_METHOD_CASH,
+                Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            ])],
+            'received_on' => [($leaveAsCredit ? 'nullable' : 'required'), 'date'],
+            'reference' => ['nullable', 'string', 'max:255'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+        $leaveAsCredit = (bool) ($validated['leave_as_credit'] ?? false);
+
+        $originalPayment = $manualRefund->customerPayment;
+        if (! $originalPayment instanceof Payment) {
+            session()->flash('message', 'This refund item no longer has a linked customer payment.');
+            session()->flash('message-title', 'Refund blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $requestedAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
+        $remainingRefundable = $this->remainingRefundableAmount($originalPayment);
+        $maxRefundAmount = min($requestedAmount, $remainingRefundable);
+
+        if ($maxRefundAmount <= 0.0001) {
+            session()->flash('message', 'This payment no longer has refundable funds available.');
+            session()->flash('message-title', 'Refund blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $refundAmount = ($validated['amount'] ?? null) !== null
+            ? round((float) $validated['amount'], 2)
+            : $maxRefundAmount;
+
+        if (($validated['amount'] ?? null) !== null && $refundAmount > ($maxRefundAmount + 0.0001)) {
+            throw ValidationException::withMessages([
+                'amount' => 'Refund amount cannot exceed available refundable balance of $'.number_format($maxRefundAmount, 2).'.',
+            ]);
+        }
+
+        $refundAmount = min($refundAmount, $maxRefundAmount);
+        if ($refundAmount <= 0.0001) {
+            session()->flash('message', 'Invalid refund amount.');
+            session()->flash('message-title', 'Refund blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->back();
+        }
+
+        $reason = trim((string) ($validated['reason'] ?? 'Manual refund'));
+        $receivedOn = $leaveAsCredit ? now()->setSecond(0) : Carbon::parse((string) $validated['received_on'])->setSecond(0);
+        $reference = trim((string) ($validated['reference'] ?? ''));
+        $paymentMethod = $leaveAsCredit ? Payment::PAYMENT_METHOD_CREDIT : (string) $validated['payment_method'];
+
+        $refundPayment = null;
+        DB::transaction(function () use (&$refundPayment, $manualRefund, $originalPayment, $refundAmount, $reason, $paymentMethod, $receivedOn, $reference, $leaveAsCredit): void {
+            if ($leaveAsCredit) {
+                $manualRefund->status = SquareRefundOperation::STATUS_COMPLETED;
+                $manualRefund->refunded_cents = 0;
+                $manualRefund->square_refund_id = null;
+                $manualRefund->failure_message = null;
+                $manualRefund->processed_at = now();
+                $manualRefund->payload = array_replace((array) ($manualRefund->payload ?? []), [
+                    'manual_refund' => [
+                        'refund_payment_id' => null,
+                        'refund_amount' => 0.0,
+                        'credit_amount' => round($refundAmount, 2),
+                        'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
+                        'reference' => $reference !== '' ? $reference : null,
+                        'reason' => $reason,
+                        'received_on' => $receivedOn->toIso8601String(),
+                        'processed_by' => Auth::id(),
+                        'processed_at' => now()->toIso8601String(),
+                        'resolution' => 'credit_retained',
+                    ],
+                ]);
+                $manualRefund->save();
+
+                return;
+            }
+
+            $refundPayment = $this->createRefundPaymentRecord(
+                originalPayment: $originalPayment,
+                refundAmount: $refundAmount,
+                reason: $reason !== '' ? $reason : 'Manual refund',
+                paymentMethod: $paymentMethod,
+                gatewayProvider: null,
+                gatewayStatus: null,
+                gatewayReferenceId: null,
+                receivedOn: $receivedOn,
+                referenceOverride: $reference,
+            );
+
+            $manualRefund->status = SquareRefundOperation::STATUS_COMPLETED;
+            $manualRefund->refunded_cents = (int) round($refundAmount * 100);
+            $manualRefund->square_refund_id = null;
+            $manualRefund->failure_message = null;
+            $manualRefund->processed_at = now();
+            $manualRefund->payload = array_replace((array) ($manualRefund->payload ?? []), [
+                'manual_refund' => [
+                    'refund_payment_id' => $refundPayment->id,
+                    'refund_amount' => round($refundAmount, 2),
+                    'payment_method' => $paymentMethod,
+                    'reference' => $reference !== '' ? $reference : null,
+                    'reason' => $reason,
+                    'received_on' => $receivedOn->toIso8601String(),
+                    'processed_by' => Auth::id(),
+                    'processed_at' => now()->toIso8601String(),
+                    'resolution' => 'refund_paid_out',
+                ],
+            ]);
+            $manualRefund->save();
+        });
+
+        if ($refundPayment instanceof Payment) {
+            $this->sendRefundReceiptEmail($originalPayment, $refundPayment);
+            session()->flash('message', 'Manual refund recorded and customer receipt sent.');
+        } else {
+            session()->flash('message', 'Marked as account credit retained. The queue item has been cleared.');
+        }
+        session()->flash('message-title', 'Refund recorded');
+        session()->flash('message-type', 'success');
+
+        return redirect()->back();
     }
 
     public function create(Request $request)
@@ -505,6 +737,8 @@ class PaymentController extends Controller
                 Payment::PAYMENT_METHOD_CASH,
                 Payment::PAYMENT_METHOD_BANK_TRANSFER,
             ])],
+            'received_on' => ['required', 'date'],
+            'reference' => ['nullable', 'string', 'max:255'],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -542,8 +776,10 @@ class PaymentController extends Controller
         }
 
         $reason = trim((string) ($validated['reason'] ?? 'Manual refund'));
+        $receivedOn = Carbon::parse((string) $validated['received_on'])->setSecond(0);
+        $reference = trim((string) ($validated['reference'] ?? ''));
 
-        $refundPayment = DB::transaction(function () use ($payment, $refundAmount, $reason, $validated) {
+        $refundPayment = DB::transaction(function () use ($payment, $refundAmount, $reason, $validated, $receivedOn, $reference) {
             return $this->createRefundPaymentRecord(
                 originalPayment: $payment,
                 refundAmount: $refundAmount,
@@ -552,6 +788,8 @@ class PaymentController extends Controller
                 gatewayProvider: null,
                 gatewayStatus: null,
                 gatewayReferenceId: null,
+                receivedOn: $receivedOn,
+                referenceOverride: $reference,
             );
         });
 
@@ -776,6 +1014,8 @@ class PaymentController extends Controller
         ?string $gatewayProvider,
         ?string $gatewayStatus,
         ?string $gatewayReferenceId,
+        ?Carbon $receivedOn = null,
+        ?string $referenceOverride = null,
         $squareGatewayCreatedAt = null,
         $squareGatewayUpdatedAt = null
     ): Payment {
@@ -784,14 +1024,15 @@ class PaymentController extends Controller
         $refundPayment->kind = Payment::KIND_REFUND;
         $refundPayment->user_id = $originalPayment->user_id;
         $refundPayment->created_by = Auth::id();
-        $refundPayment->received_on = now();
+        $refundPayment->received_on = $receivedOn ?? now();
         $refundPayment->payment_method = trim((string) $paymentMethod) !== ''
             ? (string) $paymentMethod
             : (string) $originalPayment->payment_method;
-        $refundPayment->reference = trim(implode(' | ', array_filter([
+        $defaultReference = trim(implode(' | ', array_filter([
             'Refund for payment #'.$originalPayment->id,
             $originalPayment->reference ? 'Original: '.$originalPayment->reference : null,
         ])));
+        $refundPayment->reference = trim($referenceOverride ?? '') !== '' ? trim($referenceOverride) : $defaultReference;
         $refundPayment->total_amount = abs(round($refundAmount, 2));
         $refundPayment->gst_amount = 0;
         $refundPayment->notes = $reason;

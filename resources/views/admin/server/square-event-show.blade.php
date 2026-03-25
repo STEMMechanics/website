@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="admin.server.square-webhooks" backTitle="Square Webhooks">Webhook Event #{{ $event->id }}</x-mast>
+    <x-mast backRoute="admin.server.square-events" backTitle="Square Events">Event #{{ $event->id }}</x-mast>
 
     <x-container x-data="{
         ignoreOpen: false,
@@ -67,7 +67,7 @@
                 @if(trim((string) ($ignoredRecord->reason ?? '')) !== '')
                     <div class="text-sm mb-3"><span class="font-semibold">Reason:</span> {{ $ignoredRecord->reason }}</div>
                 @endif
-                <form method="POST" action="{{ route('admin.server.square-webhooks.unignore', $event) }}">
+                <form method="POST" action="{{ route('admin.server.square-events.unignore', $event) }}">
                     @csrf
                     @method('DELETE')
                     <x-ui.button type="submit" color="outline">Remove Ignore Rule</x-ui.button>
@@ -94,7 +94,7 @@
                     This will prevent future syncs from creating/linking payment records for
                     <span class="font-mono">{{ $squarePaymentId }}</span>.
                 </p>
-                <form method="POST" action="{{ route('admin.server.square-webhooks.ignore', $event) }}">
+                <form method="POST" action="{{ route('admin.server.square-events.ignore', $event) }}">
                     @csrf
                     <div class="mb-4">
                         <label class="block text-sm pl-1">Reason</label>

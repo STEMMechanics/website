@@ -349,6 +349,11 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/orphans/download-all', [ServerController::class, 'admin_orphans_download_all'])->name('admin.server.orphans.download-all');
     Route::post('/admin/server/orphans/delete-file', [ServerController::class, 'admin_orphans_delete_file'])->name('admin.server.orphans.delete-file');
     Route::post('/admin/server/orphans/delete-all', [ServerController::class, 'admin_orphans_delete_all'])->name('admin.server.orphans.delete-all');
+    Route::get('/admin/server/square-events', [ServerController::class, 'admin_square_webhooks'])->name('admin.server.square-events');
+    Route::post('/admin/server/square-events/sync', [ServerController::class, 'admin_square_webhooks_sync'])->name('admin.server.square-events.sync');
+    Route::post('/admin/server/square-events/{event}/ignore', [ServerController::class, 'admin_square_webhook_ignore'])->name('admin.server.square-events.ignore');
+    Route::delete('/admin/server/square-events/{event}/ignore', [ServerController::class, 'admin_square_webhook_unignore'])->name('admin.server.square-events.unignore');
+    Route::get('/admin/server/square-events/{event}', [ServerController::class, 'admin_square_webhook_show'])->name('admin.server.square-events.show');
     Route::get('/admin/server/square-webhooks', [ServerController::class, 'admin_square_webhooks'])->name('admin.server.square-webhooks');
     Route::post('/admin/server/square-webhooks/sync', [ServerController::class, 'admin_square_webhooks_sync'])->name('admin.server.square-webhooks.sync');
     Route::post('/admin/server/square-webhooks/{event}/ignore', [ServerController::class, 'admin_square_webhook_ignore'])->name('admin.server.square-webhooks.ignore');
@@ -402,6 +407,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/finance-files/{financeFile}/association', [FinanceFileController::class, 'updateAssociation'])->name('admin.finance-file.association');
 
     Route::get('/admin/payments', [PaymentController::class, 'index'])->name('admin.payment.index');
+    Route::get('/admin/payments/refunds', [PaymentController::class, 'credits'])->name('admin.payment.refunds');
     Route::get('/admin/payments/create', [PaymentController::class, 'create'])->name('admin.payment.create');
     Route::post('/admin/payments', [PaymentController::class, 'store'])->name('admin.payment.store');
     Route::get('/admin/payments/{payment}', [PaymentController::class, 'edit'])->name('admin.payment.edit');
@@ -411,6 +417,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/payments/{payment}/square/charge', [PaymentController::class, 'chargeWithSquare'])->name('admin.payment.square.charge');
     Route::post('/admin/payments/{payment}/square/refund', [PaymentController::class, 'refundWithSquare'])->name('admin.payment.square.refund');
     Route::post('/admin/payments/{payment}/refund/manual', [PaymentController::class, 'refundManual'])->name('admin.payment.refund.manual');
+    Route::post('/admin/payments/refunds/{manualRefund}/complete', [PaymentController::class, 'completeManualRefund'])->name('admin.payment.refunds.complete');
 
     Route::get('/admin/invoices', [InvoiceController::class, 'index'])->name('admin.invoice.index');
     Route::get('/admin/invoices/create', [InvoiceController::class, 'create'])->name('admin.invoice.create');

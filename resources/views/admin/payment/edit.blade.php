@@ -490,6 +490,8 @@
                                 <option value="{{ \App\Models\Payment::PAYMENT_METHOD_CASH }}" {{ old('payment_method', $manualRefundDefaultMethod) === \App\Models\Payment::PAYMENT_METHOD_CASH ? 'selected' : '' }}>Cash</option>
                                 <option value="{{ \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER }}" {{ old('payment_method', $manualRefundDefaultMethod) === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER ? 'selected' : '' }}>Bank Transfer</option>
                             </x-ui.select>
+                            <x-ui.input type="datetime-local" label="Refund Date/Time" name="received_on" value="{{ old('received_on', now()->format('Y-m-d\TH:i')) }}" />
+                            <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
                             <x-ui.input label="Reason (optional)" name="reason" value="" />
                             <div class="mt-4 text-right">
                                 <x-ui.button type="submit" color="dark" x-bind:disabled="isSubmitting">

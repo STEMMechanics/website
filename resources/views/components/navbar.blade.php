@@ -1,5 +1,5 @@
 <div x-data="shopNavbarController(window.shopNavbarConfig || {})">
-<nav class="relative z-[120] isolate shadow bg-white">
+<nav class="relative z-120 isolate shadow bg-white">
     @php
         $navUser = auth()->user();
         \App\Models\Quote::expireOpenQuotes();
@@ -29,6 +29,14 @@
         ]);
         $shopCartCount = (int) ($shopCartPayload['summary']['item_count'] ?? 0);
         $isAdmin = (bool) ($navUser?->isAdmin() ?? false);
+        $manualRefundQueueCount = $isAdmin
+            ? \App\Models\SquareRefundOperation::query()
+                ->whereIn('status', [
+                    \App\Models\SquareRefundOperation::STATUS_FAILED,
+                    \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+                ])
+                ->count()
+            : 0;
         $adminNavSections = $isAdmin ? [
             [
                 'title' => 'Store',
@@ -60,14 +68,16 @@
                     ['label' => 'STEMCraft', 'route' => route('admin.stemcraft.index'), 'icon' => 'fa-solid fa-cube', 'active' => ['admin.stemcraft.*']],
                 ],
             ],
-            [
-                'title' => 'Finance',
-                'items' => [
-                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*']],
-                    ['label' => 'Payments', 'route' => route('admin.payment.index'), 'icon' => 'fa-solid fa-money-check-dollar', 'active' => ['admin.payment.*']],
-                    ['label' => 'Quotes', 'route' => route('admin.quote.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.quote.*']],
-                    ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*']],
+                [
+                    'title' => 'Finance',
+                    'items' => [
                     ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.bas.*']],
+                    ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*']],
+                    ['label' => 'Refunds', 'route' => route('admin.payment.refunds'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.payment.refunds*'], 'badge' => $manualRefundQueueCount],
+                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*']],
+                    ['label' => 'Payments', 'route' => route('admin.payment.index'), 'icon' => 'fa-solid fa-money-check-dollar', 'active' => ['admin.payment.index', 'admin.payment.create', 'admin.payment.edit', 'admin.payment.receipt', 'admin.payment.square.*', 'admin.payment.refund.manual']],
+                    ['label' => 'Quotes', 'route' => route('admin.quote.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.quote.*']],
+                    ['label' => 'Square Events', 'route' => route('admin.server.square-events'), 'icon' => 'fa-solid fa-plug-circle-bolt', 'active' => ['admin.server.square-events*', 'admin.server.square-webhooks*']],
                 ],
             ],
             [
@@ -75,7 +85,6 @@
                 'items' => [
                     ['label' => 'Analytics', 'route' => route('admin.analytics.index'), 'icon' => 'fa-solid fa-chart-line', 'active' => ['admin.analytics.*']],
                     ['label' => 'Audit Log', 'route' => route('admin.server.audit'), 'icon' => 'fa-solid fa-clipboard-list', 'active' => ['admin.server.audit*']],
-                    ['label' => 'Square Webhooks', 'route' => route('admin.server.square-webhooks'), 'icon' => 'fa-solid fa-plug-circle-bolt', 'active' => ['admin.server.square-webhooks*']],
                     ['label' => 'Sent Emails', 'route' => route('admin.server.sent-emails'), 'icon' => 'fa-solid fa-envelope-circle-check', 'active' => ['admin.server.sent-emails*']],
                     ['label' => 'Orphaned Files', 'route' => route('admin.server.orphans'), 'icon' => 'fa-solid fa-link-slash', 'active' => ['admin.server.orphans*']],
                     ['label' => 'Site Options', 'route' => route('admin.site_option.index'), 'icon' => 'fa-solid fa-sliders', 'active' => ['admin.site_option.*']],
@@ -84,6 +93,11 @@
                 ],
             ],
         ] : [];
+        $pageMenuAttentionCount = $isAdmin
+            ? collect($adminNavSections)
+                ->flatMap(fn ($section) => (array) ($section['items'] ?? []))
+                ->sum(fn ($item) => max(0, (int) ($item['badge'] ?? 0)))
+            : 0;
     @endphp
     <div class="mx-auto max-w-7xl px-2 relative">
         <div class="relative flex h-16 items-center justify-between">
@@ -91,6 +105,9 @@
                 <button type="button" @click="pageMenuOpen=!pageMenuOpen" @keydown.escape="pageMenuOpen=false" class="relative flex w-6 text-gray-400 hover:text-white {{ $isAdmin ? '' : 'lg:hidden' }}" id="page-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
+                    @if($pageMenuAttentionCount > 0)
+                        <span class="bg-orange-500 text-white text-xxs absolute -right-2 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pageMenuAttentionCount }}</span>
+                    @endif
                 </button>
                 <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()">
                     <i class="fa fa-search"></i>
@@ -206,6 +223,9 @@
                                 tabindex="-1"
                             >
                                 <i class="{{ $item['icon'] }} w-4 mr-2"></i>{{ $item['label'] }}
+                                @if((int) ($item['badge'] ?? 0) > 0)
+                                    <span class="ml-2 rounded-full bg-orange-500 px-2 py-0.5 text-xs font-semibold text-white">{{ (int) $item['badge'] }}</span>
+                                @endif
                             </a>
                         @endforeach
                     @endforeach

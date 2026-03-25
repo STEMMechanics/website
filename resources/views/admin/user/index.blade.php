@@ -17,7 +17,7 @@
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div class="flex relative flex-1">
                         <input
-                            class="grow rounded-l-lg border border-gray-300 bg-transparent px-2.5 py-2.5 text-sm text-gray-900 appearance-none focus:outline-none focus:border-indigo-300 focus:ring-0"
+                            class="grow rounded-l-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 appearance-none focus:outline-none focus:border-indigo-300 focus:ring-0"
                             autocomplete="off"
                             placeholder="Search"
                             type="text"

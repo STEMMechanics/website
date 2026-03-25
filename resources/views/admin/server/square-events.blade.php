@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast>Square Webhooks</x-mast>
+    <x-mast>Square Events</x-mast>
 
     <x-container x-data="{
         ignoreOpen: false,
@@ -25,7 +25,7 @@
     }">
         <x-ui.toolbar>
             <x-slot:left>
-                <form method="GET" action="{{ route('admin.server.square-webhooks') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
+                <form method="GET" action="{{ route('admin.server.square-events') }}" class="w-full lg:flex-1 flex flex-col sm:flex-row items-end gap-3 sm:gap-4">
                     <div class="w-full sm:w-64">
                         <x-ui.select label="Event Type" name="event_type">
                             <option value="">All event types</option>
@@ -45,7 +45,7 @@
         </x-ui.toolbar>
 
         @if($groupedEvents->isEmpty())
-            <x-none-found item="square webhook events" search="{{ request()->get('search') }}" />
+            <x-none-found item="square events" search="{{ request()->get('search') }}" />
         @else
             @if($errors->any())
                 <div class="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800">
@@ -53,7 +53,7 @@
                 </div>
             @endif
             <div class="text-right mb-4">
-                <form method="POST" action="{{ route('admin.server.square-webhooks.sync') }}" class="w-full lg:w-auto">
+                <form method="POST" action="{{ route('admin.server.square-events.sync') }}" class="w-full lg:w-auto">
                     @csrf
                     <input type="hidden" name="only_unlinked" value="1">
                     @if(request()->filled('search'))
@@ -143,7 +143,7 @@
                                 <div class="flex justify-center gap-3 whitespace-nowrap">
                                     @if($squarePaymentId !== '')
                                         @if($isIgnored)
-                                            <form method="POST" action="{{ route('admin.server.square-webhooks.unignore', $event) }}">
+                                            <form method="POST" action="{{ route('admin.server.square-events.unignore', $event) }}">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="hover:text-primary-color" title="Remove ignore rule">
@@ -155,12 +155,12 @@
                                                 type="button"
                                                 class="hover:text-primary-color"
                                                 title="Ignore this Square payment ID"
-                                                x-on:click.prevent="openIgnore(@js(route('admin.server.square-webhooks.ignore', $event)), @js($squarePaymentId))">
+                                                x-on:click.prevent="openIgnore(@js(route('admin.server.square-events.ignore', $event)), @js($squarePaymentId))">
                                                 <i class="fa-solid fa-ban"></i>
                                             </button>
                                         @endif
                                     @endif
-                                    <a href="{{ route('admin.server.square-webhooks.show', $event) }}" class="hover:text-primary-color" title="View event">
+                                    <a href="{{ route('admin.server.square-events.show', $event) }}" class="hover:text-primary-color" title="View event">
                                         <i class="fa-regular fa-eye"></i>
                                     </a>
                                 </div>
@@ -207,7 +207,7 @@
                                 </td>
                                 <td>
                                     <div class="flex justify-center gap-3 whitespace-nowrap">
-                                        <a href="{{ route('admin.server.square-webhooks.show', $childEvent) }}" class="hover:text-primary-color" title="View event">
+                                        <a href="{{ route('admin.server.square-events.show', $childEvent) }}" class="hover:text-primary-color" title="View event">
                                             <i class="fa-regular fa-eye"></i>
                                         </a>
                                     </div>

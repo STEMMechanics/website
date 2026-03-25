@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\SendEmail;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
+use App\Mail\TicketManualRefundNotice;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketCancelledNotice;
 use App\Models\Invoice;
@@ -415,6 +416,92 @@ class AdminWorkshopTicketEmailTest extends TestCase
             $this->assertGreaterThanOrEqual(3, count($attachments));
 
             return true;
+        });
+    }
+
+    public function test_admin_single_ticket_cancel_notifies_admin_when_square_refund_fails(): void
+    {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
+
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create(['email' => 'manual-refund@example.com']);
+        $workshop = $this->createTicketWorkshop();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'billing_name' => 'Manual Refund',
+            'billing_email' => 'manual-refund@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'total_amount' => 25.00,
+            'subtotal_amount' => 22.73,
+            'gst_amount' => 2.27,
+        ]);
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'gateway_provider' => 'square',
+            'square_payment_id' => 'sq-missing-payment',
+            'square_paid_money_amount' => 2500,
+            'square_refunded_money_amount' => 0,
+            'total_amount' => 25.00,
+        ]);
+        InvoicePaymentAllocation::factory()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 25.00,
+        ]);
+
+        $squareApi = new class extends SquareApiService {
+            public function isEnabled(): bool
+            {
+                return true;
+            }
+
+            public function createRefund(array $payload): array
+            {
+                throw new RuntimeException('NOT_FOUND: Could not find payment with id: sq-missing-payment');
+            }
+        };
+        $this->app->instance(SquareApiService::class, $squareApi);
+
+        $ticket = Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $customer->id,
+            'status' => Ticket::STATUS_PAID,
+            'email' => 'manual-refund@example.com',
+            'firstname' => 'Manual',
+            'surname' => 'Refund',
+            'invoice_id' => $invoice->id,
+            'invoice_line_id' => null,
+        ]);
+        $ticketReference = $ticket->ensureReferenceCode();
+
+        $this->actingAs($admin)
+            ->post(route('admin.ticket.cancel', $ticket), [
+                'process_square_refund' => 1,
+                'reason' => 'The workshop has been cancelled.',
+            ])
+            ->assertRedirect();
+
+        $ticket->refresh();
+        $this->assertSame(Ticket::STATUS_CANCELLED, (int) $ticket->status);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'manual-refund@example.com'
+                && $job->mailable instanceof TicketCancelledNotice
+                && str_contains($job->mailable->financialSummary, 'manual');
+        });
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($ticketReference): bool {
+            /** @var TicketManualRefundNotice $mailable */
+            $mailable = $job->mailable;
+
+            return $job->to === 'ops@example.com'
+                && $job->mailable instanceof TicketManualRefundNotice
+                && $mailable->ticketReference === $ticketReference
+                && $job->mailable->refundAmount === 25.0
+                && $job->mailable->operationSummaries !== [];
         });
     }
 

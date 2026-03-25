@@ -51,6 +51,7 @@ $savedTickets = isset($workshop)
             createLocationOpen: false,
             createLocationSubmitting: false,
             createLocationError: '',
+            cancelWorkshopOpen: false,
             newLocation: {
             name: '',
             address: '',
@@ -158,6 +159,21 @@ $savedTickets = isset($workshop)
             this.createLocationOpen = false;
             this.createLocationError = '';
             },
+            openCancelWorkshopModal() {
+            if (!String(this.workshopCancelReason || '').trim()) {
+                this.workshopCancelReason = 'The workshop has been cancelled.';
+            }
+
+            this.cancelWorkshopOpen = true;
+            },
+            closeCancelWorkshopModal() {
+            this.cancelWorkshopOpen = false;
+            this.status = this.originalStatus;
+            },
+            confirmCancelWorkshop() {
+            this.cancelWorkshopOpen = false;
+            this.submitForm();
+            },
             currentStartsAt() {
             return String(this.$refs.startsAt?.value || '').trim();
             },
@@ -196,53 +212,10 @@ $savedTickets = isset($workshop)
 
             form.submit();
             },
-            async promptCancellationReason() {
-            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
-                const fallback = window.prompt('Reason for cancellation', this.workshopCancelReason || 'The workshop has been cancelled.');
-                if (fallback === null) {
-                    return false;
-                }
-
-                this.workshopCancelReason = String(fallback || '').trim();
-                return true;
-            }
-
-            const result = await Swal.fire({
-            position: 'top',
-            icon: 'warning',
-            iconColor: '#dc2626',
-            title: 'Cancel workshop?',
-            html: 'This will cancel the workshop and any active tickets linked to it. Refunds will be attempted for Square payments.',
-            input: 'textarea',
-            inputLabel: 'Cancellation reason',
-            inputValue: this.workshopCancelReason || 'The workshop has been cancelled.',
-            inputPlaceholder: 'Reason to include in cancellation records and emails',
-            inputAttributes: {
-            'aria-label': 'Cancellation reason',
-            },
-            showCancelButton: true,
-            confirmButtonText: 'Cancel Workshop',
-            confirmButtonColor: '#dc2626',
-            cancelButtonText: 'Keep Workshop',
-            reverseButtons: true,
-            focusConfirm: false,
-            preConfirm: () => document.querySelector('.swal2-textarea')?.value || '',
-            });
-
-            if (!result.isConfirmed) {
-            return false;
-            }
-
-            this.workshopCancelReason = String(result.value || '').trim();
-
-            return true;
-            },
             async handleSubmit() {
             if (this.status === 'cancelled' && this.originalStatus !== 'cancelled') {
-            const shouldCancel = await this.promptCancellationReason();
-            if (!shouldCancel) {
-                return;
-            }
+            this.openCancelWorkshopModal();
+            return;
             }
 
             if (!this.hasRelevantTicketHolderChange()) {
@@ -476,7 +449,49 @@ $savedTickets = isset($workshop)
                         <x-ui.input type="datetime-local" label="Publish Date" name="publish_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->publish_at ?? '') }}" onchange="updatedPublishAt()" />
                     </div>
                 </div>
-                <div class="flex flex-col sm:flex-row sm:gap-8">
+
+            <div
+                x-cloak
+                x-show="cancelWorkshopOpen"
+                x-on:keydown.escape.window="closeCancelWorkshopModal()"
+                class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                role="dialog"
+                aria-modal="true">
+                    <div class="absolute inset-0 bg-black/40" x-on:click="closeCancelWorkshopModal()"></div>
+                    <div class="relative w-full max-w-2xl rounded-xl bg-white p-6 shadow-xl">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-semibold text-gray-900">Cancel workshop?</h3>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    This will cancel the workshop and any active tickets linked to it.
+                                    Refunds will be attempted automatically for Square payments.
+                                    Tickets that need manual follow-up will be listed in Refunds.
+                                </p>
+                            </div>
+                            <button type="button" class="text-gray-500 transition hover:text-gray-900" x-on:click="closeCancelWorkshopModal()" aria-label="Close cancel workshop modal">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-5">
+                            <label class="mb-1 block text-sm font-semibold text-gray-900" for="workshop-cancel-reason">Cancellation reason</label>
+                            <textarea
+                                id="workshop-cancel-reason"
+                                rows="4"
+                                x-model="workshopCancelReason"
+                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-rose-300 focus:outline-none focus:ring-0"
+                            ></textarea>
+                            <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in cancellation emails and records.</p>
+                        </div>
+
+                        <div class="mt-6 flex justify-end gap-3">
+                            <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelWorkshopModal()">Keep Workshop</x-ui.button>
+                            <x-ui.button type="button" color="danger" x-on:click="confirmCancelWorkshop()">Cancel Workshop</x-ui.button>
+                        </div>
+                    </div>
+                </div>
+
+            <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1 content-center">
                         <x-ui.checkbox
                                 label="Private Workshop"

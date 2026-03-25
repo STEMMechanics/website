@@ -624,7 +624,7 @@ class ServerController extends Controller
             ->pluck('event_type')
             ->all();
 
-        return view('admin.server.square-webhooks', [
+        return view('admin.server.square-events', [
             'groupedEvents' => $orderedGroupedEvents,
             'groupPage' => $groupPage,
             'eventTypes' => $eventTypes,
@@ -650,15 +650,15 @@ class ServerController extends Controller
             $params['--limit'] = $limit;
         }
 
-        $exitCode = Artisan::call('square:webhooks:sync', $params);
+        $exitCode = Artisan::call('square:events:sync', $params);
         $output = trim((string) Artisan::output());
-        $summary = $output !== '' ? $output : 'Square webhook sync finished.';
+        $summary = $output !== '' ? $output : 'Square event sync finished.';
 
         session()->flash('message', $summary);
-        session()->flash('message-title', $exitCode === 0 ? 'Square webhook sync complete' : 'Square webhook sync finished with errors');
+        session()->flash('message-title', $exitCode === 0 ? 'Square event sync complete' : 'Square event sync finished with errors');
         session()->flash('message-type', $exitCode === 0 ? 'success' : 'warning');
 
-        return redirect()->route('admin.server.square-webhooks', $request->only(['search', 'event_type']));
+        return redirect()->route('admin.server.square-events', $request->only(['search', 'event_type']));
     }
 
     public function admin_sent_emails(Request $request): View
@@ -789,7 +789,7 @@ class ServerController extends Controller
             ? SquareIgnoredPayment::query()->where('square_payment_id', $squarePaymentId)->first()
             : null;
 
-        return view('admin.server.square-webhook-show', [
+        return view('admin.server.square-event-show', [
             'event' => $event,
             'payloadPretty' => json_encode($event->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
             'squarePaymentId' => $squarePaymentId,

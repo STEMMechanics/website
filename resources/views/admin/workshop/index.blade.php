@@ -25,17 +25,23 @@
                 <x-slot:body>
                     @foreach ($workshops as $workshop)
                         <tr>
-                            <td class="flex items-center">
-                                <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
-                                <div>
-                                    <a href="{{ route('admin.workshop.edit', $workshop) }}" class="whitespace-normal font-semibold text-gray-900 hover:text-primary-color">{{ $workshop->title }}</a>
-                                    <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->publicStatusLabel() }})</div>
-                                    <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
+                            <td>
+                                <div class="flex items-center">
+                                    <div class="w-12 text-center">
+                                        <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
+                                    </div>
+                                    <div>
+                                        <a href="{{ route('admin.workshop.edit', $workshop) }}" class="whitespace-normal text-gray-900 hover:text-primary-color">{{ $workshop->title }}</a>
+                                        <div class="lg:hidden text-xs text-gray-500">{{ $workshop->getLocationName() }} ({{ $workshop->publicStatusLabel() }})</div>
+                                        <div class="md:hidden text-xs text-gray-500">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('j/m/Y g:i a') }}</div>
+                                    </div>
                                 </div>
                             </td>
-                            <td class="hidden lg:table-cell">{{ $workshop->publicStatusLabel() }}</td>
+                            <td class="hidden lg:table-cell whitespace-nowrap text-center">{{ $workshop->publicStatusLabel() }}</td>
                             <td class="hidden lg:table-cell">{{ $workshop->getLocationName() }}</td>
-                            <td class="hidden md:table-cell">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y, g:i a') }}</td>
+                            <td class="hidden md:table-cell">
+                                <span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('M j Y') }}</span><span class="hidden xl:inline">, </span><span class="block xl:inline whitespace-no-wrap">{{ \Carbon\Carbon::parse($workshop->starts_at)->format('g:i a') }}</span>
+                            </td>
                             <td>
                                 <div class="flex justify-center gap-3">
                                 <a href="{{ route('admin.workshop.edit', $workshop) }}" class="hover:text-primary-color" title="Edit"><i class="fa-solid fa-pen-to-square"></i></a>
@@ -45,7 +51,6 @@
                                 @if($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0)
                                     <a href="{{ route('admin.workshop.interests', $workshop) }}" class="inline-flex items-center gap-1 hover:text-primary-color" title="View interest registrations">
                                         <i class="fa-solid fa-thumbs-up"></i>
-                                        <span class="text-xs font-medium">{{ number_format((int) ($workshop->interests_count ?? 0)) }} {{ \Illuminate\Support\Str::plural('interest', (int) ($workshop->interests_count ?? 0)) }}</span>
                                     </a>
                                 @endif
                                 <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="hover:text-primary-color" title="Attendance"><i class="fa-solid fa-user-check"></i></a>

@@ -6,14 +6,14 @@ use App\Models\SquareWebhookEvent;
 use App\Services\SquareWebhookSyncService;
 use Illuminate\Console\Command;
 
-class SyncSquareWebhooksCommand extends Command
+class SyncSquareEventsCommand extends Command
 {
-    protected $signature = 'square:webhooks:sync
+    protected $signature = 'square:events:sync
         {--only-unlinked : Process only events that are not linked to a local payment}
         {--limit=0 : Maximum number of events to process (0 = no limit)}
         {--event-id= : Reprocess one specific Square event_id}';
 
-    protected $description = 'Replay stored Square webhook payloads and repair payment linkage/state';
+    protected $description = 'Replay stored Square event payloads and repair payment linkage/state';
 
     public function handle(SquareWebhookSyncService $syncService): int
     {
@@ -66,7 +66,7 @@ class SyncSquareWebhooksCommand extends Command
             }
         }
 
-        $this->info('Square webhook sync complete.');
+        $this->info('Square event sync complete.');
         $this->line('Scanned: '.$scanned);
         $this->line('Linked to payment: '.$linked);
         $this->line('Payments auto-created: '.$createdPayments);

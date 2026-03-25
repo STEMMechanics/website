@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
+use App\Mail\TicketManualRefundNotice;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketCancelledNotice;
 use App\Mail\TicketMagicLink;
@@ -1019,6 +1020,7 @@ class TicketController extends Controller
         });
 
         $expectedRefundCents = (int) $summary['expected_refund_cents'];
+        $refundOperationIds = array_values(array_unique(array_map('intval', (array) ($summary['refund_operation_ids'] ?? []))));
         $refundedCents = 0;
         $refundPaymentIds = [];
         $manualRefundRequired = false;
@@ -1039,6 +1041,18 @@ class TicketController extends Controller
         }
 
         unset($summary['expected_refund_cents'], $summary['refund_operation_ids']);
+
+        if ($manualRefundRequired && $expectedRefundCents > 0 && $refundPaymentIds === [] && $refundOperationIds === []) {
+            $manualRefundOperation = $this->createManualRefundOperationForTicketCancellation(
+                ticket: $ticket,
+                invoice: $ticket->invoice,
+                requestedCents: $expectedRefundCents,
+                reason: $reason
+            );
+            if ($manualRefundOperation instanceof SquareRefundOperation) {
+                $refundOperationIds[] = (int) $manualRefundOperation->id;
+            }
+        }
 
         $summary['refunded_cents'] = $refundedCents;
         $summary['refund_payment_ids'] = array_values(array_unique(array_filter($refundPaymentIds, fn (int $id) => $id > 0)));
@@ -1551,6 +1565,10 @@ class TicketController extends Controller
             introLine: $introLine,
         )))->onQueue('mail');
 
+        if ($manualRefundRequired) {
+            $this->notifyAdminManualRefundRequired($ticket, $introLine);
+        }
+
         $holderEmail = strtolower(trim((string) ($ticket->email ?? '')));
         if ($holderEmail !== '' && $holderEmail !== strtolower($recipient)) {
             dispatch(new SendEmail($holderEmail, new TicketAttendeeUpdate(
@@ -1570,6 +1588,149 @@ class TicketController extends Controller
                 ],
             )))->onQueue('mail');
         }
+    }
+
+    private function notifyAdminManualRefundRequired(Ticket $ticket, string $introLine = 'The following ticket has been cancelled.'): void
+    {
+        $recipients = $this->manualRefundAdminRecipients();
+        if ($recipients === []) {
+            Log::warning('Manual refund notice skipped: no admin recipient email configured.', [
+                'ticket_id' => (int) $ticket->id,
+                'invoice_id' => (int) ($ticket->invoice_id ?? 0),
+            ]);
+
+            return;
+        }
+
+        $ticket->loadMissing(['workshop', 'invoice.user', 'invoice.allocations.customerPayment.user']);
+        $invoice = $ticket->invoice;
+        if (! $invoice) {
+            return;
+        }
+
+        $refundOperations = SquareRefundOperation::query()
+            ->with(['invoice.user', 'customerPayment.user', 'ticket.workshop'])
+            ->where('ticket_id', $ticket->id)
+            ->whereIn('status', [SquareRefundOperation::STATUS_FAILED, SquareRefundOperation::STATUS_MANUAL_REQUIRED])
+            ->orderBy('created_at')
+            ->get();
+
+        $operationSummaries = $refundOperations->map(function (SquareRefundOperation $operation): array {
+            $payment = $operation->customerPayment;
+            $ticket = $operation->ticket;
+            $invoice = $operation->invoice;
+
+            return [
+                'operation_id' => (int) $operation->id,
+                'status' => (string) $operation->status,
+                'requested_amount' => round(((int) $operation->requested_cents) / 100, 2),
+                'refunded_amount' => round(((int) $operation->refunded_cents) / 100, 2),
+                'failure_message' => trim((string) $operation->failure_message),
+                'payment_id' => $payment instanceof Payment ? (int) $payment->id : null,
+                'payment_edit_url' => $payment instanceof Payment ? route('admin.payment.edit', $payment) : null,
+                'ticket_reference' => $ticket instanceof Ticket ? (string) ($ticket->reference_code ?: '#'.$ticket->id) : null,
+                'invoice_number' => $invoice instanceof Invoice ? (string) $invoice->invoice_number : null,
+                'workshop_title' => $ticket instanceof Ticket ? (string) ($ticket->workshop->title ?? 'Workshop') : 'Workshop',
+            ];
+        })->all();
+
+        $refundAmount = $refundOperations->sum(fn (SquareRefundOperation $operation): int => (int) $operation->requested_cents);
+        $customerName = $this->purchaserNameForTicket($ticket) ?: trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? '')));
+        $customerEmail = $this->purchaserEmailForTicket($ticket);
+        $creditsUrl = route('admin.payment.refunds');
+        $invoiceUrl = route('admin.invoice.edit', $invoice);
+        $ticketUrl = route('admin.workshop.tickets', $ticket->workshop);
+
+        foreach ($recipients as $recipient) {
+            dispatch(new SendEmail($recipient, new TicketManualRefundNotice(
+                recipientName: 'Admin',
+                ticketReference: (string) ($ticket->reference_code ?: '#'.$ticket->id),
+                workshopTitle: (string) ($ticket->workshop->title ?? 'Workshop'),
+                invoiceNumber: (string) $invoice->invoice_number,
+                customerName: $customerName !== '' ? $customerName : 'Unknown customer',
+                customerEmail: $customerEmail !== '' ? $customerEmail : '-',
+                refundAmount: $refundAmount > 0 ? round($refundAmount / 100, 2) : null,
+                creditsUrl: $creditsUrl,
+                invoiceUrl: $invoiceUrl,
+                ticketUrl: $ticketUrl,
+                operationSummaries: $operationSummaries,
+                introLine: $introLine,
+            )))->onQueue('mail');
+        }
+    }
+
+    private function createManualRefundOperationForTicketCancellation(
+        Ticket $ticket,
+        ?Invoice $invoice,
+        int $requestedCents,
+        string $reason
+    ): ?SquareRefundOperation {
+        if (! $invoice instanceof Invoice || $requestedCents <= 0) {
+            return null;
+        }
+
+        $invoice->loadMissing('allocations.customerPayment');
+        $candidatePayment = $invoice->allocations
+            ->map(fn ($allocation) => $allocation->customerPayment)
+            ->filter(fn ($payment) => $payment instanceof Payment && (string) ($payment->kind ?? Payment::KIND_PAYMENT) === Payment::KIND_PAYMENT)
+            ->first(function (Payment $payment): bool {
+                return $this->remainingRefundableAmount($payment) > 0.0001;
+            });
+
+        if (! $candidatePayment instanceof Payment) {
+            return null;
+        }
+
+        $idempotencyKey = mb_substr(
+            'tkt-manual-'.$ticket->id.'-inv-'.$invoice->id.'-cp-'.$candidatePayment->id.'-'.$requestedCents,
+            0,
+            120
+        );
+
+        return SquareRefundOperation::query()->firstOrCreate(
+            ['idempotency_key' => $idempotencyKey],
+            [
+                'invoice_id' => $invoice->id,
+                'tax_adjustment_id' => $invoice->taxAdjustments()->latest('id')->first()?->id,
+                'ticket_id' => $ticket->id,
+                'payment_id' => $candidatePayment->id,
+                'requested_cents' => $requestedCents,
+                'status' => SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+                'failure_message' => 'Payment was not processed through Square. Manual refund required.',
+                'processed_at' => now(),
+                'payload' => [
+                    'manual_refund' => [
+                        'source' => 'ticket_cancellation',
+                        'reason' => $reason,
+                        'ticket_id' => (int) $ticket->id,
+                        'invoice_id' => (int) $invoice->id,
+                    ],
+                ],
+            ]
+        );
+    }
+
+    private function remainingRefundableAmount(Payment $payment): float
+    {
+        $original = max(0, round((float) $payment->total_amount, 2));
+        $refunded = (float) $payment->refunds()->sum('total_amount');
+
+        return max(0, round($original - $refunded, 2));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function manualRefundAdminRecipients(): array
+    {
+        $configured = preg_split('/[;,]+/', (string) config('mail.admin_bcc', 'admin@stemmechanics.com.au')) ?: [];
+
+        return collect($configured)
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function resolveTicketCancellationIntroLine(Request $request): string

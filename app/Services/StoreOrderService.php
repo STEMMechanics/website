@@ -1162,6 +1162,8 @@ class StoreOrderService
         $summary['manual_refund_required'] = (bool) ($summary['originally_paid'] ?? false)
             && (int) ($summary['refunded_cents'] ?? 0) < (int) ($summary['expected_refund_cents'] ?? 0);
 
+        $refundOperationIds = array_values(array_unique(array_map('intval', (array) ($summary['refund_operation_ids'] ?? []))));
+
         $freshOrder = StoreOrder::query()
             ->with(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon', 'user'])
             ->find((int) ($summary['order_id'] ?? 0));
@@ -1176,6 +1178,25 @@ class StoreOrderService
         $adjustment = ($summary['adjustment_id'] ?? null)
             ? TaxAdjustment::query()->with('lines')->find((int) $summary['adjustment_id'])
             : null;
+
+        if (
+            (bool) ($summary['manual_refund_required'] ?? false)
+            && $refundOperationIds === []
+            && (int) ($summary['expected_refund_cents'] ?? 0) > 0
+            && $invoice instanceof Invoice
+        ) {
+            $manualRefundOperation = $this->createManualRefundOperationForOrderCancellation(
+                order: $order,
+                invoice: $invoice,
+                adjustment: $adjustment,
+                requestedCents: (int) $summary['expected_refund_cents'],
+                reason: 'Store order batch update '.$order->order_number,
+                actingUser: $actingUser,
+            );
+            if ($manualRefundOperation instanceof SquareRefundOperation) {
+                $summary['refund_operation_ids'] = [(int) $manualRefundOperation->id];
+            }
+        }
 
         if (
             $freshOrder instanceof StoreOrder
@@ -2201,6 +2222,61 @@ class StoreOrderService
         $refundPayment->save();
 
         return $refundPayment;
+    }
+
+    private function createManualRefundOperationForOrderCancellation(
+        StoreOrder $order,
+        ?Invoice $invoice,
+        ?TaxAdjustment $adjustment,
+        int $requestedCents,
+        string $reason,
+        ?User $actingUser = null
+    ): ?SquareRefundOperation {
+        if (! $invoice instanceof Invoice || $requestedCents <= 0) {
+            return null;
+        }
+
+        $invoice->loadMissing('allocations.customerPayment');
+        $candidatePayment = $invoice->allocations
+            ->map(fn ($allocation) => $allocation->customerPayment)
+            ->filter(fn ($payment) => $payment instanceof Payment && (string) ($payment->kind ?? Payment::KIND_PAYMENT) === Payment::KIND_PAYMENT)
+            ->first(function (Payment $payment): bool {
+                $remaining = max(0, round((float) $payment->total_amount - (float) $payment->refunds()->sum('total_amount'), 2));
+
+                return $remaining > 0.0001;
+            });
+
+        if (! $candidatePayment instanceof Payment) {
+            return null;
+        }
+
+        $idempotencyKey = mb_substr(
+            'ord-manual-'.$order->id.'-inv-'.$invoice->id.'-cp-'.$candidatePayment->id.'-'.$requestedCents,
+            0,
+            120
+        );
+
+        return SquareRefundOperation::query()->firstOrCreate(
+            ['idempotency_key' => $idempotencyKey],
+            [
+                'invoice_id' => $invoice->id,
+                'tax_adjustment_id' => $adjustment?->id,
+                'payment_id' => $candidatePayment->id,
+                'requested_cents' => $requestedCents,
+                'status' => SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+                'failure_message' => 'Payment was not processed through Square. Manual refund required.',
+                'processed_at' => now(),
+                'payload' => [
+                    'manual_refund' => [
+                        'source' => 'store_order_cancellation',
+                        'reason' => $reason,
+                        'order_id' => (int) $order->id,
+                        'invoice_id' => (int) $invoice->id,
+                        'processed_by' => $actingUser?->id,
+                    ],
+                ],
+            ]
+        );
     }
 
     private function orderItemDiscountAllocation(StoreOrder $order, StoreOrderItem $targetItem, Collection $orderItems): float

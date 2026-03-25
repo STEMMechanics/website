@@ -6,12 +6,16 @@ use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
+use App\Models\Location;
 use App\Models\Media;
 use App\Models\Payment;
+use App\Models\SquareRefundOperation;
+use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\StoreOrder;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Workshop;
 use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -258,6 +262,187 @@ class AdminUserCreditTest extends TestCase
                 && $job->mailable instanceof PaymentReceiptPdf
                 && $job->mailable->isRefund === true;
         });
+    }
+
+    public function test_admin_credits_page_can_record_a_manual_bank_transfer_refund(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Holder',
+            'email' => 'manual-bank@example.com',
+        ]);
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'billing_name' => 'Credit Holder',
+            'billing_email' => 'manual-bank@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'total_amount' => 25.00,
+            'subtotal_amount' => 22.73,
+            'gst_amount' => 2.27,
+        ]);
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'reference' => 'Square payment',
+            'total_amount' => 25.00,
+            'gst_amount' => 0,
+            'gateway_provider' => 'square',
+            'square_payment_id' => 'sq-test-manual-bank',
+            'square_paid_money_amount' => 2500,
+            'square_refunded_money_amount' => 0,
+        ]);
+        $taxAdjustment = TaxAdjustment::query()->create([
+            'invoice_id' => $invoice->id,
+            'adjustment_number' => 'TAN-'.uniqid(),
+            'issue_date' => now()->startOfDay(),
+            'subtotal_amount' => -22.73,
+            'gst_amount' => -2.27,
+            'total_amount' => -25.00,
+            'notes' => 'Manual cancellation adjustment',
+        ]);
+        Media::factory()->create([
+            'name' => 'stemmechanics-logo.png',
+            'title' => 'Workshop Hero',
+            'user_id' => $admin->id,
+        ]);
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 25.00,
+        ]);
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'tax_adjustment_id' => $taxAdjustment->id,
+            'allocated_amount' => -25.00,
+        ]);
+
+        $location = Location::factory()->create();
+        $workshop = Workshop::factory()->create([
+            'location_id' => $location->id,
+            'user_id' => $admin->id,
+        ]);
+
+        $ticket = Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $user->id,
+            'status' => Ticket::STATUS_CANCELLED,
+            'email' => 'manual-bank@example.com',
+            'firstname' => 'Manual',
+            'surname' => 'Bank',
+            'invoice_id' => $invoice->id,
+            'invoice_line_id' => null,
+        ]);
+
+        $manualRefund = SquareRefundOperation::query()->create([
+            'invoice_id' => $invoice->id,
+            'ticket_id' => $ticket->id,
+            'payment_id' => $payment->id,
+            'idempotency_key' => 'manual-bank-refund-1',
+            'requested_cents' => 2500,
+            'refunded_cents' => 0,
+            'status' => SquareRefundOperation::STATUS_FAILED,
+            'failure_message' => 'NOT_FOUND: Could not find payment with id: sq-test-manual-bank',
+            'payload' => [],
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.refunds.complete', $manualRefund), [
+            'amount' => '25.00',
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->format('Y-m-d\TH:i'),
+            'reference' => 'Bank transfer ref 123',
+            'reason' => 'Manual bank transfer completed',
+        ]);
+
+        $response->assertRedirect();
+
+        $manualRefund->refresh();
+        $this->assertSame(SquareRefundOperation::STATUS_COMPLETED, $manualRefund->status);
+        $this->assertSame(2500, (int) $manualRefund->refunded_cents);
+
+        $refundPayment = Payment::query()
+            ->where('refund_of_payment_id', $payment->id)
+            ->where('kind', Payment::KIND_REFUND)
+            ->where('payment_method', Payment::PAYMENT_METHOD_BANK_TRANSFER)
+            ->first();
+        $this->assertNotNull($refundPayment);
+        $this->assertStringContainsString('Bank transfer ref 123', (string) $refundPayment->reference);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($user): bool {
+            return $job->to === $user->email
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->isRefund === true
+                && str_contains($job->mailable->paymentMethod, 'Bank Transfer');
+        });
+    }
+
+    public function test_admin_credits_page_can_mark_a_manual_refund_as_account_credit(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Retained',
+            'email' => 'credit-retained@example.com',
+        ]);
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'billing_name' => 'Credit Retained',
+            'billing_email' => 'credit-retained@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'total_amount' => 25.00,
+            'subtotal_amount' => 22.73,
+            'gst_amount' => 2.27,
+        ]);
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'created_by' => $admin->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'reference' => 'Square payment',
+            'total_amount' => 25.00,
+            'gst_amount' => 0,
+            'gateway_provider' => 'square',
+            'square_payment_id' => 'sq-test-credit-retained',
+            'square_paid_money_amount' => 2500,
+            'square_refunded_money_amount' => 0,
+        ]);
+        $manualRefund = SquareRefundOperation::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'idempotency_key' => 'manual-credit-retained-1',
+            'requested_cents' => 2500,
+            'refunded_cents' => 0,
+            'status' => SquareRefundOperation::STATUS_MANUAL_REQUIRED,
+            'failure_message' => 'Square refund was not processed.',
+            'payload' => [],
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.refunds.complete', $manualRefund), [
+            'leave_as_credit' => '1',
+            'reason' => 'Leave as account credit',
+        ]);
+
+        $response->assertRedirect();
+
+        $manualRefund->refresh();
+        $this->assertSame(SquareRefundOperation::STATUS_COMPLETED, $manualRefund->status);
+        $this->assertSame(0, (int) $manualRefund->refunded_cents);
+        $this->assertSame('credit_retained', data_get($manualRefund->payload, 'manual_refund.resolution'));
+
+        $refundPayment = Payment::query()
+            ->where('refund_of_payment_id', $payment->id)
+            ->where('kind', Payment::KIND_REFUND)
+            ->first();
+        $this->assertNull($refundPayment);
+
+        Queue::assertNotPushed(SendEmail::class);
     }
 
     public function test_admin_user_index_merges_user_data_and_indents_child_accounts(): void
