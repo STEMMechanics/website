@@ -151,7 +151,7 @@ Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}',
     ->everyTenMinutes()
     ->withoutOverlapping();
 
-Schedule::command('database:backup --keep=336')
+Schedule::command('database:backup')
     ->hourly()
     ->withoutOverlapping();
 

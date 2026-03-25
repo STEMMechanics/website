@@ -2,12 +2,26 @@
 <nav class="relative z-[120] isolate shadow bg-white">
     @php
         $navUser = auth()->user();
+        \App\Models\Quote::expireOpenQuotes();
         $hasMyOrders = $navUser ? $navUser->storeOrders()->exists() : false;
-        $hasMyQuotes = $navUser ? $navUser->quotes()->exists() : false;
+        $hasMyQuotes = $navUser ? $navUser->quotes()->visibleToCustomer()->exists() : false;
         $hasMyPayments = $navUser ? $navUser->payments()->exists() : false;
         $hasMyInvoices = $navUser ? $navUser->invoices()->exists() : false;
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
         $forumUnreadCount = $navUser ? \App\Models\ForumTopic::unreadCountForUser($navUser) : 0;
+        $pendingChildApprovalCount = 0;
+        if ($navUser?->isFullAccount()) {
+            $pendingChildApprovalCount = (int) $navUser->children()
+                ->whereNull('anonymized_at')
+                ->withCount([
+                    'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
+                    'forumPosts as pending_reply_count' => fn ($query) => $query
+                        ->where('is_approved', false)
+                        ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
+                ])
+                ->get()
+                ->sum(fn ($child) => (int) ($child->pending_topic_count ?? 0) + (int) ($child->pending_reply_count ?? 0));
+        }
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
             'shipping_country' => 'Australia',
@@ -65,6 +79,7 @@
                     ['label' => 'Sent Emails', 'route' => route('admin.server.sent-emails'), 'icon' => 'fa-solid fa-envelope-circle-check', 'active' => ['admin.server.sent-emails*']],
                     ['label' => 'Orphaned Files', 'route' => route('admin.server.orphans'), 'icon' => 'fa-solid fa-link-slash', 'active' => ['admin.server.orphans*']],
                     ['label' => 'Site Options', 'route' => route('admin.site_option.index'), 'icon' => 'fa-solid fa-sliders', 'active' => ['admin.site_option.*']],
+                    ['label' => 'Backups & Downloads', 'route' => route('admin.server.backups'), 'icon' => 'fa-solid fa-box-archive', 'active' => ['admin.server.backups']],
                     ['label' => 'Server Info', 'route' => route('admin.server.index'), 'icon' => 'fa-solid fa-server', 'active' => ['admin.server.index']],
                 ],
             ],
@@ -96,7 +111,7 @@
                 @endif
                 <a href="{{ route('workshop.index') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Workshops</a>
                 <a href="{{ route('contact') }}" class="hidden md:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out">Contact</a>
-                <a href="{{ route('stemcraft.index') }}" class="hidden lg:block" title="STEMCraft"><img class="min-w-6 w-6 h-auto" src="/stemcraft-short-logo.webp" alt="STEMCraft"></a>
+                <a href="{{ route('stemcraft.index') }}" class="hidden lg:block" title="STEMCraft"><img class="min-w-6 w-6 h-auto" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft"></a>
                 <a
                         href="{{ route('forum.index') }}"
                         class="hidden lg:block text-gray-900 hover:text-sky-500 text-sm font-medium transition duration-300 ease-in-out relative"
@@ -108,12 +123,18 @@
                         x-cloak
                         x-show="forumUnreadCount > 0"
                         x-text="forumUnreadCount"
-                        class="bg-red-600 text-white text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full"
+                        class="bg-green-700 text-green-100 text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full"
                     ></span>
                 </a>
                 <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open user menu</span>
+                    @if($pendingChildApprovalCount > 0)
+                        <span class="sr-only">{{ $pendingChildApprovalCount }} child {{ \Illuminate\Support\Str::plural('approval', $pendingChildApprovalCount) }} pending</span>
+                    @endif
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
+                    @if($pendingChildApprovalCount > 0)
+                        <span class="bg-orange-500 text-white text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pendingChildApprovalCount }}</span>
+                    @endif
                 </button>
                 @if($publicShopAvailable)
                     <button
@@ -161,9 +182,9 @@
                 @if($publicShopAvailable)
                     <a href="{{ route('shop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bag-shopping w-4 mr-2"></i>Store</a>
                 @endif
-                <a href="{{ route('forum.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="bg-red-600 text-white text-xs px-1 rounded ml-2"></span></a>
+                <a href="{{ route('forum.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-comments w-4 mr-2"></i>Discussions<span x-cloak x-show="forumUnreadCount > 0" x-text="forumUnreadCount" class="ml-2 rounded-full bg-green-700 px-2 py-0.5 text-xs font-semibold text-green-100"></span></a>
                 <a href="{{ route('workshop.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-bullhorn w-4 mr-2"></i>Workshops</a>
-                <a href="{{ route('stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="/stemcraft-short-logo.webp" alt="STEMCraft">STEMCraft</a>
+                <a href="{{ route('stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1" title="STEMCraft"><img class="w-5 h-auto mr-2 -ml-1 inline-block" src="{{ asset('stemcraft-short-logo.webp') }}" alt="STEMCraft">STEMCraft</a>
                 <a href="{{ route('contact') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-regular fa-envelope w-4 mr-2"></i>Contact</a>
                 @if($isAdmin)
                     @foreach($adminNavSections as $section)
@@ -230,6 +251,12 @@
                 @endif
                 @if(auth()->user()?->hasMinecraftAccess())
                     <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>My STEMCraft</a>
+                @endif
+                @if($pendingChildApprovalCount > 0)
+                    <a href="{{ route('account.children.approvals') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1">
+                        <i class="fa-solid fa-user-shield w-4 mr-2"></i>Child approvals
+                        <span class="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">{{ $pendingChildApprovalCount }}</span>
+                    </a>
                 @endif
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <form method="POST" action="{{ route('logout') }}">
@@ -367,7 +394,7 @@
 
                     <div class="mt-5">
                         <template x-if="!cartUpdateLocked()">
-                            <x-ui.button type="link" href="{{ route('shop.checkout') }}" class="block" x-on:click="cartOpen=false">Checkout</x-ui.button>
+                            <x-ui.button href="{{ route('shop.checkout') }}" class="block" x-on:click="cartOpen=false">Checkout</x-ui.button>
                         </template>
                         <template x-if="cartUpdateLocked()">
                             <button type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</button>
@@ -813,15 +840,6 @@
             },
 
             init() {
-                this.keyboardShortcutHandler = (event) => {
-                    if ((event.metaKey || event.ctrlKey) && event.key === 'f') {
-                        event.preventDefault();
-                        this.openSearchOverlay();
-                    }
-                };
-
-                document.addEventListener('keydown', this.keyboardShortcutHandler);
-
                 this.$watch('showSearch', () => this.syncScrollLock());
                 this.$watch('pageMenuOpen', () => this.syncScrollLock());
                 this.$watch('userMenuOpen', () => this.syncScrollLock());

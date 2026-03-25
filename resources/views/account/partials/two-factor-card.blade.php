@@ -1,11 +1,15 @@
 @php
     $supportsEmailVerification = (bool) ($supportsEmailVerification ?? true);
+    /** @var \App\Models\User|null $user */
+    $user = auth()->user();
+    $passwordConfigured = trim((string) ($user?->password ?? '')) !== '';
+    $passwordLoginAvailable = (bool) ($user?->canUsePasswordLogin() ?? false);
 @endphp
 
 <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
     <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-            <h2 class="text-lg font-semibold text-gray-900">Two-Factor Authentication</h2>
+            <h2 class="text-lg font-semibold text-gray-900">Login Authentication</h2>
             <p class="mt-1 text-sm text-gray-600">Manage how sign-in verification works for your account.</p>
         </div>
         <div class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide" :class="$store.tfa.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'">
@@ -13,7 +17,7 @@
         </div>
     </div>
 
-    <div class="mt-6 grid gap-4 {{ $supportsEmailVerification ? 'lg:grid-cols-2' : '' }}">
+    <div class="mt-6 grid gap-4 {{ $supportsEmailVerification ? 'xl:grid-cols-3' : 'xl:grid-cols-2' }}">
         @if($supportsEmailVerification)
             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                 <div class="flex items-start gap-4">
@@ -31,6 +35,81 @@
             </div>
         @endif
 
+        <div
+            class="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+            x-data="{ passwordDialogOpen: {{ $errors->has('password') || $errors->has('password_confirmation') ? 'true' : 'false' }} }"
+        >
+            <div class="flex items-start gap-4">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-gray-200">
+                    <i class="fa-solid fa-key text-xl"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <h3 class="text-sm font-semibold text-gray-900">Password login</h3>
+                        <span class="rounded-full px-2 py-0.5 text-xxs font-semibold {{ $passwordConfigured ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
+                            {{ $passwordConfigured ? 'Enabled' : 'Not set' }}
+                        </span>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-600">
+                        {{ $passwordConfigured ? 'A password has been set for this account.' : 'No password has been set for this account.' }}
+                    </p>
+                    @if($passwordConfigured && ! $passwordLoginAvailable && $supportsEmailVerification)
+                        <p class="mt-2 text-sm text-amber-700">Password sign-in becomes available after your email is verified.</p>
+                    @endif
+                    <div class="mt-4 flex flex-wrap items-center gap-2">
+                        @if($passwordConfigured)
+                            <form method="POST" action="{{ route('account.password.update') }}" class="m-0">
+                                @csrf
+                                <x-ui.button type="submit" color="danger-outline" class="px-5!" name="clear_password" value="1">Clear</x-ui.button>
+                            </form>
+                        @endif
+                        <x-ui.button type="button" class="px-5!" color="primary-outline" x-on:click="passwordDialogOpen = true">{{ $passwordConfigured ? 'Change' : 'Setup' }}</x-ui.button>
+                    </div>
+                </div>
+            </div>
+
+            <template x-teleport="body">
+                <div
+                    x-show="passwordDialogOpen"
+                    x-cloak
+                    class="fixed inset-0 z-280 flex items-end justify-center bg-slate-950/55 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="account-password-dialog-title"
+                    @click.self="passwordDialogOpen = false"
+                    @keydown.escape.window="if (passwordDialogOpen) { passwordDialogOpen = false }"
+                >
+                    <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded bg-white shadow-2xl">
+                        <div class="border-b border-gray-200 px-6 py-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <h2 id="account-password-dialog-title" class="text-xl font-bold text-gray-900">{{ $passwordConfigured ? 'Change password' : 'Set password' }}</h2>
+                                    <p class="mt-2 text-sm leading-6 text-gray-600">
+                                        {{ $passwordConfigured ? 'Update the password used to sign in to this account.' : 'Set a password for this account so you can sign in without waiting for an email link.' }}
+                                    </p>
+                                </div>
+                                <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="passwordDialogOpen = false" aria-label="Close password dialog">
+                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <form method="POST" action="{{ route('account.password.update') }}" class="overflow-y-auto px-6 py-5">
+                            @csrf
+                            <div class="grid gap-2">
+                                <x-ui.input type="password" name="password" label="{{ $passwordConfigured ? 'New password' : 'Password' }}" value="" autocomplete="new-password" />
+                                <x-ui.input type="password" name="password_confirmation" label="{{ $passwordConfigured ? 'Confirm new password' : 'Confirm password' }}" value="" autocomplete="new-password" />
+                            </div>
+                            <div class="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <x-ui.button type="button" color="secondary" x-on:click.prevent="passwordDialogOpen = false">Cancel</x-ui.button>
+                                <x-ui.button type="submit">{{ $passwordConfigured ? 'Save Password' : 'Set Password' }}</x-ui.button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </template>
+        </div>
+
         <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div class="flex items-start gap-4">
                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-gray-700 ring-1 ring-gray-200">
@@ -44,9 +123,9 @@
                     </div>
                     <p class="mt-2 text-sm text-gray-600">Use a time-based code from your authenticator app during sign-in.</p>
                     <div class="mt-4 flex flex-wrap items-center gap-2">
-                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
+                        <a href="#" x-show="$store.tfa.enabled" x-data x-on:click.prevent="resetBackupCodes($event)" class="text-sm font-medium text-primary-color hover:text-primary-color-dark">Reset backup codes</a>
                         <x-ui.button x-show="$store.tfa.enabled" type="button" color="danger-outline" class="px-5!" x-data x-on:click.prevent="destroyTFA()">Disable</x-ui.button>
-                        <a href="#" x-show="$store.tfa.enabled" x-on:click.prevent="resetBackupCodes($event)" class="text-sm font-medium text-primary-color hover:text-primary-color-dark">Reset backup codes</a>
+                        <x-ui.button x-show="!$store.tfa.enabled" id="tfa_button" type="button" color="primary-outline" class="px-5!" x-data x-on:click.prevent="setupTFA()">Setup</x-ui.button>
                     </div>
                 </div>
             </div>

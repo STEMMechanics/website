@@ -2,9 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Jobs\SendEmail;
-use App\Mail\TicketAttendeeUpdate;
-use App\Mail\TicketOrderConfirmation;
+use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -13,10 +11,13 @@ use App\Models\Ticket;
 use App\Models\Token;
 use App\Models\User;
 use App\Models\Workshop;
+use App\Models\WorkshopTicketEmail;
 use App\Providers\QRCodeProvider;
 use App\Services\DocumentNumberService;
+use App\Services\AccountCreditService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopRegistrationGroupService;
+use App\Services\WorkshopTicketOrderEmailService;
 use App\Services\WorkshopTicketService;
 use App\Support\AltchaTrust;
 use Illuminate\Http\JsonResponse;
@@ -38,7 +39,8 @@ class WorkshopTicketFlowController extends Controller
 
     public function __construct(
         private readonly DocumentNumberService $documentNumbers,
-        private readonly WorkshopRegistrationGroupService $workshopRegistrationGroups
+        private readonly WorkshopRegistrationGroupService $workshopRegistrationGroups,
+        private readonly AccountCreditService $accountCredit
     )
     {
     }
@@ -154,6 +156,7 @@ class WorkshopTicketFlowController extends Controller
             'purchaser' => $purchaser,
             'purchaser_user_id' => $purchaserUserId,
             'invoice_id' => null,
+            'email_delivery_id' => null,
             'payment_method' => null,
             'payment_complete' => false,
         ];
@@ -194,6 +197,24 @@ class WorkshopTicketFlowController extends Controller
             ->orderBy('id')
             ->get();
         $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
+        $creditUser = $this->checkoutCreditUser($session);
+        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($creditUser);
+        $accountCreditLoginHint = $accountCreditAvailable <= 0.0001 && $this->purchaserEmailHasCredit($session);
+        $applyAccountCreditDefault = $accountCreditAvailable > 0.0001;
+        $accountCreditDebugRows = $this->accountCreditDebugRows($creditUser);
+        $creditDebug = [
+            'source' => $creditUser instanceof User
+                ? ($this->checkoutAccountUser() instanceof User ? 'auth' : 'session')
+                : ($accountCreditLoginHint ? 'email-login-hint' : 'none'),
+            'auth_user_id' => $this->checkoutAccountUser()?->id,
+            'auth_user_email' => $this->checkoutAccountUser()?->email,
+            'session_purchaser_user_id' => $session['purchaser_user_id'] ?? null,
+            'session_purchaser_email' => data_get($session, 'purchaser.email'),
+            'resolved_user_id' => $creditUser?->id,
+            'resolved_user_email' => $creditUser?->email,
+            'available_credit' => $accountCreditAvailable,
+            'candidate_rows' => $accountCreditDebugRows,
+        ];
 
         return view('workshop.tickets.payment', [
             'workshop' => $workshop,
@@ -201,6 +222,10 @@ class WorkshopTicketFlowController extends Controller
             'holdCount' => count($session['hold_ids'] ?? []),
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
             'totalAmount' => round($ticketService->ticketPriceAmount($workshop) * count($session['hold_ids'] ?? []), 2),
+            'accountCreditAvailable' => $accountCreditAvailable,
+            'accountCreditLoginHint' => $accountCreditLoginHint,
+            'applyAccountCreditDefault' => $applyAccountCreditDefault,
+            'creditDebug' => $creditDebug,
             'squareEnabled' => (bool) config('services.square.enabled'),
             'squareApplicationId' => (string) config('services.square.application_id'),
             'squareLocationId' => (string) config('services.square.location_id'),
@@ -233,22 +258,34 @@ class WorkshopTicketFlowController extends Controller
         }
 
         $validated = $request->validate([
-            'payment_method' => ['required', 'in:pay_at_door,bank_transfer,credit_card'],
+            'payment_method' => ['required', 'in:pay_at_door,bank_transfer,credit_card,credit'],
             'source_id' => ['nullable', 'string', 'max:255'],
+            'apply_account_credit' => ['nullable', 'boolean'],
         ]);
 
         $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
         $ticketPriceAmount = $ticketService->ticketPriceAmount($workshop);
         $amount = round($ticketPriceAmount * count($holdIds), 2);
-        $paymentMethod = $amount <= 0 ? 'free' : $validated['payment_method'];
+        $creditUser = $this->checkoutCreditUser($session);
+        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($creditUser);
+        $applyAccountCredit = $request->boolean('apply_account_credit');
+        $amountDueAfterCredit = $applyAccountCredit
+            ? max(0, round($amount - $accountCreditAvailable, 2))
+            : $amount;
+        $paymentMethod = $amount <= 0 ? 'free' : (string) $validated['payment_method'];
 
-        if ($paymentMethod === 'credit_card' && trim((string) ($validated['source_id'] ?? '')) === '') {
+        if ($paymentMethod === 'credit_card' && $amountDueAfterCredit > 0.0001 && trim((string) ($validated['source_id'] ?? '')) === '') {
             throw ValidationException::withMessages([
                 'payment_method' => 'Card details are required for credit card payment.',
             ]);
         }
+        if ($paymentMethod === 'credit' && $amountDueAfterCredit > 0.0001) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Your account credit does not cover this ticket order.',
+            ]);
+        }
 
-        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session) {
+        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser) {
             $holds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
@@ -269,6 +306,7 @@ class WorkshopTicketFlowController extends Controller
             }
 
             $invoice = null;
+            $creditApplied = 0.0;
             if ($amount > 0) {
                 $invoice = $this->createTicketInvoice(
                     $workshop,
@@ -277,15 +315,29 @@ class WorkshopTicketFlowController extends Controller
                     $session['purchaser'] ?? [],
                     $purchaserUserId !== '' ? $purchaserUserId : null
                 );
+                $creditApplied = $creditUser instanceof User && $applyAccountCredit && $accountCreditAvailable > 0.0001
+                    ? $this->accountCredit->applyCreditToInvoice($invoice, $creditUser, (float) $invoice->outstandingAmount())
+                    : 0.0;
+                if ($creditApplied > 0.0001) {
+                    $invoice->refresh();
+                }
             }
 
-            $ticketStatus = match ($paymentMethod) {
+            $remainingAmount = $invoice instanceof Invoice ? round((float) $invoice->outstandingAmount(), 2) : 0.0;
+            if ($paymentMethod === 'credit' && $remainingAmount > 0.0001) {
+                throw ValidationException::withMessages([
+                    'payment_method' => 'Your account credit does not cover this ticket order.',
+                ]);
+            }
+            $effectivePaymentMethod = $remainingAmount <= 0.0001 ? 'credit' : $paymentMethod;
+
+            $ticketStatus = match ($effectivePaymentMethod) {
                 'pay_at_door' => Ticket::STATUS_PENDING_DOOR,
                 'bank_transfer' => Ticket::STATUS_PENDING_XFER,
                 default => Ticket::STATUS_PAID,
             };
 
-            if ($paymentMethod === 'credit_card' && $amount > 0) {
+            if ($effectivePaymentMethod === 'credit_card' && $remainingAmount > 0.0001) {
                 if (! $squareApi->isEnabled()) {
                     throw ValidationException::withMessages([
                         'payment_method' => 'Credit card payments are not available right now.',
@@ -300,8 +352,8 @@ class WorkshopTicketFlowController extends Controller
                 }
 
                 $customerPayment = new Payment();
-                $customerPayment->user_id = $purchaserUserId !== '' ? $purchaserUserId : auth()->id();
-                $customerPayment->created_by = auth()->id();
+                $customerPayment->user_id = $purchaserUserId !== '' ? $purchaserUserId : $this->checkoutAccountUserId();
+                $customerPayment->created_by = $this->checkoutAccountUserId();
                 $customerPayment->kind = Payment::KIND_PAYMENT;
                 $customerPayment->received_on = now();
                 $customerPayment->payment_method = 'credit_card';
@@ -310,7 +362,7 @@ class WorkshopTicketFlowController extends Controller
                     ->values()
                     ->all();
                 $customerPayment->reference = 'Workshop '.$workshop->title.' ticket' . (count($ticketReferences) > 1 ? 's' : '') . ' ['.implode(',', $ticketReferences).']';
-                $customerPayment->total_amount = $amount;
+                $customerPayment->total_amount = $remainingAmount;
                 $customerPayment->gst_amount = 0;
                 $customerPayment->notes = 'Workshop "'.$workshop->title.'" ticket purchase';
                 $customerPayment->save();
@@ -322,7 +374,7 @@ class WorkshopTicketFlowController extends Controller
                         'location_id' => $locationId,
                         'reference_id' => 'payment:'.$customerPayment->id,
                         'amount_money' => [
-                            'amount' => (int) round($amount * 100),
+                            'amount' => (int) round($remainingAmount * 100),
                             'currency' => 'AUD',
                         ],
                         'autocomplete' => true,
@@ -368,17 +420,19 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->save();
 
                 if ($invoice) {
-                    $wasPaid = (string) $invoice->status === \App\Models\Invoice::STATUS_PAID;
                     $invoice->status = \App\Models\Invoice::STATUS_PAID;
                     $invoice->save();
                     $customerPayment->allocations()->create([
                         'invoice_id' => $invoice->id,
-                        'allocated_amount' => $amount,
+                        'allocated_amount' => $remainingAmount,
                     ]);
 
                 }
-            } elseif ($invoice) {
+            } elseif ($invoice && $remainingAmount > 0.0001) {
                 $invoice->status = \App\Models\Invoice::STATUS_ISSUED;
+                $invoice->save();
+            } elseif ($invoice) {
+                $invoice->status = \App\Models\Invoice::STATUS_PAID;
                 $invoice->save();
             }
 
@@ -408,8 +462,9 @@ class WorkshopTicketFlowController extends Controller
 
             return [
                 'invoice_id' => $invoice?->id,
-                'payment_method' => $paymentMethod,
+                'payment_method' => $effectivePaymentMethod,
                 'payment_id' => isset($customerPayment) ? (int) $customerPayment->id : null,
+                'credit_applied' => $creditApplied,
             ];
         });
         $ticketService->syncManagedTicketStatus($workshop);
@@ -417,7 +472,19 @@ class WorkshopTicketFlowController extends Controller
         $session['invoice_id'] = $result['invoice_id'];
         $session['payment_method'] = $result['payment_method'];
         $session['payment_id'] = $result['payment_id'] ?? null;
+        $session['credit_applied_amount'] = round((float) ($result['credit_applied'] ?? 0), 2);
         $session['payment_complete'] = true;
+        $delivery = $this->createWorkshopTicketEmailDelivery(
+            workshop: $workshop,
+            ticketIds: $holdIds,
+            invoiceId: $result['invoice_id'],
+            paymentId: $result['payment_id'] ?? null,
+            recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
+            recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
+            paymentMethod: (string) $result['payment_method'],
+            amount: $amount
+        );
+        $session['email_delivery_id'] = $delivery->id;
         $this->putFlowSession($workshop, $session);
 
         $this->workshopRegistrationGroups->assignForTickets(
@@ -429,37 +496,8 @@ class WorkshopTicketFlowController extends Controller
             trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
         );
 
-        try {
-            $invoice = isset($result['invoice_id']) ? Invoice::query()->find($result['invoice_id']) : null;
-            $tickets = Ticket::query()
-                ->with('workshop.location')
-                ->where('workshop_id', $workshop->id)
-                ->whereIn('id', $holdIds)
-                ->orderBy('id')
-                ->get();
-            $customerPayment = isset($result['payment_id']) && (int) $result['payment_id'] > 0
-                ? Payment::query()->find((int) $result['payment_id'])
-                : null;
-            $this->sendCustomerTicketOrderConfirmation(
-                workshop: $workshop->loadMissing('location'),
-                tickets: [],
-                invoice: $invoice,
-                payment: $customerPayment,
-                paymentMethod: (string) $result['payment_method'],
-                amount: $amount,
-                purchaserEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
-                purchaserName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
-                ticketCount: $tickets->count()
-            );
-        } catch (Throwable $e) {
-            report($e);
-            session()->flash(
-                'message',
-                'Checkout completed, but we could not send your confirmation email right now. You can still access your tickets from your account or via ticket lookup.'
-            );
-            session()->flash('message-title', 'Email not sent');
-            session()->flash('message-type', 'warning');
-        }
+        SendWorkshopTicketOrderEmail::dispatch($delivery->id)
+            ->delay(now()->addMinutes(30));
 
         return redirect()->route('workshop.ticket.flow.details', $workshop);
     }
@@ -512,6 +550,17 @@ class WorkshopTicketFlowController extends Controller
         $session['payment_method'] = $result['payment_method'];
         $session['payment_id'] = $result['payment_id'];
         $session['payment_complete'] = true;
+        $delivery = $this->createWorkshopTicketEmailDelivery(
+            workshop: $workshop,
+            ticketIds: $holdIds,
+            invoiceId: null,
+            paymentId: null,
+            recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
+            recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
+            paymentMethod: (string) $result['payment_method'],
+            amount: 0.0
+        );
+        $session['email_delivery_id'] = $delivery->id;
         $this->putFlowSession($workshop, $session);
 
         $this->workshopRegistrationGroups->assignForTickets(
@@ -523,6 +572,9 @@ class WorkshopTicketFlowController extends Controller
             trim((string) ($session['purchaser_user_id'] ?? '')) ?: null
         );
 
+        SendWorkshopTicketOrderEmail::dispatch($delivery->id)
+            ->delay(now()->addMinutes(30));
+
         return redirect()->route('workshop.ticket.flow.details', $workshop);
     }
 
@@ -532,7 +584,7 @@ class WorkshopTicketFlowController extends Controller
 
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['payment_complete'] ?? false)) {
-            return redirect()->route('workshop.ticket.flow.start', $workshop);
+            return $this->redirectToWorkshopWithCheckoutExpiredToast($workshop);
         }
 
         $tickets = Ticket::query()
@@ -598,13 +650,17 @@ class WorkshopTicketFlowController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function saveDetails(Request $request, Workshop $workshop): RedirectResponse
+    public function saveDetails(
+        Request $request,
+        Workshop $workshop,
+        WorkshopTicketOrderEmailService $emailService
+    ): RedirectResponse
     {
         $this->ensureWorkshopPubliclyVisible($workshop);
 
         $session = $this->getFlowSession($workshop);
         if (! $session || !($session['payment_complete'] ?? false)) {
-            return redirect()->route('workshop.ticket.flow.start', $workshop);
+            return $this->redirectToWorkshopWithCheckoutExpiredToast($workshop);
         }
 
         $validated = $request->validate([
@@ -652,35 +708,39 @@ class WorkshopTicketFlowController extends Controller
         $this->putFlowSession($workshop, $session);
 
         try {
-            $updatedTickets = Ticket::query()
-                ->with('workshop.location')
-                ->whereIn('id', $updatedHoldIds)
-                ->orderBy('id')
-                ->get();
-            $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
+            $invoice = isset($session['invoice_id']) ? Invoice::query()->find((int) $session['invoice_id']) : null;
             $payment = isset($session['payment_id']) ? Payment::query()->find((int) $session['payment_id']) : null;
-            $purchaserEmail = strtolower(trim((string) ($session['purchaser']['email'] ?? '')));
-            $purchaserName = trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? '')));
-            $orderAmount = (float) ($payment->total_amount ?? $invoice->total_amount ?? 0.0);
+            $orderAmount = (float) (($payment->total_amount ?? 0) ?: ($invoice->total_amount ?? 0));
+            $delivery = null;
+            $deliveryId = (int) ($session['email_delivery_id'] ?? 0);
+            if ($deliveryId > 0) {
+                $delivery = WorkshopTicketEmail::query()->find($deliveryId);
+            }
 
-            $this->sendCustomerTicketOrderConfirmation(
-                workshop: $workshop->loadMissing('location'),
-                tickets: $updatedTickets->all(),
-                invoice: null,
-                payment: null,
-                paymentMethod: (string) ($session['payment_method'] ?? 'free'),
-                amount: $orderAmount,
-                purchaserEmail: $purchaserEmail,
-                purchaserName: $purchaserName
-            );
+            if (! $delivery instanceof WorkshopTicketEmail) {
+                $delivery = $this->createWorkshopTicketEmailDelivery(
+                    workshop: $workshop,
+                    ticketIds: $updatedHoldIds,
+                    invoiceId: $invoice?->id ? (int) $invoice->id : null,
+                    paymentId: $payment?->id ? (int) $payment->id : null,
+                    recipientEmail: strtolower(trim((string) ($session['purchaser']['email'] ?? ''))),
+                    recipientName: trim((string) (($session['purchaser']['firstname'] ?? '').' '.($session['purchaser']['surname'] ?? ''))),
+                    paymentMethod: (string) ($session['payment_method'] ?? 'free'),
+                    amount: $orderAmount
+                );
+                $session['email_delivery_id'] = $delivery->id;
+                $this->putFlowSession($workshop, $session);
+            }
 
-            $this->sendCheckoutHolderTicketEmails(
-                tickets: $updatedTickets->all(),
-                purchaserEmail: $purchaserEmail,
-                purchaserName: $purchaserName
-            );
+            $emailService->queueCombinedEmail($delivery);
         } catch (Throwable $e) {
             report($e);
+            session()->flash(
+                'message',
+                'We could not queue the combined ticket email right now. It will be retried automatically.'
+            );
+            session()->flash('message-title', 'Email not queued');
+            session()->flash('message-type', 'warning');
         }
 
         return redirect()->route('workshop.ticket.flow.complete', $workshop);
@@ -704,17 +764,10 @@ class WorkshopTicketFlowController extends Controller
         $invoice = isset($session['invoice_id']) ? Invoice::query()->find($session['invoice_id']) : null;
         $payment = isset($session['payment_id']) ? Payment::query()->find((int) $session['payment_id']) : null;
         $sentToEmail = trim((string) ($session['purchaser']['email'] ?? $tickets->first()->email ?? ''));
-        $normalizedSentToEmail = strtolower($sentToEmail);
-        $holderRecipientCount = $tickets
-            ->map(fn (Ticket $ticket): string => strtolower(trim((string) ($ticket->email ?? ''))))
-            ->filter(fn (string $email): bool => $email !== '')
-            ->unique()
-            ->reject(fn (string $email): bool => $email === $normalizedSentToEmail)
-            ->count();
         $accessToken = null;
 
         if ($sentToEmail !== '') {
-            $tokenUserId = trim((string) ($session['purchaser_user_id'] ?? $tickets->first()->user_id ?? auth()->id()));
+            $tokenUserId = trim((string) ($session['purchaser_user_id'] ?? $tickets->first()->user_id ?? $this->checkoutAccountUserId()));
             if ($tokenUserId !== '') {
                 $token = Token::create([
                     'user_id' => $tokenUserId,
@@ -733,7 +786,6 @@ class WorkshopTicketFlowController extends Controller
             'payment' => $payment,
             'session' => $session,
             'sentToEmail' => $sentToEmail,
-            'holderRecipientCount' => $holderRecipientCount,
             'accessToken' => $accessToken,
         ]);
     }
@@ -852,7 +904,7 @@ class WorkshopTicketFlowController extends Controller
 
         $invoice = new Invoice();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
-        $invoice->user_id = $purchaserUserId ?: auth()->id();
+        $invoice->user_id = $purchaserUserId ?: $this->checkoutAccountUserId();
         $invoice->billing_name = trim((string) (($purchaser['firstname'] ?? '').' '.($purchaser['surname'] ?? '')));
         $invoice->billing_email = trim((string) ($purchaser['email'] ?? ''));
         $invoice->billing_phone = trim((string) ($purchaser['phone'] ?? ''));
@@ -958,8 +1010,9 @@ class WorkshopTicketFlowController extends Controller
 
     private function resolveCheckoutUserId(array $purchaser): ?string
     {
-        if (auth()->check()) {
-            return (string) auth()->id();
+        $checkoutUser = $this->checkoutAccountUser();
+        if ($checkoutUser instanceof User) {
+            return (string) $checkoutUser->id;
         }
 
         $email = strtolower(trim((string) ($purchaser['email'] ?? '')));
@@ -1038,7 +1091,7 @@ class WorkshopTicketFlowController extends Controller
 
     private function defaultPurchaserData(): array
     {
-        $user = auth()->user();
+        $user = $this->checkoutAccountUser();
 
         return [
             'firstname' => (string) ($user->firstname ?? ''),
@@ -1046,6 +1099,109 @@ class WorkshopTicketFlowController extends Controller
             'email' => (string) ($user->email ?? ''),
             'phone' => (string) ($user->phone ?? ''),
         ];
+    }
+
+    private function checkoutAccountUser(): ?User
+    {
+        $user = auth()->user();
+
+        if (! $user instanceof User || ! $user->canPurchaseOrBook()) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    private function checkoutAccountUserId(): ?string
+    {
+        $user = $this->checkoutAccountUser();
+
+        return $user instanceof User ? (string) $user->id : null;
+    }
+
+    private function checkoutCreditUser(array $session): ?User
+    {
+        $checkoutUser = $this->checkoutAccountUser();
+        if ($checkoutUser instanceof User && $checkoutUser->canPurchaseOrBook()) {
+            return $checkoutUser;
+        }
+
+        $sessionUserId = trim((string) ($session['purchaser_user_id'] ?? ''));
+        if ($sessionUserId === '') {
+            return null;
+        }
+
+        $sessionUser = User::query()->find($sessionUserId);
+
+        return $sessionUser instanceof User && $sessionUser->canPurchaseOrBook()
+            ? $sessionUser
+            : null;
+    }
+
+    private function purchaserEmailHasCredit(array $session): bool
+    {
+        $email = strtolower(trim((string) data_get($session, 'purchaser.email', '')));
+        if ($email === '') {
+            return false;
+        }
+
+        $purchaser = User::query()
+            ->whereRaw('LOWER(email) = ?', [$email])
+            ->first();
+
+        if (! $purchaser instanceof User) {
+            return false;
+        }
+
+        return $this->accountCredit->availableCreditForUser($purchaser) > 0.0001;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function accountCreditDebugRows(?User $user): array
+    {
+        if (! $user instanceof User) {
+            return [];
+        }
+
+        return Payment::query()
+            ->where('user_id', $user->id)
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->where('payment_method', Payment::PAYMENT_METHOD_CREDIT)
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->orderBy('received_on')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->map(function (Payment $payment): array {
+                $total = (float) $payment->total_amount;
+                $allocated = (float) ($payment->allocated_amount_sum ?? 0);
+                $refunded = (float) ($payment->refunded_amount_sum ?? 0);
+                $available = max(0, round($total - $allocated - $refunded, 2));
+
+                return [
+                    'id' => $payment->id,
+                    'reference' => (string) ($payment->reference ?? ''),
+                    'received_on' => optional($payment->received_on)->format('Y-m-d H:i:s'),
+                    'total_amount' => $total,
+                    'allocated_amount' => $allocated,
+                    'refunded_amount' => $refunded,
+                    'available_amount' => $available,
+                ];
+            })
+            ->all();
+    }
+
+    private function redirectToWorkshopWithCheckoutExpiredToast(Workshop $workshop): RedirectResponse
+    {
+        session()->flash('message', 'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.');
+        session()->flash('message-title', 'Session expired');
+        session()->flash('message-type', 'warning');
+
+        return redirect()->route('workshop.show', $workshop);
     }
 
     private function squareDateTime($value): ?Carbon
@@ -1062,152 +1218,43 @@ class WorkshopTicketFlowController extends Controller
         }
     }
 
-    private function sendCustomerTicketOrderConfirmation(
+    /**
+     * @param  array<int, int>  $ticketIds
+     */
+    private function createWorkshopTicketEmailDelivery(
         Workshop $workshop,
-        array $tickets,
-        ?Invoice $invoice,
-        ?Payment $payment,
+        array $ticketIds,
+        ?int $invoiceId,
+        ?int $paymentId,
+        string $recipientEmail,
+        string $recipientName,
         string $paymentMethod,
-        float $amount,
-        ?string $purchaserEmail = null,
-        ?string $purchaserName = null,
-        ?int $ticketCount = null
-    ): void {
-        $recipient = strtolower(trim((string) ($purchaserEmail ?? $tickets[0]->email ?? $invoice->billing_email ?? auth()->user()->email ?? '')));
-        if ($recipient === '') {
-            return;
+        float $amount
+    ): WorkshopTicketEmail {
+            $normalizedTicketIds = collect($ticketIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalizedTicketIds === []) {
+            throw new RuntimeException('Cannot create a workshop ticket email without tickets.');
         }
 
-        $attachments = [];
+        $delivery = new WorkshopTicketEmail();
+        $delivery->workshop_id = (string) $workshop->id;
+        $delivery->ticket_ids = $normalizedTicketIds;
+        $delivery->invoice_id = $invoiceId;
+        $delivery->payment_id = $paymentId;
+        $delivery->recipient_email = strtolower(trim($recipientEmail));
+        $delivery->recipient_name = trim($recipientName);
+        $delivery->payment_method = trim($paymentMethod);
+        $delivery->amount = round($amount, 2);
+        $delivery->status = WorkshopTicketEmail::STATUS_PENDING;
+        $delivery->save();
 
-        if ($invoice instanceof Invoice) {
-            $invoicePdf = $this->buildInvoicePdfBinary($invoice);
-            if ($invoicePdf !== null) {
-                $attachments[] = [
-                    'type' => 'invoice',
-                    'content' => $invoicePdf,
-                    'filename' => $this->invoicePdfFilename($invoice),
-                    'mime' => 'application/pdf',
-                ];
-            }
-        }
-
-        if ($invoice instanceof Invoice && $payment instanceof Payment) {
-            $receiptPdf = $this->buildPaymentReceiptPdfBinary($invoice, $payment);
-            if ($receiptPdf !== null) {
-                $attachments[] = [
-                    'type' => 'receipt',
-                    'content' => $receiptPdf,
-                    'filename' => ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').((int) $payment->id).'.pdf',
-                    'mime' => 'application/pdf',
-                ];
-            }
-        }
-
-        foreach ($tickets as $ticket) {
-            if (! $ticket instanceof Ticket) {
-                continue;
-            }
-
-            $ticketPdf = $this->buildTicketPdfBinary($ticket);
-            if ($ticketPdf === null) {
-                continue;
-            }
-
-            $attachments[] = [
-                'type' => 'ticket',
-                'content' => $ticketPdf,
-                'filename' => $this->ticketPdfFilename($ticket),
-                'mime' => 'application/pdf',
-            ];
-        }
-
-        $ticketRows = array_map(function (Ticket $ticket): array {
-            return [
-                'reference' => $ticket->ensureReferenceCode(),
-                'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
-                'email' => (string) ($ticket->email ?? ''),
-            ];
-        }, $tickets);
-
-        $recipientName = trim((string) ($purchaserName ?? ''));
-        if ($recipientName === '') {
-            $recipientName = trim((string) (($tickets[0]->firstname ?? '').' '.($tickets[0]->surname ?? '')));
-        }
-        if ($recipientName === '') {
-            $recipientName = auth()->user()?->getName() ?: $recipient;
-        }
-
-        dispatch(new SendEmail($recipient, new TicketOrderConfirmation(
-            recipientName: $recipientName,
-            workshop: [
-                'title' => (string) ($workshop->title ?? ''),
-                'time' => (string) ($workshop->getTicketTimeRangeLabel()),
-                'location' => (string) ($workshop->getLocationDisplay(true)),
-            ],
-            tickets: $ticketRows,
-            paymentMethodLabel: match ($paymentMethod) {
-                'credit_card' => 'Credit Card',
-                'pay_at_door' => 'Pay at Door',
-                'bank_transfer' => 'Bank Transfer',
-                'free' => 'Free',
-                default => ucwords(str_replace('_', ' ', $paymentMethod)),
-            },
-            amount: (float) $amount,
-            invoice: $invoice ? [
-                'number' => (string) $invoice->invoice_number,
-                'status' => (string) $invoice->status,
-            ] : null,
-            attachments: $attachments,
-            ticketCount: $ticketCount,
-        )))->onQueue('mail');
-    }
-
-    private function sendCheckoutHolderTicketEmails(
-        array $tickets,
-        string $purchaserEmail,
-        string $purchaserName
-    ): void {
-        $normalizedPurchaser = strtolower(trim($purchaserEmail));
-
-        foreach ($tickets as $ticket) {
-            if (! $ticket instanceof Ticket) {
-                continue;
-            }
-
-            $recipient = strtolower(trim((string) ($ticket->email ?? '')));
-            if ($recipient === '' || $recipient === $normalizedPurchaser) {
-                continue;
-            }
-
-            $ticketPdf = $this->buildTicketPdfBinary($ticket);
-            $ticketAttachment = $ticketPdf !== null ? [
-                'content' => $ticketPdf,
-                'filename' => $this->ticketPdfFilename($ticket),
-                'mime' => 'application/pdf',
-            ] : null;
-
-            $workshopInfo = [
-                'title' => (string) ($ticket->workshop->title ?? ''),
-                'time' => (string) ($ticket->workshop?->getTicketTimeRangeLabel() ?? '-'),
-                'location' => (string) ($ticket->workshop?->getLocationDisplay(true) ?? '-'),
-            ];
-            $ticketInfo = [
-                'reference' => $ticket->ensureReferenceCode(),
-                'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
-                'email' => (string) ($ticket->email ?? ''),
-                'phone' => (string) ($ticket->phone ?? ''),
-            ];
-
-            dispatch(new SendEmail($recipient, new TicketAttendeeUpdate(
-                mode: 'new_holder',
-                recipientName: trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))),
-                purchaserName: $purchaserName,
-                workshop: $workshopInfo,
-                ticket: $ticketInfo,
-                attachment: $ticketAttachment
-            )))->onQueue('mail');
-        }
+        return $delivery;
     }
 
     private function buildInvoicePdfBinary(Invoice $invoice): ?string
@@ -1390,11 +1437,15 @@ class WorkshopTicketFlowController extends Controller
             return null;
         }
 
-        $thumbnailVariant = $hero->getClosestVariant('thumbnail');
-        $thumbnailVariantName = trim((string) ($thumbnailVariant['variant'] ?? ''));
-        $thumbnailPath = (string) ($thumbnailVariant['file'] ?? '');
-        if ($thumbnailVariantName !== '' && $thumbnailPath !== '' && is_file($thumbnailPath)) {
-            return $thumbnailPath;
+        try {
+            $thumbnailVariant = $hero->getClosestVariant('thumbnail');
+            $thumbnailVariantName = trim((string) ($thumbnailVariant['variant'] ?? ''));
+            $thumbnailPath = (string) ($thumbnailVariant['file'] ?? '');
+            if ($thumbnailVariantName !== '' && $thumbnailPath !== '' && is_file($thumbnailPath)) {
+                return $thumbnailPath;
+            }
+        } catch (Throwable) {
+            return null;
         }
 
         return null;

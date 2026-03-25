@@ -14,7 +14,7 @@ class ShopPreorderShippingTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_preorder_product_requires_acknowledgement_before_adding_to_cart(): void
+    public function test_legacy_preorder_product_adds_without_acknowledgement_and_behaves_as_backorder(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -29,16 +29,12 @@ class ShopPreorderShippingTest extends TestCase
 
         $this->post(route('shop.cart.add', $product), [
             'quantity' => 1,
-        ])->assertSessionHasErrors('preorder_acknowledged');
-
-        $this->assertCount(0, app(StoreCartService::class)->lines());
-
-        $this->post(route('shop.cart.add', $product), [
-            'quantity' => 1,
-            'preorder_acknowledged' => '1',
         ])->assertRedirect(route('shop.cart.show'));
 
-        $this->assertCount(1, app(StoreCartService::class)->lines());
+        $lines = app(StoreCartService::class)->lines();
+
+        $this->assertCount(1, $lines);
+        $this->assertSame('backorder', $lines->first()->delayed_fulfilment_type);
     }
 
     public function test_pickup_checkout_is_free_and_does_not_require_shipping_address(): void
@@ -77,7 +73,7 @@ class ShopPreorderShippingTest extends TestCase
         $this->assertSame('', (string) $order->shipping_address);
     }
 
-    public function test_preorder_checkout_uses_add_to_cart_acknowledgement_and_snapshots_preorder_metadata(): void
+    public function test_legacy_preorder_checkout_snapshots_as_backorder_metadata(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -93,7 +89,6 @@ class ShopPreorderShippingTest extends TestCase
 
         $this->post(route('shop.cart.add', $product), [
             'quantity' => 1,
-            'preorder_acknowledged' => '1',
         ])->assertRedirect(route('shop.cart.show'));
 
         $this->get(route('shop.checkout'))
@@ -115,10 +110,12 @@ class ShopPreorderShippingTest extends TestCase
             'accessToken' => $order->access_token,
         ]));
 
-        $this->assertTrue($order->contains_preorder);
-        $this->assertTrue($order->preorder_acknowledged);
-        $this->assertTrue($item->is_preorder);
-        $this->assertSame('2026-04-15', optional($item->preorder_shipping_estimate)->toDateString());
+        $this->assertFalse($order->contains_preorder);
+        $this->assertFalse($order->preorder_acknowledged);
+        $this->assertFalse($item->is_preorder);
+        $this->assertNull($item->preorder_shipping_estimate);
+        $this->assertSame('backorder', $item->delayed_fulfilment_type);
+        $this->assertSame('2026-04-15', optional($item->delayed_shipping_estimate)->toDateString());
         $this->assertSame(0, (int) $item->inventory_reserved_quantity);
     }
 

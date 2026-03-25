@@ -103,4 +103,32 @@ class UsernameLoginTest extends TestCase
 
         $this->assertNotNull(Token::query()->where('user_id', $user->id)->where('type', 'login')->first());
     }
+
+    public function test_verified_user_with_password_is_prompted_for_password_instead_of_email_link(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'member@example.com',
+            'username' => 'member1',
+            'email_verified_at' => now(),
+            'password' => 'secret1234',
+        ]);
+
+        $response = $this->withSession([
+            'altcha_trusted_until' => Carbon::now()->addMinutes(60)->getTimestamp(),
+        ])->post(route('login.store'), [
+            'login' => 'member1',
+            'remember_email' => '0',
+        ]);
+
+        $response->assertOk();
+        $response->assertSee('Enter your password');
+        $response->assertSee('name="password"', false);
+        $response->assertSee('Sign in another way');
+        $response->assertSee(route('login'), false);
+
+        $this->assertDatabaseMissing('tokens', [
+            'user_id' => $user->id,
+            'type' => 'login',
+        ]);
+    }
 }

@@ -15,17 +15,13 @@
 
 <body>
     @php
+    $receiptTitle = trim((string) ($receiptTitle ?? 'Payment Receipt'));
     $isRefundDocument = (bool) ($isRefund ?? false);
-    $inlineLogoSvg = inlineSvgAsset('logo.svg', 'logo');
-    $logoPath = '';
-    if ($inlineLogoSvg === '') {
+    $isCreditReceipt = (bool) ($isCreditReceipt ?? false);
+    $inlineLogoSvg = '';
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
-    $logoPath = public_path('logo.png');
-    }
-    if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
-    }
     }
     $businessInfoHtml = \App\Models\SiteOption::valueToHtml('document.business-info');
 
@@ -38,8 +34,23 @@
     $cardDisplay = trim($cardBrand.($cardLast4 !== '' ? ' ending in '.$cardLast4 : ''));
     $invoiceDisplay = trim((string) ($invoiceNumber ?? ''));
     $invoiceLabelDisplay = trim((string) ($invoiceLabel ?? ''));
+    $receiptNumberLabel = trim((string) ($receiptNumberLabel ?? ''));
+    $creditReferenceSummary = trim((string) ($creditReferenceSummary ?? ''));
+    $headlineLabel = 'receipt';
+    $summaryAmountLabel = 'TOTAL';
+    if ($receiptTitle !== '' && strtolower($receiptTitle) !== 'payment receipt') {
+        $headlineLabel = strtolower($receiptTitle);
+    }
+    if ($isRefundDocument) {
+        $summaryAmountLabel = trim((string) ($amountLabel ?? 'Amount Refunded')) ?: 'Amount Refunded';
+    } elseif ($isCreditReceipt) {
+        $summaryAmountLabel = 'TOTAL';
+    }
     if ($invoiceLabelDisplay === '') {
-    $invoiceLabelDisplay = 'Invoice Number';
+        $invoiceLabelDisplay = 'Invoice Number';
+    }
+    if ($receiptNumberLabel === '') {
+        $receiptNumberLabel = $isRefundDocument ? 'REFUND NO' : ($isCreditReceipt ? 'CREDIT RECEIPT NO' : 'RECEIPT NO');
     }
     $paidOnDateLine = trim((string) ($paidOn ?? ''));
     if ($paidOnDateLine !== '') {
@@ -56,9 +67,7 @@
         <table class="header">
             <tr>
                 <td class="logo-wrap">
-                    @if($inlineLogoSvg !== '')
-                    {!! $inlineLogoSvg !!}
-                    @elseif(file_exists($logoPath))
+                    @if(file_exists($logoPath))
                     <img class="logo" src="{{ $logoPath }}" alt="Logo" />
                     @endif
                 </td>
@@ -68,8 +77,10 @@
                 <td class="headline">
                     @if($isRefundDocument)
                     <div>hello.<br>this is your <span class="underline">refund receipt</span>.</div>
+                    @elseif($isCreditReceipt)
+                    <div>hello.<br>this is your <span class="underline">credit receipt</span>.</div>
                     @else
-                    <div>hello.<br>this is your <span class="underline">receipt</span>.</div>
+                    <div>hello.<br>this is your <span class="underline">{{ $headlineLabel }}</span>.</div>
                     @endif
                 </td>
             </tr>
@@ -82,9 +93,9 @@
                 <td class="summary-wrap">
                     <table class="summary">
                         <tr>
-                            <th>{{ $isRefundDocument ? 'REFUND NO' : 'RECEIPT NO' }}</th>
+                            <th>{{ $receiptNumberLabel }}</th>
                             <th>DATE / TIME</th>
-                            <th class="pay">TOTAL</th>
+                            <th class="pay">{{ strtoupper($summaryAmountLabel) }}</th>
                         </tr>
                         <tr>
                             <td class="invoice-number">{{ $receiptNumber }}</td>
@@ -102,10 +113,28 @@
                     <td>Payment Method</td>
                     <td>{{ $paymentMethod ?? '-' }}</td>
                 </tr>
+                @if(! $isCreditReceipt && (float) ($creditAppliedAmount ?? 0) > 0.0001)
+                <tr>
+                    <td>Account Credit Applied</td>
+                    <td>$ {{ number_format((float) $creditAppliedAmount, 2) }}</td>
+                </tr>
+                @endif
+                @if(! $isCreditReceipt && $creditReferenceSummary !== '')
+                <tr>
+                    <td>Credit Reference</td>
+                    <td>{{ $creditReferenceSummary }}</td>
+                </tr>
+                @endif
+                @if(! $isCreditReceipt && (float) ($orderTotalAmount ?? 0) > 0.0001 && abs((float) $orderTotalAmount - (float) $amountPaid) > 0.0001)
+                <tr>
+                    <td>Order Total</td>
+                    <td>$ {{ number_format((float) $orderTotalAmount, 2) }}</td>
+                </tr>
+                @endif
                 @if($invoiceDisplay !== '')
                 <tr>
                     <td>{{ $invoiceLabelDisplay }}</td>
-                    <td>{{ $invoiceDisplay }}</td>
+                    <td style="white-space: pre-line;">{{ $invoiceDisplay }}</td>
                 </tr>
                 @endif
                 @if($reference !== '')

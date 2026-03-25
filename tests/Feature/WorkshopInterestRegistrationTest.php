@@ -7,6 +7,7 @@ use App\Mail\WorkshopInterestAdminNotification;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Models\Workshop;
 use App\Models\WorkshopInterest;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -171,6 +172,50 @@ class WorkshopInterestRegistrationTest extends TestCase
         ]);
     }
 
+    public function test_child_account_interest_email_includes_parent_contact_details(): void
+    {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
+
+        $parent = User::factory()->create([
+            'firstname' => 'Pat',
+            'surname' => 'Parent',
+            'email' => 'parent@example.com',
+            'phone' => '0411000000',
+        ]);
+        $child = User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'firstname' => 'Charlie',
+            'surname' => 'Child',
+            'email' => null,
+            'email_verified_at' => null,
+            'phone' => '',
+        ]);
+        $workshop = $this->createInterestWorkshop();
+
+        $this->actingAs($child)
+            ->post(route('workshop.interest', $workshop), [
+                'action' => 'add',
+            ])
+            ->assertRedirect(route('workshop.show', $workshop))
+            ->assertSessionHas('message', 'Thanks, your interest has been recorded.');
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($workshop): bool {
+            if ($job->to !== 'ops@example.com'
+                || ! $job->mailable instanceof WorkshopInterestAdminNotification
+                || (string) $job->mailable->workshop->id !== (string) $workshop->id) {
+                return false;
+            }
+
+            $rendered = html_entity_decode(strip_tags($job->mailable->render()));
+
+            return str_contains($rendered, 'Charlie Child (Child Account)')
+                && str_contains($rendered, 'Parent name: Pat Parent')
+                && str_contains($rendered, 'Parent email: parent@example.com')
+                && str_contains($rendered, 'Parent phone: 0411000000');
+        });
+    }
+
     public function test_guest_cannot_register_interest_twice_for_same_workshop(): void
     {
         Queue::fake();
@@ -203,6 +248,113 @@ class WorkshopInterestRegistrationTest extends TestCase
         Queue::assertPushed(SendEmail::class, 1);
     }
 
+    public function test_admin_can_view_interest_registrations_on_workshop_interest_page(): void
+    {
+        $admin = $this->createAdminUser();
+        $parent = User::factory()->create([
+            'firstname' => 'Pat',
+            'surname' => 'Parent',
+            'email' => 'parent@example.com',
+            'phone' => '0411000000',
+        ]);
+        $child = User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'firstname' => 'Charlie',
+            'surname' => 'Child',
+            'email' => null,
+            'email_verified_at' => null,
+            'phone' => '',
+        ]);
+        $guestUser = User::factory()->unverified()->create([
+            'firstname' => 'Guest',
+            'surname' => 'Example',
+            'email' => 'guest@example.com',
+            'phone' => '0400000001',
+        ]);
+        $workshop = $this->createInterestWorkshop();
+
+        WorkshopInterest::query()->forceCreate([
+            'workshop_id' => $workshop->id,
+            'user_id' => $child->id,
+            'name' => 'Charlie Child',
+            'email' => '',
+            'phone' => '',
+            'created_at' => now()->subDay(),
+            'updated_at' => now()->subDay(),
+        ]);
+        WorkshopInterest::query()->forceCreate([
+            'workshop_id' => $workshop->id,
+            'user_id' => $guestUser->id,
+            'name' => 'Guest Example',
+            'email' => 'guest@example.com',
+            'phone' => '0400000001',
+            'created_at' => now()->subHours(3),
+            'updated_at' => now()->subHours(3),
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.interests', $workshop))
+            ->assertOk()
+            ->assertSeeText('Interest Registrations')
+            ->assertSeeText('Charlie Child')
+            ->assertSeeText('Parent contact: Pat Parent')
+            ->assertSeeText('parent@example.com')
+            ->assertSeeText('0411000000')
+            ->assertSeeText('Guest Example')
+            ->assertSeeText('guest@example.com')
+            ->assertSeeText('0400000001');
+    }
+
+    public function test_admin_workshop_index_shows_interest_count_link(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createInterestWorkshop();
+        $firstUser = User::factory()->unverified()->create(['email' => 'interest-one@example.com']);
+        $secondUser = User::factory()->unverified()->create(['email' => 'interest-two@example.com']);
+
+        WorkshopInterest::query()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $firstUser->id,
+            'name' => 'First Interest',
+            'email' => 'interest-one@example.com',
+            'phone' => '0400000001',
+        ]);
+        WorkshopInterest::query()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $secondUser->id,
+            'name' => 'Second Interest',
+            'email' => 'interest-two@example.com',
+            'phone' => '0400000002',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.index'))
+            ->assertOk()
+            ->assertSeeText('2 interests')
+            ->assertSee(route('admin.workshop.interests', $workshop), false);
+    }
+
+    public function test_admin_workshop_show_page_has_interest_registrations_button(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createInterestWorkshop();
+        $ghostUser = User::factory()->unverified()->create(['email' => 'interest@example.com']);
+
+        WorkshopInterest::query()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $ghostUser->id,
+            'name' => 'Interest Example',
+            'email' => 'interest@example.com',
+            'phone' => '0400000001',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSeeText('View Interests (1)')
+            ->assertSee(route('admin.workshop.interests', $workshop), false);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -210,6 +362,7 @@ class WorkshopInterestRegistrationTest extends TestCase
     {
         $author = User::factory()->create();
         $location = Location::factory()->create();
+        /** @var Media $hero */
         $hero = Media::factory()->create([
             'name' => 'hero-'.strtolower((string) fake()->unique()->bothify('######')).'.png',
             'mime_type' => 'image/png',
@@ -239,5 +392,16 @@ class WorkshopInterestRegistrationTest extends TestCase
             'user_id' => (string) $author->id,
             'hero_media_name' => (string) $hero->name,
         ], $overrides));
+    }
+
+    private function createAdminUser(): User
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        return $admin;
     }
 }

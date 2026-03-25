@@ -4,10 +4,16 @@
     $selectedShippingState = trim((string) ($prefill['shipping_state'] ?? ''));
     $consolidationSavingsAmount = (float) ($summary['shipping_quote']['consolidation_savings_amount'] ?? 0);
     $itemCount = (int) $lines->sum('quantity');
-    $hasAmountDue = (float) ($summary['total'] ?? 0) > 0.0001;
-    $submitLabel = 'Place Order';
-    $continueLabel = $hasAmountDue ? 'Enter Payment Details' : 'Review Order';
-    $showPaymentStep = session('shop_checkout_step') === 'payment' || $errors->has('source_id') || $errors->has('cart');
+    $checkoutTotal = (float) ($summary['total'] ?? 0);
+    $hasCheckoutTotal = $checkoutTotal > 0.0001;
+    $accountCreditAvailable = round((float) ($accountCreditAvailable ?? 0), 2);
+    $accountCreditApplied = round((float) ($accountCreditApplied ?? 0), 2);
+    $amountDueAfterCredit = round((float) ($amountDueAfterCredit ?? $checkoutTotal), 2);
+    $hasAmountDue = $amountDueAfterCredit > 0.0001;
+    $requiresManualQuote = (bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false);
+    $submitLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Place Order' : 'Complete Order');
+    $continueLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Enter Payment Details' : 'Complete Order');
+    $showPaymentStep = ! $requiresManualQuote && (session('shop_checkout_step') === 'payment' || $errors->has('source_id') || $errors->has('cart'));
 @endphp
 
 <x-layout title="Checkout" :canonical="route('shop.checkout')">
@@ -24,7 +30,10 @@
                 shippingCountry: @js($cartPayload['shipping_country'] ?? $prefill['shipping_country']),
                 consolidateShipments: @js((bool) ($cartPayload['summary']['consolidate_shipments'] ?? $prefill['consolidate_shipments'])),
                 canOfferConsolidation: @js($canOfferConsolidation),
-                requiresPayment: @js(((float) ($cartPayload['summary']['total'] ?? ($summary['total'] ?? 0))) > 0.0001),
+                requiresPayment: @js($amountDueAfterCredit > 0.0001),
+                accountCreditAvailable: @js($accountCreditAvailable),
+                accountCreditApplied: @js($accountCreditApplied),
+                amountDueAfterCredit: @js($amountDueAfterCredit),
                 squareEnabled: @js($squareEnabled),
                 squareApplicationId: @js($squareApplicationId),
                 squareLocationId: @js($squareLocationId),
@@ -68,8 +77,8 @@
                 <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
                     <div class="flex items-start justify-between gap-4">
                         <div>
-                            <div class="text-sm uppercase tracking-[0.18em] text-gray-500">Step 1 of 2</div>
-                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Shipping Details</h3>
+                            <div class="text-sm uppercase tracking-[0.18em] text-gray-500" x-text="requiresManualQuote() ? 'Step 1 of 1' : 'Step 1 of 2'">{{ $requiresManualQuote ? 'Step 1 of 1' : 'Step 1 of 2' }}</div>
+                            <h3 class="mt-1 text-2xl font-bold text-gray-900">Order Details</h3>
                             <p class="mt-2 text-sm text-gray-600">Contact details, delivery settings, item review, and order notes.</p>
                         </div>
                         <button
@@ -84,7 +93,7 @@
                     </div>
 
                     <div x-show="checkoutStep === 'shipping'" x-cloak class="mt-6 space-y-6">
-                        <div x-show="!canCheckout() && checkoutBlockedReason() !== ''" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+                        <div x-show="!requiresManualQuote() && !canCheckout() && checkoutBlockedReason() !== ''" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                             <div class="font-semibold">Checkout needs review</div>
                             <div class="mt-1" x-text="checkoutBlockedReason()">{{ $summary['shipping_quote']['reason'] ?? '' }}</div>
                         </div>
@@ -217,7 +226,6 @@
                             <div class="flex items-center justify-between gap-4">
                                 <div>
                                     <h4 class="text-lg font-bold text-gray-900">List of Items</h4>
-                                    <p class="mt-1 text-sm text-gray-600">Review every item before moving on to payment.</p>
                                 </div>
                                 <div class="text-sm font-medium text-gray-500" x-text="`${Number(cartState?.summary?.item_count || {{ $itemCount }})} item${Number(cartState?.summary?.item_count || {{ $itemCount }}) === 1 ? '' : 's'}`">{{ $itemCount }} items</div>
                             </div>
@@ -234,6 +242,7 @@
                                                             <a :href="line.product.url" class="block truncate text-sm font-semibold text-gray-900 hover:text-primary-color" x-text="line.product.title"></a>
                                                             <div x-show="line.variant_name" class="mt-0.5 truncate text-xs font-medium text-gray-600" x-text="line.variant_name"></div>
                                                             <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-xs" :class="line.is_preorder ? 'text-amber-800' : (Number(line.delayed_quantity || 0) > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
+                                                            <div x-show="lineTriggersManualQuote(line)" x-cloak class="mt-1 text-xs font-medium text-amber-800">Requires pickup or a manual shipping quote</div>
                                                         </div>
                                                         <div class="text-right lg:hidden">
                                                             <div class="text-sm font-bold text-gray-900" x-text="formatMoney(line.line_price)"></div>
@@ -288,7 +297,6 @@
 
                         <div x-show="hasPhysicalItems()" x-cloak class="rounded-2xl border border-gray-200 p-5">
                             <h4 class="text-lg font-bold text-gray-900">Shipping Options</h4>
-                            <p class="mt-1 text-sm text-gray-600">Choose how the order should travel. Shipping updates automatically when you change this.</p>
 
                             <div class="mt-5 space-y-3">
                                 <template x-for="method in cartState.summary.shipping_methods" :key="method.code">
@@ -314,7 +322,7 @@
                                 </template>
                             </div>
 
-                            <label x-show="currentCanOfferConsolidation() && shippingMethodCode !== 'pickup'" x-cloak class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                            <label x-show="currentCanOfferConsolidation() && shippingMethodCode !== 'pickup' && shippingMethodCode !== 'request_quote'" x-cloak class="mt-4 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                                 <input
                                     type="checkbox"
                                     name="consolidate_shipments"
@@ -335,7 +343,7 @@
                                 <span x-show="deliveryUpdateError" x-cloak class="font-medium text-red-600" x-text="deliveryUpdateError"></span>
                             </div>
 
-                            <div x-show="hasShipmentPlan()" x-cloak class="mt-4 space-y-3 border-t border-gray-200 pt-4">
+                            <div x-show="!requiresManualQuote() && hasShipmentPlan()" x-cloak class="mt-4 space-y-3 border-t border-gray-200 pt-4">
                                 <template x-for="shipment in cartState.summary.shipping_quote.shipments" :key="shipment.key">
                                     <div class="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
                                         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -369,9 +377,7 @@
 
                         <div class="hidden" aria-hidden="true">
                             @foreach($lines as $line)
-                                @if((bool) ($line->is_preorder ?? false))
-                                    <div>Pre-order · Estimated shipping {{ $line->preorder_shipping_estimate ?: 'to be confirmed' }}</div>
-                                @elseif((int) $line->delayed_quantity > 0)
+                                @if((int) $line->delayed_quantity > 0)
                                     @if((int) $line->available_now_quantity > 0)
                                         <div>{{ (int) $line->available_now_quantity }} ships now, {{ (int) $line->delayed_quantity }} ships later{{ $line->delayed_shipping_estimate ? ' from '.$line->delayed_shipping_estimate : '' }}</div>
                                     @else
@@ -395,7 +401,9 @@
                         </div>
 
                         <div class="flex justify-end">
-                            <x-ui.button type="button" x-bind:disabled="isSubmitting || deliveryUpdateBusy || quoteDirty || !canCheckout()" x-on:click="goToPayment()">{{ $continueLabel }}</x-ui.button>
+                            <x-ui.button type="button" x-bind:disabled="shippingStepButtonDisabled()" x-on:click="requiresManualQuote() ? submitManualQuote() : goToPayment()">
+                                <span x-text="requiresManualQuote() ? 'Request Quote' : @js($continueLabel)">{{ $continueLabel }}</span>
+                            </x-ui.button>
                         </div>
                     </div>
 
@@ -405,7 +413,7 @@
 {{--                    </div>--}}
                 </section>
 
-                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm" x-ref="paymentSection">
+                <section x-show="!requiresManualQuote()" x-cloak class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm" x-ref="paymentSection">
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <div class="text-sm uppercase tracking-[0.18em] text-gray-500">Step 2 of 2</div>
@@ -456,6 +464,17 @@
 {{--                            </div>--}}
 {{--                        </div>--}}
 
+                        @if($accountCreditApplied > 0.0001)
+                            <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                                Account credit of ${{ number_format($accountCreditApplied, 2) }} will be applied automatically.
+                                @if($amountDueAfterCredit > 0.0001)
+                                    Remaining after credit: <strong>${{ number_format($amountDueAfterCredit, 2) }}</strong>.
+                                @else
+                                    This order will be covered in full by account credit.
+                                @endif
+                            </div>
+                        @endif
+
                         @if(!$hasAmountDue)
                             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                                 No payment is required for this checkout. Place Order is now available.
@@ -465,7 +484,7 @@
                                 Online card payments are currently unavailable.
                             </div>
                         @else
-                            <div class="rounded-2xl border border-gray-200 p-5" x-init="initSquareCard()">
+                            <div class="rounded-2xl border border-gray-200 p-5" x-show="requiresPayment" x-cloak x-init="initSquareCard()">
                                 <div class="flex items-center justify-between gap-4">
                                     <label class="block text-sm font-semibold text-gray-900">Card Details</label>
                                     <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
@@ -475,7 +494,7 @@
 {{--                                <div class="mt-4 relative rounded-2xl border border-gray-200 bg-white p-4" x-ref="squareCardShell">--}}
                                     <div x-ref="squareCardContainer" class="mt-4" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                                     <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
-                                        <img src="/loading.gif" alt="Loading card form" width="56" height="56" />
+                                        <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
                                     </div>
 {{--                                </div>--}}
                                 <div x-show="errorMessage" x-cloak class="mt-2 text-xs text-red-600" x-text="errorMessage"></div>
@@ -506,7 +525,7 @@
                     'shippingCountryBinding' => 'shippingCountry',
                     'returnTo' => route('shop.checkout'),
                     'submitButtonAttributes' => [
-                        'x-bind:disabled' => 'placeOrderDisabled()',
+                        'x-bind:disabled' => 'checkoutSubmitDisabled()',
                     ],
                 ])
             </aside>
@@ -514,7 +533,7 @@
     </x-container>
 </x-layout>
 
-@if($squareEnabled && $hasAmountDue)
+@if($squareEnabled && $hasCheckoutTotal)
     <script src="{{ $squareEnvironment === 'production' ? 'https://web.squarecdn.com/v1/square.js' : 'https://sandbox.web.squarecdn.com/v1/square.js' }}" async></script>
 @endif
 <script>
@@ -566,6 +585,10 @@
                     return this.formatMoney(0);
                 }
 
+                if (Boolean(method.requires_manual_quote)) {
+                    return '';
+                }
+
                 return method.is_pickup ? 'Free' : this.formatMoney(method.estimated_amount || 0);
             },
 
@@ -578,6 +601,16 @@
 
             hasConsolidationSavings() {
                 return Number(this.cartState?.summary?.shipping_quote?.consolidation_savings_amount || 0) > 0.0001;
+            },
+
+            accountCreditAppliedAmount() {
+                const total = Number(this.cartState?.summary?.total || 0);
+                return Math.min(this.accountCreditAvailable || 0, Math.max(0, total));
+            },
+
+            remainingDueAfterCredit() {
+                const total = Number(this.cartState?.summary?.total || 0);
+                return Math.max(0, total - this.accountCreditAppliedAmount());
             },
 
             shipmentIconClass(shipment) {
@@ -646,6 +679,42 @@
                 return Array.isArray(this.cartState?.summary?.shipping_quote?.shipments) && this.cartState.summary.shipping_quote.shipments.length > 0;
             },
 
+            requiresManualQuote() {
+                return Boolean(this.cartState?.summary?.shipping_quote?.requires_manual_quote);
+            },
+
+            manualQuoteLineKeys() {
+                const keys = [];
+                const shippingQuoteKeys = this.cartState?.summary?.shipping_quote?.manual_quote_line_keys;
+                if (Array.isArray(shippingQuoteKeys)) {
+                    keys.push(...shippingQuoteKeys);
+                }
+
+                const shippingMethods = Array.isArray(this.cartState?.summary?.shipping_methods)
+                    ? this.cartState.summary.shipping_methods
+                    : [];
+
+                for (const method of shippingMethods) {
+                    if (!Boolean(method?.requires_manual_quote)) {
+                        continue;
+                    }
+
+                    if (Array.isArray(method?.manual_quote_line_keys)) {
+                        keys.push(...method.manual_quote_line_keys);
+                    }
+                }
+
+                return [...new Set(keys.map((key) => String(key || '').trim()).filter((key) => key !== ''))];
+            },
+
+            lineTriggersManualQuote(line) {
+                if (!line || typeof line !== 'object') {
+                    return false;
+                }
+
+                return this.manualQuoteLineKeys().includes(String(line.key || ''));
+            },
+
             checkoutField(name) {
                 const form = this.$refs.checkoutForm;
                 if (!(form instanceof HTMLFormElement) || typeof name !== 'string' || name.trim() === '') {
@@ -653,7 +722,9 @@
                 }
 
                 const field = form.querySelector(`[name="${name.trim()}"]`);
-                return field instanceof HTMLInputElement ? field : null;
+                return field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement
+                    ? field
+                    : null;
             },
 
             syncRecipientField(sourceName, targetName) {
@@ -727,6 +798,35 @@
 
             canCheckout() {
                 return Boolean(this.cartState?.summary?.can_checkout ?? this.summaryCanCheckout);
+            },
+
+            hasRequiredFieldValue(name) {
+                const field = this.checkoutField(name);
+                if (!(field instanceof HTMLInputElement || field instanceof HTMLSelectElement || field instanceof HTMLTextAreaElement)) {
+                    return false;
+                }
+
+                return String(field.value || '').trim() !== '';
+            },
+
+            hasRequiredContactDetails() {
+                return this.hasRequiredFieldValue('billing_name')
+                    && this.hasRequiredFieldValue('billing_email')
+                    && this.hasRequiredFieldValue('billing_phone');
+            },
+
+            hasRequiredShippingDetails() {
+                if (!this.needsShippingAddress()) {
+                    return true;
+                }
+
+                return this.hasRequiredFieldValue('shipping_name')
+                    && this.hasRequiredFieldValue('shipping_phone')
+                    && this.hasRequiredFieldValue('shipping_address')
+                    && this.hasRequiredFieldValue('shipping_city')
+                    && this.hasRequiredFieldValue('shipping_state')
+                    && this.hasRequiredFieldValue('shipping_postcode')
+                    && this.hasRequiredFieldValue('shipping_country');
             },
 
             checkoutBlockedReason() {
@@ -881,7 +981,9 @@
 
                 this.cartState = cart;
                 this.summaryCanCheckout = Boolean(cart.summary?.can_checkout ?? this.summaryCanCheckout);
-                this.requiresPayment = Number(cart.summary?.total || 0) > 0.0001;
+                this.accountCreditApplied = this.accountCreditAppliedAmount();
+                this.amountDueAfterCredit = this.remainingDueAfterCredit();
+                this.requiresPayment = this.amountDueAfterCredit > 0.0001;
                 this.canOfferConsolidation = Boolean(
                     cart.summary?.shipping_quote?.offers_consolidation
                     ?? (cart.summary?.contains_physical && cart.summary?.has_delayed_items)
@@ -905,6 +1007,10 @@
                 }
 
                 if (this.checkoutStep === 'payment' && !this.canCheckout()) {
+                    this.checkoutStep = 'shipping';
+                }
+
+                if (this.requiresManualQuote()) {
                     this.checkoutStep = 'shipping';
                 }
             },
@@ -1069,6 +1175,14 @@
                 });
             },
 
+            shippingStepButtonDisabled() {
+                if (this.requiresManualQuote()) {
+                    return this.isSubmitting || this.deliveryUpdateBusy;
+                }
+
+                return this.isSubmitting || this.deliveryUpdateBusy || this.quoteDirty || !this.canCheckout();
+            },
+
             placeOrderDisabled() {
                 if (!this.canCheckout() || this.isSubmitting || this.deliveryUpdateBusy || this.quoteDirty || this.deliveryUpdateTimer !== null) {
                     return true;
@@ -1083,6 +1197,23 @@
                 }
 
                 return !this.squareEnabled || this.isCardLoading || !this.paymentDetailsEntered;
+            },
+
+            checkoutSubmitDisabled() {
+                if (this.requiresManualQuote()) {
+                    return this.isSubmitting || this.deliveryUpdateBusy;
+                }
+
+                return this.placeOrderDisabled();
+            },
+
+            submitManualQuote() {
+                const form = this.$refs.checkoutForm;
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                this.submitOrder({ target: form });
             },
 
             async initSquareCard() {
@@ -1151,6 +1282,33 @@
 
                 const form = event.target instanceof HTMLFormElement ? event.target : event.target.closest('form');
                 if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                if (this.requiresManualQuote()) {
+                    if (!form.reportValidity()) {
+                        return;
+                    }
+
+                    this.errorMessage = '';
+                    this.isSubmitting = true;
+                    if (window.SM && typeof window.SM.setFormProcessing === 'function') {
+                        window.SM.setFormProcessing(form, true, { submitLabel: 'Requesting Quote...' });
+                    }
+
+                    if (this.deliveryUpdateTimer !== null || this.quoteDirty) {
+                        const updated = await this.applyDeliveryUpdate();
+                        if (!updated || !this.requiresManualQuote()) {
+                            this.errorMessage = this.deliveryUpdateError || 'Review the shipping details before requesting a quote.';
+                            this.isSubmitting = false;
+                            if (window.SM && typeof window.SM.setFormProcessing === 'function') {
+                                window.SM.setFormProcessing(form, false);
+                            }
+                            return;
+                        }
+                    }
+
+                    form.submit();
                     return;
                 }
 

@@ -6,9 +6,8 @@
     $oldVariantId = trim((string) old('product_variant_id', ''));
     $defaultOptionInput = $hasOldVariantInput
         ? $oldVariantId
-        : null;
+        : ($hasOptionChoices ? '' : null);
     $defaultAddQuantity = max(1, (int) old('quantity', 1));
-    $preorderEstimate = $product->preorderShippingEstimateLabel('F jS, Y');
     $chooserHeading = $product->isDigital() ? 'Choose a licence' : 'Choose a variant';
     $chooserErrorMessage = $product->isDigital()
         ? 'Choose a licence before adding this item to your cart.'
@@ -20,14 +19,6 @@
     $availabilityLabel = function ($variant = null) use ($product): string {
         if ($product->isDigital()) {
             return 'Instant download after checkout';
-        }
-
-        if ($product->isPreorder($variant)) {
-            $selectionPreorderEstimate = $product->preorderShippingEstimateLabel('F jS, Y', $variant);
-
-            return $selectionPreorderEstimate
-                ? 'Pre-order. Estimated shipping '.$selectionPreorderEstimate
-                : 'Pre-order available';
         }
 
         if ($product->allowsBackorder($variant)) {
@@ -53,6 +44,10 @@
 
         return $inventory > 0 ? $inventory.' in stock' : 'Out of stock';
     };
+    $baseOptionSku = trim((string) ($product->sku ?? ''));
+    if ($baseOptionSku === '') {
+        $baseOptionSku = strtoupper(\Illuminate\Support\Str::slug((string) ($product->slug ?: $product->title), '-'));
+    }
     $multiOptionStockLabel = $hasOptionChoices
         ? ($product->isDigital()
             ? $variantCountLabel.' available. Choose a licence when adding to cart.'
@@ -65,15 +60,14 @@
             'input_value' => '',
             'variant_id' => null,
             'name' => $product->baseOptionName(),
+            'sku' => $baseOptionSku !== '' ? $baseOptionSku : null,
             'description' => $product->baseOptionDescription(),
             'price_label' => $product->priceLabel(),
             'compare_at_price_label' => $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase(),
             'actual_inventory_quantity' => $product->availableInventory(),
             'is_in_stock' => $product->isSelectionPurchasable(),
-            'is_preorder' => $product->isPreorder(),
             'allows_backorder' => $product->allowsBackorder(),
-            'preorder_shipping_estimate' => $product->preorderShippingEstimateLabel('F jS, Y'),
             'availability_label' => $availabilityLabel(),
         ]);
     }
@@ -84,15 +78,14 @@
             'input_value' => (string) $variant->id,
             'variant_id' => $variant->id,
             'name' => $product->variantDisplayName($variant),
+            'sku' => trim((string) ($variant->sku ?? '')) ?: null,
             'description' => trim((string) ($variant->description ?? '')) ?: null,
             'price_label' => $product->priceLabel($variant),
             'compare_at_price_label' => $variant->effectiveCompareAtPrice() !== null ? '$'.number_format((float) $variant->effectiveCompareAtPrice(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
             'actual_inventory_quantity' => $product->availableInventory($variant),
             'is_in_stock' => $product->isSelectionPurchasable($variant),
-            'is_preorder' => $product->isPreorder($variant),
             'allows_backorder' => $product->allowsBackorder($variant),
-            'preorder_shipping_estimate' => $product->preorderShippingEstimateLabel('F jS, Y', $variant),
             'availability_label' => $availabilityLabel($variant),
         ]))
         ->values()
@@ -118,6 +111,7 @@
                 x-data="{
                 options: @js($optionPayload),
                 selectedVariantId: @js($defaultOptionInput),
+                variantMenuOpen: false,
                 addQuantity: {{ $defaultAddQuantity }},
                 optionDraftQuantities: @js($hasOptionChoices
                     ? collect($optionPayload)->mapWithKeys(fn ($option) => [($option['key'] ?? 'base') => $defaultAddQuantity])->all()
@@ -125,10 +119,8 @@
                 cartState: @js($cartPayload),
                 busyCartLineKey: null,
                 formError: @js($errors->first('product_variant_id')),
-                baseIsPreorder: @js($product->isPreorder()),
                 productIsDigital: @js($product->isDigital()),
                 productTitle: @js($product->title),
-                basePreorderShippingEstimate: @js($preorderEstimate),
                 priceRangeLabel: @js($product->priceRangeLabel()),
                 basePriceLabel: @js($product->priceLabel()),
                 baseCompareAtPriceLabel: @js($product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null),
@@ -136,6 +128,7 @@
                 baseIsPurchasable: @js($product->isPurchasable()),
                 baseStockLabel: @js($availabilityLabel()),
                 multiOptionStockLabel: @js($multiOptionStockLabel),
+                chooserHeading: @js($chooserHeading),
                 chooserErrorMessage: @js($chooserErrorMessage),
                 setCartState(cart) {
                     if (!cart || typeof cart !== 'object') {
@@ -159,13 +152,25 @@
                     return Math.max(min, Math.min(max, parsed));
                 },
                 currentPriceLabel() {
-                    return this.options.length > 0 ? this.priceRangeLabel : this.basePriceLabel;
+                    if (this.options.length > 0) {
+                        return this.selectedOption?.price_label || this.priceRangeLabel;
+                    }
+
+                    return this.basePriceLabel;
                 },
                 currentCompareAtPriceLabel() {
-                    return this.options.length > 0 ? null : this.baseCompareAtPriceLabel;
+                    if (this.options.length > 0) {
+                        return this.selectedOption?.compare_at_price_label || null;
+                    }
+
+                    return this.baseCompareAtPriceLabel;
                 },
                 currentStockLabel() {
-                    return this.options.length > 0 ? this.multiOptionStockLabel : this.baseStockLabel;
+                    if (this.options.length > 0) {
+                        return this.selectedOption?.availability_label || this.multiOptionStockLabel;
+                    }
+
+                    return this.baseStockLabel;
                 },
                 currentSelectionDescription() {
                     if (this.selectedOption) {
@@ -174,28 +179,37 @@
 
                     return '';
                 },
-                selectionIsPreorder(option = null) {
-                    if (this.options.length === 0) {
-                        return this.baseIsPreorder;
+                selectionButtonLabel() {
+                    if (this.selectedOption) {
+                        return this.selectedOption.name || this.chooserHeading;
                     }
 
-                    return Boolean((option || this.selectedOption)?.is_preorder);
+                    return this.chooserHeading;
                 },
-                selectionPreorderEstimate(option = null) {
-                    if (this.options.length === 0) {
-                        return this.basePreorderShippingEstimate;
+                selectionButtonMeta() {
+                    if (this.selectedOption) {
+                        return this.selectedOption.availability_label || '';
                     }
 
-                    return (option || this.selectedOption)?.preorder_shipping_estimate || '';
+                    return this.multiOptionStockLabel;
                 },
-                preorderItemTitle(option = null) {
-                    const selection = option || this.selectedOption;
-
-                    if (!selection || this.options.length === 0) {
-                        return this.productTitle;
-                    }
-
-                    return selection.name ? `${this.productTitle} - ${selection.name}` : this.productTitle;
+                selectionButtonSku() {
+                    return this.selectedOption?.sku || '';
+                },
+                selectionButtonSKU() {
+                    return this.selectionButtonSku();
+                },
+                toggleVariantMenu() {
+                    this.variantMenuOpen = !this.variantMenuOpen;
+                },
+                closeVariantMenu() {
+                    this.variantMenuOpen = false;
+                },
+                chooseOption(value) {
+                    this.selectedVariantId = value;
+                    this.formError = '';
+                    this.variantMenuOpen = false;
+                    this.syncAddQuantity();
                 },
                 maxQuantity() {
                     if (this.selectedOption && this.selectedOption.inventory_quantity !== null) {
@@ -209,6 +223,10 @@
                     return 99;
                 },
                 activeLineKey() {
+                    if (this.options.length > 0 && !this.selectedOption) {
+                        return `${@js($product->id)}:unselected`;
+                    }
+
                     return `${@js($product->id)}:${this.selectedOption?.variant_id ?? 0}`;
                 },
                 cartLine() {
@@ -372,20 +390,6 @@
                     try {
                         this.formError = '';
 
-                        if (this.selectionIsPreorder() && window.SM?.shopCart?.confirmPreorder) {
-                            const confirmed = await window.SM.shopCart.confirmPreorder({
-                                itemTitle: this.preorderItemTitle(),
-                                shippingEstimate: this.selectionPreorderEstimate(),
-                                confirmText: 'Add to cart',
-                            });
-
-                            if (!confirmed) {
-                                return;
-                            }
-
-                            window.SM.shopCart.setFormInput(form, 'preorder_acknowledged', '1');
-                        }
-
                         await this.submitCartForm(form, this.activeLineKey());
                     } catch (_error) {
                     }
@@ -402,20 +406,6 @@
 
                     try {
                         this.formError = '';
-
-                        if (this.selectionIsPreorder(option) && window.SM?.shopCart?.confirmPreorder) {
-                            const confirmed = await window.SM.shopCart.confirmPreorder({
-                                itemTitle: this.preorderItemTitle(option),
-                                shippingEstimate: this.selectionPreorderEstimate(option),
-                                confirmText: 'Add to cart',
-                            });
-
-                            if (!confirmed) {
-                                return;
-                            }
-
-                            window.SM.shopCart.setFormInput(form, 'preorder_acknowledged', '1');
-                        }
 
                         await this.submitCartForm(form, this.lineKeyForOption(option));
 
@@ -549,30 +539,24 @@
             }"
         >
             <div class="flex xgrid md:xgrid-cols-[minmax(0,1.08fr)_minmax(20rem,0.92fr)] lg:items-start rounded-3xl border border-gray-200 bg-white">
-                <div class="space-y-4 w-full">
-                    <div class="flex flex-col sm:flex-row-reverse flex-1">
-                        <div class="flex-1">
-                            <div class="overflow-hidden rounded-t-3xl sm:rounded-tr-3xl sm:rounded-bl-3xl sm:rounded-tl-none">
-                                <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-[42rem] w-full object-cover" />
-                            </div>
-                        </div>
-                        {{--                    @if($product->galleryMedia->isNotEmpty())--}}
-                        {{--                        <div class="grid grid-cols-3 gap-3 md:grid-cols-4">--}}
-                        {{--                            @foreach($product->galleryMedia as $media)--}}
-                        {{--                                <a href="{{ $media->url }}" target="_blank" rel="noopener noreferrer" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-300">--}}
-                        {{--                                    <img src="{{ $media->thumbnail }}" alt="{{ $media->title }}" class="h-24 w-full object-cover" />--}}
-                        {{--                                </a>--}}
-                        {{--                            @endforeach--}}
-                        {{--                        </div>--}}
-                        {{--                    @endif--}}
+                <div class="w-full p-6 flow-root">
+                    <div class="-ml-6 -mr-6 -mt-6 mb-6 overflow-hidden rounded-t-3xl sm:rounded-tl-none sm:rounded-bl-3xl sm:ml-6 sm:float-right sm:w-[42%] lg:w-[38%]">
+                        <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-96 w-full object-cover" />
+                    </div>
+                    {{--                    @if($product->galleryMedia->isNotEmpty())--}}
+                    {{--                        <div class="grid grid-cols-3 gap-3 md:grid-cols-4">--}}
+                    {{--                            @foreach($product->galleryMedia as $media)--}}
+                    {{--                                <a href="{{ $media->url }}" target="_blank" rel="noopener noreferrer" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-300">--}}
+                    {{--                                    <img src="{{ $media->thumbnail }}" alt="{{ $media->title }}" class="h-24 w-full object-cover" />--}}
+                    {{--                                </a>--}}
+                    {{--                            @endforeach--}}
+                    {{--                        </div>--}}
+                    {{--                    @endif--}}
 
-                        <div class="p-6 flex-1">
+                    <div class="min-w-0">
                             <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ $product->title }}</h1>
 
                             <div class="mt-2 flex flex-wrap items-center gap-3">
-                                @if(!$hasOptionChoices && $product->isPreorder())
-                                    <span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-amber-800">Pre-order</span>
-                                @endif
                                 @if($product->isDigital())
                                     <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold tracking-[0.16em] text-emerald-800">
                                         {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
@@ -602,106 +586,117 @@
                                 <div class="mt-2 text-sm font-medium text-gray-600" x-text="currentStockLabel()">{{ $multiOptionStockLabel }}</div>
                             </div>
 
-                            @if(!$hasOptionChoices && $product->isPreorder())
-                                <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-950">
-                                    <div class="font-semibold text-amber-900">Pre-order item</div>
-                                    @if($preorderEstimate)
-                                        <div class="mt-1">Estimated shipping date: {{ $preorderEstimate }}</div>
-                                    @endif
-                                    <div class="mt-1">Orders containing this item will ship once it becomes available.</div>
-                                </div>
-                            @endif
-
                             @if($hasOptionChoices)
                                 <div class="mt-6 space-y-3">
                                     <div class="mb-1 pl-1 text-sm font-medium text-gray-900">{{ $chooserHeading }}</div>
 
-                                    @error('preorder_acknowledged')
-                                    <div class="text-sm text-red-600">{{ $message }}</div>
-                                    @enderror
                                     @error('product_variant_id')
                                     <div class="text-sm text-red-600">{{ $message }}</div>
                                     @enderror
                                     <div class="text-sm text-red-600" x-show="formError" x-cloak x-text="formError"></div>
 
-                                    @foreach($optionPayload as $option)
-                                        @php
-                                            $optionInputValue = (string) ($option['input_value'] ?? '');
-                                            $optionKey = (string) ($option['key'] ?? ($optionInputValue !== '' ? 'variant:'.$optionInputValue : 'base'));
-                                        @endphp
-                                        <div
-                                                class="rounded-2xl border border-sky-100 bg-sky-50/40 px-4 py-4"
-                                                x-data="{ option: @js($option) }"
-                                                x-bind:class="cartQuantityForOption(option) > 0 ? 'border-sky-300 bg-sky-50 shadow-sm' : (!option.is_in_stock ? 'opacity-70' : '')"
-                                        >
-                                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                <div class="min-w-0">
-                                                    <div class="text-base font-semibold text-gray-900">{{ $option['name'] }}</div>
-                                                    @if(!empty($option['description']))
-                                                        <div class="mt-1 text-sm leading-6 text-gray-600">{{ $option['description'] }}</div>
-                                                    @endif
-                                                </div>
-                                                <div class="shrink-0 text-left sm:text-right">
-                                                    <div class="text-base font-semibold text-gray-900">{{ $option['price_label'] }}</div>
-                                                    @if(!empty($option['compare_at_price_label']))
-                                                        <div class="text-xs text-gray-400 line-through">{{ $option['compare_at_price_label'] }}</div>
-                                                    @endif
-                                                </div>
-                                            </div>
+                                    <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
+                                        <div class="relative" @click.outside="closeVariantMenu()">
+                                            <button
+                                                    type="button"
+                                                    class="flex w-full items-center justify-between gap-4 rounded border border-gray-300 bg-gray-50/40 px-4 py-3 text-left transition hover:border-sky-300 hover:bg-sky-50"
+                                                    @click="toggleVariantMenu()"
+                                                    :aria-expanded="variantMenuOpen ? 'true' : 'false'"
+                                            >
+                                                <span class="min-w-0 flex-1">
+                                                    <span class="flex items-center gap-2 text-sm">
+                                                        <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
+                                                        <span class="text-gray-400">-</span>
+                                                        <span class="truncate text-xs font-medium text-sky-700" x-text="selectionButtonMeta()">{{ $multiOptionStockLabel }}</span>
+                                                    </span>
+                                                </span>
+                                                <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>
+                                                <i class="fa-solid fa-chevron-down shrink-0 text-xs text-gray-500 transition" :class="variantMenuOpen ? 'rotate-180' : ''"></i>
+                                            </button>
 
-                                            <div class="flex justify-between items-center mt-4">
-                                                <div class="text-xs font-medium text-sky-700">
-                                                    {{ $option['availability_label'] }}
-                                                </div>
-
-                                                <form
-                                                        method="POST"
-                                                        action="{{ route('shop.cart.add', $product) }}"
-                                                        class="m-0 w-38"
-                                                        @submit.prevent="handleOptionAddToCart($event.target, option)"
-                                                        x-show="cartQuantityForOption(option) <= 0"
-                                                >
-                                                    @csrf
-                                                    <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
-                                                    <input type="hidden" name="product_variant_id" value="{{ $optionInputValue }}">
-                                                    <input type="hidden" name="quantity" value="1">
-                                                    <x-ui.button type="submit" :color="$product->isPreorder() ? 'accent' : 'primary'" class="w-full" x-bind:disabled="!optionCanAdd(option) || busyCartLineKey === lineKeyForOption(option)">
-                                                        <span x-show="option.is_in_stock && busyCartLineKey !== lineKeyForOption(option)" x-text="option.is_preorder ? 'Pre-order Now' : 'Add to Cart'">Add to Cart</span>
-                                                        <span x-show="option.is_in_stock && busyCartLineKey === lineKeyForOption(option)" x-cloak>Adding...</span>
-                                                        <span x-show="!option.is_in_stock" x-cloak>Sold out</span>
-                                                    </x-ui.button>
-                                                </form>
-                                                <div x-show="cartQuantityForOption(option) > 0" x-cloak>
-                                                    <div class="w-38 shop-catalog-stepper flex items-center gap-2 rounded border border-gray-300 bg-white">
+                                            <div
+                                                    x-show="variantMenuOpen"
+                                                    x-cloak
+                                                    x-transition.opacity
+                                                    class="absolute left-0 right-0 top-[calc(75%)] z-30 overflow-hidden rounded border border-gray-300 bg-white shadow-2xl"
+                                            >
+                                                <div class="max-h-80 overflow-y-auto py-2">
+                                                    @foreach($optionPayload as $option)
                                                         <button
                                                                 type="button"
-                                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 p-1 items-center justify-center border-r-gray-300 border-r text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                                :disabled="busyCartLineKey === lineKeyForOption(option)"
-                                                                @click="changeOptionCartQuantity(option, cartQuantityForOption(option) - 1)"
-                                                        >-</button>
-                                                        <input
-                                                                id="product-quantity-{{ $optionKey }}"
-                                                                type="number"
-                                                                min="0"
-                                                                :max="optionMaxQuantity(option)"
-                                                                :value="cartQuantityForOption(option)"
-                                                                class="shop-catalog-stepper-input h-9 min-w-14 p-1 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
-                                                                :disabled="busyCartLineKey === lineKeyForOption(option)"
-                                                                @change="changeOptionCartQuantity(option, $event.target.value)"
-                                                        />
-                                                        <button
-                                                                type="button"
-                                                                class="shop-catalog-stepper-button inline-flex h-9 w-9 items-center justify-center p-1 border-l-gray-300 border-l text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
-                                                                :disabled="busyCartLineKey === lineKeyForOption(option) || cartQuantityForOption(option) >= optionMaxQuantity(option)"
-                                                                @click="changeOptionCartQuantity(option, cartQuantityForOption(option) + 1)"
-                                                        >+</button>
-                                                    </div>
+                                                                x-data="{ option: @js($option) }"
+                                                                class="flex w-full items-start justify-between gap-4 px-4 py-3 text-left transition hover:bg-sky-50"
+                                                                :class="String(selectedVariantId ?? '') === String(option.input_value ?? '') ? 'bg-sky-50' : ''"
+                                                                @click="chooseOption(String(@js((string) ($option['input_value'] ?? ''))))"
+                                                        >
+                                                            <span class="min-w-0 flex-1">
+                                                                <span class="flex items-baseline gap-2 text-sm">
+                                                                    <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
+                                                                    <span class="text-gray-400">-</span>
+                                                                    <span class="truncate text-xs font-medium" :class="option.is_in_stock ? 'text-sky-700' : 'text-red-600'" x-text="option.availability_label">{{ $option['availability_label'] }}</span>
+                                                                </span>
+                                                                @if(!empty($option['description']))
+                                                                    <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
+                                                                @endif
+                                                            </span>
+                                                            <span class="shrink-0 text-right">
+                                                                @if(!empty($option['sku']))
+                                                                    <span class="block text-xs font-medium text-gray-400" x-text="option.sku">{{ $option['sku'] }}</span>
+                                                                @endif
+                                                            </span>
+                                                        </button>
+                                                    @endforeach
                                                 </div>
                                             </div>
-
-                                            <div class="mt-2 text-xs text-gray-500" x-show="optionLimitMessage(option)" x-cloak x-text="optionLimitMessage(option)"></div>
                                         </div>
-                                    @endforeach
+
+                                        <form
+                                                method="POST"
+                                                action="{{ route('shop.cart.add', $product) }}"
+                                                class="m-0 sm:min-w-40"
+                                                x-on:submit.prevent="handleAddToCart($event.target)"
+                                                x-show="cartQuantity() <= 0"
+                                        >
+                                            @csrf
+                                            <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
+                                            <input type="hidden" name="product_variant_id" :value="selectedVariantId ?? ''">
+                                            <input type="hidden" name="quantity" value="1">
+                                            <x-ui.button type="submit" color="primary" class="w-full sm:h-full" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                                <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
+                                                <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
+                                                <span x-show="!canAddSelection() && selectedOption" x-cloak>Sold out</span>
+                                                <span x-show="!canAddSelection() && !selectedOption" x-cloak>Select option</span>
+                                            </x-ui.button>
+                                        </form>
+
+                                        <div x-show="cartQuantity() > 0" x-cloak class="sm:min-w-40">
+                                            <div class="shop-catalog-stepper flex h-full items-center gap-2 rounded border border-gray-300 bg-white">
+                                                <button
+                                                        type="button"
+                                                        class="shop-catalog-stepper-button inline-flex h-11 w-11 p-1 items-center justify-center border-r border-r-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                        :disabled="busyCartLineKey === activeLineKey()"
+                                                        @click="changeCartQuantity(cartQuantity() - 1)"
+                                                >-</button>
+                                                <input
+                                                        type="number"
+                                                        min="0"
+                                                        :max="cartMaxQuantity()"
+                                                        :value="cartQuantity()"
+                                                        class="shop-catalog-stepper-input h-11 min-w-16 flex-1 border-0 bg-transparent px-0 text-center text-sm font-semibold text-gray-900 focus:outline-none focus:ring-0"
+                                                        :disabled="busyCartLineKey === activeLineKey()"
+                                                        @change="changeCartQuantity($event.target.value)"
+                                                />
+                                                <button
+                                                        type="button"
+                                                        class="shop-catalog-stepper-button inline-flex h-11 w-11 items-center justify-center p-1 border-l border-l-gray-300 text-gray-700 transition hover:bg-white hover:text-primary-color disabled:cursor-not-allowed disabled:opacity-40"
+                                                        :disabled="busyCartLineKey === activeLineKey() || cartQuantity() >= cartMaxQuantity()"
+                                                        @click="changeCartQuantity(cartQuantity() + 1)"
+                                                >+</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
                                 </div>
                             @else
                                 <div class="mt-6 space-y-3">
@@ -715,8 +710,8 @@
                                         @csrf
                                         <input type="hidden" name="return_to" value="{{ request()->fullUrl() }}">
                                         <input type="hidden" name="quantity" value="1">
-                                        <x-ui.button type="submit" :color="$product->isPreorder() ? 'accent' : 'primary'" class="w-full sm:w-auto" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
-                                            <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()" x-text="selectionIsPreorder() ? 'Pre-order Now' : 'Add to Cart'">{{ $product->isPreorder() ? 'Pre-order Now' : 'Add to Cart' }}</span>
+                                        <x-ui.button type="submit" color="primary" class="w-full sm:w-auto" x-bind:disabled="!canAddSelection() || busyCartLineKey === activeLineKey()">
+                                            <span x-show="canAddSelection() && busyCartLineKey !== activeLineKey()">Add to Cart</span>
                                             <span x-show="canAddSelection() && busyCartLineKey === activeLineKey()" x-cloak>Adding...</span>
                                             <span x-show="!canAddSelection()" x-cloak>Sold out</span>
                                         </x-ui.button>
@@ -748,9 +743,6 @@
                                         </div>
                                     </div>
 
-                                    @error('preorder_acknowledged')
-                                    <div class="text-sm text-red-600">{{ $message }}</div>
-                                    @enderror
                                     @error('product_variant_id')
                                     <div class="text-sm text-red-600">{{ $message }}</div>
                                     @enderror
@@ -758,18 +750,15 @@
                                     <div class="text-xs text-gray-500" x-show="selectionLimitMessage()" x-cloak x-text="selectionLimitMessage()"></div>
                                 </div>
                             @endif
-                        </div>
-                    </div>
 
-                    <section class="px-6 pb-6">
-                        @if($productDescriptionHtml !== '')
-                            <article class="mt-4 content text-gray-700">
-                                {!! $productDescriptionHtml !!}
-                            </article>
-                        @elseif(trim((string) $product->short_description) !== '')
-                            <p class="mt-4 text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
-                        @endif
-                    </section>
+                            @if($productDescriptionHtml !== '')
+                                <article class="mt-8 content text-gray-700">
+                                    {!! $productDescriptionHtml !!}
+                                </article>
+                            @elseif(trim((string) $product->short_description) !== '')
+                                <p class="mt-8 text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
+                            @endif
+                    </div>
                 </div>
             </div>
         </div>

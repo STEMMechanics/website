@@ -49,5 +49,24 @@ class EmailMessageFormatterTest extends TestCase
         $this->assertSame("Line 1  \nLine 2", $mailable->customMessage);
         $this->assertSame("Hi Alex,  \nLine 2", $mailable->resolvedFullMessage);
     }
-}
 
+    public function test_finance_document_renders_action_placeholder_as_a_button(): void
+    {
+        $mailable = new FinanceDocumentPdf(
+            documentType: 'quote',
+            documentNumber: 'Q-1',
+            recipientName: 'Alex Doe',
+            pdfContent: 'PDF',
+            pdfFilename: 'quote.pdf',
+            fullMessage: "Hi {{name}},\n\n{{action}}",
+            actionUrl: 'https://example.com/review',
+            actionLabel: 'Review Quote'
+        );
+
+        $html = $mailable->render();
+
+        $this->assertStringContainsString('href="https://example.com/review"', $html);
+        $this->assertStringContainsString('Review Quote', $html);
+        $this->assertStringNotContainsString('<pre><code>', $html);
+    }
+}

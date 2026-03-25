@@ -13,7 +13,16 @@
                     <div><strong>Receipt #:</strong> {{ $receipt->id }}</div>
                     <div><strong>Type:</strong> {{ $isRefund ? 'Refund' : 'Payment' }}</div>
                     <div><strong>Date:</strong> {{ $receipt->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                    <div><strong>Method:</strong> {{ \App\Models\Payment::paymentMethodLabel((string) ($receipt->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</div>
+                    <div><strong>Method:</strong> {{ $paymentMethodLabel ?? \App\Models\Payment::paymentMethodLabel((string) ($receipt->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</div>
+                    @if((float) ($creditAppliedAmount ?? 0) > 0.0001)
+                        <div><strong>Account Credit Applied:</strong> {{ money((float) $creditAppliedAmount) }}</div>
+                    @endif
+                    @if(!empty($creditReferenceSummary))
+                        <div><strong>Credit Reference:</strong> {{ $creditReferenceSummary }}</div>
+                    @endif
+                    @if((float) ($invoiceTotalAmount ?? 0) > 0.0001 && abs((float) $invoiceTotalAmount - (float) $receipt->total_amount) > 0.0001)
+                        <div><strong>Invoice Total:</strong> {{ money((float) $invoiceTotalAmount) }}</div>
+                    @endif
                 </div>
                 <div class="md:text-right">
                     <div><strong>Amount:</strong> {{ money($isRefund ? -((float) $receipt->total_amount) : (float) $receipt->total_amount) }}</div>

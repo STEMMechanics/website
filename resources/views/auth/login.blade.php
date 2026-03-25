@@ -15,10 +15,10 @@
                 <p>Would you like to sign in with a different email or username?</p>
             </x-slot:header>
         @else
-        <x-slot:title>Sign in</x-slot:title>
-        <x-slot:header>
-            <p>Enter the email address or username associated with your account</p>
-        </x-slot:header>
+            <x-slot:title>Sign in</x-slot:title>
+            <x-slot:header>
+                <p>Enter the email address or username associated with your account</p>
+            </x-slot:header>
         @endif
         <x-ui.input
             type="text"
@@ -27,17 +27,8 @@
             label="Email or Username"
             value="{{ old('login', old('email', $rememberedLoginValue)) }}"
             floating
-            autofocus
             data-remembered-login="{{ $rememberedLoginValue }}"
-        />
-        <x-ui.input
-            type="password"
-            name="password"
-            id="login_password"
-            label="Password (optional)"
-            value=""
-            floating
-            info="Leave blank to receive an email link instead. Child accounts require a password."
+            autofocus
         />
         <input type="hidden" name="remember_email" value="0" />
         <x-ui.checkbox
@@ -60,10 +51,16 @@
                 const loginForm = document.getElementById('login-identifier-form');
                 const emailInput = document.getElementById('login_identifier');
                 const rememberCheckbox = document.getElementById('remember_email');
-                if (loginForm && window.SM && typeof window.SM.bindFormProcessingOnSubmit === 'function') {
-                    window.SM.bindFormProcessingOnSubmit(loginForm, {
-                        submitLabel: 'Logging in...',
-                    });
+                if (loginForm && window.SM) {
+                    if (typeof window.SM.bindSingleSubmit === 'function') {
+                        window.SM.bindSingleSubmit(loginForm);
+                    }
+
+                    if (typeof window.SM.bindFormProcessingOnSubmit === 'function') {
+                        window.SM.bindFormProcessingOnSubmit(loginForm, {
+                            submitLabel: 'Logging in...',
+                        });
+                    }
                 }
 
                 if (!emailInput || !rememberCheckbox) {
@@ -81,6 +78,12 @@
                         rememberCheckbox.checked = false;
                     }
                 });
+            });
+
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted) {
+                    window.location.reload();
+                }
             });
         </script>
     @endPushOnce

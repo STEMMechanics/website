@@ -77,6 +77,7 @@ class StoreOrderUpdateDigestTest extends TestCase
             ->put(route('admin.shop.product.update', $product), [
                 'title' => $product->title,
                 'slug' => $product->slug,
+                'sku' => 'BACKORDER-KIT',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => (string) $product->price,

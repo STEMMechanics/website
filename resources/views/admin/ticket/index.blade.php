@@ -2,19 +2,37 @@
     <x-mast>Tickets</x-mast>
 
     <x-container x-data="{
-        confirmSubmit(event, message, buttonLabel = 'Confirm') {
-            event.preventDefault();
-            const form = event.target?.closest('form');
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
-            if (window.SM && typeof window.SM.confirm === 'function') {
-                window.SM.confirm('Confirm action', message, buttonLabel, (isConfirmed) => {
-                    if (isConfirmed) {
-                        form.submit();
-                    }
-                });
-            }
+        cancelModalOpen: false,
+        cancelFormAction: '',
+        cancelTicketLabel: '',
+        cancelConfirmationMessage: '',
+        cancelSubmitLabel: 'Cancel Ticket',
+        cancelProcessSquareRefund: false,
+        cancelShowSquareRefund: false,
+        cancelEmailCustomer: true,
+        cancelReasonDefault: @js(old('reason', 'The following ticket has been cancelled.')),
+        cancelReason: @js(old('reason', 'The following ticket has been cancelled.')),
+        openCancelModal(action, label, message, submitLabel = 'Cancel Ticket', showSquareRefund = false, processSquareRefund = false) {
+            this.cancelFormAction = action;
+            this.cancelTicketLabel = label;
+            this.cancelConfirmationMessage = message;
+            this.cancelSubmitLabel = submitLabel;
+            this.cancelShowSquareRefund = Boolean(showSquareRefund);
+            this.cancelProcessSquareRefund = Boolean(processSquareRefund);
+            this.cancelEmailCustomer = true;
+            this.cancelReason = this.cancelReasonDefault;
+            this.cancelModalOpen = true;
+        },
+        closeCancelModal() {
+            this.cancelModalOpen = false;
+            this.cancelFormAction = '';
+            this.cancelTicketLabel = '';
+            this.cancelConfirmationMessage = '';
+            this.cancelSubmitLabel = 'Cancel Ticket';
+            this.cancelProcessSquareRefund = false;
+            this.cancelShowSquareRefund = false;
+            this.cancelEmailCustomer = true;
+            this.cancelReason = this.cancelReasonDefault;
         }
     }">
         <form method="GET" action="{{ route('admin.ticket.index') }}">
@@ -106,6 +124,7 @@
                                 ? $ticket->invoice->allocations
                                     ->contains(fn ($allocation) => $allocation->customerPayment !== null && (float) ($allocation->allocated_amount ?? 0) > 0)
                                 : false;
+                            $showSquareRefundOption = $hasSquarePayment && $hasAnyPayment;
                             $canCancel = in_array((int) $ticket->status, \App\Models\Ticket::activePurchasedStatuses(), true);
                         @endphp
                         @if(!empty($groupByWorkshop) && $workshopKey !== $previousWorkshopKey)
@@ -172,33 +191,21 @@
                                     @endif
 
                                     @if($canCancel)
-                                        <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                            @csrf
-                                            <input type="hidden" name="process_square_refund" value="0">
-                                            <button
-                                                type="button"
-                                                class="hover:text-amber-600"
-                                                title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
-                                                x-on:click="confirmSubmit($event, @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'), 'Cancel Ticket')"
-                                            >
-                                                <i class="fa-solid fa-ban"></i>
-                                            </button>
-                                        </form>
-
-                                        @if($hasAnyPayment)
-                                            <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                                @csrf
-                                                <input type="hidden" name="process_square_refund" value="1">
-                                                <button
-                                                    type="button"
-                                                    class="hover:text-red-600"
-                                                    title="Cancel and refund now"
-                                                    x-on:click="confirmSubmit($event, @js('Cancel this ticket and attempt refund now? A tax adjustment note will be created first.'.($hasSquarePayment ? '' : ' No Square payment is linked; refund may require manual processing.')), 'Cancel and Refund')"
-                                                >
-                                                    <i class="fa-solid fa-money-bill-transfer"></i>
-                                                </button>
-                                            </form>
-                                        @endif
+                                        <button
+                                            type="button"
+                                            class="hover:text-amber-600"
+                                            title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
+                                            x-on:click="openCancelModal(
+                                                @js(route('admin.ticket.cancel', $ticket)),
+                                                @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshopTitle),
+                                                @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                                'Cancel Ticket',
+                                                @js($showSquareRefundOption),
+                                                @js($showSquareRefundOption)
+                                            )"
+                                        >
+                                            <i class="fa-solid fa-ban"></i>
+                                        </button>
                                     @else
                                         <span class="text-gray-300" title="Ticket is not cancellable"><i class="fa-solid fa-ban"></i></span>
                                     @endif
@@ -212,5 +219,64 @@
 
             {{ $tickets->appends(request()->query())->links() }}
         @endif
+
+        <div
+            x-show="cancelModalOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-on:keydown.escape.window="closeCancelModal()">
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="closeCancelModal()"></div>
+            <div class="relative z-10 w-full max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900" x-text="cancelSubmitLabel"></h3>
+                <p class="mt-2 text-sm text-gray-700">
+                    You are about to cancel
+                    <span class="font-semibold" x-text="cancelTicketLabel || 'this ticket'"></span>.
+                </p>
+                <p class="mt-2 text-sm text-gray-700" x-text="cancelConfirmationMessage"></p>
+
+                <form method="POST" x-bind:action="cancelFormAction" class="mt-6 space-y-4">
+                    @csrf
+                    <input type="hidden" name="process_square_refund" x-bind:value="cancelProcessSquareRefund ? '1' : '0'">
+                    <input type="hidden" name="email_customer" x-bind:value="cancelEmailCustomer ? '1' : '0'">
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900" for="cancel-reason">Cancellation message</label>
+                        <textarea
+                            id="cancel-reason"
+                            name="reason"
+                            rows="4"
+                            x-model="cancelReason"
+                            required
+                            class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        ></textarea>
+                        <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in the customer email.</p>
+                    </div>
+
+                    <label class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <div class="flex gap-3">
+                            <input type="checkbox" x-model="cancelEmailCustomer" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                            <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
+                        </div>
+
+                        <template x-if="cancelShowSquareRefund">
+                            <label class="flex gap-3">
+                                <input type="checkbox" x-model="cancelProcessSquareRefund" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <span class="block text-sm font-semibold text-gray-900">Process Square refund</span>
+                            </label>
+                        </template>
+                    </label>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelModal()">Keep Ticket</x-ui.button>
+                        <button
+                            type="submit"
+                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                            x-bind:class="'bg-danger-color hover:bg-danger-color-dark focus-visible:outline-danger-color'">
+                            <span x-text="cancelSubmitLabel"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </x-container>
 </x-layout>

@@ -15,6 +15,7 @@ class QuoteFactory extends Factory
         return [
             'quote_number' => 'Q-'.fake()->unique()->numerify('######'),
             'user_id' => User::query()->value('id') ?? User::factory(),
+            'status' => Quote::STATUS_OPEN,
             'quote_date' => fake()->date(),
             'title' => fake()->sentence(4),
             'description' => fake()->paragraph(),
@@ -23,6 +24,12 @@ class QuoteFactory extends Factory
             'gst_amount' => fake()->randomFloat(2, 1, 50),
             'total_amount' => fake()->randomFloat(2, 11, 550),
             'notes' => fake()->optional()->sentence(),
+            'context_payload' => [
+                'acceptance' => [
+                    'creates_order' => false,
+                    'emails_invoice' => false,
+                ],
+            ],
         ];
     }
 }

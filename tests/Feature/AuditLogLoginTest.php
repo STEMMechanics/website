@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\UserAnonymizer;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -51,5 +52,18 @@ class AuditLogLoginTest extends TestCase
             'auditable_id' => (string) $user->id,
             'actor_user_id' => null,
         ]);
+    }
+
+    public function test_anonymized_user_is_logged_out_on_next_request(): void
+    {
+        $user = User::factory()->create();
+        app(UserAnonymizer::class)->anonymize($user, false, false);
+        $user->refresh();
+
+        $this->actingAs($user)
+            ->get(route('index'))
+            ->assertOk();
+
+        $this->assertGuest();
     }
 }

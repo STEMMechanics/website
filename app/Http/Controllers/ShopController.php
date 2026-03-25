@@ -7,6 +7,7 @@ use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\StoreCartService;
+use App\Services\AccountCreditService;
 use App\Services\StoreOrderService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -35,6 +36,10 @@ class ShopController extends Controller
         'VIC' => 'Victoria',
         'WA' => 'Western Australia',
     ];
+
+    public function __construct(private readonly AccountCreditService $accountCredit)
+    {
+    }
 
     public function index(Request $request, StoreCartService $cart): View
     {
@@ -146,20 +151,11 @@ class ShopController extends Controller
         $validated = $request->validate([
             'quantity' => ['nullable', 'integer', 'min:1', 'max:99'],
             'product_variant_id' => ['nullable', 'integer'],
-            'preorder_acknowledged' => ['nullable', 'boolean'],
             'return_to' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'preorder_acknowledged.accepted' => 'Please confirm you understand this item is a pre-order before continuing.',
         ]);
 
         $product->load(['variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name')]);
         $variant = $this->resolveVariantSelection($product, $validated['product_variant_id'] ?? null);
-
-        if ($product->isPreorder($variant) && ! $request->boolean('preorder_acknowledged')) {
-            throw ValidationException::withMessages([
-                'preorder_acknowledged' => 'Please confirm you understand this item is a pre-order before continuing.',
-            ]);
-        }
 
         if (! $product->isSelectionPurchasable($variant)) {
             throw ValidationException::withMessages([
@@ -471,10 +467,16 @@ class ShopController extends Controller
             'user' => $user,
             'billing_email' => $billingEmail,
         ]);
+        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($user);
+        $accountCreditApplied = min($accountCreditAvailable, (float) ($summary['total'] ?? 0));
+        $amountDueAfterCredit = max(0, round((float) ($summary['total'] ?? 0) - $accountCreditApplied, 2));
 
         return view('shop.checkout', [
             'lines' => $lines,
             'summary' => $summary,
+            'accountCreditAvailable' => $accountCreditAvailable,
+            'accountCreditApplied' => $accountCreditApplied,
+            'amountDueAfterCredit' => $amountDueAfterCredit,
             'couponCode' => $summary['coupon_code'] ?? null,
             'cartPayload' => $cart->payload([
                 'shipping_country' => $shippingCountry,
@@ -509,6 +511,13 @@ class ShopController extends Controller
         ]);
     }
 
+    public function quoteRequested(Request $request): View
+    {
+        return view('shop.quote-requested', [
+            'quoteNumber' => trim((string) $request->query('quote', '')),
+        ]);
+    }
+
     public function placeOrder(Request $request, StoreCartService $cart, StoreOrderService $orders): RedirectResponse
     {
         $lines = $cart->lines();
@@ -532,7 +541,6 @@ class ShopController extends Controller
         ]);
         $shippingRequired = (bool) ($checkoutPreview['contains_physical'] ?? false)
             && ! (bool) ($checkoutPreview['shipping_quote']['is_pickup'] ?? false);
-        $containsPreorder = (bool) ($checkoutPreview['contains_preorder'] ?? false);
         $normalizedShippingState = $this->normalizeAustralianState($request->input('shipping_state'));
 
         if ($normalizedShippingState !== '') {
@@ -586,7 +594,6 @@ class ShopController extends Controller
             $validated['shipping_postcode'] = '';
         }
 
-        $validated['preorder_acknowledged'] = $containsPreorder;
         $validated['coupon_code'] = $cart->couponCode();
 
         $summary = $cart->summary([
@@ -597,11 +604,26 @@ class ShopController extends Controller
             'billing_email' => $validated['billing_email'],
             'coupon_code' => $validated['coupon_code'],
         ]);
+        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($request->user());
+        $accountCreditApplied = min($accountCreditAvailable, (float) ($summary['total'] ?? 0));
+        $amountDueAfterCredit = max(0, round((float) ($summary['total'] ?? 0) - $accountCreditApplied, 2));
 
         if ($summary['coupon_error']) {
             return redirect()->back()->withErrors([
                 'coupon_code' => $summary['coupon_error'],
             ])->withInput();
+        }
+
+        if ((bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false)) {
+            $orders->createQuoteRequestFromCart($lines, $validated, $request->user());
+            $cart->clear();
+            $this->clearCheckoutSession();
+
+            session()->flash('message', 'Your request for a shipping quote has been submitted. We will get back to you shortly.');
+            session()->flash('message-title', 'Quote requested');
+            session()->flash('message-type', 'success');
+
+            return redirect()->route('shop.index');
         }
 
         if (! ($summary['can_checkout'] ?? true)) {
@@ -627,21 +649,23 @@ class ShopController extends Controller
                 : redirect()->route('shop.order.tracking', ['accessToken' => $order->access_token]);
         }
 
-        if (! (bool) config('services.square.enabled')) {
+        if ($amountDueAfterCredit > 0.0001 && ! (bool) config('services.square.enabled')) {
             return redirect()->route('shop.checkout')
                 ->withErrors(['source_id' => 'Online card payments are currently unavailable.'])
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         }
 
-        $payment = $request->validate([
-            'source_id' => ['required', 'string', 'max:255'],
-        ], [
-            'source_id.required' => 'Card details are required.',
-        ]);
+        $payment = $amountDueAfterCredit > 0.0001
+            ? $request->validate([
+                'source_id' => ['required', 'string', 'max:255'],
+            ], [
+                'source_id.required' => 'Card details are required.',
+            ])
+            : ['source_id' => null];
 
         try {
-            $order = $orders->createAndChargeFromCart($lines, $validated, (string) $payment['source_id'], $request->user());
+            $order = $orders->createAndChargeFromCart($lines, $validated, $payment['source_id'] ?? null, $request->user());
         } catch (ValidationException $e) {
             return redirect()->route('shop.checkout')
                 ->withErrors($e->errors())
@@ -732,14 +756,14 @@ class ShopController extends Controller
         switch ($selectedSort) {
             case 'price_low':
                 $query
-                    ->orderByRaw('COALESCE((select min(coalesce(product_variants.price, products.price)) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) asc')
+                    ->orderByRaw("COALESCE((select min(case when products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) asc")
                     ->orderBy('title');
 
                 return;
 
             case 'price_high':
                 $query
-                    ->orderByRaw('COALESCE((select max(coalesce(product_variants.price, products.price)) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) desc')
+                    ->orderByRaw("COALESCE((select max(case when products.product_type = 'digital' then coalesce(product_variants.price, products.price) else products.price end) from product_variants where product_variants.product_id = products.id and product_variants.is_active = 1), products.price) desc")
                     ->orderBy('title');
 
                 return;

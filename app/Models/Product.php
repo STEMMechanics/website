@@ -161,7 +161,7 @@ class Product extends Model
             return $variant->isPreorder();
         }
 
-        return (bool) $this->is_preorder;
+        return false;
     }
 
     public function allowsBackorder(?ProductVariant $variant = null): bool
@@ -170,7 +170,7 @@ class Product extends Model
             return $variant->allowsBackorder();
         }
 
-        return (bool) $this->allow_backorder;
+        return (bool) ($this->allow_backorder || $this->is_preorder);
     }
 
     public function galleryMedia()
@@ -447,11 +447,17 @@ class Product extends Model
             return $variant->backorderShippingEstimateLabel($format);
         }
 
-        if (! $this->backorder_shipping_estimate instanceof Carbon) {
+        $estimate = $this->backorder_shipping_estimate;
+
+        if (! $estimate instanceof Carbon && $this->preorder_shipping_estimate instanceof Carbon) {
+            $estimate = $this->preorder_shipping_estimate;
+        }
+
+        if (! $estimate instanceof Carbon) {
             return null;
         }
 
-        return $this->backorder_shipping_estimate->format($format);
+        return $estimate->format($format);
     }
 
     public function shippingModeLabel(?ProductVariant $variant = null): string
@@ -555,7 +561,7 @@ class Product extends Model
     public static function satchelOptions(): Collection
     {
         if (Schema::hasTable('store_shipping_methods') && Schema::hasTable('store_shipping_method_packages')) {
-            $method = StoreShippingMethod::query()
+            $methodQuery = StoreShippingMethod::query()
                 ->where('is_active', true)
                 ->where('is_pickup', false)
                 ->with([
@@ -564,10 +570,14 @@ class Product extends Model
                         ->orderBy('sort_order')
                         ->orderBy('id'),
                 ])
-                ->orderByDesc('is_default')
                 ->orderBy('sort_order')
-                ->orderBy('id')
-                ->first();
+                ->orderBy('id');
+
+            if (Schema::hasColumn('store_shipping_methods', 'is_default')) {
+                $methodQuery->orderByDesc('is_default');
+            }
+
+            $method = $methodQuery->first();
 
             if ($method instanceof StoreShippingMethod && $method->packageOptions->isNotEmpty()) {
                 return $method->packageOptions

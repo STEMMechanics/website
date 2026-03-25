@@ -3,10 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
+use App\Models\SiteOption;
 use App\Models\ProductVariant;
+use App\Models\Quote;
 use App\Models\StoreOrder;
 use App\Models\User;
+use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class ShopCheckoutTest extends TestCase
@@ -42,7 +48,7 @@ class ShopCheckoutTest extends TestCase
 
         $this->get(route('shop.checkout'))
             ->assertOk()
-            ->assertSee('Shipping Details')
+            ->assertSee('Order Details')
             ->assertSee('Step 2 of 2')
             ->assertSee('Payment Details')
             ->assertSee('Add voucher')
@@ -51,6 +57,51 @@ class ShopCheckoutTest extends TestCase
 
         $this->get(route('shop.checkout.payment'))
             ->assertRedirect(route('shop.checkout'));
+    }
+
+    public function test_logged_in_shop_checkout_uses_account_credit_without_card_details_when_credit_covers_the_total(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create([
+            'firstname' => 'Credit',
+            'surname' => 'Customer',
+            'email' => 'credit-customer@example.com',
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $user->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT,
+            'total_amount' => 30.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Account credit grant',
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 19.95,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('shop.cart.add', $product), [
+                'quantity' => 1,
+            ])->assertRedirect(route('shop.cart.show'));
+
+        $response = $this->actingAs($user)->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Credit Customer',
+            'billing_email' => 'credit-customer@example.com',
+            'billing_phone' => '0400111222',
+            'shipping_country' => 'Australia',
+        ]);
+
+        $order = StoreOrder::query()->sole();
+
+        $response->assertRedirect(route('account.order.show', $order));
+        $this->assertTrue($order->isPaid());
+        $this->assertSame(1, InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->count());
+        $this->assertSame(19.95, (float) InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->sum('allocated_amount'));
+
     }
 
     public function test_digital_products_can_be_added_in_multiple_quantities(): void
@@ -142,7 +193,7 @@ class ShopCheckoutTest extends TestCase
             ->assertSeeText('Sold out');
     }
 
-    public function test_product_page_shows_variant_specific_preorder_and_backorder_dates(): void
+    public function test_product_page_shows_variant_specific_backorder_dates(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -155,7 +206,7 @@ class ShopCheckoutTest extends TestCase
 
         ProductVariant::factory()->create([
             'product_id' => $product->id,
-            'name' => 'Pre-order Blue',
+            'name' => 'Legacy Blue',
             'price' => 29.95,
             'inventory_quantity' => null,
             'is_preorder' => true,
@@ -174,10 +225,11 @@ class ShopCheckoutTest extends TestCase
 
         $this->get(route('shop.product.show', $product))
             ->assertOk()
-            ->assertSeeText('Pre-order Blue')
-            ->assertSeeText('Pre-order. Estimated shipping May 15th, 2026')
+            ->assertSeeText('Legacy Blue')
+            ->assertSeeText('Available to order. More expected May 15th, 2026')
             ->assertSeeText('Backorder Red')
-            ->assertSeeText('Available to order. More expected May 20th, 2026');
+            ->assertSeeText('Available to order. More expected May 20th, 2026')
+            ->assertDontSeeText('Pre-order');
     }
 
     public function test_single_option_product_page_shows_price_and_listing_style_cart_control(): void
@@ -237,6 +289,163 @@ class ShopCheckoutTest extends TestCase
             ->assertOk()
             ->assertDontSeeText('Fits Small package or larger')
             ->assertDontSeeText('Final shipping is based on the whole cart.');
+    }
+
+    public function test_manual_quote_checkout_hides_payment_and_marks_triggering_items(): void
+    {
+        SiteOption::ensureDefaultOptionsExist();
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_AMOUNT_OPTION],
+            ['value' => '']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_LABEL_OPTION],
+            ['value' => 'Manual quote']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_MESSAGE_OPTION],
+            ['value' => 'Manual shipping quote required.']
+        );
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Framed Poster',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'shipping_units' => 0.0,
+            'min_satchel_rank' => 1,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $this->get(route('shop.checkout'))
+            ->assertOk()
+            ->assertSeeText('Request quote')
+            ->assertSeeText('Pickup')
+            ->assertSeeText('Step 1 of 1')
+            ->assertSeeText('Request Quote')
+            ->assertSeeText('Requires pickup or a manual shipping quote')
+            ->assertSeeText('This item requires pickup or a manual shipping quote.')
+            ->assertDontSeeText('Regular shipping')
+            ->assertDontSeeText('Some physical products do not have package units configured.')
+            ->assertSeeText('--');
+    }
+
+    public function test_manual_quote_checkout_creates_a_store_quote_without_creating_an_order(): void
+    {
+        SiteOption::ensureDefaultOptionsExist();
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_AMOUNT_OPTION],
+            ['value' => '']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_LABEL_OPTION],
+            ['value' => 'Manual quote']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_MESSAGE_OPTION],
+            ['value' => 'Manual shipping quote required.']
+        );
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Framed Poster',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'shipping_units' => 0.0,
+            'min_satchel_rank' => 1,
+        ]);
+
+        $this->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $response = $this->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Avery Example',
+            'billing_email' => 'avery@example.com',
+            'billing_phone' => '0400123456',
+            'shipping_name' => 'Avery Example',
+            'shipping_phone' => '0400123456',
+            'shipping_address' => '123 Example Street',
+            'shipping_city' => 'Brisbane',
+            'shipping_state' => 'QLD',
+            'shipping_postcode' => '4000',
+            'shipping_country' => 'Australia',
+            'shipping_method_code' => 'request_quote',
+        ]);
+
+        $quote = Quote::query()->firstOrFail();
+
+        $response->assertRedirect(route('shop.index'));
+
+        $this->assertSame(\App\Models\Quote::CONTEXT_STORE_MANUAL_SHIPPING, (string) $quote->context_type);
+        $this->assertSame(\App\Models\Quote::STATUS_DRAFT, (string) $quote->status);
+        $this->assertTrue((bool) $quote->acceptance_creates_order);
+        $this->assertTrue((bool) $quote->acceptance_emails_invoice);
+        $this->assertSame('avery@example.com', (string) data_get($quote->context_payload, 'customer.billing_email'));
+        $this->assertSame(0, StoreOrder::query()->count());
+        $this->getJson(route('shop.cart.show', ['shipping_country' => 'Australia']))
+            ->assertOk()
+            ->assertJsonPath('cart.summary.item_count', 0);
+    }
+
+    public function test_manual_quote_notice_only_appears_on_the_triggering_item_in_a_mixed_cart(): void
+    {
+        SiteOption::ensureDefaultOptionsExist();
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_AMOUNT_OPTION],
+            ['value' => '']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_LABEL_OPTION],
+            ['value' => 'Manual quote']
+        );
+        SiteOption::query()->updateOrCreate(
+            ['name' => ShopShippingSettings::BOXED_MESSAGE_OPTION],
+            ['value' => 'Manual shipping quote required.']
+        );
+
+        $manualQuoteItem = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Framed Poster',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'shipping_units' => 0.0,
+            'min_satchel_rank' => 1,
+        ]);
+        $regularItem = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Microbit Base',
+            'price' => 24.95,
+            'inventory_quantity' => 5,
+            'shipping_units' => 1.0,
+            'min_satchel_rank' => 1,
+        ]);
+
+        $this->post(route('shop.cart.add', $manualQuoteItem), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+        $this->post(route('shop.cart.add', $regularItem), [
+            'quantity' => 1,
+        ])->assertRedirect(route('shop.cart.show'));
+
+        $response = $this->get(route('shop.checkout'));
+
+        $response->assertOk()
+            ->assertSeeText('Framed Poster')
+            ->assertSeeText('Microbit Base')
+            ->assertSeeText('Requires pickup or a manual shipping quote');
+
+        $this->assertSame(
+            2,
+            substr_count($response->getContent(), 'Requires pickup or a manual shipping quote')
+        );
     }
 
     public function test_invalid_discount_code_is_not_kept_as_applied(): void

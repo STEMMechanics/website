@@ -7,125 +7,19 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
-$avatarPreviewUrl = old('avatar_media_name', $user->avatar_media_name)
-    ? ($user->avatarMedia?->thumbnail ?? '')
-    : '';
-$avatarZoom = (int) old('avatar_zoom', $user->avatar_zoom ?? 100);
-$avatarOffsetX = (int) old('avatar_offset_x', $user->avatar_offset_x ?? 0);
-$avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
+$parentDisplayName = $user->parent?->forumDisplayName() ?: '-';
+$passwordLoginAvailable = $user->canUsePasswordLogin();
 @endphp
 
 <x-layout>
-    <x-mast description="Manage the parts of this child account that are available directly to the child user.">Child Account Settings</x-mast>
+    <x-mast description="Manage your public profile and sign-in settings.">Account Settings</x-mast>
 
-    <x-container inner-class="max-w-5xl">
+    <x-container inner-class="max-w-6xl">
         <form
             method="POST"
             action="{{ route('account.update') }}"
             id="account-settings-form"
             class="my-8"
-            x-data="{
-                avatarMediaName: @js((string) old('avatar_media_name', $user->avatar_media_name ?? '')),
-                avatarPreviewUrl: @js($avatarPreviewUrl),
-                avatarMediaLabel: '',
-                avatarMediaSize: '',
-                avatarZoom: {{ max(100, min(250, $avatarZoom)) }},
-                avatarOffsetX: {{ max(-50, min(50, $avatarOffsetX)) }},
-                avatarOffsetY: {{ max(-50, min(50, $avatarOffsetY)) }},
-                avatarDragging: false,
-                avatarDragStartX: 0,
-                avatarDragStartY: 0,
-                avatarDragOriginX: 0,
-                avatarDragOriginY: 0,
-                avatarDragFrameWidth: 1,
-                avatarDragFrameHeight: 1,
-                init() {
-                    const loadAvatarDetails = (mediaName) => {
-                        if (!mediaName || !window.SM?.mediaDetails) {
-                            if (!mediaName) {
-                                this.avatarPreviewUrl = '';
-                                this.avatarMediaLabel = '';
-                                this.avatarMediaSize = '';
-                            }
-                            return;
-                        }
-
-                        window.SM.mediaDetails(mediaName, (details) => {
-                            this.avatarPreviewUrl = String(details?.thumbnail || '');
-                            this.avatarMediaLabel = String(details?.name || '');
-                            this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
-                        });
-                    };
-
-                    loadAvatarDetails(this.avatarMediaName);
-                    window.addEventListener('pointermove', (event) => this.handleAvatarDrag(event));
-                    window.addEventListener('pointerup', () => this.endAvatarDrag());
-                    window.addEventListener('pointercancel', () => this.endAvatarDrag());
-                },
-                avatarStyle() {
-                    return `transform: translate(${this.avatarOffsetX}%, ${this.avatarOffsetY}%) scale(${(this.avatarZoom / 100).toFixed(2)}); transform-origin: center center;`;
-                },
-                openAvatarPicker() {
-                    window.SMMediaPicker.open(this.avatarMediaName || '', {
-                        require_mime_type: 'image/*',
-                        allow_multiple: false,
-                        allow_uploads: true,
-                        allow_camera: true,
-                    }, (value) => this.setAvatarMedia(value));
-                },
-                setAvatarMedia(value) {
-                    this.avatarMediaName = String(value || '');
-
-                    if (this.avatarMediaName === '') {
-                        this.avatarPreviewUrl = '';
-                        this.avatarMediaLabel = '';
-                        this.avatarMediaSize = '';
-                        this.avatarZoom = 100;
-                        this.avatarOffsetX = 0;
-                        this.avatarOffsetY = 0;
-                        return;
-                    }
-
-                    window.SM.mediaDetails(this.avatarMediaName, (details) => {
-                        this.avatarPreviewUrl = String(details?.thumbnail || '');
-                        this.avatarMediaLabel = String(details?.name || '');
-                        this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
-                        this.avatarZoom = 100;
-                        this.avatarOffsetX = 0;
-                        this.avatarOffsetY = 0;
-                    });
-                },
-                startAvatarDrag(event) {
-                    if (!this.avatarPreviewUrl) {
-                        return;
-                    }
-
-                    const point = event.touches?.[0] || event;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    this.avatarDragging = true;
-                    this.avatarDragStartX = point.clientX;
-                    this.avatarDragStartY = point.clientY;
-                    this.avatarDragOriginX = this.avatarOffsetX;
-                    this.avatarDragOriginY = this.avatarOffsetY;
-                    this.avatarDragFrameWidth = rect.width || 1;
-                    this.avatarDragFrameHeight = rect.height || 1;
-                },
-                handleAvatarDrag(event) {
-                    if (!this.avatarDragging) {
-                        return;
-                    }
-
-                    const point = event.touches?.[0] || event;
-                    const zoomScale = this.avatarZoom / 100;
-                    const deltaX = ((point.clientX - this.avatarDragStartX) / this.avatarDragFrameWidth) * 100 / zoomScale;
-                    const deltaY = ((point.clientY - this.avatarDragStartY) / this.avatarDragFrameHeight) * 100 / zoomScale;
-                    this.avatarOffsetX = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginX + deltaX)));
-                    this.avatarOffsetY = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginY + deltaY)));
-                },
-                endAvatarDrag() {
-                    this.avatarDragging = false;
-                },
-            }"
         >
             @csrf
             <input type="hidden" name="remembered_device_hint" id="remembered_device_hint" value="" />
@@ -136,21 +30,13 @@ $avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <h2 class="text-lg font-semibold text-gray-900">Profile</h2>
-                                <p class="mt-1 text-sm text-gray-600">Child accounts can change their username and avatar only.</p>
-                            </div>
-                            <div class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
-                                Forum-only account
+                                <h2 class="text-lg font-semibold text-gray-900">Profile Details</h2>
+                                <p class="mt-1 text-sm text-gray-600">Update the public details used for your child account across discussions and workshop areas.</p>
                             </div>
                         </div>
 
                         <div class="mt-6 grid gap-4 md:grid-cols-2">
-                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="Usernames are unique across all accounts." />
-                            <div class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-600">
-                                <div class="font-semibold text-gray-900">Managed by</div>
-                                <div class="mt-1">{{ $user->parent?->forumDisplayName() ?: 'Parent account' }}</div>
-                                <div class="mt-3 text-xs text-gray-500">Purchases, tickets, invoices, and address details are disabled for child accounts.</div>
-                            </div>
+                            <x-ui.input label="Username" name="username" value="{{ old('username', $user->username) }}" info="This can be changed at any time and is unique across the site. Don't use your real name!" />
                         </div>
                     </section>
 
@@ -160,7 +46,7 @@ $avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
                                 <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
                                 <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
                             </div>
-                            <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
+                            <div class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
                         </div>
 
                         <div class="rounded-2xl mt-4 bg-gray-50 p-4">
@@ -231,64 +117,20 @@ $avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
                 </div>
 
                 <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
-                    <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                        <h2 class="text-lg font-semibold text-gray-900">Account Overview</h2>
-                        <div class="mt-5 space-y-4">
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Username</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $user->username ?: '-' }}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Authentication</div>
-                                <div class="mt-1 text-sm text-gray-900">Username + password</div>
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Parent account</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $user->parent?->forumDisplayName() ?: '-' }}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Remembered devices</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $rememberedDevices->count() }}</div>
-                            </div>
-                        </div>
-                    </section>
-
-                    @include('account.partials.avatar-card')
+                    @include('account.partials.avatar-card', [
+                        'avatarEditable' => $user->canEditAvatar(),
+                        'avatarMediaSelectable' => $user->canSelectAvatarMedia(),
+                        'avatarCameraEnabled' => $user->canUseAvatarCamera(),
+                    ])
                 </div>
             </div>
         </form>
 
         <div class="mb-8 space-y-6">
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Password Login</h2>
-                        <p class="mt-1 text-sm text-gray-600">Update the password used to sign in to this child account.</p>
-                    </div>
-                </div>
-
-                <form method="POST" action="{{ route('account.password.update') }}" class="mt-6 grid gap-4 md:grid-cols-2">
-                    @csrf
-                    <x-ui.input type="password" name="password" label="New password" value="" />
-                    <x-ui.input type="password" name="password_confirmation" label="Confirm password" value="" />
-                    <div class="md:col-span-2 flex justify-end">
-                        <x-ui.button type="submit">Update password</x-ui.button>
-                    </div>
-                </form>
-            </section>
-
             @include('account.partials.two-factor-card', ['supportsEmailVerification' => false])
 
-            <div class="rounded-3xl border border-primary-color/15 bg-primary-color-light/30 p-5 shadow-sm sm:p-6">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div class="text-sm font-semibold text-gray-900">Ready to save?</div>
-                        <p class="text-sm text-gray-600">Your username, avatar, and remembered-device preferences are saved together.</p>
-                    </div>
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
-                    </div>
-                </div>
+            <div class="flex justify-end">
+                <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
             </div>
         </div>
     </x-container>

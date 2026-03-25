@@ -113,6 +113,60 @@ class DiscussionNotificationPreferencesTest extends TestCase
             ->count());
     }
 
+    public function test_topic_notification_toggle_enables_and_disables_subscription_state(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'discussion-toggle@example.com',
+        ]);
+
+        $category = ForumCategory::query()->create([
+            'name' => 'Projects',
+            'slug' => 'projects',
+        ]);
+
+        $topic = $this->createTopic($category, $user, 'Toggle notifications');
+
+        $enableResponse = $this->actingAs($user)
+            ->postJson(route('forum.topic.notifications', [
+                'categorySlug' => $category->slug,
+                'topicSlug' => $topic->slug,
+            ]), [
+                'notifications_enabled' => '1',
+            ]);
+
+        $enableResponse
+            ->assertOk()
+            ->assertJson([
+                'enabled' => true,
+            ]);
+
+        $this->assertDatabaseHas('forum_topic_user_states', [
+            'forum_topic_id' => $topic->id,
+            'user_id' => $user->id,
+            'notifications_enabled' => true,
+        ]);
+
+        $disableResponse = $this->actingAs($user)
+            ->postJson(route('forum.topic.notifications', [
+                'categorySlug' => $category->slug,
+                'topicSlug' => $topic->slug,
+            ]), [
+                'notifications_enabled' => '0',
+            ]);
+
+        $disableResponse
+            ->assertOk()
+            ->assertJson([
+                'enabled' => false,
+            ]);
+
+        $this->assertDatabaseHas('forum_topic_user_states', [
+            'forum_topic_id' => $topic->id,
+            'user_id' => $user->id,
+            'notifications_enabled' => false,
+        ]);
+    }
+
     public function test_forum_unread_notification_uses_discussion_unsubscribe_route(): void
     {
         Mail::fake();

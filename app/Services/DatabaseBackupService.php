@@ -2,11 +2,17 @@
 
 namespace App\Services;
 
+use App\Models\SiteOption;
+use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 use Symfony\Component\Process\Process;
+use Throwable;
 
 class DatabaseBackupService
 {
+    public const KEEP_COUNT_OPTION = 'backup.database.keep';
+    public const DEFAULT_KEEP_COUNT = 168;
+
     private string $backupDirectory;
     private ?string $dumpCommand;
     private ?string $mysqlImportCommand;
@@ -114,6 +120,28 @@ class DatabaseBackupService
         rename($tmpGzPath, $finalPath);
 
         return $finalPath;
+    }
+
+    public function resolvedKeepCount(int|string|null $keepCount = null): int
+    {
+        if ($keepCount !== null && trim((string) $keepCount) !== '') {
+            return max(1, (int) $keepCount);
+        }
+
+        $fallback = self::DEFAULT_KEEP_COUNT;
+
+        try {
+            if (Schema::hasTable('site_options')) {
+                $configured = trim((string) SiteOption::value(self::KEEP_COUNT_OPTION, (string) $fallback));
+                if ($configured !== '' && is_numeric($configured)) {
+                    return max(1, (int) $configured);
+                }
+            }
+        } catch (Throwable) {
+            // Fall back to the hard-coded retention count when site options are unavailable.
+        }
+
+        return $fallback;
     }
 
     public function pruneOldBackups(int $keepCount = 168): int

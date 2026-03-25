@@ -12,7 +12,7 @@
         >
             <x-ui.toolbar>
                 <x-slot:left>
-                    <x-ui.button type="link" href="{{ route('admin.site_option.create') }}">Create</x-ui.button>
+                    <x-ui.button href="{{ route('admin.site_option.create') }}">Create</x-ui.button>
                     <x-ui.button type="button" color="outline" class="ml-2" id="site-options-reset-all-button">Reset All Defaults</x-ui.button>
                 </x-slot:left>
                 <x-slot:right>

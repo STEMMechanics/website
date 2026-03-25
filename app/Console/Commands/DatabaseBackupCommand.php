@@ -7,13 +7,13 @@ use Illuminate\Console\Command;
 
 class DatabaseBackupCommand extends Command
 {
-    protected $signature = 'database:backup {--keep=168 : Number of backup files to retain}';
+    protected $signature = 'database:backup {--keep= : Number of backup files to retain. Defaults to site option backup.database.keep}';
 
     protected $description = 'Create a full compressed database backup and prune old backup files.';
 
     public function handle(DatabaseBackupService $backupService): int
     {
-        $keep = max(1, (int) $this->option('keep'));
+        $keep = $backupService->resolvedKeepCount($this->option('keep'));
 
         try {
             $path = $backupService->createBackup();

@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
-use App\Mail\InvoiceDocumentBundle;
-use App\Mail\PaymentReceiptPdf;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketCancelledNotice;
 use App\Mail\TicketMagicLink;
@@ -279,6 +277,7 @@ class TicketController extends Controller
 
         $isAdmin = (bool) $user->isAdmin();
         $isOwner = (string) ($ticket->user_id ?? '') !== '' && (string) $ticket->user_id === (string) $user->id;
+        $introLine = $this->resolveTicketCancellationIntroLine($request);
 
         abort_if(! ($isAdmin || $isOwner), 403);
 
@@ -287,7 +286,7 @@ class TicketController extends Controller
                 ticket: $ticket,
                 squareApi: $squareApi,
                 initiatedByAdmin: $isAdmin,
-                reason: $isAdmin ? 'Admin cancelled ticket' : 'Customer cancelled ticket',
+                reason: $introLine,
                 processSquareRefunds: true
             );
         } catch (ValidationException $e) {
@@ -326,16 +325,7 @@ class TicketController extends Controller
 
         try {
             $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
-            $this->sendRefundReceiptEmailsForTicket(
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationDocumentBundleForTicket(
-                $request,
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationNoticeEmail($request, $freshTicket, $summary);
+            $this->sendCancellationNoticeEmail($request, $freshTicket, $summary, $introLine);
         } catch (Throwable $e) {
             report($e);
         }
@@ -353,6 +343,7 @@ class TicketController extends Controller
             && (string) ($ticket->user_id ?? '') !== ''
             && (string) $ticket->user_id === (string) $authUser->id;
         $hasPurchaserToken = $this->hasValidPurchaserMagicTokenForTicket($request, $ticket);
+        $introLine = $this->resolveTicketCancellationIntroLine($request);
 
         abort_if(! ($isAdmin || $isOwner || $hasPurchaserToken), 403);
 
@@ -361,7 +352,7 @@ class TicketController extends Controller
                 ticket: $ticket,
                 squareApi: $squareApi,
                 initiatedByAdmin: $isAdmin,
-                reason: $isAdmin ? 'Admin cancelled ticket' : 'Customer cancelled ticket',
+                reason: $introLine,
                 processSquareRefunds: true
             );
         } catch (ValidationException $e) {
@@ -400,16 +391,7 @@ class TicketController extends Controller
 
         try {
             $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
-            $this->sendRefundReceiptEmailsForTicket(
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationDocumentBundleForTicket(
-                $request,
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationNoticeEmail($request, $freshTicket, $summary);
+            $this->sendCancellationNoticeEmail($request, $freshTicket, $summary, $introLine);
         } catch (Throwable $e) {
             report($e);
         }
@@ -423,13 +405,15 @@ class TicketController extends Controller
         abort_if(! $user || ! $user->isAdmin(), 403);
 
         $processSquareRefunds = filter_var($request->input('process_square_refund', false), FILTER_VALIDATE_BOOLEAN);
+        $emailCustomer = $request->boolean('email_customer', true);
+        $introLine = $this->resolveTicketCancellationIntroLine($request);
 
         try {
             $summary = $this->cancelTicketWithFinancials(
                 ticket: $ticket,
                 squareApi: $squareApi,
                 initiatedByAdmin: true,
-                reason: 'Admin cancelled ticket',
+                reason: $introLine,
                 processSquareRefunds: $processSquareRefunds
             );
         } catch (ValidationException $e) {
@@ -468,25 +452,21 @@ class TicketController extends Controller
         if (! $processSquareRefunds && (bool) ($summary['has_square_payment'] ?? false)) {
             $message .= ' Square refund not processed yet; complete it from the payment record if needed.';
         }
+        if (! $emailCustomer) {
+            $message .= ' Customer email not sent.';
+        }
 
         session()->flash('message', $message);
         session()->flash('message-title', 'Ticket cancelled');
         session()->flash('message-type', 'success');
 
-        try {
-            $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
-            $this->sendRefundReceiptEmailsForTicket(
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationDocumentBundleForTicket(
-                $request,
-                $freshTicket,
-                array_map('intval', (array) ($summary['refund_payment_ids'] ?? []))
-            );
-            $this->sendCancellationNoticeEmail($request, $freshTicket, $summary);
-        } catch (Throwable $e) {
-            report($e);
+        if ($emailCustomer) {
+            try {
+                $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
+                $this->sendCancellationNoticeEmail($request, $freshTicket, $summary, $introLine);
+            } catch (Throwable $e) {
+                report($e);
+            }
         }
 
         return redirect()->back();
@@ -533,6 +513,7 @@ class TicketController extends Controller
 
         $processSquareRefunds = $request->boolean('process_square_refund', true);
         $emailCustomer = $request->boolean('email_customer', true);
+        $introLine = $this->resolveTicketCancellationIntroLine($request);
         $cancelledCount = 0;
         $failureMessages = [];
         $refundedCentsTotal = 0;
@@ -554,7 +535,7 @@ class TicketController extends Controller
                     ticket: $ticket,
                     squareApi: $squareApi,
                     initiatedByAdmin: true,
-                    reason: 'Admin cancelled ticket',
+                    reason: $introLine,
                     processSquareRefunds: $processSquareRefunds
                 );
             } catch (ValidationException $e) {
@@ -580,10 +561,7 @@ class TicketController extends Controller
             try {
                 $freshTicket = $ticket->fresh(['invoice.user', 'invoice.taxAdjustments.lines', 'user', 'workshop.location']);
                 if ($emailCustomer && $freshTicket instanceof Ticket) {
-                    $refundPaymentIds = array_map('intval', (array) ($summary['refund_payment_ids'] ?? []));
-                    $this->sendRefundReceiptEmailsForTicket($freshTicket, $refundPaymentIds);
-                    $this->sendCancellationDocumentBundleForTicket($request, $freshTicket, $refundPaymentIds);
-                    $this->sendCancellationNoticeEmail($request, $freshTicket, $summary);
+                    $this->sendCancellationNoticeEmail($request, $freshTicket, $summary, $introLine);
                 }
             } catch (Throwable $e) {
                 report($e);
@@ -1010,7 +988,9 @@ class TicketController extends Controller
             $reconciliation = $this->reconcileCreditAllocationsForAdjustment($invoice, $adjustmentNote);
             $this->syncInvoicePaidStateAfterTicketAdjustment($invoice);
 
-            $expectedRefundCents = max(0, (int) round(((float) ($reconciliation['allocated'] ?? 0)) * 100));
+            $expectedRefundCents = (bool) $originallyPaid
+                ? max(0, (int) ($creditLine['refund_cents'] ?? 0))
+                : 0;
             $hasSquarePayment = InvoicePaymentAllocation::query()
                 ->where('invoice_id', $invoice->id)
                 ->whereHas('customerPayment', function ($query): void {
@@ -1098,6 +1078,14 @@ class TicketController extends Controller
         $sourceType = $invoiceLine?->source_type;
         $sourceId = $invoiceLine?->source_id;
         $originalInvoiceLineId = $invoiceLine?->id;
+        $originalTicketReference = trim((string) ($ticket->reference_code ?: $ticket->id));
+        $reissuedTicket = $ticket->reissuedToTicket;
+        $reissuedTicketReference = '';
+        if ($reissuedTicket instanceof Ticket) {
+            $reissuedTicketReference = trim((string) ($reissuedTicket->reference_code ?: $reissuedTicket->id));
+        } elseif (trim((string) ($ticket->reissued_to_ticket_id ?? '')) !== '') {
+            $reissuedTicketReference = trim((string) $ticket->reissued_to_ticket_id);
+        }
 
         $unitEx = round($lineTotalEx / max(1, $quantityBase), 2);
         $lineEx = round($unitEx, 2);
@@ -1107,10 +1095,14 @@ class TicketController extends Controller
         return [
             'kind' => 'ticket',
             'description' => $description,
-            'notes' => 'Ticket cancellation refund for ticket '.($ticket->reference_code ?: $ticket->id),
+            'notes' => trim(implode('; ', array_filter([
+                'Ticket cancellation refund for original ticket '.$originalTicketReference,
+                $reissuedTicketReference !== '' ? 'reissued as '.$reissuedTicketReference : null,
+            ]))),
             'details_json' => [
                 'ticket_id' => $ticket->id,
-                'ticket_reference' => (string) ($ticket->reference_code ?: $ticket->id),
+                'ticket_reference' => $originalTicketReference,
+                'reissued_ticket_reference' => $reissuedTicketReference !== '' ? $reissuedTicketReference : null,
                 'workshop_id' => $ticket->workshop_id,
             ],
             'quantity' => 1,
@@ -1431,79 +1423,19 @@ class TicketController extends Controller
         }
     }
 
-    private function sendRefundReceiptEmailsForTicket(Ticket $ticket, array $refundPaymentIds): void
+    /**
+     * @param  array<int, int>  $refundPaymentIds
+     * @return array<int, array{filename:string,content:string,mime?:string}>
+     */
+    private function buildCancellationDocumentAttachmentsForTicket(Ticket $ticket, array $refundPaymentIds = []): array
     {
-        $refundPaymentIds = array_values(array_filter(array_map('intval', $refundPaymentIds), fn (int $id) => $id > 0));
-        if ($refundPaymentIds === []) {
-            return;
-        }
-
         $invoice = $ticket->invoice;
         if (! $invoice instanceof Invoice) {
-            return;
-        }
-
-        $invoice->loadMissing('user');
-        $recipient = trim($this->purchaserEmailForTicket($ticket));
-        if ($recipient === '') {
-            return;
-        }
-
-        $refundPayments = Payment::query()
-            ->whereIn('id', $refundPaymentIds)
-            ->where('kind', Payment::KIND_REFUND)
-            ->orderByDesc('received_on')
-            ->orderByDesc('created_at')
-            ->get();
-
-        foreach ($refundPayments as $refundPayment) {
-            $pdfBinary = $this->buildPaymentReceiptPdfBinary($invoice, $refundPayment);
-            if ($pdfBinary === null) {
-                continue;
-            }
-
-            dispatch(new SendEmail($recipient, new PaymentReceiptPdf(
-                recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
-                invoiceNumber: (string) $invoice->invoice_number,
-                receiptNumber: (string) $refundPayment->id,
-                amount: money(abs((float) $refundPayment->total_amount)),
-                paidOn: ($refundPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
-                paymentMethod: Payment::paymentMethodLabel((string) ($refundPayment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
-                receiptUrl: (string) ($refundPayment->square_receipt_url ?? ''),
-                isRefund: true,
-                pdfContent: $pdfBinary,
-                pdfFilename: 'refund-receipt-'.((int) $refundPayment->id).'.pdf',
-            )))->onQueue('mail');
-        }
-    }
-
-    private function sendCancellationDocumentBundleForTicket(Request $request, Ticket $ticket, array $refundPaymentIds): void
-    {
-        $refundPaymentIds = array_values(array_filter(array_map('intval', $refundPaymentIds), fn (int $id) => $id > 0));
-        if ($refundPaymentIds !== []) {
-            return;
-        }
-
-        $invoice = $ticket->invoice;
-        if (! $invoice instanceof Invoice) {
-            return;
-        }
-
-        $recipient = trim($this->purchaserEmailForTicket($ticket));
-        if ($recipient === '') {
-            $recipient = $this->resolveTicketsAccessTokenEmail($request);
-        }
-        if ($recipient === '') {
-            Log::warning('Ticket cancellation email skipped: no recipient email.', [
-                'ticket_id' => (int) $ticket->id,
-                'invoice_id' => (int) ($ticket->invoice_id ?? 0),
-            ]);
-            report(new RuntimeException('Ticket cancellation email skipped: no recipient email for ticket #'.$ticket->id));
-
-            return;
+            return [];
         }
 
         $invoice->loadMissing('user', 'taxAdjustments.lines', 'allocations.customerPayment');
+        $refundPaymentIds = array_values(array_filter(array_map('intval', $refundPaymentIds), fn (int $id) => $id > 0));
 
         $attachments = [];
         $invoicePdf = $this->buildInvoicePdfBinary($invoice);
@@ -1528,32 +1460,32 @@ class TicketController extends Controller
             ];
         }
 
-        if ($attachments === []) {
-            Log::warning('Ticket cancellation email skipped: no PDF attachments generated.', [
-                'ticket_id' => (int) $ticket->id,
-                'invoice_id' => (int) ($ticket->invoice_id ?? 0),
-            ]);
-            report(new RuntimeException('Ticket cancellation email skipped: no PDF attachments generated for ticket #'.$ticket->id));
+        if ($refundPaymentIds !== []) {
+            $refundPayments = Payment::query()
+                ->whereIn('id', $refundPaymentIds)
+                ->where('kind', Payment::KIND_REFUND)
+                ->orderByDesc('received_on')
+                ->orderByDesc('created_at')
+                ->get();
 
-            return;
+            foreach ($refundPayments as $refundPayment) {
+                $refundPdf = $this->buildPaymentReceiptPdfBinary($invoice, $refundPayment);
+                if ($refundPdf === null) {
+                    continue;
+                }
+
+                $attachments[] = [
+                    'filename' => 'refund-receipt-'.((int) $refundPayment->id).'.pdf',
+                    'content' => $refundPdf,
+                    'mime' => 'application/pdf',
+                ];
+            }
         }
 
-        dispatch(new SendEmail($recipient, new InvoiceDocumentBundle(
-            recipientName: $invoice->user?->getName() ?: (string) ($invoice->billing_name ?: $recipient),
-            invoiceNumber: (string) $invoice->invoice_number,
-            attachments: $attachments,
-            outstandingAmount: $invoice->outstandingAmount(),
-            payUrl: route('invoice.public.pay.show', $invoice),
-        )))->onQueue('mail');
-        Log::info('Ticket cancellation email queued.', [
-            'ticket_id' => (int) $ticket->id,
-            'invoice_id' => (int) ($ticket->invoice_id ?? 0),
-            'recipient' => $recipient,
-            'attachment_count' => count($attachments),
-        ]);
+        return $attachments;
     }
 
-    private function sendCancellationNoticeEmail(Request $request, Ticket $ticket, array $summary): void
+    private function sendCancellationNoticeEmail(Request $request, Ticket $ticket, array $summary, string $introLine = 'The following ticket has been cancelled.'): void
     {
         $recipient = trim($this->purchaserEmailForTicket($ticket));
         if ($recipient === '') {
@@ -1575,24 +1507,36 @@ class TicketController extends Controller
         $workshopLocation = (string) ($ticket->workshop?->getLocationName() ?? '-');
         $ticketReference = (string) ($ticket->reference_code ?: '#'.$ticket->id);
 
-        $refundedCents = (int) ($summary['refunded_cents'] ?? 0);
-        $manualRefundRequired = (bool) ($summary['manual_refund_required'] ?? false);
-        $alreadyAdjusted = (bool) ($summary['already_adjusted'] ?? false);
+        $purchaseWasPaid = (bool) ($summary['originally_paid'] ?? false);
         $invoiceTotal = (float) ($ticket->invoice->total_amount ?? 0);
         $isFreeBooking = (int) ($ticket->invoice_id ?? 0) <= 0 || $invoiceTotal <= 0.0001;
+        $manualRefundRequired = (bool) ($summary['manual_refund_required'] ?? false);
+        $refundPaymentIds = array_values(array_unique(array_filter(array_map('intval', (array) ($summary['refund_payment_ids'] ?? [])), fn (int $id) => $id > 0)));
+        $attachments = $manualRefundRequired ? [] : $this->buildCancellationDocumentAttachmentsForTicket($ticket, $refundPaymentIds);
 
         $financialSummary = '';
         if (! $isFreeBooking) {
-            if ($alreadyAdjusted) {
-                $financialSummary .= 'A refund or credit had already been recorded for this ticket.';
-            } elseif ($refundedCents > 0) {
-                $financialSummary .= 'A refund of $'.number_format($refundedCents / 100, 2).' has been processed.';
-            } elseif ($manualRefundRequired) {
-                $financialSummary .= 'We have recorded your refund request and will finalise it shortly.';
+            if ($purchaseWasPaid) {
+                if ($manualRefundRequired) {
+                    $financialSummary .= 'Credit will be applied to your account or a refund for the purchase will be processed manually.';
+                } elseif ($refundPaymentIds !== []) {
+                    $financialSummary .= 'A refund for the purchase has been processed automatically.';
+                } else {
+                    $financialSummary .= 'A refund for the purchase will be processed automatically.';
+                }
             } else {
-                $financialSummary .= 'A credit note has been applied to the ticket invoice where applicable.';
+                $financialSummary .= 'Any unpaid invoices related to this ticket will be cancelled.';
             }
-            $financialSummary .= ' Credit/Refund receipts will be issued in a separate email. If you have any questions, please contact us.';
+        }
+        $financialSummary .= ' If you have any questions, please don\'t hesitate to contact us.';
+
+        $documentSummary = '';
+        if ($manualRefundRequired) {
+            $documentSummary = 'The invoice documents will be sent once processed.';
+        } elseif ($attachments !== []) {
+            $documentSummary = $refundPaymentIds !== []
+                ? 'The invoice, tax adjustment, and refund receipt documents are attached to this email.'
+                : 'The invoice documents are attached to this email.';
         }
 
         dispatch(new SendEmail($recipient, new TicketCancelledNotice(
@@ -1602,7 +1546,37 @@ class TicketController extends Controller
             workshopTime: $workshopTime !== '' ? $workshopTime : '-',
             workshopLocation: $workshopLocation !== '' ? $workshopLocation : '-',
             financialSummary: $financialSummary,
+            attachments: $attachments,
+            documentSummary: $documentSummary,
+            introLine: $introLine,
         )))->onQueue('mail');
+
+        $holderEmail = strtolower(trim((string) ($ticket->email ?? '')));
+        if ($holderEmail !== '' && $holderEmail !== strtolower($recipient)) {
+            dispatch(new SendEmail($holderEmail, new TicketAttendeeUpdate(
+                mode: 'cancelled',
+                recipientName: trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: $holderEmail,
+                purchaserName: $this->purchaserNameForTicket($ticket) ?: $recipient,
+                workshop: [
+                    'title' => $workshopTitle !== '' ? $workshopTitle : 'Workshop',
+                    'time' => $workshopTime !== '' ? $workshopTime : '-',
+                    'location' => $workshopLocation !== '' ? $workshopLocation : '-',
+                ],
+                ticket: [
+                    'reference' => $ticketReference,
+                    'name' => trim((string) (($ticket->firstname ?? '').' '.($ticket->surname ?? ''))) ?: '-',
+                    'email' => $holderEmail,
+                    'phone' => (string) ($ticket->phone ?? '-'),
+                ],
+            )))->onQueue('mail');
+        }
+    }
+
+    private function resolveTicketCancellationIntroLine(Request $request): string
+    {
+        $reason = trim((string) $request->input('reason', ''));
+
+        return $reason !== '' ? $reason : 'The following ticket has been cancelled.';
     }
 
     private function resolveTicketsAccessTokenEmail(Request $request): string

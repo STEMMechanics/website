@@ -16,7 +16,7 @@
             >
                 <div class="forum-category-card__icon">
                     @if($usesStemcraftIcon)
-                        <img src="/stemcraft-short-logo.webp" alt="" class="h-5 w-5 object-contain" />
+                        <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-5 w-5 object-contain" />
                     @else
                         <i class="{{ $iconClass }}"></i>
                     @endif
@@ -25,7 +25,7 @@
                     <div class="flex items-center gap-2">
                         <h2 class="truncate text-lg font-bold text-gray-900">{{ $category->name }}</h2>
                         @if(isset($unreadCategoryLookup[(string) $category->id]))
-                            <span class="rounded-full bg-red-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-red-700">New</span>
+                            <span class="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">New</span>
                         @endif
                     </div>
                     <div class="mt-1 text-sm text-gray-500">

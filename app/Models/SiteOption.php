@@ -20,6 +20,37 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'Optional notice bar shown across the site.',
             ],
+            'backup.database.keep' => [
+                'value' => '168',
+                'description' => 'Number of database backup files to retain when database:backup runs without an explicit --keep value.',
+                'input_type' => 'number',
+            ],
+            'backup.remote.disk' => [
+                'value' => '',
+                'description' => 'Laravel filesystem disk used for offsite backups, for example an SFTP or S3 disk configured in config/filesystems.php.',
+            ],
+            'backup.remote.path' => [
+                'value' => 'offsite-backups',
+                'description' => 'Base folder on the remote backup disk where backup runs and manifests are written.',
+            ],
+            'backup.remote.include-database' => [
+                'value' => '1',
+                'description' => 'Whether offsite backups should include a full compressed database dump.',
+                'input_type' => 'boolean',
+            ],
+            'backup.remote.include-files' => [
+                'value' => '1',
+                'description' => 'Whether offsite backups should include configured file sources.',
+                'input_type' => 'boolean',
+            ],
+            'backup.remote.files-mode' => [
+                'value' => 'incremental',
+                'description' => 'File backup mode for offsite backups. Use full to upload every selected file each run, or incremental to upload only changed/new files while still taking a full database backup.',
+            ],
+            'backup.remote.file-sources' => [
+                'value' => json_encode(\App\Services\ExternalBackupService::defaultFileSources(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '[]',
+                'description' => 'JSON array of file sources for offsite backups. Each item should define key, disk, path, and label.',
+            ],
             'document.business-info' => [
                 'value' => "STEMMechanics\n63 Dalton Street\nWestcourt, QLD, 4870\nABN 15 772 281 735\n\n0400 130 190\nhello@stemmechanics.com.au\nstemmechanics.com.au",
                 'description' => 'Business contact block shown on PDF documents.',

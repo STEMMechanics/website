@@ -62,23 +62,23 @@ class ShopAdminOrderItemsTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.shop.order.edit', $order))
             ->assertOk()
-            ->assertSee('Order Snapshot')
+            ->assertSee('Order Status')
+            ->assertSee('Placed')
+            ->assertSee('Invoice')
+            ->assertSee('Customer')
+            ->assertSee('Delivery Details')
+            ->assertSee('Order Summary')
+            ->assertSee('Outstanding')
             ->assertSee('Order Changes')
             ->assertSee('Queued Order Changes')
             ->assertSee('Preparing Order')
-            ->assertSee('Ordered Qty')
-            ->assertSee('Cancelled Qty')
-            ->assertSee('Reserved Qty')
-            ->assertSee('Backorder Qty')
-            ->assertSee('Dispatched Qty')
             ->assertSee('Cancel Items')
             ->assertSee('Add Shipment')
-            ->assertSee('Shipment Entries')
+            ->assertSee('Private Notes')
+            ->assertSee('Public Notes')
             ->assertSee('Partially Shipped')
             ->assertSee('Save All Changes')
             ->assertSee('Clear Staged Changes')
-            ->assertSee('Undo')
-            ->assertSee('Australia Post')
             ->assertDontSee('Finish Order Edits')
             ->assertSee($item->displayTitle());
     }
@@ -1027,6 +1027,48 @@ class ShopAdminOrderItemsTest extends TestCase
                         'tracking_number' => 'TRACK-LATE-2',
                         'tracking_url' => 'https://tracking.example.test/complete',
                         'notes' => 'Backorder sent later.',
+                        'dispatched_at' => now()->toDateString(),
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(StoreOrder::STATUS_SHIPPED, (string) $order->fresh()->status);
+    }
+
+    public function test_order_becomes_shipped_when_single_physical_item_is_fully_dispatched(): void
+    {
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+        $product = Product::factory()->create([
+            'inventory_quantity' => 1,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Single Dispatch Kit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_PROCESSING,
+                'notes' => '',
+                'public_notes' => '',
+                'item_actions_json' => json_encode([
+                    [
+                        'type' => 'tracking',
+                        'item_id' => $item->id,
+                        'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+                        'quantity' => 1,
+                        'carrier' => 'Australia Post',
+                        'tracking_number' => 'TRACK-SINGLE-1',
+                        'tracking_url' => '',
+                        'notes' => 'Single item sent.',
                         'dispatched_at' => now()->toDateString(),
                     ],
                 ], JSON_THROW_ON_ERROR),

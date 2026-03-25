@@ -2,185 +2,214 @@
     $isNew = (bool) ($isNew ?? false);
     $pendingTopics = collect($pendingTopics ?? []);
     $pendingReplies = collect($pendingReplies ?? []);
+    $pendingApprovalCount = $pendingTopics->count() + $pendingReplies->count();
 @endphp
 
 <x-layout>
-    <x-mast backRoute="account.show" backTitle="Account Settings">
+    <x-mast
+        backRoute="account.show"
+        backTitle="Account Settings"
+        description="{{ $isNew ? 'Create a child account with its own username, password, avatar, and discussion permissions.' : 'Manage this child account including username, password, avatar, and discussion permissions.' }}"
+    >
         {{ $isNew ? 'Create Child Account' : 'Manage Child Account' }}
     </x-mast>
 
-    <x-container inner-class="max-w-5xl">
+    <x-container inner-class="max-w-6xl">
         <div class="my-8 space-y-6">
             <form
                 method="POST"
                 action="{{ $isNew ? route('account.children.store') : route('account.children.update', $child) }}"
-                class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
+                id="child-account-settings-form"
+                class="my-8"
+                x-data="{
+                    canCreateTopics: @js((bool) old('child_can_create_forum_topics', $child->child_can_create_forum_topics ?? true)),
+                    topicRequiresApproval: @js((bool) old('child_forum_topic_requires_approval', $child->child_forum_topic_requires_approval ?? false)),
+                    parentNotifiedOnTopics: @js((bool) old('child_parent_notified_on_forum_topics', $child->child_parent_notified_on_forum_topics ?? false)),
+                    canReplyInForum: @js((bool) old('child_can_reply_in_forum', $child->child_can_reply_in_forum ?? true)),
+                    replyRequiresApproval: @js((bool) old('child_forum_reply_requires_approval', $child->child_forum_reply_requires_approval ?? false)),
+                    parentNotifiedOnReplies: @js((bool) old('child_parent_notified_on_forum_replies', $child->child_parent_notified_on_forum_replies ?? false)),
+                    canSelectAvatarMedia: @js((bool) old('child_can_select_avatar_media', $child->child_can_select_avatar_media ?? true)),
+                    canUseAvatarCamera: @js((bool) old('child_can_use_avatar_camera', $child->child_can_use_avatar_camera ?? true)),
+                }"
             >
                 @csrf
                 @unless($isNew)
                     @method('PUT')
                 @endunless
 
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">{{ $isNew ? 'Child account details' : $child->username }}</h2>
-                        <p class="mt-1 text-sm text-gray-600">Child accounts sign in with username and password and can only use the discussion forums.</p>
-                    </div>
-                </div>
+                <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+                    <div class="space-y-6">
+                        <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-900">Profile Details</h2>
+                                    <p class="mt-1 text-sm text-gray-600">Set the username and password this child will use to sign in and appear across discussions.</p>
+                                </div>
+                            </div>
 
-                <div class="mt-6 grid gap-4 md:grid-cols-2">
-                    <x-ui.input label="Username" name="username" value="{{ old('username', $child->username) }}" info="Unique across all accounts." />
-                    <div class="rounded-2xl bg-gray-50 px-4 py-4 text-sm text-gray-600">
-                        <div class="font-semibold text-gray-900">Forum access</div>
-                        <div class="mt-2">Use the options below to decide whether this child can create threads, reply, and whether either action needs parent approval first.</div>
-                    </div>
-                    <x-ui.input type="password" label="{{ $isNew ? 'Password' : 'New password (optional)' }}" name="password" value="" />
-                    <x-ui.input type="password" label="{{ $isNew ? 'Confirm password' : 'Confirm new password' }}" name="password_confirmation" value="" />
-                </div>
+                            <div class="mt-6 grid gap-4 md:grid-cols-2">
+                                <x-ui.input class="mb-0" label="Username" name="username" value="{{ old('username', $child->username) }}" info="Must be unique across all accounts." />
+                                <x-ui.input class="mb-0" type="password" label="{{ $isNew ? 'Password' : 'New password (optional)' }}" name="password" value="" />
+                                <div class="hidden md:block"></div>
+                                <x-ui.input class="mb-0" type="password" label="{{ $isNew ? 'Confirm password' : 'Confirm new password' }}" name="password_confirmation" value="" />
+                            </div>
 
-                <div class="mt-6 grid gap-6 md:grid-cols-2">
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Thread creation</h3>
-                        <div class="mt-4 space-y-3">
-                            <input type="hidden" name="child_can_create_forum_topics" value="0" />
-                            <x-ui.checkbox
-                                label="Allow creating threads"
-                                name="child_can_create_forum_topics"
-                                value="1"
-                                checked="{{ old('child_can_create_forum_topics', $child->child_can_create_forum_topics ?? true) }}"
-                            />
-                            <input type="hidden" name="child_forum_topic_requires_approval" value="0" />
-                            <x-ui.checkbox
-                                label="Require approval before a thread goes live"
-                                name="child_forum_topic_requires_approval"
-                                value="1"
-                                checked="{{ old('child_forum_topic_requires_approval', $child->child_forum_topic_requires_approval ?? false) }}"
-                            />
-                            <input type="hidden" name="child_parent_notified_on_forum_topics" value="0" />
-                            <x-ui.checkbox
-                                label="Email me when this child creates a thread"
-                                name="child_parent_notified_on_forum_topics"
-                                value="1"
-                                checked="{{ old('child_parent_notified_on_forum_topics', $child->child_parent_notified_on_forum_topics ?? false) }}"
-                            />
-                        </div>
+                        </section>
+
+                        <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-900">Public Discussion Access</h2>
+                                    <p class="mt-1 text-sm text-gray-600">These settings only affect the public discussion boards, not workshop-specific discussion areas.</p>
+                                </div>
+                            </div>
+
+                            <div class="mt-6 grid gap-6 md:grid-cols-2">
+                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                    <h3 class="text-sm font-semibold text-gray-900">Thread creation</h3>
+                                    <p class="mt-1 text-xs text-gray-500">Control whether this child can start public discussion threads.</p>
+                                    <div class="mt-4 space-y-3">
+                                        <input type="hidden" name="child_can_create_forum_topics" value="0" />
+                                        <x-ui.checkbox
+                                            label="Allow creating threads"
+                                            name="child_can_create_forum_topics"
+                                            value="1"
+                                            checked="{{ old('child_can_create_forum_topics', $child->child_can_create_forum_topics ?? true) }}"
+                                            x-model="canCreateTopics"
+                                            x-on:change="if (!canCreateTopics) { topicRequiresApproval = false; parentNotifiedOnTopics = false; }"
+                                        />
+                                        <div class="space-y-3 rounded-2xl bg-white px-4 py-4 ring-1 ring-gray-200" x-bind:class="canCreateTopics ? '' : 'opacity-50'">
+                                            <input type="hidden" name="child_forum_topic_requires_approval" value="0" />
+                                            <x-ui.checkbox
+                                                label="Require approval before a thread goes live"
+                                                name="child_forum_topic_requires_approval"
+                                                value="1"
+                                                checked="{{ old('child_forum_topic_requires_approval', $child->child_forum_topic_requires_approval ?? false) }}"
+                                                x-model="topicRequiresApproval"
+                                                x-on:change="if (topicRequiresApproval) { parentNotifiedOnTopics = false; }"
+                                                x-bind:disabled="!canCreateTopics"
+                                            />
+                                            <input type="hidden" name="child_parent_notified_on_forum_topics" value="0" />
+                                            <x-ui.checkbox
+                                                label="Email me when this child creates a thread"
+                                                name="child_parent_notified_on_forum_topics"
+                                                value="1"
+                                                checked="{{ old('child_parent_notified_on_forum_topics', $child->child_parent_notified_on_forum_topics ?? false) }}"
+                                                x-model="parentNotifiedOnTopics"
+                                                x-on:change="if (parentNotifiedOnTopics) { topicRequiresApproval = false; }"
+                                                x-bind:disabled="!canCreateTopics"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                    <h3 class="text-sm font-semibold text-gray-900">Replies</h3>
+                                    <p class="mt-1 text-xs text-gray-500">Control whether this child can respond in public discussion threads.</p>
+                                    <div class="mt-4 space-y-3">
+                                        <input type="hidden" name="child_can_reply_in_forum" value="0" />
+                                        <x-ui.checkbox
+                                            label="Allow replying to posts"
+                                            name="child_can_reply_in_forum"
+                                            value="1"
+                                            checked="{{ old('child_can_reply_in_forum', $child->child_can_reply_in_forum ?? true) }}"
+                                            x-model="canReplyInForum"
+                                            x-on:change="if (!canReplyInForum) { replyRequiresApproval = false; parentNotifiedOnReplies = false; }"
+                                        />
+                                        <div class="space-y-3 rounded-2xl bg-white px-4 py-4 ring-1 ring-gray-200" x-bind:class="canReplyInForum ? '' : 'opacity-50'">
+                                            <input type="hidden" name="child_forum_reply_requires_approval" value="0" />
+                                            <x-ui.checkbox
+                                                label="Require approval before a reply goes live"
+                                                name="child_forum_reply_requires_approval"
+                                                value="1"
+                                                checked="{{ old('child_forum_reply_requires_approval', $child->child_forum_reply_requires_approval ?? false) }}"
+                                                x-model="replyRequiresApproval"
+                                                x-on:change="if (replyRequiresApproval) { parentNotifiedOnReplies = false; }"
+                                                x-bind:disabled="!canReplyInForum"
+                                            />
+                                            <input type="hidden" name="child_parent_notified_on_forum_replies" value="0" />
+                                            <x-ui.checkbox
+                                                label="Email me when this child replies"
+                                                name="child_parent_notified_on_forum_replies"
+                                                value="1"
+                                                checked="{{ old('child_parent_notified_on_forum_replies', $child->child_parent_notified_on_forum_replies ?? false) }}"
+                                                x-model="parentNotifiedOnReplies"
+                                                x-on:change="if (parentNotifiedOnReplies) { replyRequiresApproval = false; }"
+                                                x-bind:disabled="!canReplyInForum"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Avatar Permissions</h2>
+                                <p class="mt-1 text-sm text-gray-600">Control whether this child can change their avatar on their own account page.</p>
+                            </div>
+
+                            <div class="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                <div class="space-y-3">
+                                    <input type="hidden" name="child_can_select_avatar_media" value="0" />
+                                    <x-ui.checkbox
+                                        label="Allow this child to choose and edit their avatar"
+                                        name="child_can_select_avatar_media"
+                                        value="1"
+                                        checked="{{ old('child_can_select_avatar_media', $child->child_can_select_avatar_media ?? true) }}"
+                                        x-model="canSelectAvatarMedia"
+                                        x-on:change="if (!canSelectAvatarMedia) { canUseAvatarCamera = false; }"
+                                    />
+                                    <div class="space-y-3 rounded-2xl bg-white px-4 py-4 ring-1 ring-gray-200" x-bind:class="canSelectAvatarMedia ? '' : 'opacity-50'">
+                                        <input type="hidden" name="child_can_use_avatar_camera" value="0" />
+                                        <x-ui.checkbox
+                                            label="Allow this child to use the camera in the media picker"
+                                            name="child_can_use_avatar_camera"
+                                            value="1"
+                                            checked="{{ old('child_can_use_avatar_camera', $child->child_can_use_avatar_camera ?? true) }}"
+                                            x-model="canUseAvatarCamera"
+                                            x-bind:disabled="!canSelectAvatarMedia"
+                                        />
+                                        <p class="text-xs text-gray-500">Camera access is only available when this child is allowed to edit their avatar.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
-                    <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Replies</h3>
-                        <div class="mt-4 space-y-3">
-                            <input type="hidden" name="child_can_reply_in_forum" value="0" />
-                            <x-ui.checkbox
-                                label="Allow replying to posts"
-                                name="child_can_reply_in_forum"
-                                value="1"
-                                checked="{{ old('child_can_reply_in_forum', $child->child_can_reply_in_forum ?? true) }}"
-                            />
-                            <input type="hidden" name="child_forum_reply_requires_approval" value="0" />
-                            <x-ui.checkbox
-                                label="Require approval before a reply goes live"
-                                name="child_forum_reply_requires_approval"
-                                value="1"
-                                checked="{{ old('child_forum_reply_requires_approval', $child->child_forum_reply_requires_approval ?? false) }}"
-                            />
-                            <input type="hidden" name="child_parent_notified_on_forum_replies" value="0" />
-                            <x-ui.checkbox
-                                label="Email me when this child replies"
-                                name="child_parent_notified_on_forum_replies"
-                                value="1"
-                                checked="{{ old('child_parent_notified_on_forum_replies', $child->child_parent_notified_on_forum_replies ?? false) }}"
-                            />
-                        </div>
+                    <div class="grid self-start content-start gap-6 md:grid-cols-2 xl:grid-cols-1">
+                        @include('account.partials.avatar-card', [
+                            'avatarUser' => $child,
+                            'avatarMediaSelectable' => true,
+                            'avatarCameraEnabled' => true,
+                        ])
                     </div>
-                </div>
-
-                <div class="mt-6 flex justify-end">
-                    <x-ui.button type="submit">{{ $isNew ? 'Create child account' : 'Save child account' }}</x-ui.button>
                 </div>
             </form>
 
-            @unless($isNew)
-                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Pending Discussion Approval</h2>
-                            <p class="mt-1 text-sm text-gray-600">Approve or discard pending threads and replies from this child account.</p>
-                        </div>
-                    </div>
-
-                    @if($pendingTopics->isEmpty() && $pendingReplies->isEmpty())
-                        <div class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
-                            There is nothing waiting for approval right now.
-                        </div>
-                    @else
-                        <div class="mt-5 space-y-4">
-                            @foreach($pendingTopics as $entry)
-                                @php($topic = $entry['topic'])
-                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Pending thread</div>
-                                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $topic->plainTitle() }}</div>
-                                            <div class="mt-1 text-xs text-gray-500">{{ $topic->category?->name }} · {{ $topic->created_at?->format('j M Y g:i a') }}</div>
-                                            <div class="mt-3 text-sm text-gray-600">{{ $entry['preview'] !== '' ? $entry['preview'] : 'No preview available.' }}</div>
-                                        </div>
-                                        <div class="flex gap-3">
-                                            <form method="POST" action="{{ route('account.children.topic.approve', ['child' => $child, 'forumTopic' => $topic]) }}">
-                                                @csrf
-                                                <x-ui.button type="submit" color="primary">Approve</x-ui.button>
-                                            </form>
-                                            <form method="POST" action="{{ route('account.children.topic.reject', ['child' => $child, 'forumTopic' => $topic]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Discard thread?', 'This will permanently discard the pending thread.', $el, 'Discard')">
-                                                @csrf
-                                                <x-ui.button type="submit" color="danger-outline">Discard</x-ui.button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-
-                            @foreach($pendingReplies as $entry)
-                                @php($post = $entry['post'])
-                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                                    <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                        <div>
-                                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Pending reply</div>
-                                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $post->topic?->plainTitle() ?: 'Discussion thread' }}</div>
-                                            <div class="mt-1 text-xs text-gray-500">{{ $post->topic?->category?->name }} · {{ $post->created_at?->format('j M Y g:i a') }}</div>
-                                            <div class="mt-3 text-sm text-gray-600">{{ $entry['preview'] !== '' ? $entry['preview'] : 'No preview available.' }}</div>
-                                        </div>
-                                        <div class="flex gap-3">
-                                            <form method="POST" action="{{ route('account.children.post.approve', ['child' => $child, 'forumPost' => $post]) }}">
-                                                @csrf
-                                                <x-ui.button type="submit" color="primary">Approve</x-ui.button>
-                                            </form>
-                                            <form method="POST" action="{{ route('account.children.post.reject', ['child' => $child, 'forumPost' => $post]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Discard reply?', 'This will permanently discard the pending reply.', $el, 'Discard')">
-                                                @csrf
-                                                <x-ui.button type="submit" color="danger-outline">Discard</x-ui.button>
-                                            </form>
-                                        </div>
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    @endif
-                </section>
-
-                <section class="rounded-3xl border border-red-200 bg-red-50/60 p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Delete Child Account</h2>
-                            <p class="mt-1 text-sm text-gray-600">This anonymizes the child account, releases the username, and disables sign-in.</p>
-                        </div>
-                        <form method="POST" action="{{ route('account.children.destroy', $child) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete child account?', 'This will anonymize the child account and cannot be undone.', $el)" class="flex flex-col items-start gap-3 sm:items-end">
-                            @csrf
-                            @method('DELETE')
-                            <input type="hidden" name="delete_discussion_threads" value="0" />
-                            <x-ui.checkbox label="Also delete discussion threads this child created and replace their replies with deleted placeholders" name="delete_discussion_threads" value="1" small="true" class="mb-0 max-w-sm text-left" />
-                            <x-ui.button type="submit" color="danger">Delete child account</x-ui.button>
-                        </form>
-                    </div>
-                </section>
-            @endunless
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                @if(!$isNew)
+                    <form
+                        method="POST"
+                        action="{{ route('account.children.destroy', $child) }}"
+                        data-delete-title="Delete child account?"
+                        data-delete-message="Are you sure you want to delete this child account? This action cannot be undone."
+                        data-delete-secondary-message="Any workshop tickets for this child account will remain valid."
+                        x-data
+                        x-on:submit.prevent="SM.confirmAccountDelete($el)"
+                    >
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="delete_discussion_threads" value="0" />
+                        <x-ui.button type="submit" color="danger-outline">Delete child account</x-ui.button>
+                    </form>
+                @else
+                    <div></div>
+                @endif
+                <div class="flex gap-3">
+                    <x-ui.button type="submit" form="child-account-settings-form">{{ $isNew ? 'Create child account' : 'Save child account' }}</x-ui.button>
+                </div>
+            </div>
         </div>
     </x-container>
 </x-layout>

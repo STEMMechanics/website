@@ -1,118 +1,127 @@
 @php
     $defaultBulkEmailSubject = 'A message about the '.trim((string) ($workshop->title ?? 'workshop'));
+    $createTicketModalOpen = old('manual_ticket_type') !== null || $errors->has('manual_ticket_type');
+    $bulkEmailModalOpen = $errors->has('email_subject') || $errors->has('email_message');
+    $emailTicketChecked = in_array((string) old('email_ticket', '1'), ['1', 'on', 'true'], true);
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">Workshop Tickets</x-mast>
 
-    <x-container
-        x-data="{
-        editModalOpen: false,
-        editFormAction: '',
-        editTicketLabel: '',
-        editFirstname: '',
-        editSurname: '',
-        editEmail: '',
-        editPhone: '',
-        openEditModal(action, label, details) {
-            this.editFormAction = action;
-            this.editTicketLabel = label;
-            this.editFirstname = details.firstname || '';
-            this.editSurname = details.surname || '';
-            this.editEmail = details.email || '';
-            this.editPhone = details.phone || '';
-            this.editModalOpen = true;
-        },
-        closeEditModal() {
-            this.editModalOpen = false;
-            this.editFormAction = '';
-            this.editTicketLabel = '';
-            this.editFirstname = '';
-            this.editSurname = '';
-            this.editEmail = '';
-            this.editPhone = '';
-        },
-        bulkEmailOpen: false,
-        confirmSubmit(event, message, buttonLabel = 'Confirm') {
-            event.preventDefault();
-            const form = event.target?.closest('form');
-            if (!(form instanceof HTMLFormElement)) {
-                return;
-            }
-            if (window.SM && typeof window.SM.confirm === 'function') {
-                window.SM.confirm('Confirm action', message, buttonLabel, (isConfirmed) => {
-                    if (isConfirmed) {
-                        form.submit();
-                    }
-                });
-            }
-        }
-    }"
-        x-init="{{ ($errors->has('email_subject') || $errors->has('email_message')) ? 'bulkEmailOpen = true' : '' }}">
+    <x-container>
+        <div
+            x-data="{
+                createTicketOpen: @js($createTicketModalOpen),
+                editModalOpen: false,
+                editFormAction: '',
+                editTicketLabel: '',
+                editFirstname: '',
+                editSurname: '',
+                editEmail: '',
+                editPhone: '',
+                openEditModal(action, label, details) {
+                    this.editFormAction = action;
+                    this.editTicketLabel = label;
+                    this.editFirstname = details.firstname || '';
+                    this.editSurname = details.surname || '';
+                    this.editEmail = details.email || '';
+                    this.editPhone = details.phone || '';
+                    this.editModalOpen = true;
+                },
+                closeEditModal() {
+                    this.editModalOpen = false;
+                    this.editFormAction = '';
+                    this.editTicketLabel = '';
+                    this.editFirstname = '';
+                    this.editSurname = '';
+                    this.editEmail = '';
+                    this.editPhone = '';
+                },
+                cancelModalOpen: false,
+                cancelFormAction: '',
+                cancelTicketLabel: '',
+                cancelConfirmationMessage: '',
+                cancelSubmitLabel: 'Cancel Ticket',
+                cancelProcessSquareRefund: false,
+                cancelShowSquareRefund: false,
+                cancelEmailCustomer: true,
+                cancelReasonDefault: @js(old('reason', 'The following ticket has been cancelled.')),
+                cancelReason: @js(old('reason', 'The following ticket has been cancelled.')),
+                openCancelModal(action, label, message, submitLabel = 'Cancel Ticket', showSquareRefund = false, processSquareRefund = false) {
+                    this.cancelFormAction = action;
+                    this.cancelTicketLabel = label;
+                    this.cancelConfirmationMessage = message;
+                    this.cancelSubmitLabel = submitLabel;
+                    this.cancelShowSquareRefund = Boolean(showSquareRefund);
+                    this.cancelProcessSquareRefund = Boolean(processSquareRefund);
+                    this.cancelEmailCustomer = true;
+                    this.cancelReason = this.cancelReasonDefault;
+                    this.cancelModalOpen = true;
+                },
+                closeCancelModal() {
+                    this.cancelModalOpen = false;
+                    this.cancelFormAction = '';
+                    this.cancelTicketLabel = '';
+                    this.cancelConfirmationMessage = '';
+                    this.cancelSubmitLabel = 'Cancel Ticket';
+                    this.cancelProcessSquareRefund = false;
+                    this.cancelShowSquareRefund = false;
+                    this.cancelEmailCustomer = true;
+                    this.cancelReason = this.cancelReasonDefault;
+                },
+                bulkEmailOpen: @js($bulkEmailModalOpen),
+            }">
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="text-lg font-semibold">{{ $workshop->title }}</div>
-            <div class="text-sm text-gray-600">
-                Starts: {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}
-            </div>
-            <div class="text-sm text-gray-600">
-                Tickets: {{ (int) ($activeTicketCount ?? 0) }} / {{ $workshop->max_tickets !== null ? (int) $workshop->max_tickets : 'Unlimited' }}
-            </div>
-            <div class="text-sm text-gray-600">
-                @php
-                $rawPrice = trim((string) ($workshop->price ?? ''));
-                $priceDisplay = 'Free';
-                if ($rawPrice !== '' && $rawPrice !== '0') {
-                $numericPrice = preg_replace('/[^0-9.]/', '', $rawPrice);
-                $priceDisplay = is_string($numericPrice) && $numericPrice !== '' && is_numeric($numericPrice)
-                ? '$'.number_format((float) $numericPrice, 2)
-                : $rawPrice;
-                }
-                @endphp
-                Price: {{ $priceDisplay }}
-            </div>
-            <div class="text-sm text-gray-600">
-                Available: {{ $availableTicketCount !== null ? (int) $availableTicketCount : 'Unlimited' }}
+            <div class="flex gap-1 flex-col sm:flex-row sm:gap-6">
+                <div class="text-sm text-gray-600">
+                    <span class="font-semibold">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}
+                </div>
+                <div class="text-sm text-gray-600">
+                    <span class="font-semibold">Tickets:</span> {{ (int) ($activeTicketCount ?? 0) }} / {{ $workshop->max_tickets !== null ? (int) $workshop->max_tickets : 'Unlimited' }}
+                </div>
+                <div class="text-sm text-gray-600">
+                    @php
+                    $rawPrice = trim((string) ($workshop->price ?? ''));
+                    $priceDisplay = 'Free';
+                    if ($rawPrice !== '' && $rawPrice !== '0') {
+                    $numericPrice = preg_replace('/[^0-9.]/', '', $rawPrice);
+                    $priceDisplay = is_string($numericPrice) && $numericPrice !== '' && is_numeric($numericPrice)
+                    ? '$'.number_format((float) $numericPrice, 2)
+                    : $rawPrice;
+                    }
+                    @endphp
+                    <span class="font-semibold">Price:</span> {{ $priceDisplay }}
+                </div>
+                <div class="text-sm text-gray-600">
+                    <span class="font-semibold">Available:</span> {{ $availableTicketCount !== null ? (int) $availableTicketCount : 'Unlimited' }}
+                </div>
             </div>
         </div>
 
-        <div class="mb-6 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <div class="mb-1 text-base font-semibold text-gray-900">Create Ticket</div>
-            <div class="mb-4 text-sm text-gray-600">Create a free ticket or a reserved pay-at-door ticket for this workshop.</div>
-
-            <form method="POST" action="{{ route('admin.workshop.tickets.store', $workshop) }}">
-                @csrf
-
-                <div class="grid gap-4 md:grid-cols-2">
-                    <x-ui.select name="manual_ticket_type" label="Ticket Type">
-                        <option value="free" @selected(old('manual_ticket_type', 'free') === 'free')>Free ticket</option>
-                        <option value="reserve" @selected(old('manual_ticket_type') === 'reserve')>Reserve ticket (Pay at Door)</option>
-                    </x-ui.select>
-
-                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
-                        Free tickets are created as active tickets with no invoice. Reserved tickets are created as pay-at-door tickets and generate an invoice.
-                    </div>
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-2">
-                    <x-ui.input label="First Name" name="firstname" value="{{ old('firstname') }}" />
-                    <x-ui.input label="Surname" name="surname" value="{{ old('surname') }}" />
-                    <x-ui.input type="email" label="Email" name="email" value="{{ old('email') }}" info="If this email matches an existing user, the ticket is linked to their account automatically." />
-                    <x-ui.input label="Phone" name="phone" value="{{ old('phone') }}" />
-                </div>
-
-                <x-ui.button type="submit">Create Ticket</x-ui.button>
-            </form>
-        </div>
-
-        <div class="my-4 flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div class="my-4 flex flex-col gap-3 md:flex-row md:items-center">
             <div class="flex flex-1 flex-wrap gap-2">
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
-                <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets.pdf', $workshop) }}" target="_blank">Ticket Roll PDF</x-ui.button>
-                <x-ui.button type="button" color="outline" x-on:click.prevent="bulkEmailOpen = true">Email Ticket Contacts</x-ui.button>
+                <x-ui.button type="button" x-on:click.prevent="createTicketOpen = true">Create Ticket</x-ui.button>
+                <a
+                    href="{{ route('admin.workshop.tickets.pdf', $workshop) }}"
+                    target="_blank"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                    title="Ticket Roll PDF"
+                    aria-label="Ticket Roll PDF"
+                >
+                    <i class="fa-regular fa-file-pdf"></i>
+                </a>
+                <button
+                    type="button"
+                    class="inline-flex h-10 w-10 items-center justify-center rounded-md border border-gray-400 bg-white text-gray-800 shadow-sm transition hover:bg-gray-500 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                    x-on:click.prevent="bulkEmailOpen = true"
+                    title="Email Ticket Contacts"
+                    aria-label="Email Ticket Contacts"
+                >
+                    <i class="fa-regular fa-envelope"></i>
+                </button>
             </div>
-            <div class="w-full lg:w-auto lg:min-w-[18rem] lg:flex-1">
+            <div class="w-full md:w-auto md:min-w-[18rem]">
                 <x-ui.search name="search" label="Search Tickets" class="w-full" />
             </div>
         </div>
@@ -197,33 +206,21 @@
 
                     @if($canCancel)
                         <div class="mt-4 flex flex-wrap gap-2">
-                            <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                @csrf
-                                <input type="hidden" name="process_square_refund" value="0">
-                                <button
-                                    type="button"
-                                    class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
-                                    title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
-                                    x-on:click="confirmSubmit($event, @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'), 'Cancel Ticket')">
-                                    <i class="fa-solid fa-ban"></i>
-                                    Cancel
-                                </button>
-                            </form>
-
-                            @if($hasAnyPayment)
-                                <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                    @csrf
-                                    <input type="hidden" name="process_square_refund" value="1">
-                                    <button
-                                        type="button"
-                                        class="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700 hover:text-red-800"
-                                        title="Cancel and refund now"
-                                        x-on:click="confirmSubmit($event, @js('Cancel this ticket and attempt refund now? A tax adjustment note will be created first.'.($hasSquarePayment ? '' : ' No Square payment is linked; refund may require manual processing.')), 'Cancel and Refund')">
-                                        <i class="fa-solid fa-money-bill-transfer"></i>
-                                        Refund now
-                                    </button>
-                                </form>
-                            @endif
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 hover:text-amber-900"
+                                title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
+                                x-on:click="openCancelModal(
+                                    @js(route('admin.ticket.cancel', $ticket)),
+                                    @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
+                                    @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                    'Cancel Ticket',
+                                    @js($hasSquarePayment && $hasAnyPayment),
+                                    @js($hasSquarePayment && $hasAnyPayment)
+                                )">
+                                <i class="fa-solid fa-ban"></i>
+                                Cancel
+                            </button>
                         </div>
                     @endif
                 </section>
@@ -305,31 +302,20 @@
                             @endif
 
                             @if($canCancel)
-                            <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                @csrf
-                                <input type="hidden" name="process_square_refund" value="0">
-                                <button
-                                    type="button"
-                                    class="hover:text-amber-600"
-                                    title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
-                                    x-on:click="confirmSubmit($event, @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'), 'Cancel Ticket')">
-                                    <i class="fa-solid fa-ban"></i>
-                                </button>
-                            </form>
-
-                            @if($hasAnyPayment)
-                            <form method="POST" action="{{ route('admin.ticket.cancel', $ticket) }}">
-                                @csrf
-                                <input type="hidden" name="process_square_refund" value="1">
-                                <button
-                                    type="button"
-                                    class="hover:text-red-600"
-                                    title="Cancel and refund now"
-                                    x-on:click="confirmSubmit($event, @js('Cancel this ticket and attempt refund now? A tax adjustment note will be created first.'.($hasSquarePayment ? '' : ' No Square payment is linked; refund may require manual processing.')), 'Cancel and Refund')">
-                                    <i class="fa-solid fa-money-bill-transfer"></i>
-                                </button>
-                            </form>
-                            @endif
+                            <button
+                                type="button"
+                                class="hover:text-amber-600"
+                                title="{{ $hasAnyPayment ? 'Cancel ticket (leave credit on account)' : 'Cancel ticket' }}"
+                                x-on:click="openCancelModal(
+                                    @js(route('admin.ticket.cancel', $ticket)),
+                                    @js(($ticket->reference_code ?: '#'.$ticket->id).' - '.$workshop->title),
+                                    @js($hasAnyPayment ? 'Cancel this ticket and issue a tax adjustment note? This leaves credit on the customer account.' : 'Cancel this ticket?'),
+                                    'Cancel Ticket',
+                                    @js($hasSquarePayment && $hasAnyPayment),
+                                    @js($hasSquarePayment && $hasAnyPayment)
+                                )">
+                                <i class="fa-solid fa-ban"></i>
+                            </button>
                             @else
                             <span class="text-gray-300" title="Ticket is not cancellable"><i class="fa-solid fa-ban"></i></span>
                             @endif
@@ -343,6 +329,123 @@
 
         {{ $tickets->appends(request()->query())->links() }}
         @endif
+
+        <div
+            x-show="createTicketOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-on:keydown.escape.window="createTicketOpen = false">
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="createTicketOpen = false"></div>
+            <div class="relative z-10 w-full max-w-2xl rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+                <div class="mb-3 flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold text-gray-900">Create Ticket</h3>
+                        <p class="mt-1 text-sm text-gray-600">Create a free ticket or a reserved pay-at-door ticket for this workshop.</p>
+                    </div>
+                    <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="createTicketOpen = false">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <form method="POST" action="{{ route('admin.workshop.tickets.store', $workshop) }}" class="mt-4 space-y-4">
+                    @csrf
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <x-ui.select name="manual_ticket_type" label="Ticket Type">
+                            <option value="free" @selected(old('manual_ticket_type', 'free') === 'free')>Free ticket</option>
+                            <option value="reserve" @selected(old('manual_ticket_type') === 'reserve')>Reserve ticket (Pay at Door)</option>
+                        </x-ui.select>
+
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                            Free tickets are created as active tickets with no invoice. Reserved tickets are created as pay-at-door tickets and generate an invoice.
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <x-ui.input label="First Name" name="firstname" value="{{ old('firstname') }}" />
+                        <x-ui.input label="Surname" name="surname" value="{{ old('surname') }}" />
+                        <x-ui.input type="email" label="Email" name="email" value="{{ old('email') }}" info="If this email matches an existing user, the ticket is linked to their account automatically." />
+                        <x-ui.input label="Phone" name="phone" value="{{ old('phone') }}" />
+                    </div>
+
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <input type="hidden" name="email_ticket" value="0" />
+                        <x-ui.checkbox
+                            name="email_ticket"
+                            value="1"
+                            label="Email ticket to this email address"
+                            checked="{{ $emailTicketChecked }}"
+                            small
+                            noWrapper />
+                        <div class="mt-2 text-xs text-gray-600">Includes the ticket PDF and the invoice when one was created.</div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="createTicketOpen = false">Cancel</x-ui.button>
+                        <x-ui.button type="submit">Create Ticket</x-ui.button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div
+            x-show="cancelModalOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-on:keydown.escape.window="closeCancelModal()">
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" x-on:click="closeCancelModal()"></div>
+            <div class="relative z-10 w-full max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+                <h3 class="text-lg font-bold text-gray-900" x-text="cancelSubmitLabel"></h3>
+                <p class="mt-2 text-sm text-gray-700">
+                    You are about to cancel
+                    <span class="font-semibold" x-text="cancelTicketLabel || 'this ticket'"></span>.
+                </p>
+                <p class="mt-2 text-sm text-gray-700" x-text="cancelConfirmationMessage"></p>
+
+                <form method="POST" x-bind:action="cancelFormAction" class="mt-6 space-y-4">
+                    @csrf
+                    <input type="hidden" name="process_square_refund" x-bind:value="cancelProcessSquareRefund ? '1' : '0'">
+                    <input type="hidden" name="email_customer" x-bind:value="cancelEmailCustomer ? '1' : '0'">
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-900" for="cancel-reason">Cancellation message</label>
+                        <textarea
+                            id="cancel-reason"
+                            name="reason"
+                            rows="4"
+                            x-model="cancelReason"
+                            required
+                            class="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        ></textarea>
+                        <p class="mt-1 text-xs text-gray-600">This text replaces the opening line in the customer email.</p>
+                    </div>
+
+                    <label class="flex flex-col items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                        <div class="flex gap-3">
+                            <input type="checkbox" x-model="cancelEmailCustomer" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                            <span class="block text-sm font-semibold text-gray-900">Email customer about this cancellation</span>
+                        </div>
+
+                        <template x-if="cancelShowSquareRefund">
+                            <label class="flex gap-3">
+                                <input type="checkbox" x-model="cancelProcessSquareRefund" class="mt-1 h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                                <span class="block text-sm font-semibold text-gray-900">Process Square refund</span>
+                            </label>
+                        </template>
+                    </label>
+
+                    <div class="flex justify-end gap-3 pt-2">
+                        <x-ui.button type="button" color="primary-outline" x-on:click="closeCancelModal()">Keep Ticket</x-ui.button>
+                        <button
+                            type="submit"
+                            class="inline-flex justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                            x-bind:class="'bg-danger-color hover:bg-danger-color-dark focus-visible:outline-danger-color'">
+                            <span x-text="cancelSubmitLabel"></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <div
             x-show="bulkEmailOpen"
@@ -418,6 +521,7 @@
                     </div>
                 </form>
             </div>
+        </div>
         </div>
     </x-container>
 </x-layout>

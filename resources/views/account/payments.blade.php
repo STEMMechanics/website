@@ -4,10 +4,12 @@
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <div class="text-sm text-gray-700">
-                Account Credit:
-                <span class="ml-1 font-semibold text-indigo-700">{{ money((float) ($accountCredit ?? 0)) }}</span>
-                </div>
+                @if($accountCredit > 0.0001)
+                    <div class="-mt-8 inline-flex items-center rounded-b-lg border border-emerald-200 bg-emerald-50 py-2 px-4 text-emerald-950 gap-2">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Account Credit</div>
+                        <div class="font-semibold">{{ money($accountCredit ?? 0) }}</div>
+                    </div>
+                @endif
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />

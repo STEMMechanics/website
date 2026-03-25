@@ -6,33 +6,40 @@
     ];
     $reactionBaseButtonClasses = 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition';
     $reactionIdleClasses = 'border-gray-200 bg-white text-gray-700 hover:border-primary-color hover:text-primary-color';
+    $author = $post->user;
     $displayName = $post->user?->forumDisplayName() ?: 'deleted';
     $canEditPost = $post->canEdit(auth()->user());
     $isAdmin = auth()->user()?->isAdmin();
     $canDeletePost = $isAdmin || (string) ($post->user_id ?? '') === (string) auth()->id();
     $isDeletedPost = $post->isDeleted();
-    $avatarUrl = $post->user?->avatarMedia?->thumbnail;
+    $avatarUrl = $author?->avatarImageUrl();
+    $isDeletedAuthor = $displayName === 'deleted';
     $parentDisplayName = $post->parentPost?->user?->forumDisplayName() ?: 'deleted';
 @endphp
-
-@php($authorInitial = strtoupper(mb_substr($displayName, 0, 1)))
 
 <article
     id="post-{{ $post->id }}"
     class="{{ $isFirstPost ? 'mb-6 forum-post-card' : 'forum-post-card forum-post-card--reply' }}"
 >
-    <div class="forum-post-card__avatar">
-        @if($avatarUrl)
-            <img src="{{ $avatarUrl }}" alt="{{ $displayName }}" class="h-full w-full rounded-full object-cover" style="{{ $post->user?->avatarImageStyle() }}" />
+    <div
+        class="forum-post-card__avatar {{ $isDeletedAuthor ? 'bg-gradient-to-br from-gray-200 to-gray-400 text-gray-600' : 'text-white' }}"
+        @if(! $isDeletedAuthor && ! $author?->shouldRenderAvatarImage()) style="background: {{ $author?->resolvedAvatarBackgroundColor() ?? '#374151' }}" @endif
+    >
+        @if($isDeletedAuthor)
+            <i class="fa-solid fa-user-slash text-base"></i>
+        @elseif($author?->shouldRenderAvatarImage())
+            <img src="{{ $avatarUrl }}" alt="{{ $displayName }}" class="h-full w-full rounded-full object-cover" style="{{ $author->avatarImageStyle() }}" />
+        @elseif($author?->resolvedAvatarMode() === \App\Models\User::AVATAR_MODE_ICON && $author->resolvedAvatarIconClass())
+            <i class="{{ $author->resolvedAvatarIconClass() }} text-xl"></i>
         @else
-            {{ $authorInitial }}
+            {{ $author?->resolvedAvatarLetters() ?? 'U' }}
         @endif
     </div>
     <div class="min-w-0 flex-1">
         <div class="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-start md:justify-between">
             <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <div class="flex items-center gap-1 font-semibold {{ $topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900' }}">
+                    <div class="flex items-center gap-1 font-semibold {{ $isDeletedAuthor ? 'text-gray-500' : ($topic->user?->hasGroup('admin') ? 'text-primary-color-light' : 'text-gray-900') }}">
                         @if($topic->user?->hasGroup('admin'))
                             <img src="{{ asset('toolbox-sm.png') }}" class="w-7 h-auto" alt="STEMMechanics">
                         @endif
@@ -118,7 +125,7 @@
                             data-submit-label="Save Changes"
                     ><i class="fa-solid fa-pen-to-square"></i></button>
                 @endif
-                @if($canDeletePost && ! $isFirstPost)
+                @if($canDeletePost && ! $isFirstPost && ! $isDeletedPost)
                     <form method="POST" action="{{ route('forum.post.destroy', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this reply?', $el)">
                         @csrf
                         @method('DELETE')

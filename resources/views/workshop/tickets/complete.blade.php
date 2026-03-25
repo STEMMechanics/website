@@ -7,16 +7,34 @@
                 <h2 class="text-2xl font-bold mb-3">Checkout Complete</h2>
 
                 @php
+                $creditAppliedAmount = round((float) ($session['credit_applied_amount'] ?? 0), 2);
+                $paymentAmount = isset($payment) && $payment instanceof \App\Models\Payment ? round((float) $payment->total_amount, 2) : 0.0;
                 $paymentMethodLabel = match ((string) ($session['payment_method'] ?? '')) {
                 'credit_card' => 'Credit Card',
                 'pay_at_door' => 'Pay at Door',
                 'bank_transfer' => 'Bank Transfer',
+                'credit' => 'Account Credit',
                 'free' => 'Free',
                 default => ucwords(str_replace('_', ' ', (string) ($session['payment_method'] ?? '-'))),
                 };
+                if ($creditAppliedAmount > 0.0001 && (string) ($session['payment_method'] ?? '') !== 'credit') {
+                $paymentMethodLabel = 'Account Credit + '.$paymentMethodLabel;
+                }
                 $summaryRows = [
                 ['label' => 'Payment Method', 'value' => $paymentMethodLabel],
                 ];
+                if ($creditAppliedAmount > 0.0001) {
+                $summaryRows[] = [
+                'label' => 'Account Credit Applied',
+                'value' => '$'.number_format($creditAppliedAmount, 2),
+                ];
+                if ($paymentAmount > 0.0001) {
+                $summaryRows[] = [
+                'label' => 'Card Charged',
+                'value' => '$'.number_format($paymentAmount, 2),
+                ];
+                }
+                }
                 if ($invoice) {
                 $summaryRows[] = [
                 'label' => 'Invoice',
@@ -34,9 +52,10 @@
                 @if($sentToEmail !== '')
                 <div class="text-sm my-6">
                     <i class="fa-solid fa-check-circle text-green-600 mr-1"></i>
-                    Your tickets have been emailed to <strong>{{ $sentToEmail }}</strong>.
-                    @if(($holderRecipientCount ?? 0) > 0)
-                    Ticket holder{{ (int) $holderRecipientCount === 1 ? '' : 's' }} with a different email {{ (int) $holderRecipientCount === 1 ? 'has' : 'have' }} also been sent their ticket PDF{{ (int) $holderRecipientCount === 1 ? '' : 's' }}.
+                    @if($hasReceipt)
+                        Your invoice, receipt, and ticket{{ $tickets->count() === 1 ? '' : 's' }} have been emailed to <strong>{{ $sentToEmail }}</strong>.
+                    @else
+                        Your invoice and ticket{{ $tickets->count() === 1 ? '' : 's' }} have been emailed to <strong>{{ $sentToEmail }}</strong>.
                     @endif
                 </div>
                 @endif
@@ -75,22 +94,21 @@
 
                 @if($invoice && $tickets->isNotEmpty())
                 <div class="mt-6 text-sm leading-8">
-                    <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.pdf', ['ticket' => $tickets->first(), 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-color inline-block">View Invoice (PDF)</a></div>
+                    <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.pdf', ['ticket' => $tickets->first(), 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View Invoice (PDF)</a></div>
                     @if($hasReceipt)
-                        <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.receipt.pdf', ['ticket' => $tickets->first(), 'payment' => $payment, 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="hover:text-primary-color inline-block">View Receipt (PDF)</a></div>
+                        <div><i class="fa-solid fa-angles-right text-xxs text-gray-500 mr-1"></i><a href="{{ route('tickets.invoice.receipt.pdf', ['ticket' => $tickets->first(), 'payment' => $payment, 'token' => $accessToken ?? null]) }}" target="_blank" rel="noopener noreferrer" class="text-primary-color hover:text-sky-900 inline-block">View Receipt (PDF)</a></div>
                     @endif
                 </div>
                 @endif
 
                 <div class=" flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
                     <x-ui.button
-                        type="link"
                         href="{{ route('workshop.ticket.flow.complete.download-all', $workshop) }}"
                         color="secondary"
                         target="_blank">
                         Download All
                     </x-ui.button>
-                    <x-ui.button type="link" href="{{ route('workshop.show', $workshop) }}">Back to Workshop</x-ui.button>
+                    <x-ui.button href="{{ route('workshop.show', $workshop) }}">Back to Workshop</x-ui.button>
                 </div>
             </div>
             <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center" style="background-image:url('{{ $workshop->hero?->url }}')"></div>

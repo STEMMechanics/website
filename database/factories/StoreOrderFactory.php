@@ -19,6 +19,7 @@ class StoreOrderFactory extends Factory
             'access_token' => Str::random(40),
             'user_id' => User::query()->value('id') ?? User::factory(),
             'invoice_id' => Invoice::factory(),
+            'quote_id' => null,
             'coupon_id' => null,
             'status' => StoreOrder::STATUS_PENDING_PAYMENT,
             'contains_digital' => false,

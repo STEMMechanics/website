@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 
 class ForumController extends Controller
@@ -148,7 +149,9 @@ class ForumController extends Controller
                 'submitted',
                 $category,
                 $topic,
-                ForumContent::plainText($body)
+                $body,
+                true,
+                $topic
             );
 
             session()->flash('message', 'Your thread has been submitted for parent approval.');
@@ -166,7 +169,7 @@ class ForumController extends Controller
             'posted',
             $category,
             $topic,
-            ForumContent::plainText($body)
+            $body
         );
 
         session()->flash('message', 'Your thread has been saved.');
@@ -286,7 +289,9 @@ class ForumController extends Controller
                 'submitted',
                 $topic->category,
                 $topic,
-                ForumContent::plainText($body)
+                $body,
+                true,
+                $post
             );
 
             session()->flash('message', 'Your reply has been submitted for parent approval.');
@@ -311,7 +316,7 @@ class ForumController extends Controller
             'posted',
             $topic->category,
             $topic,
-            ForumContent::plainText($body)
+            $body
         );
 
         $replySort = $this->normalizedReplySort($request->query('sort'));
@@ -1101,20 +1106,24 @@ class ForumController extends Controller
         return $user?->canCreateForumTopics() ?? false;
     }
 
-    private function notifyParentOfChildForumActivity($child, string $activityLabel, string $statusLabel, ForumCategory $category, ForumTopic $topic, string $preview): void
+    private function notifyParentOfChildForumActivity($child, string $activityLabel, string $statusLabel, ForumCategory $category, ForumTopic $topic, string $preview, bool $forceNotification = false, ForumTopic|ForumPost|null $approvalTarget = null): void
     {
         if (! $child || ! $child->isChildAccount()) {
             return;
         }
 
-        $shouldNotify = $activityLabel === 'thread'
+        $shouldNotify = $forceNotification || ($activityLabel === 'thread'
             ? $child->parentShouldBeNotifiedOnForumTopics()
-            : $child->parentShouldBeNotifiedOnForumReplies();
+            : $child->parentShouldBeNotifiedOnForumReplies());
 
         $parent = $child->parent;
         if (! $shouldNotify || ! $parent || ! $parent->canReceiveEmail()) {
             return;
         }
+
+        $approveUrl = $statusLabel === 'submitted'
+            ? $this->pendingChildForumApprovalUrl($child, $activityLabel, $approvalTarget)
+            : null;
 
         dispatch(new SendEmail(
             $parent->email,
@@ -1125,10 +1134,36 @@ class ForumController extends Controller
                 $statusLabel,
                 (string) $category->name,
                 $topic->plainTitle(),
-                mb_substr(trim($preview), 0, 300),
-                route('account.children.edit', $child)
+                mb_substr(trim(ForumContent::emailPreviewText($preview)), 0, 300),
+                route('account.children.approvals').'#child-'.$child->id,
+                $approveUrl
             )
         ))->onQueue('mail');
+    }
+
+    private function pendingChildForumApprovalUrl($child, string $activityLabel, ForumTopic|ForumPost|null $approvalTarget): ?string
+    {
+        if (! $child || ! $child->isChildAccount() || $approvalTarget === null) {
+            return null;
+        }
+
+        $expiresAt = now()->addDays(14);
+
+        if ($activityLabel === 'thread' && $approvalTarget instanceof ForumTopic) {
+            return URL::temporarySignedRoute('account.children.topic.approve-link', $expiresAt, [
+                'child' => $child,
+                'forumTopic' => $approvalTarget,
+            ]);
+        }
+
+        if ($activityLabel === 'reply' && $approvalTarget instanceof ForumPost) {
+            return URL::temporarySignedRoute('account.children.post.approve-link', $expiresAt, [
+                'child' => $child,
+                'forumPost' => $approvalTarget,
+            ]);
+        }
+
+        return null;
     }
 
     private function moderationRecipientAddress(): string

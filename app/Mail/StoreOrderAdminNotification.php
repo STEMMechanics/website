@@ -21,9 +21,11 @@ class StoreOrderAdminNotification extends Mailable
     {
         $fromAddress = trim((string) config('mail.order_from.address', (string) config('mail.from.address', '')));
         $fromName = trim((string) config('mail.order_from.name', (string) config('mail.from.name', '')));
-        $subject = $this->notificationType === 'paid'
-            ? 'Store order '.$this->order->order_number.' paid'
-            : 'New store order '.$this->order->order_number;
+        $subject = match ($this->notificationType) {
+            'paid' => 'Store order '.$this->order->order_number.' paid',
+            'manual_quote_requested' => 'Shipping quote requested for store order '.$this->order->order_number,
+            default => 'New store order '.$this->order->order_number,
+        };
 
         $mail = $this
             ->subject($subject)

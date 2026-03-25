@@ -173,6 +173,25 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 
+        if ($optionName === 'backup.database.keep') {
+            $rules['value'] = ['required', 'integer', 'min:1', 'max:10000'];
+        }
+
+        if (in_array($optionName, [
+            'backup.remote.include-database',
+            'backup.remote.include-files',
+        ], true)) {
+            $rules['value'] = ['required', Rule::in(['0', '1'])];
+        }
+
+        if ($optionName === 'backup.remote.files-mode') {
+            $rules['value'] = ['required', Rule::in(['full', 'incremental'])];
+        }
+
+        if ($optionName === 'backup.remote.file-sources') {
+            $rules['value'] = ['required', 'json'];
+        }
+
         if ($optionName === 'store.shipping.max-satchel-weight-grams' || $optionName === 'shop.shipping.max-satchel-weight-grams') {
             $rules['value'] = ['required', 'integer', 'min:0', 'max:50000'];
         }

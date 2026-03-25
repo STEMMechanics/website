@@ -19,10 +19,10 @@
                 The file has been requested from the server...
             </div>
             <div x-show="!$store.request.home" class="flex justify-center">
-                <img  src="/loading.gif" class="h-32 w-32" alt="Please wait" />
+                <img src="{{ asset('loading.gif') }}" class="h-32 w-32" alt="Please wait" />
             </div>
             <div x-show="$store.request.home" class="flex justify-between gap-4">
-                <x-ui.button type="link" color="primary-outline" href="#" x-on:click="$store.request.show=true">Try again</x-ui.button>
+                <x-ui.button color="primary-outline" href="#" x-on:click="$store.request.show=true">Try again</x-ui.button>
                 <x-ui.button type="link" href="{{ route('index') }}">Home</x-ui.button>
             </div>
         </div>
@@ -37,7 +37,7 @@
         });
     });
 
-    function submit(e) {
+    function submit() {
         const password = document.querySelector('input[name="password"]').value;
         const url = new URL(window.location.href);
         url.searchParams.set('password', btoa(password));

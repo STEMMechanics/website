@@ -15,6 +15,7 @@ use App\Services\StoreShippingMethodService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -269,19 +270,22 @@ class StoreOrderController extends Controller
 
     private function orderViewPayload(Request $request, StoreOrder $order, bool $isAccountView, ?string $accessToken): array
     {
-        $isPaid = $order->invoice?->outstandingAmount() <= 0.0001;
+        $isPaid = $order->invoice instanceof Invoice
+            && $order->invoice->outstandingAmount() <= 0.0001;
+        $orderItems = $order->items->values();
         $downloadableItems = $order->items->filter(fn ($item) => $item->downloads->isNotEmpty())->values();
         $canDownloadDocuments = $this->canDownloadOrderDocuments($request, $order, $isAccountView);
         $canViewAddressDetails = $this->canViewOrderAddressDetails($request, $order, $isAccountView);
 
         return [
             'order' => $order,
+            'orderItems' => $orderItems,
             'isAccountView' => $isAccountView,
             'accessToken' => $accessToken,
             'isPaid' => $isPaid,
             'downloadableItems' => $downloadableItems,
-            'awaitingFulfilmentItems' => $this->buildAwaitingFulfilmentItems($order),
-            'deliveryGroups' => $this->buildDeliveryGroups($order),
+            'awaitingFulfilmentItems' => $this->buildAwaitingFulfilmentItems($order, $orderItems),
+            'deliveryGroups' => $this->buildDeliveryGroups($order, $orderItems),
             'canDownloadDocuments' => $canDownloadDocuments,
             'canViewAddressDetails' => $canViewAddressDetails,
             'invoicePdfUrl' => $canDownloadDocuments ? $this->orderInvoicePdfUrl($order, $isAccountView) : null,
@@ -300,20 +304,12 @@ class StoreOrderController extends Controller
         ];
     }
 
-    /**
-     * @return array<int, array{
-     *     title:string,
-     *     quantity:int,
-     *     detail:?string,
-     *     sku:?string
-     * }>
-     */
-    private function buildAwaitingFulfilmentItems(StoreOrder $order): array
+    private function buildAwaitingFulfilmentItems(StoreOrder $order, Collection $orderedItems): array
     {
-        return $order->items
+        return $orderedItems
             ->filter(fn (StoreOrderItem $item): bool => ! $item->isDigital() && $item->remainingFulfillableQuantity() > 0)
             ->values()
-            ->map(function (StoreOrderItem $item) use ($order): array {
+            ->map(function (StoreOrderItem $item, int $index) use ($order): array {
                 $remainingAvailable = $item->remainingAvailableQuantity();
                 $remainingDelayed = $item->remainingDelayedQuantity();
                 $estimate = $item->is_preorder
@@ -332,36 +328,28 @@ class StoreOrderController extends Controller
                         .($estimate ?: 'to be confirmed');
                 }
 
-                $sku = trim((string) ($item->variant_sku ?: $item->product_sku));
-
                 return [
+                    'number' => $index + 1,
                     'title' => $item->displayTitle(),
                     'quantity' => $item->remainingFulfillableQuantity(),
                     'detail' => $parts !== [] ? implode(', ', $parts) : null,
-                    'sku' => $sku !== '' ? $sku : null,
+                    'sku' => $this->resolveOrderItemSku($item),
                 ];
             })
             ->all();
     }
 
-    /**
-     * @return array<int, array{
-     *     label:string,
-     *     meta:?string,
-     *     arrival_detail:?string,
-     *     tracking_number:?string,
-     *     tracking_url:?string,
-     *     notes:?string,
-     *     items: array<int, array{title:string, quantity:int}>
-     * }>
-     */
-    private function buildDeliveryGroups(StoreOrder $order): array
+    private function buildDeliveryGroups(StoreOrder $order, Collection $orderedItems): array
     {
         $arrivalDetail = null;
         $deliveryEstimate = $this->deliveryEstimateLabel($order);
         if (! $order->usesPickup() && $deliveryEstimate !== null) {
             $arrivalDetail = 'Estimated arrival: '.$deliveryEstimate;
         }
+
+        $numberByItemId = $orderedItems->mapWithKeys(function (StoreOrderItem $item, int $index): array {
+            return [(int) $item->id => $index + 1];
+        });
 
         $trackingRows = $order->items
             ->filter(fn (StoreOrderItem $item): bool => ! $item->isDigital() && $item->trackingEntries->isNotEmpty())
@@ -374,6 +362,9 @@ class StoreOrderController extends Controller
                     $dispatchedAt = $tracking->dispatched_at;
 
                     return [
+                        'item_id' => (int) $item->id,
+                        'item_number' => 0,
+                        'item_sku' => $this->resolveOrderItemSku($item),
                         'group_key' => $this->deliveryGroupKey($tracking),
                         'dispatched_timestamp' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->timestamp : 0,
                         'dispatched_label' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->format('M j, Y') : null,
@@ -387,7 +378,13 @@ class StoreOrderController extends Controller
                 })->all();
             })
             ->sortBy('dispatched_timestamp')
-            ->values();
+            ->values()
+            ->map(function (array $row) use ($numberByItemId): array {
+                $itemId = (int) $row['item_id'];
+                $row['item_number'] = (int) ($numberByItemId[$itemId] ?? 0);
+
+                return $row;
+            });
 
         $deliveryNoun = $order->usesPickup() ? 'Collection' : 'Delivery';
         $groupedRows = [];
@@ -426,13 +423,18 @@ class StoreOrderController extends Controller
                     ]));
 
                 $items = collect($group)
-                    ->groupBy('item_title')
-                    ->map(function ($itemGroup, string $title): array {
+                    ->groupBy('item_id')
+                    ->map(function ($itemGroup): array {
+                        $first = $itemGroup->first();
+
                         return [
-                            'title' => $title,
+                            'number' => (int) ($first['item_number'] ?? 0),
+                            'title' => (string) ($first['item_title'] ?? 'Item'),
                             'quantity' => (int) collect($itemGroup)->sum('quantity'),
+                            'sku' => trim((string) ($first['item_sku'] ?? '')) !== '' ? trim((string) ($first['item_sku'] ?? '')) : null,
                         ];
                     })
+                    ->sortBy('number')
                     ->values()
                     ->all();
 
@@ -447,6 +449,13 @@ class StoreOrderController extends Controller
                 ];
             })
             ->all();
+    }
+
+    private function resolveOrderItemSku(StoreOrderItem $item): ?string
+    {
+        $sku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
+
+        return $sku !== '' ? $sku : null;
     }
 
     private function deliveryEstimateLabel(StoreOrder $order): ?string

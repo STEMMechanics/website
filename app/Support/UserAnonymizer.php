@@ -55,7 +55,7 @@ class UserAnonymizer
                 (new AuditLogObserver)->deleted($user);
             }
 
-            $user->forceFill([
+            $user->forceFill(User::filterToExistingDatabaseColumns([
                 'parent_user_id' => null,
                 'firstname' => null,
                 'surname' => null,
@@ -78,6 +78,10 @@ class UserAnonymizer
                 'billing_state' => null,
                 'billing_country' => null,
                 'avatar_media_name' => null,
+                'avatar_mode' => null,
+                'avatar_letters' => null,
+                'avatar_icon_class' => null,
+                'avatar_background_color' => null,
                 'avatar_zoom' => 100,
                 'avatar_offset_x' => 0,
                 'avatar_offset_y' => 0,
@@ -89,8 +93,10 @@ class UserAnonymizer
                 'child_forum_reply_requires_approval' => false,
                 'child_parent_notified_on_forum_topics' => false,
                 'child_parent_notified_on_forum_replies' => false,
+                'child_can_select_avatar_media' => true,
+                'child_can_use_avatar_camera' => true,
                 'anonymized_at' => now(),
-            ])->saveQuietly();
+            ]))->saveQuietly();
         });
     }
 

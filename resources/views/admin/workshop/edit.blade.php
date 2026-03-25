@@ -29,11 +29,19 @@ $savedTickets = isset($workshop)
         <form x-data="{
             type: @js(old('type', isset($workshop) && $workshop->location_id ? 'physical' : 'online')),
             status: @js($workshopStatusForForm),
+            originalStatus: @js(isset($workshop) ? (string) $workshop->status : $workshopStatusForForm),
             isPrivate: @js((bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)),
             isHidden: @js((bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)),
             registration: @js(old('registration', $workshop->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshop->max_tickets ?? '')),
             ticketGroupRaw: @js(old('ticket_group_slug', $workshop->ticket_group_slug ?? '')),
+            originalStartsAt: @js(isset($workshop) ? \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') : ''),
+            originalEndsAt: @js(isset($workshop) ? \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') : ''),
+            originalLocationId: @js(isset($workshop) ? trim((string) ($workshop->location_id ?? '')) : ''),
+            ticketHolderNotificationCount: @js((int) ($ticketChangeNotificationRecipientCount ?? 0)),
+            notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
+            ticketChangeEmailNotes: @js((string) old('ticket_change_email_notes', '')),
+            workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
             locations: @js(\App\Models\Location::orderByRaw(" name='Online' DESC, name ASC")->get()->map(fn ($location) => [
             'id' => (string) $location->id,
             'name' => (string) $location->name,
@@ -150,6 +158,155 @@ $savedTickets = isset($workshop)
             this.createLocationOpen = false;
             this.createLocationError = '';
             },
+            currentStartsAt() {
+            return String(this.$refs.startsAt?.value || '').trim();
+            },
+            currentEndsAt() {
+            return String(this.$refs.endsAt?.value || '').trim();
+            },
+            normalizedCurrentLocationId() {
+            if (this.type !== 'physical') {
+            return '';
+            }
+
+            return String(this.selectedLocationId ?? '').trim();
+            },
+            hasRelevantTicketHolderChange() {
+            if (!@js(isset($workshop)) || Number.parseInt(String(this.ticketHolderNotificationCount || 0), 10) <= 0) {
+            return false;
+            }
+
+            if (this.status === 'cancelled') {
+            return false;
+            }
+
+            return this.currentStartsAt() !== this.originalStartsAt
+            || this.currentEndsAt() !== this.originalEndsAt
+            || this.normalizedCurrentLocationId() !== this.originalLocationId;
+            },
+            submitForm() {
+            const form = this.$refs.workshopForm;
+            if (!(form instanceof HTMLFormElement)) {
+            return;
+            }
+
+            if (window.SM && typeof window.SM.setFormProcessing === 'function') {
+            window.SM.setFormProcessing(form, true, { submitLabel: 'Saving...' });
+            }
+
+            form.submit();
+            },
+            async promptCancellationReason() {
+            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+                const fallback = window.prompt('Reason for cancellation', this.workshopCancelReason || 'The workshop has been cancelled.');
+                if (fallback === null) {
+                    return false;
+                }
+
+                this.workshopCancelReason = String(fallback || '').trim();
+                return true;
+            }
+
+            const result = await Swal.fire({
+            position: 'top',
+            icon: 'warning',
+            iconColor: '#dc2626',
+            title: 'Cancel workshop?',
+            html: 'This will cancel the workshop and any active tickets linked to it. Refunds will be attempted for Square payments.',
+            input: 'textarea',
+            inputLabel: 'Cancellation reason',
+            inputValue: this.workshopCancelReason || 'The workshop has been cancelled.',
+            inputPlaceholder: 'Reason to include in cancellation records and emails',
+            inputAttributes: {
+            'aria-label': 'Cancellation reason',
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Cancel Workshop',
+            confirmButtonColor: '#dc2626',
+            cancelButtonText: 'Keep Workshop',
+            reverseButtons: true,
+            focusConfirm: false,
+            preConfirm: () => document.querySelector('.swal2-textarea')?.value || '',
+            });
+
+            if (!result.isConfirmed) {
+            return false;
+            }
+
+            this.workshopCancelReason = String(result.value || '').trim();
+
+            return true;
+            },
+            async handleSubmit() {
+            if (this.status === 'cancelled' && this.originalStatus !== 'cancelled') {
+            const shouldCancel = await this.promptCancellationReason();
+            if (!shouldCancel) {
+                return;
+            }
+            }
+
+            if (!this.hasRelevantTicketHolderChange()) {
+            this.notifyTicketHolders = false;
+            this.ticketChangeEmailNotes = '';
+            this.submitForm();
+            return;
+            }
+
+            if (typeof Swal === 'undefined' || !Swal || typeof Swal.fire !== 'function') {
+            if (window.SM && typeof window.SM.confirm === 'function') {
+                window.SM.confirm(
+                    'Notify ticket holders?',
+                    'Date, time, or location changed and active ticket holders exist. Save and email them about the change?',
+                    'Save and Email',
+                    (isConfirmed) => {
+                        this.notifyTicketHolders = Boolean(isConfirmed);
+                        this.submitForm();
+                    }
+                );
+                return;
+            }
+
+            this.notifyTicketHolders = true;
+            this.submitForm();
+            return;
+            }
+
+            const recipientCount = Number.parseInt(String(this.ticketHolderNotificationCount || 0), 10);
+            const recipientLabel = recipientCount === 1 ? 'ticket holder' : 'ticket holders';
+            const result = await Swal.fire({
+            position: 'top',
+            icon: 'question',
+            iconColor: '#2563eb',
+            title: 'Notify ticket holders?',
+            html: `This workshop has <strong>${recipientCount}</strong> active ${recipientLabel}. Date, time, or location changed. You can queue an update email now or save without sending anything.`,
+            input: 'textarea',
+            inputLabel: 'Additional notes',
+            inputValue: this.ticketChangeEmailNotes || '',
+            inputPlaceholder: 'Optional extra details to include in the email',
+            inputAttributes: {
+            'aria-label': 'Additional notes',
+            },
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: 'Save and Email',
+            confirmButtonColor: '#2563eb',
+            denyButtonText: 'Save Only',
+            denyButtonColor: '#6b7280',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            focusConfirm: false,
+            preConfirm: () => document.querySelector('.swal2-textarea')?.value || '',
+            preDeny: () => document.querySelector('.swal2-textarea')?.value || '',
+            });
+
+            if (!result.isConfirmed && !result.isDenied) {
+                return;
+            }
+
+            this.ticketChangeEmailNotes = String(result.value || '').trim();
+            this.notifyTicketHolders = result.isConfirmed;
+            this.submitForm();
+            },
             async submitCreateLocation() {
             if (this.createLocationSubmitting) {
             return;
@@ -225,11 +382,14 @@ $savedTickets = isset($workshop)
 
                 window.location.reload();
                 },
-                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" x-init="initLocationSelection()">
+                }" method="POST" action="{{ route('admin.workshop.' . (isset($workshop) ? 'update' : 'store'), $workshop ?? []) }}" x-init="initLocationSelection()" x-ref="workshopForm" x-on:submit.prevent="handleSubmit()">
                 @isset($workshop)
                 @method('PUT')
                 @endisset
                 @csrf
+                <input type="hidden" name="notify_ticket_holders" :value="notifyTicketHolders ? '1' : '0'">
+                <input type="hidden" name="ticket_change_email_notes" :value="ticketChangeEmailNotes">
+                <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
                 <div class="mb-4">
                     <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
                 </div>
@@ -295,10 +455,10 @@ $savedTickets = isset($workshop)
             </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Start Date" name="starts_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') }}" onchange="updatedStartsAt()" />
+                        <x-ui.input type="datetime-local" label="Start Date" name="starts_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') }}" onchange="updatedStartsAt()" x-ref="startsAt" />
                     </div>
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="End Date" name="ends_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') }}" />
+                        <x-ui.input type="datetime-local" label="End Date" name="ends_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') }}" x-ref="endsAt" />
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
@@ -436,6 +596,9 @@ $savedTickets = isset($workshop)
                         value="{!! isset($workshop) ? $workshop->files('private')->orderBy('name')->get() : '' !!}"></x-ui.filelist>
                 </div>
                 <div class="flex justify-end gap-4 mt-8">
+                    @if(isset($workshop) && ($workshop->registration === 'interest' || (int) ($workshop->interests_count ?? 0) > 0))
+                    <x-ui.button color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
+                    @endif
                     @isset($workshop)
                     <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete workshop?', 'Are you sure you want to delete this workshop? This action cannot be undone', '{{ route('admin.workshop.destroy', $workshop) }}')">Delete</x-ui.button>
                     @endisset

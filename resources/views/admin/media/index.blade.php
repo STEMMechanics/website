@@ -10,7 +10,7 @@
         @endif
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.media.create') }}">Create</x-ui.button>
+                <x-ui.button href="{{ route('admin.media.create') }}">Create</x-ui.button>
                 <x-ui.button type="button" color="outline" class="ml-2" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()">Regenerate Missing Variants</x-ui.button>
             </x-slot:left>
             <x-slot:right>

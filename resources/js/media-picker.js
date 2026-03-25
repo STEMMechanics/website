@@ -1,6 +1,150 @@
 const SMMediaPicker = {
     cameraStream: null,
 
+    escapeHtml: (value) => {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    },
+
+    normalizeCustomTabId: (value, index = 0) => {
+        const normalized = String(value || '')
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+
+        return normalized || `custom_tab_${index + 1}`;
+    },
+
+    normalizeCustomTabs: (tabs) => {
+        if (!Array.isArray(tabs)) {
+            return [];
+        }
+
+        return tabs.reduce((normalizedTabs, tab, index) => {
+            if (!tab || typeof tab !== 'object') {
+                return normalizedTabs;
+            }
+
+            const id = SMMediaPicker.normalizeCustomTabId(tab.id, index);
+            if (normalizedTabs.some((existingTab) => existingTab.id === id)) {
+                return normalizedTabs;
+            }
+
+            normalizedTabs.push({
+                id,
+                label: String(tab.label || `Tab ${index + 1}`),
+                state: typeof tab.state === 'object' && tab.state !== null ? tab.state : {},
+                panel_html: String(tab.panel_html || ''),
+                panel_class: String(tab.panel_class || 'h-full overflow-y-auto px-4 py-4'),
+                onOpen: typeof tab.onOpen === 'function' ? tab.onOpen : null,
+                onConfirm: typeof tab.onConfirm === 'function' ? tab.onConfirm : null,
+            });
+
+            return normalizedTabs;
+        }, []);
+    },
+
+    findCustomTab: (tabId) => {
+        const store = Alpine.store('media');
+
+        return store?.custom_tabs?.find((tab) => tab.id === tabId) || null;
+    },
+
+    activateTab: (tabId) => {
+        const store = Alpine.store('media');
+        if (!store || store.uploading) {
+            return;
+        }
+
+        store.active_tab = tabId;
+        SMMediaPicker.syncActiveTabDom();
+
+        if (tabId === 'camera') {
+            Alpine.nextTick(() => {
+                SMMediaPicker.startCamera();
+            }).then(() => {
+                /* empty */
+            });
+        } else {
+            SMMediaPicker.stopCamera();
+        }
+
+        const customTab = SMMediaPicker.findCustomTab(tabId);
+        if (customTab?.onOpen) {
+            customTab.onOpen(store, tabId);
+        }
+    },
+
+    syncActiveTabDom: () => {
+        const store = Alpine.store('media');
+        const htmlContainer = Swal.getHtmlContainer?.();
+
+        if (!store || !htmlContainer) {
+            return;
+        }
+
+        htmlContainer.querySelectorAll('[data-media-tab-button]').forEach((button) => {
+            const isActive = button.getAttribute('data-media-tab-button') === store.active_tab;
+
+            button.classList.toggle('border-gray-300', isActive);
+            button.classList.toggle('border-b-white', isActive);
+            button.classList.toggle('bg-white', isActive);
+            button.classList.toggle('border-transparent', !isActive);
+            button.classList.toggle('bg-transparent', !isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        htmlContainer.querySelectorAll('[data-media-tab-panel]').forEach((panel) => {
+            panel.style.display = panel.getAttribute('data-media-tab-panel') === store.active_tab ? '' : 'none';
+        });
+    },
+
+    renderCustomTabButtons: () => {
+        const store = Alpine.store('media');
+        if (!store?.custom_tabs?.length) {
+            return '';
+        }
+
+        return store.custom_tabs.map((tab) => {
+            const tabId = SMMediaPicker.escapeHtml(tab.id);
+
+            return `
+                <li
+                    class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300"
+                    data-media-tab-button="${tabId}"
+                    x-on:click.prevent="SMMediaPicker.activateTab('${tabId}')"
+                >${SMMediaPicker.escapeHtml(tab.label)}</li>
+            `;
+        }).join('');
+    },
+
+    renderCustomTabPanels: () => {
+        const store = Alpine.store('media');
+        if (!store?.custom_tabs?.length) {
+            return '';
+        }
+
+        return store.custom_tabs.map((tab) => {
+            const tabId = SMMediaPicker.escapeHtml(tab.id);
+
+            return `
+                <div
+                    id="content-${tabId}"
+                    class="${SMMediaPicker.escapeHtml(tab.panel_class)}"
+                    data-media-tab-panel="${tabId}"
+                    style="display:none"
+                >
+                    ${tab.panel_html}
+                </div>
+            `;
+        }).join('');
+    },
+
     cameraSupported: () => {
         return typeof navigator !== 'undefined'
             && !!navigator.mediaDevices
@@ -254,8 +398,10 @@ const SMMediaPicker = {
                 message: null,
                 notice: validFiles.length > 1 ? `${validFiles.length} files uploaded successfully.` : `${validFiles[0].name} uploaded successfully.`,
             });
-            store.active_tab = 'browser';
-            SMMediaPicker.query(1, '');
+            store.active_tab = store.allow_browser ? 'browser' : (store.custom_tabs[0]?.id || 'upload');
+            if (store.allow_browser) {
+                SMMediaPicker.query(1, '');
+            }
 
             window.setTimeout(() => {
                 if (store.upload_notice === (validFiles.length > 1 ? `${validFiles.length} files uploaded successfully.` : `${validFiles[0].name} uploaded successfully.`)) {
@@ -282,7 +428,7 @@ const SMMediaPicker = {
             },
         });
 
-        ['media_upload', 'media_camera_upload'].forEach((inputId) => {
+        ['media_upload'].forEach((inputId) => {
             const input = document.getElementById(inputId);
             if (input instanceof HTMLInputElement) {
                 input.value = '';
@@ -385,11 +531,16 @@ const SMMediaPicker = {
     },
 
     query: (page, search) => {
-        let params = {
-            mime_type: Alpine.store('media').require_mime_type,
-            per_page: Alpine.store('media').per_page,
+        const store = Alpine.store('media');
+        if (!store?.allow_browser) {
+            return;
+        }
+
+        const params = {
+            mime_type: store.require_mime_type,
+            per_page: store.per_page,
             search: search,
-            'selected[]': Alpine.store('media').selected
+            'selected[]': store.selected,
         };
 
         if(page !== null) {
@@ -397,9 +548,9 @@ const SMMediaPicker = {
         }
 
         axios.get('/media', {
-            params: params
+            params: params,
         })
-            .then(response => {
+            .then((response) => {
                 response.data.links[0].label = '<i class="fa-solid fa-angle-left"></i>';
                 response.data.links[response.data.links.length - 1].label = '<i class="fa-solid fa-angle-right"></i>';
 
@@ -407,13 +558,12 @@ const SMMediaPicker = {
                     file.extension = file.name.split('.').pop();
                 });
 
-                Alpine.store('media').current_page = response.data.current_page;
-                Alpine.store('media').per_page = response.data.per_page;
-                Alpine.store('media').to = response.data.to;
-                Alpine.store('media').total = response.data.total;
-                Alpine.store('media').items = response.data.data;
-
-                Alpine.store('media').pagination = [];
+                store.current_page = response.data.current_page;
+                store.per_page = response.data.per_page;
+                store.to = response.data.to;
+                store.total = response.data.total;
+                store.items = response.data.data;
+                store.pagination = [];
 
                 response.data.data.forEach((file) => {
                     if(file.status === 'processing' || file.status === 'queued') {
@@ -425,17 +575,20 @@ const SMMediaPicker = {
                 });
 
                 Alpine.nextTick(() => {
-                    Alpine.store('media').pagination = response.data.links;
-                }).then(r => {
+                    store.pagination = response.data.links;
+                }).then(() => {
                     /* empty */
                 });
             })
-        .catch(error => {
+            .catch((error) => {
                 console.error(error);
             });
     },
 
-    html: `
+    buildHtml: () => {
+        const store = Alpine.store('media');
+
+        return `
         <div class="flex flex-col h-full w-full" x-data="{showFileDrop: false}">
             <template x-if="$store.media.error">
                 <div class="flex justify-center" role="alert">
@@ -447,34 +600,28 @@ const SMMediaPicker = {
                     <p class="relative bg-emerald-100 border border-emerald-300 text-emerald-800 py-2 pl-4 pr-8 text-xs rounded mb-4"><span x-text="$store.media.upload_notice"></span><i class="fa-solid fa-close text-emerald-900 hover:text-emerald-700 cursor-pointer absolute top-2 right-2" x-on:click="$store.media.upload_notice=null;"></i></p>
                 </div>
             </template>
-            <ul class="flex -mb-[1px] z-10">
-                <li x-show="$store.media.allow_uploads" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'upload', 'border-b-white': $store.media.active_tab === 'upload', 'border-transparent': $store.media.active_tab !== 'upload', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='upload'; SMMediaPicker.stopCamera()">Upload</li>
-                <li x-show="$store.media.camera_supported" class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'camera', 'border-b-white': $store.media.active_tab === 'camera', 'border-transparent': $store.media.active_tab !== 'camera', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='camera'; $nextTick(() => SMMediaPicker.startCamera())">Camera</li>
-                <li class="cursor-pointer border px-3 py-2 rounded-t-lg hover:border-t-gray-300 hover:border-x-gray-300" :class="{ 'border-gray-300': $store.media.active_tab === 'browser', 'border-b-white': $store.media.active_tab === 'browser', 'border-transparent': $store.media.active_tab !== 'browser', 'pointer-events-none opacity-50': $store.media.uploading }" x-on:click.prevent="if ($store.media.uploading) return; $store.media.active_tab='browser'; SMMediaPicker.stopCamera()">Browser</li>
+            <ul class="relative z-20 -mb-px flex flex-wrap gap-1 overflow-x-auto">
+                ${store?.allow_uploads ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="upload" x-on:click.prevent="SMMediaPicker.activateTab('upload')">Upload</li>` : ''}
+                ${store?.camera_supported ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="camera" x-on:click.prevent="SMMediaPicker.activateTab('camera')">Camera</li>` : ''}
+                ${store?.allow_browser ? `<li class="cursor-pointer border border-transparent bg-transparent px-3 py-2 rounded-t-lg hover:bg-white hover:border-t-gray-300 hover:border-x-gray-300" data-media-tab-button="browser" x-on:click.prevent="SMMediaPicker.activateTab('browser')">Browser</li>` : ''}
+                ${SMMediaPicker.renderCustomTabButtons()}
             </ul>
             <div
-                class="flex-1 min-h-0 border border-gray-300 overflow-hidden"
+                class="relative z-10 flex-1 min-h-0 border border-gray-300 overflow-hidden"
                 x-on:dragenter.prevent="$store.media.allow_uploads && !$store.media.uploading ? showFileDrop = true : showFileDrop = false"
                 x-on:dragover.prevent="$store.media.allow_uploads && !$store.media.uploading ? showFileDrop = true : showFileDrop = false">
                 <div
                     id="content-upload"
                     class="w-full h-full flex flex-col px-4 py-8 justify-center items-center"
-                    x-show="$store.media.active_tab === 'upload'">
+                    data-media-tab-panel="upload"
+                    style="display:none">
                     <div x-show="!$store.media.uploading" class="flex h-full w-full flex-col items-center justify-center">
                         <h3 class="text-2xl font-bold mb-2">Drop files to upload</h3>
                         <p>or</p>
                         <div class="mt-2 flex flex-wrap items-center justify-center gap-3">
                             <label class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" for="media_upload">Select files</label>
-                            <label
-                                x-show="$store.media.allow_camera"
-                                class="inline-block bg-white border border-gray-300 hover:bg-gray-300 justify-center rounded-md text-gray-700 px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition"
-                                for="media_camera_upload"
-                            >
-                                Take photo
-                            </label>
                         </div>
                         <input class="hidden" id="media_upload" name="media_upload" multiple type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" />
-                        <input class="hidden" id="media_camera_upload" name="media_camera_upload" type="file" x-on:change="SMMediaPicker.upload(event.target.files)" x-bind:accept="$store.media.require_mime_type" x-bind:disabled="$store.media.uploading" capture="environment" />
                         <p class="text-xs mt-2">Maximum upload size: ${SM.bytesToString(SM.maxUploadSize())}</p>
                     </div>
                     <div x-show="$store.media.uploading" x-cloak class="flex h-full w-full flex-col items-center justify-center">
@@ -492,11 +639,12 @@ const SMMediaPicker = {
                 <div
                     id="content-camera"
                     class="w-full h-full flex flex-col px-4 py-6 items-center"
-                    x-show="$store.media.active_tab === 'camera'"
+                    data-media-tab-panel="camera"
+                    style="display:none"
                 >
-                    <div class="w-full max-w-3xl flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
-                        <div class="relative w-full aspect-video max-h-[24rem] overflow-hidden rounded-xl bg-gray-900 flex items-center justify-center">
-                            <video id="media_camera_preview" class="h-full w-full object-cover" :style="'transform: scale(' + ($store.media.camera_flip_x ? -1 : 1) + ', ' + ($store.media.camera_flip_y ? -1 : 1) + ');'" autoplay playsinline muted></video>
+                    <div class="w-full flex-1 min-h-0 flex flex-col items-center justify-center gap-4">
+                        <div class="relative h-full aspect-video overflow-hidden rounded-xl bg-gray-500 flex items-center justify-center">
+                            <video id="media_camera_preview" class="h-full w-full object-contain" :style="'transform: scale(' + ($store.media.camera_flip_x ? -1 : 1) + ', ' + ($store.media.camera_flip_y ? -1 : 1) + ');'" autoplay playsinline muted></video>
                             <div
                                 x-show="$store.media.camera_countdown_active"
                                 class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/35 text-red-400"
@@ -555,7 +703,7 @@ const SMMediaPicker = {
                         </div>
                     </div>
                 </div>
-                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" x-show="$store.media.active_tab === 'browser'">
+                <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
                             <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
@@ -631,6 +779,7 @@ const SMMediaPicker = {
                         </div>
                     </div>
                 </div>
+                ${SMMediaPicker.renderCustomTabPanels()}
             </div>
             <div
                 x-show="showFileDrop && !$store.media.uploading"
@@ -645,16 +794,63 @@ const SMMediaPicker = {
                 </h2>
             </div>
         </div>
-    `,
+    `;
+    },
 
     onOpen: () => {
-        SMMediaPicker.query(null, '');
+        const store = Alpine.store('media');
+        const htmlContainer = Swal.getHtmlContainer?.();
+
+        if (htmlContainer && window.Alpine?.initTree) {
+            window.Alpine.initTree(htmlContainer);
+        }
+
+        SMMediaPicker.syncActiveTabDom();
+
+        if (store?.allow_browser) {
+            SMMediaPicker.query(null, '');
+        } else if (store) {
+            store.items = [];
+            store.pagination = [];
+            store.total = 0;
+            store.current_page = 1;
+        }
+
+        if (store?.active_tab === 'camera') {
+            Alpine.nextTick(() => {
+                SMMediaPicker.startCamera();
+            }).then(() => {
+                /* empty */
+            });
+        }
+
+        const customTab = SMMediaPicker.findCustomTab(store?.active_tab);
+        if (customTab?.onOpen) {
+            customTab.onOpen(store, store.active_tab);
+        }
+
         SMMediaPicker.syncDialogInteractivity();
     },
 
     preClose: () => {
-        if (Alpine.store('media')?.uploading) {
+        const store = Alpine.store('media');
+        if (store?.uploading) {
             return false;
+        }
+
+        const customTab = SMMediaPicker.findCustomTab(store?.active_tab);
+        if (customTab?.onConfirm) {
+            SMMediaPicker.stopCamera();
+
+            const payload = customTab.onConfirm(store, store.active_tab);
+            if (payload === false) {
+                return false;
+            }
+
+            return {
+                __mediaPickerCustomResult: true,
+                payload,
+            };
         }
 
         SMMediaPicker.stopCamera();
@@ -664,35 +860,54 @@ const SMMediaPicker = {
         if(!options.hasOwnProperty('require_mime_type')) options.require_mime_type = '*';
         if(!options.hasOwnProperty('allow_multiple')) options.allow_multiple = false;
         if(!options.hasOwnProperty('allow_uploads')) options.allow_uploads = false;
+        if(!options.hasOwnProperty('allow_browser')) options.allow_browser = true;
         if(!options.hasOwnProperty('allow_camera')) options.allow_camera = false;
+        if(!options.hasOwnProperty('custom_tabs')) options.custom_tabs = [];
 
         if(selected === null || selected === '') selected = [];
         if(!Array.isArray(selected)) selected = [selected];
-        Alpine.store('media').selected = selected;
 
-        Alpine.store('media').require_mime_type = options.require_mime_type;
-        Alpine.store('media').allow_multiple = options.allow_multiple;
-        Alpine.store('media').allow_uploads = options.allow_uploads;
-        Alpine.store('media').allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
-        Alpine.store('media').camera_supported = Alpine.store('media').allow_camera && SMMediaPicker.cameraSupported();
-        Alpine.store('media').camera_ready = false;
-        Alpine.store('media').camera_starting = false;
-        Alpine.store('media').camera_countdown_active = false;
-        Alpine.store('media').camera_countdown = 0;
-        Alpine.store('media').camera_flip_x = false;
-        Alpine.store('media').camera_flip_y = false;
-        Alpine.store('media').camera_error = null;
-        Alpine.store('media').active_tab = 'browser';
-        Alpine.store('media').uploading = false;
-        Alpine.store('media').upload_progress = 0;
-        Alpine.store('media').upload_message = null;
-        Alpine.store('media').upload_notice = null;
-        Alpine.store('media').callback = callback;
+        const store = Alpine.store('media');
+        store.selected = selected;
+        store.require_mime_type = options.require_mime_type;
+        store.allow_multiple = options.allow_multiple;
+        store.allow_uploads = options.allow_uploads;
+        store.allow_browser = options.allow_browser;
+        store.allow_camera = options.allow_camera && String(options.require_mime_type || '').includes('image/');
+        store.camera_supported = store.allow_camera && SMMediaPicker.cameraSupported();
+        store.camera_ready = false;
+        store.camera_starting = false;
+        store.camera_countdown_active = false;
+        store.camera_countdown = 0;
+        store.camera_flip_x = false;
+        store.camera_flip_y = false;
+        store.camera_error = null;
+        store.uploading = false;
+        store.upload_progress = 0;
+        store.upload_message = null;
+        store.upload_notice = null;
+        store.callback = callback;
+        store.custom_tabs = SMMediaPicker.normalizeCustomTabs(options.custom_tabs);
+        store.custom_tab_state = {};
+
+        store.custom_tabs.forEach((tab) => {
+            store.custom_tab_state[tab.id] = typeof tab.state === 'object' && tab.state !== null
+                ? JSON.parse(JSON.stringify(tab.state))
+                : {};
+        });
+
+        const availableTabs = [
+            ...(store.allow_uploads ? ['upload'] : []),
+            ...(store.camera_supported ? ['camera'] : []),
+            ...(store.allow_browser ? ['browser'] : []),
+            ...store.custom_tabs.map((tab) => tab.id),
+        ];
+        store.active_tab = availableTabs.includes(options.initial_tab) ? options.initial_tab : (availableTabs[0] || 'browser');
 
         Swal.fire({
-            title: options.allow_uploads ? 'Select or Upload Media' : 'Select Media',
-            html: SMMediaPicker.html,
-            confirmButtonText: 'Select',
+            title: options.title || (options.allow_uploads ? 'Select or Upload Media' : 'Select Media'),
+            html: SMMediaPicker.buildHtml(),
+            confirmButtonText: options.confirm_button_text || 'Select',
             confirmButtonColor: '#0284C7',
             cancelButtonText: 'Cancel',
             showCancelButton: true,
@@ -706,9 +921,14 @@ const SMMediaPicker = {
             customClass: {
                 container: 'sm-media-picker-container',
                 popup: 'sm-media-picker',
-            }
+            },
         }).then((result) => {
             if(result.isConfirmed && callback) {
+                if (result.value?.__mediaPickerCustomResult) {
+                    callback(result.value.payload);
+                    return;
+                }
+
                 if(Alpine.store('media').allow_multiple) {
                     callback(Alpine.store('media').selected);
                 } else {
@@ -719,12 +939,12 @@ const SMMediaPicker = {
                     }
                 }
             }
-        })
+        });
     },
 
     updateThumbnail: (name) => {
         axios.get('/media/' + name)
-            .then(response => {
+            .then((response) => {
                 const item = Alpine.store('media').items.find(i => i.name === name);
                 if(item) {
                     if(response.data.status === 'ready') {
@@ -738,10 +958,10 @@ const SMMediaPicker = {
                     }
                 }
             })
-            .catch(error => {
+            .catch((error) => {
                 console.error(error);
             });
-    }
+    },
 };
 
 window.SMMediaPicker = SMMediaPicker;
@@ -751,6 +971,7 @@ document.addEventListener('DOMContentLoaded', () => {
         require_mime_type: '*',
         allow_multiple: true,
         allow_uploads: false,
+        allow_browser: true,
         allow_camera: false,
         camera_supported: false,
         camera_ready: false,
@@ -772,5 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
         items: [],
         selected: [],
         pagination: [],
+        custom_tabs: [],
+        custom_tab_state: {},
     });
-})
+});

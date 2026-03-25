@@ -176,14 +176,14 @@
                         <div x-init="initSquareCard()">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="block text-sm">Card Details</label>
-                                <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs text-blue-700">
+                                <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
                                     Secure payment by Square
                                 </a>
                             </div>
                             <div class="relative rounded-lg border border-gray-200 bg-white p-4">
                                 <div x-ref="squareCardContainer" class="min-h-[88px] transition" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                                 <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
-                                    <img src="/loading.gif" alt="Loading card form" width="56" height="56" />
+                                    <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
                                 </div>
                             </div>
                             <input type="hidden" name="source_id" x-model="sourceId" x-ref="sourceIdInput">
@@ -195,7 +195,7 @@
                     @endif
 
                     <div class="flex flex-col gap-3 mt-6 sm:flex-row sm:justify-between">
-                        <x-ui.button type="link" color="outline" href="{{ route('shop.checkout') }}">Back to Details</x-ui.button>
+                        <x-ui.button color="outline" href="{{ route('shop.checkout') }}">Back to Details</x-ui.button>
                         @if($hasAmountDue && !$squareEnabled)
                             <button type="button" disabled class="inline-flex cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Payment unavailable</button>
                         @else

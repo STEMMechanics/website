@@ -13,16 +13,13 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
     $customer = $invoice->user;
-    $inlineLogoSvg = inlineSvgAsset('logo.svg', 'logo');
-    $logoPath = '';
-    if ($inlineLogoSvg === '') {
+    $inlineLogoSvg = '';
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
-    $logoPath = public_path('logo.png');
+    $logoPath = public_path('logo.svg');
     }
     if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
-    }
     }
     $issueDate = $invoice->issue_date?->format('M d, Y') ?? '-';
     $dueDate = $invoice->due_date?->format('M d, Y') ?? '-';

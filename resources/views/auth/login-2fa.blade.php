@@ -106,9 +106,16 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
                     return;
                 }
 
+                if (typeof window.SM.bindSingleSubmit === 'function') {
+                    window.SM.bindSingleSubmit(form);
+                }
+
+                if (form.dataset.sm2faProcessingBound === '1') {
+                    return;
+                }
+
                 form.dataset.sm2faProcessingBound = '1';
                 form.addEventListener('submit', () => {
-                    console.log('Setting form processing state for', formId);
                     window.SM.setFormProcessing(form, true, {
                         submitLabel
                     });
@@ -127,6 +134,12 @@ $allowEmailMethod = (bool) ($allowEmailMethod ?? false);
         } else {
             bindLogin2FaFormProcessing();
         }
+
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                window.location.reload();
+            }
+        });
     </script>
     @endPushOnce
 </x-layout>

@@ -63,7 +63,7 @@
 </script>
 
 <x-layout>
-    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">{!! $topic->formattedTitle() !!}</x-mast>
+    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">{!! $topic->formattedTitle(false) !!}</x-mast>
 
     <x-container class="py-8" id="forum-topic-page">
         <div id="forum-topic-meta">
@@ -389,6 +389,10 @@
             checkbox.disabled = true;
 
             try {
+                const payload = new FormData(form);
+                payload.delete('notifications_enabled');
+                payload.set('notifications_enabled', checkbox.checked ? '1' : '0');
+
                 const response = await fetch(form.action, {
                     method: 'POST',
                     headers: {
@@ -396,13 +400,16 @@
                         'X-Requested-With': 'XMLHttpRequest',
                     },
                     credentials: 'same-origin',
-                    body: new FormData(form),
+                    body: payload,
                 });
 
                 if (!response.ok) {
                     checkbox.checked = !checkbox.checked;
                     return;
                 }
+
+                const result = await response.json();
+                checkbox.checked = Boolean(result?.enabled);
 
                 window.dispatchEvent(new CustomEvent('forum-notifications-refresh'));
             } catch (_error) {
@@ -681,7 +688,7 @@
         bindTopicInteractions();
         window.dispatchEvent(new CustomEvent('forum-notifications-refresh'));
         if (snapshotUrl) {
-            topicPollHandle = window.setInterval(() => {
+            window.setInterval(() => {
                 if (document.visibilityState === 'visible') {
                     refreshTopicSnapshot();
                 }

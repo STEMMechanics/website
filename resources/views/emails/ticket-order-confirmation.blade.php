@@ -1,6 +1,22 @@
 @component('mail::message')
 @php
 $recipientFirstName = trim((string) strtok((string) ($recipientName ?? ''), ' '));
+$ticketAttachmentCount = (int) ($ticketAttachmentCount ?? 0);
+$receiptAttachmentCount = (int) ($receiptAttachmentCount ?? 0);
+$creditReceiptAttachmentCount = (int) ($creditReceiptAttachmentCount ?? 0);
+$attachmentLabels = [];
+if ($hasInvoiceAttachment ?? false) {
+    $attachmentLabels[] = 'invoice';
+}
+if ($receiptAttachmentCount > 0) {
+    $attachmentLabels[] = $receiptAttachmentCount === 1 ? 'payment receipt' : 'payment receipts';
+}
+if ($creditReceiptAttachmentCount > 0) {
+    $attachmentLabels[] = $creditReceiptAttachmentCount === 1 ? 'credit receipt' : 'credit receipts';
+}
+if ($ticketAttachmentCount > 0) {
+    $attachmentLabels[] = 'ticket'.($ticketAttachmentCount > 1 ? 's' : '');
+}
 @endphp
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
@@ -11,7 +27,26 @@ Your ticket order is confirmed.
 **Location:** {{ (string) ($workshop['location'] ?? '-') }}<br>
 **Payment Method:** {{ $paymentMethodLabel }}<br>
 @if((float) $amount > 0)
+@php
+$creditAppliedAmount = round((float) ($creditAppliedAmount ?? 0), 2);
+$paymentAmount = round((float) ($paymentAmount ?? 0), 2);
+@endphp
+@if($creditAppliedAmount > 0.0001 && $paymentAmount > 0.0001)
 **Order Amount:** ${{ number_format((float) $amount, 2) }}<br>
+**Account Credit Applied:** ${{ number_format($creditAppliedAmount, 2) }}<br>
+@if(!empty($creditReferenceSummary))
+**Credit Reference:** {{ $creditReferenceSummary }}<br>
+@endif
+**Card Charged:** ${{ number_format($paymentAmount, 2) }}<br>
+@elseif($creditAppliedAmount > 0.0001)
+**Order Amount:** ${{ number_format((float) $amount, 2) }}<br>
+**Account Credit Applied:** ${{ number_format($creditAppliedAmount, 2) }}<br>
+@if(!empty($creditReferenceSummary))
+**Credit Reference:** {{ $creditReferenceSummary }}<br>
+@endif
+@else
+**Order Amount:** ${{ number_format((float) $amount, 2) }}<br>
+@endif
 @endif
 **Number of Tickets:** {{ (int) ($ticketCount ?? count($tickets)) }}
 
@@ -27,15 +62,12 @@ Your ticket order is confirmed.
 @endforeach
 @endif
 
-@if($hasInvoiceAttachment && $hasReceiptAttachment)
-Your invoice and payment receipts are attached.
-@elseif($hasInvoiceAttachment)
-Your invoice is attached.
-@elseif($hasReceiptAttachment)
-Your payment receipt is attached.
-@endif
-@if(($ticketAttachmentCount ?? 0) > 0)
-Your ticket{{ $ticketAttachmentCount > 1 ? 's are' : ' is' }} attached.
+@if(count($attachmentLabels) === 1)
+Your {{ $attachmentLabels[0] }} is attached.
+@elseif(count($attachmentLabels) === 2)
+Your {{ $attachmentLabels[0] }} and {{ $attachmentLabels[1] }} are attached.
+@elseif(count($attachmentLabels) > 2)
+Your {{ implode(', ', array_slice($attachmentLabels, 0, -1)) }}, and {{ $attachmentLabels[count($attachmentLabels) - 1] }} are attached.
 @else
 Tickets will be emailed after ticket holder details are confirmed.
 @endif

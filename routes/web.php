@@ -54,19 +54,17 @@ Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('w
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');
 Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'interest'])->name('workshop.interest');
-Route::middleware('full-account')->group(function () {
-    Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
-    Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
-    Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');
-    Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'payment'])->name('workshop.ticket.flow.payment');
-    Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');
-    Route::get('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'details'])->name('workshop.ticket.flow.details');
-    Route::get('workshops/{workshop}/tickets/details/keepalive', [WorkshopTicketFlowController::class, 'detailsKeepAlive'])->name('workshop.ticket.flow.details.keepalive');
-    Route::post('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'saveDetails'])->name('workshop.ticket.flow.details.save');
-    Route::get('workshops/{workshop}/tickets/complete', [WorkshopTicketFlowController::class, 'complete'])->name('workshop.ticket.flow.complete');
-    Route::get('workshops/{workshop}/tickets/complete/download-all', [WorkshopTicketFlowController::class, 'downloadAll'])->name('workshop.ticket.flow.complete.download-all');
-    Route::post('workshops/{workshop}/tickets/cancel', [WorkshopTicketFlowController::class, 'cancel'])->name('workshop.ticket.flow.cancel');
-});
+Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class, 'start'])->name('workshop.ticket.flow.start');
+Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
+Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');
+Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'payment'])->name('workshop.ticket.flow.payment');
+Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');
+Route::get('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'details'])->name('workshop.ticket.flow.details');
+Route::get('workshops/{workshop}/tickets/details/keepalive', [WorkshopTicketFlowController::class, 'detailsKeepAlive'])->name('workshop.ticket.flow.details.keepalive');
+Route::post('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'saveDetails'])->name('workshop.ticket.flow.details.save');
+Route::get('workshops/{workshop}/tickets/complete', [WorkshopTicketFlowController::class, 'complete'])->name('workshop.ticket.flow.complete');
+Route::get('workshops/{workshop}/tickets/complete/download-all', [WorkshopTicketFlowController::class, 'downloadAll'])->name('workshop.ticket.flow.complete.download-all');
+Route::post('workshops/{workshop}/tickets/cancel', [WorkshopTicketFlowController::class, 'cancel'])->name('workshop.ticket.flow.cancel');
 
 Route::middleware('shop.public')->group(function () {
     Route::get('/store', [ShopController::class, 'index'])->name('shop.index');
@@ -83,6 +81,7 @@ Route::middleware('shop.public')->group(function () {
         Route::get('/store/checkout/payment', [ShopController::class, 'checkoutPayment'])->name('shop.checkout.payment');
         Route::post('/store/checkout/payment', [ShopController::class, 'processCheckoutPayment'])->name('shop.checkout.payment.process');
     });
+    Route::get('/store/quote-requested', [ShopController::class, 'quoteRequested'])->name('shop.quote.requested');
     Route::get('/store/{product}', [ShopController::class, 'show'])->name('shop.product.show');
 });
 
@@ -115,6 +114,9 @@ Route::post('/tickets/{ticket}/cancel', [TicketController::class, 'cancel'])->na
 Route::get('/invoices/magic', [InvoiceController::class, 'showByMagicToken'])->name('invoice.magic');
 Route::get('/invoices/{invoice}/pdf', [InvoiceController::class, 'magicPdf'])->name('invoice.magic.pdf');
 Route::post('/invoices/{invoice}/pay', [InvoiceController::class, 'magicPay'])->name('invoice.magic.pay');
+Route::get('/quotes/{quote}/review', [QuoteController::class, 'showByMagicLink'])->middleware('signed')->name('quote.magic.show');
+Route::post('/quotes/{quote}/review/accept', [QuoteController::class, 'acceptByMagicLink'])->middleware('signed')->name('quote.magic.accept');
+Route::post('/quotes/{quote}/review/cancel', [QuoteController::class, 'cancelByMagicLink'])->middleware('signed')->name('quote.magic.cancel');
 Route::get('/invoices/{invoice}/receipts/{payment}/pdf', [InvoiceController::class, 'receiptPdf'])->middleware('signed')->name('invoice.receipt.pdf');
 Route::get('/pay/{invoice}', [InvoiceController::class, 'publicPayShow'])->name('invoice.public.pay.show');
 Route::post('/pay/{invoice}', [InvoiceController::class, 'publicPayProcess'])->middleware('throttle:invoice-public')->name('invoice.public.pay.process');
@@ -124,14 +126,16 @@ Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'h
 Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
 Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
-Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
-Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
-Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
-Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
+Route::middleware('nocache')->group(function () {
+    Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
+    Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
+    Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
+    Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
+});
 
 Route::middleware('auth')->group(function () {
-    Route::get('/forum/notifications/summary', [ForumController::class, 'unreadSummary'])->name('forum.notifications.summary');
-    Route::get('/forum/{categorySlug}/create', [ForumController::class, 'createTopic'])->name('forum.topic.create');
+    Route::get('/forum/notifications/summary', [ForumController::class, 'unreadSummary'])->middleware('nocache')->name('forum.notifications.summary');
+    Route::get('/forum/{categorySlug}/create', [ForumController::class, 'createTopic'])->middleware('nocache')->name('forum.topic.create');
     Route::post('/forum/{categorySlug}/{topicSlug}/notifications', [ForumController::class, 'toggleNotifications'])->name('forum.topic.notifications');
     Route::post('/media', [MediaController::class, 'store'])->name('media.store');
     Route::get('/account', [AccountController::class, 'show'])->name('account.show');
@@ -144,12 +148,16 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
     Route::get('/account/children/create', [ChildAccountController::class, 'create'])->name('account.children.create');
+    Route::get('/account/children/approvals', [ChildAccountController::class, 'approvals'])->name('account.children.approvals');
+    Route::post('/account/children/approvals/bulk', [ChildAccountController::class, 'bulkUpdateApprovals'])->name('account.children.approvals.bulk');
     Route::post('/account/children', [ChildAccountController::class, 'store'])->name('account.children.store');
     Route::get('/account/children/{child}', [ChildAccountController::class, 'edit'])->name('account.children.edit');
     Route::put('/account/children/{child}', [ChildAccountController::class, 'update'])->name('account.children.update');
     Route::delete('/account/children/{child}', [ChildAccountController::class, 'destroy'])->name('account.children.destroy');
+    Route::get('/account/children/{child}/forum-topics/{forumTopic}/approve-link', [ChildAccountController::class, 'approveTopicFromEmail'])->middleware('signed')->name('account.children.topic.approve-link');
     Route::post('/account/children/{child}/forum-topics/{forumTopic}/approve', [ChildAccountController::class, 'approveTopic'])->name('account.children.topic.approve');
     Route::post('/account/children/{child}/forum-topics/{forumTopic}/reject', [ChildAccountController::class, 'rejectTopic'])->name('account.children.topic.reject');
+    Route::get('/account/children/{child}/forum-posts/{forumPost}/approve-link', [ChildAccountController::class, 'approvePostFromEmail'])->middleware('signed')->name('account.children.post.approve-link');
     Route::post('/account/children/{child}/forum-posts/{forumPost}/approve', [ChildAccountController::class, 'approvePost'])->name('account.children.post.approve');
     Route::post('/account/children/{child}/forum-posts/{forumPost}/reject', [ChildAccountController::class, 'rejectPost'])->name('account.children.post.reject');
 
@@ -162,6 +170,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/account/invoices/{invoice}/pdf', [InvoiceController::class, 'accountPdf'])->name('account.invoice.pdf');
         Route::get('/account/invoices/{invoice}/receipts/{payment}/pdf', [InvoiceController::class, 'accountReceiptPdf'])->name('account.invoice.receipt.pdf');
         Route::get('/account/quotes', [QuoteController::class, 'accountIndex'])->name('account.quote.index');
+        Route::get('/account/quotes/{quote}', [QuoteController::class, 'accountShow'])->name('account.quote.show');
+        Route::post('/account/quotes/{quote}/accept', [QuoteController::class, 'accountAccept'])->name('account.quote.accept');
+        Route::post('/account/quotes/{quote}/cancel', [QuoteController::class, 'accountCancel'])->name('account.quote.cancel');
         Route::get('/account/quotes/{quote}/pdf', [QuoteController::class, 'accountPdf'])->name('account.quote.pdf');
         Route::get('/account/tickets', [TicketController::class, 'accountIndex'])->name('account.ticket.index');
         Route::get('/account/tickets/{ticket}/pdf', [TicketController::class, 'accountPdf'])->name('account.ticket.pdf');
@@ -195,8 +206,10 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/2fa', [AccountController::class, 'destroy_tfa'])->name('account.destroy.tfa');
 });
 
-Route::get('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'showTopic'])->name('forum.topic.show');
-Route::get('/forum/{categorySlug}/{topicSlug}/snapshot', [ForumController::class, 'topicSnapshot'])->name('forum.topic.snapshot');
+Route::middleware('nocache')->group(function () {
+    Route::get('/forum/{categorySlug}/{topicSlug}', [ForumController::class, 'showTopic'])->name('forum.topic.show');
+    Route::get('/forum/{categorySlug}/{topicSlug}/snapshot', [ForumController::class, 'topicSnapshot'])->name('forum.topic.snapshot');
+});
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'postLogin'])->middleware('throttle:login')->name('login.store');
@@ -262,6 +275,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/users', [UserController::class, 'store'])->name('admin.user.store');
     Route::post('/admin/users/inline', [UserController::class, 'storeInline'])->name('admin.user.store-inline');
     Route::get('/admin/users/{user}', [UserController::class, 'edit'])->name('admin.user.edit');
+    Route::get('/admin/users/{user}/payments', [UserController::class, 'payments'])->name('admin.user.payments');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
     Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
@@ -294,6 +308,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::delete('/admin/subscriptions/{subscription}', [EmailSubscriptionController::class, 'destroy'])->name('admin.subscription.destroy');
 
     Route::get('/admin/server', [ServerController::class, 'admin_index'])->name('admin.server.index');
+    Route::get('/admin/server/backups', [ServerController::class, 'admin_backups'])->name('admin.server.backups');
     Route::get('/admin/server/options', [SiteOptionController::class, 'index'])->name('admin.site_option.index');
     Route::get('/admin/server/options/create', [SiteOptionController::class, 'create'])->name('admin.site_option.create');
     Route::post('/admin/server/options', [SiteOptionController::class, 'store'])->name('admin.site_option.store');
@@ -321,6 +336,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/server/database/backup-now', [ServerController::class, 'admin_database_backup_now'])->name('admin.server.database.backup-now');
     Route::post('/admin/server/database/export', [ServerController::class, 'admin_database_export'])->name('admin.server.database.export');
     Route::post('/admin/server/database/import', [ServerController::class, 'admin_database_import'])->name('admin.server.database.import');
+    Route::post('/admin/server/database/restore/{filename}', [ServerController::class, 'admin_database_restore'])->name('admin.server.database.restore');
     Route::get('/admin/server/database/download/{filename}', [ServerController::class, 'admin_database_download'])->name('admin.server.database.download');
     Route::delete('/admin/server/database/{filename}', [ServerController::class, 'admin_database_delete'])->name('admin.server.database.delete');
     Route::get('/admin/server/media/download-all', [ServerController::class, 'admin_media_download_all'])->name('admin.server.media.download-all');
@@ -358,6 +374,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/workshops/{workshop}/attendance/dropins/sync', [WorkshopController::class, 'admin_attendance_dropin_sync'])->name('admin.workshop.attendance.dropin.sync');
     Route::put('/admin/workshops/{workshop}/attendance/dropins/{attendance}', [WorkshopController::class, 'admin_attendance_dropin_update'])->name('admin.workshop.attendance.dropin.update');
     Route::post('/admin/workshops/{workshop}/attendance/dropins/{attendance}/delete', [WorkshopController::class, 'admin_attendance_dropin_destroy'])->name('admin.workshop.attendance.dropin.destroy');
+    Route::get('/admin/workshops/{workshop}/interests', [WorkshopController::class, 'admin_interests'])->name('admin.workshop.interests');
     Route::get('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'show'])->name('admin.workshop.pick-list');
     Route::post('/admin/workshops/{workshop}/pick-list', [WorkshopPickListController::class, 'save'])->name('admin.workshop.pick-list.save');
     Route::get('/admin/workshops/{workshop}/pick-list/pdf', [WorkshopPickListController::class, 'pdf'])->name('admin.workshop.pick-list.pdf');
@@ -439,6 +456,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/orders', [ShopAdminOrderController::class, 'index'])->name('admin.shop.order.index');
     Route::get('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'edit'])->name('admin.shop.order.edit');
     Route::put('/admin/store/orders/{storeOrder}', [ShopAdminOrderController::class, 'update'])->name('admin.shop.order.update');
+    Route::post('/admin/store/orders/{storeOrder}/quote', [ShopAdminOrderController::class, 'sendQuote'])->name('admin.shop.order.quote.send');
     Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/cancel', [ShopAdminOrderController::class, 'cancelItem'])->name('admin.shop.order.item.cancel');
     Route::post('/admin/store/orders/{storeOrder}/items/{storeOrderItem}/tracking', [ShopAdminOrderController::class, 'storeItemTracking'])->name('admin.shop.order.item.tracking.store');
     Route::redirect('/admin/shop', '/admin/store', 302);

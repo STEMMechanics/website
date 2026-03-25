@@ -103,7 +103,7 @@ class RememberedDeviceManager
             })
             ->first();
 
-        if (! $token || ! $token->user) {
+        if (! $token || ! $token->user || $token->user->isAnonymized()) {
             $this->forgetCurrentDevice($request, null);
             return null;
         }

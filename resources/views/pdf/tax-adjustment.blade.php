@@ -13,16 +13,10 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [[]];
     $customer = $invoice->user;
-    $inlineLogoSvg = inlineSvgAsset('logo.svg', 'logo');
-    $logoPath = '';
-    if ($inlineLogoSvg === '') {
+    $inlineLogoSvg = '';
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
-    $logoPath = public_path('logo.png');
-    }
-    if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
-    }
     }
     $issueDate = $adjustment->issue_date?->format('M d, Y') ?? '-';
     $dueDate = $adjustment->due_date?->format('M d, Y') ?? '-';
@@ -87,9 +81,7 @@
             <table class="header">
                 <tr>
                     <td class="logo-wrap">
-                        @if($inlineLogoSvg !== '')
-                        {!! $inlineLogoSvg !!}
-                        @elseif(file_exists($logoPath))
+                        @if(file_exists($logoPath))
                         <img class="logo" src="{{ $logoPath }}" alt="Logo" />
                         @endif
                     </td>

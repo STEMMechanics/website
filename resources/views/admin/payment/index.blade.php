@@ -4,7 +4,7 @@
     <x-container>
         <div class="flex flex-col sm:flex-row my-4 items-center gap-3 sm:gap-4">
             <div class="w-full sm:flex-1">
-                <x-ui.button type="link" href="{{ route('admin.payment.create') }}">Record</x-ui.button>
+                <x-ui.button href="{{ route('admin.payment.create') }}">Record</x-ui.button>
             </div>
             <div class="w-full sm:flex-1 flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <form method="GET" action="{{ route('admin.payment.index') }}" class="flex flex-wrap items-center gap-2">

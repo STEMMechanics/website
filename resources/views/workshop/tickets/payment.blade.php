@@ -1,3 +1,8 @@
+@php
+    $accountCreditAvailable = round((float) ($accountCreditAvailable ?? 0), 2);
+    $applyAccountCreditDefault = (bool) ($applyAccountCreditDefault ?? ($accountCreditAvailable > 0.0001));
+@endphp
+
 <x-layout>
     <x-mast>Ticket Checkout</x-mast>
 
@@ -9,6 +14,9 @@
                         squareLocationId: @js($squareLocationId),
                         squareEnvironment: @js($squareEnvironment),
                         expiresAt: @js($session['expires_at']),
+                        accountCreditAvailable: @js($accountCreditAvailable),
+                        totalAmount: @js($totalAmount),
+                        useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
                     })"
             x-init="startHoldTimer()">
             <div class="flex-1">
@@ -25,10 +33,56 @@
                 <form id="ticket-payment-form" method="POST" action="{{ route('workshop.ticket.flow.payment.process', $workshop) }}"
                     x-on:submit.prevent="submitForm($event)">
                     @csrf
+                    @if($accountCreditAvailable > 0.0001)
+                        <div class="my-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+                            <div class="flex flex-col">
+                                <input type="hidden" name="apply_account_credit" value="0">
+                                <x-ui.checkbox
+                                    name="apply_account_credit"
+                                    label="Apply account credit first"
+                                    :checked="$applyAccountCreditDefault"
+                                    :noWrapper="true"
+                                    inline="true"
+                                    inputClass="border-emerald-300"
+                                    labelClass="text-sm font-semibold text-emerald-950"
+                                    x-model="useAccountCredit"
+                                    x-on:change="onCreditToggle()"
+                                    class="mb-0"
+                                />
+                                <div class="text-sm text-emerald-900 ml-10">
+                                    <div>
+                                        Available credit:
+                                        <strong>${{ number_format($accountCreditAvailable, 2) }}</strong>
+                                    </div>
+                                    <div x-show="useAccountCredit && remainingAfterCredit() > 0.0001" x-cloak class="mt-1">
+                                        Remaining after credit:
+                                        <strong x-text="formatMoney(remainingAfterCredit())"></strong>.
+                                    </div>
+                                    <div x-show="useAccountCredit && remainingAfterCredit() <= 0.0001" x-cloak class="mt-1">
+                                        This purchase will be covered in full by account credit.
+                                    </div>
+                                    <div x-show="!useAccountCredit" x-cloak class="mt-1">
+                                        Account credit will not be applied to this purchase.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @elseif($accountCreditLoginHint)
+                        <div class="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                            An account on this email has credit available. Log in to use it toward this purchase.
+                        </div>
+                    @endif
+
                     <div class="my-12 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-center" x-show="expired" x-cloak>
                         Your ticket hold has now expired.
                     </div>
-                    <div x-show="!expired" x-cloak>
+                    <input
+                        type="hidden"
+                        name="payment_method"
+                        value="credit"
+                        x-bind:name="isFullyCoveredByCredit() ? 'payment_method' : null"
+                    >
+                    <div x-show="!expired && !isFullyCoveredByCredit()" x-cloak>
                         <x-ui.select
                             label="Payment Method"
                             name="payment_method"
@@ -47,7 +101,7 @@
                         </x-ui.select>
                     </div>
 
-                    <div x-show="!expired && paymentMethod === 'credit_card'" x-cloak x-init="initSquareCard()">
+                    <div x-show="!expired && !isFullyCoveredByCredit() && paymentMethod === 'credit_card' && remainingAfterCredit() > 0.0001" x-cloak x-init="initSquareCard()">
                         <div class="flex items-center justify-between mb-2">
                             <label class="block text-sm">Card Details</label>
                             <a href="https://squareup.com/au/en" target="_blank" class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs text-blue-700" rel="noopener noreferrer">
@@ -59,7 +113,7 @@
                                 class="min-h-[88px] transition"
                                 x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                             <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
-                                <img src="/loading.gif" alt="Loading card form" width="56" height="56" />
+                                <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
                             </div>
                         </div>
                         <input type="hidden" name="source_id" x-model="sourceId" x-ref="sourceIdInput">
@@ -132,12 +186,37 @@
             expired: false,
             isSubmitting: false,
             isCardLoading: false,
+            accountCreditAvailable: Number(config.accountCreditAvailable || 0),
+            totalAmount: Number(config.totalAmount || 0),
+            useAccountCredit: Boolean(config.useAccountCredit),
 
             canUseCreditCard() {
-                return this.squareEnabled && this.squareApplicationId !== '' && this.squareLocationId !== '';
+                return this.remainingAfterCredit() > 0.0001 && this.squareEnabled && this.squareApplicationId !== '' && this.squareLocationId !== '';
+            },
+
+            formatMoney(value) {
+                return new Intl.NumberFormat('en-AU', {
+                    style: 'currency',
+                    currency: 'AUD',
+                }).format(Number(value || 0));
+            },
+
+            creditAppliedAmount() {
+                return this.useAccountCredit ? Math.min(this.accountCreditAvailable, this.totalAmount) : 0;
+            },
+
+            remainingAfterCredit() {
+                return Math.max(0, Math.round((this.totalAmount - this.creditAppliedAmount()) * 100) / 100);
+            },
+
+            isFullyCoveredByCredit() {
+                return this.useAccountCredit && this.creditAppliedAmount() > 0.0001 && this.remainingAfterCredit() <= 0.0001;
             },
 
             submitButtonLabel() {
+                if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
+                    return 'Complete Purchase';
+                }
                 if (this.paymentMethod === 'credit_card') {
                     return 'Purchase Tickets';
                 }
@@ -151,6 +230,21 @@
                     this.$refs.sourceIdInput.value = '';
                 }
                 if (this.paymentMethod === 'credit_card') {
+                    this.initSquareCard();
+                }
+            },
+
+            onCreditToggle() {
+                this.errorMessage = '';
+                if (this.$refs?.sourceIdInput) {
+                    this.$refs.sourceIdInput.value = '';
+                }
+
+                if (this.isFullyCoveredByCredit()) {
+                    this.sourceId = '';
+                }
+
+                if (this.paymentMethod === 'credit_card' && this.remainingAfterCredit() > 0.0001) {
                     this.initSquareCard();
                 }
             },
@@ -182,7 +276,7 @@
             },
 
             async initSquareCard() {
-                if (this.paymentMethod !== 'credit_card') {
+                if (this.paymentMethod !== 'credit_card' || this.remainingAfterCredit() <= 0.0001) {
                     return false;
                 }
 
@@ -238,7 +332,7 @@
                     window.SM.setFormProcessing(form, true, { submitLabel: 'Processing...' });
                 }
 
-                if (this.paymentMethod === 'credit_card') {
+                if (this.paymentMethod === 'credit_card' && this.remainingAfterCredit() > 0.0001) {
                     const ready = await this.initSquareCard();
                     if (!ready) {
                         this.isSubmitting = false;

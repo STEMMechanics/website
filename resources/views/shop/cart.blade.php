@@ -33,7 +33,7 @@
                 <div class="space-y-4">
                     <template x-for="line in cartState.lines" :key="line.key">
                         <div class="grid gap-4 border-b border-gray-100 pb-4 last:border-b-0 last:pb-0 md:grid-cols-[7rem,1fr,11rem,8rem] md:items-center">
-                            <img :src="line.product.image_url" :alt="line.display_title" class="h-28 w-28 rounded-2xl object-cover bg-gray-100" />
+                            <img :src="line.product.image_url" alt="Product image" :alt="line.display_title" class="h-28 w-28 rounded-2xl object-cover bg-gray-100" />
                             <div>
                                 <a :href="line.product.url" class="text-lg font-bold text-gray-900 hover:text-primary-color" x-text="line.product.title"></a>
                                 <div x-show="line.variant_name" class="mt-1 text-sm font-medium text-gray-700" x-text="line.variant_name"></div>
@@ -84,7 +84,7 @@
                 </div>
 
                 <div class="mt-6 flex flex-wrap gap-3">
-                    <x-ui.button type="link" href="{{ route('shop.index') }}" color="outline">Continue Browsing</x-ui.button>
+                    <x-ui.button href="{{ route('shop.index') }}" color="outline">Continue Browsing</x-ui.button>
                 </div>
             </section>
 
@@ -264,7 +264,7 @@
                 </div>
                 <div class="space-y-3">
                     <template x-if="cartState.summary.can_checkout && !checkoutLocked()">
-                        <x-ui.button type="link" href="{{ route('shop.checkout') }}" class="w-full">Checkout</x-ui.button>
+                        <x-ui.button href="{{ route('shop.checkout') }}" class="w-full">Checkout</x-ui.button>
                     </template>
                     <template x-if="cartState.summary.can_checkout && checkoutLocked()">
                         <button type="button" disabled class="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-gray-300 px-8 py-1.5 text-sm font-semibold leading-6 text-gray-600 shadow-sm">Updating cart...</button>

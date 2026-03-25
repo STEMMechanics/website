@@ -92,6 +92,7 @@ class AuthController extends Controller
         }
 
         $forceEmailLogin = false;
+        $rememberEmailValue = $rememberEmailProvided ? ($rememberEmail ? '1' : '0') : '0';
         $password = (string) $request->input('password', '');
 
         $otpCode = trim((string) ($request->input('totp', $request->input('otp', $request->input('code', '')))));
@@ -163,11 +164,13 @@ class AuthController extends Controller
 
         if ($password !== '') {
             if (! $user || ! $user->canUsePasswordLogin() || ! Hash::check($password, (string) $user->password)) {
-                return back()
-                    ->withInput($request->except('password'))
-                    ->withErrors([
-                        'password' => 'The password is not valid.',
-                    ]);
+                return $this->passwordPromptView(
+                    $login,
+                    $user?->canUseEmailLogin() ?? false,
+                    $rememberEmailValue
+                )->withErrors([
+                    'password' => 'The password is not valid.',
+                ]);
             }
 
             if ($user->tfa_secret !== null) {
@@ -193,12 +196,20 @@ class AuthController extends Controller
             ], fn ($value) => $value !== null));
         }
 
-        if ($user && $user->isChildAccount()) {
-            return back()
-                ->withInput($request->except('password'))
-                ->withErrors([
-                    'password' => 'Enter the password for this child account to sign in.',
-                ]);
+        if ($user && $user->tfa_secret !== null && ! $forceEmailLogin) {
+            return view('auth.login-2fa', [
+                'user' => $user,
+                'login' => $login,
+                'allowEmailMethod' => $user->canUseEmailLogin(),
+            ]);
+        }
+
+        if ($user && $user->canUsePasswordLogin() && ! $forceEmailLogin) {
+            return $this->passwordPromptView(
+                $login,
+                $user->canUseEmailLogin(),
+                $rememberEmailValue
+            );
         }
 
         $user = $this->findVerifiedUserByLogin($login);
@@ -527,5 +538,14 @@ class AuthController extends Controller
     private function forgetPendingPasswordLogin(Request $request): void
     {
         $request->session()->forget(self::PASSWORD_LOGIN_SESSION_KEY);
+    }
+
+    private function passwordPromptView(string $login, bool $allowEmailMethod, string $rememberEmailValue = '0'): View
+    {
+        return view('auth.login-password', [
+            'login' => $login,
+            'allowEmailMethod' => $allowEmailMethod,
+            'rememberEmailValue' => $rememberEmailValue,
+        ]);
     }
 }

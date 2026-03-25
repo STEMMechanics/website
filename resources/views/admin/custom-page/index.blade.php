@@ -4,7 +4,7 @@
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.custom-page.create') }}">Create Custom Page</x-ui.button>
+                <x-ui.button href="{{ route('admin.custom-page.create') }}">Create Custom Page</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <form method="GET" action="{{ url()->current() }}" class="flex">

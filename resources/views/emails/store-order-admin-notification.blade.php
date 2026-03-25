@@ -3,9 +3,11 @@
 $shippingBreakdown = $order->shippingBreakdown();
 $shipments = collect($shippingBreakdown['shipments'] ?? [])->filter(fn ($shipment) => is_array($shipment))->values();
 $digitalItems = $order->items->filter(fn ($item) => $item->isDigital())->values();
-$heading = $notificationType === 'paid'
-    ? 'Payment received for store order'
-    : 'New store order received';
+$heading = match ($notificationType) {
+    'paid' => 'Payment received for store order',
+    'manual_quote_requested' => 'Shipping quote requested for store order',
+    default => 'New store order received',
+};
 @endphp
 # {{ $heading }}
 
@@ -13,16 +15,23 @@ $heading = $notificationType === 'paid'
 **Customer:** {{ $order->billing_name ?: 'Guest customer' }}  
 **Email:** {{ $order->billing_email ?: '-' }}  
 **Phone:** {{ $order->billing_phone ?: '-' }}  
-**Total:** ${{ number_format((float) $order->total_amount, 2) }}  
+**Total:** {{ $notificationType === 'manual_quote_requested' ? 'Pending shipping quote' : '$'.number_format((float) $order->total_amount, 2) }}  
 **Status:** {{ $order->statusLabel() }}  
-@if($order->contains_physical)
+@if($order->contains_physical && $notificationType !== 'manual_quote_requested')
 **Delivery:** {{ $order->shipping_method ?: 'Shipping' }}  
 @endif
 @if($order->contains_preorder)
 **Contains pre-order items:** Yes  
 @endif
 
-@if($shipments->isEmpty() || $digitalItems->isNotEmpty())
+@if($notificationType === 'manual_quote_requested')
+### Items
+<ul>
+@foreach($order->items as $item)
+<li><strong>{{ $item->displayTitle() }}</strong> x {{ $item->quantity }}</li>
+@endforeach
+</ul>
+@elseif($shipments->isEmpty() || $digitalItems->isNotEmpty())
 ### Items
 <ul>
 @foreach($shipments->isEmpty() ? $order->items : $digitalItems as $item)
@@ -44,10 +53,12 @@ $heading = $notificationType === 'paid'
 </ul>
 @endif
 
+@if($notificationType !== 'manual_quote_requested')
 @include('emails.partials.store-order-shipment-plan', [
     'shipments' => $shipments,
     'isPickup' => $order->usesPickup(),
 ])
+@endif
 
 @component('mail::button', ['url' => $adminUrl])
 Open Order in Admin

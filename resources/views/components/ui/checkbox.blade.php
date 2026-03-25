@@ -18,28 +18,42 @@ $sizeClasses = $small
 ? ['h-6', 'min-w-6', 'w-6', 'rounded-md', 'text-xs']
 : ['h-8', 'min-w-8', 'w-8', 'rounded-lg'];
 $wrapperClasses = $noWrapper ? '' : 'mb-4';
+$hasLabel = ($label !== null && $label !== '') || $labelHidden;
+$containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center', ($noWrapper ? $attributes->get('class') : '')]);
 @endphp
 
 @if(!$noWrapper)
 <div class="{{ twMerge([$wrapperClasses, $attributes->get('class')]) }}">
 @endif
-    <div class="sm-ui-checkbox {{ $small ? 'small ': '' }}{{ twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center', ($noWrapper ? $attributes->get('class') : '')]) }}">
-        <input
-            type="checkbox"
-            @if($checked) checked @endif
-            @if($disabled) disabled @endif
-            @if($resolvedId) id="{{ $resolvedId }}" @endif
-            @if($name) name="{{ $name }}" @endif
-            @if(!$attributes->has('value')) value="1" @endif
-            class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
-            {{ $attributes->except('class') }} />
+    @if($hasLabel)
+        <label class="sm-ui-checkbox {{ $small ? 'small ' : '' }}{{ $containerClasses }}">
+            <input
+                type="checkbox"
+                @if($checked) checked @endif
+                @if($disabled) disabled @endif
+                @if($resolvedId) id="{{ $resolvedId }}" @endif
+                @if($name) name="{{ $name }}" @endif
+                @if(!$attributes->has('value')) value="1" @endif
+                class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
+                {{ $attributes->except('class') }} />
 
-        @if(($label !== null && $label !== '') || $labelHidden)
-        <label
-            @if($resolvedId) for="{{ $resolvedId }}" @endif
-            class="{{ twMerge(['text-sm','pl-2','pt-1'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</label>
-        @endif
-    </div>
+            <span
+                class="{{ twMerge(['text-sm','pl-2','pt-1'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}"
+            >{{ $label ?? '' }}</span>
+        </label>
+    @else
+        <div class="sm-ui-checkbox {{ $small ? 'small ' : '' }}{{ $containerClasses }}">
+            <input
+                type="checkbox"
+                @if($checked) checked @endif
+                @if($disabled) disabled @endif
+                @if($resolvedId) id="{{ $resolvedId }}" @endif
+                @if($name) name="{{ $name }}" @endif
+                @if(!$attributes->has('value')) value="1" @endif
+                class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
+                {{ $attributes->except('class') }} />
+        </div>
+    @endif
 @if(!$noWrapper)
 </div>
 @endif

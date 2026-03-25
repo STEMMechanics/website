@@ -24,7 +24,19 @@ class TicketOrderConfirmation extends Mailable
 
     public bool $hasReceiptAttachment;
 
+    public bool $hasCreditReceiptAttachment;
+
     public bool $hasInvoiceAttachment;
+
+    public int $receiptAttachmentCount;
+
+    public int $creditReceiptAttachmentCount;
+
+    public float $creditAppliedAmount;
+
+    public float $paymentAmount;
+
+    public ?string $creditReferenceSummary;
 
     public int $ticketAttachmentCount;
 
@@ -40,7 +52,10 @@ class TicketOrderConfirmation extends Mailable
         float $amount,
         ?array $invoice,
         array $attachments = [],
-        ?int $ticketCount = null
+        ?int $ticketCount = null,
+        float $creditAppliedAmount = 0.0,
+        float $paymentAmount = 0.0,
+        ?string $creditReferenceSummary = null
     ) {
         $this->recipientName = $recipientName;
         $this->workshop = $workshop;
@@ -48,6 +63,9 @@ class TicketOrderConfirmation extends Mailable
         $this->paymentMethodLabel = $paymentMethodLabel;
         $this->amount = $amount;
         $this->invoice = $invoice;
+        $this->creditAppliedAmount = round(max(0, $creditAppliedAmount), 2);
+        $this->paymentAmount = round(max(0, $paymentAmount), 2);
+        $this->creditReferenceSummary = trim((string) ($creditReferenceSummary ?? '')) ?: null;
         $this->attachmentFiles = collect($attachments)->map(function ($attachment): array {
             $content = (string) ($attachment['content'] ?? '');
 
@@ -59,7 +77,10 @@ class TicketOrderConfirmation extends Mailable
             ];
         })->values()->all();
         $this->hasReceiptAttachment = collect($attachments)->contains(fn ($item) => (string) ($item['type'] ?? '') === 'receipt');
+        $this->hasCreditReceiptAttachment = collect($attachments)->contains(fn ($item) => (string) ($item['type'] ?? '') === 'credit_receipt');
         $this->hasInvoiceAttachment = collect($attachments)->contains(fn ($item) => (string) ($item['type'] ?? '') === 'invoice');
+        $this->receiptAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'receipt')->count();
+        $this->creditReceiptAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'credit_receipt')->count();
         $this->ticketAttachmentCount = (int) collect($attachments)->filter(fn ($item) => (string) ($item['type'] ?? '') === 'ticket')->count();
         $this->ticketCount = max(0, (int) ($ticketCount ?? count($tickets)));
     }
@@ -67,9 +88,11 @@ class TicketOrderConfirmation extends Mailable
     public function build(): static
     {
         $hasTicketContent = count($this->tickets) > 0 || $this->ticketAttachmentCount > 0;
+        $workshopTitle = (string) ($this->workshop['title'] ?? 'your STEMMechanics order');
+        $receiptAttachmentCount = $this->receiptAttachmentCount + $this->creditReceiptAttachmentCount;
         $subject = $hasTicketContent
-            ? 'Your ticket' . ($this->ticketCount > 1 ? 's' : '') . ' for "' . (string) ($this->workshop['title'] ?? 'your STEMMechanics order') . '"'
-            : 'Your order details for "' . (string) ($this->workshop['title'] ?? 'your STEMMechanics order') . '"';
+            ? 'Your ticket' . ($this->ticketCount > 1 ? 's' : '') . ($receiptAttachmentCount > 0 ? ' and receipt'.($receiptAttachmentCount > 1 ? 's' : '') : '') . ' for '.$workshopTitle
+            : 'Your order details for '.$workshopTitle;
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
         $fromKey = $hasTicketContent ? 'ticket_from' : 'order_from';
         $fromAddress = trim((string) config('mail.'.$fromKey.'.address', (string) config('mail.from.address', '')));

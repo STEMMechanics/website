@@ -52,7 +52,6 @@ class ShopSettingsController extends Controller
                 'shipping_methods.*.delayed_status_label' => ['nullable', 'string', 'max:80'],
                 'shipping_methods.*.delivery_estimate_min_days' => ['nullable', 'integer', 'min:0', 'max:365'],
                 'shipping_methods.*.delivery_estimate_max_days' => ['nullable', 'integer', 'min:0', 'max:365'],
-                'shipping_methods.*.is_default' => ['nullable', 'boolean'],
                 'shipping_methods.*.is_active' => ['nullable', 'boolean'],
                 'shipping_methods.*.sort_order' => ['required', 'integer', 'min:0', 'max:999'],
             ]);
@@ -113,7 +112,6 @@ class ShopSettingsController extends Controller
         }
 
         $query = StoreShippingMethod::query()
-            ->orderByDesc('is_default')
             ->orderBy('sort_order')
             ->orderBy('id');
 
@@ -158,7 +156,6 @@ class ShopSettingsController extends Controller
                     'delivery_estimate_min_days' => $method->delivery_estimate_min_days !== null ? (string) $method->delivery_estimate_min_days : '',
                     'delivery_estimate_max_days' => $method->delivery_estimate_max_days !== null ? (string) $method->delivery_estimate_max_days : '',
                     'is_pickup' => $method->isPickup() || $packages === [],
-                    'is_default' => (bool) $method->is_default,
                     'is_active' => (bool) $method->is_active,
                     'sort_order' => (int) $method->sort_order,
                     'packages' => $packages,
@@ -206,7 +203,6 @@ class ShopSettingsController extends Controller
      *     rate_multiplier:float,
      *     rate_adjustment_amount:float,
      *     is_pickup:bool,
-     *     is_default:bool,
      *     is_active:bool,
      *     sort_order:int,
      *     packages:list<array{
@@ -265,7 +261,6 @@ class ShopSettingsController extends Controller
                     'rate_multiplier' => 1.00,
                     'rate_adjustment_amount' => 0.00,
                     'is_pickup' => $isPickup,
-                    'is_default' => (bool) ($method['is_default'] ?? false),
                     'is_active' => (bool) ($method['is_active'] ?? false),
                     'sort_order' => (int) ($method['sort_order'] ?? $methodIndex),
                     'packages' => $packages,
@@ -336,20 +331,7 @@ class ShopSettingsController extends Controller
             throw ValidationException::withMessages($errors);
         }
 
-        $defaultIndex = $methods->search(fn (array $method): bool => $method['is_active'] && $method['is_default']);
-        $activeMethodCount = $methods->filter(fn (array $method): bool => $method['is_active'])->count();
-        if ($defaultIndex === false && $activeMethodCount === 1) {
-            $defaultIndex = $methods->search(fn (array $method): bool => $method['is_active']);
-        }
-        if ($defaultIndex === false) {
-            $defaultIndex = $methods->search(fn (array $method): bool => $method['is_active']);
-        }
-
-        return $methods->values()->map(function (array $method, int $index) use ($defaultIndex): array {
-            $method['is_default'] = $defaultIndex !== false && $index === $defaultIndex;
-
-            return $method;
-        })->all();
+        return $methods->values()->all();
     }
 
     /**
@@ -368,7 +350,6 @@ class ShopSettingsController extends Controller
      *     rate_multiplier:float,
      *     rate_adjustment_amount:float,
      *     is_pickup:bool,
-     *     is_default:bool,
      *     is_active:bool,
      *     sort_order:int,
      *     packages:list<array{
@@ -410,7 +391,6 @@ class ShopSettingsController extends Controller
                 'rate_multiplier' => $methodData['rate_multiplier'],
                 'rate_adjustment_amount' => $methodData['rate_adjustment_amount'],
                 'is_pickup' => $methodData['is_pickup'],
-                'is_default' => $methodData['is_default'],
                 'is_active' => $methodData['is_active'],
                 'sort_order' => $methodData['sort_order'],
             ]);

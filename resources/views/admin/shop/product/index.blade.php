@@ -8,10 +8,9 @@
         @endphp
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.shop.product.create') }}">Create</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.shop.settings.edit') }}" color="outline">Store Settings</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.shop.product.index', $baseIndexQuery) }}" :color="$selectedFilter === 'all' ? 'primary-outline' : 'outline'">All Products</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'actionable'])) }}" :color="$selectedFilter === 'actionable' ? 'primary-outline' : 'outline'">Actionable</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.product.create') }}">Create</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.product.index', $baseIndexQuery) }}" :color="$selectedFilter === 'all' ? 'primary-outline' : 'outline'">All Products</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.product.index', array_merge($baseIndexQuery, ['filter' => 'actionable'])) }}" :color="$selectedFilter === 'actionable' ? 'primary-outline' : 'outline'">Actionable</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />

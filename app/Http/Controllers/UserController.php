@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Invoice;
+use App\Models\Payment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Rules\UsernameRule;
@@ -44,14 +47,52 @@ class UserController extends Controller
         }
 
         $users = $query
-            ->with(['groups' => function ($groupQuery): void {
-                $groupQuery->orderBy('slug');
-            }])
+            ->with([
+                'groups' => function ($groupQuery): void {
+                    $groupQuery->orderBy('slug');
+                },
+                'parent',
+            ])
             ->withCount('media')
             ->withSum('media', 'size')
             ->orderBy('created_at', 'desc')
             ->paginate(12)
             ->onEachSide(1);
+
+        $pageUsers = collect($users->items());
+        $childrenByParent = $pageUsers
+            ->filter(fn (User $listedUser): bool => $listedUser->isChildAccount())
+            ->groupBy(fn (User $listedUser): string => (string) ($listedUser->parent_user_id ?? ''));
+        $orderedUsers = collect();
+        $seen = [];
+
+        foreach ($pageUsers as $listedUser) {
+            if ($listedUser->isChildAccount()) {
+                continue;
+            }
+
+            $orderedUsers->push($listedUser);
+            $seen[(string) $listedUser->id] = true;
+
+            foreach ($childrenByParent[(string) $listedUser->id] ?? collect() as $childUser) {
+                $orderedUsers->push($childUser);
+                $seen[(string) $childUser->id] = true;
+            }
+        }
+
+        foreach ($pageUsers as $listedUser) {
+            if (isset($seen[(string) $listedUser->id])) {
+                continue;
+            }
+
+            $orderedUsers->push($listedUser);
+        }
+
+        $users->setCollection($orderedUsers->values()->transform(function (User $listedUser): User {
+            $listedUser->setAttribute('account_credit_amount', $this->accountCreditForUser($listedUser));
+
+            return $listedUser;
+        }));
 
         return view('admin.user.index', [
             'users' => $users,
@@ -142,9 +183,50 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
+        $accountCredit = $this->accountCreditForUser($user);
+
         return view('admin.user.edit', [
             'user' => $user->load('groups'),
+            'accountCredit' => $accountCredit,
+            'cardRefundableCredit' => $this->cardRefundableCreditForUser($user),
             'groupSuggestions' => $this->groupSuggestions(),
+        ]);
+    }
+
+    public function payments(User $user)
+    {
+        $user->load('groups');
+
+        $payments = Payment::query()
+            ->where('user_id', $user->id)
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->with([
+                'refunds',
+                'refunds.allocations.invoice.tickets',
+                'refunds.allocations.taxAdjustment.invoice.tickets',
+                'allocations.invoice.tickets',
+                'allocations.invoice.storeOrders',
+                'allocations.taxAdjustment.invoice.tickets',
+                'allocations.taxAdjustment.invoice.storeOrders',
+            ])
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->orderByDesc('received_on')
+            ->orderByDesc('created_at')
+            ->paginate(20)
+            ->onEachSide(1);
+
+        $payments->getCollection()->transform(function (Payment $payment): Payment {
+            return $this->enrichPaymentForLedger($payment);
+        });
+
+        return view('admin.user.payments', [
+            'user' => $user,
+            'payments' => $payments,
+            'accountCredit' => $accountCredit = $this->accountCreditForUser($user),
+            'cardRefundableCredit' => $cardRefundableCredit = $this->cardRefundableCreditForUser($user),
+            'manualCredit' => max(0, round($accountCredit - $cardRefundableCredit, 2)),
         ]);
     }
 
@@ -407,5 +489,206 @@ class UserController extends Controller
         return collect(preg_split('/[\s,]+/', $raw) ?: [])
             ->map(fn ($value) => UserGroup::normalizeSlug((string) $value))
             ->contains('admin');
+    }
+
+    private function accountCreditForUser(User $user): float
+    {
+        $creditPayments = Payment::query()
+            ->where('user_id', $user->id)
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->get();
+
+        return (float) $creditPayments->sum(function (Payment $payment): float {
+            $total = (float) $payment->total_amount;
+            $allocated = (float) ($payment->allocated_amount_sum ?? 0);
+            $refunded = (float) ($payment->refunded_amount_sum ?? 0);
+
+            return max(0, round($total - $allocated - $refunded, 2));
+        });
+    }
+
+    private function cardRefundableCreditForUser(User $user): float
+    {
+        $creditPayments = Payment::query()
+            ->where('user_id', $user->id)
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->withSum('allocations as allocated_amount_sum', 'allocated_amount')
+            ->withSum('refunds as refunded_amount_sum', 'total_amount')
+            ->get();
+
+        return (float) $creditPayments->sum(function (Payment $payment): float {
+            return $this->refundableSquareAmountForPayment($payment);
+        });
+    }
+
+    private function refundableSquareAmountForPayment(Payment $payment): float
+    {
+        if (trim((string) ($payment->square_payment_id ?? '')) === ''
+            && strtolower(trim((string) ($payment->gateway_provider ?? ''))) !== 'square') {
+            return 0.0;
+        }
+
+        $remainingSquareCents = (int) $payment->square_remaining_refundable_money;
+        if ($remainingSquareCents <= 0) {
+            return 0.0;
+        }
+
+        $allocated = (float) ($payment->allocated_amount_sum ?? 0);
+        $refunded = (float) ($payment->refunded_amount_sum ?? 0);
+        $total = (float) $payment->total_amount;
+        $unallocatedBeforeRefund = max(0, round($total - $allocated, 2));
+        $remainingByRecords = max(0, round($total - $refunded, 2));
+        $remainingUnallocated = max(0, round($unallocatedBeforeRefund - $refunded, 2));
+
+        return max(0, round(min($remainingSquareCents / 100, $remainingByRecords, $remainingUnallocated), 2));
+    }
+
+    private function enrichPaymentForLedger(Payment $payment): Payment
+    {
+        $payment->setAttribute('card_refundable_amount', $this->refundableSquareAmountForPayment($payment));
+        $payment->setAttribute('linked_invoice_contexts', $this->linkedInvoiceContextsForPayment($payment));
+        $payment->setAttribute('movement_summary', $this->paymentMovementSummary($payment));
+
+        $payment->setRelation('refunds', $payment->refunds->map(function (Payment $refund): Payment {
+            return $this->enrichPaymentForLedger($refund);
+        })->values());
+
+        return $payment;
+    }
+
+    /**
+     * @return array<int, array{
+     *     invoice: Invoice,
+     *     ticket_label: string,
+     *     ticket_summary: string,
+     *     has_cancelled_ticket: bool,
+     *     has_active_ticket: bool,
+     *     created_at: int
+     * }>
+     */
+    private function linkedInvoiceContextsForPayment(Payment $payment): array
+    {
+        $contexts = $payment->allocations
+            ->map(function ($allocation): ?Invoice {
+                return $allocation->invoice ?? $allocation->taxAdjustment?->invoice;
+            })
+            ->filter()
+            ->unique(fn (Invoice $invoice): string => (string) $invoice->id)
+            ->values()
+            ->map(function (Invoice $invoice) use ($payment): array {
+                $invoice->loadMissing('tickets');
+                $ticketSummaries = $invoice->tickets
+                    ->sortBy(fn (Ticket $ticket): int => (int) $ticket->id)
+                    ->values()
+                    ->map(function (Ticket $ticket): string {
+                        $reference = trim((string) ($ticket->reference_code ?: $ticket->id));
+                        $statusLabel = trim((string) $ticket->customer_status_label);
+
+                        return $statusLabel !== '' ? $reference.' ('.$statusLabel.')' : $reference;
+                    })
+                    ->filter()
+                    ->values();
+
+                $hasCancelledTicket = $invoice->tickets->contains(fn (Ticket $ticket): bool => (int) $ticket->status === Ticket::STATUS_CANCELLED);
+                $hasActiveTicket = $invoice->tickets->contains(fn (Ticket $ticket): bool => in_array((int) $ticket->status, Ticket::activePurchasedStatuses(), true));
+
+                return [
+                    'invoice' => $invoice,
+                    'ticket_label' => $ticketSummaries->count() === 1 ? 'Ticket' : 'Tickets',
+                    'ticket_summary' => $ticketSummaries->implode(', '),
+                    'has_cancelled_ticket' => $hasCancelledTicket,
+                    'has_active_ticket' => $hasActiveTicket,
+                    'linked_amount' => max(0, round((float) $payment->allocations
+                        ->filter(fn ($allocation) => (string) $allocation->invoice_id === (string) $invoice->id)
+                        ->sum(fn ($allocation) => (float) $allocation->allocated_amount), 2)),
+                    'created_at' => (int) ($invoice->created_at->timestamp ?? $invoice->id),
+                ];
+            })
+            ->sortBy('created_at')
+            ->values();
+
+        return $contexts
+            ->map(function (array $context) use ($contexts): array {
+                $invoice = $context['invoice'];
+                $linkedAmount = (float) $context['linked_amount'];
+
+                $context['relation_label'] = (string) $invoice->status === Invoice::STATUS_CANCELLED || $context['has_cancelled_ticket']
+                    ? 'Cancelled'
+                    : ($contexts->count() > 1
+                        ? 'Linked'.($linkedAmount > 0.0001 ? ' - '.money($linkedAmount) : '')
+                        : 'Paid');
+
+                return $context;
+            })
+            ->all();
+    }
+
+    private function paymentMovementSummary(Payment $payment): ?array
+    {
+        $invoiceContexts = collect($this->linkedInvoiceContextsForPayment($payment));
+        if ($invoiceContexts->count() < 2) {
+            return null;
+        }
+
+        $original = $invoiceContexts->first();
+        $destination = $invoiceContexts->last();
+
+        if (! $original || ! $destination) {
+            return null;
+        }
+
+        if ($original['has_cancelled_ticket'] && $destination['has_active_ticket']) {
+            return [
+                'label' => 'Reallocated after cancellation',
+                'message' => 'Moved from '.$this->describeInvoiceTickets($original['invoice'], true).' on invoice #'.($original['invoice']->invoice_number ?? $original['invoice']->id).' to '.$this->describeInvoiceTickets($destination['invoice'], false).' on invoice #'.($destination['invoice']->invoice_number ?? $destination['invoice']->id).'.',
+            ];
+        }
+
+        return [
+            'label' => 'Linked invoices',
+            'message' => 'Allocated across invoices '.$invoiceContexts
+                ->map(function (array $context): string {
+                    return '#'.($context['invoice']->invoice_number ?? $context['invoice']->id);
+                })
+                ->implode(', '),
+        ];
+    }
+
+    private function describeInvoiceTickets(Invoice $invoice, bool $preferCancelledTicket): string
+    {
+        $tickets = collect($invoice->tickets)
+            ->sortBy(fn (Ticket $ticket): int => (int) $ticket->id)
+            ->values()
+            ->map(function (Ticket $ticket): array {
+                return [
+                    'reference' => trim((string) ($ticket->reference_code ?: $ticket->id)),
+                    'status' => (int) $ticket->status,
+                    'status_label' => trim((string) $ticket->customer_status_label),
+                ];
+            })
+            ->filter(fn (array $ticket): bool => $ticket['reference'] !== '');
+
+        if ($preferCancelledTicket) {
+            $cancelledTicket = $tickets->first(fn (array $ticket): bool => $ticket['status'] === Ticket::STATUS_CANCELLED);
+            if ($cancelledTicket) {
+                return 'cancelled ticket '.$cancelledTicket['reference'];
+            }
+        }
+
+        $activeTicket = $tickets->first(fn (array $ticket): bool => in_array($ticket['status'], Ticket::activePurchasedStatuses(), true));
+        if ($activeTicket) {
+            return 'ticket '.$activeTicket['reference'];
+        }
+
+        $firstTicket = $tickets->first();
+        if ($firstTicket) {
+            return 'ticket '.$firstTicket['reference'];
+        }
+
+        return 'ticket';
     }
 }

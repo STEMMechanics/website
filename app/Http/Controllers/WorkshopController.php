@@ -16,6 +16,8 @@ use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
+use App\Services\ManualWorkshopTicketEmailService;
+use App\Services\SquareApiService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
@@ -71,7 +73,7 @@ class WorkshopController extends Controller
      */
     public function admin_index(Request $request)
     {
-        $query = Workshop::query();
+        $query = Workshop::query()->withCount('interests');
 
         if ($request->has('search')) {
             $query->where('title', 'like', '%'.$request->search.'%');
@@ -246,17 +248,35 @@ class WorkshopController extends Controller
      */
     public function admin_edit(Workshop $workshop)
     {
+        $workshop->loadCount('interests');
+
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
             'pickListTemplates' => PickListTemplate::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
+            'ticketChangeNotificationRecipientCount' => count($this->resolveWorkshopTicketEmailRecipients($workshop, false)),
+        ]);
+    }
+
+    public function admin_interests(Workshop $workshop)
+    {
+        $workshop->load([
+            'interests' => fn ($query) => $query
+                ->with('user.parent')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id'),
+        ])->loadCount('interests');
+
+        return view('admin.workshop.interests', [
+            'workshop' => $workshop,
+            'interestRegistrations' => $workshop->interests,
         ]);
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function admin_update(Request $request, Workshop $workshop)
+    public function admin_update(Request $request, Workshop $workshop, SquareApiService $squareApi)
     {
         $request->validate([
             'title' => 'required',
@@ -280,6 +300,8 @@ class WorkshopController extends Controller
             'pick_list_notes' => 'nullable|string',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
+            'notify_ticket_holders' => 'nullable|boolean',
+            'ticket_change_email_notes' => 'nullable|string',
         ], [
             'title.required' => __('validation.custom_messages.title_required'),
             'content.required' => __('validation.custom_messages.content_required'),
@@ -295,6 +317,10 @@ class WorkshopController extends Controller
         ]);
 
         $workshopData = $request->all();
+        $shouldNotifyTicketHolders = $request->boolean('notify_ticket_holders');
+        $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
+        $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
+        unset($workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes']);
         $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
         $workshopData['is_hidden'] = $request->boolean('is_hidden');
@@ -305,6 +331,9 @@ class WorkshopController extends Controller
         if (($workshopData['status'] ?? null) === 'private') {
             $workshopData['status'] = 'open';
             $workshopData['is_private'] = true;
+        }
+        if (($workshopData['status'] ?? '') === 'cancelled') {
+            $shouldNotifyTicketHolders = false;
         }
         if (($workshopData['registration'] ?? 'none') !== 'tickets') {
             $workshopData['max_tickets'] = null;
@@ -357,6 +386,9 @@ class WorkshopController extends Controller
             $workshopData['status'] = 'closed';
         }
 
+        $ticketChangeSummary = $this->buildWorkshopTicketChangeSummary($workshop, $workshopData);
+        $previousStatus = (string) $workshop->status;
+
         $changingAwayFromManagedTickets = $workshop->registration === 'tickets'
             && (($workshopData['registration'] ?? 'none') !== 'tickets');
         if ($changingAwayFromManagedTickets) {
@@ -378,9 +410,68 @@ class WorkshopController extends Controller
         $workshop->updateFiles($request->input('files'));
         $workshop->updateFiles($request->input('private_files'), 'private');
 
-        session()->flash('message', 'Workshop has been updated');
+        $cancelSummary = null;
+        if ($previousStatus !== 'cancelled' && ($workshopData['status'] ?? '') === 'cancelled') {
+            $activeTicketIds = Ticket::query()
+                ->where('workshop_id', $workshop->id)
+                ->whereIn('status', Ticket::activePurchasedStatuses())
+                ->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->values()
+                ->all();
+
+            if ($activeTicketIds !== []) {
+                $bulkRequest = Request::create(route('admin.ticket.cancel.bulk'), 'POST', [
+                    'ticket_ids' => $activeTicketIds,
+                    'process_square_refund' => 1,
+                    'email_customer' => 1,
+                    'reason' => $workshopCancelReason !== '' ? $workshopCancelReason : 'The workshop has been cancelled.',
+                ]);
+                $bulkRequest->setLaravelSession($request->session());
+                $bulkRequest->setUserResolver(fn () => $request->user());
+                $bulkRequest->headers->set('Accept', 'application/json');
+
+                $bulkResponse = app(TicketController::class)->adminBulkCancel($bulkRequest, $squareApi);
+                $cancelSummary = $bulkResponse instanceof JsonResponse ? $bulkResponse->getData(true) : null;
+            }
+        }
+
+        $message = 'Workshop has been updated.';
         session()->flash('message-title', 'Workshop updated');
         session()->flash('message-type', 'success');
+
+        if (is_array($cancelSummary)) {
+            $cancelledCount = (int) ($cancelSummary['cancelled_count'] ?? 0);
+            $failedCount = (int) ($cancelSummary['failed_count'] ?? 0);
+            $message = 'Workshop has been cancelled and '.$cancelledCount.' ticket'.($cancelledCount === 1 ? '' : 's').' were cancelled.';
+            if ($failedCount > 0) {
+                $message .= ' '.$failedCount.' ticket'.($failedCount === 1 ? ' could' : 's could').' not be cancelled.';
+            }
+            session()->flash('message-title', 'Workshop cancelled');
+            session()->flash('message-type', $failedCount > 0 ? 'warning' : 'success');
+        }
+
+        if ($shouldNotifyTicketHolders && $ticketChangeSummary !== null) {
+            try {
+                $recipientCount = $this->notifyWorkshopTicketHoldersOfChange($workshop->fresh('location'), $ticketChangeSummary, $ticketChangeEmailNotes);
+
+                if ($recipientCount > 0) {
+                    $message = 'Workshop has been updated and an email was queued to '
+                        .$recipientCount.' ticket holder'.($recipientCount === 1 ? '' : 's').'.';
+                } else {
+                    $message = 'Workshop has been updated, but no active ticket-holder email addresses were found for this change notice.';
+                    session()->flash('message-type', 'warning');
+                }
+            } catch (Throwable $e) {
+                report($e);
+
+                $message = 'Workshop has been updated, but the change email could not be queued.';
+                session()->flash('message-type', 'warning');
+            }
+        }
+
+        session()->flash('message', $message);
 
         return redirect()->route('admin.workshop.index');
     }
@@ -538,7 +629,7 @@ class WorkshopController extends Controller
         }
 
         $workshop->loadMissing('location');
-        $adminUrl = route('admin.workshop.edit', $workshop);
+        $adminUrl = route('admin.workshop.interests', $workshop);
         $publicUrl = route('workshop.show', $workshop);
 
         foreach ($recipients as $recipient) {
@@ -615,7 +706,12 @@ class WorkshopController extends Controller
         ]);
     }
 
-    public function admin_tickets_store(Request $request, Workshop $workshop, AdminWorkshopTicketService $adminWorkshopTicketService): RedirectResponse
+    public function admin_tickets_store(
+        Request $request,
+        Workshop $workshop,
+        AdminWorkshopTicketService $adminWorkshopTicketService,
+        ManualWorkshopTicketEmailService $manualWorkshopTicketEmailService
+    ): RedirectResponse
     {
         $validated = $request->validate([
             'manual_ticket_type' => ['required', Rule::in(['free', 'reserve'])],
@@ -623,27 +719,40 @@ class WorkshopController extends Controller
             'surname' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['required', 'string', 'max:60'],
+            'email_ticket' => ['nullable', 'boolean'],
         ]);
 
+        $manualTicketType = (string) ($validated['manual_ticket_type'] ?? 'free');
+        $shouldEmailTicket = $request->boolean('email_ticket', true);
         $result = $adminWorkshopTicketService->create($workshop, [
             'firstname' => trim((string) ($validated['firstname'] ?? '')),
             'surname' => trim((string) ($validated['surname'] ?? '')),
             'email' => strtolower(trim((string) ($validated['email'] ?? ''))),
             'phone' => trim((string) ($validated['phone'] ?? '')),
-        ], (string) ($validated['manual_ticket_type'] ?? 'free'));
+        ], $manualTicketType);
 
         $ticket = $result['ticket'];
         $invoice = $result['invoice'];
         $ticketReference = (string) ($ticket->reference_code ?: $ticket->id);
+        $messageType = 'success';
+        $message = $invoice
+            ? 'Reserved ticket '.$ticketReference.' created with invoice '.$invoice->invoice_number.'.'
+            : 'Free ticket '.$ticketReference.' created.';
 
-        session()->flash(
-            'message',
-            $invoice
-                ? 'Reserved ticket '.$ticketReference.' created with invoice '.$invoice->invoice_number.'.'
-                : 'Free ticket '.$ticketReference.' created.'
-        );
+        if ($shouldEmailTicket) {
+            try {
+                $manualWorkshopTicketEmailService->sendCreatedTicket($ticket, $invoice, $manualTicketType);
+                $message .= ' Ticket email queued to '.strtolower(trim((string) ($ticket->email ?? ''))).'.';
+            } catch (Throwable $e) {
+                report($e);
+                $messageType = 'warning';
+                $message .= ' The ticket was created, but the email could not be queued.';
+            }
+        }
+
+        session()->flash('message', $message);
         session()->flash('message-title', 'Ticket created');
-        session()->flash('message-type', 'success');
+        session()->flash('message-type', $messageType);
 
         return redirect()->route('admin.workshop.tickets', $workshop);
     }
@@ -1955,20 +2064,11 @@ class WorkshopController extends Controller
             ])
             ->values();
 
-        $invoiceNumbers = $payment->allocations
-            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
-            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
-            ->filter(fn ($number) => $number !== '')
-            ->unique()
-            ->values();
-        $hasTaxAdjustmentAllocations = $payment->allocations
-            ->contains(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->taxAdjustment);
-
         $allocatedTotal = (float) $allocationRows->sum('amount');
         $totalAmount = abs((float) $payment->total_amount);
         $creditAmount = max(0, round($totalAmount - $allocatedTotal, 2));
 
-        $invoiceSummaryParts = $allocationRows
+        $invoiceSummaryLines = $allocationRows
             ->map(function ($row) {
                 $amount = (float) $row['amount'];
                 $prefix = $amount < 0 ? '-' : '';
@@ -1977,17 +2077,13 @@ class WorkshopController extends Controller
             })
             ->values()
             ->all();
-        if ($creditAmount > 0.0001 || count($invoiceSummaryParts) === 0) {
-            $invoiceSummaryParts[] = 'CREDIT ($'.number_format($creditAmount, 2).')';
+        if ($creditAmount > 0.0001) {
+            $invoiceSummaryLines[] = 'CREDIT ($'.number_format($creditAmount, 2).')';
         }
+        $invoiceSummaryLines[] = 'PAYMENT TOTAL ($'.number_format($totalAmount, 2).')';
 
         $invoiceLabel = 'Invoice / Credit Allocation (as at '.now()->format('M j, Y').')';
-        $invoiceSummary = implode(', ', $invoiceSummaryParts);
-
-        if (! $hasTaxAdjustmentAllocations && $invoiceNumbers->isNotEmpty()) {
-            $invoiceLabel = $invoiceNumbers->count() > 1 ? 'Invoice Numbers' : 'Invoice Number';
-            $invoiceSummary = $invoiceNumbers->implode(', ');
-        }
+        $invoiceSummary = implode("\n", $invoiceSummaryLines);
 
         return [$invoiceLabel, $invoiceSummary];
     }
@@ -2361,13 +2457,18 @@ class WorkshopController extends Controller
     /**
      * @return array<int, string>
      */
-    private function resolveWorkshopTicketEmailRecipients(Workshop $workshop): array
+    private function resolveWorkshopTicketEmailRecipients(Workshop $workshop, bool $includeInactive = true): array
     {
-        $tickets = Ticket::query()
+        $ticketsQuery = Ticket::query()
             ->with('user')
             ->where('workshop_id', $workshop->id)
-            ->where('status', '!=', Ticket::STATUS_HOLD)
-            ->get();
+            ->where('status', '!=', Ticket::STATUS_HOLD);
+
+        if (! $includeInactive) {
+            $ticketsQuery->whereIn('status', Ticket::activePurchasedStatuses());
+        }
+
+        $tickets = $ticketsQuery->get();
 
         $normalized = [];
         foreach ($tickets as $ticket) {
@@ -2386,6 +2487,136 @@ class WorkshopController extends Controller
         }
 
         return array_values($normalized);
+    }
+
+    /**
+     * @param  array<string, mixed>  $workshopData
+     * @return array<string, string|array<int, string>>|null
+     */
+    private function buildWorkshopTicketChangeSummary(Workshop $workshop, array $workshopData): ?array
+    {
+        $originalStartsAt = $workshop->starts_at ? Carbon::parse($workshop->starts_at)->format('Y-m-d H:i') : null;
+        $updatedStartsAt = isset($workshopData['starts_at']) ? Carbon::parse((string) $workshopData['starts_at'])->format('Y-m-d H:i') : $originalStartsAt;
+        $originalEndsAt = $workshop->ends_at ? Carbon::parse($workshop->ends_at)->format('Y-m-d H:i') : null;
+        $updatedEndsAt = isset($workshopData['ends_at']) ? Carbon::parse((string) $workshopData['ends_at'])->format('Y-m-d H:i') : $originalEndsAt;
+        $originalLocationId = trim((string) ($workshop->location_id ?? ''));
+        $updatedLocationId = trim((string) ($workshopData['location_id'] ?? ''));
+        $changedFields = [];
+
+        if ($originalStartsAt !== $updatedStartsAt || $originalEndsAt !== $updatedEndsAt) {
+            $changedFields[] = 'schedule';
+        }
+
+        if ($originalLocationId !== $updatedLocationId) {
+            $changedFields[] = 'location';
+        }
+
+        if ($changedFields === []) {
+            return null;
+        }
+
+        return [
+            'changed_fields' => $changedFields,
+            'old_schedule' => $this->formatWorkshopTicketChangeSchedule($workshop->starts_at, $workshop->ends_at),
+            'new_schedule' => $this->formatWorkshopTicketChangeSchedule(
+                $workshopData['starts_at'] ?? $workshop->starts_at,
+                $workshopData['ends_at'] ?? $workshop->ends_at
+            ),
+            'old_location' => $this->resolveWorkshopLocationLabel($originalLocationId),
+            'new_location' => $this->resolveWorkshopLocationLabel($updatedLocationId),
+        ];
+    }
+
+    private function formatWorkshopTicketChangeSchedule(mixed $startsAt, mixed $endsAt): string
+    {
+        if ($startsAt === null || $endsAt === null) {
+            return '-';
+        }
+
+        return \App\Helpers::createTicketTimeDurationStr(
+            Carbon::parse($startsAt)->toDateTimeString(),
+            Carbon::parse($endsAt)->toDateTimeString()
+        );
+    }
+
+    private function resolveWorkshopLocationLabel(?string $locationId): string
+    {
+        $normalizedLocationId = trim((string) ($locationId ?? ''));
+        if ($normalizedLocationId === '') {
+            return 'Online';
+        }
+
+        $locationName = trim((string) (DB::table('locations')
+            ->where('id', $normalizedLocationId)
+            ->value('name') ?? ''));
+
+        return $locationName !== '' ? $locationName : 'Unknown location';
+    }
+
+    /**
+     * @param  array<string, string|array<int, string>>  $ticketChangeSummary
+     */
+    private function notifyWorkshopTicketHoldersOfChange(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): int
+    {
+        $recipients = $this->resolveWorkshopTicketEmailRecipients($workshop, false);
+        if ($recipients === []) {
+            return 0;
+        }
+
+        [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
+        $toEmail = $initiatedByEmail;
+        if ($toEmail === null) {
+            $fallback = trim((string) config('mail.from.address', ''));
+            $toEmail = $fallback !== '' ? $fallback : null;
+        }
+        if ($toEmail === null) {
+            $fallback = trim((string) config('mail.admin_bcc', ''));
+            $toEmail = $fallback !== '' ? $fallback : null;
+        }
+
+        if ($toEmail === null || ! filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            throw ValidationException::withMessages([
+                'notify_ticket_holders' => 'Unable to send email: no valid sender/admin email address is configured.',
+            ]);
+        }
+
+        dispatch(new SendEmail($toEmail, new WorkshopTicketBroadcast(
+            subjectLine: 'Workshop update: '.trim((string) ($workshop->title ?? 'Workshop')),
+            workshopTitle: (string) ($workshop->title ?? 'Workshop'),
+            messageBody: $this->buildWorkshopTicketChangeMessage($workshop, $ticketChangeSummary, $additionalNotes),
+            bccRecipients: $recipients,
+            initiatedByEmail: $initiatedByEmail,
+            initiatedByName: $initiatedByName,
+        )))->onQueue('mail');
+
+        return count($recipients);
+    }
+
+    /**
+     * @param  array<string, string|array<int, string>>  $ticketChangeSummary
+     */
+    private function buildWorkshopTicketChangeMessage(Workshop $workshop, array $ticketChangeSummary, string $additionalNotes = ''): string
+    {
+        $message = [
+            'The details for "'.trim((string) ($workshop->title ?? 'Workshop')).'" have changed.',
+            '',
+            'Updated details:',
+            '- Date/Time: '.(string) ($ticketChangeSummary['new_schedule'] ?? '-'),
+            '- Location: '.(string) ($ticketChangeSummary['new_location'] ?? '-'),
+            '',
+            'Previous details:',
+            '- Date/Time: '.(string) ($ticketChangeSummary['old_schedule'] ?? '-'),
+            '- Location: '.(string) ($ticketChangeSummary['old_location'] ?? '-'),
+        ];
+
+        $trimmedNotes = trim($additionalNotes);
+        if ($trimmedNotes !== '') {
+            $message[] = '';
+            $message[] = 'Additional notes:';
+            $message[] = $trimmedNotes;
+        }
+
+        return implode("\n", $message);
     }
 
     /**

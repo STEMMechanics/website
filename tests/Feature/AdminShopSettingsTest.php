@@ -9,6 +9,7 @@ use App\Models\StoreShippingMethodPackage;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\StoreShippingService;
+use App\Services\StoreShippingMethodService;
 use App\Support\ShopAvailability;
 use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,7 +54,6 @@ class AdminShopSettingsTest extends TestCase
                         'delayed_status_label' => 'Ships later',
                         'delivery_estimate_min_days' => '3',
                         'delivery_estimate_max_days' => '7',
-                        'is_default' => '1',
                         'is_active' => '1',
                         'sort_order' => '0',
                         'packages' => [
@@ -85,7 +85,6 @@ class AdminShopSettingsTest extends TestCase
                         'delayed_status_label' => 'Ready later',
                         'delivery_estimate_min_days' => '1',
                         'delivery_estimate_max_days' => '2',
-                        'is_default' => '0',
                         'is_active' => '1',
                         'sort_order' => '1',
                         'packages' => [
@@ -115,7 +114,6 @@ class AdminShopSettingsTest extends TestCase
                         'shipment_label' => 'Collection',
                         'immediate_status_label' => 'Available now',
                         'delayed_status_label' => 'Available later',
-                        'is_default' => '0',
                         'is_active' => '1',
                         'sort_order' => '2',
                         'packages' => [],
@@ -203,7 +201,7 @@ class AdminShopSettingsTest extends TestCase
         $this->assertSame('Parcel 2: Ready later', $delayedQuote['shipments'][1]['title']);
     }
 
-    public function test_single_active_shipping_channel_is_saved_as_default(): void
+    public function test_checkout_defaults_to_the_first_active_shipping_channel_by_sort_order(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -230,9 +228,8 @@ class AdminShopSettingsTest extends TestCase
                         'description' => 'Standard delivery for in-stock items.',
                         'delivery_estimate_min_days' => '3',
                         'delivery_estimate_max_days' => '7',
-                        'is_default' => '0',
                         'is_active' => '1',
-                        'sort_order' => '0',
+                        'sort_order' => '1',
                         'packages' => [
                             [
                                 'code' => 'small',
@@ -251,9 +248,8 @@ class AdminShopSettingsTest extends TestCase
                         'description' => 'Faster delivery once dispatched.',
                         'delivery_estimate_min_days' => '1',
                         'delivery_estimate_max_days' => '3',
-                        'is_default' => '0',
-                        'is_active' => '0',
-                        'sort_order' => '1',
+                        'is_active' => '1',
+                        'sort_order' => '0',
                         'packages' => [
                             [
                                 'code' => 'small',
@@ -272,7 +268,6 @@ class AdminShopSettingsTest extends TestCase
                         'description' => 'Free pickup. We will contact you when your order is available to collect.',
                         'delivery_estimate_min_days' => '',
                         'delivery_estimate_max_days' => '',
-                        'is_default' => '0',
                         'is_active' => '0',
                         'sort_order' => '2',
                         'packages' => [],
@@ -284,18 +279,35 @@ class AdminShopSettingsTest extends TestCase
         $this->assertDatabaseHas('store_shipping_methods', [
             'id' => $regular->id,
             'is_active' => true,
-            'is_default' => true,
+            'sort_order' => 1,
         ]);
         $this->assertDatabaseHas('store_shipping_methods', [
             'id' => $express->id,
-            'is_active' => false,
-            'is_default' => false,
+            'is_active' => true,
+            'sort_order' => 0,
         ]);
         $this->assertDatabaseHas('store_shipping_methods', [
             'id' => $pickup->id,
             'is_active' => false,
-            'is_default' => false,
+            'sort_order' => 2,
         ]);
+
+        $resolvedMethod = app(StoreShippingMethodService::class)->resolveForLines(collect([
+            (object) [
+                'product' => new Product([
+                    'title' => 'Mini Kit',
+                    'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                ]),
+                'quantity' => 1,
+                'display_title' => 'Mini Kit',
+                'unit_shipping_units' => 0.5,
+                'unit_min_satchel_rank' => 1,
+                'unit_weight_grams' => 300,
+                'box_only' => false,
+            ],
+        ]));
+
+        $this->assertSame('express', $resolvedMethod?->code);
     }
 
     public function test_admin_settings_surface_legacy_package_options_when_channel_packages_are_missing(): void

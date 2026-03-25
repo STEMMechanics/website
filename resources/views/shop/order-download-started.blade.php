@@ -49,8 +49,8 @@
             </div>
 
             <div class="mt-6 flex flex-wrap justify-between gap-3">
-                <x-ui.button type="link" color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
-                <x-ui.button type="link" href="{{ $downloadUrl }}">click here to download it now</x-ui.button>
+                <x-ui.button color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
+                <x-ui.button href="{{ $downloadUrl }}">click here to download it now</x-ui.button>
             </div>
         </section>
     </x-container>

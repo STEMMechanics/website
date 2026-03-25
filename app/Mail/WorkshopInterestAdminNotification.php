@@ -21,6 +21,8 @@ class WorkshopInterestAdminNotification extends Mailable
 
     public function build(): static
     {
+        $this->interest->loadMissing('user.parent');
+
         $fromAddress = trim((string) config('mail.from.address', ''));
         $fromName = trim((string) config('mail.from.name', ''));
 

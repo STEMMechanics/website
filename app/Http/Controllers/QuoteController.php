@@ -5,25 +5,35 @@ namespace App\Http\Controllers;
 use App\Jobs\SendEmail;
 use App\Mail\FinanceDocumentPdf;
 use App\Models\Invoice;
+use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\Quote;
 use App\Models\User;
 use App\Services\DocumentNumberService;
-use App\Support\InvoiceDueDate;
+use App\Services\QuoteWorkflowService;
+use App\Services\StoreOrderService;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Throwable;
 
 class QuoteController extends Controller
 {
-    public function __construct(private readonly DocumentNumberService $documentNumbers) {}
+    public function __construct(
+        private readonly DocumentNumberService $documentNumbers,
+        private readonly StoreOrderService $storeOrders,
+        private readonly QuoteWorkflowService $quoteWorkflow,
+    ) {}
 
     public function index(Request $request)
     {
+        Quote::expireOpenQuotes();
+
         $query = Quote::query()->with('user');
 
         if ($request->filled('search')) {
@@ -47,17 +57,18 @@ class QuoteController extends Controller
 
     public function create()
     {
-        return view('admin.quote.edit', [
+        return view('admin.quote.edit', array_merge($this->quoteEditorData(), [
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'nextQuoteNumber' => $this->documentNumbers->previewQuoteNumber(),
             'linkedInvoices' => collect(),
-        ]);
+        ]));
     }
 
     public function store(Request $request)
     {
-        $validated = $this->validateRequest($request);
         $lineItems = $this->extractLineItems($request);
+        $this->validateLineItems($lineItems);
+        $validated = $this->normalizeValidatedQuoteData($request, $this->validateRequest($request), null, $lineItems);
 
         if (count($lineItems) === 0) {
             throw ValidationException::withMessages([
@@ -68,6 +79,10 @@ class QuoteController extends Controller
         $quote = new Quote();
         $quote->fill($validated);
         $quote->line_items = $lineItems;
+        $quote->setAcceptanceSettings(
+            $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems),
+            $request->boolean('acceptance_emails_invoice')
+        );
         $quote->subtotal_amount = $this->calculateSubtotal($quote->line_items);
         $quote->gst_amount = $this->calculateGst($quote->line_items);
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
@@ -87,22 +102,26 @@ class QuoteController extends Controller
 
     public function edit(Quote $quote)
     {
+        $quote->refreshLifecycleStatus();
         $quote->loadMissing([
             'privateFinanceFiles',
             'invoices' => fn ($query) => $query->with('user')->orderByDesc('issue_date')->orderByDesc('created_at')->orderByDesc('id'),
+            'storeOrders.invoice',
         ]);
 
         return view('admin.quote.edit', [
             'quote' => $quote,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'linkedInvoices' => $quote->invoices,
-        ]);
+        ] + $this->quoteEditorData($quote));
     }
 
     public function update(Request $request, Quote $quote)
     {
-        $validated = $this->validateRequest($request, $quote);
+        $quote->refreshLifecycleStatus();
         $lineItems = $this->extractLineItems($request);
+        $this->validateLineItems($lineItems);
+        $validated = $this->normalizeValidatedQuoteData($request, $this->validateRequest($request, $quote), $quote, $lineItems);
 
         if (count($lineItems) === 0) {
             throw ValidationException::withMessages([
@@ -112,6 +131,10 @@ class QuoteController extends Controller
 
         $quote->fill($validated);
         $quote->line_items = $lineItems;
+        $quote->setAcceptanceSettings(
+            $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems),
+            $request->boolean('acceptance_emails_invoice')
+        );
         $quote->subtotal_amount = $this->calculateSubtotal($quote->line_items);
         $quote->gst_amount = $this->calculateGst($quote->line_items);
         $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
@@ -149,14 +172,19 @@ class QuoteController extends Controller
 
     public function pdf(Quote $quote)
     {
+        $quote->refreshLifecycleStatus();
+
         return $this->buildQuotePdf($quote)->stream($this->getQuotePdfFilename($quote));
     }
 
     public function accountIndex(Request $request)
     {
+        Quote::expireOpenQuotes();
+
         $query = Quote::query()
             ->with('user')
-            ->where('user_id', (string) auth()->id());
+            ->where('user_id', (string) auth()->id())
+            ->visibleToCustomer();
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -172,15 +200,127 @@ class QuoteController extends Controller
         ]);
     }
 
+    public function accountShow(Quote $quote): View
+    {
+        $quote->refreshLifecycleStatus();
+        $this->abortIfQuoteNotAccessible($quote);
+        $quote->loadMissing([
+            'user',
+            'invoices' => fn ($query) => $query->orderByDesc('issue_date')->orderByDesc('created_at')->orderByDesc('id'),
+        ]);
+
+        $quoteViewData = $this->buildQuoteAccountViewData($quote);
+
+        return view('account.quote-show', [
+            'quote' => $quote,
+            'acceptUrl' => route('account.quote.accept', $quote),
+            'cancelUrl' => route('account.quote.cancel', $quote),
+            'isMagicAccess' => false,
+        ] + $quoteViewData);
+    }
+
     public function accountPdf(Quote $quote)
     {
+        $quote->refreshLifecycleStatus();
         $this->abortIfQuoteNotAccessible($quote);
 
         return $this->pdf($quote);
     }
 
+    public function accountAccept(Request $request, Quote $quote): RedirectResponse
+    {
+        $quote->refreshLifecycleStatus();
+        $this->abortIfQuoteNotAccessible($quote);
+
+        try {
+            $result = $this->quoteWorkflow->acceptByCustomer($quote, auth()->user());
+        } catch (ValidationException $e) {
+            session()->flash('message', (string) collect($e->errors())->flatten()->first());
+            session()->flash('message-title', 'Quote unavailable');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('account.quote.show', $quote);
+        }
+
+        $invoice = $result['invoice'] ?? null;
+        $message = ($invoice instanceof Invoice && ($result['invoice_emailed'] ?? false))
+            ? 'Quote accepted. Your invoice has been emailed.'
+            : 'Quote accepted. We have recorded your response.';
+
+        if (($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
+            $message .= ' The linked order is now available in your account.';
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Quote accepted');
+        session()->flash('message-type', 'success');
+
+        if ($request->boolean('accept_and_pay') && $invoice instanceof Invoice) {
+            return redirect()->to(route('account.invoice.show', $invoice));
+        }
+
+        return redirect()->route('account.quote.show', $quote);
+    }
+
+    public function accountCancel(Quote $quote): RedirectResponse
+    {
+        $quote->refreshLifecycleStatus();
+        $this->abortIfQuoteNotAccessible($quote);
+
+        return $this->handleQuoteCancellation($quote, route('account.quote.show', $quote));
+    }
+
+    public function showByMagicLink(Request $request, Quote $quote): View|RedirectResponse
+    {
+        $quote->refreshLifecycleStatus();
+
+        if (! $request->hasValidSignature()) {
+            session()->flash('message', 'That quote link has expired or is invalid.');
+            session()->flash('message-title', 'Link invalid');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('index');
+        }
+
+        $quote->loadMissing(['user', 'invoices']);
+        $quoteViewData = $this->buildQuoteAccountViewData($quote);
+
+        return view('account.quote-show', [
+            'quote' => $quote,
+            'acceptUrl' => $this->quoteWorkflow->quoteMagicActionUrl($quote, 'quote.magic.accept'),
+            'cancelUrl' => $this->quoteWorkflow->quoteMagicActionUrl($quote, 'quote.magic.cancel'),
+            'isMagicAccess' => true,
+        ] + $quoteViewData);
+    }
+
+    public function acceptByMagicLink(Request $request, Quote $quote): RedirectResponse
+    {
+        if (! $request->hasValidSignature()) {
+            abort(Response::HTTP_FORBIDDEN);
+        }
+
+        return $this->handleQuoteAcceptance(
+            $quote,
+            $this->quoteWorkflow->quoteReviewUrl($quote),
+            false
+        );
+    }
+
+    public function cancelByMagicLink(Request $request, Quote $quote): RedirectResponse
+    {
+        if (! $request->hasValidSignature()) {
+            abort(Response::HTTP_FORBIDDEN);
+        }
+
+        return $this->handleQuoteCancellation(
+            $quote,
+            $this->quoteWorkflow->quoteReviewUrl($quote)
+        );
+    }
+
     public function emailPdf(Request $request, Quote $quote): RedirectResponse
     {
+        $quote->refreshLifecycleStatus();
         $quote->loadMissing('user');
         $emailMessage = trim((string) $request->input('email_message', ''));
         if ($emailMessage === '') {
@@ -192,6 +332,7 @@ class QuoteController extends Controller
         $ccRecipients = $this->resolveQuoteEmailCcRecipients($request);
 
         $pdfBinary = $this->buildQuotePdf($quote)->output();
+        $reviewUrl = $this->quoteWorkflow->quoteReviewUrl($quote);
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
 
@@ -200,7 +341,7 @@ class QuoteController extends Controller
                 $mailable = new FinanceDocumentPdf(
                     documentType: 'quote',
                     documentNumber: $quote->quote_number,
-                    recipientName: $quote->user?->getName() ?? $recipient,
+                    recipientName: $this->quoteWorkflow->quoteRecipientName($quote),
                     pdfContent: $pdfBinary,
                     pdfFilename: $this->getQuotePdfFilename($quote),
                     fullMessage: $emailMessage,
@@ -209,6 +350,8 @@ class QuoteController extends Controller
                     documentDue: $quoteDueDate,
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
+                    actionUrl: $reviewUrl,
+                    actionLabel: 'Review Quote',
                 );
                 $allCcRecipients = $ccRecipients;
                 if ($initiatedByEmail !== null) {
@@ -238,6 +381,11 @@ class QuoteController extends Controller
             return redirect()->back();
         }
 
+        if ((string) $quote->status === Quote::STATUS_DRAFT) {
+            $quote->status = Quote::STATUS_OPEN;
+            $quote->save();
+        }
+
         session()->flash('message', 'Quote PDF emailed to '.implode(', ', $recipients));
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
@@ -247,66 +395,16 @@ class QuoteController extends Controller
 
     public function createInvoice(Quote $quote): RedirectResponse
     {
-        $quote->loadMissing('user');
-        $sourceLineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
+        $invoice = $this->quoteWorkflow->createInvoiceFromQuote($quote, false);
 
-        $invoice = new Invoice();
-        $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
-        $invoice->quote_id = $quote->id;
-        $invoice->user_id = $quote->user_id;
-        $invoice->purchase_order_number = $quote->purchase_order_number;
-        $invoice->status = 'draft';
-        $invoice->issue_date = Carbon::now()->startOfDay();
-        $invoice->due_date = InvoiceDueDate::fromIssueDate($invoice->issue_date);
-        $invoice->subtotal_amount = $this->calculateSubtotal($sourceLineItems);
-        $invoice->gst_amount = $this->calculateGst($sourceLineItems);
-        $invoice->total_amount = round((float) $invoice->subtotal_amount + (float) $invoice->gst_amount, 2);
+        if ($quote->hasStoreProductLines()) {
+            $order = $this->storeOrders->createOrderFromStoreQuote($quote, $invoice);
 
-        $notes = trim((string) ($quote->notes ?? ''));
-        $quoteTitle = trim((string) ($quote->title ?? ''));
-        $quoteDescription = trim((string) ($quote->description ?? ''));
+            session()->flash('message', 'Quote converted to order and invoice');
+            session()->flash('message-title', 'Store order created');
+            session()->flash('message-type', 'success');
 
-        $prefix = [];
-        if ($quoteTitle !== '') {
-            $prefix[] = 'Quote Title: '.$quoteTitle;
-        }
-        if ($quoteDescription !== '') {
-            $prefix[] = 'Quote Description: '.$quoteDescription;
-        }
-
-        $invoice->notes = trim(implode("\n", array_filter([
-            implode("\n", $prefix),
-            $notes,
-        ])));
-
-        $invoice->save();
-        $invoice->syncPrivateFinanceFiles($quote->privateFinanceFiles()->pluck('finance_files.id')->all());
-        foreach ($quote->files('private')->get() as $file) {
-            $invoice->files('private')->attach($file->name, ['collection' => 'private']);
-        }
-        foreach ($sourceLineItems as $index => $lineItem) {
-            if (! is_array($lineItem)) {
-                continue;
-            }
-
-            $quantity = (float) ($lineItem['quantity'] ?? 0);
-            $unitPrice = (float) ($lineItem['unit_price'] ?? 0);
-            $lineTotal = round($quantity * $unitPrice, 2);
-            $taxRate = (($lineItem['gst_applicable'] ?? true) === true) ? 0.10 : 0.00;
-
-            $invoice->lines()->create([
-                'line_number' => $index + 1,
-                'kind' => (string) ($lineItem['kind'] ?? 'generic'),
-                'description' => trim((string) ($lineItem['description'] ?? '')),
-                'notes' => trim((string) ($lineItem['notes'] ?? '')),
-                'details_json' => [],
-                'quantity' => $quantity,
-                'unit_price_ex_tax' => $unitPrice,
-                'tax_rate' => $taxRate,
-                'line_total_ex_tax' => $lineTotal,
-                'tax_amount' => round($lineTotal * $taxRate, 2),
-                'line_total_inc_tax' => round($lineTotal * (1 + $taxRate), 2),
-            ]);
+            return redirect()->route('admin.shop.order.edit', $order);
         }
 
         session()->flash('message', 'Quote copied to invoice');
@@ -320,15 +418,30 @@ class QuoteController extends Controller
     {
         return $request->validate([
             'quote_number' => ['required', 'string', 'max:100', Rule::unique('quotes')->ignore($quote?->id)],
-            'user_id' => ['required', 'exists:users,id'],
+            'user_id' => ['nullable', 'exists:users,id'],
+            'status' => ['required', Rule::in(Quote::STATUSES)],
             'quote_date' => ['required', 'date'],
             'purchase_order_number' => ['nullable', 'string', 'max:120'],
             'title' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'private_notes' => ['nullable', 'string'],
             'notes' => ['nullable', 'string'],
             'line_items_json' => ['nullable', 'string'],
             'private_file_ids' => ['nullable', 'string'],
         ]);
+    }
+
+    private function normalizeValidatedQuoteData(Request $request, array $validated, ?Quote $quote = null, array $lineItems = []): array
+    {
+        $contextPayload = is_array($quote?->context_payload) ? $quote->context_payload : [];
+        $acceptance = is_array($contextPayload['acceptance'] ?? null) ? $contextPayload['acceptance'] : [];
+        $acceptance['creates_order'] = $request->boolean('acceptance_creates_order') && $this->lineItemsIncludeStoreProducts($lineItems);
+        $acceptance['emails_invoice'] = $request->boolean('acceptance_emails_invoice');
+        $contextPayload['acceptance'] = $acceptance;
+        $validated['context_payload'] = $contextPayload;
+        $validated['private_notes'] = trim((string) $request->input('private_notes', '')) ?: null;
+
+        return $validated;
     }
 
     /**
@@ -347,6 +460,259 @@ class QuoteController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function lineItemsIncludeStoreProducts(array $lineItems): bool
+    {
+        foreach ($lineItems as $lineItem) {
+            if (! is_array($lineItem) || (string) ($lineItem['kind'] ?? 'custom') !== 'product') {
+                continue;
+            }
+
+            if ((int) data_get($lineItem, 'store_context.product_id', 0) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function handleQuoteAcceptance(Quote $quote, string $redirectUrl, bool $isAccountAccess): RedirectResponse
+    {
+        try {
+            $result = $this->quoteWorkflow->acceptByCustomer($quote, auth()->user());
+        } catch (ValidationException $e) {
+            session()->flash('message', (string) collect($e->errors())->flatten()->first());
+            session()->flash('message-title', 'Quote unavailable');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->to($redirectUrl);
+        }
+
+        $message = ($result['invoice'] ?? null) instanceof \App\Models\Invoice && ($result['invoice_emailed'] ?? false)
+            ? 'Quote accepted. Your invoice has been emailed.'
+            : 'Quote accepted. We have recorded your response.';
+
+        if ($isAccountAccess && ($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
+            $message .= ' The linked order is now available in your account.';
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Quote accepted');
+        session()->flash('message-type', 'success');
+
+        return redirect()->to($redirectUrl);
+    }
+
+    private function handleQuoteCancellation(Quote $quote, string $redirectUrl): RedirectResponse
+    {
+        try {
+            $this->quoteWorkflow->cancelByCustomer($quote);
+        } catch (ValidationException $e) {
+            session()->flash('message', (string) collect($e->errors())->flatten()->first());
+            session()->flash('message-title', 'Quote unavailable');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->to($redirectUrl);
+        }
+
+        session()->flash('message', 'Quote cancelled. We have recorded your response.');
+        session()->flash('message-title', 'Quote cancelled');
+        session()->flash('message-type', 'success');
+
+        return redirect()->to($redirectUrl);
+    }
+
+    private function buildQuoteAccountViewData(Quote $quote): array
+    {
+        $linkedInvoice = $quote->invoices
+            ->sortByDesc(function (Invoice $invoice): int {
+                return (int) (
+                    optional($invoice->issue_date)->timestamp
+                    ?? optional($invoice->created_at)->timestamp
+                    ?? $invoice->id
+                );
+            })
+            ->first();
+
+        $linkedInvoiceOutstanding = $linkedInvoice instanceof Invoice
+            ? round((float) $linkedInvoice->outstandingAmount(), 2)
+            : 0.0;
+        $linkedInvoiceIsPayable = $linkedInvoice instanceof Invoice
+            && $linkedInvoiceOutstanding > 0.0001
+            && ! in_array((string) $linkedInvoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_CANCELLED], true);
+        $quoteExpiresAt = $quote->expiresAt();
+
+        return [
+            'linkedInvoice' => $linkedInvoice,
+            'linkedInvoiceOutstanding' => $linkedInvoiceOutstanding,
+            'linkedInvoiceUrl' => $linkedInvoice instanceof Invoice ? route('account.invoice.show', $linkedInvoice) : null,
+            'linkedInvoicePayUrl' => $linkedInvoiceIsPayable ? route('account.invoice.show', $linkedInvoice) : null,
+            'quoteDueDate' => $quoteExpiresAt instanceof \Illuminate\Support\Carbon ? $quoteExpiresAt->format('M j, Y') : null,
+            'quoteHasExpired' => $quote->isExpired(),
+            'canAcceptAndPay' => $quote->canCustomerRespond() && (
+                $linkedInvoiceIsPayable
+                || $quote->acceptanceEmailsInvoice()
+            ),
+        ];
+    }
+
+    private function quoteEditorData(?Quote $quote = null): array
+    {
+        return [
+            'catalogProducts' => $this->quoteEditorProducts($quote),
+        ];
+    }
+
+    private function quoteEditorProducts(?Quote $quote = null): array
+    {
+        $products = Product::query()
+            ->with(['variants' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
+            ->orderBy('title')
+            ->get()
+            ->map(function (Product $product): array {
+                return [
+                    'id' => (int) $product->id,
+                    'title' => (string) $product->title,
+                    'slug' => (string) $product->slug,
+                    'sku' => (string) ($product->sku ?? ''),
+                    'base_option_name' => (string) $product->baseOptionName(),
+                    'has_option_choices' => (bool) $product->hasOptionChoices(),
+                    'price' => round((float) ($product->price ?? 0), 2),
+                    'tax_rate' => round((float) ($product->tax_rate ?? 0), 4),
+                    'product_type' => (string) ($product->product_type ?? ''),
+                    'shipping_units' => round((float) ($product->shipping_units ?? 0), 2),
+                    'min_satchel_rank' => $product->min_satchel_rank !== null ? (int) $product->min_satchel_rank : null,
+                    'weight_grams' => $product->weight_grams !== null ? (int) $product->weight_grams : null,
+                    'box_only' => (bool) ($product->box_only ?? false),
+                    'summary' => trim((string) ($product->short_description ?: Str::limit(strip_tags((string) ($product->description ?? '')), 180, ''))),
+                    'variants' => $product->variants->map(function ($variant): array {
+                        return [
+                            'id' => (int) $variant->id,
+                            'name' => (string) $variant->displayName(),
+                            'sku' => (string) ($variant->sku ?? ''),
+                            'summary' => trim((string) ($variant->description ?? '')),
+                        ];
+                    })->values()->all(),
+                ];
+            })
+            ->values();
+
+        if ($quote instanceof Quote) {
+            $referencedProductIds = collect(is_array($quote->line_items) ? $quote->line_items : [])
+                ->map(function ($item): array {
+                    $storeContext = is_array($item['store_context'] ?? null) ? $item['store_context'] : [];
+
+                    return [
+                        'product_id' => (int) ($item['source_id'] ?? $storeContext['product_id'] ?? 0),
+                        'variant_id' => (int) ($item['source_variant_id'] ?? $storeContext['variant_id'] ?? 0),
+                    ];
+                })
+                ->filter(fn (array $item): bool => $item['product_id'] > 0)
+                ->values();
+
+            $existingProductIds = $products->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->all();
+
+            $missingProductIds = $referencedProductIds
+                ->pluck('product_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => ! in_array($id, $existingProductIds, true))
+                ->unique()
+                ->values();
+
+            if ($missingProductIds->isNotEmpty()) {
+                $missingProducts = Product::query()
+                    ->with(['variants' => fn ($query) => $query->orderBy('sort_order')->orderBy('name')])
+                    ->whereIn('id', $missingProductIds->all())
+                    ->get()
+                    ->map(function (Product $product): array {
+                        return [
+                            'id' => (int) $product->id,
+                            'title' => (string) $product->title,
+                            'slug' => (string) $product->slug,
+                            'sku' => (string) ($product->sku ?? ''),
+                            'base_option_name' => (string) $product->baseOptionName(),
+                            'has_option_choices' => (bool) $product->hasOptionChoices(),
+                            'price' => round((float) ($product->price ?? 0), 2),
+                            'tax_rate' => round((float) ($product->tax_rate ?? 0), 4),
+                            'product_type' => (string) ($product->product_type ?? ''),
+                            'shipping_units' => round((float) ($product->shipping_units ?? 0), 2),
+                            'min_satchel_rank' => $product->min_satchel_rank !== null ? (int) $product->min_satchel_rank : null,
+                            'weight_grams' => $product->weight_grams !== null ? (int) $product->weight_grams : null,
+                            'box_only' => (bool) ($product->box_only ?? false),
+                            'summary' => trim((string) ($product->short_description ?: Str::limit(strip_tags((string) ($product->description ?? '')), 180, ''))),
+                            'variants' => $product->variants->map(function (ProductVariant $variant): array {
+                                return [
+                                    'id' => (int) $variant->id,
+                                    'name' => (string) $variant->displayName(),
+                                    'sku' => (string) ($variant->sku ?? ''),
+                                    'summary' => trim((string) ($variant->description ?? '')),
+                                ];
+                            })->values()->all(),
+                        ];
+                    })
+                    ->values();
+
+                $products = $products->merge($missingProducts)->values();
+            }
+
+            $referencedVariants = $referencedProductIds
+                ->filter(fn (array $item): bool => $item['variant_id'] > 0)
+                ->values();
+
+            if ($referencedVariants->isNotEmpty()) {
+                $variantIds = $referencedVariants->pluck('variant_id')->map(fn ($id): int => (int) $id)->unique()->values()->all();
+                $variants = ProductVariant::query()
+                    ->whereIn('id', $variantIds)
+                    ->get()
+                    ->keyBy('id');
+
+                $products = $products->map(function (array $product) use ($referencedProductIds, $variants): array {
+                    $productId = (int) $product['id'];
+                    $referencedVariantIds = $referencedProductIds
+                        ->filter(fn (array $item): bool => $item['product_id'] === $productId)
+                        ->pluck('variant_id')
+                        ->map(fn ($id): int => (int) $id)
+                        ->filter(fn (int $id): bool => $id > 0)
+                        ->unique()
+                        ->values()
+                        ->all();
+
+                    if ($referencedVariantIds === []) {
+                        return $product;
+                    }
+
+                    $existingVariantIds = array_map(
+                        static fn (array $variant): int => (int) $variant['id'],
+                        $product['variants']
+                    );
+
+                    foreach ($referencedVariantIds as $variantId) {
+                        if (in_array((int) $variantId, $existingVariantIds, true)) {
+                            continue;
+                        }
+
+                        $variant = $variants->get((int) $variantId);
+                        if (! $variant instanceof ProductVariant) {
+                            continue;
+                        }
+
+                        $product['variants'][] = [
+                            'id' => (int) $variant->id,
+                            'name' => (string) $variant->displayName(),
+                            'sku' => (string) ($variant->sku ?? ''),
+                            'summary' => trim((string) ($variant->description ?? '')),
+                        ];
+                    }
+
+                    return $product;
+                });
+            }
+        }
+
+        return $products->sortBy('title')->values()->all();
     }
 
     private function extractLineItems(Request $request): array
@@ -380,17 +746,34 @@ class QuoteController extends Controller
 
             $lineTotal = round($quantity * $unitPrice, 2);
 
-            $lineItems[] = [
+            $lineItems[] = array_merge($item, [
                 'description' => $description,
                 'notes' => $notes,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'line_total' => $lineTotal,
                 'gst_applicable' => $gstApplicable,
-            ];
+            ]);
         }
 
         return $lineItems;
+    }
+
+    private function validateLineItems(array $lineItems): void
+    {
+        foreach ($lineItems as $lineItem) {
+            if (! is_array($lineItem) || (string) ($lineItem['kind'] ?? 'custom') !== 'product') {
+                continue;
+            }
+
+            if ((int) data_get($lineItem, 'store_context.product_id', 0) > 0) {
+                continue;
+            }
+
+            throw ValidationException::withMessages([
+                'line_items_json' => 'Each store product line must have a product selected.',
+            ]);
+        }
     }
 
     private function calculateSubtotal(array $lineItems): float
@@ -539,13 +922,17 @@ class QuoteController extends Controller
         if (! $user->isAdmin() && $quote->user_id !== $user->id) {
             abort(Response::HTTP_FORBIDDEN);
         }
+
+        if (! $user->isAdmin() && ! $quote->isVisibleToCustomer()) {
+            abort(Response::HTTP_FORBIDDEN);
+        }
     }
 
     private function resolveQuoteEmailRecipients(Request $request, Quote $quote): array
     {
         $input = trim((string) $request->input('recipient_emails', ''));
         if ($input === '') {
-            $input = trim((string) ($quote->user->email ?? ''));
+            $input = trim((string) ($this->quoteWorkflow->quoteRecipientEmail($quote) ?? ''));
         }
 
         if ($input === '') {
@@ -590,15 +977,18 @@ class QuoteController extends Controller
 
     private function defaultQuoteEmailMessage(Quote $quote): string
     {
-        $nameSource = trim((string) ($quote->user?->getName() ?? $quote->billing_name ?? ''));
+        $nameSource = trim((string) $this->quoteWorkflow->quoteRecipientName($quote));
         $name = trim((string) strtok($nameSource, ' '));
         if ($name === '') {
             $name = $nameSource !== '' ? $nameSource : 'there';
         }
 
         $quoteNumber = trim((string) ($quote->quote_number ?? ''));
+        $contextLabel = (string) ($quote->context_type ?? '') === Quote::CONTEXT_STORE_MANUAL_SHIPPING
+            ? 'for your store items'
+            : 'for your request';
 
-        return "Hi {$name},\n\nAttached is quote **{$quoteNumber}** for a workshop. Please don't hesitate to reach out if you have any questions.";
+        return "Hi {$name},\n\nAttached is quote **{$quoteNumber}** {$contextLabel}. You can review it online and accept or cancel it using the button below.\n\n{{action}}";
     }
 
     private function resolveQuoteEmailCcRecipients(Request $request): array

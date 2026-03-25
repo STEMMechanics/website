@@ -4,7 +4,7 @@
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.quote.create') }}">Create</x-ui.button>
+                <x-ui.button href="{{ route('admin.quote.create') }}">Create</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />
@@ -18,6 +18,7 @@
                 <x-slot:header>
                     <th>Quote #</th>
                     <th class="hidden md:table-cell">User</th>
+                    <th class="hidden md:table-cell">Status</th>
                     <th class="hidden md:table-cell">Quote Date</th>
                     <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
                     <th>Actions</th>
@@ -31,9 +32,11 @@
                                     <div class="text-xs text-gray-600 mt-1">{{ $quote->title }}</div>
                                 @endif
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $quote->user?->getName() ?? '-' }}</div>
+                                <div class="md:hidden text-xs text-gray-600">{{ $quote->statusLabel() }}</div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
                             </td>
                             <td class="hidden md:table-cell text-center">{{ $quote->user?->getName() ?? '-' }}</td>
+                            <td class="hidden md:table-cell text-center">{{ $quote->statusLabel() }}</td>
                             <td class="hidden md:table-cell text-center">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</td>
                             <td class="text-right">${{ number_format((float) $quote->total_amount, 2) }}</td>
                             <td>

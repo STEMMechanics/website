@@ -19,13 +19,15 @@ class ChildForumActivityNotification extends Mailable
         public readonly string $topicTitle,
         public readonly string $preview,
         public readonly string $manageUrl,
+        public readonly ?string $approveUrl = null,
     ) {}
 
     public function build()
     {
         return $this
             ->subject('Child forum activity: '.$this->childUsername)
-            ->markdown('emails.child-forum-activity-notification')
+            ->view('emails.child-forum-activity-notification-html')
+            ->text('emails.child-forum-activity-notification-text')
             ->with([
                 'parentName' => $this->parentName,
                 'childUsername' => $this->childUsername,
@@ -35,6 +37,7 @@ class ChildForumActivityNotification extends Mailable
                 'topicTitle' => $this->topicTitle,
                 'preview' => $this->preview,
                 'manageUrl' => $this->manageUrl,
+                'approveUrl' => $this->approveUrl,
             ]);
     }
 }

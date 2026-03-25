@@ -50,10 +50,12 @@ class TicketAttendeeUpdate extends Mailable
 
     public function build(): static
     {
+        $workshopTitle = (string) ($this->workshop['title'] ?? 'this workshop');
         $subject = match ($this->mode) {
             'transferred_away' => 'Your workshop ticket has been transferred',
             'details_updated' => 'Your workshop ticket details were updated',
-            'new_holder' => "You're in! Your workshop ticket",
+            'cancelled' => 'Your ticket to '.$workshopTitle.' has been cancelled',
+            'new_holder' => "You're in! Your workshop ticket for ".$workshopTitle,
             default => 'You have been issued a workshop ticket',
         };
 

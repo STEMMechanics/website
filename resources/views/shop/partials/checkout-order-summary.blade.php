@@ -27,6 +27,10 @@
     $resolvedSubmitButtonAttributes = new \Illuminate\View\ComponentAttributeBag(is_array($submitButtonAttributes ?? null) ? $submitButtonAttributes : []);
     $resolvedSubmitButtonColor = trim((string) ($submitButtonColor ?? 'primary')) ?: 'primary';
     $canCheckout = (bool) ($resolvedSummary['can_checkout'] ?? false);
+    $requiresManualQuote = (bool) ($resolvedSummary['shipping_quote']['requires_manual_quote'] ?? false);
+    if ($requiresManualQuote) {
+        $resolvedSubmitLabel = 'Request Quote';
+    }
     $shippingLabel = trim((string) (($resolvedSummary['shipping_quote']['method'] ?? ''))) ?: 'Shipping';
     $blockedReason = trim((string) ($resolvedSummary['shipping_quote']['reason'] ?? ''));
     $submitButtonColorMap = [
@@ -53,13 +57,14 @@
                 <template x-for="line in cartState.lines" :key="`summary-${line.key}`">
                     <div class="rounded-2xl border border-gray-200 p-3">
                         <div class="flex gap-3">
-                            <img :src="line.product.image_url" :alt="line.display_title" class="h-14 w-14 rounded-xl bg-gray-100 object-cover" />
+                            <img :src="line.product.image_url" alt="Product image" :alt="line.display_title" class="h-14 w-14 rounded-xl bg-gray-100 object-cover" />
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <a :href="line.product.url" class="block truncate text-sm font-semibold text-gray-900 hover:text-primary-color" x-text="line.product.title"></a>
                                         <div x-show="line.variant_name" class="mt-0.5 truncate text-xs font-medium text-gray-600" x-text="line.variant_name"></div>
                                         <div x-show="lineFulfilmentLabel(line)" x-cloak class="mt-1 text-xs" :class="line.is_preorder ? 'text-amber-800' : (Number(line.delayed_quantity || 0) > 0 ? 'text-sky-800' : 'text-gray-500')" x-text="lineFulfilmentLabel(line)"></div>
+                                        <div x-show="lineTriggersManualQuote(line)" x-cloak class="mt-1 text-xs font-medium text-amber-800">Requires pickup or a manual shipping quote</div>
                                     </div>
                                     <div class="text-right">
                                         <div class="text-sm font-bold text-gray-900" x-text="formatMoney(line.line_price)"></div>
@@ -116,8 +121,8 @@
 
         <div class="flex items-center justify-between gap-4">
             <span x-text="checkoutShippingLabel()">{{ $shippingLabel }}</span>
-            <span class="font-semibold text-gray-900" x-text="canCheckout() ? formatMoney(cartState?.summary?.shipping || 0) : 'Manual quote'">
-                {{ $canCheckout ? '$'.number_format((float) ($resolvedSummary['shipping'] ?? 0), 2) : 'Manual quote' }}
+            <span class="font-semibold text-gray-900" x-text="requiresManualQuote() ? '--' : (canCheckout() ? formatMoney(cartState?.summary?.shipping || 0) : 'Manual quote')">
+                {{ $requiresManualQuote ? '--' : ($canCheckout ? '$'.number_format((float) ($resolvedSummary['shipping'] ?? 0), 2) : 'Manual quote') }}
             </span>
         </div>
 
@@ -129,8 +134,8 @@
         <div class="border-t border-gray-200 pt-4">
             <div class="flex items-center justify-between gap-4">
                 <span class="text-lg font-bold text-gray-900">Total</span>
-                <span class="text-right text-2xl font-bold text-gray-900" x-text="cartState?.summary?.total !== null && cartState?.summary?.total !== undefined ? formatMoney(cartState.summary.total) : 'Unavailable'">
-                    {{ $resolvedSummary['total'] !== null ? '$'.number_format((float) $resolvedSummary['total'], 2) : 'Unavailable' }}
+                <span class="text-right text-2xl font-bold text-gray-900" x-text="requiresManualQuote() ? '--' : (cartState?.summary?.total !== null && cartState?.summary?.total !== undefined ? formatMoney(cartState.summary.total) : 'Unavailable')">
+                    {{ $requiresManualQuote ? '--' : ($resolvedSummary['total'] !== null ? '$'.number_format((float) $resolvedSummary['total'], 2) : 'Unavailable') }}
                 </span>
             </div>
             <div class="mt-2 flex items-center justify-between gap-4 text-sm text-gray-500">
@@ -175,10 +180,14 @@
         @error('coupon_code')
         <div class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">{{ $message }}</div>
         @enderror
-        <div x-show="couponError !== ''" style="display:none;" class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" x-text="couponError"></div>
+    <div x-show="couponError !== ''" style="display:none;" class="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700" x-text="couponError"></div>
     </div>
 
-    <div x-show="checkoutBlockedReason() !== ''" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" x-text="checkoutBlockedReason()">
+    <div x-show="requiresManualQuote()" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div>Due to the weight or size of the items in your cart, a manual quote for shipping is required.</div>
+    </div>
+
+    <div x-show="!requiresManualQuote() && checkoutBlockedReason() !== ''" x-cloak class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950" x-text="checkoutBlockedReason()">
             {{ $blockedReason }}
     </div>
 
@@ -192,7 +201,7 @@
             @endif
             {{ $resolvedSubmitButtonAttributes }}
         >
-            {{ $resolvedSubmitLabel }}
+            <span x-text="requiresManualQuote() ? 'Request Quote' : @js($resolvedSubmitLabel)">{{ $resolvedSubmitLabel }}</span>
         </button>
     @endif
 </div>

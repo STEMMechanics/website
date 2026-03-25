@@ -4,7 +4,7 @@ $recipientFirstName = trim((string) strtok((string) ($recipientName ?? ''), ' ')
 @endphp
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
-The following ticket has been cancelled.
+{{ $introLine }}
 
 **Ticket:** {{ $ticketReference }}<br>
 **Workshop:** {{ $workshopTitle }}<br>
@@ -13,6 +13,10 @@ The following ticket has been cancelled.
 
 @if(trim((string) ($financialSummary ?? '')) !== '')
 {{ $financialSummary }}
+@endif
+
+@if(trim((string) ($documentSummary ?? '')) !== '')
+{{ $documentSummary }}
 @endif
 
 Thanks,<br>

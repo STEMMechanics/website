@@ -4,6 +4,7 @@ use App\Http\Middleware\Admin;
 use App\Http\Middleware\Authenticate;
 use App\Http\Middleware\EnsureFullAccount;
 use App\Http\Middleware\EnsurePublicShopAvailable;
+use App\Http\Middleware\LogoutAnonymizedUser;
 use App\Http\Middleware\NoCache;
 use App\Http\Middleware\ProtectFormSubmission;
 use App\Http\Middleware\SecurityHeaders;
@@ -29,8 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'shop.public' => EnsurePublicShopAvailable::class,
         ]);
         $middleware->web(append: [
+            LogoutAnonymizedUser::class,
             SecurityHeaders::class,
             TrackAnalytics::class,
+            NoCache::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             'webhooks/square',

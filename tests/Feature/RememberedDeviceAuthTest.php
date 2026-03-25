@@ -29,6 +29,27 @@ class RememberedDeviceAuthTest extends TestCase
         $response->assertSee('ipad@example.com');
     }
 
+    public function test_login_form_does_not_show_password_input_initially(): void
+    {
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertDontSee('<x-ui.input', false);
+        $response->assertSee('id="login_identifier"', false);
+        $response->assertDontSee('name="password"', false);
+    }
+
+    public function test_login_form_binds_single_submit_guard(): void
+    {
+        $response = $this->get(route('login'));
+
+        $response->assertOk();
+        $response->assertSee('bindSingleSubmit(loginForm', false);
+        $response->assertDontSee("ignoreWhenSelector: 'altcha-widget'", false);
+        $response->assertSee("window.addEventListener('pageshow'", false);
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+    }
+
     public function test_login_submit_with_remember_email_checked_sets_prefill_cookie(): void
     {
         $user = User::factory()->create([

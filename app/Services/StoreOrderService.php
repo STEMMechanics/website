@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\SendEmail;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
+use App\Mail\StoreQuoteRequestAdminNotification;
 use App\Mail\StoreOrderAdminUpdateNotice;
 use App\Mail\StoreOrderAdminNotification;
 use App\Mail\StoreOrderConfirmation;
@@ -17,6 +18,7 @@ use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Quote;
 use App\Models\SquareRefundOperation;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
@@ -42,6 +44,7 @@ class StoreOrderService
         private readonly StoreCouponService $coupons,
         private readonly StoreInventoryAllocatorService $allocator,
         private readonly StoreOrderUpdateService $orderUpdates,
+        private readonly AccountCreditService $accountCredit,
     ) {}
 
     public function createFromCart(Collection $lines, array $payload, ?User $authUser = null): StoreOrder
@@ -71,7 +74,7 @@ class StoreOrderService
         return $order->fresh(['invoice', 'items.downloads.media', 'coupon']);
     }
 
-    public function createAndChargeFromCart(Collection $lines, array $payload, string $sourceId, ?User $authUser = null): StoreOrder
+    public function createAndChargeFromCart(Collection $lines, array $payload, ?string $sourceId, ?User $authUser = null): StoreOrder
     {
         if ($lines->isEmpty()) {
             throw ValidationException::withMessages([
@@ -79,31 +82,11 @@ class StoreOrderService
             ]);
         }
 
-        if (! $this->squareApi->isEnabled()) {
-            throw ValidationException::withMessages([
-                'source_id' => 'Credit card payments are not available right now.',
-            ]);
-        }
-
-        $locationId = trim((string) config('services.square.location_id'));
-        if ($locationId === '') {
-            throw ValidationException::withMessages([
-                'source_id' => 'Square location is not configured.',
-            ]);
-        }
-
-        $sourceId = trim($sourceId);
-        if ($sourceId === '') {
-            throw ValidationException::withMessages([
-                'source_id' => 'Card details are required.',
-            ]);
-        }
-
         $customer = $this->normalizeCustomerPayload($payload);
         $user = $this->resolveUser($customer, $authUser);
 
         /** @var StoreOrder $order */
-        $order = DB::transaction(function () use ($lines, $customer, $user, $locationId, $sourceId, $authUser): StoreOrder {
+        $order = DB::transaction(function () use ($lines, $customer, $user, $sourceId, $authUser): StoreOrder {
             $checkout = $this->prepareCheckout($lines, $customer, $user);
             $totals = $checkout['totals'];
 
@@ -122,7 +105,40 @@ class StoreOrderService
                 ]);
             }
 
-            $this->chargeLockedOrder($order, $invoice, $sourceId, $locationId, $authUser);
+            $creditApplied = $authUser instanceof User
+                ? $this->accountCredit->applyCreditToInvoice($invoice, $authUser, (float) $invoice->outstandingAmount())
+                : 0.0;
+            if ($creditApplied > 0.0001) {
+                $invoice->refresh();
+                $order->refresh();
+                $order->load('invoice');
+            }
+
+            $remainingAmount = round((float) $invoice->outstandingAmount(), 2);
+            if ($remainingAmount > 0.0001 && trim((string) ($sourceId ?? '')) === '') {
+                throw ValidationException::withMessages([
+                    'source_id' => 'Card details are required.',
+                ]);
+            }
+
+            if ($remainingAmount > 0.0001) {
+                $locationId = trim((string) config('services.square.location_id'));
+                if (! $this->squareApi->isEnabled()) {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'Credit card payments are not available right now.',
+                    ]);
+                }
+                if ($locationId === '') {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'Square location is not configured.',
+                    ]);
+                }
+
+                $this->chargeLockedOrder($order, $invoice, $sourceId, $locationId, $authUser);
+            } else {
+                $this->syncInvoiceState($invoice);
+                $this->syncOrderState($order->fresh('invoice'));
+            }
 
             return $order->fresh(['invoice', 'items.downloads.media', 'coupon']);
         });
@@ -133,6 +149,333 @@ class StoreOrderService
         $this->queueAdminOrderNotification($freshOrder, 'paid');
 
         return $order->fresh(['invoice', 'items.downloads.media', 'coupon']);
+    }
+
+    public function createQuoteRequestFromCart(Collection $lines, array $payload, ?User $authUser = null): Quote
+    {
+        if ($lines->isEmpty()) {
+            throw ValidationException::withMessages([
+                'cart' => 'Your cart is empty.',
+            ]);
+        }
+
+        $customer = $this->normalizeCustomerPayload($payload);
+        $user = $this->resolveUser($customer, $authUser);
+
+        /** @var Quote $quote */
+        $quote = DB::transaction(function () use ($lines, $customer, $user): Quote {
+            $checkout = $this->prepareCheckout($lines, $customer, $user, true);
+            $quoteLineItems = $this->storeQuoteLineItems($checkout['lines'], $checkout['totals']);
+
+            $quote = new Quote();
+            $quote->quote_number = $this->documentNumbers->nextQuoteNumber();
+            $quote->user_id = $user?->id;
+            $quote->status = Quote::STATUS_DRAFT;
+            $quote->context_type = Quote::CONTEXT_STORE_MANUAL_SHIPPING;
+            $quote->quote_date = Carbon::today();
+            $quote->title = 'Store quote request';
+            $quote->description = 'Requested from online checkout.';
+            $quote->line_items = $quoteLineItems;
+            $quote->subtotal_amount = $this->calculateQuoteSubtotal($quoteLineItems);
+            $quote->gst_amount = $this->calculateQuoteGst($quoteLineItems);
+            $quote->total_amount = round((float) $quote->subtotal_amount + (float) $quote->gst_amount, 2);
+            $quote->notes = $customer['notes'];
+            $quote->context_payload = $this->storeQuoteContextPayload($customer, $checkout['totals']);
+            $quote->setAcceptanceSettings(true, true);
+            $quote->save();
+
+            return $quote->fresh('user');
+        });
+
+        $this->updateUserProfileFromOrder($user, $customer, $authUser);
+        $this->queueAdminQuoteRequestNotification($quote);
+
+        return $quote->fresh('user');
+    }
+
+    public function createOrderFromStoreQuote(Quote $quote, Invoice $invoice): StoreOrder
+    {
+        if (! $quote->hasStoreProductLines()) {
+            throw ValidationException::withMessages([
+                'quote' => 'This quote does not contain any store products to convert into an order.',
+            ]);
+        }
+
+        $quote->loadMissing('user');
+
+        /** @var StoreOrder $order */
+        $order = DB::transaction(function () use ($quote, $invoice): StoreOrder {
+            /** @var Invoice $lockedInvoice */
+            $lockedInvoice = Invoice::query()
+                ->with('lines')
+                ->whereKey($invoice->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (StoreOrder::query()->where('invoice_id', $lockedInvoice->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'quote' => 'A store order already exists for this invoice.',
+                ]);
+            }
+
+            $context = is_array($quote->context_payload ?? null) ? $quote->context_payload : [];
+            $customer = $this->normalizeCustomerPayload(is_array($context['customer'] ?? null) ? $context['customer'] : []);
+            $lineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
+            $productLinePayloads = [];
+
+            foreach ($lineItems as $index => $lineItem) {
+                if (! is_array($lineItem) || (string) ($lineItem['kind'] ?? 'product') !== 'product') {
+                    continue;
+                }
+
+                $storeContext = is_array($lineItem['store_context'] ?? null) ? $lineItem['store_context'] : [];
+                $productId = (int) ($storeContext['product_id'] ?? 0);
+                if ($productId <= 0) {
+                    continue;
+                }
+
+                /** @var Product $product */
+                $product = Product::query()
+                    ->with(['hero'])
+                    ->lockForUpdate()
+                    ->findOrFail($productId);
+
+                $variantId = (int) ($storeContext['variant_id'] ?? 0);
+                $variant = $variantId > 0
+                    ? ProductVariant::query()->lockForUpdate()->find($variantId)
+                    : null;
+
+                $quantity = max(0, (int) ($lineItem['quantity'] ?? 0));
+                if ($quantity <= 0) {
+                    continue;
+                }
+
+                $actualInventory = $product->availableInventory($variant);
+                $fulfilment = $this->resolveFulfilment($product, $quantity, $actualInventory, $variant);
+                $displayTitle = trim((string) ($lineItem['description'] ?? '')) ?: $product->displayTitle($variant);
+                $unitPriceExTax = round((float) ($lineItem['unit_price'] ?? 0), 2);
+                $taxRate = ($lineItem['gst_applicable'] ?? true) === true ? 0.10 : 0.00;
+                $lineTotalExTax = round((float) ($lineItem['line_total'] ?? ($unitPriceExTax * $quantity)), 2);
+
+                $reservationLine = (object) [
+                    'product' => $product,
+                    'variant' => $variant,
+                    'quantity' => $quantity,
+                    'available_now_quantity' => (int) ($fulfilment['available_now_quantity'] ?? $quantity),
+                    'display_title' => $displayTitle,
+                ];
+
+                $reservedQuantity = $this->reserveInventoryForPreparedLine($reservationLine);
+                $invoiceLine = $lockedInvoice->lines->firstWhere('line_number', $index + 1);
+
+                $productLinePayloads[] = [
+                    'product' => $product,
+                    'variant' => $variant,
+                    'invoice_line' => $invoiceLine instanceof InvoiceLine ? $invoiceLine : null,
+                    'display_title' => $displayTitle,
+                    'quantity' => $quantity,
+                    'available_now_quantity' => (int) ($fulfilment['available_now_quantity'] ?? $quantity),
+                    'delayed_quantity' => (int) ($fulfilment['delayed_quantity'] ?? 0),
+                    'delayed_fulfilment_type' => $fulfilment['delayed_fulfilment_type'] ?? null,
+                    'delayed_shipping_estimate' => $fulfilment['delayed_shipping_estimate'] ?? null,
+                    'reserved_quantity' => $reservedQuantity,
+                    'box_only' => (bool) ($storeContext['box_only'] ?? false),
+                    'is_preorder' => (bool) ($product->isPreorder($variant)),
+                    'preorder_shipping_estimate' => $product->isPreorder($variant)
+                        ? ($variant->preorder_shipping_estimate ?? $product->preorder_shipping_estimate)
+                        : null,
+                    'unit_shipping_units' => round((float) ($product->shippingUnitsForVariant($variant) ?? ($storeContext['unit_shipping_units'] ?? 0)), 2),
+                    'unit_min_satchel_rank' => $product->minSatchelRankForVariant($variant) ?? ($storeContext['unit_min_satchel_rank'] ?? null),
+                    'unit_weight_grams' => $product->weightGramsForVariant($variant) ?? ($storeContext['unit_weight_grams'] ?? null),
+                    'unit_price_inc_tax' => round($unitPriceExTax * (1 + $taxRate), 2),
+                    'unit_price_ex_tax' => $unitPriceExTax,
+                    'line_total_inc_tax' => round($lineTotalExTax * (1 + $taxRate), 2),
+                    'line_total_ex_tax' => $lineTotalExTax,
+                    'line_gst_amount' => round($lineTotalExTax * $taxRate, 2),
+                    'tax_rate' => $taxRate,
+                ];
+            }
+
+            if ($productLinePayloads === []) {
+                throw ValidationException::withMessages([
+                    'quote' => 'This store quote does not contain any product lines to convert into an order.',
+                ]);
+            }
+
+            $shippingLines = $lockedInvoice->lines
+                ->filter(fn (InvoiceLine $line): bool => (string) $line->kind === 'shipping')
+                ->values();
+            $discountLines = $lockedInvoice->lines
+                ->filter(fn (InvoiceLine $line): bool => (string) $line->kind === 'discount')
+                ->values();
+
+            $containsDigital = collect($productLinePayloads)->contains(
+                fn (array $payload): bool => $payload['product']->isDigital()
+            );
+            $containsPhysical = collect($productLinePayloads)->contains(
+                fn (array $payload): bool => $payload['product']->isPhysical()
+            );
+            $containsPreorder = collect($productLinePayloads)->contains(
+                fn (array $payload): bool => (bool) $payload['is_preorder']
+            );
+            $shippingAmount = round((float) $shippingLines->sum('line_total_inc_tax'), 2);
+            $discountAmount = round(abs((float) $discountLines->sum('line_total_inc_tax')), 2);
+            $shippingMethod = $shippingLines->count() === 1
+                ? trim((string) $shippingLines->first()->description)
+                : 'Quoted shipping';
+
+            $order = new StoreOrder();
+            $order->order_number = $this->documentNumbers->nextStoreOrderNumber();
+            $order->access_token = Str::random(40);
+            $order->user_id = $quote->user_id;
+            $order->quote_id = $quote->id;
+            $order->invoice_id = $lockedInvoice->id;
+            $order->coupon_id = null;
+            $order->status = (float) $lockedInvoice->total_amount <= 0.0001
+                ? ($containsPhysical ? StoreOrder::STATUS_PROCESSING : StoreOrder::STATUS_FULFILLED)
+                : StoreOrder::STATUS_PENDING_PAYMENT;
+            $order->contains_digital = $containsDigital;
+            $order->contains_physical = $containsPhysical;
+            $order->contains_preorder = $containsPreorder;
+            $order->split_shipments = false;
+            $order->consolidate_shipments = false;
+            $order->shipment_count = 1;
+            $order->preorder_acknowledged = $containsPreorder;
+            $order->billing_name = $customer['billing_name'];
+            $order->billing_email = $customer['billing_email'];
+            $order->billing_phone = $customer['billing_phone'];
+            $order->billing_company = $customer['billing_company'];
+            $order->shipping_name = $customer['shipping_name'];
+            $order->shipping_phone = $customer['shipping_phone'];
+            $order->shipping_address = $customer['shipping_address'];
+            $order->shipping_address2 = $customer['shipping_address2'];
+            $order->shipping_city = $customer['shipping_city'];
+            $order->shipping_state = $customer['shipping_state'];
+            $order->shipping_postcode = $customer['shipping_postcode'];
+            $order->shipping_country = $customer['shipping_country'];
+            $order->shipping_method = $shippingMethod !== '' ? $shippingMethod : null;
+            $order->shipping_method_code = null;
+            $order->shipping_package_summary = null;
+            $order->shipping_breakdown_data = null;
+            $order->shipping_zone = null;
+            $order->shipping_chargeable_weight_grams = (int) collect($productLinePayloads)
+                ->sum(fn (array $payload): int => (int) $payload['unit_weight_grams'] * (int) $payload['quantity']);
+            $order->coupon_code = trim((string) ($context['coupon_code'] ?? '')) ?: null;
+            $order->coupon_type = trim((string) ($context['coupon_type'] ?? '')) ?: null;
+            $order->notes = trim(implode("\n", array_filter([
+                (string) ($customer['notes'] ?? ''),
+                (string) ($quote->private_notes ?? ''),
+            ])));
+            $order->subtotal_amount = round((float) collect($productLinePayloads)->sum('line_total_inc_tax'), 2);
+            $order->shipping_amount = $shippingAmount;
+            $order->discount_amount = $discountAmount;
+            $order->gst_amount = round((float) $lockedInvoice->gst_amount, 2);
+            $order->total_amount = round((float) $lockedInvoice->total_amount, 2);
+            $order->paid_at = (float) $lockedInvoice->outstandingAmount() <= 0.0001 ? now() : null;
+            $order->fulfilled_at = (float) $lockedInvoice->outstandingAmount() <= 0.0001 && ! $containsPhysical ? now() : null;
+            $order->save();
+
+            foreach ($productLinePayloads as $payload) {
+                /** @var Product $product */
+                $product = $payload['product'];
+                /** @var ProductVariant|null $variant */
+                $variant = $payload['variant'];
+                /** @var InvoiceLine|null $invoiceLine */
+                $invoiceLine = $payload['invoice_line'];
+
+                $orderItem = new StoreOrderItem();
+                $orderItem->store_order_id = $order->id;
+                $orderItem->product_id = $product->id;
+                $orderItem->product_variant_id = $variant?->id;
+                $orderItem->invoice_line_id = $invoiceLine?->id;
+                $orderItem->product_title = (string) $product->title;
+                $orderItem->product_slug = (string) $product->slug;
+                $orderItem->variant_name = $product->variantDisplayName($variant);
+                $orderItem->product_sku = $product->sku;
+                $orderItem->variant_sku = $variant instanceof ProductVariant ? $variant->sku : null;
+                $orderItem->product_type = (string) $product->product_type;
+                $orderItem->box_only = (bool) $payload['box_only'];
+                $orderItem->is_preorder = (bool) $payload['is_preorder'];
+                $orderItem->preorder_shipping_estimate = $payload['preorder_shipping_estimate'];
+                $orderItem->quantity = (int) $payload['quantity'];
+                $orderItem->available_now_quantity = (int) $payload['available_now_quantity'];
+                $orderItem->delayed_quantity = (int) $payload['delayed_quantity'];
+                $orderItem->delayed_fulfilment_type = $payload['delayed_fulfilment_type'];
+                $orderItem->delayed_shipping_estimate = $payload['delayed_shipping_estimate'];
+                $orderItem->inventory_reserved_quantity = (int) $payload['reserved_quantity'];
+                $orderItem->unit_shipping_units = round((float) $payload['unit_shipping_units'], 2);
+                $orderItem->unit_min_satchel_rank = $payload['unit_min_satchel_rank'];
+                $orderItem->unit_price = round((float) $payload['unit_price_inc_tax'], 2);
+                $orderItem->unit_shipping_rate = 0;
+                $orderItem->tax_rate = (float) $payload['tax_rate'];
+                $orderItem->unit_weight_grams = $payload['unit_weight_grams'];
+                $orderItem->unit_length_cm = null;
+                $orderItem->unit_width_cm = null;
+                $orderItem->unit_height_cm = null;
+                $orderItem->line_price_amount = round((float) $payload['line_total_inc_tax'], 2);
+                $orderItem->line_shipping_amount = 0;
+                $orderItem->line_gst_amount = round((float) $payload['line_gst_amount'], 2);
+                $orderItem->line_total_amount = round((float) $payload['line_total_inc_tax'], 2);
+                $orderItem->save();
+
+                if ($product->isDigital()) {
+                    foreach ($product->downloadMedia()->get() as $index => $media) {
+                        $orderItem->downloads()->create([
+                            'media_name' => (string) $media->name,
+                            'title' => (string) ($media->title ?? $media->name),
+                            'sort_order' => $index,
+                        ]);
+                    }
+                }
+            }
+
+            return $order->load(['invoice', 'items.downloads.media', 'coupon']);
+        });
+
+        return $order;
+    }
+
+    public function sendInvoiceDocumentBundleToCustomer(
+        Invoice $invoice,
+        ?string $recipient = null,
+        ?string $recipientName = null,
+        ?User $actingUser = null,
+    ): bool {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return false;
+        }
+
+        $recipient = strtolower(trim((string) ($recipient ?: $invoice->billing_email ?: $invoice->user?->email)));
+        if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $invoice->loadMissing('user', 'lines', 'allocations.customerPayment');
+        $invoicePdf = $this->buildInvoicePdf($invoice)->output();
+        if ($invoicePdf === '') {
+            return false;
+        }
+
+        [$initiatedByEmail, $initiatedByName] = $this->mailInitiatorIdentity($actingUser);
+
+        dispatch(new SendEmail(
+            $recipient,
+            new InvoiceDocumentBundle(
+                recipientName: trim((string) ($recipientName ?: $invoice->user?->getName() ?: $invoice->billing_name ?: $recipient)),
+                invoiceNumber: (string) $invoice->invoice_number,
+                attachments: [[
+                    'filename' => $this->invoicePdfFilename($invoice),
+                    'content' => $invoicePdf,
+                    'mime' => 'application/pdf',
+                ]],
+                outstandingAmount: $invoice->outstandingAmount(),
+                payUrl: $invoice->outstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
+                initiatedByEmail: $initiatedByEmail,
+                initiatedByName: $initiatedByName,
+            )
+        ))->onQueue('mail');
+
+        return true;
     }
 
     public function charge(StoreOrder $order, string $sourceId, ?User $actingUser = null): Payment
@@ -857,6 +1200,10 @@ class StoreOrderService
             : $order->invoice()->first();
 
         if (! $invoice instanceof Invoice) {
+            if ((string) $order->status === StoreOrder::STATUS_QUOTE_REQUESTED) {
+                return;
+            }
+
             return;
         }
 
@@ -1947,8 +2294,8 @@ class StoreOrderService
 
     private function mailInitiatorIdentity(?User $actingUser): array
     {
-        $email = trim((string) ($actingUser->email ?? ''));
-        $name = trim((string) $actingUser->getName());
+        $email = trim((string) ($actingUser instanceof User ? $actingUser->email : ''));
+        $name = trim((string) ($actingUser instanceof User ? $actingUser->getName() : ''));
 
         return [
             $email !== '' ? $email : null,
@@ -2017,7 +2364,7 @@ class StoreOrderService
         ];
     }
 
-    private function prepareCheckout(Collection $lines, array $customer, ?User $user): array
+    private function prepareCheckout(Collection $lines, array $customer, ?User $user, bool $allowManualQuote = false): array
     {
         $preparedLines = $this->lockAndPrepareLines($lines);
         $shippingQuote = $this->shipping->quote(
@@ -2027,7 +2374,7 @@ class StoreOrderService
             (bool) ($customer['consolidate_shipments'] ?? false),
         );
 
-        if (! ($shippingQuote['can_checkout'] ?? true)) {
+        if (! ($shippingQuote['can_checkout'] ?? true) && ! ($allowManualQuote && (bool) ($shippingQuote['requires_manual_quote'] ?? false))) {
             throw ValidationException::withMessages([
                 'shipping_country' => (string) ($shippingQuote['reason'] ?? 'Shipping could not be calculated for this order.'),
             ]);
@@ -2053,33 +2400,44 @@ class StoreOrderService
         ];
     }
 
-    private function createOrderRecords(Collection $preparedLines, array $customer, ?User $user, array $totals): StoreOrder
+    private function createOrderRecords(
+        Collection $preparedLines,
+        array $customer,
+        ?User $user,
+        array $totals,
+        bool $createInvoice = true,
+        ?string $forcedStatus = null,
+        bool $reserveInventory = true,
+    ): StoreOrder
     {
-        $invoice = new Invoice();
-        $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
-        $invoice->user_id = $user?->id;
-        $invoice->billing_name = $customer['billing_name'];
-        $invoice->billing_email = $customer['billing_email'];
-        $invoice->billing_phone = $customer['billing_phone'];
-        $invoice->status = $totals['total'] <= 0.0001 ? Invoice::STATUS_PAID : Invoice::STATUS_ISSUED;
-        $invoice->issue_date = Carbon::today();
-        $invoice->issued_at = now();
-        $invoice->due_date = Carbon::today()->addDays(7);
-        $invoice->subtotal_amount = $totals['invoice_subtotal'];
-        $invoice->gst_amount = $totals['gst'];
-        $invoice->total_amount = $totals['total'];
-        $invoice->notes = $customer['notes'];
-        $invoice->save();
+        $invoice = null;
+        if ($createInvoice) {
+            $invoice = new Invoice();
+            $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
+            $invoice->user_id = $user?->id;
+            $invoice->billing_name = $customer['billing_name'];
+            $invoice->billing_email = $customer['billing_email'];
+            $invoice->billing_phone = $customer['billing_phone'];
+            $invoice->status = $totals['total'] <= 0.0001 ? Invoice::STATUS_PAID : Invoice::STATUS_ISSUED;
+            $invoice->issue_date = Carbon::today();
+            $invoice->issued_at = now();
+            $invoice->due_date = Carbon::today()->addDays(7);
+            $invoice->subtotal_amount = $totals['invoice_subtotal'];
+            $invoice->gst_amount = $totals['gst'];
+            $invoice->total_amount = $totals['total'];
+            $invoice->notes = $customer['notes'];
+            $invoice->save();
+        }
 
         $order = new StoreOrder();
         $order->order_number = $this->documentNumbers->nextStoreOrderNumber();
         $order->access_token = Str::random(40);
         $order->user_id = $user?->id;
-        $order->invoice_id = $invoice->id;
+        $order->invoice_id = $invoice?->id;
         $order->coupon_id = $totals['coupon']?->id;
-        $order->status = $totals['total'] <= 0.0001
+        $order->status = $forcedStatus ?? ($totals['total'] <= 0.0001
             ? ($totals['contains_physical'] ? StoreOrder::STATUS_PROCESSING : StoreOrder::STATUS_FULFILLED)
-            : StoreOrder::STATUS_PENDING_PAYMENT;
+            : StoreOrder::STATUS_PENDING_PAYMENT);
         $order->contains_digital = $totals['contains_digital'];
         $order->contains_physical = $totals['contains_physical'];
         $order->contains_preorder = $totals['contains_preorder'];
@@ -2115,8 +2473,8 @@ class StoreOrderService
         $order->discount_amount = $totals['discount'];
         $order->gst_amount = $totals['gst'];
         $order->total_amount = $totals['total'];
-        $order->paid_at = $totals['total'] <= 0.0001 ? now() : null;
-        $order->fulfilled_at = $totals['total'] <= 0.0001 && ! $totals['contains_physical'] ? now() : null;
+        $order->paid_at = $createInvoice && $totals['total'] <= 0.0001 ? now() : null;
+        $order->fulfilled_at = $createInvoice && $totals['total'] <= 0.0001 && ! $totals['contains_physical'] ? now() : null;
         $order->save();
 
         $lineNumber = 1;
@@ -2124,28 +2482,31 @@ class StoreOrderService
             $unitBreakdown = $this->inclusiveBreakdown((float) $line->unit_price, (float) $line->tax_rate);
             $lineBreakdown = $this->inclusiveBreakdown((float) $line->line_price, (float) $line->tax_rate);
 
-            $invoiceLine = new InvoiceLine();
-            $invoiceLine->invoice_id = $invoice->id;
-            $invoiceLine->line_number = $lineNumber++;
-            $invoiceLine->kind = 'product';
-            $invoiceLine->description = (string) $line->display_title;
-            $invoiceLine->quantity = (int) $line->quantity;
-            $invoiceLine->unit_price_ex_tax = $unitBreakdown['line_ex_tax'];
-            $invoiceLine->tax_rate = (float) $line->tax_rate;
-            $invoiceLine->line_total_ex_tax = $lineBreakdown['line_ex_tax'];
-            $invoiceLine->tax_amount = $lineBreakdown['tax_amount'];
-            $invoiceLine->line_total_inc_tax = round((float) $line->line_price, 2);
-            $invoiceLine->source_type = Product::class;
-            $invoiceLine->source_id = $line->product->id;
-            $invoiceLine->save();
+            $invoiceLine = null;
+            if ($invoice instanceof Invoice) {
+                $invoiceLine = new InvoiceLine();
+                $invoiceLine->invoice_id = $invoice->id;
+                $invoiceLine->line_number = $lineNumber++;
+                $invoiceLine->kind = 'product';
+                $invoiceLine->description = (string) $line->display_title;
+                $invoiceLine->quantity = (int) $line->quantity;
+                $invoiceLine->unit_price_ex_tax = $unitBreakdown['line_ex_tax'];
+                $invoiceLine->tax_rate = (float) $line->tax_rate;
+                $invoiceLine->line_total_ex_tax = $lineBreakdown['line_ex_tax'];
+                $invoiceLine->tax_amount = $lineBreakdown['tax_amount'];
+                $invoiceLine->line_total_inc_tax = round((float) $line->line_price, 2);
+                $invoiceLine->source_type = Product::class;
+                $invoiceLine->source_id = $line->product->id;
+                $invoiceLine->save();
+            }
 
-            $reservedQuantity = $this->reserveInventoryForPreparedLine($line);
+            $reservedQuantity = $reserveInventory ? $this->reserveInventoryForPreparedLine($line) : 0;
 
             $orderItem = new StoreOrderItem();
             $orderItem->store_order_id = $order->id;
             $orderItem->product_id = $line->product->id;
             $orderItem->product_variant_id = $line->variant?->id;
-            $orderItem->invoice_line_id = $invoiceLine->id;
+            $orderItem->invoice_line_id = $invoiceLine?->id;
             $orderItem->product_title = (string) $line->product->title;
             $orderItem->product_slug = (string) $line->product->slug;
             $orderItem->variant_name = $line->product->variantDisplayName($line->variant);
@@ -2189,7 +2550,7 @@ class StoreOrderService
             }
         }
 
-        if ($totals['shipping'] > 0.0001) {
+        if ($invoice instanceof Invoice && $totals['shipping'] > 0.0001) {
             $shippingBreakdown = $this->inclusiveBreakdown($totals['shipping'], $totals['shipping_tax_rate']);
             $shippingDescription = $this->shippingLineDescription($totals);
 
@@ -2207,7 +2568,7 @@ class StoreOrderService
             ]);
         }
 
-        if ($totals['discount'] > 0.0001) {
+        if ($invoice instanceof Invoice && $totals['discount'] > 0.0001) {
             $discountBreakdown = $this->inclusiveBreakdown(-1 * $totals['discount'], $totals['discount_tax_rate']);
             InvoiceLine::query()->create([
                 'invoice_id' => $invoice->id,
@@ -2228,12 +2589,19 @@ class StoreOrderService
         return $order->load(['invoice', 'items.downloads.media', 'coupon']);
     }
 
-    private function chargeLockedOrder(StoreOrder $order, Invoice $invoice, string $sourceId, string $locationId, ?User $actingUser = null): int
+    private function chargeLockedOrder(StoreOrder $order, Invoice $invoice, ?string $sourceId, string $locationId, ?User $actingUser = null): int
     {
         $outstandingAmount = $invoice->outstandingAmount();
         if ($outstandingAmount <= 0.0001) {
             throw ValidationException::withMessages([
                 'source_id' => 'This order has already been paid.',
+            ]);
+        }
+
+        $sourceId = trim((string) $sourceId);
+        if ($sourceId === '') {
+            throw ValidationException::withMessages([
+                'source_id' => 'Card details are required.',
             ]);
         }
 
@@ -2753,6 +3121,32 @@ class StoreOrderService
         }
     }
 
+    private function queueAdminQuoteRequestNotification(?Quote $quote): void
+    {
+        if (! $quote instanceof Quote) {
+            return;
+        }
+
+        $recipients = $this->adminOrderNotificationRecipients();
+        if ($recipients === []) {
+            return;
+        }
+
+        $freshQuote = $quote->fresh('user');
+        if (! $freshQuote instanceof Quote) {
+            return;
+        }
+
+        $adminUrl = route('admin.quote.edit', $freshQuote);
+
+        foreach ($recipients as $recipient) {
+            dispatch(new SendEmail(
+                $recipient,
+                new StoreQuoteRequestAdminNotification($freshQuote, $adminUrl)
+            ))->onQueue('mail');
+        }
+    }
+
     private function adminOrderNotificationRecipients(): array
     {
         $configured = preg_split('/[;,]+/', (string) config('mail.admin_bcc', 'admin@stemmechanics.com.au')) ?: [];
@@ -2998,6 +3392,110 @@ class StoreOrderService
         return ($payment->isRefund() ? 'refund-receipt-' : 'payment-receipt-').$payment->id.'.pdf';
     }
 
+    private function storeQuoteLineItems(Collection $preparedLines, array $totals): array
+    {
+        $lineItems = $preparedLines->map(function ($line): array {
+            $taxRate = (float) ($line->tax_rate ?? 0);
+            $unitPriceIncTax = round((float) ($line->unit_price ?? 0), 2);
+            $linePriceIncTax = round((float) ($line->line_price ?? 0), 2);
+            $unitBreakdown = $this->inclusiveBreakdown($unitPriceIncTax, $taxRate);
+            $lineBreakdown = $this->inclusiveBreakdown($linePriceIncTax, $taxRate);
+            $variant = $line->variant ?? null;
+            $variantId = $variant?->id ? (int) $variant->id : null;
+
+            return [
+                'kind' => 'product',
+                'description' => trim((string) ($line->display_title ?? '')),
+                'notes' => '',
+                'quantity' => max(0, (int) ($line->quantity ?? 0)),
+                'unit_price' => $unitBreakdown['unit_ex_tax'],
+                'line_total' => $lineBreakdown['line_ex_tax'],
+                'gst_applicable' => $taxRate > 0,
+                'source_id' => (int) ($line->product->id ?? 0),
+                'source_variant_id' => $variantId,
+                'product_title' => (string) ($line->product->title ?? ''),
+                'product_slug' => (string) ($line->product->slug ?? ''),
+                'variant_name' => $line->product->variantDisplayName($variant),
+                'product_sku' => (string) ($line->product->sku ?? ''),
+                'variant_sku' => (string) ($variant instanceof ProductVariant ? $variant->sku : $line->product->sku),
+                'product_type' => (string) ($line->product->product_type ?? ''),
+                'store_context' => [
+                    'line_key' => trim((string) ($line->key ?? '')),
+                    'product_id' => (int) ($line->product->id ?? 0),
+                    'variant_id' => $variantId,
+                    'product_title' => (string) ($line->product->title ?? ''),
+                    'product_slug' => (string) ($line->product->slug ?? ''),
+                    'variant_name' => $line->product->variantDisplayName($variant),
+                    'product_sku' => (string) ($line->product->sku ?? ''),
+                    'variant_sku' => (string) ($variant instanceof ProductVariant ? $variant->sku : ''),
+                    'product_type' => (string) ($line->product->product_type ?? ''),
+                    'box_only' => (bool) ($line->box_only ?? false),
+                    'is_preorder' => (bool) ($line->is_preorder ?? false),
+                    'preorder_shipping_estimate' => $line->product->isPreorder($line->variant)
+                        ? ($line->variant->preorder_shipping_estimate ?? $line->product->preorder_shipping_estimate)
+                        : null,
+                    'available_now_quantity' => (int) ($line->available_now_quantity ?? 0),
+                    'delayed_quantity' => (int) ($line->delayed_quantity ?? 0),
+                    'delayed_fulfilment_type' => $line->delayed_fulfilment_type ?? null,
+                    'delayed_shipping_estimate' => $line->delayed_shipping_estimate ?? null,
+                    'unit_shipping_units' => round((float) ($line->unit_shipping_units ?? 0), 2),
+                    'unit_min_satchel_rank' => $line->unit_min_satchel_rank,
+                    'unit_weight_grams' => $line->unit_weight_grams,
+                    'tax_rate' => $taxRate,
+                    'unit_price_inc_tax' => $unitPriceIncTax,
+                    'line_price_inc_tax' => $linePriceIncTax,
+                ],
+            ];
+        })->values()->all();
+
+        if ((float) ($totals['discount'] ?? 0) > 0.0001) {
+            $discountBreakdown = $this->inclusiveBreakdown(-1 * (float) $totals['discount'], (float) ($totals['discount_tax_rate'] ?? 0));
+
+            $lineItems[] = [
+                'kind' => 'discount',
+                'description' => ($totals['coupon_code'] ?? null) !== null
+                    ? 'Voucher '.$totals['coupon_code']
+                    : 'Discount',
+                'notes' => '',
+                'quantity' => 1,
+                'unit_price' => $discountBreakdown['unit_ex_tax'],
+                'line_total' => $discountBreakdown['line_ex_tax'],
+                'gst_applicable' => ((float) ($totals['discount_tax_rate'] ?? 0)) > 0,
+            ];
+        }
+
+        return $lineItems;
+    }
+
+    private function storeQuoteContextPayload(array $customer, array $totals): array
+    {
+        return [
+            'customer' => $customer,
+            'coupon_code' => $totals['coupon_code'] ?? null,
+            'coupon_type' => $totals['coupon_type'] ?? null,
+            'contains_digital' => (bool) ($totals['contains_digital'] ?? false),
+            'contains_physical' => (bool) ($totals['contains_physical'] ?? false),
+            'contains_preorder' => (bool) ($totals['contains_preorder'] ?? false),
+            'contains_backorder' => (bool) ($totals['contains_backorder'] ?? false),
+        ];
+    }
+
+    private function calculateQuoteSubtotal(array $lineItems): float
+    {
+        return round((float) collect($lineItems)->sum(fn (array $lineItem): float => (float) ($lineItem['line_total'] ?? 0)), 2);
+    }
+
+    private function calculateQuoteGst(array $lineItems): float
+    {
+        return round((float) collect($lineItems)->sum(function (array $lineItem): float {
+            if (($lineItem['gst_applicable'] ?? true) !== true) {
+                return 0.0;
+            }
+
+            return ((float) ($lineItem['line_total'] ?? 0)) * 0.10;
+        }), 2);
+    }
+
     private function normalizeCustomerPayload(array $payload): array
     {
         return [
@@ -3041,7 +3539,7 @@ class StoreOrderService
                 'available_now_quantity' => $availableNowQuantity,
                 'delayed_quantity' => max(0, $quantity - $availableNowQuantity),
                 'delayed_fulfilment_type' => 'backorder',
-                'delayed_shipping_estimate' => $variant->backorder_shipping_estimate ?? $product->backorder_shipping_estimate,
+                'delayed_shipping_estimate' => $product->backorderShippingEstimateLabel('Y-m-d', $variant),
             ];
         }
 

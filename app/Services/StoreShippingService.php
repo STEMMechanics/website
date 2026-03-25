@@ -11,6 +11,8 @@ use Illuminate\Support\Str;
 
 class StoreShippingService
 {
+    public const REQUEST_QUOTE_METHOD_CODE = 'request_quote';
+
     public function __construct(
         private readonly StoreShippingMethodService $shippingMethods
     ) {}
@@ -57,6 +59,7 @@ class StoreShippingService
                 'satchel_breakdown' => [],
                 'known_weight_grams' => 0,
                 'amount' => 0.0,
+                'manual_quote_line_keys' => [],
                 'shipments' => [],
                 'shipment_count' => 0,
                 'split_shipments' => false,
@@ -104,6 +107,8 @@ class StoreShippingService
                 'item_count' => (int) $group['item_count'],
                 'line_count' => (int) $group['line_count'],
                 'is_pickup' => (bool) ($quote['is_pickup'] ?? false),
+                'can_checkout' => (bool) ($quote['can_checkout'] ?? true),
+                'requires_manual_quote' => (bool) ($quote['requires_manual_quote'] ?? false),
                 'shipment_number' => $index + 1,
                 'items' => $group['items'],
             ];
@@ -134,6 +139,16 @@ class StoreShippingService
         $firstFailedShipment = $shipmentQuotes->first(
             fn (array $shipment) => ! (bool) ($shipment['quote']['can_checkout'] ?? true)
         );
+        $manualQuoteLineKeys = $shipmentQuotes
+            ->filter(fn (array $shipment) => (bool) ($shipment['quote']['requires_manual_quote'] ?? false))
+            ->flatMap(fn (array $shipment): array => is_array($shipment['quote']['manual_quote_line_keys'] ?? null)
+                ? $shipment['quote']['manual_quote_line_keys']
+                : [])
+            ->map(fn ($key): string => trim((string) $key))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->unique()
+            ->values()
+            ->all();
 
         return $this->decorateAggregateQuote([
             'can_checkout' => $canCheckout,
@@ -152,6 +167,7 @@ class StoreShippingService
             'satchel_breakdown' => $mergedBreakdown,
             'known_weight_grams' => (int) $shipmentQuotes->sum(fn (array $shipment) => (int) ($shipment['quote']['known_weight_grams'] ?? 0)),
             'amount' => round((float) $shipmentQuotes->sum(fn (array $shipment) => (float) ($shipment['quote']['amount'] ?? 0)), 2),
+            'manual_quote_line_keys' => $manualQuoteLineKeys,
             'shipments' => $shipments->all(),
             'shipment_count' => $shipments->count(),
             'split_shipments' => $shipments->count() > 1,
@@ -393,6 +409,7 @@ class StoreShippingService
                 'satchel_breakdown' => [],
                 'known_weight_grams' => 0,
                 'amount' => 0.0,
+                'manual_quote_line_keys' => [],
             ], $method);
         }
 
@@ -428,12 +445,18 @@ class StoreShippingService
             return $shippingUnits <= 0;
         });
         if ($hasInvalidPackageItem) {
-            return $this->boxedShippingQuote('Some physical products do not have package units configured.');
+            return $this->boxedShippingQuote(
+                'Some physical products do not have package units configured.',
+                $this->manualQuoteLineKeysForMissingShippingUnits($physicalLines)
+            );
         }
 
         $packUnits = $this->expandLines($physicalLines);
         if ($packUnits->isEmpty()) {
-            return $this->boxedShippingQuote('Some physical products do not have package units configured.');
+            return $this->boxedShippingQuote(
+                'Some physical products do not have package units configured.',
+                $this->manualQuoteLineKeysForMissingShippingUnits($physicalLines)
+            );
         }
 
         $parcels = [];
@@ -446,7 +469,10 @@ class StoreShippingService
 
             $parcel = $this->newParcelForUnit($unit, $packages);
             if ($parcel === null) {
-                return $this->boxedShippingQuote('This order cannot be packed into the configured package sizes.');
+                return $this->boxedShippingQuote(
+                    'This order cannot be packed into the configured package sizes.',
+                    $this->manualQuoteLineKeysForAllPhysicalLines($physicalLines)
+                );
             }
 
             $parcels[] = $parcel;
@@ -501,6 +527,7 @@ class StoreShippingService
             'satchel_breakdown' => $packageBreakdown->all(),
             'known_weight_grams' => (int) $parcelCollection->sum('total_weight_grams'),
             'amount' => round((float) $parcelCollection->sum('price'), 2),
+            'manual_quote_line_keys' => [],
         ];
     }
 
@@ -513,16 +540,25 @@ class StoreShippingService
             return ! $boxOnly && $shippingUnits <= 0;
         });
         if ($hasInvalidSatchelItem) {
-            return $this->boxedShippingQuote('Some physical products do not have satchel shipping units configured.');
+            return $this->boxedShippingQuote(
+                'Some physical products do not have satchel shipping units configured.',
+                $this->manualQuoteLineKeysForMissingSatchelUnits($physicalLines)
+            );
         }
 
         $packUnits = $this->expandLines($physicalLines);
         if ($packUnits->isEmpty()) {
-            return $this->boxedShippingQuote('Some physical products do not have satchel shipping units configured.');
+            return $this->boxedShippingQuote(
+                'Some physical products do not have satchel shipping units configured.',
+                $this->manualQuoteLineKeysForMissingSatchelUnits($physicalLines)
+            );
         }
 
         if ($packUnits->contains(fn ($unit) => $unit['box_only'])) {
-            return $this->boxedShippingQuote('This order contains items that must ship in a box.');
+            return $this->boxedShippingQuote(
+                'This order contains items that must ship in a box.',
+                $this->manualQuoteLineKeysForBoxOnlyLines($physicalLines)
+            );
         }
 
         $satchels = $this->satchels();
@@ -540,7 +576,10 @@ class StoreShippingService
 
             $parcel = $this->newParcelForUnit($unit, $satchels);
             if ($parcel === null) {
-                return $this->boxedShippingQuote('This order cannot be packed into the configured satchels.');
+                return $this->boxedShippingQuote(
+                    'This order cannot be packed into the configured satchels.',
+                    $this->manualQuoteLineKeysForAllPhysicalLines($physicalLines)
+                );
             }
 
             $parcels[] = $parcel;
@@ -595,6 +634,7 @@ class StoreShippingService
             'satchel_breakdown' => $satchelBreakdown->all(),
             'known_weight_grams' => (int) $parcelCollection->sum('total_weight_grams'),
             'amount' => round((float) $parcelCollection->sum('price'), 2),
+            'manual_quote_line_keys' => [],
         ];
     }
 
@@ -671,8 +711,8 @@ class StoreShippingService
             })
             ->filter()
             ->sortBy(fn (array $candidate) => [
-                (int) ($candidate['satchel']['rank'] ?? 0),
-                (float) ($candidate['satchel']['capacity'] ?? 0),
+                (int) $candidate['satchel']['rank'],
+                (float) $candidate['satchel']['capacity'],
                 $candidate['index'],
             ])
             ->values();
@@ -760,20 +800,26 @@ class StoreShippingService
         return $current + (int) $weight;
     }
 
+    /**
+     * @param Collection<int, array{code:string,label:string,rank:int,capacity:float,price:float}> $satchels
+     * @return array{code:string,label:string,rank:int,capacity:float,price:float}|null
+     */
     private function smallestSatchelForUsage(int $minRank, float $requiredCapacity, ?int $knownWeightGrams, Collection $satchels): ?array
     {
-        return $satchels
+        $satchel = $satchels
             ->first(function (array $satchel) use ($minRank, $requiredCapacity, $knownWeightGrams): bool {
-                if ((int) ($satchel['rank'] ?? 0) < $minRank) {
+                if ((int) $satchel['rank'] < $minRank) {
                     return false;
                 }
 
-                if ((float) ($satchel['capacity'] ?? 0) + 0.0001 < $requiredCapacity) {
+                if ((float) $satchel['capacity'] + 0.0001 < $requiredCapacity) {
                     return false;
                 }
 
                 return $this->isWithinWeightLimit($knownWeightGrams);
             });
+
+        return is_array($satchel) ? $satchel : null;
     }
 
     private function isWithinWeightLimit(?int $knownWeightGrams): bool
@@ -797,7 +843,7 @@ class StoreShippingService
         return is_array($satchel) ? (int) ($satchel['rank'] ?? 0) : 0;
     }
 
-    private function boxedShippingQuote(string $reason): array
+    private function boxedShippingQuote(string $reason, array $manualQuoteLineKeys = []): array
     {
         $config = ShopShippingSettings::boxedShipping();
         $amount = $config['amount'] !== null ? round((float) $config['amount'], 2) : null;
@@ -815,6 +861,10 @@ class StoreShippingService
             'satchel_breakdown' => [],
             'known_weight_grams' => 0,
             'amount' => $amount ?? 0.0,
+            'manual_quote_line_keys' => array_values(array_unique(array_filter(array_map(
+                fn ($key): string => trim((string) $key),
+                $manualQuoteLineKeys
+            ), fn (string $key): bool => $key !== ''))),
         ];
     }
 
@@ -833,6 +883,7 @@ class StoreShippingService
             'satchel_breakdown' => [],
             'known_weight_grams' => 0,
             'amount' => 0.0,
+            'manual_quote_line_keys' => [],
         ];
     }
 
@@ -851,6 +902,7 @@ class StoreShippingService
             'satchel_breakdown' => [],
             'known_weight_grams' => 0,
             'amount' => $method->adjustedAmount((float) ($method->flat_rate_amount ?? 0)),
+            'manual_quote_line_keys' => [],
         ];
     }
 
@@ -878,6 +930,66 @@ class StoreShippingService
         $quote['delivery_estimate_label'] = $method?->deliveryEstimateLabel();
 
         return $quote;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function manualQuoteLineKeysForMissingShippingUnits(Collection $lines): array
+    {
+        return $lines
+            ->filter(function ($line): bool {
+                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+
+                return $shippingUnits <= 0;
+            })
+            ->map(fn ($line): string => trim((string) ($line->key ?? '')))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function manualQuoteLineKeysForMissingSatchelUnits(Collection $lines): array
+    {
+        return $lines
+            ->filter(function ($line): bool {
+                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+                $boxOnly = (bool) ($line->box_only ?? false);
+
+                return ! $boxOnly && $shippingUnits <= 0;
+            })
+            ->map(fn ($line): string => trim((string) ($line->key ?? '')))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function manualQuoteLineKeysForBoxOnlyLines(Collection $lines): array
+    {
+        return $lines
+            ->filter(fn ($line): bool => (bool) ($line->box_only ?? false))
+            ->map(fn ($line): string => trim((string) ($line->key ?? '')))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function manualQuoteLineKeysForAllPhysicalLines(Collection $lines): array
+    {
+        return $lines
+            ->map(fn ($line): string => trim((string) ($line->key ?? '')))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->values()
+            ->all();
     }
 
     private function availableNowQuantity(object $line, int $fallbackQuantity): int

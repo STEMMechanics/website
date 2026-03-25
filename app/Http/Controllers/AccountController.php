@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use RobThree\Auth\Algorithm;
 use RobThree\Auth\TwoFactorAuth;
 
@@ -100,29 +101,7 @@ class AccountController extends Controller
             'surname' => 'required_with:surname,phone',
             'company' => 'nullable|string|max:255',
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
-            'avatar_media_name' => [
-                'nullable',
-                'string',
-                'exists:media,name',
-                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
-                    $mediaName = trim((string) $value);
-                    if ($mediaName === '') {
-                        return;
-                    }
-
-                    $media = Media::query()->find($mediaName);
-                    if (! $media) {
-                        return;
-                    }
-
-                    if (! $user->isAdmin() && (string) $media->user_id !== (string) $user->id) {
-                        $fail('You can only use media that you uploaded for your avatar.');
-                    }
-                },
-            ],
-            'avatar_zoom' => ['nullable', 'integer', 'min:100', 'max:250'],
-            'avatar_offset_x' => ['nullable', 'integer', 'min:-50', 'max:50'],
-            'avatar_offset_y' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            ...$this->avatarValidationRules($user),
             'username' => ['required', 'string', 'max:32', 'unique:users,username,'.$user->id, new UsernameRule($user->isAdmin())],
             'phone' => 'required_with:surname,phone',
 
@@ -164,16 +143,8 @@ class AccountController extends Controller
 
         $userData = $validator->validated();
         $userData['username'] = User::normalizeUsername((string) $userData['username']);
-        $userData['avatar_media_name'] = trim((string) ($userData['avatar_media_name'] ?? '')) ?: null;
-        $userData['avatar_zoom'] = (int) ($userData['avatar_zoom'] ?? 100);
-        $userData['avatar_offset_x'] = (int) ($userData['avatar_offset_x'] ?? 0);
-        $userData['avatar_offset_y'] = (int) ($userData['avatar_offset_y'] ?? 0);
-
-        if ($userData['avatar_media_name'] === null) {
-            $userData['avatar_zoom'] = 100;
-            $userData['avatar_offset_x'] = 0;
-            $userData['avatar_offset_y'] = 0;
-        }
+        $userData = $this->normalizeAvatarData($userData, $user);
+        $userData = User::filterToExistingDatabaseColumns($userData);
 
         $newEmail = $userData['email'];
         unset($userData['email']);
@@ -209,6 +180,17 @@ class AccountController extends Controller
     {
         /** @var User $user */
         $user = auth()->user();
+
+        if ($request->boolean('clear_password')) {
+            $user->password = null;
+            $user->save();
+
+            session()->flash('message', 'Password login has been removed.');
+            session()->flash('message-title', 'Security updated');
+            session()->flash('message-type', 'success');
+
+            return redirect()->route('account.show');
+        }
 
         $validated = $request->validate([
             'password' => ['required', 'string', 'min:8', 'confirmed'],
@@ -462,30 +444,10 @@ class AccountController extends Controller
 
     private function updateChildAccount(Request $request, User $user): RedirectResponse
     {
+        $canEditAvatar = $user->canEditAvatar();
+
         $validator = Validator::make($request->all(), [
-            'avatar_media_name' => [
-                'nullable',
-                'string',
-                'exists:media,name',
-                function (string $attribute, mixed $value, \Closure $fail) use ($user): void {
-                    $mediaName = trim((string) $value);
-                    if ($mediaName === '') {
-                        return;
-                    }
-
-                    $media = Media::query()->find($mediaName);
-                    if (! $media) {
-                        return;
-                    }
-
-                    if (! $user->isAdmin() && (string) $media->user_id !== (string) $user->id) {
-                        $fail('You can only use media that you uploaded for your avatar.');
-                    }
-                },
-            ],
-            'avatar_zoom' => ['nullable', 'integer', 'min:100', 'max:250'],
-            'avatar_offset_x' => ['nullable', 'integer', 'min:-50', 'max:50'],
-            'avatar_offset_y' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            ...($canEditAvatar ? $this->avatarValidationRules($user) : []),
             'username' => ['required', 'string', 'max:32', 'unique:users,username,'.$user->id, new UsernameRule(false)],
             'current_device_nickname' => 'nullable|string|max:60',
         ]);
@@ -496,16 +458,10 @@ class AccountController extends Controller
 
         $userData = $validator->validated();
         $userData['username'] = User::normalizeUsername((string) $userData['username']);
-        $userData['avatar_media_name'] = trim((string) ($userData['avatar_media_name'] ?? '')) ?: null;
-        $userData['avatar_zoom'] = (int) ($userData['avatar_zoom'] ?? 100);
-        $userData['avatar_offset_x'] = (int) ($userData['avatar_offset_x'] ?? 0);
-        $userData['avatar_offset_y'] = (int) ($userData['avatar_offset_y'] ?? 0);
-
-        if ($userData['avatar_media_name'] === null) {
-            $userData['avatar_zoom'] = 100;
-            $userData['avatar_offset_x'] = 0;
-            $userData['avatar_offset_y'] = 0;
+        if ($canEditAvatar) {
+            $userData = $this->normalizeAvatarData($userData, $user);
         }
+        $userData = User::filterToExistingDatabaseColumns($userData);
 
         $user->update($userData);
         $user->save();
@@ -516,6 +472,80 @@ class AccountController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function avatarValidationRules(User $mediaOwner, bool $allowMediaSelection = true): array
+    {
+        return [
+            'avatar_mode' => ['nullable', 'string', Rule::in(User::avatarModes())],
+            'avatar_letters' => ['nullable', 'string', 'max:3'],
+            'avatar_icon_class' => ['nullable', 'string', Rule::in(User::avatarIconOptions())],
+            'avatar_background_color' => ['nullable', 'string', 'max:7'],
+            'avatar_media_name' => [
+                'nullable',
+                'string',
+                'exists:media,name',
+                function (string $attribute, mixed $value, \Closure $fail) use ($mediaOwner, $allowMediaSelection): void {
+                    $mediaName = trim((string) $value);
+                    if ($mediaName === '') {
+                        return;
+                    }
+
+                    $media = Media::query()->find($mediaName);
+                    if (! $media) {
+                        return;
+                    }
+
+                    if (! $mediaOwner->isAdmin() && (string) $media->user_id !== (string) $mediaOwner->id) {
+                        $fail('You can only use media that you uploaded for your avatar.');
+
+                        return;
+                    }
+
+                    if (! $allowMediaSelection && $mediaName !== trim((string) ($mediaOwner->avatar_media_name ?? ''))) {
+                        $fail('Your parent has disabled image avatars for this account.');
+                    }
+                },
+            ],
+            'avatar_zoom' => ['nullable', 'integer', 'min:100', 'max:250'],
+            'avatar_offset_x' => ['nullable', 'integer', 'min:-50', 'max:50'],
+            'avatar_offset_y' => ['nullable', 'integer', 'min:-50', 'max:50'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function normalizeAvatarData(array $validated, User $existingUser, bool $allowMediaSelection = true): array
+    {
+        $validated['avatar_media_name'] = trim((string) ($validated['avatar_media_name'] ?? '')) ?: null;
+        $validated['avatar_mode'] = User::normalizeAvatarMode((string) ($validated['avatar_mode'] ?? ''));
+        $validated['avatar_letters'] = User::normalizeAvatarLetters((string) ($validated['avatar_letters'] ?? ''));
+        $validated['avatar_icon_class'] = User::normalizeAvatarIconClass((string) ($validated['avatar_icon_class'] ?? ''));
+        $validated['avatar_background_color'] = User::normalizeAvatarBackgroundColor((string) ($validated['avatar_background_color'] ?? ''));
+        $validated['avatar_zoom'] = (int) ($validated['avatar_zoom'] ?? 100);
+        $validated['avatar_offset_x'] = (int) ($validated['avatar_offset_x'] ?? 0);
+        $validated['avatar_offset_y'] = (int) ($validated['avatar_offset_y'] ?? 0);
+
+        if (! $allowMediaSelection && $validated['avatar_media_name'] !== null && $validated['avatar_media_name'] !== (string) ($existingUser->avatar_media_name ?? '')) {
+            $validated['avatar_media_name'] = trim((string) ($existingUser->avatar_media_name ?? '')) ?: null;
+        }
+
+        if ($validated['avatar_mode'] === User::AVATAR_MODE_MEDIA && $validated['avatar_media_name'] === null) {
+            $validated['avatar_mode'] = $validated['avatar_icon_class'] ? User::AVATAR_MODE_ICON : User::AVATAR_MODE_LETTERS;
+        }
+
+        if ($validated['avatar_media_name'] === null) {
+            $validated['avatar_zoom'] = 100;
+            $validated['avatar_offset_x'] = 0;
+            $validated['avatar_offset_y'] = 0;
+        }
+
+        return $validated;
     }
 
     private function syncRememberedDevicesFromRequest(Request $request, User $user): void

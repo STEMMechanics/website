@@ -35,6 +35,10 @@ class FinanceDocumentPdf extends Mailable
 
     public ?string $payUrl;
 
+    public ?string $actionUrl;
+
+    public ?string $actionLabel;
+
     private string $pdfContentBase64;
 
     private string $pdfFilename;
@@ -52,7 +56,9 @@ class FinanceDocumentPdf extends Mailable
         ?string $documentDue = null,
         ?string $initiatedByEmail = null,
         ?string $initiatedByName = null,
-        ?string $payUrl = null
+        ?string $payUrl = null,
+        ?string $actionUrl = null,
+        ?string $actionLabel = null,
     ) {
         $this->documentType = $documentType;
         $this->documentNumber = $documentNumber;
@@ -69,6 +75,8 @@ class FinanceDocumentPdf extends Mailable
         $this->initiatedByEmail = $initiatedByEmail !== null ? trim($initiatedByEmail) : null;
         $this->initiatedByName = $initiatedByName !== null ? trim($initiatedByName) : null;
         $this->payUrl = $payUrl !== null ? trim($payUrl) : null;
+        $this->actionUrl = $actionUrl !== null ? trim($actionUrl) : null;
+        $this->actionLabel = $actionLabel !== null ? trim($actionLabel) : null;
         $this->resolvedFullMessage = $this->resolveFullMessage();
     }
 

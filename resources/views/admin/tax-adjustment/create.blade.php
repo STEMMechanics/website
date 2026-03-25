@@ -31,6 +31,7 @@
             <div><strong>Invoice:</strong> {{ $invoice->invoice_number }}</div>
             <div><strong>Total:</strong> ${{ number_format((float) $invoice->total_amount, 2) }}</div>
             <div><strong>Max Refund Remaining:</strong> ${{ number_format((float) $maxAllowedCreditAmount, 2) }}</div>
+            <div class="text-xs text-gray-600 mt-1">Partial quantities are allowed, so you can enter values like 0.55.</div>
         </div>
 
         <form method="POST"
@@ -124,7 +125,7 @@
                             <td class="py-2 pr-3 text-right">
                                 <input
                                     type="number"
-                                    step="1.0"
+                                    step="0.01"
                                     min="0"
                                     max="{{ number_format($remainingQty, 2, '.', '') }}"
                                     name="refund_qty[{{ $line->id }}]"
@@ -169,7 +170,7 @@
                 <x-ui.input type="textarea" label="Adjustment Notes (optional)" name="reason" :value="old('reason', '')" />
             </div>
             <div class="mt-3 flex justify-end gap-2">
-                <x-ui.button type="link" color="secondary" href="{{ route('admin.invoice.edit', ['invoice' => $invoice]) }}">Cancel</x-ui.button>
+                <x-ui.button color="secondary" href="{{ route('admin.invoice.edit', ['invoice' => $invoice]) }}">Cancel</x-ui.button>
                 <x-ui.button type="submit" color="danger">Create Tax Adjustment Note</x-ui.button>
             </div>
         </form>

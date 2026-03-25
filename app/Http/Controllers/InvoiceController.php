@@ -120,7 +120,8 @@ class InvoiceController extends Controller
             'taxAdjustments.lines',
             'allocations.customerPayment.user',
             'allocations.customerPayment.refundOf',
-            'allocations.customerPayment.refunds.user'
+            'allocations.customerPayment.refunds.user',
+            'storeOrders',
         );
 
         return view('admin.invoice.edit', [
@@ -357,10 +358,17 @@ class InvoiceController extends Controller
         }
 
         $payment->loadMissing('refundOf');
+        $creditAppliedAmount = $this->paymentReceiptCreditAppliedAmount($invoice, $payment);
+        $creditReferenceSummary = $this->paymentReceiptCreditReferenceSummary($invoice, $payment);
+        $paymentMethodLabel = $this->paymentReceiptMethodLabel($invoice, $payment, $creditAppliedAmount);
 
         return view('account.invoice-receipt-show', [
             'invoice' => $invoice,
             'receipt' => $payment,
+            'paymentMethodLabel' => $paymentMethodLabel,
+            'creditAppliedAmount' => $creditAppliedAmount,
+            'creditReferenceSummary' => $creditReferenceSummary,
+            'invoiceTotalAmount' => round((float) $invoice->total_amount, 2),
         ]);
     }
 
@@ -719,7 +727,7 @@ class InvoiceController extends Controller
 
     private function renderInvoicePortal(Invoice $invoice, ?string $accessToken, bool $isAccountView, bool $isPublic = false): View
     {
-        $invoice->loadMissing('user', 'lines', 'allocations.customerPayment', 'taxAdjustments.lines');
+        $invoice->loadMissing('user', 'quote', 'lines', 'allocations.customerPayment', 'taxAdjustments.lines');
         $this->appendReissueNotesToInvoiceLines($invoice);
         $settlementKind = $invoice->expectedSettlementKind();
         $grossAllocated = round((float) $invoice->allocations
@@ -779,6 +787,11 @@ class InvoiceController extends Controller
             ->values()
             ->all();
 
+        $linkedQuote = $invoice->quote;
+        $linkedQuoteUrl = $isAccountView && $linkedQuote instanceof Quote
+            ? route('account.quote.show', $linkedQuote)
+            : null;
+
         return view('invoice.portal', [
             'invoice' => $invoice,
             'allocatedAmount' => $allocated,
@@ -792,6 +805,8 @@ class InvoiceController extends Controller
             'adjustedGstAmount' => $adjustedGst,
             'receiptLinks' => $receiptLinks,
             'accountReceiptsUrl' => $isAccountView ? route('account.invoice.receipts', $invoice) : null,
+            'linkedQuote' => $linkedQuote,
+            'linkedQuoteUrl' => $linkedQuoteUrl,
             'accessToken' => $accessToken,
             'isAccountView' => $isAccountView,
             'isPublic' => $isPublic,
@@ -1303,7 +1318,7 @@ class InvoiceController extends Controller
             receiptNumber: $receiptNumber,
             amount: money(abs((float) $customerPayment->total_amount)),
             paidOn: ($customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
-            paymentMethod: Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
+            paymentMethod: Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? Payment::PAYMENT_METHOD_CREDIT_CARD)),
             receiptUrl: (string) ($customerPayment->square_receipt_url ?? ''),
             isRefund: $customerPayment->isRefund(),
             pdfContent: $pdfBinary,
@@ -1313,7 +1328,34 @@ class InvoiceController extends Controller
             outstandingBeforeSummary: $this->paymentReceiptOutstandingBeforeSummary($invoice, $customerPayment),
             appliedAmountSummary: $this->paymentReceiptAppliedAmountSummary($invoice, $customerPayment),
             creditSummary: $this->paymentReceiptCreditSummary($customerPayment),
+            creditAppliedAmount: null,
+            creditReferenceSummary: null,
+            orderTotalAmount: null,
         )))->onQueue('mail');
+
+        $creditAppliedAmount = $this->paymentReceiptCreditAppliedAmount($invoice, $customerPayment);
+        if ($creditAppliedAmount > 0.0001) {
+            dispatch(new SendEmail($recipient, new PaymentReceiptPdf(
+                recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
+                invoiceNumber: (string) $invoice->invoice_number,
+                receiptNumber: $this->nextCreditReceiptNumber($customerPayment),
+                amount: money($creditAppliedAmount),
+                paidOn: ($customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a')),
+                paymentMethod: 'Account Credit',
+                receiptUrl: null,
+                isRefund: false,
+                pdfContent: $this->buildInvoiceCreditAppliedReceiptPdf($invoice, $customerPayment, $creditAppliedAmount)->output(),
+                pdfFilename: 'credit-applied-'.($invoice->invoice_number).'-'.$receiptNumber.'.pdf',
+                invoiceSummary: $this->paymentReceiptInvoiceSummary($invoice),
+                statusSummary: $this->paymentReceiptStatusSummary($invoice),
+                outstandingBeforeSummary: $this->paymentReceiptOutstandingBeforeSummary($invoice, $customerPayment),
+                appliedAmountSummary: money($creditAppliedAmount),
+                creditSummary: null,
+                creditAppliedAmount: null,
+                creditReferenceSummary: null,
+                orderTotalAmount: null,
+            )))->onQueue('mail');
+        }
     }
 
     private function paymentReceiptInvoiceSummary(Invoice $invoice): ?string
@@ -1392,6 +1434,60 @@ class InvoiceController extends Controller
         return money($appliedAmount);
     }
 
+    private function paymentReceiptCreditAppliedAmount(Invoice $invoice, Payment $payment): float
+    {
+        $invoice->loadMissing('allocations.customerPayment');
+
+        return round((float) $invoice->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && (int) ($allocation->payment_id ?? 0) !== (int) $payment->id)
+            ->sum('allocated_amount'), 2);
+    }
+
+    private function paymentReceiptCreditReferenceSummary(Invoice $invoice, Payment $payment): string
+    {
+        $invoice->loadMissing('allocations.customerPayment');
+
+        return $invoice->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && (int) ($allocation->payment_id ?? 0) !== (int) $payment->id)
+            ->map(function ($allocation): string {
+                $creditPayment = data_get($allocation, 'customerPayment');
+                if (! $creditPayment instanceof Payment) {
+                    return '';
+                }
+
+                $paymentReference = trim((string) ($creditPayment->reference ?? ''));
+
+                return 'Payment #'.(int) $creditPayment->id.($paymentReference !== '' ? ' ('.$paymentReference.')' : '');
+            })
+            ->filter()
+            ->values()
+            ->implode(', ');
+    }
+
+    private function paymentReceiptMethodLabel(Invoice $invoice, Payment $payment, float $creditAppliedAmount): string
+    {
+        $paymentMethodLabel = Payment::paymentMethodLabel((string) ($payment->payment_method ?? Payment::PAYMENT_METHOD_OTHER));
+        if ($payment->isRefund() || $creditAppliedAmount <= 0.0001) {
+            return $paymentMethodLabel;
+        }
+
+        if ($paymentMethodLabel === Payment::paymentMethodLabel(Payment::PAYMENT_METHOD_CREDIT)) {
+            return $paymentMethodLabel;
+        }
+
+        $invoice->loadMissing('allocations.customerPayment');
+        $hasNonCurrentAllocation = $invoice->allocations->contains(function ($allocation) use ($payment): bool {
+            return abs((float) $allocation->allocated_amount) > 0.0001
+                && (int) ($allocation->payment_id ?? 0) !== (int) $payment->id;
+        });
+
+        if (! $hasNonCurrentAllocation) {
+            return $paymentMethodLabel;
+        }
+
+        return 'Account Credit + '.$paymentMethodLabel;
+    }
+
     private function paymentReceiptCreditSummary(Payment $customerPayment): ?string
     {
         $creditAmount = $this->paymentUnallocatedAmount($customerPayment);
@@ -1419,6 +1515,9 @@ class InvoiceController extends Controller
 
         $amountRaw = (float) $customerPayment->total_amount;
         $isRefund = $customerPayment->isRefund();
+        $creditAppliedAmount = $this->paymentReceiptCreditAppliedAmount($invoice, $customerPayment);
+        $creditReferenceSummary = $this->paymentReceiptCreditReferenceSummary($invoice, $customerPayment);
+        $paymentMethodLabel = $this->paymentReceiptMethodLabel($invoice, $customerPayment, $creditAppliedAmount);
 
         $gatewayProcessedAtRaw = trim((string) ($customerPayment->square_gateway_updated_at ?? $customerPayment->square_gateway_created_at ?? ''));
         $gatewayProcessedAtLabel = '';
@@ -1439,7 +1538,7 @@ class InvoiceController extends Controller
             'customerName' => $invoice->user?->getName() ?: (string) ($invoice->billing_name ?? 'Customer'),
             'amountPaid' => $amountRaw,
             'gstAmount' => abs((float) $customerPayment->gst_amount),
-            'paymentMethod' => Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? Payment::PAYMENT_METHOD_CREDIT_CARD)),
+            'paymentMethod' => $paymentMethodLabel,
             'paidOn' => $customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
             'reference' => (string) ($customerPayment->reference ?? ''),
             'gatewayProvider' => (string) ($customerPayment->gateway_provider ?? ''),
@@ -1451,9 +1550,62 @@ class InvoiceController extends Controller
             'squareReceiptUrl' => (string) ($customerPayment->square_receipt_url ?? ''),
             'gatewayProcessedAt' => $gatewayProcessedAtLabel,
             'footerMessage' => $isRefund ? 'This receipt confirms the refund transaction.' : 'Thank you for your payment.',
+            'creditAppliedAmount' => $creditAppliedAmount,
+            'creditReferenceSummary' => $creditReferenceSummary,
+            'orderTotalAmount' => round((float) $invoice->total_amount, 2),
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
+    }
+
+    private function buildInvoiceCreditAppliedReceiptPdf(Invoice $invoice, Payment $customerPayment, float $creditAppliedAmount): PDF
+    {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            abort(500, 'Payment receipt PDF generation requires barryvdh/laravel-dompdf.');
+        }
+
+        $gatewayProcessedAtRaw = trim((string) ($customerPayment->square_gateway_updated_at ?? $customerPayment->square_gateway_created_at ?? ''));
+        $gatewayProcessedAtLabel = '';
+        if ($gatewayProcessedAtRaw !== '') {
+            try {
+                $gatewayProcessedAtLabel = Carbon::parse($gatewayProcessedAtRaw)->format('M j, Y g:i a');
+            } catch (Throwable) {
+                $gatewayProcessedAtLabel = '';
+            }
+        }
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.payment-receipt', [
+            'isRefund' => false,
+            'receiptTitle' => 'Credit Receipt',
+            'amountLabel' => 'Amount Applied',
+            'receiptNumber' => $this->nextCreditReceiptNumber($customerPayment),
+            'invoiceNumber' => (string) $invoice->invoice_number,
+            'customerName' => $invoice->user?->getName() ?: (string) ($invoice->billing_name ?? 'Customer'),
+            'amountPaid' => $creditAppliedAmount,
+            'gstAmount' => 0.0,
+            'paymentMethod' => 'Account Credit',
+            'paidOn' => $customerPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
+            'reference' => 'Account credit applied to invoice '.(string) $invoice->invoice_number,
+            'gatewayProvider' => (string) ($customerPayment->gateway_provider ?? ''),
+            'gatewayStatus' => (string) ($customerPayment->gateway_status ?? ''),
+            'transactionId' => trim((string) ($customerPayment->square_payment_id ?: $customerPayment->gateway_reference_id)),
+            'squareOrderId' => (string) ($customerPayment->square_order_id ?? ''),
+            'cardBrand' => '',
+            'cardLast4' => '',
+            'squareReceiptUrl' => '',
+            'gatewayProcessedAt' => $gatewayProcessedAtLabel,
+            'footerMessage' => 'This receipt confirms account credit applied to the invoice.',
+            'creditAppliedAmount' => null,
+            'creditReferenceSummary' => null,
+            'orderTotalAmount' => null,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ]);
+    }
+
+    private function nextCreditReceiptNumber(Payment $customerPayment): string
+    {
+        return (string) max(1, (int) $customerPayment->id + 1);
     }
 
     private function buildTaxAdjustmentPdf(Invoice $invoice, TaxAdjustment $adjustment): PDF

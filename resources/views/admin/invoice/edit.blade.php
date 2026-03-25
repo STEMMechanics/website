@@ -188,7 +188,7 @@
                             });
                         "
                     >Copy Payment Link</x-ui.button>
-                    <x-ui.button type="link" href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}">Record Payment</x-ui.button>
+                    <x-ui.button href="{{ route('admin.payment.create', ['invoice' => $invoice->invoice_number]) }}">Record Payment</x-ui.button>
                 @endif
             </div>
             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
@@ -275,7 +275,7 @@
                     <div class="flex items-center justify-between mb-2">
                         <h3 class="font-semibold">Tax Adjustment Notes</h3>
                         @if($isLocked)
-                            <x-ui.button type="link" color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}">Create Tax Adjustment Note</x-ui.button>
+                            <x-ui.button color="danger" href="{{ route('admin.tax_adjustment.create', ['invoice' => $invoice]) }}">Create Tax Adjustment Note</x-ui.button>
                         @endif
                     </div>
                     @if($invoiceAdjustments->isEmpty())
@@ -637,6 +637,29 @@
             </div>
 
             <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', $invoice->purchase_order_number ?? '') }}" />
+            @if(($invoice->storeOrders ?? collect())->isNotEmpty())
+                <div class="mb-4 rounded-lg border border-gray-300 p-4">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm pl-1">Linked Orders</label>
+                        <span class="text-xs text-gray-500">{{ $invoice->storeOrders->count() }} linked</span>
+                    </div>
+                    <div class="mt-1 rounded-lg border border-gray-300 bg-white">
+                        @foreach($invoice->storeOrders as $linkedOrder)
+                            <a
+                                href="{{ route('admin.shop.order.edit', $linkedOrder) }}"
+                                class="flex items-center justify-between px-3 py-3 text-sm text-gray-900 transition hover:bg-gray-50 {{ $loop->last ? '' : 'border-b border-gray-200' }}"
+                            >
+                                <span>
+                                    <span class="font-medium">{{ $linkedOrder->order_number }}</span>
+                                    <span class="text-gray-500">· {{ $linkedOrder->statusLabel() }}</span>
+                                </span>
+                                <span class="text-gray-500">{{ money($linkedOrder->total_amount) }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                    <div class="text-xs text-gray-500 ml-2 mt-1">Open the linked store order to review fulfilment and tracking.</div>
+                </div>
+            @endif
             <div class="mb-4">
                 <div class="flex items-center justify-between">
                     <label for="quote_id" class="block text-sm pl-1">Linked Quote</label>

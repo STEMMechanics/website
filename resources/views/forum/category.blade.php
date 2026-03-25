@@ -15,13 +15,13 @@
                     <div class="mt-5 flex flex-wrap items-center gap-3">
                         @auth
                             @if($canWrite)
-                                <x-ui.button type="link" href="{{ route('forum.topic.create', $category->slug) }}" class="!px-5">Create Thread</x-ui.button>
+                                <x-ui.button href="{{ route('forum.topic.create', $category->slug) }}" class="!px-5">Create Thread</x-ui.button>
                             @else
                                 <span class="text-sm text-gray-500">You can read this category, but you do not have permission to create threads here.</span>
                             @endif
                         @else
                             <span class="text-sm text-gray-500">Log in to create a thread.</span>
-                            <x-ui.button type="link" color="outline" href="{{ route('login') }}" class="!rounded-full !px-5">Log In</x-ui.button>
+                            <x-ui.button color="outline" href="{{ route('login') }}" class="!rounded-full !px-5">Log In</x-ui.button>
                         @endauth
                     </div>
                 </div>

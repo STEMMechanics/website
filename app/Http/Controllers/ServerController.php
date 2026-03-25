@@ -41,7 +41,6 @@ class ServerController extends Controller
         $logData = $this->getFileData($logPath, 300);
         $deployLogPath = $this->getDeployOutputPath();
         $deployLogData = $this->getFileData($deployLogPath, 150);
-        $databaseBackups = $this->paginateBackups(request());
 
         return view('admin.server.index', [
             'serverInfo' => $this->getServerInfo(),
@@ -54,24 +53,26 @@ class ServerController extends Controller
             'deployOutputExists' => $deployLogData['exists'],
             'deployOutputModifiedAt' => $deployLogData['modified_at'],
             'deployOutputContent' => $deployLogData['content'],
-            'databaseBackups' => $databaseBackups,
-            'mediaStats' => $this->directoryStats('media', '/'),
-            'financeStats' => $this->directoryStats('local', 'finance'),
         ]);
+    }
+
+    public function admin_backups(): View
+    {
+        return view('admin.server.backups', $this->backupViewData(request()));
     }
 
     public function admin_database_export(Request $request)
     {
         try {
             $path = $this->databaseBackupService->createBackup();
-            $keep = max(1, (int) config('backup.database.keep', 168));
+            $keep = $this->databaseBackupService->resolvedKeepCount();
             $this->databaseBackupService->pruneOldBackups($keep);
         } catch (\Throwable $e) {
             session()->flash('message', 'Database export failed: '.$e->getMessage());
             session()->flash('message-title', 'Export failed');
             session()->flash('message-type', 'danger');
 
-            return redirect()->route('admin.server.index');
+            return redirect()->route('admin.server.backups');
         }
 
         $filename = basename($path);
@@ -85,7 +86,7 @@ class ServerController extends Controller
     {
         try {
             $path = $this->databaseBackupService->createBackup();
-            $keep = max(1, (int) config('backup.database.keep', 168));
+            $keep = $this->databaseBackupService->resolvedKeepCount();
             $this->databaseBackupService->pruneOldBackups($keep);
         } catch (\Throwable $e) {
             session()->flash('database_backup_notice', [
@@ -93,7 +94,7 @@ class ServerController extends Controller
                 'text' => 'Backup failed: '.$e->getMessage(),
             ]);
 
-            return redirect()->route('admin.server.index');
+            return redirect()->route('admin.server.backups');
         }
 
         session()->flash('database_backup_notice', [
@@ -101,7 +102,7 @@ class ServerController extends Controller
             'text' => 'Backup created: '.basename($path),
         ]);
 
-        return redirect()->route('admin.server.index');
+        return redirect()->route('admin.server.backups');
     }
 
     public function admin_database_download(string $filename)
@@ -121,6 +122,32 @@ class ServerController extends Controller
         ]);
     }
 
+    public function admin_database_restore(string $filename): RedirectResponse
+    {
+        $safeFilename = basename($filename);
+        if (! Str::endsWith($safeFilename, '.sql.gz')) {
+            abort(404);
+        }
+
+        $path = $this->databaseBackupService->backupPath($safeFilename);
+        if (! is_file($path)) {
+            abort(404);
+        }
+
+        try {
+            $this->databaseBackupService->restoreBackup($path);
+            session()->flash('message', 'Database restored from backup: '.$safeFilename);
+            session()->flash('message-title', 'Rollback complete');
+            session()->flash('message-type', 'warning');
+        } catch (\Throwable $e) {
+            session()->flash('message', 'Database restore failed: '.$e->getMessage());
+            session()->flash('message-title', 'Rollback failed');
+            session()->flash('message-type', 'danger');
+        }
+
+        return redirect()->route('admin.server.backups');
+    }
+
     public function admin_database_delete(string $filename): RedirectResponse
     {
         $safeFilename = basename($filename);
@@ -138,14 +165,14 @@ class ServerController extends Controller
             session()->flash('message-title', 'Delete failed');
             session()->flash('message-type', 'danger');
 
-            return redirect()->route('admin.server.index');
+            return redirect()->route('admin.server.backups');
         }
 
         session()->flash('message', 'Backup file deleted: '.$safeFilename);
         session()->flash('message-title', 'Backup deleted');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.server.index');
+        return redirect()->route('admin.server.backups');
     }
 
     public function admin_database_import(Request $request): RedirectResponse
@@ -191,7 +218,7 @@ class ServerController extends Controller
             session()->flash('message-type', 'danger');
         }
 
-        return redirect()->route('admin.server.index');
+        return redirect()->route('admin.server.backups');
     }
 
     public function admin_media_download_all()
@@ -1126,6 +1153,9 @@ class ServerController extends Controller
             'App Commit' => (config('app.commit') ?: 'N/A'),
             'Laravel Version' => app()->version(),
             'PHP Version' => PHP_VERSION,
+            'Node Version' => $this->commandVersion(['node', '--version']),
+            'npm Version' => $this->commandVersion(['npm', '--version']),
+            'Composer Version' => $this->commandVersion(['composer', '--version', '--no-ansi']),
             'PHP SAPI' => PHP_SAPI,
             'Web Server' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
             'Operating System' => php_uname(),
@@ -1180,6 +1210,35 @@ class ServerController extends Controller
     private function getLaravelLogPath(): string
     {
         return storage_path('logs/laravel.log');
+    }
+
+    /**
+     * @param array<int, string> $command
+     */
+    private function commandVersion(array $command): string
+    {
+        try {
+            $process = new Process($command);
+            $process->setTimeout(5);
+            $process->run();
+
+            if (! $process->isSuccessful()) {
+                return 'Unavailable';
+            }
+
+            $output = trim($process->getOutput());
+            if ($output === '') {
+                $output = trim($process->getErrorOutput());
+            }
+
+            if ($output === '') {
+                return 'Unavailable';
+            }
+
+            return trim(strtok(str_replace("\r", '', $output), "\n")) ?: 'Unavailable';
+        } catch (\Throwable) {
+            return 'Unavailable';
+        }
     }
 
     private function getDeployScriptPath(): string
@@ -1595,6 +1654,16 @@ class ServerController extends Controller
     {
         $report = $this->buildOrphanScanReport();
         Storage::disk('local')->put(self::ORPHAN_SCAN_REPORT_FILE, json_encode($report, JSON_PRETTY_PRINT));
+    }
+
+    private function backupViewData(Request $request): array
+    {
+        return [
+            'databaseBackupKeepCount' => $this->databaseBackupService->resolvedKeepCount(),
+            'databaseBackups' => $this->paginateBackups($request),
+            'mediaStats' => $this->directoryStats('media', '/'),
+            'financeStats' => $this->directoryStats('local', 'finance'),
+        ];
     }
 
     private function paginateBackups(Request $request): LengthAwarePaginator

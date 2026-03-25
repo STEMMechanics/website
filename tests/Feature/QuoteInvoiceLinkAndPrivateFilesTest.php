@@ -148,6 +148,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => 'Q-TEST-'.uniqid(),
             'user_id' => $owner->id,
+            'status' => \App\Models\Quote::STATUS_OPEN,
             'quote_date' => now()->toDateString(),
             'title' => 'Updated quote',
             'description' => 'Description',
@@ -188,6 +189,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
             'quote_number' => $newQuoteNumber,
             'user_id' => $owner->id,
+            'status' => \App\Models\Quote::STATUS_OPEN,
             'quote_date' => now()->toDateString(),
             'title' => 'Updated quote',
             'description' => 'Description',
@@ -206,6 +208,101 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $this->assertSame($newQuoteNumber, $quote->fresh()?->quote_number);
         $response->assertRedirect(route('admin.quote.edit', $quote->fresh()));
         $response->assertSessionHasNoErrors();
+    }
+
+    public function test_quote_update_preserves_typed_line_item_metadata(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'line_items' => [],
+        ]);
+
+        $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
+            'quote_number' => 'Q-TEST-'.uniqid(),
+            'user_id' => $owner->id,
+            'status' => \App\Models\Quote::STATUS_OPEN,
+            'quote_date' => now()->toDateString(),
+            'title' => 'Typed quote',
+            'description' => 'Description',
+            'notes' => 'Notes',
+            'private_notes' => 'Internal note',
+            'acceptance_emails_invoice' => '1',
+            'line_items_json' => json_encode([
+                [
+                    'kind' => 'product',
+                    'description' => 'Marbles',
+                    'notes' => '',
+                    'quantity' => 2,
+                    'unit_price' => 5,
+                    'gst_applicable' => true,
+                    'store_context' => [
+                        'product_id' => 44,
+                        'variant_id' => null,
+                        'product_sku' => 'MARBLES',
+                    ],
+                ],
+                [
+                    'kind' => 'workshop',
+                    'description' => 'Holiday Workshop',
+                    'notes' => 'Apr 1',
+                    'quantity' => 1,
+                    'unit_price' => 120,
+                    'gst_applicable' => true,
+                    'workshop_context' => [
+                        'workshop_id' => 77,
+                        'title' => 'Holiday Workshop',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $freshQuote = $quote->fresh();
+        $this->assertTrue((bool) $freshQuote?->acceptance_emails_invoice);
+        $this->assertFalse((bool) $freshQuote?->acceptance_creates_order);
+        $this->assertSame('Internal note', (string) $freshQuote?->private_notes);
+        $this->assertSame('product', data_get($freshQuote?->line_items, '0.kind'));
+        $this->assertSame(44, data_get($freshQuote?->line_items, '0.store_context.product_id'));
+        $this->assertSame('workshop', data_get($freshQuote?->line_items, '1.kind'));
+        $this->assertSame(77, data_get($freshQuote?->line_items, '1.workshop_context.workshop_id'));
+    }
+
+    public function test_quote_update_rejects_store_product_lines_without_a_selected_product(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'line_items' => [],
+        ]);
+
+        $response = $this->actingAs($admin)->from(route('admin.quote.edit', $quote))->put(route('admin.quote.update', $quote), [
+            'quote_number' => 'Q-TEST-'.uniqid(),
+            'user_id' => $owner->id,
+            'status' => \App\Models\Quote::STATUS_OPEN,
+            'quote_date' => now()->toDateString(),
+            'title' => 'Typed quote',
+            'description' => 'Description',
+            'notes' => 'Notes',
+            'line_items_json' => json_encode([
+                [
+                    'kind' => 'product',
+                    'description' => 'Marbles',
+                    'notes' => '',
+                    'quantity' => 2,
+                    'unit_price' => 5,
+                    'gst_applicable' => true,
+                ],
+            ]),
+        ]);
+
+        $response->assertRedirect(route('admin.quote.edit', $quote));
+        $response->assertSessionHasErrors('line_items_json');
+        $this->assertSame([], $quote->fresh()?->line_items ?? []);
     }
 
     public function test_quote_edit_lists_all_linked_invoices(): void
@@ -227,6 +324,16 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
             'user_id' => $owner->id,
             'quote_id' => $quote->id,
         ]);
+        $linkedOrderInvoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-ORDER',
+            'user_id' => $owner->id,
+            'quote_id' => $quote->id,
+        ]);
+        $linkedOrder = \App\Models\StoreOrder::factory()->create([
+            'user_id' => $owner->id,
+            'invoice_id' => $linkedOrderInvoice->id,
+            'quote_id' => $quote->id,
+        ]);
 
         $response = $this->actingAs($admin)->get(route('admin.quote.edit', $quote));
 
@@ -234,6 +341,8 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response->assertSeeText('Linked Invoices');
         $response->assertSeeText('INV-ALPHA');
         $response->assertSeeText('INV-BETA');
+        $response->assertSeeText('Linked Orders');
+        $response->assertSeeText($linkedOrder->order_number);
         $response->assertDontSee('name="linked_invoice_id"', false);
     }
 
@@ -289,6 +398,7 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
                 ->first();
 
             $this->assertInstanceOf(Invoice::class, $newInvoice);
+            $this->assertSame(\App\Models\Quote::STATUS_ACCEPTED, (string) $quote->fresh()?->status);
             $this->assertSame((string) $owner->id, (string) $newInvoice->user_id);
             $this->assertSame('2026-03-21', $newInvoice->issue_date?->toDateString());
             $this->assertSame('2026-04-20', $newInvoice->due_date?->toDateString());

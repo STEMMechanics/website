@@ -42,6 +42,15 @@ class ForumTopicTitleEditingTest extends TestCase
         $categoryResponse->assertOk();
         $categoryResponse->assertSee('<strong>help</strong>', false);
         $categoryResponse->assertSee('<del>soon</del>', false);
+
+        $topicResponse = $this->get(route('forum.topic.show', [
+            'categorySlug' => $category->slug,
+            'topicSlug' => $topic->slug,
+        ]));
+        $topicResponse->assertOk();
+        $topicResponse->assertSee('<strong>help</strong>', false);
+        $topicResponse->assertDontSee('<del>soon</del>', false);
+        $topicResponse->assertSee('soon', false);
     }
 
     public function test_topic_owner_can_update_title(): void

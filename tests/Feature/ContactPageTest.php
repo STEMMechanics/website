@@ -35,6 +35,18 @@ class ContactPageTest extends TestCase
         $response->assertSee('Send message');
     }
 
+    public function test_contact_page_does_not_use_altcha_auto_onsubmit_mode(): void
+    {
+        config()->set('security.altcha_enabled', true);
+        config()->set('altcha.hmac_key', 'test-altcha-key');
+
+        $response = $this->get(route('contact'));
+
+        $response->assertOk();
+        $response->assertSee('altcha-widget', false);
+        $response->assertDontSee('auto="onsubmit"', false);
+    }
+
     public function test_contact_submission_queues_message_and_redirects(): void
     {
         Queue::fake();

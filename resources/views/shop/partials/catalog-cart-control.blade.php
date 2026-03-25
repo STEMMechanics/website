@@ -1,15 +1,8 @@
-@php
-    $requiresPreorderConfirmation = $product->isPreorder();
-    $preorderEstimate = $product->preorderShippingEstimateLabel('F jS, Y');
-@endphp
 <div
     class="shop-catalog-cart-control space-y-2"
     x-data="{
         lineKey: @js($lineKey),
         fallbackMaxQuantity: {{ $fallbackMaxQuantity }},
-        requiresPreorderConfirmation: @js($requiresPreorderConfirmation),
-        preorderItemTitle: @js($product->title),
-        preorderShippingEstimate: @js($preorderEstimate),
         quantity: 0,
         maxQuantity: {{ $fallbackMaxQuantity }},
         busy: false,
@@ -48,20 +41,6 @@
             }
 
             try {
-                if (this.requiresPreorderConfirmation) {
-                    const confirmed = await window.SM.shopCart.confirmPreorder({
-                        itemTitle: this.preorderItemTitle,
-                        shippingEstimate: this.preorderShippingEstimate,
-                        confirmText: 'Add to cart',
-                    });
-
-                    if (!confirmed) {
-                        return;
-                    }
-
-                    window.SM.shopCart.setFormInput(form, 'preorder_acknowledged', '1');
-                }
-
                 await this.add(form);
             } catch (_error) {
             }
@@ -122,8 +101,8 @@
         @if($defaultVariant)
             <input type="hidden" name="product_variant_id" value="{{ $defaultVariant->id }}">
         @endif
-        <x-ui.button type="submit" :color="$requiresPreorderConfirmation ? 'accent' : 'primary'" class="shop-catalog-add-button w-full" x-bind:disabled="busy">
-            <span x-show="!busy">{{ $requiresPreorderConfirmation ? 'Pre-order' : 'Add to Cart' }}</span>
+        <x-ui.button type="submit" color="primary" class="shop-catalog-add-button w-full" x-bind:disabled="busy">
+            <span x-show="!busy">Add to Cart</span>
             <span x-show="busy" x-cloak>Adding...</span>
         </x-ui.button>
     </form>

@@ -14,6 +14,24 @@
     <x-mast backRoute="admin.user.index" backTitle="Users">Edit User</x-mast>
 
     <x-container>
+        @php
+            $accountCredit = (float) ($accountCredit ?? 0);
+            $cardRefundableCredit = (float) ($cardRefundableCredit ?? 0);
+        @endphp
+
+        @if($accountCredit > 0.0001)
+            <div class="absolute right-4 mb-6 rounded-b-lg border border-emerald-200 bg-emerald-50 py-2 px-4 text-emerald-950">
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Account Credit</div>
+                    <div class="font-semibold">{{ money($accountCredit) }}</div>
+                    @if($cardRefundableCredit > 0.0001)
+                        <div class="text-xs text-emerald-800">Card-refundable: {{ money($cardRefundableCredit) }}</div>
+                    @endif
+                    <x-ui.button color="primary-outline-sm" href="{{ route('admin.user.payments', $user) }}">Payments</x-ui.button>
+                </div>
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('admin.user.update', $user) }}" x-data="{groupsRaw: @js($groupValue)}" x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()">
             @method('PUT')
             @csrf

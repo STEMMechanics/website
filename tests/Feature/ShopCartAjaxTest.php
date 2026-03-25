@@ -57,15 +57,16 @@ class ShopCartAjaxTest extends TestCase
             ->assertSeeText('Choose a variant')
             ->assertSee('x-teleport="body"', false)
             ->assertSee('shop-catalog-option-control', false)
-            ->assertSeeText('Choose the variant you want and add it straight to your cart.')
+            ->assertSeeText('Class Kit')
             ->assertDontSeeText('Quantity to add')
             ->assertDontSeeText('Add Selected Variant')
-            ->assertSee('handleOptionAddToCart($event.target, option)', false)
-            ->assertSee('changeOptionCartQuantity(option, cartQuantityForOption(option) - 1)', false)
+            ->assertSee('handleAddToCart($event.target)', false)
+            ->assertSee('chooseOption(String(', false)
+            ->assertSee('changeCartQuantity(cartQuantity() - 1)', false)
             ->assertSee('product_variant_id', false);
     }
 
-    public function test_store_listing_uses_option_summary_for_multi_option_preorder_products(): void
+    public function test_store_listing_uses_option_summary_for_multi_option_backorder_products(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -73,8 +74,8 @@ class ShopCartAjaxTest extends TestCase
             'title' => 'Robotics Pack',
             'price' => 49.95,
             'inventory_quantity' => 5,
-            'is_preorder' => true,
-            'preorder_shipping_estimate' => now()->addWeek(),
+            'allow_backorder' => true,
+            'backorder_shipping_estimate' => now()->addWeek(),
             'base_variant_name' => 'Starter Pack',
         ]);
         ProductVariant::factory()->create([
@@ -88,7 +89,8 @@ class ShopCartAjaxTest extends TestCase
             ->assertOk()
             ->assertSeeText('Robotics Pack')
             ->assertSeeText('2 options available')
-            ->assertDontSeeText('Pre-order available.');
+            ->assertDontSeeText('Pre-order available.')
+            ->assertDontSeeText('Pre-order');
     }
 
     public function test_cart_endpoints_return_json_payloads_for_ajax_requests(): void
@@ -339,7 +341,7 @@ class ShopCartAjaxTest extends TestCase
             ->assertJsonPath('cart.lines.0.delayed_fulfilment_type', 'backorder');
     }
 
-    public function test_preorder_variant_without_inventory_can_be_purchased_when_variant_is_preorder(): void
+    public function test_legacy_preorder_variant_without_inventory_is_purchased_as_backorder(): void
     {
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
@@ -360,7 +362,6 @@ class ShopCartAjaxTest extends TestCase
         $this->post(route('shop.cart.add', $product), [
             'product_variant_id' => $variant->id,
             'quantity' => 2,
-            'preorder_acknowledged' => '1',
         ])->assertRedirect(route('shop.cart.show'));
 
         $this->getJson(route('shop.cart.show'))
@@ -369,7 +370,8 @@ class ShopCartAjaxTest extends TestCase
             ->assertJsonPath('cart.lines.0.quantity', 2)
             ->assertJsonPath('cart.lines.0.available_now_quantity', 0)
             ->assertJsonPath('cart.lines.0.delayed_quantity', 2)
-            ->assertJsonPath('cart.lines.0.delayed_fulfilment_type', 'preorder');
+            ->assertJsonPath('cart.lines.0.delayed_fulfilment_type', 'backorder')
+            ->assertJsonPath('cart.lines.0.is_preorder', false);
     }
 
     public function test_cart_payload_sorts_lines_by_product_then_variant_order(): void

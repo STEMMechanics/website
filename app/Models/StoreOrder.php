@@ -13,6 +13,8 @@ class StoreOrder extends Model
 
     public const STATUS_PENDING_PAYMENT = 'pending_payment';
 
+    public const STATUS_QUOTE_REQUESTED = 'quote_requested';
+
     public const STATUS_PROCESSING = 'processing';
 
     public const STATUS_READY_FOR_PICKUP = 'ready_for_pickup';
@@ -29,6 +31,7 @@ class StoreOrder extends Model
 
     public const STATUSES = [
         self::STATUS_PENDING_PAYMENT,
+        self::STATUS_QUOTE_REQUESTED,
         self::STATUS_PROCESSING,
         self::STATUS_READY_FOR_PICKUP,
         self::STATUS_PARTIALLY_SHIPPED,
@@ -51,6 +54,7 @@ class StoreOrder extends Model
         'access_token',
         'user_id',
         'invoice_id',
+        'quote_id',
         'coupon_id',
         'status',
         'contains_digital',
@@ -131,6 +135,14 @@ class StoreOrder extends Model
     }
 
     /**
+     * @return BelongsTo<Quote, $this>
+     */
+    public function quote(): BelongsTo
+    {
+        return $this->belongsTo(Quote::class);
+    }
+
+    /**
      * @return BelongsTo<Coupon, $this>
      */
     public function coupon(): BelongsTo
@@ -187,6 +199,7 @@ class StoreOrder extends Model
     {
         return match ((string) $this->status) {
             self::STATUS_PENDING_PAYMENT => 'Pending Payment',
+            self::STATUS_QUOTE_REQUESTED => 'Quote Requested',
             self::STATUS_PROCESSING => 'Preparing Order',
             self::STATUS_READY_FOR_PICKUP => 'Ready for Pickup',
             self::STATUS_PARTIALLY_SHIPPED => 'Partially Shipped',

@@ -14,7 +14,6 @@
                 'delayed_status_label' => (string) ($method['delayed_status_label'] ?? ($isPickup ? 'Available later' : 'Ships later')),
                 'delivery_estimate_min_days' => (string) ($method['delivery_estimate_min_days'] ?? ''),
                 'delivery_estimate_max_days' => (string) ($method['delivery_estimate_max_days'] ?? ''),
-                'is_default' => filter_var($method['is_default'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                 'is_active' => filter_var($method['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                 'sort_order' => (int) ($method['sort_order'] ?? 0),
                 'packages' => collect($method['packages'] ?? [])
@@ -88,14 +87,6 @@
                 channelUsesFreeCollection(method) {
                     return !method || !Array.isArray(method.packages) || method.packages.length === 0;
                 },
-                activeShippingMethodCount() {
-                    return this.shippingMethods.filter((method) => Boolean(method.is_active)).length;
-                },
-                forcesDefault(index) {
-                    const method = this.shippingMethods[index];
-
-                    return this.activeShippingMethodCount() === 1 && Boolean(method && method.is_active);
-                },
                 addShippingMethod() {
                     this.shippingMethods.push({
                         id: null,
@@ -107,25 +98,13 @@
                         delayed_status_label: 'Ships later',
                         delivery_estimate_min_days: '',
                         delivery_estimate_max_days: '',
-                        is_default: this.shippingMethods.length === 0,
                         is_active: true,
                         sort_order: this.nextShippingMethodSortOrder(),
                         packages: [this.newPackage(1)],
                     });
                 },
                 removeShippingMethod(index) {
-                    const removedWasDefault = Boolean(this.shippingMethods[index]?.is_default);
                     this.shippingMethods.splice(index, 1);
-
-                    if (removedWasDefault && this.shippingMethods.length > 0) {
-                        this.setDefaultShippingMethod(0);
-                    }
-                },
-                setDefaultShippingMethod(index) {
-                    this.shippingMethods = this.shippingMethods.map((method, methodIndex) => ({
-                        ...method,
-                        is_default: methodIndex === index,
-                    }));
                 },
                 addPackage(methodIndex) {
                     const method = this.shippingMethods[methodIndex];
@@ -157,10 +136,6 @@
                     <div>
                         <h2 class="text-xl font-bold text-gray-900">Storefront</h2>
                         <p class="mt-1 text-sm text-gray-600">Control whether the public store, cart, and checkout are available. Existing order links remain accessible.</p>
-                    </div>
-
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                        The public store switches off automatically when there are no active products on sale.
                     </div>
 
                     <input type="hidden" name="public_enabled" value="0" />
@@ -237,7 +212,7 @@
                 </div>
 
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                    Channels with no package options are treated as free collection or pickup. If there is only one active channel, checkout uses it as the default automatically.
+                    Channels with no package options are treated as free collection or pickup. Checkout uses the first active channel in sort order, unless a manual quote is required.
                 </div>
 
                 @if($shippingMethodErrors !== [])
@@ -256,7 +231,6 @@
                     <template x-for="(method, index) in shippingMethods" :key="method.id ?? `new-${index}`">
                         <section class="rounded-3xl border border-gray-200 bg-gray-50/80 p-5">
                             <input type="hidden" :name="`shipping_methods[${index}][id]`" :value="method.id ?? ''">
-                            <input type="hidden" :name="`shipping_methods[${index}][is_default]`" :value="method.is_default || forcesDefault(index) ? 1 : 0">
                             <input type="hidden" :name="`shipping_methods[${index}][is_active]`" :value="method.is_active ? 1 : 0">
 
                             <div class="flex flex-wrap items-start justify-between gap-4">
@@ -264,7 +238,6 @@
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="text-lg font-semibold text-gray-900" x-text="method.name || method.code || `Delivery Channel ${index + 1}`"></h3>
                                         <span class="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600" x-text="channelUsesFreeCollection(method) ? 'Collection' : 'Shipping'"></span>
-                                        <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700" x-show="method.is_default || forcesDefault(index)" x-cloak>Default</span>
                                         <span class="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-500" x-show="!method.is_active" x-cloak>Inactive</span>
                                     </div>
                                     <p class="mt-2 text-sm text-gray-500" x-text="channelUsesFreeCollection(method) ? 'No package pricing set. This will behave as a free collection or pickup option.' : 'Customers can choose this channel when its package options fit their order.'"></p>
@@ -326,15 +299,8 @@
                                         <span class="mt-1 block text-gray-500">Customers can select this channel when it applies.</span>
                                     </span>
                                 </label>
-                                <label class="{{ $toggleCardClasses }}">
-                                    <input type="radio" name="shipping_method_default_choice" class="mt-0.5 h-4 w-4 border-gray-300 text-sky-600 focus:ring-sky-500" :checked="method.is_default || forcesDefault(index)" :disabled="forcesDefault(index)" x-on:change="setDefaultShippingMethod(index)">
-                                    <span class="block">
-                                        <span class="block font-medium text-gray-900">Default checkout option</span>
-                                        <span class="mt-1 block text-gray-500">Preselected when multiple channels are available.</span>
-                                    </span>
-                                </label>
-                                <div x-show="forcesDefault(index)" x-cloak class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                                    This is the only active channel, so checkout will default to it automatically.
+                                <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                                    Checkout will default to the first active channel by sort order.
                                 </div>
                             </div>
 
@@ -409,9 +375,8 @@
                 </div>
             </section>
 
-            <div class="flex flex-wrap gap-3">
+            <div class="flex justify-end">
                 <x-ui.button type="submit">Save Store Settings</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.site_option.index', ['search' => 'store.shipping']) }}" color="outline">Open Raw Site Options</x-ui.button>
             </div>
         </form>
     </x-container>

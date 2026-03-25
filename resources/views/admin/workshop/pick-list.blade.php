@@ -12,9 +12,9 @@
                 </div>
             </x-slot:left>
             <x-slot:right>
-                <x-ui.button class="mr-2" type="link" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
+                <x-ui.button class="mr-2" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                 @if($workshop->pick_list_template_id)
-                    <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.pick-list.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.pick-list.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
                 @endif
             </x-slot:right>
         </x-ui.toolbar>

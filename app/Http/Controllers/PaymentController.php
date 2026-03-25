@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendEmail;
+use App\Mail\PaymentReceiptPdf;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\Ticket;
@@ -303,7 +305,8 @@ class PaymentController extends Controller
             'autocomplete' => ['nullable', 'boolean'],
         ]);
 
-        $idempotencyKey = $validated['idempotency_key'] ?: 'custpay-'.$payment->id.'-'.now()->format('Uu');
+        $idempotencyKey = trim((string) ($validated['idempotency_key'] ?? ''));
+        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'custpay-'.$payment->id.'-'.now()->format('Uu');
         $locationId = (string) config('services.square.location_id');
         if ($locationId === '') {
             return $this->squareErrorRedirect('Square location ID is not configured.');
@@ -422,7 +425,8 @@ class PaymentController extends Controller
             return $this->squareErrorRedirect('Invalid refund amount.');
         }
 
-        $idempotencyKey = $validated['idempotency_key'] ?: 'custpay-refund-'.$payment->id.'-'.now()->format('Uu');
+        $idempotencyKey = trim((string) ($validated['idempotency_key'] ?? ''));
+        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'custpay-refund-'.$payment->id.'-'.now()->format('Uu');
 
         try {
             $response = $squareApi->createRefund([
@@ -446,7 +450,7 @@ class PaymentController extends Controller
         $refundValue = (int) ($refund['amount_money']['amount'] ?? $refundAmount);
         $refundValue = min($refundValue, $refundAmount);
 
-        DB::transaction(function () use ($payment, $refund, $refundValue, $validated): void {
+        $refundPayment = DB::transaction(function () use ($payment, $refund, $refundValue, $validated) {
             $payment->gateway_provider = 'square';
             $currentRefunded = (int) ($payment->square_refunded_money_amount ?? 0);
             $paidValue = (int) ($payment->square_paid_money_amount ?? 0);
@@ -455,7 +459,7 @@ class PaymentController extends Controller
             $payment->save();
 
             $reason = trim((string) ($validated['reason'] ?? 'Square refund'));
-            $this->createRefundPaymentRecord(
+            return $this->createRefundPaymentRecord(
                 originalPayment: $payment,
                 refundAmount: round($refundValue / 100, 2),
                 reason: $reason !== '' ? $reason : 'Square refund',
@@ -467,6 +471,8 @@ class PaymentController extends Controller
                 squareGatewayUpdatedAt: $this->squareDateTime($refund['updated_at'] ?? null),
             );
         });
+
+        $this->sendRefundReceiptEmail($payment, $refundPayment);
 
         session()->flash('message', 'Square refund created successfully');
         session()->flash('message-title', 'Refund created');
@@ -537,8 +543,8 @@ class PaymentController extends Controller
 
         $reason = trim((string) ($validated['reason'] ?? 'Manual refund'));
 
-        DB::transaction(function () use ($payment, $refundAmount, $reason, $validated): void {
-            $this->createRefundPaymentRecord(
+        $refundPayment = DB::transaction(function () use ($payment, $refundAmount, $reason, $validated) {
+            return $this->createRefundPaymentRecord(
                 originalPayment: $payment,
                 refundAmount: $refundAmount,
                 reason: $reason !== '' ? $reason : 'Manual refund',
@@ -548,6 +554,8 @@ class PaymentController extends Controller
                 gatewayReferenceId: null,
             );
         });
+
+        $this->sendRefundReceiptEmail($payment, $refundPayment);
 
         session()->flash('message', 'Manual refund recorded successfully');
         session()->flash('message-title', 'Refund recorded');
@@ -795,6 +803,55 @@ class PaymentController extends Controller
         $refundPayment->save();
 
         return $refundPayment;
+    }
+
+    private function sendRefundReceiptEmail(Payment $originalPayment, Payment $refundPayment): void
+    {
+        $recipient = strtolower(trim((string) data_get($originalPayment, 'user.email', '')));
+        if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $originalPayment->loadMissing('user', 'allocations.invoice', 'allocations.taxAdjustment.invoice');
+        $invoiceNumbers = $originalPayment->allocations
+            ->map(function ($allocation): ?string {
+                if ($allocation->invoice instanceof Invoice) {
+                    return (string) $allocation->invoice->invoice_number;
+                }
+
+                if ($allocation->taxAdjustment?->invoice instanceof Invoice) {
+                    return (string) $allocation->taxAdjustment->invoice->invoice_number;
+                }
+
+                return null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        $pdfBinary = $this->buildPaymentReceiptPdf($refundPayment)->output();
+        if ($pdfBinary === '') {
+            return;
+        }
+
+        dispatch(new SendEmail(
+            $recipient,
+            new PaymentReceiptPdf(
+                recipientName: $originalPayment->user?->getName() ?: 'Customer',
+                invoiceNumber: $invoiceNumbers->isNotEmpty()
+                    ? $invoiceNumbers->implode(', ')
+                    : ('Payment #'.$originalPayment->id),
+                receiptNumber: (string) $refundPayment->id,
+                amount: money(abs((float) $refundPayment->total_amount)),
+                paidOn: $refundPayment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
+                paymentMethod: Payment::paymentMethodLabel((string) ($refundPayment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
+                receiptUrl: (string) ($refundPayment->square_receipt_url ?? ''),
+                isRefund: true,
+                pdfContent: $pdfBinary,
+                pdfFilename: $this->getPaymentReceiptPdfFilename($refundPayment),
+                invoiceSummary: $invoiceNumbers->isNotEmpty() ? 'Related invoice'.($invoiceNumbers->count() > 1 ? 's' : '').': '.$invoiceNumbers->implode(', ') : null,
+            )
+        ))->onQueue('mail');
     }
 
     private function buildPaymentReceiptPdf(Payment $payment): \Barryvdh\DomPDF\PDF

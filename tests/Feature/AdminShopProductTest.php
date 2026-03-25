@@ -66,7 +66,7 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
-    public function test_admin_can_save_preorder_and_backorder_flags(): void
+    public function test_featured_products_must_be_active(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -76,30 +76,53 @@ class AdminShopProductTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.shop.product.store'), [
-                'title' => 'Preorder Kit',
-                'slug' => 'preorder-kit',
-                'status' => Product::STATUS_ACTIVE,
+                'title' => 'Draft Featured Product',
+                'slug' => 'draft-featured-product',
+                'sku' => 'DRAFT-FEATURED',
+                'status' => Product::STATUS_DRAFT,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
-                'price' => '19.95',
-                'inventory_quantity' => '0',
+                'price' => '24.95',
+                'inventory_quantity' => '12',
                 'shipping_units' => '1.00',
-                'min_satchel_rank' => '2',
-                'weight_grams' => '400',
-                'is_preorder' => '1',
-                'preorder_shipping_estimate' => '2026-04-30',
+                'min_satchel_rank' => '1',
+                'is_featured' => '1',
             ])
             ->assertRedirect(route('admin.shop.product.index'));
 
-        $product = Product::query()->where('slug', 'preorder-kit')->firstOrFail();
+        $this->assertDatabaseHas('products', [
+            'slug' => 'draft-featured-product',
+            'status' => Product::STATUS_DRAFT,
+            'is_featured' => 0,
+        ]);
+    }
 
-        $this->assertTrue((bool) $product->is_preorder);
-        $this->assertFalse((bool) $product->allow_backorder);
-        $this->assertSame('2026-04-30', optional($product->preorder_shipping_estimate)->toDateString());
+    public function test_admin_can_save_backorder_flags_and_clears_legacy_preorder_state(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $product = Product::factory()->create([
+            'title' => 'Backorder Kit',
+            'slug' => 'backorder-kit',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 19.95,
+            'inventory_quantity' => 0,
+            'shipping_units' => 1.00,
+            'min_satchel_rank' => 2,
+            'weight_grams' => 400,
+            'is_preorder' => true,
+            'preorder_shipping_estimate' => '2026-04-30',
+        ]);
 
         $this->actingAs($admin)
             ->put(route('admin.shop.product.update', $product), [
-                'title' => 'Preorder Kit',
-                'slug' => 'preorder-kit',
+                'title' => 'Backorder Kit',
+                'slug' => 'backorder-kit',
+                'sku' => 'BACKORDER-KIT',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => '19.95',
@@ -183,11 +206,11 @@ class AdminShopProductTest extends TestCase
             ->put(route('admin.shop.product.update', $product), [
                 'title' => 'Digital Project Pack',
                 'slug' => $product->slug,
+                'sku' => 'DIGI-PACK',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
                 'compare_at_price' => '',
-                'sku' => '',
                 'variants' => [],
             ])
             ->assertRedirect();
@@ -213,6 +236,7 @@ class AdminShopProductTest extends TestCase
             ->post(route('admin.shop.product.store'), [
                 'title' => 'STEM Project Pack',
                 'slug' => 'stem-project-pack',
+                'sku' => 'STEM-PACK',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
@@ -255,6 +279,7 @@ class AdminShopProductTest extends TestCase
             ->put(route('admin.shop.product.update', $product), [
                 'title' => $product->title,
                 'slug' => $product->slug,
+                'sku' => 'DIGI-DOWNLOADS',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
@@ -293,6 +318,7 @@ class AdminShopProductTest extends TestCase
             ->put(route('admin.shop.product.update', $product), [
                 'title' => $product->title,
                 'slug' => $product->slug,
+                'sku' => 'DIGI-DOWNLOADS',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_DIGITAL,
                 'price' => '12.00',
@@ -459,15 +485,15 @@ class AdminShopProductTest extends TestCase
             ->assertDontSeeText('Nothing Pending');
     }
 
-    public function test_admin_can_save_a_named_base_option_and_variant_package_units(): void
+    public function test_admin_can_save_a_named_base_option_and_physical_variant_details(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
             'user_id' => (string) $admin->id,
             'slug' => 'admin',
         ]);
-
         $product = Product::factory()->create([
+            'sku' => 'PRODUCT-BASE-2',
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
             'price' => 39.95,
@@ -479,6 +505,7 @@ class AdminShopProductTest extends TestCase
             ->put(route('admin.shop.product.update', $product), [
                 'title' => $product->title,
                 'slug' => $product->slug,
+                'sku' => 'KIT-BASE',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => '39.95',
@@ -491,11 +518,7 @@ class AdminShopProductTest extends TestCase
                         'name' => 'Extended Kit',
                         'description' => 'Adds the larger component bundle.',
                         'sku' => 'KIT-EXT',
-                        'price' => '49.95',
-                        'compare_at_price' => '',
-                        'shipping_units' => '2.50',
                         'inventory_quantity' => '6',
-                        'weight_grams' => '900',
                         'sort_order' => '0',
                         'is_active' => '1',
                     ],
@@ -508,11 +531,15 @@ class AdminShopProductTest extends TestCase
         $this->assertSame('Starter Kit', $product->fresh()->base_variant_name);
         $this->assertSame('Uses the base product configuration.', $product->fresh()->base_variant_description);
         $this->assertSame('Extended Kit', (string) $variant->name);
-        $this->assertSame('2.50', number_format((float) $variant->shipping_units, 2, '.', ''));
+        $this->assertNull($variant->price);
+        $this->assertNull($variant->compare_at_price);
+        $this->assertNull($variant->shipping_units);
+        $this->assertNull($variant->weight_grams);
+        $this->assertSame('39.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
         $this->assertSame('Starter Kit', $variant->fresh()->product->variantDisplayName(null));
     }
 
-    public function test_admin_can_save_variant_specific_fulfilment_settings(): void
+    public function test_admin_can_save_variant_specific_backorder_settings_and_clear_legacy_preorder_state(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -526,11 +553,20 @@ class AdminShopProductTest extends TestCase
             'price' => 39.95,
             'inventory_quantity' => 5,
         ]);
+        $legacyPreorderVariant = ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'name' => 'Legacy Blue',
+            'inventory_quantity' => 0,
+            'is_preorder' => true,
+            'preorder_shipping_estimate' => '2026-05-20',
+            'sort_order' => 0,
+        ]);
 
         $this->actingAs($admin)
             ->put(route('admin.shop.product.update', $product), [
                 'title' => $product->title,
                 'slug' => $product->slug,
+                'sku' => 'BACKORDER-KIT',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => '39.95',
@@ -539,22 +575,17 @@ class AdminShopProductTest extends TestCase
                 'min_satchel_rank' => '2',
                 'variants' => [
                     [
-                        'name' => 'Pre-order Blue',
-                        'price' => '49.95',
-                        'inventory_quantity' => '',
-                        'is_preorder' => '1',
-                        'preorder_shipping_estimate' => '2026-05-20',
-                        'allow_backorder' => '0',
-                        'backorder_shipping_estimate' => '',
+                        'id' => $legacyPreorderVariant->id,
+                        'name' => 'Legacy Blue',
+                        'inventory_quantity' => '0',
+                        'allow_backorder' => '1',
+                        'backorder_shipping_estimate' => '2026-05-20',
                         'sort_order' => '0',
                         'is_active' => '1',
                     ],
                     [
                         'name' => 'Backorder Red',
-                        'price' => '44.95',
-                        'inventory_quantity' => '0',
-                        'is_preorder' => '0',
-                        'preorder_shipping_estimate' => '',
+                        'inventory_quantity' => '',
                         'allow_backorder' => '1',
                         'backorder_shipping_estimate' => '2026-05-28',
                         'sort_order' => '1',
@@ -567,11 +598,160 @@ class AdminShopProductTest extends TestCase
         $variants = $product->fresh()->variants()->orderBy('sort_order')->get();
 
         $this->assertCount(2, $variants);
-        $this->assertTrue((bool) $variants[0]->is_preorder);
-        $this->assertFalse((bool) $variants[0]->allow_backorder);
-        $this->assertSame('2026-05-20', optional($variants[0]->preorder_shipping_estimate)->toDateString());
+        $this->assertFalse((bool) $variants[0]->is_preorder);
+        $this->assertTrue((bool) $variants[0]->allow_backorder);
+        $this->assertNull($variants[0]->preorder_shipping_estimate);
+        $this->assertSame('2026-05-20', optional($variants[0]->backorder_shipping_estimate)->toDateString());
         $this->assertFalse((bool) $variants[1]->is_preorder);
         $this->assertTrue((bool) $variants[1]->allow_backorder);
         $this->assertSame('2026-05-28', optional($variants[1]->backorder_shipping_estimate)->toDateString());
+    }
+
+    public function test_physical_variants_use_base_pricing_and_packaging_even_if_override_values_are_posted(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 39.95,
+            'shipping_units' => 1.00,
+            'min_satchel_rank' => 2,
+            'box_only' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.product.update', $product), [
+                'title' => $product->title,
+                'slug' => $product->slug,
+                'sku' => 'RIGID-KIT',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '39.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+                'variants' => [
+                    [
+                        'name' => 'Rigid Large',
+                        'sku' => 'RIGID-LARGE',
+                        'price' => '49.95',
+                        'compare_at_price' => '59.95',
+                        'inventory_quantity' => '6',
+                        'shipping_units' => '2.50',
+                        'min_satchel_rank' => '4',
+                        'weight_grams' => '900',
+                        'box_only' => '1',
+                        'sort_order' => '0',
+                        'is_active' => '1',
+                    ],
+                ],
+            ])
+            ->assertRedirect();
+
+        $variant = $product->fresh()->variants()->firstOrFail();
+
+        $this->assertNull($variant->price);
+        $this->assertNull($variant->compare_at_price);
+        $this->assertNull($variant->shipping_units);
+        $this->assertNull($variant->weight_grams);
+        $this->assertSame('39.95', number_format((float) $variant->effectivePrice(), 2, '.', ''));
+        $this->assertSame(2, $product->fresh()->minSatchelRankForVariant($variant->fresh()));
+        $this->assertFalse($product->fresh()->boxOnlyForVariant($variant->fresh()));
+    }
+
+    public function test_admin_cannot_use_a_product_sku_that_matches_an_existing_variant(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $product = Product::factory()->create();
+        ProductVariant::factory()->create([
+            'product_id' => $product->id,
+            'sku' => 'SHARED-SKU',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Conflict Product',
+                'slug' => 'conflict-product',
+                'sku' => 'SHARED-SKU',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '19.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '1',
+            ])
+            ->assertSessionHasErrors(['sku']);
+    }
+
+    public function test_admin_cannot_use_a_variant_sku_that_matches_an_existing_product(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        Product::factory()->create([
+            'sku' => 'BASE-SKU',
+        ]);
+
+        $product = Product::factory()->create([
+            'sku' => 'CURRENT-PRODUCT-SKU',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'price' => 39.95,
+            'shipping_units' => 1.00,
+            'min_satchel_rank' => 2,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.product.update', $product), [
+                'title' => $product->title,
+                'slug' => $product->slug,
+                'sku' => $product->sku,
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '39.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+                'variants' => [
+                    [
+                        'name' => 'Conflicting Variant',
+                        'sku' => 'BASE-SKU',
+                        'sort_order' => '0',
+                        'is_active' => '1',
+                    ],
+                ],
+            ])
+            ->assertSessionHasErrors(['variants.0.sku']);
+    }
+
+    public function test_admin_cannot_save_a_product_without_a_sku(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Missing SKU Product',
+                'slug' => 'missing-sku-product',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '19.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '1',
+            ])
+            ->assertSessionHasErrors(['sku']);
     }
 }

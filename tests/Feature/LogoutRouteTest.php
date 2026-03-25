@@ -17,7 +17,9 @@ class LogoutRouteTest extends TestCase
         $this->actingAs($user)
             ->get('/logout')
             ->assertOk()
-            ->assertSee('Confirm logout from your account.');
+            ->assertSee('Confirm logout from your account.')
+            ->assertSee('bindSingleSubmit(logoutForm', false)
+            ->assertSee("window.addEventListener('pageshow'", false);
 
         $this->actingAs($user)
             ->withSession(['_token' => 'test-csrf-token'])

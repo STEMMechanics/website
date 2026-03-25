@@ -55,6 +55,7 @@
 <script>
     (() => {
         const keepAliveUrl = @js(route('workshop.ticket.flow.details.keepalive', $workshop));
+        const workshopUrl = @js(route('workshop.show', $workshop));
         const form = document.getElementById('ticket-details-form');
         let stopped = false;
         let failureCount = 0;
@@ -79,9 +80,17 @@
                 window.SM.notice(
                     'Session expired',
                     'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.',
-                    'warning'
+                    'warning',
+                    { toast: true }
                 );
             }
+            window.setTimeout(() => {
+                if (window.SM && typeof window.SM.redirectIfSafe === 'function') {
+                    window.SM.redirectIfSafe(workshopUrl);
+                    return;
+                }
+                window.location.assign(workshopUrl);
+            }, 1500);
         };
 
         const ping = async () => {

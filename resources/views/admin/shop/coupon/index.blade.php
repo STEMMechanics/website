@@ -4,7 +4,7 @@
     <x-container>
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.button type="link" href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button>
+                <x-ui.button href="{{ route('admin.shop.coupon.create') }}">Create Voucher</x-ui.button>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />

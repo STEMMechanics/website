@@ -109,11 +109,11 @@
             </x-slot:left>
             <x-slot:right>
                 <div class="flex flex-wrap gap-2">
-                    <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.attendance.csv', $workshop) }}">Export CSV</x-ui.button>
+                    <x-ui.button color="outline" href="{{ route('admin.workshop.attendance.csv', $workshop) }}">Export CSV</x-ui.button>
                     @if($isTicketedWorkshop)
-                        <x-ui.button type="link" color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
+                        <x-ui.button color="outline" href="{{ route('admin.workshop.tickets', $workshop) }}">View Tickets</x-ui.button>
                     @else
-                        <x-ui.button type="link" href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
+                        <x-ui.button href="{{ route('admin.workshop.attendance', ['workshop' => $workshop, 'kiosk' => 1]) }}">Kiosk Sign-In Mode</x-ui.button>
                     @endif
                 </div>
             </x-slot:right>

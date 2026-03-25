@@ -36,6 +36,12 @@ class PaymentReceiptPdf extends Mailable
 
     public ?string $creditSummary;
 
+    public ?float $creditAppliedAmount;
+
+    public ?string $creditReferenceSummary;
+
+    public ?float $orderTotalAmount;
+
     private string $pdfContentBase64;
 
     private string $pdfFilename;
@@ -55,7 +61,10 @@ class PaymentReceiptPdf extends Mailable
         ?string $statusSummary = null,
         ?string $outstandingBeforeSummary = null,
         ?string $appliedAmountSummary = null,
-        ?string $creditSummary = null
+        ?string $creditSummary = null,
+        ?float $creditAppliedAmount = null,
+        ?string $creditReferenceSummary = null,
+        ?float $orderTotalAmount = null
     ) {
         $this->recipientName = $recipientName;
         $this->invoiceNumber = $invoiceNumber;
@@ -70,6 +79,9 @@ class PaymentReceiptPdf extends Mailable
         $this->outstandingBeforeSummary = $outstandingBeforeSummary;
         $this->appliedAmountSummary = $appliedAmountSummary;
         $this->creditSummary = $creditSummary;
+        $this->creditAppliedAmount = $creditAppliedAmount !== null ? round(max(0, $creditAppliedAmount), 2) : null;
+        $this->creditReferenceSummary = trim((string) ($creditReferenceSummary ?? '')) ?: null;
+        $this->orderTotalAmount = $orderTotalAmount !== null ? round(max(0, $orderTotalAmount), 2) : null;
         $this->pdfContentBase64 = $pdfContent !== '' ? base64_encode($pdfContent) : '';
         $this->pdfFilename = $pdfFilename;
     }

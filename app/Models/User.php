@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Jobs\SendEmail;
+use App\Models\Media;
 use App\Mail\UserLoginTFADisabled;
 use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
@@ -21,6 +22,17 @@ class User extends Authenticatable implements MustVerifyEmail
     use HasFactory, Notifiable, UUID;
 
     /**
+     * @var array<string, bool>
+     */
+    protected static array $databaseColumnCache = [];
+
+    public const AVATAR_MODE_MEDIA = 'media';
+
+    public const AVATAR_MODE_LETTERS = 'letters';
+
+    public const AVATAR_MODE_ICON = 'icon';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -33,6 +45,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'avatar_media_name',
+        'avatar_mode',
+        'avatar_letters',
+        'avatar_icon_class',
+        'avatar_background_color',
         'avatar_zoom',
         'avatar_offset_x',
         'avatar_offset_y',
@@ -58,6 +74,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'child_forum_reply_requires_approval',
         'child_parent_notified_on_forum_topics',
         'child_parent_notified_on_forum_replies',
+        'child_can_select_avatar_media',
+        'child_can_use_avatar_camera',
         'anonymized_at',
     ];
 
@@ -79,6 +97,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'child_forum_reply_requires_approval' => false,
         'child_parent_notified_on_forum_topics' => false,
         'child_parent_notified_on_forum_replies' => false,
+        'child_can_select_avatar_media' => true,
+        'child_can_use_avatar_camera' => true,
     ];
 
     /**
@@ -98,6 +118,8 @@ class User extends Authenticatable implements MustVerifyEmail
         'child_forum_reply_requires_approval' => 'boolean',
         'child_parent_notified_on_forum_topics' => 'boolean',
         'child_parent_notified_on_forum_replies' => 'boolean',
+        'child_can_select_avatar_media' => 'boolean',
+        'child_can_use_avatar_camera' => 'boolean',
         'anonymized_at' => 'datetime',
     ];
 
@@ -188,6 +210,48 @@ class User extends Authenticatable implements MustVerifyEmail
             }
         });
 
+    }
+
+    public static function hasDatabaseColumn(string $column): bool
+    {
+        $table = (new self())->getTable();
+        $cacheKey = $table.'.'.$column;
+
+        if (! array_key_exists($cacheKey, static::$databaseColumnCache)) {
+            static::$databaseColumnCache[$cacheKey] = Schema::hasColumn($table, $column);
+        }
+
+        return static::$databaseColumnCache[$cacheKey];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    public static function filterToExistingDatabaseColumns(array $attributes): array
+    {
+        return array_filter(
+            $attributes,
+            fn (mixed $value, string $key) => static::hasDatabaseColumn($key),
+            ARRAY_FILTER_USE_BOTH
+        );
+    }
+
+    /**
+     * @return array{preset_selection_enabled: bool, media_persistence_enabled: bool, image_framing_enabled: bool}
+     */
+    public static function avatarPersistenceCapabilities(): array
+    {
+        return [
+            'preset_selection_enabled' => static::hasDatabaseColumn('avatar_mode')
+                && static::hasDatabaseColumn('avatar_letters')
+                && static::hasDatabaseColumn('avatar_icon_class')
+                && static::hasDatabaseColumn('avatar_background_color'),
+            'media_persistence_enabled' => static::hasDatabaseColumn('avatar_media_name'),
+            'image_framing_enabled' => static::hasDatabaseColumn('avatar_zoom')
+                && static::hasDatabaseColumn('avatar_offset_x')
+                && static::hasDatabaseColumn('avatar_offset_y'),
+        ];
     }
 
     /**
@@ -344,6 +408,190 @@ class User extends Authenticatable implements MustVerifyEmail
         );
     }
 
+    /**
+     * @return list<string>
+     */
+    public static function avatarModes(): array
+    {
+        return [
+            self::AVATAR_MODE_MEDIA,
+            self::AVATAR_MODE_LETTERS,
+            self::AVATAR_MODE_ICON,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function avatarColorOptions(): array
+    {
+        return [
+            '#F59E0B', '#FBBF24', '#F97316', '#FB7185', '#EF4444', '#DC2626',
+            '#EC4899', '#D946EF', '#C026D3', '#8B5CF6', '#7C3AED', '#6366F1',
+            '#4F46E5', '#3B82F6', '#2563EB', '#0EA5E9', '#0284C7', '#06B6D4',
+            '#0891B2', '#14B8A6', '#0D9488', '#10B981', '#059669', '#22C55E',
+            '#16A34A', '#84CC16', '#65A30D', '#A3E635', '#EAB308', '#CA8A04',
+            '#A16207', '#92400E', '#78716C', '#6B7280', '#475569', '#334155',
+            '#1F2937', '#111827', '#0F172A', '#4B5563', '#9CA3AF', '#CBD5E1',
+            '#94A3B8', '#38BDF8', '#2DD4BF', '#4ADE80', '#FACC15', '#FDBA74',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function avatarIconOptions(): array
+    {
+        return [
+            'fa-solid fa-comments', 'fa-solid fa-comment-dots', 'fa-solid fa-comment-medical',
+            'fa-solid fa-bullhorn', 'fa-solid fa-flask', 'fa-solid fa-vial',
+            'fa-solid fa-cube', 'fa-solid fa-cubes', 'fa-solid fa-shapes',
+            'fa-solid fa-robot', 'fa-solid fa-microchip', 'fa-solid fa-memory',
+            'fa-solid fa-screwdriver-wrench', 'fa-solid fa-wrench', 'fa-solid fa-hammer',
+            'fa-solid fa-gears', 'fa-solid fa-gear', 'fa-solid fa-toolbox',
+            'fa-solid fa-code', 'fa-solid fa-terminal', 'fa-solid fa-bug',
+            'fa-solid fa-gamepad', 'fa-solid fa-dice', 'fa-solid fa-puzzle-piece',
+            'fa-solid fa-satellite-dish', 'fa-solid fa-tower-broadcast', 'fa-solid fa-wifi',
+            'fa-solid fa-earth-oceania', 'fa-solid fa-globe', 'fa-solid fa-compass',
+            'fa-solid fa-bolt', 'fa-solid fa-fire', 'fa-solid fa-lightbulb',
+            'fa-solid fa-rocket', 'fa-solid fa-plane', 'fa-solid fa-paper-plane',
+            'fa-solid fa-book', 'fa-solid fa-book-open', 'fa-solid fa-bookmark',
+            'fa-solid fa-graduation-cap', 'fa-solid fa-school', 'fa-solid fa-chalkboard-user',
+            'fa-solid fa-compass-drafting', 'fa-solid fa-ruler-combined', 'fa-solid fa-pencil-ruler',
+            'fa-solid fa-circle-nodes', 'fa-solid fa-diagram-project', 'fa-solid fa-share-nodes',
+            'fa-solid fa-server', 'fa-solid fa-database', 'fa-solid fa-cloud',
+            'fa-solid fa-atom', 'fa-solid fa-magnet', 'fa-solid fa-wave-square',
+            'fa-solid fa-chart-line', 'fa-solid fa-chart-column', 'fa-solid fa-chart-pie',
+            'fa-solid fa-trophy', 'fa-solid fa-medal', 'fa-solid fa-award',
+            'fa-solid fa-wand-magic-sparkles', 'fa-solid fa-sparkles', 'fa-solid fa-wand-magic',
+            'fa-solid fa-people-group', 'fa-solid fa-user-group', 'fa-solid fa-users',
+            'fa-solid fa-shield-halved', 'fa-solid fa-lock', 'fa-solid fa-key',
+            'fa-solid fa-star', 'fa-solid fa-heart', 'fa-solid fa-gem',
+            'fa-solid fa-mountain', 'fa-solid fa-tree', 'fa-solid fa-seedling',
+            'fa-solid fa-futbol', 'fa-solid fa-music', 'fa-solid fa-camera',
+            'fa-solid fa-image', 'fa-solid fa-video', 'fa-solid fa-headset',
+            'fa-solid fa-laptop', 'fa-solid fa-tablet-screen-button', 'fa-solid fa-mobile-screen-button',
+            'fa-solid fa-shop', 'fa-solid fa-cart-shopping', 'fa-solid fa-gift',
+            'forum-icon-stemcraft',
+        ];
+    }
+
+    public static function normalizeAvatarMode(?string $value): string
+    {
+        $normalized = trim((string) $value);
+
+        return in_array($normalized, self::avatarModes(), true) ? $normalized : self::AVATAR_MODE_LETTERS;
+    }
+
+    public static function normalizeAvatarLetters(?string $value): ?string
+    {
+        $normalized = strtoupper((string) Str::of((string) $value)->ascii()->replaceMatches('/[^A-Za-z0-9]+/', ''));
+        $normalized = substr($normalized, 0, 3);
+
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    public static function normalizeAvatarIconClass(?string $value): ?string
+    {
+        $normalized = trim((string) $value);
+
+        return in_array($normalized, self::avatarIconOptions(), true) ? $normalized : null;
+    }
+
+    public static function normalizeAvatarBackgroundColor(?string $value): ?string
+    {
+        $normalized = strtoupper(trim((string) $value));
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (! str_starts_with($normalized, '#')) {
+            $normalized = '#'.$normalized;
+        }
+
+        return preg_match('/^#[0-9A-F]{6}$/', $normalized) === 1 ? $normalized : null;
+    }
+
+    public function resolvedAvatarMode(): string
+    {
+        $mode = self::normalizeAvatarMode((string) ($this->avatar_mode ?? ''));
+
+        if ($mode === self::AVATAR_MODE_MEDIA && $this->hasAvatarMedia()) {
+            return self::AVATAR_MODE_MEDIA;
+        }
+
+        if ($mode === self::AVATAR_MODE_ICON && $this->resolvedAvatarIconClass() !== null) {
+            return self::AVATAR_MODE_ICON;
+        }
+
+        if ($this->hasAvatarMedia()) {
+            return self::AVATAR_MODE_MEDIA;
+        }
+
+        if ($this->resolvedAvatarIconClass() !== null) {
+            return self::AVATAR_MODE_ICON;
+        }
+
+        return self::AVATAR_MODE_LETTERS;
+    }
+
+    public function resolvedAvatarLetters(): string
+    {
+        $customLetters = self::normalizeAvatarLetters((string) ($this->avatar_letters ?? ''));
+        if ($customLetters !== null) {
+            return $customLetters;
+        }
+
+        $tokens = collect(preg_split('/[^A-Za-z0-9]+/u', (string) Str::of($this->forumDisplayName())->ascii()) ?: [])
+            ->map(fn ($token) => trim((string) $token))
+            ->filter(fn ($token) => $token !== '')
+            ->values();
+
+        if ($tokens->count() >= 2) {
+            return strtoupper(substr($tokens[0], 0, 1).substr($tokens[1], 0, 1));
+        }
+
+        if ($tokens->count() === 1) {
+            return strtoupper(substr($tokens[0], 0, min(2, strlen($tokens[0]))));
+        }
+
+        return 'U';
+    }
+
+    public function resolvedAvatarIconClass(): ?string
+    {
+        return self::normalizeAvatarIconClass((string) ($this->avatar_icon_class ?? ''));
+    }
+
+    public function resolvedAvatarBackgroundColor(): string
+    {
+        return self::normalizeAvatarBackgroundColor((string) ($this->avatar_background_color ?? '')) ?? '#374151';
+    }
+
+    public function hasAvatarMedia(): bool
+    {
+        return trim((string) ($this->avatar_media_name ?? '')) !== '';
+    }
+
+    public function avatarImageUrl(): ?string
+    {
+        if (! $this->hasAvatarMedia()) {
+            return null;
+        }
+
+        $avatarMedia = $this->avatarMedia;
+        if (! $avatarMedia instanceof Media) {
+            return null;
+        }
+
+        return $avatarMedia->thumbnail;
+    }
+
+    public function shouldRenderAvatarImage(): bool
+    {
+        return $this->resolvedAvatarMode() === self::AVATAR_MODE_MEDIA && $this->avatarImageUrl() !== null;
+    }
+
     public function createdPayments(): HasMany
     {
         return $this->hasMany(Payment::class, 'created_by');
@@ -480,6 +728,21 @@ class User extends Authenticatable implements MustVerifyEmail
     public function parentShouldBeNotifiedOnForumReplies(): bool
     {
         return $this->isChildAccount() && (bool) $this->child_parent_notified_on_forum_replies;
+    }
+
+    public function canEditAvatar(): bool
+    {
+        return ! $this->isChildAccount() || (bool) $this->child_can_select_avatar_media;
+    }
+
+    public function canSelectAvatarMedia(): bool
+    {
+        return $this->canEditAvatar();
+    }
+
+    public function canUseAvatarCamera(): bool
+    {
+        return $this->canEditAvatar() && (! $this->isChildAccount() || (bool) $this->child_can_use_avatar_camera);
     }
 
     public function hasMinecraftAccess(): bool

@@ -77,6 +77,9 @@ class TaxAdjustmentController extends Controller
         $lineRefundedQty = $this->lineRefundedQuantities($invoice);
         $refundQtyInput = is_array($validated['refund_qty'] ?? null) ? $validated['refund_qty'] : [];
         $selectedLines = [];
+        $subtotalExact = 0.0;
+        $gstExact = 0.0;
+        $totalExact = 0.0;
 
         foreach ($invoice->lines as $line) {
             $lineId = (int) $line->id;
@@ -99,9 +102,12 @@ class TaxAdjustmentController extends Controller
 
             $unitEx = abs((float) $line->unit_price_ex_tax);
             $taxRate = max(0, (float) $line->tax_rate);
-            $lineEx = round($requestedQty * $unitEx, 2);
-            $taxAmount = round($lineEx * $taxRate, 2);
-            $lineInc = round($lineEx + $taxAmount, 2);
+            $lineExExact = $requestedQty * $unitEx;
+            $taxAmountExact = $lineExExact * $taxRate;
+            $lineIncExact = $lineExExact + $taxAmountExact;
+            $subtotalExact += $lineExExact;
+            $gstExact += $taxAmountExact;
+            $totalExact += $lineIncExact;
 
             $selectedLines[] = [
                 'invoice_line_id' => $lineId,
@@ -111,9 +117,9 @@ class TaxAdjustmentController extends Controller
                 'quantity' => round($requestedQty, 2),
                 'unit_price_ex_tax' => round($unitEx, 2),
                 'tax_rate' => $taxRate,
-                'line_total_ex_tax' => $lineEx,
-                'tax_amount' => $taxAmount,
-                'line_total_inc_tax' => $lineInc,
+                'line_total_ex_tax' => round($lineExExact, 2),
+                'tax_amount' => round($taxAmountExact, 2),
+                'line_total_inc_tax' => round($lineIncExact, 2),
             ];
         }
 
@@ -123,7 +129,7 @@ class TaxAdjustmentController extends Controller
             ]);
         }
 
-        $creditTotal = round((float) collect($selectedLines)->sum('line_total_inc_tax'), 2);
+        $creditTotal = round($totalExact, 2);
         $maxAllowedCredit = $this->maxAllowedCreditAmountForNew($invoice);
         if ($creditTotal > ($maxAllowedCredit + 0.0001)) {
             throw ValidationException::withMessages([
@@ -134,18 +140,14 @@ class TaxAdjustmentController extends Controller
         $reason = trim((string) ($validated['reason'] ?? ''));
         $adjustment = null;
         $summary = null;
-        DB::transaction(function () use ($invoice, $selectedLines, $reason, &$adjustment, &$summary): void {
-            $subtotal = round((float) collect($selectedLines)->sum('line_total_ex_tax'), 2);
-            $gst = round((float) collect($selectedLines)->sum('tax_amount'), 2);
-            $total = round((float) collect($selectedLines)->sum('line_total_inc_tax'), 2);
-
+        DB::transaction(function () use ($invoice, $selectedLines, $reason, $subtotalExact, $gstExact, $totalExact, &$adjustment, &$summary): void {
             $adjustment = new TaxAdjustment();
             $adjustment->invoice_id = $invoice->id;
             $adjustment->adjustment_number = $this->documentNumbers->nextTaxAdjustmentNumber();
             $adjustment->issue_date = now()->startOfDay();
-            $adjustment->subtotal_amount = -1 * $subtotal;
-            $adjustment->gst_amount = -1 * $gst;
-            $adjustment->total_amount = -1 * $total;
+            $adjustment->subtotal_amount = -1 * round($subtotalExact, 2);
+            $adjustment->gst_amount = -1 * round($gstExact, 2);
+            $adjustment->total_amount = -1 * round($totalExact, 2);
             $adjustment->notes = trim(implode("\n", array_filter([
                 'Tax adjustment note for invoice '.$invoice->invoice_number,
                 $reason,

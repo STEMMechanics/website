@@ -14,6 +14,10 @@ class StoreCartService
 
     private const LEGACY_SESSION_KEY = 'shop.cart';
 
+    private const CUSTOMER_MANUAL_QUOTE_MESSAGE = 'This item requires pickup or a manual shipping quote.';
+
+    private const CUSTOMER_MANUAL_QUOTE_REASON = 'This item requires pickup or a manual shipping quote.';
+
     private ?Collection $resolvedLines = null;
 
     /**
@@ -278,17 +282,12 @@ class StoreCartService
 
     public function summary(array $options = []): array
     {
+        /** @var Collection<int, object> $lines */
         $lines = $this->lines();
         $shippingCountry = trim((string) ($options['shipping_country'] ?? 'Australia')) ?: 'Australia';
-        $shippingMethodCode = trim((string) ($options['shipping_method_code'] ?? $this->shippingMethodCode() ?? ''));
         $consolidateShipments = (bool) ($options['consolidate_shipments'] ?? $this->consolidateShipments());
-        $shippingQuote = $this->shipping->quote(
-            $lines,
-            $shippingCountry,
-            $shippingMethodCode,
-            $consolidateShipments,
-        );
-        $shippingMethods = $this->shipping->availableMethods($lines)
+        $requestedShippingMethodCode = trim((string) ($options['shipping_method_code'] ?? $this->shippingMethodCode() ?? ''));
+        $methodQuotes = $this->shipping->availableMethods($lines)
             ->map(function (StoreShippingMethod $method) use ($lines, $shippingCountry, $consolidateShipments): array {
                 $methodQuote = $this->shipping->quote(
                     $lines,
@@ -303,12 +302,33 @@ class StoreCartService
                     'description' => trim((string) ($method->description ?? '')) ?: null,
                     'delivery_estimate_label' => $method->deliveryEstimateLabel(),
                     'is_pickup' => $method->isPickup(),
-                    'is_default' => (bool) $method->is_default,
                     'estimated_amount' => round((float) ($methodQuote['amount'] ?? 0), 2),
+                    'can_checkout' => (bool) ($methodQuote['can_checkout'] ?? true),
+                    'requires_manual_quote' => (bool) ($methodQuote['requires_manual_quote'] ?? false),
+                    'reason' => trim((string) ($methodQuote['reason'] ?? '')) ?: null,
+                    'manual_quote_line_keys' => array_values(array_filter(
+                        array_map(
+                            fn ($key): string => trim((string) $key),
+                            is_array($methodQuote['manual_quote_line_keys'] ?? null) ? $methodQuote['manual_quote_line_keys'] : []
+                        ),
+                        fn (string $key): bool => $key !== ''
+                    )),
                 ];
             })
-            ->values()
-            ->all();
+            ->values();
+
+        /** @var Collection<int, array<string, mixed>> $methodQuotesForPresentation */
+        $methodQuotesForPresentation = collect($methodQuotes->all());
+        $shippingMethods = $this->presentShippingMethods($methodQuotesForPresentation)->values();
+        $selectedShippingMethodCode = $this->resolveSelectedShippingMethodCode($shippingMethods, $requestedShippingMethodCode);
+        $shippingQuote = $this->resolvePresentedShippingQuote(
+            $lines,
+            $shippingCountry,
+            $consolidateShipments,
+            $methodQuotesForPresentation,
+            $shippingMethods,
+            $selectedShippingMethodCode,
+        );
 
         $shippingAmount = round((float) ($shippingQuote['amount'] ?? 0), 2);
         $requestedCouponCode = $options['coupon_code'] ?? $this->couponCode();
@@ -364,9 +384,9 @@ class StoreCartService
             'coupon_code' => $couponEvaluation['coupon_code'] ?? null,
             'coupon_error' => $couponEvaluation['error'] ?? null,
             'coupon_type' => $couponEvaluation['discount_type'] ?? null,
-            'shipping_method_code' => $shippingQuote['selected_method_code'] ?? null,
+            'shipping_method_code' => $selectedShippingMethodCode !== '' ? $selectedShippingMethodCode : ($shippingQuote['selected_method_code'] ?? null),
             'consolidate_shipments' => $consolidateShipments && (bool) ($shippingQuote['offers_consolidation'] ?? false),
-            'shipping_methods' => $shippingMethods,
+            'shipping_methods' => $shippingMethods->values()->all(),
         ];
     }
 
@@ -439,6 +459,8 @@ class StoreCartService
                     'method' => (string) ($summary['shipping_quote']['method'] ?? ''),
                     'reason' => $summary['shipping_quote']['reason'] ?? null,
                     'note' => $summary['shipping_quote']['note'] ?? null,
+                    'requires_manual_quote' => (bool) ($summary['shipping_quote']['requires_manual_quote'] ?? false),
+                    'manual_quote_line_keys' => $summary['shipping_quote']['manual_quote_line_keys'] ?? [],
                     'delivery_estimate_label' => $summary['shipping_quote']['delivery_estimate_label'] ?? null,
                     'package_summary' => $summary['shipping_quote']['package_summary'] ?? null,
                     'known_weight_grams' => (int) ($summary['shipping_quote']['known_weight_grams'] ?? 0),
@@ -696,6 +718,121 @@ class StoreCartService
         $value = trim((string) $code);
 
         return $value !== '' ? $value : null;
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $methodQuotes
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function presentShippingMethods(Collection $methodQuotes): Collection
+    {
+        $visibleMethods = $methodQuotes
+            ->reject(fn (array $method): bool => ! (bool) ($method['is_pickup'] ?? false) && (bool) ($method['requires_manual_quote'] ?? false))
+            ->values();
+
+        $manualQuoteMethods = $methodQuotes
+            ->filter(fn (array $method): bool => ! (bool) ($method['is_pickup'] ?? false) && (bool) ($method['requires_manual_quote'] ?? false))
+            ->values();
+
+        if ($manualQuoteMethods->isEmpty()) {
+            return $visibleMethods;
+        }
+
+        $firstManualQuoteMethod = $manualQuoteMethods->first();
+        $manualQuoteLineKeys = $manualQuoteMethods
+            ->flatMap(fn (array $method): array => is_array($method['manual_quote_line_keys'] ?? null) ? $method['manual_quote_line_keys'] : [])
+            ->map(fn ($key): string => trim((string) $key))
+            ->filter(fn (string $key): bool => $key !== '')
+            ->unique()
+            ->values()
+            ->all();
+
+        $requestQuoteMethod = [
+            'code' => StoreShippingService::REQUEST_QUOTE_METHOD_CODE,
+            'name' => 'Request quote',
+            'description' => self::CUSTOMER_MANUAL_QUOTE_MESSAGE,
+            'delivery_estimate_label' => null,
+            'is_pickup' => false,
+            'estimated_amount' => 0.0,
+            'can_checkout' => false,
+            'requires_manual_quote' => true,
+            'reason' => self::CUSTOMER_MANUAL_QUOTE_REASON,
+            'manual_quote_line_keys' => $manualQuoteLineKeys,
+        ];
+
+        return collect([$requestQuoteMethod])
+            ->concat($visibleMethods)
+            ->values();
+    }
+
+    /**
+     * @param Collection<int, array<string, mixed>> $shippingMethods
+     */
+    private function resolveSelectedShippingMethodCode(Collection $shippingMethods, string $requestedShippingMethodCode): ?string
+    {
+        $availableCodes = $shippingMethods
+            ->map(fn (array $method): string => trim((string) ($method['code'] ?? '')))
+            ->filter(fn (string $code): bool => $code !== '')
+            ->values();
+
+        if ($availableCodes->contains($requestedShippingMethodCode)) {
+            return $requestedShippingMethodCode;
+        }
+
+        if ($availableCodes->contains(StoreShippingService::REQUEST_QUOTE_METHOD_CODE)) {
+            return StoreShippingService::REQUEST_QUOTE_METHOD_CODE;
+        }
+
+        $firstCode = $availableCodes->first();
+
+        return is_string($firstCode) && $firstCode !== '' ? $firstCode : null;
+    }
+
+    /**
+     * @param Collection<int, object> $lines
+     * @param Collection<int, array<string, mixed>> $methodQuotes
+     * @param Collection<int, array<string, mixed>> $shippingMethods
+     * @return array<string, mixed>
+     */
+    private function resolvePresentedShippingQuote(
+        Collection $lines,
+        string $shippingCountry,
+        bool $consolidateShipments,
+        Collection $methodQuotes,
+        Collection $shippingMethods,
+        ?string $selectedShippingMethodCode
+    ): array {
+        $selectedCode = trim((string) $selectedShippingMethodCode);
+
+        if ($selectedCode === StoreShippingService::REQUEST_QUOTE_METHOD_CODE) {
+            $manualQuoteMethod = $methodQuotes->first(
+                fn (array $method): bool => ! (bool) ($method['is_pickup'] ?? false) && (bool) ($method['requires_manual_quote'] ?? false)
+            );
+            $requestQuoteOption = $shippingMethods->first(
+                fn (array $method): bool => trim((string) ($method['code'] ?? '')) === StoreShippingService::REQUEST_QUOTE_METHOD_CODE
+            );
+
+            if (is_array($manualQuoteMethod)) {
+                $shippingQuote = $this->shipping->quote($lines, $shippingCountry, (string) ($manualQuoteMethod['code'] ?? ''), $consolidateShipments);
+                $shippingQuote['selected_method_code'] = StoreShippingService::REQUEST_QUOTE_METHOD_CODE;
+                $shippingQuote['method'] = 'Request quote';
+                $shippingQuote['note'] = is_array($requestQuoteOption) ? ($requestQuoteOption['description'] ?? null) : ($shippingQuote['reason'] ?? null);
+                $shippingQuote['is_pickup'] = false;
+                $shippingQuote['delivery_estimate_label'] = null;
+                $shippingQuote['requires_manual_quote'] = true;
+                $shippingQuote['can_checkout'] = false;
+                $shippingQuote['amount'] = 0.0;
+                $shippingQuote['reason'] = self::CUSTOMER_MANUAL_QUOTE_REASON;
+
+                return $shippingQuote;
+            }
+        }
+
+        if ($selectedCode !== '') {
+            return $this->shipping->quote($lines, $shippingCountry, $selectedCode, $consolidateShipments);
+        }
+
+        return $this->shipping->quote($lines, $shippingCountry, null, $consolidateShipments);
     }
 
     private function persistContents(array $contents): void

@@ -10,13 +10,16 @@ use App\Models\InvoicePaymentAllocation;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Payment;
+use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
+use App\Http\Controllers\WorkshopController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class WorkshopAttendanceKioskTest extends TestCase
@@ -1026,6 +1029,123 @@ class WorkshopAttendanceKioskTest extends TestCase
         $this->assertNotNull($tickets[0]->attended_at);
         $this->assertNotNull($tickets[1]->attended_at);
         $this->assertNull($tickets[2]->attended_at);
+    }
+
+    public function test_attendance_payment_receipt_breakdown_lists_each_allocation_on_its_own_line(): void
+    {
+        $controller = app(WorkshopController::class);
+        $customer = User::factory()->create();
+
+        $invoiceA = Invoice::query()->create([
+            'invoice_number' => '8663',
+            'user_id' => $customer->id,
+            'billing_name' => 'Breakdown Family',
+            'billing_email' => 'breakdown@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 43.18,
+            'gst_amount' => 4.32,
+            'total_amount' => 47.50,
+            'notes' => null,
+        ]);
+        $invoiceB = Invoice::query()->create([
+            'invoice_number' => '8664',
+            'user_id' => $customer->id,
+            'billing_name' => 'Breakdown Family',
+            'billing_email' => 'breakdown@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 2.27,
+            'gst_amount' => 0.23,
+            'total_amount' => 2.50,
+            'notes' => null,
+        ]);
+        $invoiceC = Invoice::query()->create([
+            'invoice_number' => '8665',
+            'user_id' => $customer->id,
+            'billing_name' => 'Breakdown Family',
+            'billing_email' => 'breakdown@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 2.27,
+            'gst_amount' => 0.23,
+            'total_amount' => 2.50,
+            'notes' => null,
+        ]);
+
+        $adjustmentA = TaxAdjustment::query()->create([
+            'invoice_id' => $invoiceA->id,
+            'adjustment_number' => '7114',
+            'issue_date' => now()->toDateString(),
+            'subtotal_amount' => -2.27,
+            'gst_amount' => -0.23,
+            'total_amount' => -2.50,
+            'notes' => 'Adjustment A',
+        ]);
+        $adjustmentB = TaxAdjustment::query()->create([
+            'invoice_id' => $invoiceB->id,
+            'adjustment_number' => '7115',
+            'issue_date' => now()->toDateString(),
+            'subtotal_amount' => -2.27,
+            'gst_amount' => -0.23,
+            'total_amount' => -2.50,
+            'notes' => 'Adjustment B',
+        ]);
+
+        $payment = Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $customer->id,
+            'created_by' => $this->createAdminUser()->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-BREAKDOWN',
+            'total_amount' => 47.50,
+            'gst_amount' => 0,
+            'notes' => null,
+        ]);
+
+        $payment->allocations()->create([
+            'invoice_id' => $invoiceA->id,
+            'allocated_amount' => 47.50,
+        ]);
+        $payment->allocations()->create([
+            'invoice_id' => $invoiceA->id,
+            'tax_adjustment_id' => $adjustmentA->id,
+            'allocated_amount' => -2.50,
+        ]);
+        $payment->allocations()->create([
+            'invoice_id' => $invoiceB->id,
+            'allocated_amount' => 2.50,
+        ]);
+        $payment->allocations()->create([
+            'invoice_id' => $invoiceB->id,
+            'tax_adjustment_id' => $adjustmentB->id,
+            'allocated_amount' => -2.50,
+        ]);
+        $payment->allocations()->create([
+            'invoice_id' => $invoiceC->id,
+            'allocated_amount' => 2.50,
+        ]);
+
+        $payment->load('allocations.invoice', 'allocations.taxAdjustment');
+
+        $method = new ReflectionMethod($controller, 'attendancePaymentReceiptInvoiceSummary');
+        [$label, $summary] = $method->invoke($controller, $payment);
+
+        $this->assertSame('Invoice / Credit Allocation (as at '.now()->format('M j, Y').')', $label);
+        $this->assertStringContainsString("\n", $summary);
+        $this->assertStringContainsString('Invoice 8663 ($47.50)', $summary);
+        $this->assertStringContainsString('Tax Adjustment 7114 (-$2.50)', $summary);
+        $this->assertStringContainsString('Invoice 8664 ($2.50)', $summary);
+        $this->assertStringContainsString('Tax Adjustment 7115 (-$2.50)', $summary);
+        $this->assertStringContainsString('Invoice 8665 ($2.50)', $summary);
+        $this->assertStringContainsString('PAYMENT TOTAL ($47.50)', $summary);
     }
 
     private function createAdminUser(): User

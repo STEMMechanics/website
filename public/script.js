@@ -142,6 +142,34 @@ let SM = {
         });
     },
 
+    bindSingleSubmit: (formOrSelector, options = {}) => {
+        const forms = typeof formOrSelector === 'string'
+            ? Array.from(document.querySelectorAll(formOrSelector))
+            : (formOrSelector instanceof HTMLFormElement ? [formOrSelector] : []);
+
+        forms.forEach((form) => {
+            if (!(form instanceof HTMLFormElement) || form.dataset.smSingleSubmitBound === '1') {
+                return;
+            }
+
+            form.dataset.smSingleSubmitBound = '1';
+            form.addEventListener('submit', (event) => {
+                if (form.dataset.smSingleSubmitAllowNext === '1') {
+                    delete form.dataset.smSingleSubmitAllowNext;
+                    return;
+                }
+
+                if (form.dataset.smSingleSubmitLocked === '1') {
+                    event.preventDefault();
+                    event.stopImmediatePropagation();
+                    return;
+                }
+
+                form.dataset.smSingleSubmitLocked = '1';
+            }, true);
+        });
+    },
+
     clearTimer: (timerId) => {
         if (timerId !== null && typeof timerId !== 'undefined') {
             window.clearTimeout(timerId);
@@ -243,6 +271,16 @@ let SM = {
 
         if (Number.parseInt(String(count ?? 0), 10) === 1) {
             return safeWord;
+        }
+
+        const trailingParentheticalMatch = safeWord.match(/^(.*?)(\s*\([^)]*\))$/);
+        if (trailingParentheticalMatch) {
+            const baseWord = String(trailingParentheticalMatch[1] ?? '').trim();
+            const suffix = String(trailingParentheticalMatch[2] ?? '');
+
+            if (baseWord !== '') {
+                return `${SM.pluralize(baseWord, count)}${suffix}`;
+            }
         }
 
         const words = safeWord.split(/\s+/);
@@ -516,6 +554,64 @@ let SM = {
                     window.location.reload();
                 });
             }
+        });
+    },
+
+    confirmAccountDelete: (form) => {
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const title = String(form.dataset.deleteTitle || 'Delete account?').trim() || 'Delete account?';
+        const introText = String(form.dataset.deleteMessage || 'Are you sure you want to delete your account? This action cannot be undone.').trim()
+            || 'Are you sure you want to delete your account? This action cannot be undone.';
+        const secondaryText = String(form.dataset.deleteSecondaryMessage || 'Any workshop tickets will remain valid.').trim()
+            || 'Any workshop tickets will remain valid.';
+
+        const deleteThreadsInput = form.querySelector('input[name="delete_discussion_threads"]');
+        if (deleteThreadsInput instanceof HTMLInputElement) {
+            deleteThreadsInput.value = '0';
+        }
+
+        Swal.fire({
+            position: 'top',
+            icon: 'warning',
+            iconColor: '#b91c1c',
+            title: title,
+            html: `
+                <p>${introText}</p>
+                <p class="mt-3">${secondaryText}</p>
+                <label class="mt-5 flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-left text-sm text-gray-700">
+                    <input type="checkbox" id="sm-delete-discussion-threads" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    <span>Also delete my discussion threads and posts</span>
+                </label>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Delete',
+            confirmButtonColor: '#b91c1c',
+            cancelButtonText: 'Cancel',
+            reverseButtons: true,
+            preConfirm: () => {
+                const checkbox = document.getElementById('sm-delete-discussion-threads');
+
+                return {
+                    deleteDiscussionThreads: checkbox instanceof HTMLInputElement && checkbox.checked,
+                };
+            },
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                if (deleteThreadsInput instanceof HTMLInputElement) {
+                    deleteThreadsInput.value = '0';
+                }
+
+                return;
+            }
+
+            if (deleteThreadsInput instanceof HTMLInputElement) {
+                deleteThreadsInput.value = result.value?.deleteDiscussionThreads ? '1' : '0';
+            }
+
+            form.submit();
         });
     },
 

@@ -31,7 +31,6 @@ class StoreShippingMethodService
                     ->orderBy('sort_order')
                     ->orderBy('id'),
             ])
-            ->orderByDesc('is_default')
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
@@ -70,9 +69,9 @@ class StoreShippingMethodService
 
     private function defaultFromCollection(Collection $methods): ?StoreShippingMethod
     {
-        $default = $methods->first(fn (StoreShippingMethod $method) => (bool) $method->is_default);
+        $method = $methods->first();
 
-        return $default instanceof StoreShippingMethod ? $default : $methods->first();
+        return $method instanceof StoreShippingMethod ? $method : null;
     }
 
     /**
@@ -94,7 +93,6 @@ class StoreShippingMethodService
                 'rate_multiplier' => 1,
                 'rate_adjustment_amount' => 0,
                 'is_pickup' => false,
-                'is_default' => true,
                 'is_active' => true,
                 'sort_order' => 0,
             ]);
@@ -119,7 +117,6 @@ class StoreShippingMethodService
                 'rate_multiplier' => 1.35,
                 'rate_adjustment_amount' => 0,
                 'is_pickup' => false,
-                'is_default' => false,
                 'is_active' => true,
                 'sort_order' => 1,
             ]);
@@ -144,7 +141,6 @@ class StoreShippingMethodService
                 'rate_multiplier' => 1,
                 'rate_adjustment_amount' => 0,
                 'is_pickup' => true,
-                'is_default' => false,
                 'is_active' => true,
                 'sort_order' => 2,
             ]);

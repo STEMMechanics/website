@@ -882,6 +882,87 @@ class ShopOrderPortalTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), '2 still to be shipped'));
     }
 
+    public function test_account_order_page_numbers_items_shows_skus_and_places_outstanding_in_the_summary(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'robin@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'billing_name' => 'Robin Customer',
+            'billing_email' => 'robin@example.com',
+            'billing_phone' => '0400555666',
+            'subtotal_amount' => 84.00,
+            'gst_amount' => 7.64,
+            'total_amount' => 84.00,
+        ]);
+
+        $order = StoreOrder::factory()->create([
+            'user_id' => $user->id,
+            'invoice_id' => $invoice->id,
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'contains_physical' => true,
+            'contains_digital' => false,
+            'billing_email' => 'robin@example.com',
+            'shipping_method' => 'Regular shipping',
+            'shipping_method_code' => 'regular',
+            'paid_at' => now(),
+        ]);
+
+        $microbit = Product::factory()->create([
+            'title' => 'Microbit',
+            'sku' => 'MB-001',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+        $marbles = Product::factory()->create([
+            'title' => 'Marbles',
+            'sku' => 'MARBLES-002',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $microbit->id,
+            'product_title' => 'Microbit',
+            'product_sku' => 'MB-001',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $marbles->id,
+            'product_title' => 'Marbles',
+            'product_sku' => 'MARBLES-002',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'delayed_quantity' => 1,
+            'delayed_fulfilment_type' => 'backorder',
+            'delayed_shipping_estimate' => '2026-05-01',
+            'inventory_reserved_quantity' => 0,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('account.order.show', $order));
+
+        $response
+            ->assertOk()
+            ->assertSee('Order summary')
+            ->assertSee('Items in this order')
+            ->assertSee('Awaiting shipping')
+            ->assertSee('Microbit')
+            ->assertSee('SKU MB-001')
+            ->assertSee('Marbles')
+            ->assertSee('SKU MARBLES-002')
+            ->assertSeeInOrder(['Total', 'Outstanding']);
+
+        $this->assertSame(1, substr_count($response->getContent(), 'Outstanding'));
+    }
+
     public function test_public_order_page_orders_deliveries_from_oldest_to_newest(): void
     {
         $invoice = Invoice::factory()->create([

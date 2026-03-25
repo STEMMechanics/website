@@ -211,6 +211,11 @@
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
+                    @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
+                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">
+                            {{ (int) ($interestCount ?? 0) > 0 ? 'View Interests ('.number_format((int) $interestCount).')' : 'View Interests' }}
+                        </x-ui.button>
+                    @endif
                     @if($workshop->pick_list_template_id)
                         <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>
                     @endif

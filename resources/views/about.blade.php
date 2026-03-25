@@ -56,7 +56,7 @@
                     </div>
                 </section>
 
-                <div class="grid gap-6 md:grid-cols-2">
+                <div class="grid gap-6">
                     <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
                         <h2 class="text-lg font-semibold text-gray-900">How the work is delivered</h2>
                         <p class="mt-3 text-sm leading-6 text-gray-600">The goal is to give organisers confidence in the delivery while making the experience feel welcoming and hands-on for participants.</p>
@@ -87,6 +87,38 @@
                 <h2 class="mt-4 text-2xl font-semibold text-gray-900">At the centre of it all is a simple idea: people understand technology better when they can explore it for themselves.</h2>
                 <p class="mt-4 text-base leading-7 text-gray-600">That is why STEMMechanics leans so heavily into direct experience. When learners can build, test, troubleshoot, and revise their ideas, technology becomes less abstract and far more meaningful. It also helps confidence grow in a way that feels earned rather than forced.</p>
                 <p class="mt-4 text-base leading-7 text-gray-600">For the schools, organisations, and communities that book these programs, that philosophy translates into delivery that is thoughtful, practical, and reliable. For participants, it means workshops that feel active, creative, and welcoming. If that sounds like the right fit, the contact page is the best next step for bookings, collaborations, or support questions.</p>
+            </div>
+        </section>
+
+        <section class="mt-6 grid gap-6 lg:grid-cols-2">
+            <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+                    <div class="flex-shrink-0">
+                        <div class="h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                            <img src="{{ asset('profile-james.png') }}" alt="James Collins" class="h-full w-full object-cover" />
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Founder</div>
+                        <h2 class="mt-2 text-2xl font-semibold text-gray-900">James Collins</h2>
+                        <p class="mt-4 text-sm leading-7 text-gray-600">James has experience delivering hands-on STEM programs across libraries, schools, and community settings, working with young people from primary through to teens. His work spans creative technology, mechanical builds, and digital skills, along with supporting digital inclusion initiatives in regional and remote communities, including Indigenous Knowledge Centres. He also develops the systems and platforms that support these programs, from online communities to custom learning environments.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <div class="flex flex-col gap-5 sm:flex-row sm:items-start">
+                    <div class="flex-shrink-0">
+                        <div class="h-28 w-28 overflow-hidden rounded-full border border-gray-200 bg-gray-100">
+                            <img src="{{ asset('profile-alex.png') }}" alt="Alex Rivera" class="h-full w-full object-cover" />
+                        </div>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Team member</div>
+                        <h2 class="mt-2 text-2xl font-semibold text-gray-900">Alex Rivera</h2>
+                        <p class="mt-4 text-sm leading-7 text-gray-600">Alex brings experience delivering hands-on STEM workshops across school and community settings, with a focus on practical, engaging learning for young people. Their work includes supporting programs in creative technology, digital media, and build-based projects, helping participants turn ideas into working outcomes. Alex has also worked alongside community coordinators to assist with program delivery and participant support, particularly in regional settings. They have a strong interest in creating inclusive, approachable learning environments and contribute to the ongoing development of workshop content and resources.</p>
+                    </div>
+                </div>
             </div>
         </section>
     </x-container>

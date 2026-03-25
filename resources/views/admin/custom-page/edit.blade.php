@@ -66,7 +66,7 @@
 
             <div class="flex justify-end gap-4 mt-8">
                 @if($editing)
-                    <x-ui.button type="link" color="outline" href="{{ url($page->path) }}" target="_blank">View Page</x-ui.button>
+                    <x-ui.button color="outline" href="{{ url($page->path) }}" target="_blank">View Page</x-ui.button>
                     <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete page?', 'Are you sure you want to delete this page? This action cannot be undone', '{{ route('admin.custom-page.destroy', $page) }}')">Delete</x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>

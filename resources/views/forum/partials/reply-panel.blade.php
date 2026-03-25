@@ -11,6 +11,6 @@
 @else
     <div class="mt-8 flex flex-wrap items-center gap-3">
         <span class="text-sm text-gray-500">Log in to reply to this thread.</span>
-        <x-ui.button type="link" color="outline" href="{{ route('login') }}">Log In</x-ui.button>
+        <x-ui.button color="outline" href="{{ route('login') }}">Log In</x-ui.button>
     </div>
 @endauth

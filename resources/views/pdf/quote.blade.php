@@ -6,9 +6,6 @@
     <title>Quote {{ $quote->quote_number }}</title>
     <style>
         @include('pdf.partials.styling')
-        .items.items-last {
-            margin-bottom: 8px;
-        }
     </style>
 </head>
 
@@ -16,16 +13,9 @@
     @php
     $pages = isset($itemPages) && is_array($itemPages) && count($itemPages) > 0 ? $itemPages : [is_array($quote->line_items) ? $quote->line_items : []];
     $customer = $quote->user;
-    $inlineLogoSvg = inlineSvgAsset('logo.svg', 'logo');
-    $logoPath = '';
-    if ($inlineLogoSvg === '') {
     $logoPath = public_path('invoice-logo.png');
     if (!file_exists($logoPath)) {
-    $logoPath = public_path('logo.png');
-    }
-    if (!file_exists($logoPath)) {
     $logoPath = public_path('apple-touch-icon.png');
-    }
     }
     $quoteDate = $quote->quote_date?->format('M d, Y') ?? '-';
     $purchaseOrder = trim((string) ($quote->purchase_order_number ?? ''));
@@ -93,9 +83,7 @@
         <table class="header">
             <tr>
                 <td class="logo-wrap">
-                    @if($inlineLogoSvg !== '')
-                    {!! $inlineLogoSvg !!}
-                    @elseif(file_exists($logoPath))
+                    @if(file_exists($logoPath))
                     <img class="logo" src="{{ $logoPath }}" alt="Logo" />
                     @endif
                 </td>

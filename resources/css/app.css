@@ -645,8 +645,9 @@ body.image-resize-active {
     }
 
     /* Color swatches */
-    .color {
-        white-space: nowrap;
+.color {
+    --color: currentColor;
+    white-space: nowrap;
 
         &::before {
             background-color: var(--color);
@@ -828,6 +829,7 @@ body.image-resize-active {
 }
 
 .forum-category-card--custom .forum-category-card__icon {
+    --forum-category-card-color: #475569;
     background: var(--forum-category-card-color, #475569);
 }
 
@@ -938,6 +940,11 @@ body.image-resize-active {
     color: white;
     font-weight: 700;
     flex: 0 0 auto;
+}
+
+.forum-discussion-title del {
+    color: var(--color-gray-300);
+    text-decoration-color: var(--color-gray-400)
 }
 
 @media (max-width: 767px) {
@@ -1135,7 +1142,7 @@ body.image-resize-active {
 }
 
 .sm-banner-cancelled {
-    @apply bg-purple-600 text-xs;
+    @apply bg-red-600 text-xs;
 }
 
 .sm-banner-soon {
@@ -1150,7 +1157,7 @@ body.image-resize-active {
     @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-yellow-400 text-yellow-800 bg-yellow-100;
 }
 
-.sm-registration-closed {
+.sm-registration-closed, .sm-registration-cancelled {
     @apply text-xs rounded py-2 px-2.5 text-center mb-4 border border-red-400 text-red-800 bg-red-100;
 }
 

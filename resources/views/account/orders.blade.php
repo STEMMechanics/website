@@ -42,9 +42,6 @@
                                 (bool) $order->contains_digital => 'Digital order',
                                 default => 'Store order',
                             };
-                            $shipmentLabel = $order->usesPickup()
-                                ? ($order->hasMultipleShipments() ? 'Multiple collections' : 'Single collection')
-                                : ($order->hasMultipleShipments() ? 'Multiple deliveries' : 'Single delivery');
                             $statusLabel = $order->statusLabel();
                             $canPay = $invoice !== null && (string) $order->status === \App\Models\StoreOrder::STATUS_PENDING_PAYMENT;
                         @endphp
@@ -64,7 +61,6 @@
                                         - Invoice {{ $invoiceNumber }}
                                     @endif
                                 </div>
-                                <div class="text-xs text-gray-600 mt-1">{{ $shipmentLabel }}</div>
                                 <div class="lg:hidden text-xs text-gray-600 mt-1">Placed: {{ $order->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </td>
                             <td class="hidden md:table-cell">

@@ -64,7 +64,7 @@
                 </div>
 
                 <div class="flex flex-wrap gap-3 justify-between">
-                    <x-ui.button type="link" color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
+                    <x-ui.button color="outline" href="{{ $backUrl }}">Back to Order</x-ui.button>
                     <x-ui.button type="submit">Unlock Download</x-ui.button>
                 </div>
             </form>

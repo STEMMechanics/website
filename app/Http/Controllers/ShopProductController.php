@@ -136,11 +136,9 @@ class ShopProductController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($product->id)],
             'category' => ['nullable', 'string', 'max:120'],
-            'sku' => ['nullable', 'string', 'max:120', Rule::unique('products', 'sku')->ignore($product->id)],
+            'sku' => ['required', 'string', 'max:120'],
             'status' => ['required', Rule::in(Product::STATUSES)],
             'product_type' => ['required', Rule::in(Product::PRODUCT_TYPES)],
-            'is_preorder' => ['nullable', 'boolean'],
-            'preorder_shipping_estimate' => ['nullable', 'date'],
             'allow_backorder' => ['nullable', 'boolean'],
             'backorder_shipping_estimate' => ['nullable', 'date'],
             'short_description' => ['nullable', 'string', 'max:500'],
@@ -168,32 +166,17 @@ class ShopProductController extends Controller
             'variants.*.sku' => ['nullable', 'string', 'max:120'],
             'variants.*.price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
-            'variants.*.shipping_units' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
-            'variants.*.weight_grams' => ['nullable', 'integer', 'min:0'],
-            'variants.*.is_preorder' => ['nullable', 'boolean'],
-            'variants.*.preorder_shipping_estimate' => ['nullable', 'date'],
             'variants.*.allow_backorder' => ['nullable', 'boolean'],
             'variants.*.backorder_shipping_estimate' => ['nullable', 'date'],
             'variants.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['nullable', 'boolean'],
+        ], [
+            'sku.required' => 'The Base SKU field is required.',
         ]);
 
         $isDigital = (string) $validated['product_type'] === Product::PRODUCT_TYPE_DIGITAL;
-        $isPreorder = ! $isDigital && $request->boolean('is_preorder');
         $allowsBackorder = ! $isDigital && $request->boolean('allow_backorder');
-
-        if ($isPreorder && $allowsBackorder) {
-            throw ValidationException::withMessages([
-                'allow_backorder' => 'A product can be either pre-order or backorder-enabled, not both.',
-            ]);
-        }
-
-        if ($isPreorder && ($validated['preorder_shipping_estimate'] ?? null) === null) {
-            throw ValidationException::withMessages([
-                'preorder_shipping_estimate' => 'An estimated shipping date is required for pre-order products.',
-            ]);
-        }
 
         if ($allowsBackorder && ($validated['backorder_shipping_estimate'] ?? null) === null) {
             throw ValidationException::withMessages([
@@ -201,7 +184,35 @@ class ShopProductController extends Controller
             ]);
         }
 
+        $productSku = trim((string) ($validated['sku'] ?? ''));
+        if ($productSku === '') {
+            throw ValidationException::withMessages([
+                'sku' => 'The Base SKU field is required.',
+            ]);
+        }
+
+        $productSkuKey = mb_strtolower($productSku);
+        $productSkuExists = Product::query()
+            ->when($product->exists, fn ($query) => $query->where('id', '!=', $product->id))
+            ->whereRaw('LOWER(sku) = ?', [$productSkuKey])
+            ->exists();
+        if ($productSkuExists) {
+            throw ValidationException::withMessages([
+                'sku' => 'That SKU is already in use by another product.',
+            ]);
+        }
+
+        $variantSkuExists = ProductVariant::query()
+            ->whereRaw('LOWER(sku) = ?', [$productSkuKey])
+            ->exists();
+        if ($variantSkuExists) {
+            throw ValidationException::withMessages([
+                'sku' => 'That SKU is already in use by a product variant.',
+            ]);
+        }
+
         $normalizedVariants = $this->normalizeVariants($validated['variants'] ?? [], $product);
+        $isFeatured = (string) $validated['status'] === Product::STATUS_ACTIVE && $request->boolean('is_featured');
         $product->fill([
             'title' => trim((string) $validated['title']),
             'slug' => trim((string) ($validated['slug'] ?? '')) ?: null,
@@ -209,8 +220,8 @@ class ShopProductController extends Controller
             'sku' => trim((string) ($validated['sku'] ?? '')) ?: null,
             'status' => (string) $validated['status'],
             'product_type' => (string) $validated['product_type'],
-            'is_preorder' => $isPreorder,
-            'preorder_shipping_estimate' => $isPreorder ? $validated['preorder_shipping_estimate'] : null,
+            'is_preorder' => false,
+            'preorder_shipping_estimate' => null,
             'allow_backorder' => $allowsBackorder,
             'backorder_shipping_estimate' => $allowsBackorder ? $validated['backorder_shipping_estimate'] : null,
             'short_description' => trim((string) ($validated['short_description'] ?? '')) ?: null,
@@ -231,7 +242,7 @@ class ShopProductController extends Controller
             'length_cm' => null,
             'width_cm' => null,
             'height_cm' => null,
-            'is_featured' => $request->boolean('is_featured'),
+            'is_featured' => $isFeatured,
             'sort_order' => (int) ($validated['sort_order'] ?? 0),
             'low_stock_threshold' => $isDigital ? null : ($validated['low_stock_threshold'] ?? 5),
         ]);
@@ -274,11 +285,7 @@ class ShopProductController extends Controller
                     'sku' => trim((string) ($variant['sku'] ?? '')),
                     'price' => ($variant['price'] ?? '') !== '' ? round((float) $variant['price'], 2) : null,
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
-                    'shipping_units' => ($variant['shipping_units'] ?? '') !== '' ? round((float) $variant['shipping_units'], 2) : null,
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
-                    'weight_grams' => ($variant['weight_grams'] ?? '') !== '' ? (int) $variant['weight_grams'] : null,
-                    'is_preorder' => filter_var($variant['is_preorder'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
-                    'preorder_shipping_estimate' => ($variant['preorder_shipping_estimate'] ?? '') !== '' ? (string) $variant['preorder_shipping_estimate'] : null,
                     'allow_backorder' => filter_var($variant['allow_backorder'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                     'backorder_shipping_estimate' => ($variant['backorder_shipping_estimate'] ?? '') !== '' ? (string) $variant['backorder_shipping_estimate'] : null,
                     'sort_order' => (int) ($variant['sort_order'] ?? $index),
@@ -291,11 +298,7 @@ class ShopProductController extends Controller
                     || $variant['sku'] !== ''
                     || $variant['price'] !== null
                     || $variant['compare_at_price'] !== null
-                    || $variant['shipping_units'] !== null
                     || $variant['inventory_quantity'] !== null
-                    || $variant['weight_grams'] !== null
-                    || $variant['is_preorder']
-                    || $variant['preorder_shipping_estimate'] !== null
                     || $variant['allow_backorder']
                     || $variant['backorder_shipping_estimate'] !== null;
             })
@@ -318,14 +321,6 @@ class ShopProductController extends Controller
                 $errors[$path.'.id'][] = 'Invalid variant selection.';
             }
 
-            if ($variant['is_preorder'] && $variant['allow_backorder']) {
-                $errors[$path.'.allow_backorder'][] = 'A variant can be either pre-order or backorder-enabled, not both.';
-            }
-
-            if ($variant['is_preorder'] && $variant['preorder_shipping_estimate'] === null) {
-                $errors[$path.'.preorder_shipping_estimate'][] = 'An estimated shipping date is required for pre-order variants.';
-            }
-
             if ($variant['allow_backorder'] && $variant['backorder_shipping_estimate'] === null) {
                 $errors[$path.'.backorder_shipping_estimate'][] = 'An estimated shipping date is required for backorder-enabled variants.';
             }
@@ -336,6 +331,13 @@ class ShopProductController extends Controller
                     $errors[$path.'.sku'][] = 'Variant SKUs must be unique within the product.';
                 }
                 $seenSkus[] = $normalizedSku;
+
+                $productSkuExists = Product::query()
+                    ->where('sku', $variant['sku'])
+                    ->exists();
+                if ($productSkuExists) {
+                    $errors[$path.'.sku'][] = 'That variant SKU is already in use by a product.';
+                }
 
                 $skuExists = ProductVariant::query()
                     ->when($variant['id'] !== null, fn ($query) => $query->where('id', '!=', $variant['id']))
@@ -372,16 +374,14 @@ class ShopProductController extends Controller
             $variant->name = $variantData['name'];
             $variant->description = $variantData['description'] !== '' ? $variantData['description'] : null;
             $variant->sku = $variantData['sku'] !== '' ? $variantData['sku'] : null;
-            $variant->price = $variantData['price'];
-            $variant->compare_at_price = $variantData['compare_at_price'];
+            $variant->price = $isDigital ? $variantData['price'] : null;
+            $variant->compare_at_price = $isDigital ? $variantData['compare_at_price'] : null;
             $variant->shipping_rate = null;
-            $variant->shipping_units = $isDigital ? null : $variantData['shipping_units'];
+            $variant->shipping_units = null;
             $variant->inventory_quantity = $isDigital ? null : $variantData['inventory_quantity'];
-            $variant->weight_grams = $isDigital ? null : $variantData['weight_grams'];
-            $variant->is_preorder = $isDigital ? false : (bool) $variantData['is_preorder'];
-            $variant->preorder_shipping_estimate = ! $isDigital && $variantData['is_preorder']
-                ? $variantData['preorder_shipping_estimate']
-                : null;
+            $variant->weight_grams = null;
+            $variant->is_preorder = false;
+            $variant->preorder_shipping_estimate = null;
             $variant->allow_backorder = $isDigital ? false : (bool) $variantData['allow_backorder'];
             $variant->backorder_shipping_estimate = ! $isDigital && $variantData['allow_backorder']
                 ? $variantData['backorder_shipping_estimate']

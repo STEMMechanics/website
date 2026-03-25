@@ -32,6 +32,8 @@
 - Added child accounts
 - Added ability to create/reserve tickets under admin
 - Fix Cannot drop index 'invoices_quote_id_unique' migration error
+- Improvements in login flow for child accounts
+- Improvements in manually creating tickets
 
 ## 1.3.14
 

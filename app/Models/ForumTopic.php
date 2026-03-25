@@ -127,9 +127,9 @@ class ForumTopic extends Model
         return $user->isAdmin() || (string) $this->user_id === (string) $user->id;
     }
 
-    public function formattedTitle(): HtmlString
+    public function formattedTitle(bool $allowStrikethrough = true): HtmlString
     {
-        return new HtmlString(ForumContent::renderTitleMarkdown((string) $this->title));
+        return new HtmlString(ForumContent::renderTitleMarkdown((string) $this->title, $allowStrikethrough));
     }
 
     public function plainTitle(): string

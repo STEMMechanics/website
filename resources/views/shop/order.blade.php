@@ -1,5 +1,6 @@
 <x-layout title="Order {{ $order->order_number }}">
     @php
+        $isQuoteRequested = (string) $order->status === \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED;
         $hasDelayedItems = $order->items->contains(fn ($item) => $item->remainingDelayedQuantity() > 0);
         $isDigitalOnly = (bool) $order->contains_digital && ! (bool) $order->contains_physical;
         $showDownloads = $downloadableItems->isNotEmpty() && $isPaid;
@@ -13,10 +14,20 @@
         $emailDocumentsActionUrl = trim((string) ($emailDocumentsActionUrl ?? ''));
         $hasDocumentLinks = trim((string) ($invoicePdfUrl ?? '')) !== '' || $documentLinks !== [];
         $showDocumentsCard = $hasDocumentLinks || $emailDocumentsActionUrl !== '';
+        $orderItems = collect($orderItems ?? $order->items)->values();
         $awaitingSectionTitle = $order->usesPickup() ? 'Awaiting collection' : 'Awaiting shipping';
         $deliveryGroupsTitle = $order->usesPickup() ? 'Recorded collections' : 'Recorded deliveries';
-        $deliveryDetailsTitle = $order->usesPickup() ? 'Collection details' : 'Shipping details';
-        $showPaymentPanel = ! $isDigitalOnly && ! $isPaid && (string) $order->status !== \App\Models\StoreOrder::STATUS_CANCELLED;
+        $deliveryDetailsTitle = $isQuoteRequested
+            ? 'Shipping details'
+            : ($order->usesPickup() ? 'Collection details' : 'Shipping details');
+        $deliveryLabel = $isQuoteRequested
+            ? 'To be quoted'
+            : ($order->contains_physical ? ($order->shipping_method ?: 'Shipping') : 'Digital order');
+        $showPaymentPanel = ! $isDigitalOnly
+            && ! $isPaid
+            && $order->invoice instanceof \App\Models\Invoice
+            && (string) $order->status !== \App\Models\StoreOrder::STATUS_CANCELLED
+            && ! $isQuoteRequested;
     @endphp
     <x-mast :backRoute="$isAccountView ? 'account.order.index' : 'shop.index'" :backTitle="$isAccountView ? 'My Orders' : 'Store'">
         Order {{ $order->order_number }}
@@ -35,6 +46,10 @@
                             @if((string) $order->status === \App\Models\StoreOrder::STATUS_CANCELLED)
                                 <span class="rounded-full bg-rose-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-rose-800">
                                     Cancelled
+                                </span>
+                            @elseif($isQuoteRequested)
+                                <span class="rounded-full bg-sky-100 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-sky-800">
+                                    Quote requested
                                 </span>
                             @else
                                 <span class="rounded-full {{ $isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em]">
@@ -59,16 +74,12 @@
                         </div>
                         <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Delivery</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $order->contains_physical ? ($order->shipping_method ?: 'Shipping') : 'Digital order' }}</div>
-                        </div>
-                        <div class="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Outstanding</div>
-                            <div class="mt-1 text-sm font-semibold text-gray-900">${{ number_format((float) ($order->invoice?->outstandingAmount() ?? 0), 2) }}</div>
+                            <div class="mt-1 text-sm font-semibold text-gray-900">{{ $deliveryLabel }}</div>
                         </div>
                     </div>
 
                     @if(!$isDigitalOnly)
-                    <div class="flex gap-4 mt-4">
+                    <div class="grid gap-4 mt-4 md:grid-cols-2">
                         <div class="flex-1 rounded-2xl border border-gray-200 bg-gray-50/80 px-4 py-4">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">{{ $deliveryDetailsTitle }}</div>
                             @if($canViewAddressDetails)
@@ -100,7 +111,7 @@
                                         </div>
                                         <div class="flex items-center justify-between gap-4">
                                             <span>Shipping</span>
-                                            <span>${{ number_format((float) $order->shipping_amount, 2) }}</span>
+                                            <span>{{ $isQuoteRequested ? '--' : '$'.number_format((float) $order->shipping_amount, 2) }}</span>
                                         </div>
                                         @if((float) $order->discount_amount > 0)
                                             <div class="flex items-center justify-between gap-4 text-emerald-700">
@@ -115,7 +126,11 @@
                                     </div>
                                     <div class="mt-2 flex items-center justify-between gap-4">
                                         <span class="text-lg font-bold text-gray-900">Total</span>
-                                        <span class="text-2xl font-bold text-gray-900">${{ number_format((float) $order->total_amount, 2) }}</span>
+                                        <span class="text-2xl font-bold text-gray-900">{{ $isQuoteRequested ? '--' : '$'.number_format((float) $order->total_amount, 2) }}</span>
+                                    </div>
+                                    <div class="mt-3 flex items-center justify-between gap-4 border-t border-gray-200 pt-3">
+                                        <span class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Outstanding</span>
+                                        <span class="text-sm font-semibold text-gray-900">{{ $isQuoteRequested ? '--' : '$'.number_format((float) ($order->invoice?->outstandingAmount() ?? 0), 2) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -267,7 +282,7 @@
                         </div>
                     </div>
                     <div class="space-y-4">
-                        @foreach($order->items as $item)
+                        @foreach($orderItems as $index => $item)
                             @php
                                 $cancelledTotal = $item->cancelledQuantity();
                                 $refundLinks = $cancelledTotal > 0
@@ -276,18 +291,26 @@
                                         ->values()
                                     : collect();
                             @endphp
-                            <div class="ml-2">
-                                <div class="flex items-start justify-between gap-4 border-gray-200">
-                                    <div>
-                                        <div class="text-gray-900">{{ $item->displayTitle() }}</div>
-                                        @if($item->downloads->isEmpty())
-                                            <div class="text-xs text-gray-500">Qty {{ $item->quantity }}</div>
+                            <div class="rounded-2xl border border-gray-200 bg-gray-50/70 px-4 py-4">
+                                <div class="flex items-start gap-4">
+                                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-lg font-bold text-sky-800 shadow-sm">
+                                        {{ $index + 1 }}
+                                    </div>
+                                    @php
+                                        $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
+                                    @endphp
+                                    <div class="min-w-0 flex-1">
+                                        <div class="font-semibold text-gray-900">{{ $item->displayTitle() }}</div>
+                                        @if($itemSku !== '')
+                                            <div class="mt-1 text-xs text-gray-500">SKU {{ $itemSku }}</div>
                                         @endif
-                                        @if($item->variant_sku || $item->product_sku)
-                                            <div class="mt-1 text-sm text-gray-500">SKU {{ $item->variant_sku ?: $item->product_sku }}</div>
+                                        @if($item->downloads->isEmpty())
+                                            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                                                Qty {{ $item->quantity }}
+                                            </div>
                                         @endif
                                         @if($item->downloads->isNotEmpty() && ! $isDigitalOnly)
-                                            <div class="mt-2">
+                                            <div class="mt-3">
 {{--                                                <div class="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Downloads</div>--}}
                                                 @if($isPaid)
                                                     <ul class="ml-4">
@@ -395,11 +418,19 @@
                                         <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
                                             {{ $order->usesPickup() ? 'Items in this collection' : 'Items in this delivery' }}
                                         </div>
-                                        <ul class="mt-1 space-y-2 list-disc ml-4">
+                                        <ul class="mt-1 space-y-2">
                                             @foreach(($deliveryGroup['items'] ?? []) as $deliveryItem)
-                                                <li class="text-sm text-gray-800">
-                                                    <span>{{ $deliveryItem['title'] ?? 'Item' }}</span>
-                                                    <span class="font-semibold ml-2">x {{ (int) ($deliveryItem['quantity'] ?? 0) }}</span>
+                                                <li class="flex items-center gap-3 text-sm text-gray-800">
+                                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-bold text-emerald-900">
+                                                        {{ (int) ($deliveryItem['number'] ?? 0) }}
+                                                    </div>
+                                                    <div class="min-w-0 flex-1">
+                                                        @php
+                                                            $itemSku = $deliveryItem['sku'] ?? '';
+                                                        @endphp
+                                                        <div class="font-medium text-gray-900">{{ $deliveryItem['title'] ?? 'Item' }}  <span class="ml-2 font-normal text-xs text-gray-500">{{ $itemSku !== '' ? '['.$itemSku.']' : '' }}</span></div>
+                                                    </div>
+                                                    <span class="font-semibold whitespace-nowrap">x {{ (int) ($deliveryItem['quantity'] ?? 0) }}</span>
                                                 </li>
                                             @endforeach
                                         </ul>
@@ -410,7 +441,7 @@
                     </section>
                 @endif
 
-                @if($order->contains_physical && $awaitingFulfilmentItems->isNotEmpty())
+                @if($order->contains_physical && ! $isQuoteRequested && $awaitingFulfilmentItems->isNotEmpty())
                     <section class="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
                         <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
                             <div>
@@ -429,14 +460,17 @@
                         <div class="space-y-3">
                             @foreach($awaitingFulfilmentItems as $awaitingItem)
                                 <div class="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-4">
-                                    <div>
-                                        <div>
-                                            <div class="font-semibold text-gray-900">{{ $awaitingItem['title'] }}</div>
+                                    <div class="flex items-start gap-4">
+                                        <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-amber-300 bg-white text-lg font-bold text-amber-900 shadow-sm">
+                                            {{ (int) ($awaitingItem['number'] ?? 0) }}
+                                        </div>
+                                        <div class="min-w-0 flex-1">
+                                            @php
+                                            $itemSku = $awaitingItem['sku'] ?? '';
+                                            @endphp
+                                            <div class="font-semibold text-gray-900">{{ $awaitingItem['title'] }} <span class="ml-2 font-normal text-xs text-gray-500">{{ $itemSku !== '' ? '['.$itemSku.']' : '' }}</span></div>
                                             @if(trim((string) ($awaitingItem['detail'] ?? '')) !== '')
                                                 <div class="mt-1 text-sm text-amber-900">{{ $awaitingItem['detail'] }}</div>
-                                            @endif
-                                            @if(trim((string) ($awaitingItem['sku'] ?? '')) !== '')
-                                                <div class="mt-2 text-xs uppercase tracking-[0.14em] text-gray-500">SKU {{ $awaitingItem['sku'] }}</div>
                                             @endif
                                         </div>
                                     </div>
@@ -504,14 +538,14 @@
                             <div x-init="initSquareCard()">
                                 <div class="mb-2 flex items-center justify-between">
                                     <label class="block text-sm">Card Details</label>
-                                    <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-xs text-blue-700">
+                                    <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
                                         Secure payment by Square
                                     </a>
                                 </div>
                                 <div class="relative">
-                                    <div x-ref="squareCardContainer" class="min-h-[88px] bg-white transition" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
+                                    <div x-ref="squareCardContainer" class="min-h-22 bg-white transition" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                                     <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
-                                        <img src="/loading.gif" alt="Loading card form" width="56" height="56" />
+                                        <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
                                     </div>
                                 </div>
                                 <input type="hidden" name="source_id" x-model="sourceId" x-ref="sourceIdInput">
@@ -599,17 +633,16 @@
                     return;
                 }
 
-                try {
-                    const result = await this.squareCard.tokenize();
-                    if (result.status !== 'OK') {
-                        throw new Error(result.errors?.[0]?.message || 'Unable to tokenize card.');
-                    }
-                    this.sourceId = result.token;
-                    event.target.submit();
-                } catch (e) {
-                    this.errorMessage = e?.message || 'Unable to process card details.';
+                const result = await this.squareCard.tokenize();
+
+                if (result.status !== 'OK') {
+                    this.errorMessage = result.errors?.[0]?.message || 'Unable to tokenize card.';
                     this.isSubmitting = false;
+                    return;
                 }
+
+                this.sourceId = result.token;
+                event.target.submit();
             },
 
             async waitForSquareSdk() {

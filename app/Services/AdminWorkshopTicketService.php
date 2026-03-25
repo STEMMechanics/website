@@ -75,24 +75,26 @@ class AdminWorkshopTicketService
 
         $this->workshopRegistrationGroups->assignForTickets(
             [$result['ticket']],
-            $linkedUserId !== '' ? $linkedUserId : null
+            $linkedUserId
         );
         $this->workshopTicketService->syncManagedTicketStatus($workshop);
 
         return $result;
     }
 
-    private function resolveLinkedUserId(string $email): string
+    private function resolveLinkedUserId(string $email): ?string
     {
         $normalizedEmail = strtolower(trim($email));
         if ($normalizedEmail === '') {
-            return '';
+            return null;
         }
 
-        return (string) (User::query()
+        $userId = User::query()
             ->whereRaw('LOWER(email) = ?', [$normalizedEmail])
             ->whereNull('anonymized_at')
-            ->value('id') ?? '');
+            ->value('id');
+
+        return $userId !== null ? (string) $userId : null;
     }
 
     /**
@@ -103,7 +105,7 @@ class AdminWorkshopTicketService
         Ticket $ticket,
         float $ticketPriceAmount,
         array $attendee,
-        string $linkedUserId
+        ?string $linkedUserId
     ): Invoice {
         $ticketPriceAmount = round($ticketPriceAmount, 2);
         $lineTotalEx = round($ticketPriceAmount / 1.1, 2);
@@ -112,7 +114,7 @@ class AdminWorkshopTicketService
 
         $invoice = new Invoice();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
-        $invoice->user_id = $linkedUserId !== '' ? $linkedUserId : null;
+        $invoice->user_id = $linkedUserId;
         $invoice->billing_name = trim((string) (($attendee['firstname'] ?? '').' '.($attendee['surname'] ?? '')));
         $invoice->billing_email = strtolower(trim((string) ($attendee['email'] ?? '')));
         $invoice->billing_phone = trim((string) ($attendee['phone'] ?? ''));

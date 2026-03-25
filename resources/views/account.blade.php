@@ -14,12 +14,6 @@ $keepSignedInDeviceOld = old('keep_signed_in_device');
 $keepSignedInDeviceChecked = $keepSignedInDeviceOld !== null
     ? in_array((string) $keepSignedInDeviceOld, ['1', 'on', 'true'], true)
     : ($currentRememberedTokenId !== '');
-$avatarPreviewUrl = old('avatar_media_name', $user->avatar_media_name)
-    ? ($user->avatarMedia?->thumbnail ?? '')
-    : '';
-$avatarZoom = (int) old('avatar_zoom', $user->avatar_zoom ?? 100);
-$avatarOffsetX = (int) old('avatar_offset_x', $user->avatar_offset_x ?? 0);
-$avatarOffsetY = (int) old('avatar_offset_y', $user->avatar_offset_y ?? 0);
 $discussionNotificationCount = (int) ($discussionNotificationCount ?? 0);
 $childAccounts = collect($childAccounts ?? []);
 @endphp
@@ -33,108 +27,7 @@ $childAccounts = collect($childAccounts ?? []);
             action="{{ route('account.update') }}"
             id="account-settings-form"
             class="my-8"
-            x-data="{
-                avatarMediaName: @js((string) old('avatar_media_name', $user->avatar_media_name ?? '')),
-                avatarPreviewUrl: @js($avatarPreviewUrl),
-                avatarMediaLabel: '',
-                avatarMediaSize: '',
-                avatarZoom: {{ max(100, min(250, $avatarZoom)) }},
-                avatarOffsetX: {{ max(-50, min(50, $avatarOffsetX)) }},
-                avatarOffsetY: {{ max(-50, min(50, $avatarOffsetY)) }},
-                avatarDragging: false,
-                avatarDragStartX: 0,
-                avatarDragStartY: 0,
-                avatarDragOriginX: 0,
-                avatarDragOriginY: 0,
-                avatarDragFrameWidth: 1,
-                avatarDragFrameHeight: 1,
-                init() {
-                    const loadAvatarDetails = (mediaName) => {
-                        if (!mediaName || !window.SM?.mediaDetails) {
-                            if (!mediaName) {
-                                this.avatarPreviewUrl = '';
-                                this.avatarMediaLabel = '';
-                                this.avatarMediaSize = '';
-                            }
-                            return;
-                        }
-
-                        window.SM.mediaDetails(mediaName, (details) => {
-                            this.avatarPreviewUrl = String(details?.thumbnail || '');
-                            this.avatarMediaLabel = String(details?.name || '');
-                            this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
-                        });
-                    };
-
-                    loadAvatarDetails(this.avatarMediaName);
-                    window.addEventListener('pointermove', (event) => this.handleAvatarDrag(event));
-                    window.addEventListener('pointerup', () => this.endAvatarDrag());
-                    window.addEventListener('pointercancel', () => this.endAvatarDrag());
-                },
-                avatarStyle() {
-                    return `transform: translate(${this.avatarOffsetX}%, ${this.avatarOffsetY}%) scale(${(this.avatarZoom / 100).toFixed(2)}); transform-origin: center center;`;
-                },
-                openAvatarPicker() {
-                    window.SMMediaPicker.open(this.avatarMediaName || '', {
-                        require_mime_type: 'image/*',
-                        allow_multiple: false,
-                        allow_uploads: true,
-                        allow_camera: true,
-                    }, (value) => this.setAvatarMedia(value));
-                },
-                setAvatarMedia(value) {
-                    this.avatarMediaName = String(value || '');
-
-                    if (this.avatarMediaName === '') {
-                        this.avatarPreviewUrl = '';
-                        this.avatarMediaLabel = '';
-                        this.avatarMediaSize = '';
-                        this.avatarZoom = 100;
-                        this.avatarOffsetX = 0;
-                        this.avatarOffsetY = 0;
-                        return;
-                    }
-
-                    window.SM.mediaDetails(this.avatarMediaName, (details) => {
-                        this.avatarPreviewUrl = String(details?.thumbnail || '');
-                        this.avatarMediaLabel = String(details?.name || '');
-                        this.avatarMediaSize = window.SM?.bytesToString ? window.SM.bytesToString(details?.size || 0) : '';
-                        this.avatarZoom = 100;
-                        this.avatarOffsetX = 0;
-                        this.avatarOffsetY = 0;
-                    });
-                },
-                startAvatarDrag(event) {
-                    if (!this.avatarPreviewUrl) {
-                        return;
-                    }
-
-                    const point = event.touches?.[0] || event;
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    this.avatarDragging = true;
-                    this.avatarDragStartX = point.clientX;
-                    this.avatarDragStartY = point.clientY;
-                    this.avatarDragOriginX = this.avatarOffsetX;
-                    this.avatarDragOriginY = this.avatarOffsetY;
-                    this.avatarDragFrameWidth = rect.width || 1;
-                    this.avatarDragFrameHeight = rect.height || 1;
-                },
-                handleAvatarDrag(event) {
-                    if (!this.avatarDragging) {
-                        return;
-                    }
-
-                    const point = event.touches?.[0] || event;
-                    const zoomScale = this.avatarZoom / 100;
-                    const deltaX = ((point.clientX - this.avatarDragStartX) / this.avatarDragFrameWidth) * 100 / zoomScale;
-                    const deltaY = ((point.clientY - this.avatarDragStartY) / this.avatarDragFrameHeight) * 100 / zoomScale;
-                    this.avatarOffsetX = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginX + deltaX)));
-                    this.avatarOffsetY = Math.max(-50, Math.min(50, Math.round(this.avatarDragOriginY + deltaY)));
-                },
-                endAvatarDrag() {
-                    this.avatarDragging = false;
-                },
-            }"
+            x-data
             x-on:submit.prevent="SM.updateShippingAddress(); $el.submit()"
         >
             @csrf
@@ -159,6 +52,16 @@ $childAccounts = collect($childAccounts ?? []);
                             <x-ui.input label="Phone" name="phone" value="{{ $user->phone }}" />
                             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
                         </div>
+                        @if($groupSlugs !== [])
+                            <div class="mt-2 border-t border-gray-100 pt-4">
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Your groups</div>
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    @foreach($groupSlugs as $groupSlug)
+                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
                     </section>
 
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
@@ -167,8 +70,8 @@ $childAccounts = collect($childAccounts ?? []);
                             <p class="mt-1 text-sm text-gray-600">Keep your billing and shipping details current for orders and invoices.</p>
                         </div>
 
-                        <div class="mt-6 grid gap-6 xl:grid-cols-2">
-                            <div class="rounded-2xl bg-gray-50 p-4">
+                        <div class="mt-6 grid gap-6 grid-cols-2">
+                            <div class="rounded-2xl bg-gray-50 p-4 flex flex-col justify-between">
                                 <h3 class="text-sm font-semibold text-gray-900">Billing address</h3>
                                 <div class="mt-4">
                                     <x-ui.input label="Address" name="billing_address" value="{{ $user->billing_address }}" />
@@ -213,86 +116,67 @@ $childAccounts = collect($childAccounts ?? []);
                 </div>
 
                 <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-1">
+                    @include('account.partials.avatar-card')
+
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                        <h2 class="text-lg font-semibold text-gray-900">Account Overview</h2>
-                        <div class="mt-5 space-y-4">
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                             <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Display name</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $user->getName() }}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Username</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $user->username ?: '-' }}</div>
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Email</div>
-                                <div class="mt-1 break-all text-sm text-gray-900">{{ $user->email }}</div>
-                                @if($user->email_update_pending)
-                                    <div class="mt-1 text-xs text-amber-700">Pending change to {{ $user->email_update_pending }}</div>
-                                @endif
-                            </div>
-                            <div>
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Remembered devices</div>
-                                <div class="mt-1 text-sm text-gray-900">{{ $rememberedDevices->count() }}</div>
+                                <h2 class="text-lg font-semibold text-gray-900">Email Notifications</h2>
                             </div>
                         </div>
 
-                        @if($groupSlugs !== [])
-                            <div class="mt-6 border-t border-gray-100 pt-5">
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Your groups</div>
-                                <div class="mt-3 flex flex-wrap gap-2">
-                                    @foreach($groupSlugs as $groupSlug)
-                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">{{ $groupSlug }}</span>
-                                    @endforeach
+                        <div class="mt-6 grid gap-6">
+                            <div class="rounded-2xl bg-gray-50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-900">Receive Email subscriptions</h3>
+                                <div class="mt-4">
+                                    <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
                                 </div>
                             </div>
-                        @endif
-                    </section>
 
-                    @include('account.partials.avatar-card')
+                            <div class="rounded-2xl bg-gray-50 p-4">
+                                <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    You are subscribed to
+                                    <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
+                                    {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
+                                </p>
+                                <div class="mt-4 text-center">
+                                    <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all</x-ui.button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
                 </div>
             </div>
 
             <div class="mt-6 space-y-6">
                 <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Preferences</h2>
-                            <p class="mt-1 text-sm text-gray-600">Lightweight settings that affect notifications and this device.</p>
-                        </div>
-                    </div>
-
-                    <div class="mt-6 grid gap-6 md:grid-cols-2">
-                        <div class="rounded-2xl bg-gray-50 p-4">
-                            <h3 class="text-sm font-semibold text-gray-900">Email subscriptions</h3>
-                            <p class="mt-1 text-sm text-gray-600">Choose whether to receive workshop updates and announcements.</p>
-                            <div class="mt-4">
-                                <x-ui.checkbox label="Upcoming Workshops" name="subscribed" checked="{{ $user->subscribed }}" />
-                            </div>
-                        </div>
-
-                        <div class="rounded-2xl bg-gray-50 p-4">
-                            <h3 class="text-sm font-semibold text-gray-900">Discussion notifications</h3>
-                            <p class="mt-1 text-sm text-gray-600">
-                                You are subscribed to
-                                <span class="font-semibold text-gray-900">{{ $discussionNotificationCount }}</span>
-                                {{ \Illuminate\Support\Str::plural('discussion thread', $discussionNotificationCount) }}.
-                            </p>
-                            <div class="mt-4">
-                                <x-ui.button type="submit" color="outline" form="discussion-unsubscribe-form">Unsubscribe from all discussions</x-ui.button>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    @php
+                        $totalPendingChildApprovals = (int) $childAccounts->sum(
+                            fn ($childAccount) => (int) ($childAccount->pending_topic_count ?? 0) + (int) ($childAccount->pending_reply_count ?? 0)
+                        );
+                    @endphp
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <h2 class="text-lg font-semibold text-gray-900">Child Accounts</h2>
-                            <p class="mt-1 text-sm text-gray-600">Create forum-only child logins, review pending discussion approvals, and update permissions.</p>
+                            <p class="mt-1 text-sm text-gray-600">Create child accounts for them to access discussions and online workshops, with parental controls to block or manage discussion posts.</p>
                         </div>
-                        <x-ui.button type="link" href="{{ route('account.children.create') }}">Create child account</x-ui.button>
+                        <x-ui.button href="{{ route('account.children.create') }}">Create child account</x-ui.button>
                     </div>
+
+                    @if($totalPendingChildApprovals > 0)
+                        <div id="child-accounts" class="mt-5 rounded-2xl border border-orange-200 bg-orange-50 px-4 py-4 text-sm text-orange-900">
+                            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <div class="font-semibold">Pending child approvals</div>
+                                    <div class="mt-1">{{ $totalPendingChildApprovals }} discussion {{ \Illuminate\Support\Str::plural('submission', $totalPendingChildApprovals) }} {{ $totalPendingChildApprovals === 1 ? 'is' : 'are' }} waiting for review.</div>
+                                </div>
+                                <x-ui.button href="{{ route('account.children.approvals') }}" class="px-4! py-1.5!">Open approvals queue</x-ui.button>
+                            </div>
+                        </div>
+                    @else
+                        <div id="child-accounts"></div>
+                    @endif
 
                     @if($childAccounts->isEmpty())
                         <div class="mt-5 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-sm text-gray-500">
@@ -301,19 +185,21 @@ $childAccounts = collect($childAccounts ?? []);
                     @else
                         <div class="mt-5 grid gap-4 md:grid-cols-2">
                             @foreach($childAccounts as $childAccount)
-                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                <div class="rounded-2xl border p-4 border-gray-200 bg-gray-50">
                                     <div class="flex items-start justify-between gap-3">
                                         <div>
-                                            <div class="text-sm font-semibold text-gray-900">{{ $childAccount->username }}</div>
-                                            <div class="mt-1 text-xs text-gray-500">Forum-only child account</div>
+                                            <div class="flex flex-wrap items-center gap-2">
+                                                <div class="text-sm font-semibold text-gray-900">{{ $childAccount->username }}</div>
+                                            </div>
                                         </div>
-                                        <x-ui.button type="link" color="outline" href="{{ route('account.children.edit', $childAccount) }}" class="!px-4 !py-1.5">Manage</x-ui.button>
+                                        <x-ui.button
+                                            href="{{ route('account.children.edit', $childAccount) }}"
+                                            class="text-xs"
+                                        >Manage</x-ui.button>
                                     </div>
-                                    <div class="mt-4 grid gap-2 text-sm text-gray-600 sm:grid-cols-2">
-                                        <div>Threads: {{ $childAccount->child_can_create_forum_topics ? 'Allowed' : 'Disabled' }}</div>
-                                        <div>Replies: {{ $childAccount->child_can_reply_in_forum ? 'Allowed' : 'Disabled' }}</div>
-                                        <div>Pending threads: {{ (int) ($childAccount->pending_topic_count ?? 0) }}</div>
-                                        <div>Pending replies: {{ (int) ($childAccount->pending_reply_count ?? 0) }}</div>
+                                    <div class="mt-4 grid gap-2 text-sm text-gray-600">
+                                        <div><span class="font-semibold">Can create new threads</span>: {{ $childAccount->child_can_create_forum_topics ? ($childAccount->child_forum_topic_requires_approval ? 'Approval required' : 'Yes') : 'No' }} {!! ($count = (int) ($childAccount->pending_topic_count ?? 0)) > 0 ? '  - <a href="'.route('account.children.approvals').'#child-'.$childAccount->id.'" class="text-sky-700 hover:text-sky-900">'.$count.' Pending</a>' : '' !!}</div>
+                                        <div><span class="font-semibold">Can reply to posts</span>: {{ $childAccount->child_can_reply_in_forum ? ($childAccount->child_forum_reply_requires_approval ? 'Approval required' : 'Yes') : 'No' }} {!! ($count = (int) ($childAccount->pending_reply_count ?? 0)) > 0 ? '  - <a href="'.route('account.children.approvals').'#child-'.$childAccount->id.'" class="text-sky-700 hover:text-sky-900">'.$count.' Pending</a>' : '' !!}</div>
                                     </div>
                                 </div>
                             @endforeach
@@ -327,7 +213,7 @@ $childAccounts = collect($childAccounts ?? []);
                             <h2 class="text-lg font-semibold text-gray-900">Remembered Devices</h2>
                             <p class="mt-1 text-sm text-gray-600">Review devices that can stay signed in and remove any you no longer trust.</p>
                         </div>
-                        <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
+                        <div class="whitespace-nowrap rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $rememberedDevices->count() }} saved</div>
                     </div>
 
                     <div class="rounded-2xl mt-4 bg-gray-50 p-4">
@@ -403,44 +289,21 @@ $childAccounts = collect($childAccounts ?? []);
         </form>
 
         <div class="mb-8 space-y-6">
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Password Login</h2>
-                        <p class="mt-1 text-sm text-gray-600">Set a password if you want to sign in without waiting for an email link.</p>
-                    </div>
-                </div>
-
-                <form method="POST" action="{{ route('account.password.update') }}" class="mt-6 grid gap-4 md:grid-cols-2">
-                    @csrf
-                    <x-ui.input type="password" name="password" label="New password" value="" />
-                    <x-ui.input type="password" name="password_confirmation" label="Confirm password" value="" />
-                    <div class="md:col-span-2 flex justify-end">
-                        <x-ui.button type="submit">Update password</x-ui.button>
-                    </div>
-                </form>
-            </section>
-
             @include('account.partials.two-factor-card')
 
-            <div class="rounded-3xl border border-primary-color/15 bg-primary-color-light/30 p-5 shadow-sm sm:p-6">
-                <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div class="text-sm font-semibold text-gray-900">Ready to save?</div>
-                        <p class="text-sm text-gray-600">Your profile, preferences, and address changes are saved together.</p>
-                    </div>
-                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        @if($user->id !== 1)
-                            <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete account?', 'Are you sure you want to delete your account? This action cannot be undone.<br /><br />Any workshop tickets will remain valid.', $el)" class="flex flex-col items-start gap-3 sm:items-end">
-                                @csrf
-                                @method('DELETE')
-                                <input type="hidden" name="delete_discussion_threads" value="0" />
-                                <x-ui.checkbox label="Also delete discussion threads I created and replace my replies with deleted placeholders" name="delete_discussion_threads" value="1" small="true" class="mb-0 max-w-sm text-left" />
-                                <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
-                            </form>
-                        @endif
-                        <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
-                    </div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                @if($user->id !== 1)
+                    <form method="POST" action="{{ route('account.destroy') }}" x-data x-on:submit.prevent="SM.confirmAccountDelete($el)">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="delete_discussion_threads" value="0" />
+                        <x-ui.button type="submit" color="danger-outline">Delete account</x-ui.button>
+                    </form>
+                @else
+                    <div></div>
+                @endif
+                <div class="flex justify-end">
+                    <x-ui.button type="submit" form="account-settings-form">Save changes</x-ui.button>
                 </div>
             </div>
         </div>

@@ -1,4 +1,4 @@
-@props(['type' => 'link', 'class', 'href', 'target', 'color' => 'primary'])
+@props(['type' => 'button', 'class', 'href', 'target', 'color' => 'primary'])
 
 @php
     $disabledClasses = 'disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none';
@@ -19,6 +19,13 @@
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
     $commonClasses = twMerge(['whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
     $hrefValue = html_entity_decode((string) ($href ?? '#'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    if((isset($type) && $type === 'link')) {
+        $colorClasses = '';
+        $commonClasses = 'cursor-pointer text-sky-700 hover:text-sky-900';
+    }
+
+    if(isset($href) && $href !== '') $type = 'link';
 @endphp
 
 @if($type === 'submit' || $type === 'button')
@@ -33,7 +40,7 @@
     <a
         href="{{ $hrefValue }}"
         target="{{ $target ?? '_self' }}"
-        class="{{ $colorClasses . ' ' . $commonClasses }}"
+        class="{{ twMerge($colorClasses, $commonClasses, $class ?? '') }}"
         {{ $attributes }}
     >
         {{ $slot }}

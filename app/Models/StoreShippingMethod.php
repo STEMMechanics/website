@@ -38,7 +38,6 @@ class StoreShippingMethod extends Model
         'rate_multiplier',
         'rate_adjustment_amount',
         'is_pickup',
-        'is_default',
         'is_active',
         'sort_order',
     ];
@@ -50,7 +49,6 @@ class StoreShippingMethod extends Model
         'rate_multiplier' => 'decimal:2',
         'rate_adjustment_amount' => 'decimal:2',
         'is_pickup' => 'boolean',
-        'is_default' => 'boolean',
         'is_active' => 'boolean',
         'sort_order' => 'integer',
     ];

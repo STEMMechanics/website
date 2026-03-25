@@ -76,12 +76,21 @@ class ProductVariant extends Model
     public function effectivePrice(): float
     {
         $product = $this->product;
+        if ($product instanceof Product && $product->isPhysical()) {
+            return round((float) $product->price, 2);
+        }
 
         return round((float) ($this->price ?? ($product instanceof Product ? $product->price : 0)), 2);
     }
 
     public function effectiveCompareAtPrice(): ?float
     {
+        if ($this->product instanceof Product && $this->product->isPhysical()) {
+            $value = $this->product->compare_at_price;
+
+            return $value !== null ? round((float) $value, 2) : null;
+        }
+
         $value = $this->compare_at_price;
         if ($value === null) {
             $value = $this->product?->compare_at_price;
@@ -99,10 +108,7 @@ class ProductVariant extends Model
 
     public function effectiveShippingUnits(): float
     {
-        $value = $this->shipping_units;
-        if ($value === null) {
-            $value = $this->product?->shipping_units;
-        }
+        $value = $this->product?->shipping_units;
 
         return round(max(0, (float) $value), 2);
     }
@@ -119,40 +125,28 @@ class ProductVariant extends Model
 
     public function effectiveWeightGrams(): ?int
     {
-        $value = $this->weight_grams;
-        if ($value === null) {
-            $value = $this->product?->weight_grams;
-        }
+        $value = $this->product?->weight_grams;
 
         return $value !== null ? (int) $value : null;
     }
 
     public function effectiveLengthCm(): ?float
     {
-        $value = $this->length_cm;
-        if ($value === null) {
-            $value = $this->product?->length_cm;
-        }
+        $value = $this->product?->length_cm;
 
         return $value !== null ? round((float) $value, 2) : null;
     }
 
     public function effectiveWidthCm(): ?float
     {
-        $value = $this->width_cm;
-        if ($value === null) {
-            $value = $this->product?->width_cm;
-        }
+        $value = $this->product?->width_cm;
 
         return $value !== null ? round((float) $value, 2) : null;
     }
 
     public function effectiveHeightCm(): ?float
     {
-        $value = $this->height_cm;
-        if ($value === null) {
-            $value = $this->product?->height_cm;
-        }
+        $value = $this->product?->height_cm;
 
         return $value !== null ? round((float) $value, 2) : null;
     }
@@ -174,12 +168,12 @@ class ProductVariant extends Model
 
     public function isPreorder(): bool
     {
-        return (bool) $this->is_preorder;
+        return false;
     }
 
     public function allowsBackorder(): bool
     {
-        return (bool) $this->allow_backorder;
+        return (bool) ($this->allow_backorder || $this->is_preorder);
     }
 
     public function preorderShippingEstimateLabel(string $format = 'F jS'): ?string
@@ -193,10 +187,16 @@ class ProductVariant extends Model
 
     public function backorderShippingEstimateLabel(string $format = 'F jS'): ?string
     {
-        if (! $this->backorder_shipping_estimate instanceof Carbon) {
+        $estimate = $this->backorder_shipping_estimate;
+
+        if (! $estimate instanceof Carbon && $this->preorder_shipping_estimate instanceof Carbon) {
+            $estimate = $this->preorder_shipping_estimate;
+        }
+
+        if (! $estimate instanceof Carbon) {
             return null;
         }
 
-        return $this->backorder_shipping_estimate->format($format);
+        return $estimate->format($format);
     }
 }

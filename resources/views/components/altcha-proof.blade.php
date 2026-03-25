@@ -3,7 +3,6 @@
 <div class="my-2">
     <altcha-widget
         challengeurl="{{ route('altcha-challenge') }}"
-        auto="onsubmit"
         strings='{"waitAlert":""}'
         style="{{ $altchaError !== '' ? 'display:block' : 'display:none' }}"
         data-altcha-hidden-widget="1"></altcha-widget>
@@ -16,7 +15,7 @@
 @endif
 
 @pushOnce('scripts')
-<script type="module" src="https://cdn.jsdelivr.net/npm/altcha/dist/altcha.min.js"></script>
+<script type="module" src="{{ asset('vendor/altcha/altcha.min.js') }}"></script>
 <script>
     const initAltchaForms = () => {
         const setFormProcessing = (form, isProcessing) => {
@@ -33,6 +32,16 @@
             delete form.dataset.altchaWatchdogTimer;
         };
 
+        const clearAltchaSubmitState = (form) => {
+            delete form.dataset.altchaSubmitPending;
+            delete form.dataset.altchaManualSubmitRequired;
+        };
+
+        const clearSingleSubmitLock = (form) => {
+            delete form.dataset.smSingleSubmitLocked;
+            delete form.dataset.smSingleSubmitAllowNext;
+        };
+
         const armAltchaWatchdog = (form, widget) => {
             clearAltchaWatchdog(form);
 
@@ -41,6 +50,7 @@
                 // Failsafe: if ALTCHA verification hangs, unlock the form
                 // and reveal the widget so users can retry visibly.
                 setFormProcessing(form, false);
+                clearSingleSubmitLock(form);
                 resetAltchaWidget(widget);
                 revealAltchaWidget(widget);
                 showAltchaError(form, 'Verification timed out. Please try again.');
@@ -110,14 +120,38 @@
 
             if (form.dataset.altchaSubmitWatchBound !== '1') {
                 form.dataset.altchaSubmitWatchBound = '1';
-                form.addEventListener('submit', () => {
-                    // If ALTCHA has not yet produced a payload at submit time,
-                    // start the watchdog and keep the form in verifying state.
+                form.addEventListener('submit', (event) => {
                     if (String(input.value || '').trim() !== '') {
+                        clearAltchaWatchdog(form);
+                        clearAltchaSubmitState(form);
+
                         return;
                     }
+
+                    event.preventDefault();
+                    form.dataset.altchaSubmitPending = '1';
+                    form.dataset.altchaManualSubmitRequired = '0';
+                    hideAltchaError(form);
                     setFormProcessing(form, true);
                     armAltchaWatchdog(form, widget);
+
+                    if (typeof widget.verify === 'function') {
+                        try {
+                            widget.verify();
+                        } catch (e) {
+                            clearAltchaWatchdog(form);
+                            clearAltchaSubmitState(form);
+                            setFormProcessing(form, false);
+                            showAltchaError(form, 'Verification could not start. Please try again.');
+                        }
+
+                        return;
+                    }
+
+                    clearAltchaWatchdog(form);
+                    clearAltchaSubmitState(form);
+                    setFormProcessing(form, false);
+                    showAltchaError(form, 'Verification is still loading. Please wait a moment and try again.');
                 });
             }
 
@@ -140,12 +174,37 @@
                     }
                     hideAltchaError(form);
 
+                    const shouldResumeSubmit = form.dataset.altchaSubmitPending === '1'
+                        && form.dataset.altchaManualSubmitRequired !== '1';
+                    clearAltchaSubmitState(form);
+
+                    if (!shouldResumeSubmit) {
+                        clearSingleSubmitLock(form);
+                        setFormProcessing(form, false);
+
+                        return;
+                    }
+
+                    window.requestAnimationFrame(() => {
+                        form.dataset.smSingleSubmitAllowNext = '1';
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit();
+
+                            return;
+                        }
+
+                        form.submit();
+                    });
+
                     return;
                 }
 
                 // If ALTCHA requests a visible challenge, reveal the widget.
                 if (detail.state === 'code' || detail.state === 'unverified') {
                     clearAltchaWatchdog(form);
+                    form.dataset.altchaManualSubmitRequired = '1';
+                    delete form.dataset.altchaSubmitPending;
+                    clearSingleSubmitLock(form);
                     setFormProcessing(form, false);
                     revealAltchaWidget(widget);
                     hideAltchaError(form);
@@ -154,6 +213,8 @@
 
                 if (detail.state === 'error' || detail.state === 'expired' || detail.state === 'failed') {
                     clearAltchaWatchdog(form);
+                    clearAltchaSubmitState(form);
+                    clearSingleSubmitLock(form);
                     setFormProcessing(form, false);
                     input.value = '';
                     resetAltchaWidget(widget);

@@ -54,6 +54,25 @@ class ForumAccessControlTest extends TestCase
         ]);
     }
 
+    public function test_forum_index_is_served_with_no_cache_headers(): void
+    {
+        $response = $this->get(route('forum.index'));
+
+        $response->assertOk();
+        $cacheControl = (string) $response->headers->get('Cache-Control');
+        $this->assertStringContainsString('no-store', $cacheControl);
+        $this->assertStringContainsString('no-cache', $cacheControl);
+        $this->assertStringContainsString('must-revalidate', $cacheControl);
+        $this->assertStringContainsString('max-age=0', $cacheControl);
+        $this->assertStringContainsString('private', $cacheControl);
+        $response->assertHeader('Pragma', 'no-cache');
+        $response->assertHeader('Expires', '0');
+        $this->assertStringContainsString(
+            'Cookie',
+            (string) $response->headers->get('Vary')
+        );
+    }
+
     public function test_helpdesk_example_public_read_logged_in_write(): void
     {
         $author = User::factory()->create();

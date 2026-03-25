@@ -93,6 +93,45 @@ class StoreShippingServiceTest extends TestCase
         $this->assertSame('Some physical products do not have package units configured.', $quote['reason']);
     }
 
+    public function test_it_marks_lines_that_trigger_a_manual_quote(): void
+    {
+        config()->set('store.shipping.boxed_shipping.amount', null);
+
+        $quote = $this->service()->quote(collect([
+            $this->line('Framed print', [
+                'shipping_units' => 0.0,
+                'min_satchel_rank' => 1,
+                'key' => 'line-framed-print',
+            ]),
+        ]));
+
+        $this->assertFalse($quote['can_checkout']);
+        $this->assertTrue($quote['requires_manual_quote']);
+        $this->assertSame(['line-framed-print'], $quote['manual_quote_line_keys']);
+    }
+
+    public function test_it_only_marks_the_line_that_triggers_a_manual_quote_in_a_mixed_cart(): void
+    {
+        config()->set('store.shipping.boxed_shipping.amount', null);
+
+        $quote = $this->service()->quote(collect([
+            $this->line('Manual quote item', [
+                'shipping_units' => 0.0,
+                'min_satchel_rank' => 1,
+                'key' => 'manual-quote-item',
+            ]),
+            $this->line('Regular item', [
+                'shipping_units' => 1.0,
+                'min_satchel_rank' => 1,
+                'key' => 'regular-item',
+            ]),
+        ]));
+
+        $this->assertFalse($quote['can_checkout']);
+        $this->assertTrue($quote['requires_manual_quote']);
+        $this->assertSame(['manual-quote-item'], $quote['manual_quote_line_keys']);
+    }
+
     public function test_pickup_method_returns_a_free_quote(): void
     {
         $quote = $this->service()->quote(collect([
@@ -200,6 +239,7 @@ class StoreShippingServiceTest extends TestCase
         ], $attributes));
 
         return (object) [
+            'key' => (string) ($attributes['key'] ?? str($title)->slug('-')->value()),
             'product' => $product,
             'quantity' => $quantity,
             'display_title' => $title,

@@ -467,7 +467,6 @@
                                     $priceRangeAmountLabel = $priceIsFromRange
                                         ? \Illuminate\Support\Str::after($priceRangeLabel, 'From ')
                                         : $priceRangeLabel;
-                                    $preorderEstimate = $product->preorderShippingEstimateLabel();
                                     $backorderEstimate = $product->backorderShippingEstimateLabel();
                                     $backorderNowInventory = null;
                                     if (! $hasVariants) {
@@ -522,8 +521,6 @@
                                                     Instant download after checkout
                                                 @elseif($hasVariants)
                                                     {{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available
-                                                @elseif($product->isPreorder())
-                                                    Pre-order available.<br>{{ $preorderEstimate ? 'Shipping expected ' . $preorderEstimate : 'Will ship when available' }}
                                                 @elseif($product->allowsBackorder())
                                                     @if($hasVariants && ! $defaultVariant)
                                                         {{ $backorderEstimate ? 'Available now. More expected '.$backorderEstimate : 'Available now. More coming soon' }}
