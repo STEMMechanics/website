@@ -11,7 +11,7 @@ class EmailSignatureFormatterTest extends TestCase
     {
         config()->set('app.name', 'STEMMechanics');
 
-        $this->assertSame('James / STEMMechanics', EmailSignatureFormatter::resolve('James Collins'));
+        $this->assertSame('James // STEMMechanics', EmailSignatureFormatter::resolve('James Collins'));
     }
 
     public function test_resolve_falls_back_to_brand_when_sender_name_is_blank(): void
