@@ -22,9 +22,9 @@
                 Period: {{ $periodStart->format('M j, Y') }} - {{ $periodEnd->format('M j, Y') }}
             </div>
             <div class="w-full sm:w-auto sm:ml-auto flex flex-wrap gap-2">
-                <x-ui.button type="link" href="{{ route('admin.bas.export.csv', ['month' => $selectedMonth]) }}" color="outline">Export CSV</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.bas.export.pdf', ['month' => $selectedMonth]) }}" color="outline" target="_blank">Export PDF</x-ui.button>
-                <x-ui.button type="link" href="{{ route('admin.bas.export.download-all', ['month' => $selectedMonth]) }}" color="outline">Download All</x-ui.button>
+                <x-ui.button href="{{ route('admin.bas.export.csv', ['month' => $selectedMonth]) }}" color="outline">Export CSV</x-ui.button>
+                <x-ui.button href="{{ route('admin.bas.export.pdf', ['month' => $selectedMonth]) }}" color="outline" target="_blank">Export PDF</x-ui.button>
+                <x-ui.button href="{{ route('admin.bas.export.download-all', ['month' => $selectedMonth]) }}" color="outline">Download All</x-ui.button>
             </div>
         </form>
 
