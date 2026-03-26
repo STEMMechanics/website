@@ -341,12 +341,12 @@ class StoreOrderUpdateDigestTest extends TestCase
         $this->assertSame('Robot Kit', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
         $this->assertSame(1, $payload['orders'][0]['item_sections'][0]['items'][0]['quantity']);
         $this->assertNull($payload['orders'][0]['item_sections'][0]['items'][0]['detail']);
-        $this->assertSame('Still expected', $payload['orders'][0]['item_sections'][1]['heading']);
+        $this->assertSame('To be shipped', $payload['orders'][0]['item_sections'][1]['heading']);
         $this->assertSame(2, $payload['orders'][0]['item_sections'][1]['items'][0]['quantity']);
         $this->assertStringContainsString('shipping estimated april 20th 2026', strtolower((string) $payload['orders'][0]['item_sections'][1]['items'][0]['detail']));
     }
 
-    public function test_tracking_payload_groups_same_day_manual_shipments_into_one_delivery_section(): void
+    public function test_tracking_payload_groups_same_day_manual_shipments_into_separate_delivery_sections(): void
     {
         $order = $this->makePaidPhysicalOrder([
             'billing_name' => 'Jamie Example',
@@ -405,21 +405,91 @@ class StoreOrderUpdateDigestTest extends TestCase
         $updateTwo = $service->recordTrackingAdded($order, $itemTwo, $trackingTwo);
 
         $payload = $service->payloadForEvents([$updateOne?->id, $updateTwo?->id], false);
-        $expectedDetail = sprintf(
+        $expectedDetailOne = sprintf(
             'Shipped %s | Estimated arrival: 3-7 business days | Australia Post',
             $dispatchedAt->format('F jS Y'),
+        );
+        $expectedDetailTwo = sprintf(
+            'Shipped %s | Estimated arrival: 3-7 business days | Australia Post',
+            $dispatchedAt->copy()->addMinutes(15)->format('F jS Y'),
         );
 
         $this->assertNotNull($payload);
         $this->assertSame('shipped', $payload['orders'][0]['notification_type']);
+        $this->assertCount(2, $payload['orders'][0]['item_sections']);
+        $this->assertSame('Delivery 1', $payload['orders'][0]['item_sections'][0]['heading']);
+        $this->assertSame('Delivery 2', $payload['orders'][0]['item_sections'][1]['heading']);
+        $this->assertSame($expectedDetailOne, $payload['orders'][0]['item_sections'][0]['detail']);
+        $this->assertSame($expectedDetailTwo, $payload['orders'][0]['item_sections'][1]['detail']);
+        $this->assertCount(1, $payload['orders'][0]['item_sections'][0]['items']);
+        $this->assertCount(1, $payload['orders'][0]['item_sections'][1]['items']);
+        $this->assertSame('Microbit', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
+        $this->assertSame('Pinball Template', $payload['orders'][0]['item_sections'][1]['items'][0]['title']);
+        $this->assertNull($payload['orders'][0]['item_sections'][0]['items'][0]['detail']);
+        $this->assertNull($payload['orders'][0]['item_sections'][1]['items'][0]['detail']);
+    }
+
+    public function test_tracking_payload_groups_matching_parcel_numbers_into_one_parcel_section(): void
+    {
+        $order = $this->makePaidPhysicalOrder([
+            'billing_name' => 'Jamie Example',
+            'billing_email' => 'jamie@example.com',
+            'order_number' => 'SO-2102C',
+            'status' => StoreOrder::STATUS_SHIPPED,
+        ]);
+
+        $itemOne = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_title' => 'Microbit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'inventory_reserved_quantity' => 0,
+        ]);
+        $itemTwo = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_title' => 'Pinball Template',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'inventory_reserved_quantity' => 0,
+        ]);
+
+        $dispatchedAt = now()->subDay()->startOfDay()->addHours(10);
+
+        $trackingOne = StoreOrderItemTracking::query()->create([
+            'store_order_item_id' => $itemOne->id,
+            'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'parcel_number' => 2,
+            'carrier' => 'Australia Post',
+            'tracking_number' => null,
+            'tracking_url' => null,
+            'notes' => 'Packed together in parcel two.',
+            'dispatched_at' => $dispatchedAt,
+        ]);
+        $trackingTwo = StoreOrderItemTracking::query()->create([
+            'store_order_item_id' => $itemTwo->id,
+            'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'parcel_number' => 2,
+            'carrier' => 'Australia Post',
+            'tracking_number' => null,
+            'tracking_url' => null,
+            'notes' => 'Second line in the same parcel.',
+            'dispatched_at' => $dispatchedAt->copy()->addMinutes(15),
+        ]);
+
+        $service = app(StoreOrderUpdateService::class);
+        $updateOne = $service->recordTrackingAdded($order, $itemOne, $trackingOne);
+        $updateTwo = $service->recordTrackingAdded($order, $itemTwo, $trackingTwo);
+
+        $payload = $service->payloadForEvents([$updateOne?->id, $updateTwo?->id], false);
+
+        $this->assertNotNull($payload);
+        $this->assertSame('shipped', $payload['orders'][0]['notification_type']);
         $this->assertCount(1, $payload['orders'][0]['item_sections']);
-        $this->assertSame('All items shipped', $payload['orders'][0]['item_sections'][0]['heading']);
-        $this->assertSame($expectedDetail, $payload['orders'][0]['item_sections'][0]['detail']);
-        $this->assertCount(2, $payload['orders'][0]['item_sections'][0]['items']);
+        $this->assertSame('Parcel #2', $payload['orders'][0]['item_sections'][0]['heading']);
         $this->assertSame('Microbit', $payload['orders'][0]['item_sections'][0]['items'][0]['title']);
         $this->assertSame('Pinball Template', $payload['orders'][0]['item_sections'][0]['items'][1]['title']);
-        $this->assertNull($payload['orders'][0]['item_sections'][0]['items'][0]['detail']);
-        $this->assertNull($payload['orders'][0]['item_sections'][0]['items'][1]['detail']);
     }
 
     public function test_partial_item_cancellation_uses_specific_notification_type_and_sections(): void

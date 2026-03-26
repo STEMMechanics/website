@@ -7,6 +7,7 @@ use App\Mail\QuoteCustomerResponseAdminNotification;
 use App\Models\Invoice;
 use App\Models\Quote;
 use App\Models\StoreOrder;
+use App\Models\Token;
 use App\Models\User;
 use App\Support\InvoiceDueDate;
 use Illuminate\Support\Carbon;
@@ -22,13 +23,14 @@ class QuoteWorkflowService
     ) {}
 
     /**
-     * @return array{quote: Quote, invoice: ?Invoice, order: ?StoreOrder, invoice_emailed: bool}
+     * @return array{quote: Quote, invoice: ?Invoice, order: ?StoreOrder, invoice_emailed: bool, order_email_deferred: bool}
      */
     public function acceptByCustomer(Quote $quote, ?User $actingUser = null): array
     {
         $invoice = null;
         $order = null;
         $invoiceEmailed = false;
+        $orderEmailDeferred = false;
 
         DB::transaction(function () use ($quote, &$invoice, &$order): void {
             /** @var Quote $lockedQuote */
@@ -76,7 +78,9 @@ class QuoteWorkflowService
             $quote = $freshQuote;
         }
 
-        if ($invoice instanceof Invoice && $quote->acceptanceEmailsInvoice()) {
+        if ($order instanceof StoreOrder) {
+            $orderEmailDeferred = $this->storeOrders->queueDeferredOrderEmailToCustomer($order, 10);
+        } elseif ($invoice instanceof Invoice && $quote->acceptanceEmailsInvoice()) {
             $invoiceEmailed = $this->storeOrders->sendInvoiceDocumentBundleToCustomer(
                 $invoice,
                 $this->quoteRecipientEmail($quote),
@@ -92,6 +96,7 @@ class QuoteWorkflowService
             'invoice' => $invoice,
             'order' => $order,
             'invoice_emailed' => $invoiceEmailed,
+            'order_email_deferred' => $orderEmailDeferred,
         ];
     }
 
@@ -255,6 +260,13 @@ class QuoteWorkflowService
         );
     }
 
+    public function quoteInvoiceAccessUrl(Invoice $invoice): string
+    {
+        return route('invoice.magic', [
+            'token' => $this->resolveInvoiceAccessToken($invoice)->id,
+        ]);
+    }
+
     public function quoteRecipientEmail(Quote $quote): ?string
     {
         $context = is_array($quote->context_payload) ? $quote->context_payload : [];
@@ -279,6 +291,33 @@ class QuoteWorkflowService
         }
 
         return $name !== '' ? $name : 'Customer';
+    }
+
+    private function resolveInvoiceAccessToken(Invoice $invoice): Token
+    {
+        $token = Token::query()
+            ->where('type', 'invoice-access')
+            ->where('expires_at', '>', now()->addDays(7))
+            ->get()
+            ->first(function (Token $candidate) use ($invoice): bool {
+                return (int) ($candidate->data['invoice_id'] ?? 0) === (int) $invoice->id;
+            });
+
+        if ($token instanceof Token) {
+            return $token;
+        }
+
+        /** @var Token $createdToken */
+        $createdToken = Token::query()->create([
+            'user_id' => $invoice->user_id ?: null,
+            'type' => 'invoice-access',
+            'data' => [
+                'invoice_id' => (int) $invoice->id,
+            ],
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        return $createdToken;
     }
 
     /**

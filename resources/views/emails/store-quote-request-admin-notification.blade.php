@@ -22,9 +22,15 @@
 </ul>
 @endif
 
-@component('mail::button', ['url' => $adminUrl])
-Open Quote in Admin
-@endcomponent
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+    <tr>
+        <td align="center">
+            @component('mail::button', ['url' => $adminUrl])
+            Open Quote in Admin
+            @endcomponent
+        </td>
+    </tr>
+</table>
 
 Thanks,<br>
 {{ config('app.name') }}

@@ -12,6 +12,7 @@ use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\SiteOption;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use App\Models\StoreOrderItemTracking;
@@ -19,6 +20,7 @@ use App\Models\StoreOrderUpdate;
 use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Support\ShopShippingSettings;
 use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
@@ -74,6 +76,10 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertSee('Preparing Order')
             ->assertSee('Cancel Items')
             ->assertSee('Add Shipment')
+            ->assertSee('Parcel number')
+            ->assertSee('Tracking mode')
+            ->assertSee('No Tracking Number')
+            ->assertSee('Tracking Number')
             ->assertSee('Private Notes')
             ->assertSee('Public Notes')
             ->assertSee('Partially Shipped')
@@ -910,6 +916,13 @@ class ShopAdminOrderItemsTest extends TestCase
     {
         Queue::fake();
         config()->set('mail.admin_bcc', 'ops@example.com');
+        SiteOption::query()->updateOrCreate([
+            'name' => ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
+        ], [
+            'value' => json_encode([
+                'Sendle' => 'https://tracking.example.test/delayed?id={{tracking_number}}',
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}',
+        ]);
 
         $admin = $this->makeAdminUser();
         $order = $this->makePhysicalOrder();
@@ -932,8 +945,10 @@ class ShopAdminOrderItemsTest extends TestCase
                 'storeOrder' => $order,
                 'storeOrderItem' => $item,
             ]), [
+                'tracking_mode' => 'none',
                 'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
                 'quantity' => 1,
+                'parcel_number' => 1,
                 'carrier' => 'Australia Post',
                 'tracking_number' => null,
                 'tracking_url' => null,
@@ -947,11 +962,13 @@ class ShopAdminOrderItemsTest extends TestCase
                 'storeOrder' => $order,
                 'storeOrderItem' => $item,
             ]), [
+                'tracking_mode' => 'tracking_number',
                 'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED,
                 'quantity' => 1,
+                'parcel_number' => 2,
                 'carrier' => 'Sendle',
                 'tracking_number' => 'TRACK-DELAYED-1',
-                'tracking_url' => 'https://tracking.example.test/delayed',
+                'tracking_url' => '',
                 'notes' => 'Backorder parcel dispatched later.',
                 'dispatched_at' => now()->toDateString(),
             ])
@@ -970,10 +987,13 @@ class ShopAdminOrderItemsTest extends TestCase
 
         $this->assertNotNull($availableTracking);
         $this->assertSame(StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE, $availableTracking->shipment_type);
+        $this->assertSame(1, (int) $availableTracking->parcel_number);
         $this->assertNull($availableTracking->tracking_number);
         $this->assertNull($availableTracking->tracking_url);
         $this->assertNotNull($delayedTracking);
         $this->assertSame(StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED, $delayedTracking->shipment_type);
+        $this->assertSame(2, (int) $delayedTracking->parcel_number);
+        $this->assertSame('https://tracking.example.test/delayed?id=TRACK-DELAYED-1', (string) $delayedTracking->tracking_url);
         $this->assertSame(3, (int) $product->fresh()->inventory_quantity);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($order): bool {
             return $job->to === strtolower((string) $order->billing_email)
@@ -1010,8 +1030,10 @@ class ShopAdminOrderItemsTest extends TestCase
                     [
                         'type' => 'tracking',
                         'item_id' => $item->id,
+                        'tracking_mode' => 'tracking_number',
                         'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
                         'quantity' => 2,
+                        'parcel_number' => 1,
                         'carrier' => 'Australia Post',
                         'tracking_number' => 'TRACK-READY-2',
                         'tracking_url' => '',
@@ -1021,8 +1043,10 @@ class ShopAdminOrderItemsTest extends TestCase
                     [
                         'type' => 'tracking',
                         'item_id' => $item->id,
+                        'tracking_mode' => 'tracking_number',
                         'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED,
                         'quantity' => 1,
+                        'parcel_number' => 2,
                         'carrier' => 'Sendle',
                         'tracking_number' => 'TRACK-LATE-2',
                         'tracking_url' => 'https://tracking.example.test/complete',
@@ -1063,8 +1087,10 @@ class ShopAdminOrderItemsTest extends TestCase
                     [
                         'type' => 'tracking',
                         'item_id' => $item->id,
+                        'tracking_mode' => 'tracking_number',
                         'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
                         'quantity' => 1,
+                        'parcel_number' => 1,
                         'carrier' => 'Australia Post',
                         'tracking_number' => 'TRACK-SINGLE-1',
                         'tracking_url' => '',

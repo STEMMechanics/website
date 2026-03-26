@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My Invoices">{{ $isPublic ? 'Invoice Payment' : 'Invoice #'.$invoice->invoice_number }}</x-mast>
+    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My Invoices">{{ $isPublic ? 'Invoice Payment' : 'Invoice '.$invoice->invoice_number }}</x-mast>
 
     <x-container class="max-w-5xl mx-auto mt-6 space-y-8">
         @php
@@ -31,16 +31,34 @@
                                     <div class="mt-1 text-base font-semibold text-gray-950"><a href="{{ $linkedQuoteUrl }}" class="underline transition text-sky-500 hover:text-sky-700">{{ $linkedQuote->quote_number }}</a></div>
                                 </div>
                             @endif
-                        </div>
-                    </div>
-                    <div class="flex flex-wrap gap-3 flex-1 items-end pb-4">
-                        <div>
-                            @if($isAccountView)
-                                <x-ui.button href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank">Open Invoice PDF</x-ui.button>
-                            @elseif(!$isPublic)
-                                <x-ui.button href="{{ route('invoice.magic.pdf', ['invoice' => $invoice, 'token' => $accessToken]) }}" target="_blank">Open Invoice PDF</x-ui.button>
+                            @if(($linkedStoreOrder ?? null) !== null && !empty($linkedStoreOrderUrl))
+                                <div class="text-center">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Order</div>
+                                    <div class="mt-1 text-base font-semibold text-gray-950">
+                                        <a href="{{ $linkedStoreOrderUrl }}" class="underline transition text-sky-500 hover:text-sky-700">{{ $linkedStoreOrder->order_number }}</a>
+                                    </div>
+                                </div>
                             @endif
                         </div>
+                    </div>
+                    <div class="flex flex-wrap gap-3 flex-1 items-end">
+                        @if($isPublic)
+                            <form method="POST" action="{{ route('invoice.public.email-documents', $invoice) }}">
+                                @csrf
+                                <x-ui.button type="submit">Email Invoice & Receipts</x-ui.button>
+                            </form>
+                        @elseif(!empty($receiptLinks))
+                            <x-ui.button href="{{ route('account.invoice.pdf', $invoice) }}" target="_blank" color="outline">Download Invoice</x-ui.button>
+                            @if($isAccountView && !empty($accountReceiptsUrl))
+                                <a href="{{ $accountReceiptsUrl }}" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View All Receipts</a>
+                            @else
+                                @foreach($receiptLinks as $receiptLink)
+                                    <x-ui.button
+                                            href="{{ $receiptLink['download_url'] }}"
+                                             target="_blank" color="outline">Download Receipt</x-ui.button>
+                                @endforeach
+                            @endif
+                        @endif
                     </div>
                 </div>
 
@@ -79,10 +97,12 @@
                                 <div class="font-semibold text-gray-950">${{ number_format($netPaidAmount, 2) }}</div>
                             </div>
                         @endif
+                        @if($outstandingAmount > 0.0001)
                         <div class="mt-3 flex items-center justify-between gap-4 text-lg">
                             <div class="font-semibold text-gray-900">Outstanding</div>
                             <div class="font-semibold text-gray-950">${{ number_format((float) $outstandingAmount, 2) }}</div>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -100,7 +120,7 @@
                     foreach ($invoice->lines as $line) {
                         $combinedLineItems->push([
                             'kind' => 'invoice',
-                            'label' => 'Invoice '.$invoice->invoice_number,
+                            'label' => '',
                             'description' => (string) ($line->description ?? ''),
                             'notes' => (string) ($line->notes ?? ''),
                             'quantity' => (float) ($line->quantity ?? 0),
@@ -146,7 +166,9 @@
                                     <tr class="align-top">
                                         <td class="px-6 py-4">
                                             {{ $line['description'] ?: '-' }}
-                                            <div class="mt-1 text-xs {{ $line['kind'] === 'adjustment' ? 'text-red-600' : 'text-gray-500' }}">{{ $line['label'] }}</div>
+                                            @if(trim((string) ($line['label'] ?? '')) !== '')
+                                                <div class="mt-1 text-xs {{ $line['kind'] === 'adjustment' ? 'text-red-600' : 'text-gray-500' }}">{{ $line['label'] }}</div>
+                                            @endif
                                             @if(trim((string) ($line['notes'] ?? '')) !== '')
                                                 <div class="mt-1 whitespace-pre-line text-xs text-gray-500">{{ $line['notes'] }}</div>
                                             @endif
@@ -171,53 +193,12 @@
             </div>
         @endif
 
-        <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-            <div class="border-b border-gray-200 px-6 py-4">
-                <div class="text-lg font-semibold text-gray-950">Pay by Credit Card</div>
-            </div>
-
-            @if((float) $outstandingAmount <= 0.0001)
-                <div class="px-6 py-5">
-                    <div class="rounded-2xl border border-green-300 bg-green-50 p-4 text-sm text-green-900">
-                        This invoice is fully paid.
-                    </div>
-                    @if(!$isPublic && (session('payment_receipt_view_url') || session('payment_receipt_download_url')))
-                        <div class="mt-4 flex flex-wrap gap-3">
-                            @if(session('payment_receipt_view_url'))
-                                <a href="{{ session('payment_receipt_view_url') }}" target="_blank" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View Receipt</a>
-                            @endif
-                            @if(session('payment_receipt_download_url'))
-                                <a href="{{ session('payment_receipt_download_url') }}" class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Download Receipt</a>
-                            @endif
-                        </div>
-                    @endif
-                    @if($isPublic)
-                        <div class="mt-4 flex flex-wrap gap-3">
-                            <form method="POST" action="{{ route('invoice.public.email-documents', $invoice) }}">
-                                @csrf
-                                <x-ui.button type="submit">Email Invoice & Receipts</x-ui.button>
-                            </form>
-                        </div>
-                    @elseif(!empty($receiptLinks))
-                        <div class="mt-4 flex flex-wrap gap-3">
-                            @if($isAccountView && !empty($accountReceiptsUrl))
-                                <a href="{{ $accountReceiptsUrl }}" class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View All Receipts</a>
-                            @else
-                                @foreach($receiptLinks as $receiptLink)
-                                    <a
-                                        href="{{ $receiptLink['view_url'] }}"
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark">View Receipt #{{ $receiptLink['payment_id'] }}</a>
-                                    <a
-                                        href="{{ $receiptLink['download_url'] }}"
-                                        class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Download Receipt #{{ $receiptLink['payment_id'] }}</a>
-                                @endforeach
-                            @endif
-                        </div>
-                    @endif
+        @if((float) $outstandingAmount >= 0.0001)
+            <div class="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <div class="border-b border-gray-200 px-6 py-4">
+                    <div class="text-lg font-semibold text-gray-950">Pay by Credit Card</div>
                 </div>
-            @else
+
                 <div class="px-6 py-5">
                     <form method="POST"
                         action="{{ $isAccountView ? route('account.invoice.pay', $invoice) : ($isPublic ? route('invoice.public.pay.process', $invoice) : route('invoice.magic.pay', ['invoice' => $invoice, 'token' => $accessToken])) }}"
@@ -264,8 +245,8 @@
                         </div>
                     </form>
                 </div>
-            @endif
-        </div>
+            </div>
+        @endif
     </x-container>
 </x-layout>
 

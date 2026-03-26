@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendEmail;
+use App\Jobs\SendDeferredStoreOrderEmail;
 use App\Mail\InvoiceDocumentBundle;
 use App\Mail\PaymentReceiptPdf;
 use App\Mail\StoreQuoteRequestAdminNotification;
@@ -20,12 +21,14 @@ use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
 use App\Models\SquareRefundOperation;
+use App\Models\SentEmail;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use App\Models\StoreOrderItemCancellation;
 use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
 use App\Models\User;
+use App\Support\ShopShippingSettings;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -174,7 +177,7 @@ class StoreOrderService
             $quote->context_type = Quote::CONTEXT_STORE_MANUAL_SHIPPING;
             $quote->quote_date = Carbon::today();
             $quote->title = 'Store quote request';
-            $quote->description = 'Requested from online checkout.';
+            $quote->description = '';
             $quote->line_items = $quoteLineItems;
             $quote->subtotal_amount = $this->calculateQuoteSubtotal($quoteLineItems);
             $quote->gst_amount = $this->calculateQuoteGst($quoteLineItems);
@@ -474,6 +477,39 @@ class StoreOrderService
                 initiatedByName: $initiatedByName,
             )
         ))->onQueue('mail');
+
+        return true;
+    }
+
+    public function sendOrderConfirmationEmailToCustomer(StoreOrder $order, ?User $actingUser = null): bool
+    {
+        return $this->queueOrderConfirmationEmail($order, $actingUser);
+    }
+
+    public function sendOrderPaidEmailToCustomer(StoreOrder $order, ?User $actingUser = null): bool
+    {
+        return $this->queueOrderPaidEmail($order, $actingUser);
+    }
+
+    public function queueDeferredOrderEmailToCustomer(StoreOrder $order, int $delayMinutes = 10): bool
+    {
+        $delayMinutes = max(1, $delayMinutes);
+        $scheduledFor = now()->addMinutes($delayMinutes);
+
+        $recipient = strtolower(trim((string) $order->billing_email));
+        if ($recipient === '') {
+            return false;
+        }
+
+        $scheduledEmail = SentEmail::query()->create([
+            'recipient' => $recipient,
+            'mailable_class' => SendDeferredStoreOrderEmail::class,
+            'status' => SentEmail::STATUS_SCHEDULED,
+            'scheduled_for_at' => $scheduledFor,
+        ]);
+
+        dispatch(new SendDeferredStoreOrderEmail($order->id, (string) $scheduledEmail->id))
+            ->delay($scheduledFor);
 
         return true;
     }
@@ -846,6 +882,7 @@ class StoreOrderService
                 ]);
             }
 
+            $trackingMode = $this->normalizeTrackingMode($payload['tracking_mode'] ?? null, $payload['tracking_number'] ?? null, $payload['tracking_url'] ?? null);
             $quantity = max(0, (int) ($payload['quantity'] ?? 0));
             if ($quantity <= 0) {
                 throw ValidationException::withMessages([
@@ -865,6 +902,20 @@ class StoreOrderService
 
             $trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));
             $trackingUrl = trim((string) ($payload['tracking_url'] ?? ''));
+            if ($trackingMode === 'tracking_number' && $trackingNumber === '') {
+                throw ValidationException::withMessages([
+                    'tracking_number' => 'Enter a tracking number for this shipment entry.',
+                ]);
+            }
+
+            if ($trackingMode === 'none') {
+                $trackingNumber = '';
+                $trackingUrl = '';
+            }
+
+            if ($trackingNumber !== '' && $trackingUrl === '') {
+                $trackingUrl = $this->resolveTrackingUrl((string) ($payload['carrier'] ?? ''), $trackingNumber) ?? '';
+            }
 
             if ($shipmentType === StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE) {
                 $lockedItem->inventory_reserved_quantity = max(
@@ -878,6 +929,7 @@ class StoreOrderService
             $tracking->store_order_item_id = $lockedItem->id;
             $tracking->shipment_type = $shipmentType;
             $tracking->quantity = $quantity;
+            $tracking->parcel_number = $this->normalizeParcelNumber($payload['parcel_number'] ?? null);
             $tracking->carrier = $this->nullableTrimmedString($payload['carrier'] ?? null);
             $tracking->tracking_number = $trackingNumber !== '' ? $trackingNumber : null;
             $tracking->tracking_url = $trackingUrl !== '' ? $trackingUrl : null;
@@ -1337,6 +1389,11 @@ class StoreOrderService
                         ]);
                     }
 
+                    $trackingMode = $this->normalizeTrackingMode(
+                        $action['tracking_mode'] ?? null,
+                        $action['tracking_number'] ?? null,
+                        $action['tracking_url'] ?? null
+                    );
                     $trackingUrl = trim((string) ($action['tracking_url'] ?? ''));
                     if ($trackingUrl !== '' && ! filter_var($trackingUrl, FILTER_VALIDATE_URL)) {
                         throw ValidationException::withMessages([
@@ -1344,13 +1401,27 @@ class StoreOrderService
                         ]);
                     }
 
+                    $trackingNumber = trim((string) ($action['tracking_number'] ?? ''));
+                    if ($trackingMode === 'tracking_number' && $trackingNumber === '') {
+                        throw ValidationException::withMessages([
+                            'item_actions_json' => 'Queued tracking action #'.($index + 1).' needs a tracking number.',
+                        ]);
+                    }
+
+                    if ($trackingMode === 'none') {
+                        $trackingNumber = '';
+                        $trackingUrl = '';
+                    }
+
                     return [
                         'type' => 'tracking',
                         'item_id' => $itemId,
+                        'tracking_mode' => $trackingMode,
                         'shipment_type' => $shipmentType,
                         'quantity' => max(0, (int) ($action['quantity'] ?? 0)),
+                        'parcel_number' => $this->normalizeParcelNumber($action['parcel_number'] ?? null),
                         'carrier' => trim((string) ($action['carrier'] ?? '')),
-                        'tracking_number' => trim((string) ($action['tracking_number'] ?? '')),
+                        'tracking_number' => $trackingNumber,
                         'tracking_url' => $trackingUrl,
                         'notes' => trim((string) ($action['notes'] ?? '')),
                         'dispatched_at' => trim((string) ($action['dispatched_at'] ?? '')),
@@ -1524,9 +1595,27 @@ class StoreOrderService
         $tracking->store_order_item_id = $item->id;
         $tracking->shipment_type = $shipmentType;
         $tracking->quantity = $quantity;
+        $tracking->parcel_number = $this->normalizeParcelNumber($action['parcel_number'] ?? null);
         $tracking->carrier = $this->nullableTrimmedString($action['carrier'] ?? null);
-        $tracking->tracking_number = $this->nullableTrimmedString($action['tracking_number'] ?? null);
-        $tracking->tracking_url = $this->nullableTrimmedString($action['tracking_url'] ?? null);
+        $trackingMode = $this->normalizeTrackingMode($action['tracking_mode'] ?? null, $action['tracking_number'] ?? null, $action['tracking_url'] ?? null);
+        $trackingNumber = $this->nullableTrimmedString($action['tracking_number'] ?? null);
+        $trackingUrl = $this->nullableTrimmedString($action['tracking_url'] ?? null);
+
+        if ($trackingMode === 'tracking_number' && $trackingNumber === null) {
+            throw ValidationException::withMessages([
+                'item_actions_json' => 'Queued tracking action #'.$actionNumber.' needs a tracking number.',
+            ]);
+        }
+
+        if ($trackingMode === 'none') {
+            $trackingNumber = null;
+            $trackingUrl = null;
+        } elseif ($trackingNumber !== null && $trackingUrl === null) {
+            $trackingUrl = $this->resolveTrackingUrl((string) $tracking->carrier, $trackingNumber);
+        }
+
+        $tracking->tracking_number = $trackingNumber;
+        $tracking->tracking_url = $trackingUrl;
         $tracking->notes = $this->nullableTrimmedString($action['notes'] ?? null);
         $tracking->dispatched_at = $parsedDispatchedAt;
         $tracking->save();
@@ -3036,6 +3125,30 @@ class StoreOrderService
         return $trimmed !== '' ? $trimmed : null;
     }
 
+    private function normalizeTrackingMode(mixed $value, mixed $trackingNumber = null, mixed $trackingUrl = null): string
+    {
+        $mode = trim((string) $value);
+        if (in_array($mode, ['none', 'tracking_number'], true)) {
+            return $mode;
+        }
+
+        return trim((string) $trackingNumber) !== '' || trim((string) $trackingUrl) !== ''
+            ? 'tracking_number'
+            : 'none';
+    }
+
+    private function resolveTrackingUrl(?string $carrier, ?string $trackingNumber): ?string
+    {
+        return ShopShippingSettings::resolveTrackingLink($carrier, $trackingNumber);
+    }
+
+    private function normalizeParcelNumber(mixed $value): ?int
+    {
+        $parcelNumber = max(0, (int) $value);
+
+        return $parcelNumber > 0 ? $parcelNumber : null;
+    }
+
     private function resolveUser(array $customer, ?User $authUser = null): ?User
     {
         if ($authUser instanceof User) {
@@ -3093,15 +3206,15 @@ class StoreOrderService
         }
     }
 
-    private function queueOrderConfirmationEmail(?StoreOrder $order): void
+    private function queueOrderConfirmationEmail(?StoreOrder $order, ?User $actingUser = null): bool
     {
         if (! $order instanceof StoreOrder) {
-            return;
+            return false;
         }
 
         $recipient = strtolower(trim((string) $order->billing_email));
         if ($recipient === '') {
-            return;
+            return false;
         }
 
         $updated = StoreOrder::query()
@@ -3112,35 +3225,41 @@ class StoreOrderService
             ]);
 
         if ($updated !== 1) {
-            return;
+            return false;
         }
 
         $freshOrder = $order->fresh(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon']);
         if (! $freshOrder instanceof StoreOrder) {
-            return;
+            return false;
         }
 
         $attachments = $this->orderEmailAttachments($freshOrder, $freshOrder->isPaid());
+        [$initiatedByEmail, $initiatedByName] = $this->mailInitiatorIdentity($actingUser);
 
         dispatch(new SendEmail(
             $recipient,
-            new StoreOrderConfirmation(
+            (new StoreOrderConfirmation(
                 $freshOrder,
                 route('shop.order.tracking', ['accessToken' => $freshOrder->access_token]),
                 $attachments,
+            ))->from(
+                $initiatedByEmail ?: config('mail.from.address'),
+                $initiatedByName ?: null,
             )
         ))->onQueue('mail');
+
+        return true;
     }
 
-    private function queueOrderPaidEmail(?StoreOrder $order): void
+    private function queueOrderPaidEmail(?StoreOrder $order, ?User $actingUser = null): bool
     {
         if (! $order instanceof StoreOrder || ! $order->isPaid()) {
-            return;
+            return false;
         }
 
         $recipient = strtolower(trim((string) $order->billing_email));
         if ($recipient === '') {
-            return;
+            return false;
         }
 
         $updated = StoreOrder::query()
@@ -3151,24 +3270,30 @@ class StoreOrderService
             ]);
 
         if ($updated !== 1) {
-            return;
+            return false;
         }
 
         $freshOrder = $order->fresh(['invoice.allocations.customerPayment', 'items.downloads.media', 'items.product.hero', 'items.variant', 'coupon']);
         if (! $freshOrder instanceof StoreOrder) {
-            return;
+            return false;
         }
 
         $attachments = $this->orderEmailAttachments($freshOrder, true);
+        [$initiatedByEmail, $initiatedByName] = $this->mailInitiatorIdentity($actingUser);
 
         dispatch(new SendEmail(
             $recipient,
-            new StoreOrderPaid(
+            (new StoreOrderPaid(
                 $freshOrder,
                 route('shop.order.tracking', ['accessToken' => $freshOrder->access_token]),
                 $attachments,
+            ))->from(
+                $initiatedByEmail ?: config('mail.from.address'),
+                $initiatedByName ?: null,
             )
         ))->onQueue('mail');
+
+        return true;
     }
 
     private function queueAdminOrderNotification(?StoreOrder $order, string $notificationType): void

@@ -2,6 +2,15 @@
     <x-mast>My Quotes</x-mast>
 
     <x-container>
+        @php
+            $quoteStatusClasses = static fn (string $status): string => match ($status) {
+                \App\Models\Quote::STATUS_OPEN => 'border-amber-200 bg-amber-50 text-amber-800',
+                \App\Models\Quote::STATUS_ACCEPTED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                \App\Models\Quote::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-800',
+                \App\Models\Quote::STATUS_EXPIRED => 'border-slate-200 bg-slate-50 text-slate-700',
+                default => 'border-gray-200 bg-gray-50 text-gray-700',
+            };
+        @endphp
         <div class="flex my-4 items-center gap-4">
             <div class="flex-1">
                 <x-ui.search name="search" label="Search" />
@@ -23,7 +32,11 @@
                     @foreach ($quotes as $quote)
                         <tr>
                             <td><a href="{{ route('account.quote.show', $quote) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $quote->quote_number }}</a></td>
-                            <td>{{ $quote->statusLabel() }}</td>
+                            <td>
+                                <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold {{ $quoteStatusClasses((string) $quote->status) }}">
+                                    {{ $quote->statusLabel() }}
+                                </span>
+                            </td>
                             <td>{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</td>
                             <td>${{ number_format((float) $quote->total_amount, 2) }}</td>
                             <td class="flex justify-center gap-3">

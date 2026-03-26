@@ -11,19 +11,23 @@ class SentEmail extends Model
     use HasFactory;
 
     public const STATUS_QUEUED = 'queued';
+    public const STATUS_SCHEDULED = 'scheduled';
     public const STATUS_SENT = 'sent';
+    public const STATUS_SKIPPED = 'skipped';
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [
         'recipient',
         'mailable_class',
         'status',
+        'scheduled_for_at',
         'sent_at',
         'failed_at',
         'error_message',
     ];
 
     protected $casts = [
+        'scheduled_for_at' => 'datetime',
         'sent_at' => 'datetime',
         'failed_at' => 'datetime',
     ];

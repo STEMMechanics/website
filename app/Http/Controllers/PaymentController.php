@@ -291,7 +291,10 @@ class PaymentController extends Controller
             return redirect()->back();
         }
 
-        $reason = trim((string) ($validated['reason'] ?? 'Manual refund'));
+        $reason = trim((string) ($validated['reason'] ?? ''));
+        if ($reason === '') {
+            $reason = $this->manualRefundDefaultReason($manualRefund, $originalPayment);
+        }
         $receivedOn = $leaveAsCredit ? now()->setSecond(0) : Carbon::parse((string) $validated['received_on'])->setSecond(0);
         $reference = trim((string) ($validated['reference'] ?? ''));
         $paymentMethod = $leaveAsCredit ? Payment::PAYMENT_METHOD_CREDIT : (string) $validated['payment_method'];
@@ -1044,6 +1047,21 @@ class PaymentController extends Controller
         $refundPayment->save();
 
         return $refundPayment;
+    }
+
+    private function manualRefundDefaultReason(SquareRefundOperation $manualRefund, Payment $originalPayment): string
+    {
+        $queueLabel = 'refund queue item #'.((int) $manualRefund->id);
+        $paymentLabel = 'payment #'.((int) $originalPayment->id);
+        $squarePaymentId = trim((string) ($originalPayment->square_payment_id ?? ''));
+        $squareLabel = $squarePaymentId !== '' ? ' Square payment '.$squarePaymentId : '';
+        $failureMessage = trim((string) ($manualRefund->failure_message ?? ''));
+
+        if ($failureMessage !== '') {
+            return 'Square refund failed for '.$queueLabel.' ('.$paymentLabel.$squareLabel.'): '.$failureMessage;
+        }
+
+        return 'Manual refund recorded for '.$queueLabel.' ('.$paymentLabel.$squareLabel.')';
     }
 
     private function sendRefundReceiptEmail(Payment $originalPayment, Payment $refundPayment): void

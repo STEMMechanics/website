@@ -218,6 +218,17 @@ class Quote extends Model
         return (bool) data_get($this->context_payload, 'acceptance.emails_invoice', false);
     }
 
+    public function isStoreQuote(): bool
+    {
+        return (string) ($this->context_type ?? '') === self::CONTEXT_STORE_MANUAL_SHIPPING;
+    }
+
+    public function requiresAcceptancePayment(): bool
+    {
+        return $this->isStoreQuote()
+            && ($this->acceptanceCreatesOrder() || $this->acceptanceEmailsInvoice());
+    }
+
     public function expiresAt(): ?Carbon
     {
         if (! $this->quote_date instanceof Carbon) {

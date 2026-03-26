@@ -18,6 +18,7 @@ class StoreOrderItemTracking extends Model
         'store_order_item_id',
         'shipment_type',
         'quantity',
+        'parcel_number',
         'carrier',
         'tracking_number',
         'tracking_url',
@@ -27,6 +28,7 @@ class StoreOrderItemTracking extends Model
 
     protected $casts = [
         'quantity' => 'integer',
+        'parcel_number' => 'integer',
         'dispatched_at' => 'datetime',
     ];
 

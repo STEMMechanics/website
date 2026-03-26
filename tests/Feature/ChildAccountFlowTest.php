@@ -519,7 +519,7 @@ class ChildAccountFlowTest extends TestCase
             return $job->mailable->preview === "This is the test that I am testing with:\n- Point 1\n- Point 2\n- Point 3\nAnd this is the last line"
                 && $job->mailable->assertSeeInHtml('STEMMechanics Logo') === $job->mailable
                 && $job->mailable->assertSeeInHtml('border-left:4px solid #9ca3af;', false) === $job->mailable
-                && $job->mailable->assertSeeInHtml('align="center"', false) === $job->mailable
+                && $job->mailable->assertSeeInHtml('text-align:center;', false) === $job->mailable
                 && $job->mailable->assertDontSeeInHtml('Review Child Account') === $job->mailable
                 && $job->mailable->assertSeeInHtml('- Point 1<br />', false) === $job->mailable
                 && $job->mailable->assertSeeInHtml('- Point 2<br />', false) === $job->mailable

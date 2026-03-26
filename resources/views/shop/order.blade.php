@@ -16,7 +16,7 @@
         $showDocumentsCard = $hasDocumentLinks || $emailDocumentsActionUrl !== '';
         $orderItems = collect($orderItems ?? $order->items)->values();
         $awaitingSectionTitle = $order->usesPickup() ? 'Awaiting collection' : 'Awaiting shipping';
-        $deliveryGroupsTitle = $order->usesPickup() ? 'Recorded collections' : 'Recorded deliveries';
+        $deliveryGroupsTitle = $order->usesPickup() ? 'Recorded collections' : 'Recorded shipments';
         $deliveryDetailsTitle = $isQuoteRequested
             ? 'Shipping details'
             : ($order->usesPickup() ? 'Collection details' : 'Shipping details');
@@ -53,7 +53,7 @@
                                 </span>
                             @else
                                 <span class="rounded-full {{ $isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }} px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em]">
-                                {{ $isPaid ? 'Paid' : 'Awaiting payment' }}
+                                {{ $isPaid ? 'Paid' : 'Pending payment' }}
                                 </span>
                             @endif
                         </div>
@@ -203,14 +203,23 @@
                                         </button>
                                     </form>
                                 @elseif($documentLinks === [])
-                                    <div class="rounded-2xl border border-dashed border-gray-300 bg-white/80 px-4 py-4 text-sm text-gray-600">
-                                        @if($noPaymentRequired)
-                                            No payment receipt was created because no payment was required for this order.
-                                        @elseif(!$isPaid)
-                                            A payment receipt will appear here after the order has been paid.
-                                        @else
-                                            Payment receipts are not available for this order yet.
-                                        @endif
+                                    <div class="rounded-2xl border border-dashed border-gray-300 bg-white/80 px-4 py-4 text-xs text-gray-600">
+                                        <div class="flex items-start gap-3">
+                                            <span class="shrink-0 mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-700">
+                                                <i class="fa-solid fa-file-circle-question text-sm" aria-hidden="true"></i>
+                                            </span>
+                                            <div class="min-w-0">
+                                                <div class="mt-1 text-xs text-gray-500">
+                                                    @if($noPaymentRequired)
+                                                        No payment receipt was created because no payment was required for this order.
+                                                    @elseif(!$isPaid)
+                                                        A payment receipt will appear here after the order has been paid.
+                                                    @else
+                                                        Payment receipts are not available for this order yet.
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 @endif
                             </div>
@@ -555,8 +564,8 @@
                                 @enderror
                             </div>
 
-                            <div class="mt-5">
-                                <x-ui.button type="submit" x-bind:disabled="isSubmitting || isCardLoading" class="w-full">
+                            <div class="mt-5 text-right">
+                                <x-ui.button type="submit" x-bind:disabled="isSubmitting || isCardLoading" class="w-full sm:w-auto">
                                     <span x-show="!isSubmitting">Pay ${{ number_format((float) ($order->invoice?->outstandingAmount() ?? 0), 2) }}</span>
                                     <span x-show="isSubmitting" x-cloak>Processing...</span>
                                 </x-ui.button>
@@ -642,7 +651,19 @@
                 }
 
                 this.sourceId = result.token;
-                event.target.submit();
+                const form = event.target.tagName === 'FORM' ? event.target : event.target.closest('form');
+                if (!form) {
+                    this.errorMessage = 'Unable to submit payment form.';
+                    this.isSubmitting = false;
+                    return;
+                }
+
+                const sourceIdInput = form.querySelector('input[name="source_id"]');
+                if (sourceIdInput) {
+                    sourceIdInput.value = this.sourceId || '';
+                }
+
+                form.submit();
             },
 
             async waitForSquareSdk() {

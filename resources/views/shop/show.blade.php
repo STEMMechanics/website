@@ -427,7 +427,6 @@
 
                     try {
                         await window.SM.shopCart.submitAddForm(form, {
-                            showAddSheet: true,
                             addedLineKey: lineKey,
                         });
                     } finally {
@@ -543,15 +542,6 @@
                     <div class="-ml-6 -mr-6 -mt-6 mb-6 overflow-hidden rounded-t-3xl sm:rounded-tl-none sm:rounded-bl-3xl sm:ml-6 sm:float-right sm:w-[42%] lg:w-[38%]">
                         <img src="{{ $product->primaryImageUrl() }}" alt="{{ $product->title }}" class="max-h-96 w-full object-cover" />
                     </div>
-                    {{--                    @if($product->galleryMedia->isNotEmpty())--}}
-                    {{--                        <div class="grid grid-cols-3 gap-3 md:grid-cols-4">--}}
-                    {{--                            @foreach($product->galleryMedia as $media)--}}
-                    {{--                                <a href="{{ $media->url }}" target="_blank" rel="noopener noreferrer" class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition hover:border-sky-300">--}}
-                    {{--                                    <img src="{{ $media->thumbnail }}" alt="{{ $media->title }}" class="h-24 w-full object-cover" />--}}
-                    {{--                                </a>--}}
-                    {{--                            @endforeach--}}
-                    {{--                        </div>--}}
-                    {{--                    @endif--}}
 
                     <div class="min-w-0">
                             <h1 class="text-3xl font-bold tracking-tight text-gray-900">{{ $product->title }}</h1>
@@ -757,6 +747,14 @@
                                 </article>
                             @elseif(trim((string) $product->short_description) !== '')
                                 <p class="mt-8 text-base leading-7 text-gray-700">{{ $product->short_description }}</p>
+                            @endif
+
+                            @if($product->galleryMedia->isNotEmpty())
+                                <x-ui.gallery
+                                    class="mt-8"
+                                    name="product_gallery_{{ $product->id }}"
+                                    :value="$product->galleryMedia->pluck('name')->join(',')"
+                                />
                             @endif
                     </div>
                 </div>

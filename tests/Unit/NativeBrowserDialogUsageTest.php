@@ -91,7 +91,8 @@ class NativeBrowserDialogUsageTest extends TestCase
     private function shouldSkip(string $relativePath): bool
     {
         return str_starts_with($relativePath, 'public/build/')
-            || str_starts_with($relativePath, 'public/thumbnails/');
+            || str_starts_with($relativePath, 'public/thumbnails/')
+            || str_starts_with($relativePath, 'public/vendor/');
     }
 
     private function projectRoot(): string

@@ -323,7 +323,9 @@ class ShopAdminOrderController extends Controller
                 StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
                 StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED,
             ])],
+            'tracking_mode' => ['nullable', Rule::in(['none', 'tracking_number'])],
             'quantity' => ['required', 'integer', 'min:1'],
+            'parcel_number' => ['required', 'integer', 'min:1'],
             'carrier' => ['nullable', 'string', 'max:255'],
             'tracking_number' => ['nullable', 'string', 'max:255'],
             'tracking_url' => ['nullable', 'url', 'max:2048'],
@@ -546,7 +548,7 @@ class ShopAdminOrderController extends Controller
             $name = $nameSource !== '' ? $nameSource : 'there';
         }
 
-        return "Hi {$name},\n\nAttached is the shipping quote for store order {$order->order_number}. You can review it online and accept or cancel it using the button below.\n\n{{action}}";
+        return "Hi {$name},\n\nAttached is the shipping quote for store order {$order->order_number}. You can review it online and choose to accept it using the link below.\n\nIf you accept the quote, we'll proceed with processing your request.\n\n{{action}}";
     }
 
     private function mailInitiatorIdentity(mixed $actingUser): array

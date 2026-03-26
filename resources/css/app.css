@@ -1059,6 +1059,10 @@ body.image-resize-active {
     text-align: left;
 }
 
+table tr.highlight-row {
+    background: #fef9c3;
+}
+
 @media (max-width: 767px) {
     .table th,
     .table td {

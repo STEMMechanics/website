@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
+use App\Support\ShopShippingSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -189,6 +190,10 @@ class SiteOptionController extends Controller
         }
 
         if ($optionName === 'backup.remote.file-sources') {
+            $rules['value'] = ['required', 'json'];
+        }
+
+        if ($optionName === ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION) {
             $rules['value'] = ['required', 'json'];
         }
 

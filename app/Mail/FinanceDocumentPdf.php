@@ -85,7 +85,7 @@ class FinanceDocumentPdf extends Mailable
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
 
         $mail = $this
-            ->subject(ucfirst($this->documentType).' '.$this->documentNumber.' from STEMMechanics')
+            ->subject('Your '.ucfirst($this->documentType).' '.$this->documentNumber.' from STEMMechanics')
             ->markdown('emails.finance-document');
 
         $pdfBinary = base64_decode($this->pdfContentBase64, true);

@@ -11,8 +11,8 @@
     }
     $quoteNumberForEmail = $editing ? (string) ($quote->quote_number ?? '') : 'TBD';
     $defaultQuoteEmailMessage = $editing && (string) ($quote->context_type ?? '') === \App\Models\Quote::CONTEXT_STORE_MANUAL_SHIPPING
-        ? "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for your store items. You can review it online and accept or cancel it using the button below.\n\n{{action}}"
-        : "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for your request. You can review it online and accept or cancel it using the button below.\n\n{{action}}";
+        ? "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for your store items. You can review it online and choose to accept it using the link below.\n\nIf you accept the quote, we'll proceed with processing your request.\n\n{{action}}"
+        : "Hi {$quoteEmailName},\n\nAttached is quote **{$quoteNumberForEmail}** for your request. You can review it online and choose to accept it using the link below.\n\nIf you accept the quote, we'll proceed with processing your request.\n\n{{action}}";
 
     if ($savedLineItems === null) {
         $savedLineItems = $editing ? json_encode($quote->line_items ?? []) : '[]';
@@ -29,7 +29,7 @@
         @isset($quote)
             <div class="flex justify-end mb-4 gap-3">
                 <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.quote.pdf', $quote) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
+                <form method="POST" action="{{ route('admin.quote.email', $quote) }}" x-data="{ open: @js(session()->has('quote-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultQuoteEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($quoteCustomer['billing_email'] ?? $quote->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                     @csrf
                     <x-ui.button type="submit" x-data x-on:click.prevent="
                         open = true;
@@ -101,6 +101,7 @@
             method="POST"
             action="{{ route('admin.quote.' . (isset($quote) ? 'update' : 'store'), $quote ?? []) }}"
             x-data="{
+                quoteStatus: @js((string) old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN)),
                 catalogProducts: @js($catalogProducts ?? []),
                 lineItems: (() => {
                     try {
@@ -114,6 +115,22 @@
                             const storeContext = item.store_context || {};
                             const sourceId = item.source_id ?? storeContext.product_id ?? '';
                             const sourceVariantId = item.source_variant_id ?? storeContext.variant_id ?? 0;
+                            const gstApplicable = typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true;
+                            const taxMultiplier = gstApplicable ? 1.1 : 1.0;
+                            const quantity = parseFloat(item.quantity || 0);
+                            const legacyUnitEx = parseFloat(item.unit_price_ex_tax ?? item.unit_price ?? 0);
+                            const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? ''))
+                                ? parseFloat(item.unit_price_inc_tax || 0)
+                                : (Number.isFinite(legacyUnitEx) ? legacyUnitEx * taxMultiplier : 0);
+                            const unitPriceEx = Number.isFinite(parseFloat(item.unit_price_ex_tax ?? ''))
+                                ? parseFloat(item.unit_price_ex_tax || 0)
+                                : (taxMultiplier > 0 ? unitPriceInc / taxMultiplier : unitPriceInc);
+                            const lineTotalEx = Number.isFinite(quantity) && Number.isFinite(unitPriceEx)
+                                ? quantity * unitPriceEx
+                                : 0;
+                            const lineTotalInc = Number.isFinite(quantity) && Number.isFinite(unitPriceInc)
+                                ? quantity * unitPriceInc
+                                : 0;
 
                             return {
                                 ...item,
@@ -124,9 +141,14 @@
                                 source_variant_id: String(parseInt(sourceVariantId || 0, 10) || 0),
                                 description: item.description || '',
                                 notes: item.notes || '',
-                                quantity: parseFloat(item.quantity || 0),
-                                unit_price: Number.isFinite(parseFloat(item.unit_price || 0)) ? parseFloat(item.unit_price || 0).toFixed(2) : '0.00',
-                                gst_applicable: typeof item.gst_applicable === 'boolean' ? item.gst_applicable : true,
+                                quantity,
+                                unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
+                                unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx.toFixed(2) : '0.00',
+                                unit_price_inc_tax: Number.isFinite(unitPriceInc) ? unitPriceInc.toFixed(2) : '0.00',
+                                line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                                line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                                line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
+                                gst_applicable: gstApplicable,
                             };
                         });
                     } catch (e) {
@@ -156,6 +178,11 @@
                         notes: '',
                         quantity: 1,
                         unit_price: '0.00',
+                        unit_price_ex_tax: '0.00',
+                        unit_price_inc_tax: '0.00',
+                        line_total: 0,
+                        line_total_ex_tax: 0,
+                        line_total_inc_tax: 0,
                         gst_applicable: true,
                     };
                 },
@@ -244,12 +271,9 @@
                     }
 
                     const variant = this.variantOptions(item).find((entry) => parseInt(entry.id || 0) === parseInt(item.source_variant_id || 0)) || null;
-                    const currentUnitPrice = parseFloat(item.unit_price || 0);
                     item.description = this.displayProductTitle(product, variant);
                     item.gst_applicable = parseFloat(product.tax_rate || 0) > 0;
-                    item.unit_price = Number.isFinite(currentUnitPrice) && currentUnitPrice > 0
-                        ? currentUnitPrice.toFixed(2)
-                        : this.formatUnitPriceValue(product.price || 0);
+                    item.unit_price_inc_tax = this.formatUnitPriceValue(product.price || 0);
                     if ((item.notes || '').trim() === '') {
                         item.notes = (variant?.summary || product.summary || '').trim();
                     }
@@ -257,13 +281,27 @@
                     this.serializeLineItems();
                 },
                 preparedItem(item) {
+                    const quantity = parseFloat(item.quantity || 0);
+                    const unitPriceInc = Number.isFinite(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0))
+                        ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
+                        : 0;
+                    const unitPriceEx = item.gst_applicable !== false
+                        ? unitPriceInc / 1.1
+                        : unitPriceInc;
+                    const lineTotalEx = quantity * unitPriceEx;
+                    const lineTotalInc = quantity * unitPriceInc;
                     const cleaned = {
                         ...item,
                         kind: (item.kind || 'custom').toString().trim() || 'custom',
                         description: (item.description || '').trim(),
                         notes: (item.notes || '').trim(),
-                        quantity: parseFloat(item.quantity || 0),
-                        unit_price: parseFloat(item.unit_price || 0),
+                        quantity,
+                        unit_price: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
+                        unit_price_ex_tax: Number.isFinite(unitPriceEx) ? unitPriceEx : 0,
+                        unit_price_inc_tax: Number.isFinite(unitPriceInc) ? unitPriceInc : 0,
+                        line_total: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                        line_total_ex_tax: Number.isFinite(lineTotalEx) ? lineTotalEx : 0,
+                        line_total_inc_tax: Number.isFinite(lineTotalInc) ? lineTotalInc : 0,
                         gst_applicable: item.gst_applicable !== false,
                     };
 
@@ -288,8 +326,8 @@
                             unit_min_satchel_rank: product.min_satchel_rank ?? null,
                             unit_weight_grams: product.weight_grams ?? null,
                             tax_rate: parseFloat(product.tax_rate || 0),
-                            unit_price_inc_tax: parseFloat(cleaned.unit_price || 0) * (cleaned.gst_applicable ? 1.1 : 1),
-                            line_price_inc_tax: (parseFloat(cleaned.quantity || 0) * parseFloat(cleaned.unit_price || 0)) * (cleaned.gst_applicable ? 1.1 : 1),
+                            unit_price_inc_tax: Number.isFinite(parseFloat(cleaned.unit_price_inc_tax || 0)) ? parseFloat(cleaned.unit_price_inc_tax || 0) : 0,
+                            line_price_inc_tax: Number.isFinite(parseFloat(cleaned.line_total_inc_tax || 0)) ? parseFloat(cleaned.line_total_inc_tax || 0) : 0,
                         } : (item.store_context || null);
                     } else {
                         cleaned.source_id = null;
@@ -297,14 +335,12 @@
                         cleaned.store_context = null;
                     }
 
-                    cleaned.line_total = Math.round((cleaned.quantity || 0) * (cleaned.unit_price || 0) * 100) / 100;
-
                     return cleaned;
                 },
                 serializeLineItems() {
                     const cleaned = this.lineItems
                         .map((item) => this.preparedItem(item))
-                        .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price > 0);
+                        .filter((item) => item.description !== '' || item.notes !== '' || item.quantity > 0 || item.unit_price_inc_tax > 0);
 
                     this.$refs.lineItemsJson.value = JSON.stringify(cleaned);
                 },
@@ -320,28 +356,43 @@
                     const parsed = parseFloat(value || 0);
                     return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
                 },
-                lineItemAmount(item) {
+                lineItemAmount(item, basis = 'ex') {
                     const quantity = parseFloat(item.quantity || 0);
-                    const unitPrice = parseFloat(item.unit_price || 0);
+                    const unitPrice = basis === 'inc'
+                        ? parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0)
+                        : this.lineItemExPrice(item);
                     if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) {
                         return 0;
                     }
 
                     return quantity * unitPrice;
                 },
+                lineItemExPrice(item) {
+                    const unitPriceInc = parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0);
+                    const multiplier = this.lineItemGstMultiplier(item);
+
+                    if (!Number.isFinite(unitPriceInc)) {
+                        return 0;
+                    }
+
+                    return multiplier > 0 ? unitPriceInc / multiplier : unitPriceInc;
+                },
                 lineItemGstMultiplier(item) {
                     return item.gst_applicable !== false ? 1.10 : 1.00;
                 },
                 unitPriceIncGst(item) {
-                    return this.normalizeMoney(parseFloat(item.unit_price || 0) * this.lineItemGstMultiplier(item));
+                    return this.normalizeMoney(parseFloat(item.unit_price_inc_tax ?? item.unit_price ?? 0));
+                },
+                unitPriceExGst(item) {
+                    return this.normalizeMoney(this.lineItemExPrice(item));
                 },
                 subtotalIncGst(item) {
-                    return this.normalizeMoney(this.lineItemAmount(item) * this.lineItemGstMultiplier(item));
+                    return this.normalizeMoney(this.lineItemAmount(item, 'inc'));
                 },
                 calculateSubtotal() {
                     let subtotal = 0;
                     this.lineItems.forEach((item) => {
-                        subtotal += parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0);
+                        subtotal += this.lineItemAmount(item, 'ex');
                     });
                     return subtotal;
                 },
@@ -349,7 +400,7 @@
                     let gst = 0;
                     this.lineItems.forEach((item) => {
                         if (item.gst_applicable !== false) {
-                            gst += (parseFloat(item.quantity || 0) * parseFloat(item.unit_price || 0)) * 0.10;
+                            gst += this.lineItemAmount(item, 'inc') - this.lineItemAmount(item, 'ex');
                         }
                     });
                     return gst;
@@ -454,7 +505,7 @@
                 </div>
             @endif
 
-            <x-ui.select label="Status" name="status">
+            <x-ui.select label="Status" name="status" x-model="quoteStatus">
                 @foreach(\App\Models\Quote::STATUSES as $status)
                     <option value="{{ $status }}" @selected(old('status', $quote->status ?? \App\Models\Quote::STATUS_OPEN) === $status)>{{ \App\Models\Quote::statusLabelFor($status) }}</option>
                 @endforeach
@@ -579,12 +630,12 @@
                                 <input type="number" step="any" min="0" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.quantity" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'quantity')" />
                             </div>
                             <div class="col-span-6 md:col-span-3">
-                                <label class="block text-sm pl-1">Unit Price (Ex GST)</label>
-                                <input type="text" inputmode="decimal" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price')" />
+                                <label class="block text-sm pl-1">Unit Price (Inc GST)</label>
+                                <input type="text" inputmode="decimal" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.unit_price_inc_tax" x-on:input="serializeLineItems()" x-on:blur="normalizeLineItem(index, 'unit_price_inc_tax')" />
                             </div>
                             <div class="col-span-6 md:col-span-2">
-                                <label class="block text-sm pl-1">Unit Price (Inc GST)</label>
-                                <input type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="unitPriceIncGst(item)" />
+                                <label class="block text-sm pl-1">Unit Price (Ex GST, Auto)</label>
+                                <input type="text" readonly tabindex="-1" class="disabled:bg-gray-100 bg-gray-100 block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-700 rounded-lg border border-gray-300" x-bind:value="unitPriceExGst(item)" />
                             </div>
                             <div class="col-span-6 md:col-span-2">
                                 <label class="block text-sm pl-1">Sub Total (Inc GST)</label>
@@ -645,6 +696,15 @@
             <div class="flex justify-end mt-8 gap-4">
                 @isset($quote)
                     <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete quote?', 'Are you sure you want to delete this quote?', '{{ route('admin.quote.destroy', $quote) }}')">Delete</x-ui.button>
+                    <x-ui.button
+                        type="submit"
+                        color="primary-outline"
+                        name="save_and_email"
+                        value="1"
+                        x-bind:disabled="quoteStatus !== @js(\App\Models\Quote::STATUS_OPEN)"
+                    >
+                        Save and Email
+                    </x-ui.button>
                 @endisset
                 <x-ui.button type="submit">Save</x-ui.button>
             </div>

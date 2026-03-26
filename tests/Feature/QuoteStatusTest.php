@@ -7,7 +7,9 @@ use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Mail\FinanceDocumentPdf;
 use App\Mail\QuoteCustomerResponseAdminNotification;
+use App\Models\Product;
 use App\Models\Quote;
+use App\Models\StoreOrder;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\QuoteWorkflowService;
@@ -23,30 +25,35 @@ class QuoteStatusTest extends TestCase
     {
         $owner = User::factory()->create();
 
-        Quote::factory()->create([
+        /** @var Quote $draftQuote */
+        $draftQuote = Quote::factory()->create([
             'user_id' => $owner->id,
             'quote_number' => 'Q-DRAFT-1',
             'status' => Quote::STATUS_DRAFT,
             'quote_date' => now()->toDateString(),
         ]);
-        Quote::factory()->create([
+        /** @var Quote $openQuote */
+        $openQuote = Quote::factory()->create([
             'user_id' => $owner->id,
             'quote_number' => 'Q-OPEN-1',
             'status' => Quote::STATUS_OPEN,
             'quote_date' => now()->toDateString(),
         ]);
-        Quote::factory()->create([
+        /** @var Quote $cancelledQuote */
+        $cancelledQuote = Quote::factory()->create([
             'user_id' => $owner->id,
             'quote_number' => 'Q-CANCELLED-1',
             'status' => Quote::STATUS_CANCELLED,
             'quote_date' => now()->toDateString(),
         ]);
-        Quote::factory()->create([
+        /** @var Quote $acceptedQuote */
+        $acceptedQuote = Quote::factory()->create([
             'user_id' => $owner->id,
             'quote_number' => 'Q-ACCEPTED-1',
             'status' => Quote::STATUS_ACCEPTED,
             'quote_date' => now()->toDateString(),
         ]);
+        /** @var Quote $expiredQuote */
         $expiredQuote = Quote::factory()->create([
             'user_id' => $owner->id,
             'quote_number' => 'Q-OLD-1',
@@ -57,22 +64,25 @@ class QuoteStatusTest extends TestCase
         $this->actingAs($owner)
             ->get(route('account.quote.index'))
             ->assertOk()
-            ->assertDontSeeText('Q-DRAFT-1')
-            ->assertSeeText('Q-OPEN-1')
-            ->assertSeeText('Q-CANCELLED-1')
-            ->assertSeeText('Q-ACCEPTED-1')
+            ->assertDontSeeText($draftQuote->quote_number)
+            ->assertSeeText($openQuote->quote_number)
+            ->assertSeeText($cancelledQuote->quote_number)
+            ->assertSeeText($acceptedQuote->quote_number)
             ->assertSeeText('Q-OLD-1')
             ->assertSeeText('Open')
             ->assertSeeText('Cancelled')
             ->assertSeeText('Accepted')
             ->assertSeeText('Expired');
 
-        $this->assertSame(Quote::STATUS_EXPIRED, (string) $expiredQuote->fresh()?->status);
+        /** @var Quote $freshExpiredQuote */
+        $freshExpiredQuote = Quote::query()->findOrFail($expiredQuote->id);
+        $this->assertSame(Quote::STATUS_EXPIRED, (string) $freshExpiredQuote->status);
     }
 
     public function test_customer_cannot_open_a_draft_quote_pdf(): void
     {
         $owner = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_DRAFT,
@@ -92,6 +102,7 @@ class QuoteStatusTest extends TestCase
             'user_id' => (string) $admin->id,
             'slug' => 'admin',
         ]);
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'status' => Quote::STATUS_DRAFT,
         ]);
@@ -103,7 +114,9 @@ class QuoteStatusTest extends TestCase
             ])
             ->assertRedirect();
 
-        $this->assertSame(Quote::STATUS_OPEN, (string) $quote->fresh()?->status);
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $this->assertSame(Quote::STATUS_OPEN, (string) $freshQuote->status);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
             if (! $job->mailable instanceof FinanceDocumentPdf) {
                 return false;
@@ -125,6 +138,7 @@ class QuoteStatusTest extends TestCase
             'surname' => 'Example',
             'email' => 'avery@example.com',
         ]);
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_OPEN,
@@ -159,7 +173,112 @@ class QuoteStatusTest extends TestCase
             ->post($acceptPath)
             ->assertRedirect($reviewUrl);
 
-        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $quote->fresh()?->status);
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $freshQuote->status);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'ops@example.com'
+                && $job->mailable instanceof QuoteCustomerResponseAdminNotification;
+        });
+    }
+
+    public function test_customer_can_accept_and_pay_quote_from_magic_link(): void
+    {
+        Queue::fake();
+        config()->set('mail.admin_bcc', 'ops@example.com');
+
+        $owner = User::factory()->create([
+            'firstname' => 'Avery',
+            'surname' => 'Example',
+            'email' => 'avery@example.com',
+        ]);
+        /** @var Product $product */
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Microbit',
+            'sku' => 'MICROBIT',
+            'price' => 50.00,
+            'inventory_quantity' => 10,
+            'shipping_units' => 0.1,
+            'weight_grams' => 100,
+            'tax_rate' => 0.1,
+        ]);
+        /** @var Quote $quote */
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'status' => Quote::STATUS_OPEN,
+            'context_type' => Quote::CONTEXT_STORE_MANUAL_SHIPPING,
+            'quote_date' => now()->toDateString(),
+            'line_items' => [[
+                'kind' => 'product',
+                'description' => 'Microbit',
+                'notes' => '',
+                'quantity' => 1,
+                'unit_price' => 50,
+                'line_total' => 50,
+                'gst_applicable' => true,
+                'store_context' => [
+                    'product_id' => $product->id,
+                    'variant_id' => null,
+                    'product_title' => 'Microbit',
+                    'product_slug' => $product->slug,
+                    'variant_name' => '',
+                    'product_sku' => 'MICROBIT',
+                    'variant_sku' => '',
+                    'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                    'box_only' => false,
+                    'available_now_quantity' => 1,
+                    'delayed_quantity' => 0,
+                    'delayed_fulfilment_type' => null,
+                    'delayed_shipping_estimate' => null,
+                    'unit_shipping_units' => 0.1,
+                    'unit_min_satchel_rank' => 1,
+                    'unit_weight_grams' => 100,
+                    'tax_rate' => 0.1,
+                ],
+            ]],
+            'subtotal_amount' => 50,
+            'gst_amount' => 5,
+            'total_amount' => 55,
+            'context_payload' => [
+                'acceptance' => [
+                    'creates_order' => true,
+                    'emails_invoice' => true,
+                ],
+                'customer' => [
+                    'billing_name' => 'Avery Example',
+                    'billing_email' => 'avery@example.com',
+                ],
+            ],
+        ]);
+
+        $workflow = app(QuoteWorkflowService::class);
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'test.stemmechanics.com.au';
+        $reviewUrl = $workflow->quoteReviewUrl($quote);
+        $acceptUrl = $workflow->quoteMagicActionUrl($quote, 'quote.magic.accept');
+        $acceptPath = parse_url($acceptUrl, PHP_URL_PATH).'?'.parse_url($acceptUrl, PHP_URL_QUERY);
+
+        $this->withServerVariables(['HTTP_HOST' => $host, 'HTTPS' => 'on'])
+            ->get($reviewUrl)
+            ->assertOk()
+            ->assertSeeText('Accept & Pay Invoice')
+            ->assertDontSeeText('Accept Quote');
+
+        $response = $this->withServerVariables(['HTTP_HOST' => $host, 'HTTPS' => 'on'])
+            ->post($acceptPath, [
+                'accept_and_pay' => 1,
+            ]);
+
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $invoice = $freshQuote->invoices()->latest('id')->first();
+        $this->assertNotNull($invoice);
+        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $freshQuote->status);
+        $this->assertSame(1, StoreOrder::query()->where('invoice_id', $invoice->id)->count());
+        $this->assertSame(Invoice::STATUS_ISSUED, (string) $invoice->fresh()?->status);
+
+        $this->assertStringContainsString('/invoices/magic?token=', (string) $response->headers->get('Location'));
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
             return $job->to === 'ops@example.com'
                 && $job->mailable instanceof QuoteCustomerResponseAdminNotification;
@@ -169,6 +288,7 @@ class QuoteStatusTest extends TestCase
     public function test_account_quote_page_labels_gst_basis_and_shows_linked_invoice_actions(): void
     {
         $owner = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_ACCEPTED,
@@ -186,6 +306,7 @@ class QuoteStatusTest extends TestCase
             'gst_amount' => 10,
             'total_amount' => 110,
         ]);
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'quote_id' => $quote->id,
             'user_id' => $owner->id,
@@ -208,13 +329,13 @@ class QuoteStatusTest extends TestCase
             ->assertSeeText('Subtotal (ex GST)')
             ->assertSeeText('Total (inc GST)')
             ->assertSeeText('View Invoice')
-            ->assertSeeText('Pay Invoice')
             ->assertDontSeeText('already accepted');
     }
 
     public function test_customer_can_accept_and_go_to_the_linked_invoice(): void
     {
         $owner = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_OPEN,
@@ -244,10 +365,12 @@ class QuoteStatusTest extends TestCase
                 'accept_and_pay' => 1,
             ]);
 
-        $invoice = $quote->fresh()?->invoices()->latest('id')->first();
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $invoice = $freshQuote->invoices()->latest('id')->first();
 
         $response->assertRedirect(route('account.invoice.show', $invoice));
-        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $quote->fresh()?->status);
+        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $freshQuote->status);
         $this->assertNotNull($invoice);
         $this->assertSame($quote->id, (int) $invoice->quote_id);
     }
@@ -255,6 +378,7 @@ class QuoteStatusTest extends TestCase
     public function test_expired_quote_review_page_shows_due_date_and_hides_response_actions(): void
     {
         $owner = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_OPEN,
@@ -286,12 +410,15 @@ class QuoteStatusTest extends TestCase
             ->assertDontSeeText('Accept Quote')
             ->assertDontSeeText('Cancel Quote');
 
-        $this->assertSame(Quote::STATUS_EXPIRED, (string) $quote->fresh()?->status);
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $this->assertSame(Quote::STATUS_EXPIRED, (string) $freshQuote->status);
     }
 
     public function test_cancelled_quote_review_page_shows_cancelled_message_and_hides_response_actions(): void
     {
         $owner = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $owner->id,
             'status' => Quote::STATUS_CANCELLED,
@@ -321,6 +448,8 @@ class QuoteStatusTest extends TestCase
             ->assertDontSeeText('Accept Quote')
             ->assertDontSeeText('Cancel Quote');
 
-        $this->assertSame(Quote::STATUS_CANCELLED, (string) $quote->fresh()?->status);
+        /** @var Quote $freshQuote */
+        $freshQuote = Quote::query()->findOrFail($quote->id);
+        $this->assertSame(Quote::STATUS_CANCELLED, (string) $freshQuote->status);
     }
 }

@@ -46,6 +46,8 @@
                             $status = $email->status ?? 'sent';
                             $statusClass = match ($status) {
                                 'failed' => 'text-red-700 bg-red-100 border-red-200',
+                                'skipped' => 'text-slate-700 bg-slate-100 border-slate-200',
+                                'scheduled' => 'text-sky-700 bg-sky-100 border-sky-200',
                                 'queued' => 'text-amber-700 bg-amber-100 border-amber-200',
                                 default => 'text-green-700 bg-green-100 border-green-200',
                             };
@@ -55,12 +57,24 @@
                                 <div class="text-xs sm:text-sm">{{ $email->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                                 <div class="md:hidden mt-1">{{ $email->recipient }}</div>
                                 <div class="md:hidden text-xs font-medium">{{ class_basename($email->mailable_class) }}</div>
+                                @if($email->scheduled_for_at)
+                                    <div class="md:hidden text-xs text-sky-700 mt-1">Scheduled for {{ $email->scheduled_for_at->format('M j, Y g:i a') }}</div>
+                                @endif
+                                @if($status === \App\Models\SentEmail::STATUS_SKIPPED)
+                                    <div class="md:hidden text-xs text-slate-700 mt-1">Skipped because the email was already sent.</div>
+                                @endif
                                 <div class="md:hidden text-xs text-gray-500 break-all">{{ $email->mailable_class }}</div>
                                 <div class="md:hidden text-xs text-gray-600 mt-1">ID: <span class="font-mono">{{ $email->id }}</span></div>
                                 </td>
                             <td class="hidden md:table-cell">
                                 <div>{{ $email->recipient }}</div>
                                 <div class="font-medium">{{ class_basename($email->mailable_class) }}</div>
+                                @if($email->scheduled_for_at)
+                                    <div class="text-xs text-sky-700">Scheduled for {{ $email->scheduled_for_at->format('M j, Y g:i a') }}</div>
+                                @endif
+                                @if($status === \App\Models\SentEmail::STATUS_SKIPPED)
+                                    <div class="text-xs text-slate-700">Skipped because the email was already sent.</div>
+                                @endif
                                 <div class="text-xs text-gray-500 break-all">{{ $email->mailable_class }}</div>
                             </td>
                             <td class="hidden md:table-cell">{{ $email->sent_at?->format('M j, Y g:i a') ?? '-' }}</td>

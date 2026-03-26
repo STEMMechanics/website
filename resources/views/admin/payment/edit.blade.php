@@ -57,6 +57,7 @@
     ], true)
         ? (string) $customerPayment->payment_method
         : '';
+    $highlightRefundId = (int) request()->query('highlight_refund', 0);
 
     if ($savedAllocations === null) {
         $savedAllocations = isset($customerPayment) && $canEditAllocations
@@ -408,7 +409,7 @@
                                     </thead>
                                     <tbody>
                                         @foreach($refundHistory as $refund)
-                                            <tr class="border-b border-gray-100">
+                                            <tr id="refund-{{ $refund->id }}" class="border-b border-gray-100 {{ $highlightRefundId === (int) $refund->id ? 'highlight-row' : '' }}">
                                                 <td class="py-2 pr-3">#{{ $refund->id }}</td>
                                                 <td class="py-2 pr-3">{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
                                                 <td class="py-2 pr-3">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
@@ -429,6 +430,16 @@
                                     </tbody>
                                 </table>
                             </div>
+                            @if($highlightRefundId > 0)
+                                <script>
+                                    window.addEventListener('DOMContentLoaded', function () {
+                                        var target = document.getElementById('refund-{{ $highlightRefundId }}');
+                                        if (target) {
+                                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        }
+                                    });
+                                </script>
+                            @endif
                         @endif
                     </div>
                 @endif

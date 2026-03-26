@@ -15,9 +15,11 @@ use App\Models\Quote;
 use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\Token;
+use App\Models\StoreOrder;
 use App\Models\User;
 use App\Services\DocumentNumberService;
 use App\Services\SquareApiService;
+use App\Services\StoreOrderService;
 use App\Support\InvoiceDueDate;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +38,8 @@ use Throwable;
 class InvoiceController extends Controller
 {
     public function __construct(
-        private readonly DocumentNumberService $documentNumbers
+        private readonly DocumentNumberService $documentNumbers,
+        private readonly StoreOrderService $storeOrders
     ) {}
 
     public function index(Request $request)
@@ -727,7 +730,7 @@ class InvoiceController extends Controller
 
     private function renderInvoicePortal(Invoice $invoice, ?string $accessToken, bool $isAccountView, bool $isPublic = false): View
     {
-        $invoice->loadMissing('user', 'quote', 'lines', 'allocations.customerPayment', 'taxAdjustments.lines');
+        $invoice->loadMissing('user', 'quote', 'lines', 'allocations.customerPayment', 'taxAdjustments.lines', 'storeOrders');
         $this->appendReissueNotesToInvoiceLines($invoice);
         $settlementKind = $invoice->expectedSettlementKind();
         $grossAllocated = round((float) $invoice->allocations
@@ -791,6 +794,14 @@ class InvoiceController extends Controller
         $linkedQuoteUrl = $isAccountView && $linkedQuote instanceof Quote
             ? route('account.quote.show', $linkedQuote)
             : null;
+        $linkedStoreOrder = $invoice->storeOrders
+            ->sortByDesc(fn ($order) => optional($order->created_at)->timestamp ?? (int) $order->id)
+            ->first();
+        $linkedStoreOrderUrl = $linkedStoreOrder instanceof StoreOrder
+            ? ($isAccountView
+                ? route('account.order.show', $linkedStoreOrder)
+                : route('shop.order.tracking', (string) $linkedStoreOrder->access_token))
+            : null;
 
         return view('invoice.portal', [
             'invoice' => $invoice,
@@ -807,6 +818,8 @@ class InvoiceController extends Controller
             'accountReceiptsUrl' => $isAccountView ? route('account.invoice.receipts', $invoice) : null,
             'linkedQuote' => $linkedQuote,
             'linkedQuoteUrl' => $linkedQuoteUrl,
+            'linkedStoreOrder' => $linkedStoreOrder,
+            'linkedStoreOrderUrl' => $linkedStoreOrderUrl,
             'accessToken' => $accessToken,
             'isAccountView' => $isAccountView,
             'isPublic' => $isPublic,
@@ -1303,9 +1316,18 @@ class InvoiceController extends Controller
 
     private function sendPaymentReceiptEmail(Invoice $invoice, Payment $customerPayment): void
     {
-        $invoice->loadMissing('user');
+        $invoice->loadMissing('user', 'storeOrders');
         $recipient = $this->resolveInvoiceContactEmail($invoice);
         if ($recipient === '') {
+            return;
+        }
+
+        $linkedStoreOrder = $invoice->storeOrders
+            ->sortByDesc(fn ($order) => optional($order->created_at)->timestamp ?? (int) $order->id)
+            ->first();
+        if ($linkedStoreOrder instanceof StoreOrder) {
+            $this->storeOrders->sendOrderPaidEmailToCustomer($linkedStoreOrder);
+
             return;
         }
 

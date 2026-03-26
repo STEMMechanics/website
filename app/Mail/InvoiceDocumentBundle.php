@@ -61,7 +61,7 @@ class InvoiceDocumentBundle extends Mailable
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
 
         $mail = $this
-            ->subject('Documents for invoice '.$this->invoiceNumber)
+            ->subject('Your invoice '.$this->invoiceNumber.' is ready from STEMMechanics')
             ->markdown('emails.invoice-document-bundle');
 
         if ($adminBcc !== '') {

@@ -5,11 +5,14 @@ namespace Tests\Feature;
 use App\Http\Controllers\InvoiceController;
 use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
+use App\Mail\StoreOrderPaid;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\Quote;
+use App\Models\StoreOrder;
 use App\Models\User;
+use App\Models\Token;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
@@ -28,6 +31,7 @@ class PublicInvoicePortalTest extends TestCase
             'email' => 'pat.client@example.com',
         ]);
 
+        /** @var Invoice $invoice */
         $invoice = Invoice::create([
             'invoice_number' => '9001',
             'user_id' => $user->id,
@@ -54,11 +58,13 @@ class PublicInvoicePortalTest extends TestCase
     public function test_signed_invoice_receipt_pdf_route_resolves_for_linked_payment(): void
     {
         $user = User::factory()->create();
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $user->id,
             'status' => Invoice::STATUS_ISSUED,
             'total_amount' => 110.00,
         ]);
+        /** @var Payment $payment */
         $payment = Payment::factory()->create([
             'user_id' => $user->id,
             'kind' => Payment::KIND_PAYMENT,
@@ -82,12 +88,14 @@ class PublicInvoicePortalTest extends TestCase
     public function test_account_invoice_page_shows_linked_quote_button(): void
     {
         $user = User::factory()->create();
+        /** @var Quote $quote */
         $quote = Quote::factory()->create([
             'user_id' => $user->id,
             'quote_number' => 'Q-1000',
             'status' => Quote::STATUS_ACCEPTED,
             'quote_date' => now()->toDateString(),
         ]);
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $user->id,
             'quote_id' => $quote->id,
@@ -99,7 +107,7 @@ class PublicInvoicePortalTest extends TestCase
             ->get(route('account.invoice.show', $invoice))
             ->assertOk()
             ->assertSeeText('Q-1000')
-            ->assertSeeText('Invoice #'.$invoice->invoice_number)
+            ->assertSeeText('Invoice '.$invoice->invoice_number)
             ->assertDontSeeText('Reference');
     }
 
@@ -111,6 +119,7 @@ class PublicInvoicePortalTest extends TestCase
             'email' => 'alex.customer@example.com',
         ]);
 
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $user->id,
             'billing_name' => 'Alex Customer',
@@ -119,6 +128,7 @@ class PublicInvoicePortalTest extends TestCase
             'total_amount' => 100.00,
         ]);
 
+        /** @var Payment $creditPayment */
         $creditPayment = Payment::factory()->create([
             'user_id' => $user->id,
             'kind' => Payment::KIND_PAYMENT,
@@ -126,6 +136,7 @@ class PublicInvoicePortalTest extends TestCase
             'total_amount' => 52.50,
             'reference' => 'Account Credit',
         ]);
+        /** @var Payment $cardPayment */
         $cardPayment = Payment::factory()->create([
             'user_id' => $user->id,
             'kind' => Payment::KIND_PAYMENT,
@@ -159,6 +170,39 @@ class PublicInvoicePortalTest extends TestCase
             ->assertSeeText('$100.00');
     }
 
+    public function test_invoice_magic_portal_shows_order_number_when_invoice_is_linked_to_store_order(): void
+    {
+        $user = User::factory()->create();
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 55.00,
+        ]);
+        /** @var StoreOrder $order */
+        $order = StoreOrder::factory()->create([
+            'user_id' => $user->id,
+            'invoice_id' => $invoice->id,
+            'order_number' => '1003',
+        ]);
+        /** @var Token $token */
+        $token = Token::query()->create([
+            'user_id' => $user->id,
+            'type' => 'invoice-access',
+            'data' => [
+                'invoice_id' => $invoice->id,
+            ],
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        $this->get(route('invoice.magic', ['token' => $token->id]))
+            ->assertOk()
+            ->assertSeeText('Order')
+            ->assertSeeText('1003');
+
+        $this->assertSame((int) $invoice->id, (int) $order->invoice_id);
+    }
+
     public function test_invoice_payment_receipt_email_sends_separate_credit_and_card_receipts_when_credit_is_used(): void
     {
         Queue::fake();
@@ -169,6 +213,7 @@ class PublicInvoicePortalTest extends TestCase
             'email' => 'alex.customer@example.com',
         ]);
 
+        /** @var Invoice $invoice */
         $invoice = Invoice::factory()->create([
             'user_id' => $user->id,
             'billing_name' => 'Alex Customer',
@@ -180,6 +225,7 @@ class PublicInvoicePortalTest extends TestCase
             'total_amount' => 200.00,
         ]);
 
+        /** @var Payment $creditPayment */
         $creditPayment = Payment::factory()->create([
             'user_id' => $user->id,
             'kind' => Payment::KIND_PAYMENT,
@@ -187,6 +233,7 @@ class PublicInvoicePortalTest extends TestCase
             'total_amount' => 100.00,
             'reference' => 'Account Credit',
         ]);
+        /** @var Payment $cardPayment */
         $cardPayment = Payment::factory()->create([
             'user_id' => $user->id,
             'kind' => Payment::KIND_PAYMENT,
@@ -227,5 +274,69 @@ class PublicInvoicePortalTest extends TestCase
                 && $job->mailable->creditAppliedAmount === null
                 && $job->mailable->orderTotalAmount === null;
         });
+    }
+
+    public function test_invoice_payment_email_uses_order_paid_mail_when_invoice_is_linked_to_store_order(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create([
+            'firstname' => 'Robin',
+            'surname' => 'Customer',
+            'email' => 'robin@example.com',
+        ]);
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'billing_name' => 'Robin Customer',
+            'billing_email' => 'robin@example.com',
+            'status' => Invoice::STATUS_PAID,
+            'invoice_number' => '8671',
+            'subtotal_amount' => 90.91,
+            'gst_amount' => 9.09,
+            'total_amount' => 100.00,
+        ]);
+
+        /** @var StoreOrder $order */
+        $order = StoreOrder::factory()->create([
+            'user_id' => $user->id,
+            'invoice_id' => $invoice->id,
+            'order_number' => '1004',
+            'billing_email' => 'robin@example.com',
+            'total_amount' => 100.00,
+            'subtotal_amount' => 90.91,
+            'gst_amount' => 9.09,
+        ]);
+
+        /** @var Payment $payment */
+        $payment = Payment::factory()->create([
+            'user_id' => $user->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CREDIT_CARD,
+            'total_amount' => 100.00,
+            'reference' => 'Square Payment',
+        ]);
+
+        InvoicePaymentAllocation::query()->create([
+            'invoice_id' => $invoice->id,
+            'payment_id' => $payment->id,
+            'allocated_amount' => 100.00,
+        ]);
+
+        $controller = app(InvoiceController::class);
+        $method = new ReflectionMethod($controller, 'sendPaymentReceiptEmail');
+        $method->setAccessible(true);
+        $method->invoke($controller, $invoice, $payment);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'robin@example.com'
+                && $job->mailable instanceof StoreOrderPaid;
+        });
+        Queue::assertNotPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->mailable instanceof PaymentReceiptPdf;
+        });
+
+        $this->assertSame((int) $invoice->id, (int) $order->invoice_id);
     }
 }

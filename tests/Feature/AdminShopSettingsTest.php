@@ -43,6 +43,16 @@ class AdminShopSettingsTest extends TestCase
                 'boxed_shipping_label' => 'Special box shipping',
                 'boxed_shipping_message' => 'This order needs a custom boxed shipment.',
                 'boxed_shipping_amount' => '25.00',
+                'tracking_link_templates' => [
+                    [
+                        'carrier' => 'Australia Post',
+                        'template' => 'https://auspost.com.au/mypost/track/details?id={tracking}',
+                    ],
+                    [
+                        'carrier' => 'Courier Please',
+                        'template' => 'https://courierplease.com.au/track?consignment={tracking}',
+                    ],
+                ],
                 'shipping_methods' => [
                     [
                         'id' => $regular->id,
@@ -133,6 +143,13 @@ class AdminShopSettingsTest extends TestCase
         $this->assertDatabaseHas('site_options', [
             'name' => ShopShippingSettings::BOXED_LABEL_OPTION,
             'value' => 'Special box shipping',
+        ]);
+        $this->assertDatabaseHas('site_options', [
+            'name' => ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
+            'value' => json_encode([
+                'Australia Post' => 'https://auspost.com.au/mypost/track/details?id={tracking}',
+                'Courier Please' => 'https://courierplease.com.au/track?consignment={tracking}',
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         ]);
         $this->assertDatabaseHas('store_shipping_methods', [
             'id' => $express->id,

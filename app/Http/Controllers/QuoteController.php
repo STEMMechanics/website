@@ -145,6 +145,10 @@ class QuoteController extends Controller
             $quote->updateFiles($request->input('private_files'), 'private');
         }
 
+        if ($request->boolean('save_and_email') && (string) $quote->status === Quote::STATUS_OPEN) {
+            session()->flash('quote-email-open', true);
+        }
+
         session()->flash('message', 'Quote has been updated');
         session()->flash('message-title', 'Quote updated');
         session()->flash('message-type', 'success');
@@ -243,9 +247,14 @@ class QuoteController extends Controller
         }
 
         $invoice = $result['invoice'] ?? null;
-        $message = ($invoice instanceof Invoice && ($result['invoice_emailed'] ?? false))
-            ? 'Quote accepted. Your invoice has been emailed.'
-            : 'Quote accepted. We have recorded your response.';
+        $order = $result['order'] ?? null;
+        $message = ($order instanceof \App\Models\StoreOrder && ($result['order_email_deferred'] ?? false))
+            ? 'Quote accepted. Your order confirmation and invoice will be emailed shortly.'
+            : (($order instanceof \App\Models\StoreOrder && ($result['invoice_emailed'] ?? false))
+                ? 'Quote accepted. Your order confirmation has been emailed.'
+                : (($invoice instanceof Invoice && ($result['invoice_emailed'] ?? false))
+                    ? 'Quote accepted. Your invoice has been emailed.'
+                    : 'Quote accepted. We have recorded your response.'));
 
         if (($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
             $message .= ' The linked order is now available in your account.';
@@ -302,7 +311,8 @@ class QuoteController extends Controller
         return $this->handleQuoteAcceptance(
             $quote,
             $this->quoteWorkflow->quoteReviewUrl($quote),
-            false
+            false,
+            $request->boolean('accept_and_pay')
         );
     }
 
@@ -477,8 +487,10 @@ class QuoteController extends Controller
         return false;
     }
 
-    private function handleQuoteAcceptance(Quote $quote, string $redirectUrl, bool $isAccountAccess): RedirectResponse
+    private function handleQuoteAcceptance(Quote $quote, string $redirectUrl, bool $isAccountAccess, bool $acceptAndPay = false): RedirectResponse
     {
+        $forceAcceptAndPay = $quote->requiresAcceptancePayment();
+
         try {
             $result = $this->quoteWorkflow->acceptByCustomer($quote, auth()->user());
         } catch (ValidationException $e) {
@@ -489,9 +501,15 @@ class QuoteController extends Controller
             return redirect()->to($redirectUrl);
         }
 
-        $message = ($result['invoice'] ?? null) instanceof \App\Models\Invoice && ($result['invoice_emailed'] ?? false)
-            ? 'Quote accepted. Your invoice has been emailed.'
-            : 'Quote accepted. We have recorded your response.';
+        $invoice = $result['invoice'] ?? null;
+        $order = $result['order'] ?? null;
+        $message = ($order instanceof \App\Models\StoreOrder && ($result['order_email_deferred'] ?? false))
+            ? 'Quote accepted. Your order confirmation and invoice will be emailed shortly.'
+            : (($order instanceof \App\Models\StoreOrder && ($result['invoice_emailed'] ?? false))
+                ? 'Quote accepted. Your order confirmation has been emailed.'
+                : (($invoice instanceof \App\Models\Invoice && ($result['invoice_emailed'] ?? false))
+                    ? 'Quote accepted. Your invoice has been emailed.'
+                    : 'Quote accepted. We have recorded your response.'));
 
         if ($isAccountAccess && ($result['order'] ?? null) instanceof \App\Models\StoreOrder) {
             $message .= ' The linked order is now available in your account.';
@@ -500,6 +518,14 @@ class QuoteController extends Controller
         session()->flash('message', $message);
         session()->flash('message-title', 'Quote accepted');
         session()->flash('message-type', 'success');
+
+        if (($acceptAndPay || $forceAcceptAndPay) && $invoice instanceof Invoice) {
+            if ($isAccountAccess) {
+                return redirect()->route('account.invoice.show', $invoice);
+            }
+
+            return redirect()->to($this->quoteWorkflow->quoteInvoiceAccessUrl($invoice));
+        }
 
         return redirect()->to($redirectUrl);
     }
@@ -550,9 +576,11 @@ class QuoteController extends Controller
             'linkedInvoicePayUrl' => $linkedInvoiceIsPayable ? route('account.invoice.show', $linkedInvoice) : null,
             'quoteDueDate' => $quoteExpiresAt instanceof \Illuminate\Support\Carbon ? $quoteExpiresAt->format('M j, Y') : null,
             'quoteHasExpired' => $quote->isExpired(),
+            'forceAcceptAndPay' => $quote->requiresAcceptancePayment(),
             'canAcceptAndPay' => $quote->canCustomerRespond() && (
                 $linkedInvoiceIsPayable
                 || $quote->acceptanceEmailsInvoice()
+                || $quote->requiresAcceptancePayment()
             ),
         ];
     }
@@ -988,7 +1016,7 @@ class QuoteController extends Controller
             ? 'for your store items'
             : 'for your request';
 
-        return "Hi {$name},\n\nAttached is quote **{$quoteNumber}** {$contextLabel}. You can review it online and accept or cancel it using the button below.\n\n{{action}}";
+        return "Hi {$name},\n\nAttached is quote **{$quoteNumber}** {$contextLabel}. You can review it online and choose to accept it using the link below.\n\nIf you accept the quote, we'll proceed with processing your request.\n\n{{action}}";
     }
 
     private function resolveQuoteEmailCcRecipients(Request $request): array

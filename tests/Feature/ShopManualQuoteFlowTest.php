@@ -3,13 +3,15 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Jobs\SendDeferredStoreOrderEmail;
+use App\Models\Invoice;
 use App\Mail\FinanceDocumentPdf;
-use App\Mail\InvoiceDocumentBundle;
 use App\Mail\QuoteCustomerResponseAdminNotification;
 use App\Mail\StoreQuoteRequestAdminNotification;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Quote;
+use App\Models\SentEmail;
 use App\Models\SiteOption;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
@@ -18,6 +20,7 @@ use App\Models\UserGroup;
 use App\Services\QuoteWorkflowService;
 use App\Support\ShopShippingSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -39,6 +42,7 @@ class ShopManualQuoteFlowTest extends TestCase
             ['value' => 'Manual quote']
         );
 
+        /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
@@ -48,6 +52,7 @@ class ShopManualQuoteFlowTest extends TestCase
             'shipping_units' => 0.0,
             'min_satchel_rank' => 1,
         ]);
+        /** @var ProductVariant $variant */
         $variant = ProductVariant::factory()->create([
             'product_id' => $product->id,
             'name' => 'Large',
@@ -96,6 +101,7 @@ class ShopManualQuoteFlowTest extends TestCase
 
     public function test_quote_requested_order_page_hides_fulfilment_state_and_unknown_amounts(): void
     {
+        /** @var StoreOrder $order */
         $order = StoreOrder::factory()->create([
             'invoice_id' => null,
             'status' => StoreOrder::STATUS_QUOTE_REQUESTED,
@@ -136,10 +142,12 @@ class ShopManualQuoteFlowTest extends TestCase
             'user_id' => (string) $admin->id,
             'slug' => 'admin',
         ]);
+        /** @var User $customer */
         $customer = User::factory()->create([
             'email' => 'customer@example.com',
         ]);
 
+        /** @var StoreOrder $order */
         $order = StoreOrder::factory()->create([
             'user_id' => $customer->id,
             'invoice_id' => null,
@@ -170,10 +178,12 @@ class ShopManualQuoteFlowTest extends TestCase
 
         $response->assertRedirect();
 
+        /** @var StoreOrder $freshOrder */
         $freshOrder = $order->fresh(['invoice.quote']);
 
         $this->assertNotNull($freshOrder->invoice);
-        $this->assertNotNull($freshOrder->invoice?->quote);
+        $this->assertInstanceOf(Invoice::class, $freshOrder->invoice);
+        $this->assertNotNull($freshOrder->invoice->quote);
         $this->assertSame(StoreOrder::STATUS_PENDING_PAYMENT, (string) $freshOrder->status);
         $this->assertSame(18.50, round((float) $freshOrder->shipping_amount, 2));
 
@@ -188,119 +198,169 @@ class ShopManualQuoteFlowTest extends TestCase
     {
         Queue::fake();
         config()->set('mail.admin_bcc', 'ops@example.com');
+        Carbon::setTestNow(Carbon::parse('2026-03-26 10:00:00', 'Australia/Brisbane'));
 
-        $customer = User::factory()->create([
-            'firstname' => 'Avery',
-            'surname' => 'Example',
-            'email' => 'avery@example.com',
-        ]);
-        $product = Product::factory()->create([
-            'status' => Product::STATUS_ACTIVE,
-            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
-            'title' => 'Marbles',
-            'sku' => 'MARBLES',
-            'price' => 5.50,
-            'inventory_quantity' => 8,
-            'shipping_units' => 0.1,
-            'weight_grams' => 100,
-            'tax_rate' => 0.1,
-        ]);
+        try {
+            $customer = User::factory()->create([
+                'firstname' => 'Avery',
+                'surname' => 'Example',
+                'email' => 'avery@example.com',
+            ]);
+            /** @var Product $product */
+            $product = Product::factory()->create([
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'title' => 'Marbles',
+                'sku' => 'MARBLES',
+                'price' => 5.50,
+                'inventory_quantity' => 8,
+                'shipping_units' => 0.1,
+                'weight_grams' => 100,
+                'tax_rate' => 0.1,
+            ]);
 
-        $quote = Quote::factory()->create([
-            'user_id' => $customer->id,
-            'status' => Quote::STATUS_OPEN,
-            'context_type' => Quote::CONTEXT_STORE_MANUAL_SHIPPING,
-            'quote_date' => now()->toDateString(),
-            'line_items' => [[
-                'kind' => 'product',
-                'description' => 'Marbles',
-                'notes' => '',
-                'quantity' => 2,
-                'unit_price' => 5.00,
-                'line_total' => 10.00,
-                'gst_applicable' => true,
-                'store_context' => [
-                    'product_id' => $product->id,
-                    'variant_id' => null,
-                    'product_title' => 'Marbles',
-                    'product_slug' => $product->slug,
-                    'variant_name' => '',
-                    'product_sku' => 'MARBLES',
-                    'variant_sku' => '',
-                    'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
-                    'box_only' => false,
-                    'available_now_quantity' => 2,
-                    'delayed_quantity' => 0,
-                    'delayed_fulfilment_type' => null,
-                    'delayed_shipping_estimate' => null,
-                    'unit_shipping_units' => 0.1,
-                    'unit_min_satchel_rank' => 1,
-                    'unit_weight_grams' => 100,
-                    'tax_rate' => 0.1,
-                    'unit_price_inc_tax' => 5.50,
-                    'line_price_inc_tax' => 11.00,
-                ],
-            ], [
-                'kind' => 'shipping',
-                'description' => 'Quoted shipping',
-                'notes' => '',
-                'quantity' => 1,
-                'unit_price' => 9.09,
-                'line_total' => 9.09,
-                'gst_applicable' => true,
-            ]],
-            'subtotal_amount' => 19.09,
-            'gst_amount' => 1.91,
-            'total_amount' => 21.00,
-            'context_payload' => [
-                'acceptance' => [
-                    'creates_order' => true,
-                    'emails_invoice' => true,
-                ],
-                'customer' => [
-                    'billing_name' => 'Avery Example',
-                    'billing_email' => 'avery@example.com',
-                    'billing_phone' => '0400123456',
-                    'billing_company' => '',
-                    'shipping_name' => 'Avery Example',
-                    'shipping_phone' => '0400123456',
-                    'shipping_address' => '123 Example Street',
-                    'shipping_address2' => '',
-                    'shipping_city' => 'Brisbane',
-                    'shipping_state' => 'QLD',
-                    'shipping_postcode' => '4000',
-                    'shipping_country' => 'Australia',
+            /** @var Quote $quote */
+            /** @var Quote $quote */
+            $quote = Quote::factory()->create([
+                'user_id' => $customer->id,
+                'status' => Quote::STATUS_OPEN,
+                'context_type' => Quote::CONTEXT_STORE_MANUAL_SHIPPING,
+                'quote_date' => now()->toDateString(),
+                'line_items' => [[
+                    'kind' => 'product',
+                    'description' => 'Marbles',
                     'notes' => '',
+                    'quantity' => 2,
+                    'unit_price' => 5.00,
+                    'line_total' => 10.00,
+                    'gst_applicable' => true,
+                    'store_context' => [
+                        'product_id' => $product->id,
+                        'variant_id' => null,
+                        'product_title' => 'Marbles',
+                        'product_slug' => $product->slug,
+                        'variant_name' => '',
+                        'product_sku' => 'MARBLES',
+                        'variant_sku' => '',
+                        'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                        'box_only' => false,
+                        'available_now_quantity' => 2,
+                        'delayed_quantity' => 0,
+                        'delayed_fulfilment_type' => null,
+                        'delayed_shipping_estimate' => null,
+                        'unit_shipping_units' => 0.1,
+                        'unit_min_satchel_rank' => 1,
+                        'unit_weight_grams' => 100,
+                        'tax_rate' => 0.1,
+                        'unit_price_inc_tax' => 5.50,
+                        'line_price_inc_tax' => 11.00,
+                    ],
+                ], [
+                    'kind' => 'shipping',
+                    'description' => 'Quoted shipping',
+                    'notes' => '',
+                    'quantity' => 1,
+                    'unit_price' => 9.09,
+                    'line_total' => 9.09,
+                    'gst_applicable' => true,
+                ]],
+                'subtotal_amount' => 19.09,
+                'gst_amount' => 1.91,
+                'total_amount' => 21.00,
+                'context_payload' => [
+                    'acceptance' => [
+                        'creates_order' => true,
+                        'emails_invoice' => true,
+                    ],
+                    'customer' => [
+                        'billing_name' => 'Avery Example',
+                        'billing_email' => 'avery@example.com',
+                        'billing_phone' => '0400123456',
+                        'billing_company' => '',
+                        'shipping_name' => 'Avery Example',
+                        'shipping_phone' => '0400123456',
+                        'shipping_address' => '123 Example Street',
+                        'shipping_address2' => '',
+                        'shipping_city' => 'Brisbane',
+                        'shipping_state' => 'QLD',
+                        'shipping_postcode' => '4000',
+                        'shipping_country' => 'Australia',
+                        'notes' => '',
+                    ],
                 ],
-            ],
+            ]);
+
+            $workflow = app(QuoteWorkflowService::class);
+            $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'test.stemmechanics.com.au';
+            $acceptUrl = $workflow->quoteMagicActionUrl($quote, 'quote.magic.accept');
+            $acceptPath = parse_url($acceptUrl, PHP_URL_PATH).'?'.parse_url($acceptUrl, PHP_URL_QUERY);
+
+            $response = $this->withServerVariables(['HTTP_HOST' => $host, 'HTTPS' => 'on'])
+                ->post($acceptPath)
+                ->assertRedirect();
+
+            $freshQuote = $quote->fresh(['invoices']);
+            $this->assertInstanceOf(Quote::class, $freshQuote);
+            $this->assertSame(Quote::STATUS_ACCEPTED, (string) $freshQuote->status);
+            $this->assertNotNull($freshQuote->accepted_at);
+            $this->assertCount(1, $freshQuote->invoices);
+            $freshOrder = StoreOrder::query()->first();
+            $this->assertInstanceOf(StoreOrder::class, $freshOrder);
+            $this->assertSame((int) $freshQuote->id, (int) $freshOrder->quote_id);
+            $this->assertSame(1, StoreOrder::query()->count());
+            $this->assertStringContainsString('/invoices/magic?token=', (string) $response->headers->get('Location'));
+
+            /** @var SentEmail $scheduledEmail */
+            $scheduledEmail = SentEmail::query()
+                ->where('mailable_class', SendDeferredStoreOrderEmail::class)
+                ->firstOrFail();
+
+            $this->assertSame(SentEmail::STATUS_SCHEDULED, (string) $scheduledEmail->status);
+            $this->assertNotNull($scheduledEmail->scheduled_for_at);
+            $this->assertTrue(Carbon::instance($scheduledEmail->scheduled_for_at)->equalTo(now()->addMinutes(10)));
+
+            Queue::assertPushed(SendDeferredStoreOrderEmail::class, function (SendDeferredStoreOrderEmail $job) use ($freshOrder): bool {
+                return $job->storeOrderId === $freshOrder->id
+                    && $job->sentEmailId === (string) SentEmail::query()
+                        ->where('mailable_class', SendDeferredStoreOrderEmail::class)
+                        ->value('id')
+                    && $job->delay instanceof \DateTimeInterface
+                    && Carbon::instance($job->delay)->equalTo(now()->addMinutes(10));
+            });
+            Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+                return $job->to === 'ops@example.com'
+                    && $job->mailable instanceof QuoteCustomerResponseAdminNotification;
+            });
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_deferred_store_order_email_is_skipped_when_already_emailed(): void
+    {
+        Queue::fake();
+
+        /** @var StoreOrder $order */
+        $order = StoreOrder::factory()->create([
+            'billing_email' => 'avery@example.com',
+            'order_confirmation_emailed_at' => now(),
+            'order_paid_emailed_at' => null,
         ]);
 
-        $workflow = app(QuoteWorkflowService::class);
-        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: 'test.stemmechanics.com.au';
-        $reviewUrl = $workflow->quoteReviewUrl($quote);
-        $acceptUrl = $workflow->quoteMagicActionUrl($quote, 'quote.magic.accept');
-        $acceptPath = parse_url($acceptUrl, PHP_URL_PATH).'?'.parse_url($acceptUrl, PHP_URL_QUERY);
+        /** @var SentEmail $scheduledEmail */
+        $scheduledEmail = SentEmail::query()->create([
+            'recipient' => 'avery@example.com',
+            'mailable_class' => SendDeferredStoreOrderEmail::class,
+            'status' => SentEmail::STATUS_SCHEDULED,
+            'scheduled_for_at' => now()->addMinutes(10),
+        ]);
 
-        $this->withServerVariables(['HTTP_HOST' => $host, 'HTTPS' => 'on'])
-            ->post($acceptPath)
-            ->assertRedirect($reviewUrl);
+        $job = new SendDeferredStoreOrderEmail($order->id, (string) $scheduledEmail->id);
+        $job->handle(app(\App\Services\StoreOrderService::class));
 
-        $freshQuote = $quote->fresh(['invoices']);
-        $this->assertSame(Quote::STATUS_ACCEPTED, (string) $freshQuote?->status);
-        $this->assertNotNull($freshQuote?->accepted_at);
-        $this->assertCount(1, $freshQuote?->invoices ?? []);
-        $freshOrder = StoreOrder::query()->first();
-        $this->assertInstanceOf(StoreOrder::class, $freshOrder);
-        $this->assertSame((int) $freshQuote->id, (int) $freshOrder->quote_id);
-        $this->assertSame(1, StoreOrder::query()->count());
+        $scheduledEmail->refresh();
 
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            return $job->to === 'avery@example.com'
-                && $job->mailable instanceof InvoiceDocumentBundle;
-        });
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            return $job->to === 'ops@example.com'
-                && $job->mailable instanceof QuoteCustomerResponseAdminNotification;
-        });
+        $this->assertSame(SentEmail::STATUS_SKIPPED, (string) $scheduledEmail->status);
+        Queue::assertNotPushed(SendEmail::class);
     }
 }

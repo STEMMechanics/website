@@ -319,8 +319,8 @@ class StoreOrderController extends Controller
 
                 if ($remainingAvailable > 0) {
                     $parts[] = $order->usesPickup()
-                        ? $remainingAvailable.' ready to collect now'
-                        : $remainingAvailable.' preparing for dispatch now';
+                        ? $remainingAvailable.' ready to collect'
+                        : $remainingAvailable.' preparing for dispatch';
                 }
 
                 if ($remainingDelayed > 0) {
@@ -365,9 +365,12 @@ class StoreOrderController extends Controller
                         'item_id' => (int) $item->id,
                         'item_number' => 0,
                         'item_sku' => $this->resolveOrderItemSku($item),
+                        'tracking_id' => (int) $tracking->id,
                         'group_key' => $this->deliveryGroupKey($tracking),
+                        'parcel_number' => max(0, (int) ($tracking->parcel_number ?? 0)) ?: null,
                         'dispatched_timestamp' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->timestamp : 0,
                         'dispatched_label' => $dispatchedAt instanceof \Illuminate\Support\Carbon ? $dispatchedAt->format('M j, Y') : null,
+                        'recorded_timestamp' => $tracking->created_at instanceof \Illuminate\Support\Carbon ? $tracking->created_at->timestamp : 0,
                         'carrier' => $carrier !== '' ? $carrier : null,
                         'tracking_number' => $trackingNumber !== '' ? $trackingNumber : null,
                         'tracking_url' => $trackingUrl !== '' ? $trackingUrl : null,
@@ -377,7 +380,13 @@ class StoreOrderController extends Controller
                     ];
                 })->all();
             })
-            ->sortBy('dispatched_timestamp')
+            ->sort(function (array $left, array $right): int {
+                if ((int) $left['recorded_timestamp'] !== (int) $right['recorded_timestamp']) {
+                    return (int) $left['recorded_timestamp'] <=> (int) $right['recorded_timestamp'];
+                }
+
+                return (int) $left['tracking_id'] <=> (int) $right['tracking_id'];
+            })
             ->values()
             ->map(function (array $row) use ($numberByItemId): array {
                 $itemId = (int) $row['item_id'];
@@ -396,18 +405,23 @@ class StoreOrderController extends Controller
         foreach ($groupedRows as $groupKey => $rows) {
             $deliveryGroups[] = [
                 'group_key' => $groupKey,
-                'sort_timestamp' => (int) collect($rows)->min('dispatched_timestamp'),
+                'sort_timestamp' => (int) collect($rows)->min('recorded_timestamp'),
                 'rows' => $rows,
             ];
         }
 
         usort($deliveryGroups, function (array $left, array $right): int {
-            $timestampComparison = $left['sort_timestamp'] <=> $right['sort_timestamp'];
+            $leftTimestamp = (int) $left['sort_timestamp'];
+            $rightTimestamp = (int) $right['sort_timestamp'];
+            $timestampComparison = $leftTimestamp <=> $rightTimestamp;
             if ($timestampComparison !== 0) {
                 return $timestampComparison;
             }
 
-            return strcmp((string) $left['group_key'], (string) $right['group_key']);
+            $leftGroupKey = (string) $left['group_key'];
+            $rightGroupKey = (string) $right['group_key'];
+
+            return strcmp($leftGroupKey, $rightGroupKey);
         });
 
         return collect($deliveryGroups)
@@ -495,9 +509,12 @@ class StoreOrderController extends Controller
             return 'url:'.$carrier.'|'.$trackingUrl;
         }
 
-        return 'manual:'
-            .($tracking->dispatched_at?->format('Y-m-d') ?? 'undated')
-            .'|'.$carrier;
+        $parcelNumber = max(0, (int) ($tracking->parcel_number ?? 0));
+        if ($parcelNumber > 0) {
+            return 'parcel:'.$parcelNumber;
+        }
+
+        return 'manual:'.(int) $tracking->id;
     }
 
     private function downloadResponse(StoreOrder $order, StoreOrderItemDownload $download): BinaryFileResponse

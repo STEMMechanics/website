@@ -23,6 +23,14 @@ class ShopSettingsController extends Controller
             'publicEnabled' => $availability->isPublicEnabled(),
             'maxSatchelWeightGrams' => ShopShippingSettings::maxSatchelWeightGrams(),
             'boxedShipping' => ShopShippingSettings::boxedShipping(),
+            'trackingLinkTemplates' => array_map(
+                static fn (string $carrier, string $template): array => [
+                    'carrier' => $carrier,
+                    'template' => $template,
+                ],
+                array_keys(ShopShippingSettings::trackingLinkTemplates()),
+                array_values(ShopShippingSettings::trackingLinkTemplates())
+            ),
             'shippingMethods' => $this->shippingMethods(),
         ]);
     }
@@ -38,6 +46,9 @@ class ShopSettingsController extends Controller
             'boxed_shipping_label' => ['required', 'string', 'max:120'],
             'boxed_shipping_message' => ['required', 'string', 'max:500'],
             'boxed_shipping_amount' => ['nullable', 'numeric', 'min:0', 'max:9999.99'],
+            'tracking_link_templates' => ['nullable', 'array'],
+            'tracking_link_templates.*.carrier' => ['required', 'string', 'max:120'],
+            'tracking_link_templates.*.template' => ['required', 'string', 'max:500'],
         ];
 
         if ($hasShippingMethodsTable) {
@@ -89,6 +100,10 @@ class ShopSettingsController extends Controller
                 ? number_format((float) $validated['boxed_shipping_amount'], 2, '.', '')
                 : ''
         );
+        $this->storeOption(
+            ShopShippingSettings::TRACKING_LINK_TEMPLATES_OPTION,
+            $this->normalizeTrackingLinkTemplatesValue($validated['tracking_link_templates'] ?? [])
+        );
 
         session()->flash('message', 'Store settings updated.');
         session()->flash('message-title', 'Settings saved');
@@ -103,6 +118,37 @@ class ShopSettingsController extends Controller
             ['name' => $name],
             ['value' => $value],
         );
+    }
+
+    private function normalizeTrackingLinkTemplatesValue(mixed $raw): string
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($raw)) {
+            return '{}';
+        }
+
+        $normalized = [];
+
+        foreach ($raw as $key => $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            $carrier = trim((string) ($entry['carrier'] ?? (is_string($key) ? $key : '')));
+            $template = trim((string) ($entry['template'] ?? ''));
+
+            if ($carrier === '' || $template === '') {
+                continue;
+            }
+
+            $normalized[$carrier] = $template;
+        }
+
+        return json_encode($normalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
     private function shippingMethods(): array

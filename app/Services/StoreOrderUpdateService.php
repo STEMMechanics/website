@@ -42,6 +42,7 @@ class StoreOrderUpdateService
                 'item_title' => $item->displayTitle(),
                 'quantity' => max(0, (int) $tracking->quantity),
                 'shipment_type' => (string) $tracking->shipment_type,
+                'parcel_number' => max(0, (int) ($tracking->parcel_number ?? 0)) ?: null,
                 'carrier' => trim((string) ($tracking->carrier ?? '')) ?: null,
                 'tracking_number' => trim((string) ($tracking->tracking_number ?? '')) ?: null,
                 'tracking_url' => trim((string) ($tracking->tracking_url ?? '')) ?: null,
@@ -415,8 +416,16 @@ class StoreOrderUpdateService
         }
 
         $trackingNumber = trim((string) ($payload['tracking_number'] ?? ''));
+        $trackingUrl = trim((string) ($payload['tracking_url'] ?? ''));
         if ($trackingNumber !== '') {
             $parts->push('Tracking '.$trackingNumber);
+        } elseif ($trackingUrl !== '') {
+            $parts->push('Tracking link');
+        }
+
+        $parcelNumber = max(0, (int) ($payload['parcel_number'] ?? 0));
+        if ($parcelNumber > 0 && $trackingNumber === '' && $trackingUrl === '') {
+            $parts->push('Parcel #'.$parcelNumber);
         }
 
         $notes = trim((string) ($payload['notes'] ?? ''));
@@ -541,7 +550,7 @@ class StoreOrderUpdateService
 
             if ($remainingItems !== []) {
                 $sections[] = [
-                    'heading' => 'Still expected',
+                    'heading' => 'To be shipped',
                     'items' => $remainingItems,
                 ];
             }
@@ -767,12 +776,12 @@ class StoreOrderUpdateService
         if ($available > 0 && $delayed > 0) {
             $timing = $item->delayedShippingEstimateLabel('F jS Y');
 
-            return $available.' still being prepared, '.$delayed.' still expected'
+            return $available.' being prepared, '.$delayed.' expected'
                 .($timing ? ' ('.$this->expectedLaterPhrase($order, $timing).')' : '');
         }
 
         if ($available > 0) {
-            return 'Still being prepared.';
+            return 'Being prepared.';
         }
 
         if ($delayed > 0) {
@@ -810,18 +819,20 @@ class StoreOrderUpdateService
                 $payload = is_array($update->payload) ? $update->payload : [];
                 $item = $update->orderItem;
                 $fallbackTitle = trim((string) ($payload['item_title'] ?? '')) ?: 'Item';
-                $groupKey = $this->trackingPayloadGroupKey($payload);
+                $groupKey = $this->trackingPayloadGroupKey($payload, (int) $update->id);
                 $position = $item instanceof StoreOrderItem ? ($positionMap[$item->id] ?? PHP_INT_MAX) : PHP_INT_MAX;
                 $sortTimestamp = $this->trackingPayloadSortTimestamp($payload, $update);
 
                 if (! isset($carry[$groupKey])) {
                     $summaryMeta = $this->shipmentSummaryMeta($order, $payload);
                     $carry[$groupKey] = [
+                        'group_key' => $groupKey,
                         'sort_timestamp' => $sortTimestamp,
                         'position' => $position,
                         'fallback_order' => count($carry),
                         'detail' => $summaryMeta['detail'],
                         'detail_parts' => $summaryMeta['detail_parts'],
+                        'parcel_number' => $summaryMeta['parcel_number'],
                         'items' => [],
                     ];
                 } else {
@@ -881,9 +892,13 @@ class StoreOrderUpdateService
                     ->values()
                     ->all();
 
-                $heading = $groupCount === 1
-                    ? ($notificationType === 'shipped' && $allRemainingFulfilmentResolved ? 'All items shipped' : 'Shipped now')
-                    : $deliveryNoun.' '.($index + 1);
+                $parcelNumber = max(0, (int) ($group['parcel_number'] ?? 0));
+                $isParcelGroup = str_starts_with((string) ($group['group_key'] ?? ''), 'parcel:');
+                $heading = $isParcelGroup && $parcelNumber > 0
+                    ? 'Parcel #'.$parcelNumber
+                    : ($groupCount === 1
+                        ? ($notificationType === 'shipped' && $allRemainingFulfilmentResolved ? 'All items shipped' : 'Shipped now')
+                        : $deliveryNoun.' '.($index + 1));
                 $detail = trim((string) ($group['detail'] ?? ''));
 
                 return [
@@ -896,7 +911,7 @@ class StoreOrderUpdateService
             ->all();
     }
 
-    private function trackingPayloadGroupKey(array $payload): string
+    private function trackingPayloadGroupKey(array $payload, int $updateId): string
     {
         $carrier = Str::lower(trim((string) ($payload['carrier'] ?? '')));
         $trackingNumber = Str::lower(trim((string) ($payload['tracking_number'] ?? '')));
@@ -909,12 +924,12 @@ class StoreOrderUpdateService
             return 'url:'.$carrier.'|'.$trackingUrl;
         }
 
-        $dispatchedAt = trim((string) ($payload['dispatched_at'] ?? ''));
-        $dispatchedDate = $dispatchedAt !== ''
-            ? Carbon::parse($dispatchedAt)->format('Y-m-d')
-            : 'undated';
+        $parcelNumber = max(0, (int) ($payload['parcel_number'] ?? 0));
+        if ($parcelNumber > 0) {
+            return 'parcel:'.$parcelNumber;
+        }
 
-        return 'manual:'.$dispatchedDate.'|'.$carrier;
+        return 'manual:'.max(0, $updateId);
     }
 
     private function trackingPayloadSortTimestamp(array $payload, StoreOrderUpdate $update): int
@@ -932,7 +947,8 @@ class StoreOrderUpdateService
     /**
      * @return array{
      *     detail:?string,
-     *     detail_parts: array<int, array{prefix:?string, text:string, url:?string}>
+     *     detail_parts: array<int, array{prefix:?string, text:string, url:?string}>,
+     *     parcel_number:?int
      * }
      */
     private function shipmentSummaryMeta(StoreOrder $order, array $payload): array
@@ -989,11 +1005,22 @@ class StoreOrderUpdateService
             ];
         }
 
+        $parcelNumber = max(0, (int) ($payload['parcel_number'] ?? 0));
+        if ($parcelNumber > 0 && $trackingNumber === '' && $trackingUrl === '') {
+            $parts->push('Parcel #'.$parcelNumber);
+            $detailParts[] = [
+                'prefix' => null,
+                'text' => 'Parcel #'.$parcelNumber,
+                'url' => null,
+            ];
+        }
+
         $detail = $parts->implode(' | ');
 
         return [
             'detail' => $detail !== '' ? $detail : null,
             'detail_parts' => $detailParts,
+            'parcel_number' => $parcelNumber > 0 ? $parcelNumber : null,
         ];
     }
 

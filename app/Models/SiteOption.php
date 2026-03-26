@@ -105,6 +105,10 @@ class SiteOption extends Model
                 'description' => 'Optional boxed shipping charge. Leave blank to require a manual quote.',
                 'input_type' => 'number',
             ],
+            'store.shipping.tracking-link-templates' => [
+                'value' => '{}',
+                'description' => 'JSON object of courier-name keys to tracking URL templates. Use {tracking} as the placeholder for the parcel number.',
+            ],
             'store.public-enabled' => [
                 'value' => '1',
                 'description' => 'Master switch for the public store storefront, cart, and checkout. Existing order links still work when disabled.',

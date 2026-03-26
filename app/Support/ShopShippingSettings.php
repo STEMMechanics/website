@@ -18,6 +18,8 @@ class ShopShippingSettings
 
     public const BOXED_AMOUNT_OPTION = 'store.shipping.boxed-shipping-amount';
 
+    public const TRACKING_LINK_TEMPLATES_OPTION = 'store.shipping.tracking-link-templates';
+
     private const LEGACY_SATCHELS_OPTION = 'shop.shipping.satchels';
 
     private const LEGACY_MAX_WEIGHT_OPTION = 'shop.shipping.max-satchel-weight-grams';
@@ -27,6 +29,8 @@ class ShopShippingSettings
     private const LEGACY_BOXED_MESSAGE_OPTION = 'shop.shipping.boxed-shipping-message';
 
     private const LEGACY_BOXED_AMOUNT_OPTION = 'shop.shipping.boxed-shipping-amount';
+
+    private const LEGACY_TRACKING_LINK_TEMPLATES_OPTION = 'shop.shipping.tracking-link-templates';
 
     /**
      * @return Collection<int, array{code:non-empty-string,label:string,rank:int,capacity:float,price:float,active:bool}>
@@ -88,6 +92,64 @@ class ShopShippingSettings
         ];
     }
 
+    /**
+     * @return array<string, string>
+     */
+    public static function trackingLinkTemplates(): array
+    {
+        $fallback = [];
+        $configured = self::jsonOption(self::TRACKING_LINK_TEMPLATES_OPTION, $fallback, self::LEGACY_TRACKING_LINK_TEMPLATES_OPTION);
+
+        return collect($configured)
+            ->mapWithKeys(function ($template, $carrier): array {
+                $key = trim((string) $carrier);
+                $value = is_scalar($template) ? trim((string) $template) : '';
+
+                return $key !== '' && $value !== ''
+                    ? [$key => $value]
+                    : [];
+            })
+            ->all();
+    }
+
+    public static function trackingLinkTemplateForCarrier(?string $carrier): ?string
+    {
+        $key = self::normalizeTrackingCarrierKey((string) $carrier);
+        if ($key === '') {
+            return null;
+        }
+
+        foreach (self::trackingLinkTemplates() as $configuredCarrier => $template) {
+            if (self::normalizeTrackingCarrierKey($configuredCarrier) === $key) {
+                return $template;
+            }
+        }
+
+        return null;
+    }
+
+    public static function resolveTrackingLink(?string $carrier, ?string $trackingNumber): ?string
+    {
+        $template = self::trackingLinkTemplateForCarrier($carrier);
+        $trackingNumber = trim((string) $trackingNumber);
+
+        if ($template === null || $trackingNumber === '') {
+            return null;
+        }
+
+        $encodedNumber = rawurlencode($trackingNumber);
+        $url = str_replace([
+            '{tracking}',
+            '{{tracking_number}}',
+            '{{ tracking_number }}',
+            '{tracking_number}',
+        ], $encodedNumber, $template);
+
+        $url = trim($url);
+
+        return $url !== '' ? $url : null;
+    }
+
     private static function stringOption(string $name, string $fallback = '', ?string $legacyName = null): string
     {
         if (! Schema::hasTable('site_options')) {
@@ -109,9 +171,18 @@ class ShopShippingSettings
         return is_numeric($value) ? (int) $value : $fallback;
     }
 
+    private static function normalizeTrackingCarrierKey(string $value): string
+    {
+        $value = mb_strtolower(trim($value));
+        $value = preg_replace('/[^\pL\pN]+/u', ' ', $value) ?? $value;
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+
+        return trim($value);
+    }
+
     /**
-     * @param  array<int, array<string, mixed>>  $fallback
-     * @return array<int, array<string, mixed>>
+     * @param  array  $fallback
+     * @return array
      */
     private static function jsonOption(string $name, array $fallback, ?string $legacyName = null): array
     {

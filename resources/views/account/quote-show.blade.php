@@ -9,9 +9,19 @@
     @php
         $quoteDueDate = $quoteDueDate ?? ($quote->expiresAt()?->format('M j, Y') ?? '-');
         $quoteHasExpired = (bool) ($quoteHasExpired ?? $quote->isExpired());
-        $quoteStatusLabel = $quoteHasExpired && (string) $quote->status === \App\Models\Quote::STATUS_OPEN
+        $quoteStatusKey = $quoteHasExpired && (string) $quote->status === \App\Models\Quote::STATUS_OPEN
+            ? \App\Models\Quote::STATUS_EXPIRED
+            : (string) $quote->status;
+        $quoteStatusLabel = $quoteStatusKey === \App\Models\Quote::STATUS_EXPIRED
             ? 'Expired'
             : $quote->statusLabel();
+        $quoteStatusClasses = match ($quoteStatusKey) {
+            \App\Models\Quote::STATUS_OPEN => 'border-amber-200 bg-amber-50 text-amber-800',
+            \App\Models\Quote::STATUS_ACCEPTED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            \App\Models\Quote::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-800',
+            \App\Models\Quote::STATUS_EXPIRED => 'border-slate-200 bg-slate-50 text-slate-700',
+            default => 'border-gray-200 bg-gray-50 text-gray-700',
+        };
         $showSidebarContent = (auth()->check() && auth()->id() === $quote->user_id)
             || trim((string) ($quote->notes ?? '')) !== '';
     @endphp
@@ -20,11 +30,13 @@
             <div class="space-y-5">
                 <div class="flex flex-col flex-wrap items-start justify-between gap-4">
                     <div class="flex align-top justify-between w-full border-b pb-3 border-gray-200">
-                        <div class="flex flex-wrap gap-12">
-                            <div class="text-center">
-                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</div>
-                                <div class="mt-1 text-base font-semibold text-gray-950">{{ $quoteStatusLabel }}</div>
-                            </div>
+                            <div class="flex flex-wrap gap-12">
+                                <div class="text-center">
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</div>
+                                    <div class="mt-1 inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold {{ $quoteStatusClasses }}">
+                                        {{ $quoteStatusLabel }}
+                                    </div>
+                                </div>
                             <div class="text-center">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Quote date</div>
                                 <div class="mt-1 text-base font-semibold text-gray-950">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
@@ -40,14 +52,6 @@
                         </div>
                         <div>
                             <div class="flex gap-2">
-                                @auth
-                                    @if(auth()->user()?->id === $quote->user_id)
-                                        <div class="text-4xl text-gray-700">
-                                            <a href="{{ route('account.quote.pdf', $quote) }}" class="text-primary-color hover:underline" target="_blank"><i class="fa-regular fa-file-pdf"></i></a>
-                                        </div>
-                                    @endif
-                                @endauth
-
                                 <div class="whitespace-nowrap rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-lg font-semibold uppercase tracking-wide text-gray-600">
                                     Quote {{ $quote->quote_number }}
                                 </div>
@@ -69,55 +73,14 @@
                         @if(trim((string) ($quote->notes ?? '')) !== '')
                             <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 min-w-xs">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Notes</div>
-                                <div class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">AABB{{ $quote->notes }}</div>
+                                <div class="mt-2 whitespace-pre-line text-sm leading-6 text-gray-600">{{ $quote->notes }}</div>
                             </div>
                         @endif
                     </div>
 
 
                     <div class="w-full">
-                        @if($quote->canCustomerRespond())
-                            <div class="flex flex-wrap gap-3">
-                                <form method="POST" action="{{ $acceptUrl }}">
-                                    @csrf
-                                    <x-ui.button type="submit">Accept Quote</x-ui.button>
-                                </form>
-                                @if(!($isMagicAccess ?? false) && ($canAcceptAndPay ?? false))
-                                    <form method="POST" action="{{ $acceptUrl }}">
-                                        @csrf
-                                        <input type="hidden" name="accept_and_pay" value="1">
-                                        <x-ui.button type="submit" color="success">Accept &amp; Pay Invoice</x-ui.button>
-                                    </form>
-                                @endif
-                                <form method="POST" action="{{ $cancelUrl }}">
-                                    @csrf
-                                    <x-ui.button type="submit" color="danger">Cancel Quote</x-ui.button>
-                                </form>
-                            </div>
-                        @elseif((string) $quote->status === \App\Models\Quote::STATUS_ACCEPTED)
-                            <div class="text-sm text-emerald-700">
-                                <i class="fa-solid fa-circle-check mr-2"></i>This quote has been accepted and an invoice
-                                @if(($linkedInvoice ?? null) !== null)
-                                    <a href="{{ $linkedInvoiceUrl }}" class="font-semibold underline hover:text-emerald-900">#{{ $linkedInvoice->invoice_number }}</a>
-                                @else
-                                    #-
-                                @endif
-                                has been generated.
-                                @if(($linkedInvoice ?? null) !== null)
-                                    @if((float) ($linkedInvoiceOutstanding ?? 0) > 0.0001)
-                                        There is currently <span class="font-semibold">${{ number_format((float) $linkedInvoiceOutstanding, 2) }}</span> outstanding.
-                                    @else
-                                        There is currently no outstanding balance.
-                                    @endif
-                                    <div class="flex mt-3 gap-3">
-                                        <a href="{{ $linkedInvoiceUrl }}" class="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-900 hover:bg-gray-100">View Invoice</a>
-                                        @if(!empty($linkedInvoicePayUrl))
-                                            <a href="{{ $linkedInvoicePayUrl }}" class="rounded-md bg-primary-color px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-color-dark">Pay Invoice</a>
-                                        @endif
-                                    </div>
-                                @endif
-                            </div>
-                        @elseif((string) $quote->status === \App\Models\Quote::STATUS_CANCELLED)
+                        @if((string) $quote->status === \App\Models\Quote::STATUS_CANCELLED)
                             <div class="text-sm text-rose-700">
                                 <i class="fa-solid fa-circle-xmark mr-2"></i>This quote has been cancelled and is no longer available. Please contact us if you need to discuss it.
                             </div>
@@ -174,13 +137,71 @@
                             <td class="px-6 py-2 text-right font-semibold text-gray-950">${{ number_format((float) $quote->gst_amount, 2) }}</td>
                         </tr>
                         <tr>
-                            <td colspan="3" class="px-6 py-2 text-right font-semibold text-gray-900 text-lg">Total <span class="text-xs font-normal">(inc GST)</span></td>
-                            <td class="px-6 py-2 text-right font-semibold text-gray-950 text-lg">${{ number_format((float) $quote->total_amount, 2) }}</td>
+                            <td colspan="3" class="px-6 pb-4 text-right font-semibold text-gray-900 text-lg">Total <span class="text-xs font-normal">(inc GST)</span></td>
+                            <td class="px-6 pb-4 text-right font-semibold text-gray-950 text-lg">${{ number_format((float) $quote->total_amount, 2) }}</td>
                         </tr>
                     </tfoot>
                 </table>
             </div>
         </div>
     </div>
-    </x-container>
+    @if($quote->canCustomerRespond())
+        <div class="flex flex-row-reverse flex-wrap gap-3 justify-between mt-4">
+            <div class="flex flex-wrap gap-3">
+                <form method="POST" action="{{ $cancelUrl }}">
+                    @csrf
+                    <x-ui.button type="submit" color="danger">Cancel Quote</x-ui.button>
+                </form>
+                @if(!($forceAcceptAndPay ?? false))
+                    <form method="POST" action="{{ $acceptUrl }}">
+                        @csrf
+                        <x-ui.button type="submit">Accept Quote</x-ui.button>
+                    </form>
+                @endif
+                @if(($canAcceptAndPay ?? false) || ($forceAcceptAndPay ?? false))
+                    <form method="POST" action="{{ $acceptUrl }}">
+                        @csrf
+                        <input type="hidden" name="accept_and_pay" value="1">
+                        <x-ui.button type="submit" color="success">Accept &amp; Pay Invoice</x-ui.button>
+                    </form>
+                @endif
+            </div>
+
+            @auth
+                @if(auth()->user()?->id === $quote->user_id)
+                    <x-ui.button href="{{ route('account.quote.pdf', $quote) }}" color="outline">Download</x-ui.button>
+                @endif
+            @endauth
+        </div>
+    @endif
+    @if((string) $quote->status === \App\Models\Quote::STATUS_ACCEPTED)
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            @if(($linkedInvoice ?? null) instanceof \App\Models\Invoice)
+                This quote has been accepted and an invoice #{{ $linkedInvoice->invoice_number }} has been generated.
+            @else
+                This quote has been accepted and an invoice has been generated.
+            @endif
+            @if(($linkedInvoiceOutstanding ?? 0) > 0.0001)
+                There is currently ${{ number_format((float) $linkedInvoiceOutstanding, 2) }} outstanding.
+            @endif
+        </div>
+        <div class="flex flex-row-reverse flex-wrap gap-3 justify-between mt-4">
+            <div class="flex flex-wrap gap-3">
+                @if(($linkedInvoice ?? null) !== null)
+                    @if((float) ($linkedInvoiceOutstanding ?? 0) > 0.0001)
+                        <x-ui.button href="{{ $linkedInvoicePayUrl }}">View Invoice {{ $linkedInvoice->invoice_number }}</x-ui.button>
+                    @else
+                        <x-ui.button href="{{ $linkedInvoiceUrl }}" color="outline">View Invoice {{ $linkedInvoice->invoice_number }}</x-ui.button>
+                    @endif
+                @endif
+            </div>
+
+            @auth
+                @if(auth()->user()?->id === $quote->user_id)
+                    <x-ui.button href="{{ route('account.quote.pdf', $quote) }}" color="outline">Download</x-ui.button>
+                @endif
+            @endauth
+        </div>
+    @endif
+</x-container>
 </x-layout>

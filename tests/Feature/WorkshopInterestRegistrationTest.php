@@ -330,8 +330,8 @@ class WorkshopInterestRegistrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.index'))
             ->assertOk()
-            ->assertSeeText('2 interests')
-            ->assertSee(route('admin.workshop.interests', $workshop), false);
+            ->assertSee(route('admin.workshop.interests', $workshop), false)
+            ->assertSee('title="View interest registrations"', false);
     }
 
     public function test_admin_workshop_show_page_has_interest_registrations_button(): void

@@ -688,12 +688,14 @@ class ServerController extends Controller
         return view('admin.server.sent-emails', [
             'emails' => $emails,
             'statuses' => [
-                SentEmail::STATUS_QUEUED,
-                SentEmail::STATUS_SENT,
-                SentEmail::STATUS_FAILED,
-            ],
-        ]);
-    }
+            SentEmail::STATUS_SCHEDULED,
+            SentEmail::STATUS_QUEUED,
+            SentEmail::STATUS_SENT,
+            SentEmail::STATUS_SKIPPED,
+            SentEmail::STATUS_FAILED,
+        ],
+    ]);
+}
 
     public function admin_audit(Request $request): View
     {

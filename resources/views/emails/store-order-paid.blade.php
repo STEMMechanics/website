@@ -65,11 +65,15 @@ We will contact you when your order is available to collect.
 @endif
 @endif
 
-<p class="tall center">
-    @component('mail::button', ['url' => $orderUrl])
-    Open Order
-    @endcomponent
-</p>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+    <tr>
+        <td align="center">
+            @component('mail::button', ['url' => $orderUrl])
+            Open Order
+            @endcomponent
+        </td>
+    </tr>
+</table>
 
 Thanks,<br>
 {{ config('app.name') }}

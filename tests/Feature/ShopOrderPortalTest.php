@@ -193,7 +193,7 @@ class ShopOrderPortalTest extends TestCase
             'accessToken' => $order->access_token,
         ]))
             ->assertOk()
-            ->assertSee('Recorded deliveries')
+            ->assertSee('Recorded shipments')
             ->assertSee('Delivery 1')
             ->assertSee('TRACK-PORTAL-1')
             ->assertSee('Australia Post')
@@ -207,7 +207,7 @@ class ShopOrderPortalTest extends TestCase
             ->assertDontSee('Known packed weight');
     }
 
-    public function test_guest_order_portal_groups_same_day_manual_shipments_into_one_delivery(): void
+    public function test_guest_order_portal_shows_same_day_manual_shipments_as_separate_deliveries(): void
     {
         $invoice = Invoice::factory()->create([
             'billing_name' => 'Jordan Customer',
@@ -273,11 +273,91 @@ class ShopOrderPortalTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertSee('Recorded deliveries')
+            ->assertSee('Recorded shipments')
+            ->assertSee('Delivery 1')
+            ->assertSee('Delivery 2')
+            ->assertSee('Microbit')
+            ->assertSee('Pinball Template')
+            ->assertSee('Packed in the main satchel.')
+            ->assertSee('Second line in the same parcel.');
+
+        $this->assertSame(1, substr_count($response->getContent(), 'Delivery 1'));
+        $this->assertSame(1, substr_count($response->getContent(), 'Delivery 2'));
+    }
+
+    public function test_guest_order_portal_groups_matching_parcel_numbers_into_one_parcel_section(): void
+    {
+        $invoice = Invoice::factory()->create([
+            'billing_name' => 'Jordan Customer',
+            'billing_email' => 'jordan@example.com',
+            'billing_phone' => '0400999888',
+            'subtotal_amount' => 65.00,
+            'gst_amount' => 5.91,
+            'total_amount' => 65.00,
+        ]);
+
+        $order = StoreOrder::factory()->create([
+            'invoice_id' => $invoice->id,
+            'status' => StoreOrder::STATUS_SHIPPED,
+            'contains_physical' => true,
+            'contains_digital' => false,
+            'shipping_method' => 'Regular shipping',
+            'shipping_method_code' => 'regular',
+            'shipping_breakdown_data' => [
+                'delivery_estimate_label' => '3-7 business days',
+            ],
+            'paid_at' => now(),
+        ]);
+
+        $itemOne = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_title' => 'Microbit',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'inventory_reserved_quantity' => 0,
+        ]);
+        $itemTwo = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_title' => 'Pinball Template',
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'inventory_reserved_quantity' => 0,
+        ]);
+
+        $dispatchedAt = now()->subDay()->startOfDay()->addHours(10);
+
+        StoreOrderItemTracking::query()->create([
+            'store_order_item_id' => $itemOne->id,
+            'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'parcel_number' => 2,
+            'carrier' => 'Australia Post',
+            'notes' => 'Packed in parcel two.',
+            'dispatched_at' => $dispatchedAt,
+        ]);
+        StoreOrderItemTracking::query()->create([
+            'store_order_item_id' => $itemTwo->id,
+            'shipment_type' => StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'parcel_number' => 2,
+            'carrier' => 'Australia Post',
+            'notes' => 'Second line in the same parcel.',
+            'dispatched_at' => $dispatchedAt->copy()->addMinutes(15),
+        ]);
+
+        $response = $this->get(route('shop.order.tracking', [
+            'accessToken' => $order->access_token,
+        ]));
+
+        $response
+            ->assertOk()
+            ->assertSee('Recorded shipments')
             ->assertSee('Delivery 1')
             ->assertSee('Microbit')
             ->assertSee('Pinball Template')
-            ->assertDontSee('Delivery 2');
+            ->assertSee('Packed in parcel two.');
 
         $this->assertSame(1, substr_count($response->getContent(), 'Delivery 1'));
     }
@@ -750,7 +830,7 @@ class ShopOrderPortalTest extends TestCase
         });
 
         $this->assertSame(
-            'Documents for invoice 8650',
+            'Your invoice 8650 is ready from STEMMechanics',
             (new InvoiceDocumentBundle('Robin Customer', '8650', []))->build()->subject
         );
     }
@@ -802,7 +882,7 @@ class ShopOrderPortalTest extends TestCase
         ]));
 
         $response->assertOk()
-            ->assertSee('Recorded deliveries')
+            ->assertSee('Recorded shipments')
             ->assertSee('Delivery 1')
             ->assertSee('PRE-TRACK-1')
             ->assertSee('Australia Post')
@@ -868,7 +948,7 @@ class ShopOrderPortalTest extends TestCase
             ->assertOk()
             ->assertSee('Items in this order')
             ->assertSee('Awaiting shipping')
-            ->assertSee('Recorded deliveries')
+            ->assertSee('Recorded shipments')
             ->assertSee('Delivery 1')
             ->assertSee('Estimated arrival: 3-7 business days')
             ->assertSee('Items in this delivery')
@@ -1023,9 +1103,9 @@ class ShopOrderPortalTest extends TestCase
             ->assertOk()
             ->assertSeeInOrder([
                 'Delivery 1',
-                'TRACK-OLDER-1',
-                'Delivery 2',
                 'TRACK-NEWER-1',
+                'Delivery 2',
+                'TRACK-OLDER-1',
             ]);
     }
 }

@@ -106,7 +106,7 @@
                     <span class="sr-only">Open page menu</span>
                     <i class="fa fa-bars text-gray-800 hover:text-sky-500 transition"></i>
                     @if($pageMenuAttentionCount > 0)
-                        <span class="bg-orange-500 text-white text-xxs absolute -right-2 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pageMenuAttentionCount }}</span>
+                        <span class="bg-orange-500 text-white text-xxs absolute -right-1 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pageMenuAttentionCount }}</span>
                     @endif
                 </button>
                 <button type="button" class="text-gray-900 hover:text-sky-500 text-sm md:pl-1 font-medium transition duration-300 ease-in-out lg:block hidden" @click.prevent="openSearchOverlay()">

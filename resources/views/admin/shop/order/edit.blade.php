@@ -3,6 +3,12 @@
         $isQuoteRequested = (string) $order->status === \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED;
         $linkedQuote = $order->quote ?? $order->invoice?->quote;
         $shippingBreakdown = $order->shippingBreakdown();
+        $maxParcelNumber = (int) $order->items
+            ->flatMap(fn ($item) => $item->trackingEntries)
+            ->map(fn ($tracking) => max(0, (int) ($tracking->parcel_number ?? 0)))
+            ->max();
+        $maxParcelNumber = max(0, $maxParcelNumber);
+        $defaultParcelNumber = max(1, $maxParcelNumber + 1);
         $itemActionMeta = $order->items
             ->mapWithKeys(function ($item) use ($order) {
                 $remainingAvailable = $item->remainingAvailableQuantity();
@@ -44,6 +50,8 @@
             'currentStatus' => (string) $order->status,
             'containsPhysical' => (bool) $order->contains_physical,
             'usesPickup' => (bool) $order->usesPickup(),
+            'maxParcelNumber' => $maxParcelNumber,
+            'trackingLinkTemplates' => \App\Support\ShopShippingSettings::trackingLinkTemplates(),
             'statusLabels' => [
                 \App\Models\StoreOrder::STATUS_PENDING_PAYMENT => 'Pending Payment',
                 \App\Models\StoreOrder::STATUS_QUOTE_REQUESTED => 'Quote Requested',
@@ -70,8 +78,10 @@
                     available_quantity: Number(action?.available_quantity || 0),
                     delayed_quantity: Number(action?.delayed_quantity || 0),
                     reason: String(action?.reason || ''),
+                    tracking_mode: String(action?.tracking_mode || (String(action?.tracking_number || '').trim() !== '' || String(action?.tracking_url || '').trim() !== '' ? 'tracking_number' : 'none')),
                     shipment_type: String(action?.shipment_type || ''),
                     quantity: Number(action?.quantity || 0),
+                    parcel_number: Number(action?.parcel_number || 0),
                     carrier: String(action?.carrier || ''),
                     tracking_number: String(action?.tracking_number || ''),
                     tracking_url: String(action?.tracking_url || ''),
@@ -86,6 +96,9 @@
                 bulkTrackingOpen: false,
                 bulkTrackingError: '',
                 bulkTrackingShipmentType: '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}',
+                bulkTrackingMode: 'none',
+                bulkTrackingModeTouched: false,
+                bulkTrackingParcelNumber: @js($defaultParcelNumber),
                 bulkTrackingCarrier: '',
                 bulkTrackingTrackingNumber: '',
                 bulkTrackingTrackingUrl: '',
@@ -94,6 +107,8 @@
                 currentStatus: String(config?.currentStatus || ''),
                 containsPhysical: Boolean(config?.containsPhysical),
                 usesPickup: Boolean(config?.usesPickup),
+                maxParcelNumber: Number(config?.maxParcelNumber || 0),
+                trackingLinkTemplates: config?.trackingLinkTemplates || {},
                 statusLabels: config?.statusLabels || {},
                 statusValue: @js(old('status', $order->status)),
                 liveStatusCode: @js($order->status),
@@ -118,8 +133,14 @@
                             detailsOpen: false,
                             cancelError: '',
                             trackingError: '',
+                            trackingMode: 'none',
+                            trackingModeTouched: false,
                             trackingShipmentType: '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}',
                             trackingQuantity: 0,
+                            trackingParcelNumber: 1,
+                            trackingCarrier: '',
+                            trackingNumber: '',
+                            trackingUrl: '',
                         };
                     }
 
@@ -238,7 +259,7 @@
                     ui.cancelOpen = true;
                 },
 
-                openTracking(itemId, shipmentType = null, quantity = null) {
+                openTracking(itemId, shipmentType = null, quantity = null, parcelNumber = null, trackingMode = null, carrier = null, trackingNumber = null, trackingUrl = null) {
                     const ui = this.ensureItemUi(itemId);
                     ui.trackingError = '';
                     ui.trackingShipmentType = shipmentType !== null && shipmentType !== ''
@@ -247,6 +268,17 @@
                     ui.trackingQuantity = quantity !== null
                         ? (quantity === '' ? '' : Number(quantity))
                         : this.defaultTrackingQuantity(itemId, ui.trackingShipmentType);
+                    const parcelValue = Number(parcelNumber);
+                    ui.trackingParcelNumber = parcelNumber !== null && parcelNumber !== '' && parcelValue > 0
+                        ? parcelValue
+                        : this.defaultParcelNumber();
+                    ui.trackingMode = trackingMode !== null && trackingMode !== ''
+                        ? String(trackingMode)
+                        : 'none';
+                    ui.trackingModeTouched = false;
+                    ui.trackingCarrier = carrier !== null && carrier !== undefined ? String(carrier) : '';
+                    ui.trackingNumber = trackingNumber !== null && trackingNumber !== undefined ? String(trackingNumber) : '';
+                    ui.trackingUrl = trackingUrl !== null && trackingUrl !== undefined ? String(trackingUrl) : '';
                     ui.trackingOpen = true;
                 },
 
@@ -264,9 +296,113 @@
                         : this.remainingAvailable(itemId);
                 },
 
+                highestParcelNumber() {
+                    const pendingMax = this.pendingActions.reduce((max, action) => Math.max(max, Number(action.parcel_number || 0)), 0);
+                    return Math.max(Number(this.maxParcelNumber || 0), pendingMax);
+                },
+
+                defaultParcelNumber() {
+                    return Math.max(1, this.highestParcelNumber() + 1);
+                },
+
                 syncTrackingQuantity(itemId) {
                     const ui = this.ensureItemUi(itemId);
                     ui.trackingQuantity = this.defaultTrackingQuantity(itemId, ui.trackingShipmentType);
+                },
+
+                defaultTrackingModeForCarrier(carrier) {
+                    const normalized = String(carrier || '').toLowerCase();
+
+                    return normalized.includes('express') ? 'tracking_number' : 'none';
+                },
+
+                normalizeTrackingCarrierKey(value) {
+                    return String(value || '')
+                        .toLowerCase()
+                        .trim()
+                        .replace(/[^a-z0-9]+/g, ' ')
+                        .replace(/\s+/g, ' ')
+                        .trim();
+                },
+
+                trackingLinkTemplateForCarrier(carrier) {
+                    const key = this.normalizeTrackingCarrierKey(carrier);
+                    if (key === '') {
+                        return '';
+                    }
+
+                    for (const [configuredCarrier, template] of Object.entries(this.trackingLinkTemplates || {})) {
+                        if (this.normalizeTrackingCarrierKey(configuredCarrier) === key) {
+                            return String(template || '');
+                        }
+                    }
+
+                    return '';
+                },
+
+                resolveTrackingLink(carrier, trackingNumber) {
+                    const template = this.trackingLinkTemplateForCarrier(carrier);
+                    const number = String(trackingNumber || '').trim();
+
+                    if (template === '' || number === '') {
+                        return '';
+                    }
+
+                    const encodedNumber = encodeURIComponent(number);
+                    return template
+                        .replaceAll('{tracking}', encodedNumber)
+                        .replaceAll('@{{tracking_number}}', encodedNumber)
+                        .replaceAll('@{{ tracking_number }}', encodedNumber)
+                        .replaceAll('{tracking_number}', encodedNumber);
+                },
+
+                applyTrackingLinkTemplateToItem(itemId) {
+                    const ui = this.ensureItemUi(itemId);
+                    const trackingNumber = String(ui.trackingNumber || '').trim();
+                    const carrier = String(ui.trackingCarrier || '').trim();
+                    const currentUrl = String(ui.trackingUrl || '').trim();
+
+                    if (trackingNumber === '' || carrier === '' || currentUrl !== '') {
+                        return;
+                    }
+
+                    const resolved = this.resolveTrackingLink(carrier, trackingNumber);
+                    if (resolved !== '') {
+                        ui.trackingUrl = resolved;
+                    }
+                },
+
+                applyTrackingLinkTemplateToBulk() {
+                    const carrier = String(this.bulkTrackingCarrier || '').trim();
+                    const trackingNumber = String(this.bulkTrackingTrackingNumber || '').trim();
+                    const currentUrl = String(this.bulkTrackingTrackingUrl || '').trim();
+
+                    if (trackingNumber === '' || carrier === '' || currentUrl !== '') {
+                        return;
+                    }
+
+                    const resolved = this.resolveTrackingLink(carrier, trackingNumber);
+                    if (resolved !== '') {
+                        this.bulkTrackingTrackingUrl = resolved;
+                    }
+                },
+
+                syncItemTrackingModeFromCarrier(itemId, carrier) {
+                    const ui = this.ensureItemUi(itemId);
+
+                    if (ui.trackingModeTouched) {
+                        return;
+                    }
+
+                    ui.trackingMode = this.defaultTrackingModeForCarrier(carrier);
+                },
+
+                syncBulkTrackingModeFromCarrier(carrier) {
+                    if (this.bulkTrackingModeTouched) {
+                        return;
+                    }
+
+                    this.bulkTrackingMode = this.defaultTrackingModeForCarrier(carrier);
                 },
 
                 toggleDetails(itemId) {
@@ -386,6 +522,9 @@
 
                     this.bulkTrackingError = '';
                     this.bulkTrackingShipmentType = '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}';
+                    this.bulkTrackingMode = 'none';
+                    this.bulkTrackingModeTouched = false;
+                    this.bulkTrackingParcelNumber = this.defaultParcelNumber();
                     this.bulkTrackingCarrier = '';
                     this.bulkTrackingTrackingNumber = '';
                     this.bulkTrackingTrackingUrl = '';
@@ -401,12 +540,26 @@
                 stageBulkTracking(form) {
                     const formData = new FormData(form);
                     const shipmentType = String(formData.get('shipment_type') || '{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE }}');
+                    const trackingMode = String(formData.get('tracking_mode') || 'none');
+                    const parcelNumber = trackingMode === 'tracking_number'
+                        ? 0
+                        : Math.max(1, Number(formData.get('parcel_number') || this.defaultParcelNumber()));
                     const carrier = String(formData.get('carrier') || '').trim();
-                    const trackingNumber = String(formData.get('tracking_number') || '').trim();
-                    const trackingUrl = String(formData.get('tracking_url') || '').trim();
+                    let trackingNumber = String(formData.get('tracking_number') || '').trim();
+                    let trackingUrl = String(formData.get('tracking_url') || '').trim();
                     const notes = String(formData.get('notes') || '').trim();
                     const dispatchedAt = String(formData.get('dispatched_at') || '').trim();
                     let stagedCount = 0;
+
+                    if (trackingMode === 'tracking_number' && trackingNumber === '') {
+                        this.bulkTrackingError = 'Enter a tracking number or choose No Tracking Number.';
+                        return;
+                    }
+
+                    if (trackingMode === 'none') {
+                        trackingNumber = '';
+                        trackingUrl = '';
+                    }
 
                     this.selectedItems().forEach(({ itemId }) => {
                         const quantity = shipmentType === 'delayed'
@@ -425,6 +578,8 @@
                             delayed_quantity: 0,
                             reason: '',
                             shipment_type: shipmentType,
+                            tracking_mode: trackingMode,
+                            parcel_number: parcelNumber,
                             quantity,
                             carrier,
                             tracking_number: trackingNumber,
@@ -606,11 +761,16 @@
                     const ui = this.ensureItemUi(itemId);
                     const formData = new FormData(form);
                     const shipmentType = String(formData.get('shipment_type') || 'available');
+                    const trackingMode = String(formData.get('tracking_mode') || 'none');
                     const quantity = Math.max(0, Number(formData.get('quantity') || 0));
+                    const parcelNumber = trackingMode === 'tracking_number'
+                        ? 0
+                        : Math.max(1, Number(formData.get('parcel_number') || this.defaultParcelNumber()));
                     const remaining = shipmentType === 'delayed'
                         ? this.remainingDelayed(itemId)
                         : this.remainingAvailable(itemId);
-                    const trackingUrl = String(formData.get('tracking_url') || '').trim();
+                    let trackingNumber = String(formData.get('tracking_number') || '').trim();
+                    let trackingUrl = String(formData.get('tracking_url') || '').trim();
 
                     if (quantity <= 0) {
                         ui.trackingError = 'Stage at least one item to dispatch.';
@@ -620,6 +780,16 @@
                     if (quantity > remaining) {
                         ui.trackingError = 'Tracking quantity exceeds what is still open after other staged actions.';
                         return;
+                    }
+
+                    if (trackingMode === 'tracking_number' && trackingNumber === '') {
+                        ui.trackingError = 'Enter a tracking number or choose No Tracking Number.';
+                        return;
+                    }
+
+                    if (trackingMode === 'none') {
+                        trackingNumber = '';
+                        trackingUrl = '';
                     }
 
                     if (trackingUrl !== '') {
@@ -639,9 +809,11 @@
                         delayed_quantity: 0,
                         reason: '',
                         shipment_type: shipmentType,
+                        tracking_mode: trackingMode,
+                        parcel_number: parcelNumber,
                         quantity,
                         carrier: String(formData.get('carrier') || '').trim(),
-                        tracking_number: String(formData.get('tracking_number') || '').trim(),
+                        tracking_number: trackingNumber,
                         tracking_url: trackingUrl,
                         notes: String(formData.get('notes') || '').trim(),
                         dispatched_at: String(formData.get('dispatched_at') || '').trim(),
@@ -671,6 +843,9 @@
                 actionSummary(action) {
                     const item = this.items?.[String(action.item_id)];
                     const title = String(item?.title || 'Order item');
+                    const usesTrackingNumber = String(action.tracking_mode || '') === 'tracking_number'
+                        || String(action.tracking_number || '').trim() !== ''
+                        || String(action.tracking_url || '').trim() !== '';
 
                     if (String(action.type) === 'cancel') {
                         const parts = [];
@@ -686,7 +861,14 @@
                     }
 
                     const shipmentLabel = String(action.shipment_type) === 'delayed' ? 'Backorder' : 'Reserved';
-                    return `${title} · Ship ${Number(action.quantity || 0)} ${shipmentLabel.toLowerCase()} item${Number(action.quantity || 0) === 1 ? '' : 's'}`;
+                    const parcelLabel = ! usesTrackingNumber && Number(action.parcel_number || 0) > 0
+                        ? `Parcel #${Number(action.parcel_number)}`
+                        : '';
+
+                    return [
+                        `${title} · Ship ${Number(action.quantity || 0)} ${shipmentLabel.toLowerCase()} item${Number(action.quantity || 0) === 1 ? '' : 's'}`,
+                        parcelLabel,
+                    ].filter((part) => part !== '').join(' · ');
                 },
 
                 actionDetail(action) {
@@ -704,8 +886,14 @@
                             .join(' | ');
                     }
 
+                    const usesTrackingNumber = String(action.tracking_mode || '') === 'tracking_number'
+                        || String(action.tracking_number || '').trim() !== ''
+                        || String(action.tracking_url || '').trim() !== '';
+                    const parcelNumber = ! usesTrackingNumber ? Number(action.parcel_number || 0) : 0;
+
                     return [
                         String(action.carrier || '').trim(),
+                        parcelNumber > 0 ? `Parcel #${parcelNumber}` : '',
                         String(action.tracking_number || '').trim() !== '' ? `Tracking ${String(action.tracking_number).trim()}` : '',
                         String(action.dispatched_at || '').trim(),
                         String(action.notes || '').trim(),
@@ -894,14 +1082,16 @@
                                 $cancelDelayedValue = $cancelOpen ? old('delayed_quantity', '') : '';
                                 $cancelReasonValue = $cancelOpen ? old('reason', '') : '';
                                 $trackingStageValue = $trackingOpen ? old('shipment_type', \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE) : \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_AVAILABLE;
+                                $trackingModeValue = $trackingOpen ? old('tracking_mode', 'none') : 'none';
                                 $trackingQtyValue = $trackingOpen ? old('quantity', '') : '';
+                                $trackingParcelValue = $trackingOpen ? old('parcel_number', (string) $defaultParcelNumber) : (string) $defaultParcelNumber;
                                 $trackingCarrierValue = $trackingOpen ? old('carrier', '') : '';
                                 $trackingDispatchValue = $trackingOpen ? old('dispatched_at', now()->toDateString()) : now()->toDateString();
                                 $trackingNumberValue = $trackingOpen ? old('tracking_number', '') : '';
                                 $trackingUrlValue = $trackingOpen ? old('tracking_url', '') : '';
                                 $trackingNotesValue = $trackingOpen ? old('notes', '') : '';
                             @endphp
-                                    <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue)); @endif">
+                                    <div id="item-{{ $item->id }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm" x-init="@if($cancelOpen) openCancel({{ $item->id }}); @endif @if($trackingOpen) openTracking({{ $item->id }}, @js($trackingStageValue), @js($trackingQtyValue), @js($trackingParcelValue), @js($trackingModeValue), @js($trackingCarrierValue), @js($trackingNumberValue), @js($trackingUrlValue)); @endif">
                                 @php
                                     $itemSku = trim((string) ($item->variant_sku ?: $item->product_sku ?: $item->variant?->sku ?: $item->product?->sku));
                                 @endphp
@@ -1133,6 +1323,38 @@
                                                             @endif
                                                         </div>
                                                         <div>
+                                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking mode</label>
+                                                            <select
+                                                                name="tracking_mode"
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                                x-model="itemUi['{{ $item->id }}'].trackingMode"
+                                                                x-on:change="itemUi['{{ $item->id }}'].trackingModeTouched = true"
+                                                            >
+                                                                <option value="none" @selected($trackingModeValue === 'none')>No Tracking Number</option>
+                                                                <option value="tracking_number" @selected($trackingModeValue === 'tracking_number')>Tracking Number</option>
+                                                            </select>
+                                                            @if($trackingBag->first('tracking_mode'))
+                                                                <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_mode') }}</div>
+                                                            @endif
+                                                            <div class="mt-1 text-xs text-gray-500">Choose whether this parcel should keep only a parcel number or also record a courier tracking number.</div>
+                                                        </div>
+                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak>
+                                                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
+                                                            <input
+                                                                type="number"
+                                                                name="parcel_number"
+                                                                min="1"
+                                                                step="1"
+                                                                x-model.number="itemUi['{{ $item->id }}'].trackingParcelNumber"
+                                                                value="{{ $trackingParcelValue }}"
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                            />
+                                                            @if($trackingBag->first('parcel_number'))
+                                                                <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('parcel_number') }}</div>
+                                                            @endif
+                                                            <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
+                                                        </div>
+                                                        <div>
                                                             <x-ui.input
                                                                 name="carrier"
                                                                 label="Courier"
@@ -1141,6 +1363,9 @@
                                                                 :suggestions="$carrierSuggestions ?? []"
                                                                 showSuggestionsOnFocus="true"
                                                                 :error="$trackingBag->first('carrier')"
+                                                                x-model="itemUi['{{ $item->id }}'].trackingCarrier"
+                                                                x-on:blur="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value); applyTrackingLinkTemplateToItem({{ $item->id }})"
+                                                                x-on:input="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value)"
                                                                 class="!mb-0"
                                                             />
                                                         </div>
@@ -1151,20 +1376,39 @@
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('dispatched_at') }}</div>
                                                             @endif
                                                         </div>
-                                                        <div>
+                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                            <input type="text" name="tracking_number" value="{{ $trackingNumberValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                            <input
+                                                                type="text"
+                                                                name="tracking_number"
+                                                                value="{{ $trackingNumberValue }}"
+                                                                x-model="itemUi['{{ $item->id }}'].trackingNumber"
+                                                                x-on:blur="applyTrackingLinkTemplateToItem({{ $item->id }})"
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                                placeholder="Optional"
+                                                            />
                                                             @if($trackingBag->first('tracking_number'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_number') }}</div>
                                                             @endif
                                                         </div>
-                                                        <div>
+                                                        <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'tracking_number'" x-cloak>
                                                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>
-                                                            <input type="url" name="tracking_url" value="{{ $trackingUrlValue }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                            <input
+                                                                type="url"
+                                                                name="tracking_url"
+                                                                value="{{ $trackingUrlValue }}"
+                                                                x-model="itemUi['{{ $item->id }}'].trackingUrl"
+                                                                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0"
+                                                                placeholder="Optional"
+                                                            />
                                                             @if($trackingBag->first('tracking_url'))
                                                                 <div class="mt-1 text-xs text-rose-700">{{ $trackingBag->first('tracking_url') }}</div>
                                                             @endif
+                                                            <div class="mt-1 text-xs text-gray-500">Leave blank to auto-generate from the courier template when one exists.</div>
                                                         </div>
+                                                    </div>
+                                                    <div x-show="itemUi['{{ $item->id }}'] && itemUi['{{ $item->id }}'].trackingMode === 'none'" x-cloak class="mt-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                                                        No tracking number will be recorded for this parcel. The parcel number still keeps the shipment grouped.
                                                     </div>
                                                     <div class="mt-4">
                                                         <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>
@@ -1287,25 +1531,45 @@
                                                     <option value="{{ \App\Models\StoreOrderItemTracking::SHIPMENT_TYPE_DELAYED }}">Backorder items</option>
                                                 </select>
                                             </div>
+                                            <div>
+                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking mode</label>
+                                                <select name="tracking_mode" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" x-model="bulkTrackingMode" x-on:change="bulkTrackingModeTouched = true">
+                                                    <option value="none">No Tracking Number</option>
+                                                    <option value="tracking_number">Tracking Number</option>
+                                                </select>
+                                                <div class="mt-1 text-xs text-gray-500">Choose whether the parcels are recorded with a tracking number or only a parcel number.</div>
+                                            </div>
                                             <x-ui.input
                                                 name="carrier"
                                                 label="Courier"
                                                 placeholder="Australia Post"
                                                 :suggestions="$carrierSuggestions ?? []"
                                                 showSuggestionsOnFocus="true"
+                                                x-model="bulkTrackingCarrier"
+                                                x-on:blur="syncBulkTrackingModeFromCarrier($event.target.value); applyTrackingLinkTemplateToBulk()"
+                                                x-on:input="syncBulkTrackingModeFromCarrier($event.target.value)"
                                                 class="!mb-0"
                                             />
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Dispatch date</label>
                                                 <input type="date" name="dispatched_at" value="{{ now()->toDateString() }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
                                             </div>
-                                            <div>
-                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
-                                                <input type="text" name="tracking_number" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                            <div x-show="bulkTrackingMode === 'none'" x-cloak>
+                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Parcel number</label>
+                                                <input type="number" name="parcel_number" min="1" step="1" x-model.number="bulkTrackingParcelNumber" value="{{ $defaultParcelNumber }}" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" />
+                                                <div class="mt-1 text-xs text-gray-500">Use the same number for items sharing one parcel.</div>
                                             </div>
-                                            <div class="sm:col-span-2">
+                                            <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak>
+                                                <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking number</label>
+                                                <input type="text" name="tracking_number" x-model="bulkTrackingTrackingNumber" x-on:blur="applyTrackingLinkTemplateToBulk()" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                            </div>
+                                            <div x-show="bulkTrackingMode === 'tracking_number'" x-cloak class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Tracking link</label>
-                                                <input type="url" name="tracking_url" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                <input type="url" name="tracking_url" x-model="bulkTrackingTrackingUrl" class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-300 focus:outline-none focus:ring-0" placeholder="Optional" />
+                                                <div class="mt-1 text-xs text-gray-500">Leave blank to auto-generate from the courier template when one exists.</div>
+                                            </div>
+                                            <div x-show="bulkTrackingMode === 'none'" x-cloak class="sm:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-600">
+                                                No tracking number will be recorded for these parcels. The parcel number still keeps each staged shipment grouped.
                                             </div>
                                             <div class="sm:col-span-2">
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Notes</label>

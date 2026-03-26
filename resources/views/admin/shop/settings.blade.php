@@ -58,6 +58,11 @@
             class="space-y-6"
             x-data="{
                 shippingMethods: @js($shippingMethodRows),
+                trackingLinkTemplatesSource: @js(old('tracking_link_templates', $trackingLinkTemplates ?? [])),
+                trackingLinkTemplates: [],
+                init() {
+                    this.trackingLinkTemplates = this.parseTrackingLinkTemplates(this.trackingLinkTemplatesSource);
+                },
                 newPackage(sortOrder = 1) {
                     return {
                         id: null,
@@ -126,6 +131,66 @@
 
                     method.packages.splice(packageIndex, 1);
                 },
+                newTrackingLinkTemplate() {
+                    return {
+                        carrier: '',
+                        template: '',
+                    };
+                },
+                parseTrackingLinkTemplates(rawValue) {
+                    if (Array.isArray(rawValue)) {
+                        return rawValue
+                            .map((row) => ({
+                                carrier: String(row && typeof row === 'object' ? row.carrier : '').trim(),
+                                template: String(row && typeof row === 'object' ? row.template : '').trim(),
+                            }))
+                            .filter((row) => row.carrier !== '' || row.template !== '');
+                    }
+
+                    if (typeof rawValue !== 'string' || rawValue.trim() === '') {
+                        return [];
+                    }
+
+                    try {
+                        const parsed = JSON.parse(rawValue);
+
+                        if (Array.isArray(parsed)) {
+                            return parsed
+                                .map((row) => ({
+                                    carrier: String((row && typeof row === 'object' ? row.carrier : '') ?? '').trim(),
+                                    template: String((row && typeof row === 'object' ? row.template : '') ?? '').trim(),
+                                }))
+                                .filter((row) => row.carrier !== '' || row.template !== '');
+                        }
+
+                        if (parsed && typeof parsed === 'object') {
+                            return Object.entries(parsed)
+                                .map(([carrier, template]) => ({
+                                    carrier: String(carrier ?? '').trim(),
+                                    template: String(template ?? '').trim(),
+                                }))
+                                .filter((row) => row.carrier !== '' || row.template !== '');
+                        }
+                    } catch (error) {
+                        return [];
+                    }
+
+                    return [];
+                },
+                addTrackingLinkTemplate() {
+                    this.trackingLinkTemplates.push(this.newTrackingLinkTemplate());
+                },
+                removeTrackingLinkTemplate(index) {
+                    this.trackingLinkTemplates.splice(index, 1);
+                },
+                normalizedTrackingLinkTemplates() {
+                    return this.trackingLinkTemplates
+                        .map((row) => ({
+                            carrier: String(row.carrier ?? '').trim(),
+                            template: String(row.template ?? '').trim(),
+                        }))
+                        .filter((row) => row.carrier !== '' && row.template !== '');
+                },
             }"
         >
             @csrf
@@ -135,7 +200,6 @@
                 <section class="{{ $settingsCardClasses }} space-y-4">
                     <div>
                         <h2 class="text-xl font-bold text-gray-900">Storefront</h2>
-                        <p class="mt-1 text-sm text-gray-600">Control whether the public store, cart, and checkout are available. Existing order links remain accessible.</p>
                     </div>
 
                     <input type="hidden" name="public_enabled" value="0" />
@@ -148,8 +212,7 @@
                             @checked((bool) old('public_enabled', $publicEnabled))
                         >
                         <span class="block">
-                            <span class="block font-medium text-gray-900">Enable public storefront</span>
-                            <span class="mt-1 block text-gray-500">Customers can browse products, manage their cart, and complete checkout.</span>
+                            <span class="block font-medium text-gray-900">Enabled</span>
                         </span>
                     </label>
                     @error('public_enabled')
@@ -197,10 +260,44 @@
                         name="boxed_shipping_message"
                         label="Manual Quote Message"
                         :value="$boxedShipping['message']"
-                        class="!mb-0"
+                        class="mb-0!"
                     />
                 </section>
             </div>
+
+            <section class="{{ $settingsCardClasses }} space-y-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-gray-900">Courier Tracking Link Templates</h2>
+                        <p class="mt-1 text-sm text-gray-600">Add one row per courier. Use {tracking} in the URL template and the tracking link will be filled automatically when a tracking number is entered.</p>
+                    </div>
+                    <x-ui.button type="button" color="outline" x-on:click="addTrackingLinkTemplate()">Add Template</x-ui.button>
+                </div>
+
+                <div x-show="trackingLinkTemplates.length === 0" x-cloak class="mt-4 rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                    No courier templates yet. Add one to auto-fill tracking links for specific couriers.
+                </div>
+
+                        <div class="mt-4 space-y-3" x-show="trackingLinkTemplates.length > 0" x-cloak>
+                            <template x-for="(trackingLinkTemplate, templateIndex) in trackingLinkTemplates" :key="templateIndex">
+                                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                                    <div class="flex flex-wrap items-start justify-between gap-4">
+                                        <div class="grid flex-1 gap-4 md:grid-cols-[minmax(0,0.75fr),minmax(0,1.25fr)]">
+                                            <div>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700">Courier</label>
+                                                <input type="text" class="{{ $inlineInputClasses }}" :name="`tracking_link_templates[${templateIndex}][carrier]`" placeholder="Australia Post" x-model="trackingLinkTemplate.carrier">
+                                            </div>
+                                            <div>
+                                                <label class="mb-1 block text-sm font-medium text-gray-700">Tracking URL Template</label>
+                                                <input type="text" class="{{ $inlineInputClasses }}" :name="`tracking_link_templates[${templateIndex}][template]`" placeholder="https://example.com/track?id={tracking}" x-model="trackingLinkTemplate.template">
+                                            </div>
+                                        </div>
+                                        <x-ui.button type="button" color="danger-outline" class="!px-4" x-on:click="removeTrackingLinkTemplate(templateIndex)">Remove</x-ui.button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </section>
 
             <section class="{{ $settingsCardClasses }} space-y-5">
                 <div class="flex flex-wrap items-start justify-between gap-4">

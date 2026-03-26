@@ -12,7 +12,10 @@
 
     <x-container>
         <form method="GET" action="{{ url()->current() }}" class="w-full my-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
-            <x-ui.checkbox name="hide_completed" checked="{{ $hideCompleted ? 'checked' : '' }}" label="Hide completed refunds" no-wrapper></x-ui.checkbox>
+            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input type="checkbox" name="hide_completed" value="1" {{ $hideCompleted ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                Hide completed refunds
+            </label>
             <div class="flex w-full md:max-w-md">
                 <input
                     type="text"
@@ -69,11 +72,29 @@
                         $markCompletedUrl = route('admin.payment.refunds.complete', $manualRefund);
                         $refundAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
                         $refundReceivedOn = now()->format('Y-m-d\TH:i');
+                        $refundPaymentId = (int) data_get($manualRefund->payload, 'manual_refund.refund_payment_id', 0);
+                        if ($refundPaymentId <= 0 && $payment) {
+                            $refundPaymentId = (int) optional($payment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0)->first())->id;
+                        }
+                        $displayNumber = $refundPaymentId > 0 ? $refundPaymentId : $manualRefund->id;
+                        $queueNumber = '#'.$manualRefund->id;
+                        $resolutionLabel = match ((string) data_get($manualRefund->payload, 'manual_refund.resolution', '')) {
+                            'credit_retained' => 'Left as account credit',
+                            'refund_paid_out' => $refundPaymentId > 0 ? 'Refund payment #'.$refundPaymentId : 'Refund paid out',
+                            default => '',
+                        };
+                        $defaultReason = trim((string) $manualRefund->failure_message);
+                        $defaultReason = $defaultReason !== ''
+                            ? 'Square refund failed for refund queue item #'.((int) $manualRefund->id).($payment ? ' (payment #'.((int) $payment->id).($payment->square_payment_id ? ' Square payment '.(string) $payment->square_payment_id : '').')' : '').': '.$defaultReason
+                            : 'Manual refund recorded for refund queue item #'.((int) $manualRefund->id).($payment ? ' (payment #'.((int) $payment->id).($payment->square_payment_id ? ' Square payment '.(string) $payment->square_payment_id : '').')' : '');
+                        if ($payment && $refundPaymentId > 0) {
+                            $paymentUrl = route('admin.payment.edit', ['payment' => $payment, 'highlight_refund' => $refundPaymentId]);
+                        }
                     @endphp
                     <div x-data="{ refundModalOpen: false, leaveAsCredit: false }" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                         <div class="flex items-start justify-between gap-4">
                             <div>
-                                <div class="whitespace-nowrap font-semibold">#{{ $manualRefund->id }}</div>
+                                <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
                                 <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </div>
                             <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
@@ -81,7 +102,7 @@
 
                         <div class="mt-4 space-y-3">
                             <div>
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Item</div>
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">Refund Payment</div>
                                 <div class="mt-1 font-medium text-gray-900">
                                     @if($ticketReference !== '-')
                                         <a href="{{ $workshopUrl ?? $invoiceUrl ?? '#' }}" class="text-primary-color hover:underline">{{ $ticketReference }}</a>
@@ -125,6 +146,9 @@
                                 <div class="mt-1 font-semibold text-gray-950">{{ money(((int) $manualRefund->requested_cents) / 100) }}</div>
                                 @if((int) $manualRefund->refunded_cents > 0)
                                     <div class="text-xs text-gray-600">Refunded: {{ money(((int) $manualRefund->refunded_cents) / 100) }}</div>
+                                @endif
+                                @if($resolutionLabel !== '')
+                                    <div class="mt-1 text-xs font-medium text-gray-600">{{ $resolutionLabel }}</div>
                                 @endif
                                 @if($payment)
                                     <div class="mt-1 text-xs text-gray-600">Payment #{{ $payment->id }}</div>
@@ -207,7 +231,7 @@
                                         <x-ui.input type="datetime-local" label="Refund Date/Time" name="received_on" value="{{ $refundReceivedOn }}" />
                                         <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
                                     </div>
-                                    <x-ui.input label="Internal Notes" name="reason" value="Manual refund recorded from refunds queue" />
+                                    <x-ui.input label="Internal Notes" name="reason" value="{{ $defaultReason }}" />
 
                                     <div class="flex justify-end gap-3 pt-1">
                                         <x-ui.button type="button" color="secondary" x-on:click="refundModalOpen = false">Cancel</x-ui.button>
@@ -223,7 +247,7 @@
             <div class="hidden md:block">
                 <x-ui.table>
                     <x-slot:header>
-                        <th>Item</th>
+                        <th>Refund Payment</th>
                         <th>Details</th>
                         <th>Amount</th>
                         <th>Status</th>
@@ -260,17 +284,35 @@
                                 $orderNumber = $order?->order_number ? '#'.$order->order_number : '-';
                                 $customerName = trim((string) (($invoice?->billing_name ?? '') ?: ($payment?->user?->getName() ?? '')));
                                 $customerEmail = trim((string) ($invoice?->billing_email ?? $payment?->user?->email ?? ''));
-                                $paymentUrl = $payment ? route('admin.payment.edit', $payment) : null;
-                                $invoiceUrl = $invoice ? route('admin.invoice.edit', $invoice) : null;
-                                $workshopUrl = $ticket?->workshop ? route('admin.workshop.tickets', $ticket->workshop) : null;
-                                $orderUrl = $order ? route('admin.shop.order.edit', $order) : null;
-                                $markCompletedUrl = route('admin.payment.refunds.complete', $manualRefund);
-                                $refundAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
-                                $refundReceivedOn = now()->format('Y-m-d\TH:i');
-                            @endphp
+                        $paymentUrl = $payment ? route('admin.payment.edit', $payment) : null;
+                        $invoiceUrl = $invoice ? route('admin.invoice.edit', $invoice) : null;
+                        $workshopUrl = $ticket?->workshop ? route('admin.workshop.tickets', $ticket->workshop) : null;
+                        $orderUrl = $order ? route('admin.shop.order.edit', $order) : null;
+                        $markCompletedUrl = route('admin.payment.refunds.complete', $manualRefund);
+                        $refundAmount = round(((int) $manualRefund->requested_cents) / 100, 2);
+                        $refundReceivedOn = now()->format('Y-m-d\TH:i');
+                        $refundPaymentId = (int) data_get($manualRefund->payload, 'manual_refund.refund_payment_id', 0);
+                        if ($refundPaymentId <= 0 && $payment) {
+                            $refundPaymentId = (int) optional($payment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0)->first())->id;
+                        }
+                        $displayNumber = $refundPaymentId > 0 ? $refundPaymentId : $manualRefund->id;
+                        $queueNumber = '#'.$manualRefund->id;
+                        $resolutionLabel = match ((string) data_get($manualRefund->payload, 'manual_refund.resolution', '')) {
+                            'credit_retained' => 'Left as account credit',
+                            'refund_paid_out' => $refundPaymentId > 0 ? 'Refund payment #'.$refundPaymentId : 'Refund paid out',
+                            default => '',
+                        };
+                        $defaultReason = trim((string) $manualRefund->failure_message);
+                        $defaultReason = $defaultReason !== ''
+                            ? 'Square refund failed for refund queue item #'.((int) $manualRefund->id).($payment ? ' (payment #'.((int) $payment->id).($payment->square_payment_id ? ' Square payment '.(string) $payment->square_payment_id : '').')' : '').': '.$defaultReason
+                            : 'Manual refund recorded for refund queue item #'.((int) $manualRefund->id).($payment ? ' (payment #'.((int) $payment->id).($payment->square_payment_id ? ' Square payment '.(string) $payment->square_payment_id : '').')' : '');
+                        if ($payment && $refundPaymentId > 0) {
+                            $paymentUrl = route('admin.payment.edit', ['payment' => $payment, 'highlight_refund' => $refundPaymentId]);
+                        }
+                    @endphp
                             <tr x-data="{ refundModalOpen: false, leaveAsCredit: false }">
                                 <td class="align-top">
-                                    <div class="whitespace-nowrap font-semibold">#{{ $manualRefund->id }}</div>
+                                    <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
                                     <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                                 </td>
                                 <td class="align-top">
@@ -313,12 +355,15 @@
                                 </td>
                                 <td class="align-top">
                                     <div class="font-semibold text-gray-950">{{ money(((int) $manualRefund->requested_cents) / 100) }}</div>
-                                    @if((int) $manualRefund->refunded_cents > 0)
-                                        <div class="text-xs text-gray-600">Refunded: {{ money(((int) $manualRefund->refunded_cents) / 100) }}</div>
-                                    @endif
-                                    @if($payment)
-                                        <div class="mt-1 text-xs text-gray-600">Payment #{{ $payment->id }}</div>
-                                    @endif
+                                @if((int) $manualRefund->refunded_cents > 0)
+                                    <div class="text-xs text-gray-600">Refunded: {{ money(((int) $manualRefund->refunded_cents) / 100) }}</div>
+                                @endif
+                                @if($resolutionLabel !== '')
+                                    <div class="mt-1 text-xs font-medium text-gray-600">{{ $resolutionLabel }}</div>
+                                @endif
+                                @if($payment)
+                                    <div class="mt-1 text-xs text-gray-600">Payment #{{ $payment->id }}</div>
+                                @endif
                                 </td>
                                 <td class="align-top text-center">
                                     <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold whitespace-nowrap {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
@@ -399,7 +444,7 @@
                                                     <x-ui.input type="datetime-local" label="Refund Date/Time" name="received_on" value="{{ $refundReceivedOn }}" />
                                                     <x-ui.input label="Transfer / Cash Reference" name="reference" value="" info="Optional receipt number, transfer note, or cash reference." />
                                                 </div>
-                                                <x-ui.input label="Internal Notes" name="reason" value="Manual refund recorded from refunds queue" />
+                                                <x-ui.input label="Internal Notes" name="reason" value="{{ $defaultReason }}" />
 
                                                 <div class="flex justify-end gap-3 pt-1">
                                                     <x-ui.button type="button" color="secondary" x-on:click="refundModalOpen = false">Cancel</x-ui.button>

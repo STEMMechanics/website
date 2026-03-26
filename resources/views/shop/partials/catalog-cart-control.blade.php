@@ -28,7 +28,6 @@
 
             try {
                 await window.SM.shopCart.submitAddForm(form, {
-                    showAddSheet: true,
                     addedLineKey: this.lineKey,
                 });
             } finally {
