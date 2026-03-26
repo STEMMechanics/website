@@ -34,11 +34,11 @@
                 </div>
 
                 <div class="mt-8 grid gap-4 md:grid-cols-2">
-                    <div class="rounded-2xl bg-gray-50 p-4">
+                    <div class="rounded-2xl bg-gray-100 p-4">
                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Tracked players</div>
                         <div class="mt-2 text-2xl font-semibold text-gray-900">{{ $trackedPlayerCount }}</div>
                     </div>
-                    <div class="rounded-2xl bg-gray-50 p-4">
+                    <div class="rounded-2xl bg-gray-100 p-4">
                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Last updated</div>
                         <div class="mt-2 text-sm font-semibold text-gray-900">{{ $lastSyncedAtAnyPeriod?->format('j M Y g:i a') ?? 'No sync has completed yet' }}</div>
                     </div>
@@ -46,12 +46,24 @@
             </section>
 
             <div class="space-y-6">
+{{--                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">--}}
+{{--                    <h2 class="text-lg font-semibold text-gray-900">Need your own stats?</h2>--}}
+{{--                    <p class="mt-3 text-sm leading-6 text-gray-600">If your website account is linked to a STEMCraft player account, you can also see your all-time cached player stats on the STEMCraft page inside your account.</p>--}}
+{{--                    <div class="mt-5 flex flex-col gap-3">--}}
+{{--                        <x-ui.button href="{{ route('account.stemcraft.index') }}">My STEMCraft page</x-ui.button>--}}
+{{--                        <x-ui.button href="{{ route('stemcraft.join') }}" color="primary-outline">How to join</x-ui.button>--}}
+{{--                    </div>--}}
+{{--                </section>--}}
+
                 <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900">Need your own stats?</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">If your website account is linked to a STEMCraft player account, you can also see your all-time cached player stats on the STEMCraft page inside your account.</p>
-                    <div class="mt-5 flex flex-col gap-3">
-                        <x-ui.button href="{{ route('account.stemcraft.index') }}">My STEMCraft page</x-ui.button>
-                        <x-ui.button href="{{ route('stemcraft.join') }}" color="primary-outline">How to join</x-ui.button>
+                    <h2 class="text-lg font-semibold text-gray-900 mb-4">Server Info</h2>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-1 gap-2">
+                        @foreach($serverInfo['cards'] ?? [] as $card)
+                            <div class="rounded-2xl bg-gray-100 px-3 py-3">
+                                <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">{{ $card['label'] ?? '-' }}</dt>
+                                <dd class="mt-1 text-sm font-semibold text-gray-900">{{ $card['value'] ?? '-' }}</dd>
+                            </div>
+                        @endforeach
                     </div>
                 </section>
             </div>
@@ -75,7 +87,7 @@
 
                         <div class="mt-4 space-y-3">
                             @foreach($stat['rows'] as $row)
-                                <div class="flex items-center justify-between gap-4 rounded-2xl bg-gray-50 px-4 py-3">
+                                <div class="flex items-center justify-between gap-4 rounded-2xl bg-gray-100 px-4 py-3">
                                     <div class="min-w-0">
                                         <div class="flex items-center gap-3">
                                             <span class="inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary-color text-xs font-semibold text-white">{{ $row['rank'] }}</span>

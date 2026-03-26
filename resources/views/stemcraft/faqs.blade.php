@@ -16,79 +16,72 @@
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_22rem]">
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="max-w-3xl">
-                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">The basics, without having to dig through everything else first.</h2>
-                    <p class="mt-4 text-base leading-7 text-gray-600">These answers are meant to clear up the questions that come up most often around joining, account linking, whitelist access, and moderation visibility.</p>
+                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">Clear answers for parents, schools, and workshop families.</h2>
+                    <p class="mt-4 text-base leading-7 text-gray-600">These questions focus on the basics: who can join, how access is approved, what happens if someone tries too early, and what parents can manage themselves.</p>
                 </div>
 
                 <div class="mt-8 space-y-4">
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">How do I get access to STEMCraft?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Access is usually arranged through a workshop, community program, or direct onboarding (only in some circumstances).</p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">If you are unsure whether you already have access, login to the website and under the user menu, check if you have STEMCraft listed:</p>
-                        <img class="mx-auto w-48 h-auto rounded-lg" src="/stemcraft-user-menu.webp" alt="stemcraft-menu" />
-                        <p class="mt-2 text-sm leading-6 text-gray-600">From that menu item, you can add your Minecraft accounts to the server. <a href="{{ route('contact') }}" class="link">Contact us</a> if you have any issues.</p>
+                        <h3 class="text-base font-semibold text-gray-900">What is STEMCraft?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">STEMCraft is the Minecraft server connected to STEMMechanics workshops and group programs. It is designed for families, schools, and OSHC providers who want a safer, more structured space.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Do I need a website account?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Generally yes. The website is used to manage linked Minecraft usernames and whitelist access for players or programs. It also allows us to have the contact details of the parent if issues arise.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Why is the server address public if access is restricted?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">The address is public so it is easy to find and use. Access still has to be approved before a player can enter the server.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Can I join using Java/Bedrock</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Sure! The server supports both Java and Bedrock players. Generally you require the latest version and a valid Minecraft account to join. You can visit the <a href="{{ route("forum.index") }}" class="link">STEMCraft Discussions</a> to see the current version and other news.</p>
+                        <h3 class="text-base font-semibold text-gray-900">How do I set up access?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">A parent creates the website account using the workshop email, adds the child’s Minecraft username, and the access is granted straight away.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">What Minecraft version does the server run?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">
-                            Just like Minecraft at home, STEMCraft server runs on a specific Minecraft version. You can see the current server version on the <a href="{{ route('stemcraft.index') }}" class="link">STEMCraft Overview</a> page.
-                        </p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">
-                            Newer Minecraft game versions can sometimes still join, but mobs, blocks, or items added after the server’s version may not appear in the game yet.
-                        </p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">
-                            For news about upgrades and upcoming updates, visit the <a href="{{ route('forum.index') }}" class="link">STEMCraft Discussions</a>.
-                        </p>
+                        <h3 class="text-base font-semibold text-gray-900">What happens if my child tries to join before approval?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">They are redirected to the website instead of being allowed into the server. That is a sign the access setup still needs to be completed.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Why does my linked account say UUID pending?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">That usually means the server has not seen that Minecraft account log in yet. Once it does, the UUID will be recorded against the account.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Does access expire?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">No. Access stays in place until a parent changes it from the account page.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">What happens if I change my Minecraft player name?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Nothing! While Minecraft player names can change, their UUID's do not. Provided your player name was previously whitelisted, once you login again under your new player name, the website will be updated accordingly.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Can I change the Minecraft username later?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes. Parents can update or remove usernames whenever they need to.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Why is there a public punishments page?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">It exists for transparency. It helps players understand when restrictions are active and shows that moderation decisions are not being hidden from the community.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Does STEMCraft support Java and Bedrock?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes. Both editions are supported. The join page lists the current address and the Bedrock port.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Can punishments be lifted?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes. Depending on the issue, restrictions can expire naturally or be lifted by admins when appropriate.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Can schools and OSHC providers use it?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes. Group access can be arranged for schools and OSHC providers. Contact STEMMechanics to discuss the setup.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">What should I do if something looks wrong with my access?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Contact <a href="{{ route('contact') }}" class="link">STEMMechanics</a> and include your Minecraft username, the platform you are using, and what you expected to happen.</p>
+                        <h3 class="text-base font-semibold text-gray-900">How do I contact STEMMechanics if something looks wrong?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Use the contact page and include the Minecraft username, the device or edition you are using, and a short description of the issue.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">Is there a live player map of the server?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes, the server does have a live map of the worlds and players. Some worlds, such as survival worlds, have 'hiding' enabled meaning that players can hide themselves on the map if they are under blocks and not visible from the sky.</p>
-                        <p class="mt-6 text-center"><x-ui.button href="https://map.stemcraft.com.au/" target="_blank">STEMCraft Map</x-ui.button></p>
-                    </div>
-                    <div class="rounded-2xl bg-gray-50 p-5">
-                        <h3 class="text-base font-semibold text-gray-900">How many accounts can I link to my website account?</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">You can link up to 5 player accounts to a single website account. This allows families to manage their children’s accounts in one place.</p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Linked accounts should only be for members of your household. Minecraft accounts that belong to friends or other players should not be added.</p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">If your family needs to link more than 5 accounts, please contact us and we can help.</p>
+                        <h3 class="text-base font-semibold text-gray-900">Can more than one child use the same parent account?</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Yes. Families can manage multiple approved usernames from the same website account.</p>
                     </div>
                 </div>
             </section>
 
             <div class="space-y-6">
                 <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900">Still unsure?</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">If your question is not covered here, it is better to ask directly than guess and end up stuck on access or account details.</p>
-                    <div class="mt-8 text-center">
-                        <x-ui.button href="{{ route('contact') }}" class="block w-full">Contact Us</x-ui.button>
+                    <h2 class="text-lg font-semibold text-gray-900">Still need help?</h2>
+                    <p class="mt-3 text-sm leading-6 text-gray-600">If you are not sure whether access is set up correctly, it is better to ask than guess.</p>
+                    <div class="mt-5">
+                        <x-ui.button href="{{ route('contact') }}" class="w-full">Contact STEMMechanics</x-ui.button>
                     </div>
+                </section>
+
+                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                    <h2 class="text-lg font-semibold text-gray-900">Quick reminder</h2>
+                    <ul class="mt-4 space-y-3 text-sm leading-6 text-gray-600 list-disc pl-4">
+                        <li class="pl-1">Workshop first.</li>
+                        <li class="pl-1">Parent sets up the account.</li>
+                        <li class="pl-1">Add the Minecraft username.</li>
+                        <li class="pl-1">Access is granted instantly.</li>
+                        <li class="pl-1">The player joins after approval.</li>
+                    </ul>
                 </section>
             </div>
         </div>

@@ -22,9 +22,11 @@ class StemcraftController extends Controller
         ]);
     }
 
-    public function join(): View
+    public function join(MinecraftWebhookBridgeService $minecraftWebhookBridgeService): View
     {
-        return view('stemcraft.join');
+        return view('stemcraft.join', [
+            'serverInfo' => $this->buildPublicServerInfo($minecraftWebhookBridgeService),
+        ]);
     }
 
     public function rules(): View
@@ -37,7 +39,7 @@ class StemcraftController extends Controller
         return view('stemcraft.faqs');
     }
 
-    public function stats(Request $request): View
+    public function stats(Request $request, MinecraftWebhookBridgeService $minecraftWebhookBridgeService): View
     {
         $selectedPeriod = MinecraftPlayerStat::resolvePeriod((string) $request->query('period')) ?? MinecraftPlayerStat::PERIOD_ALL;
 
@@ -67,6 +69,7 @@ class StemcraftController extends Controller
                 ->sortByDesc(fn (MinecraftPlayerStat $playerStat): int => (int) $playerStat->captured_at?->timestamp)
                 ->first()?->captured_at,
             'lastSyncedAtAnyPeriod' => $lastSyncedAtAnyPeriod,
+            'serverInfo' => $this->buildPublicServerInfo($minecraftWebhookBridgeService),
         ]);
     }
 

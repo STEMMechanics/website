@@ -3,6 +3,7 @@
 ## 1.4.1
 
 - Update times less than 60 seconds are now indicated as 'just now'
+- Updated the STEMCraft pages
 
 ## 1.4.0
 

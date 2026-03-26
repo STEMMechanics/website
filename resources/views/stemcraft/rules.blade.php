@@ -16,32 +16,31 @@
         <div class="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_22rem]">
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <div class="max-w-3xl">
-                    <div class="inline-flex rounded-full bg-primary-color-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">Community standards</div>
-                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">The rules are here to protect the community, not to catch people out.</h2>
-                    <p class="mt-4 text-base leading-7 text-gray-600">STEMCraft works best when players know what is expected of them. These rules are meant to keep the space respectful, readable, and fair for players, families, workshop groups, and regular community members alike.</p>
-                    <p class="mt-4 text-base leading-7 text-gray-600">If you are unsure about something, the safest approach is simple: respect other people’s time, builds, and ability to enjoy the server without being hassled.</p>
+                    <div class="inline-flex rounded-full bg-primary-color-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">Simple expectations</div>
+                    <h2 class="mt-4 text-3xl font-semibold text-gray-900">These rules help STEMCraft stay safe, calm, and easy to use for families and groups.</h2>
+                    <p class="mt-4 text-base leading-7 text-gray-600">STEMCraft is built for workshop participants, parents, schools, and OSHC providers. The rules are here so everyone knows what is expected before they start playing.</p>
                 </div>
 
                 <div class="mt-8 grid gap-4 md:grid-cols-3">
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Respect people</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">No bullying, harassment, hate speech, threats, or behaviour aimed at making others feel unwelcome.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">Be kind</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">No bullying, harassment, threats, or behaviour that makes other people feel unwelcome.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Respect the world</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Do not grief, steal, vandalise, or interfere with builds, areas, or shared resources that are not yours.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">Respect builds</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Do not grief, steal, vandalise, or change someone else’s work without permission.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Respect fair play</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Do not exploit bugs, cheat, evade moderation, or use the server in ways that undermine the wider community.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">Play fairly</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Do not cheat, exploit bugs, or try to bypass moderation or access controls.</p>
                     </div>
                 </div>
             </section>
 
             <div class="space-y-6">
                 <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900">How moderation is handled</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">Moderation actions can include warnings, mutes, kicks, bans, or account restrictions depending on the issue and whether it is ongoing or repeated.</p>
+                    <h2 class="text-lg font-semibold text-gray-900">What moderation may do</h2>
+                    <p class="mt-3 text-sm leading-6 text-gray-600">If there is a problem, the response depends on what happened and whether it is repeated. The goal is to correct behaviour and protect the community.</p>
                     <div class="mt-4 flex justify-end">
                         <x-ui.button href="{{ route('stemcraft.punishments') }}" color="primary-outline" class="w-full">View punishments log</x-ui.button>
                     </div>
@@ -54,41 +53,42 @@
                 <h2 class="text-xl font-semibold text-gray-900">Core rules</h2>
                 <div class="mt-6 space-y-4">
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">1. Be respectful in chat and in behaviour</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">No abusive language, targeted harassment, repeated hostility, or behaviour that creates pressure or discomfort for others.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">1. Speak respectfully</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Use chat and in-game actions in a way that treats other people with respect.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">2. Do not grief, steal, or sabotage</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Leave other players’ creative builds, resources, and community areas alone unless you have clear permission to help or modify them.</p>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Of course, in survival based worlds, it is every block for themselves!</p>
+                        <h3 class="text-sm font-semibold text-gray-900">2. Leave other people’s work alone</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Only change another player’s build, items, or area if they have clearly said it is okay.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">3. Do not cheat or exploit the server</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">That includes hacked clients, deliberate duplication, loopholes, moderation evasion, or abusing technical faults for unfair advantage.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">3. Keep the server fair</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">No cheats, hacked clients, duplication, loopholes, or attempts to avoid moderation.</p>
                     </div>
                     <div class="rounded-2xl bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">4. Help keep shared spaces usable</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">Avoid spammy builds, repeated clutter, disruptive redstone or lag-heavy setups, and behaviour that makes the server worse for everyone else.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">4. Keep shared areas usable</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Avoid spam, clutter, or anything that makes the server harder for others to enjoy.</p>
                     </div>
                 </div>
             </section>
 
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
-                <h2 class="text-xl font-semibold text-gray-900">What happens if rules are broken</h2>
-                <p class="mt-3 text-sm leading-6 text-gray-600">Moderation is not always one-size-fits-all. The response depends on the seriousness of the issue, any pattern of repeated behaviour, and whether the player is engaging constructively after the problem is raised.</p>
-
+                <h2 class="text-xl font-semibold text-gray-900">Safety and supervision</h2>
                 <div class="mt-6 space-y-4">
                     <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Lower-level issues</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">These may lead to reminders, warnings, or short restrictions where that is enough to correct the behaviour.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">Private access</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Only approved players can enter the server.</p>
                     </div>
                     <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <h3 class="text-sm font-semibold text-gray-900">Serious or repeated issues</h3>
-                        <p class="mt-2 text-sm leading-6 text-gray-600">These can lead to mutes, kicks, bans, or more permanent account restrictions if needed to protect the community.</p>
+                        <h3 class="text-sm font-semibold text-gray-900">Logged activity</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Chat and actions are recorded so staff can review issues if needed.</p>
                     </div>
-                    <div class="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <h3 class="text-sm font-semibold text-amber-900">Public visibility</h3>
-                        <p class="mt-2 text-sm leading-6 text-amber-900">Some moderation actions are visible on the punishments page so the community can understand how active restrictions are being handled.</p>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">No personal information sharing</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">Players should not share names, contact details, or other personal information in chat.</p>
+                    </div>
+                    <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <h3 class="text-sm font-semibold text-gray-900">Structured play</h3>
+                        <p class="mt-2 text-sm leading-6 text-gray-600">The environment is designed around supervised sessions, clear expectations, and predictable access.</p>
                     </div>
                 </div>
             </section>
