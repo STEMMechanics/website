@@ -311,7 +311,12 @@ class StemcraftController extends Controller
         $refreshedAtHuman = null;
         if (is_string($refreshedAt) && trim($refreshedAt) !== '') {
             try {
-                $refreshedAtHuman = \Illuminate\Support\Carbon::parse($refreshedAt)->diffForHumans();
+                $refreshedAtCarbon = \Illuminate\Support\Carbon::parse($refreshedAt);
+                if ($refreshedAtCarbon->diffInSeconds(now()) < 60) {
+                    $refreshedAtHuman = 'just now';
+                } else {
+                    $refreshedAtHuman = $refreshedAtCarbon->diffForHumans();
+                }
             } catch (\Throwable) {
                 $refreshedAtHuman = null;
             }

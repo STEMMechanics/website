@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\SiteOption;
 use App\Services\MinecraftWebhookBridgeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -77,6 +78,47 @@ class StemcraftPublicPagesTest extends TestCase
             ->assertSee('Lobby')
             ->assertDontSee('world_nether')
             ->assertDontSee('world_the_end');
+    }
+
+    public function test_public_stemcraft_overview_uses_just_now_for_recent_server_timestamp(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-26 12:00:00', 'Australia/Brisbane'));
+
+        try {
+            $this->mock(MinecraftWebhookBridgeService::class, function (MockInterface $mock): void {
+                $mock->shouldReceive('connectionSummary')
+                    ->once()
+                    ->andReturn([
+                        'configured' => true,
+                        'target' => 'https://example.test/webhooks/stemcraft/server',
+                    ]);
+                $mock->shouldReceive('requestStatus')
+                    ->once()
+                    ->with(3)
+                    ->andReturn([
+                        'server_name' => 'STEMCraft',
+                        'minecraft_version' => '1.21.11',
+                        'players' => [
+                            'online' => 4,
+                            'max' => 20,
+                        ],
+                        'worlds' => [
+                            ['name' => 'world'],
+                        ],
+                        'tps' => [
+                            'one_minute' => 19.95,
+                        ],
+                        'timestamp' => now()->subSeconds(30)->toIso8601String(),
+                    ]);
+            });
+
+            $this->get(route('stemcraft.index'))
+                ->assertOk()
+                ->assertSee('Last updated just now')
+                ->assertDontSee('0 seconds ago');
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_public_stemcraft_overview_groups_bridge_worlds_without_hiding_other_worlds(): void

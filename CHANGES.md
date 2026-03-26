@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.1
+
+- Update times less than 60 seconds are now indicated as 'just now'
+
 ## 1.4.0
 
 - Fixed minor issues around workshop SEO
