@@ -19,6 +19,7 @@
     </source>
     <php>
         <ini name="memory_limit" value="256M"/>
+        <server name="APP_NAME" value="STEMMechanics" force="true"/>
         <server name="APP_ENV" value="testing" force="true"/>
         <server name="APP_TIMEZONE" value="Australia/Brisbane" force="true"/>
         <server name="APP_URL" value="https://test.stemmechanics.com.au" force="true"/>
@@ -34,6 +35,7 @@
         <server name="TELESCOPE_ENABLED" value="false" force="true"/>
         <server name="ALTCHA_HMAC_KEY" value="testing-secret-key" force="true"/>
         <server name="ALTCHA_TESTING_BYPASS" value="valid" force="true"/>
+        <env name="APP_NAME" value="STEMMechanics" force="true"/>
         <env name="APP_ENV" value="testing" force="true"/>
         <env name="APP_TIMEZONE" value="Australia/Brisbane" force="true"/>
         <env name="APP_URL" value="https://test.stemmechanics.com.au" force="true"/>
