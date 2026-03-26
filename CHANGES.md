@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.2
+
+- Improved display of invoice data in the admin pages
+
 ## 1.4.1
 
 - Update times less than 60 seconds are now indicated as 'just now'

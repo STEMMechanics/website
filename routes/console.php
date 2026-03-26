@@ -3,6 +3,7 @@
 use App\Jobs\SendForumUnreadNotification;
 use App\Jobs\SendEmail;
 use App\Mail\UpcomingWorkshops;
+use App\Models\Invoice;
 use App\Models\Media;
 use App\Models\Ticket;
 use Illuminate\Support\Facades\Artisan;
@@ -88,6 +89,23 @@ Artisan::command('regenerate-thumbnails', function() {
         $m->generateVariants(false);
     }
 })->purpose('Regenerate thumbnails');
+
+Artisan::command('invoices:mark-overdue', function () {
+    $updated = Invoice::query()
+        ->where('total_amount', '>', 0)
+        ->whereDate('due_date', '<', today())
+        ->whereIn('status', [
+            Invoice::STATUS_ISSUED,
+            Invoice::STATUS_SENT,
+        ])
+        ->update([
+            'status' => Invoice::STATUS_OVERDUE,
+        ]);
+
+    $this->info('Marked '.$updated.' invoice'.($updated === 1 ? '' : 's').' as overdue.');
+})->purpose('Mark overdue invoices as overdue')
+    ->hourly()
+    ->withoutOverlapping();
 
 Artisan::command('media:requeue-stuck {--minutes=15} {--limit=200} {--dry-run}', function() {
     $minutes = max(1, (int) $this->option('minutes'));

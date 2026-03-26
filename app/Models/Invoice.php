@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
@@ -226,6 +227,167 @@ class Invoice extends Model
             self::STATUS_CANCELLED => 'Cancelled',
             default => ucfirst(str_replace('_', ' ', $status)),
         };
+    }
+
+    public function statusBadgeClass(): string
+    {
+        return match ((string) $this->status) {
+            self::STATUS_DRAFT => 'border-gray-200 bg-gray-50 text-gray-700',
+            self::STATUS_ISSUED => 'border-sky-200 bg-sky-50 text-sky-800',
+            self::STATUS_SENT => 'border-amber-200 bg-amber-50 text-amber-800',
+            self::STATUS_PAID => 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            self::STATUS_OVERDUE => 'border-rose-300 bg-rose-100 text-rose-900 ring-1 ring-rose-200 shadow-sm',
+            self::STATUS_CANCELLED => 'border-slate-200 bg-slate-50 text-slate-700',
+            default => 'border-gray-200 bg-gray-50 text-gray-700',
+        };
+    }
+
+    public function contentsSummary(int $maxItems = 3): string
+    {
+        if (! $this->relationLoaded('lines')) {
+            $this->load('lines');
+        }
+
+        if ($this->isTicketInvoice()) {
+            return $this->ticketContentsSummary($maxItems);
+        }
+
+        $items = $this->lines
+            ->map(function (InvoiceLine $line): string {
+                $description = trim((string) $line->description);
+                if ($description !== '') {
+                    return Str::limit($description, 48);
+                }
+
+                $kind = trim((string) $line->kind);
+                if ($kind !== '') {
+                    return Str::limit(ucfirst(str_replace('_', ' ', $kind)), 48);
+                }
+
+                return '';
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($items->isEmpty()) {
+            return 'No line items';
+        }
+
+        $summary = $items->take(max(1, $maxItems))->implode(', ');
+        $remaining = $items->count() - max(1, $maxItems);
+
+        if ($remaining > 0) {
+            $summary .= ' +'.$remaining.' more';
+        }
+
+        return $summary;
+    }
+
+    public function displayStatusLabel(): string
+    {
+        return $this->isOverdue()
+            ? self::statusLabel(self::STATUS_OVERDUE)
+            : self::statusLabel((string) $this->status);
+    }
+
+    public function displayStatusBadgeClass(): string
+    {
+        return $this->isOverdue()
+            ? 'border-rose-300 bg-rose-100 text-rose-900 ring-rose-200'
+            : $this->statusBadgeClass();
+    }
+
+    public function isOverdue(): bool
+    {
+        if ((float) $this->total_amount <= 0) {
+            return false;
+        }
+
+        if (! $this->due_date) {
+            return false;
+        }
+
+        return in_array((string) $this->status, [
+            self::STATUS_ISSUED,
+            self::STATUS_SENT,
+            self::STATUS_OVERDUE,
+        ], true) && $this->due_date->lt(today());
+    }
+
+    public static function overdueCount(): int
+    {
+        return static::query()
+            ->where('total_amount', '>', 0)
+            ->whereDate('due_date', '<', today())
+            ->whereIn('status', [
+                self::STATUS_ISSUED,
+                self::STATUS_SENT,
+                self::STATUS_OVERDUE,
+            ])
+            ->count();
+    }
+
+    private function ticketContentsSummary(int $maxItems = 3): string
+    {
+        $items = $this->lines
+            ->filter(fn (InvoiceLine $line): bool => (string) $line->kind === 'ticket')
+            ->map(function (InvoiceLine $line): array {
+                $title = trim((string) data_get($line->details_json, 'workshop_title'));
+                if ($title === '') {
+                    $title = trim((string) $line->description);
+                    $title = preg_replace('/\s*-\s*Ticket\b.*$/i', '', $title) ?: $title;
+                }
+
+                $title = trim((string) preg_replace('/\s+/', ' ', $title));
+                if ($title === '') {
+                    $title = 'Workshop ticket';
+                }
+
+                return [
+                    'title' => $title,
+                    'quantity' => max(1, (float) $line->quantity),
+                ];
+            })
+            ->groupBy('title')
+            ->map(function ($rows, string $title): array {
+                return [
+                    'title' => $title,
+                    'quantity' => round((float) collect($rows)->sum('quantity'), 2),
+                ];
+            })
+            ->values();
+
+        if ($items->isEmpty()) {
+            return 'No line items';
+        }
+
+        $summary = $items
+            ->take(max(1, $maxItems))
+            ->map(function (array $item): string {
+                $quantity = (float) $item['quantity'];
+
+                if ($quantity <= 1.0001) {
+                    return $item['title'];
+                }
+
+                return $item['title'].' x '.$this->formatSummaryQuantity($quantity);
+            })
+            ->implode(', ');
+
+        $remaining = $items->count() - max(1, $maxItems);
+        if ($remaining > 0) {
+            $summary .= ' +'.$remaining.' more';
+        }
+
+        return $summary;
+    }
+
+    private function formatSummaryQuantity(float $quantity): string
+    {
+        return floor($quantity) === $quantity
+            ? (string) ((int) $quantity)
+            : rtrim(rtrim(number_format($quantity, 2, '.', ''), '0'), '.');
     }
 
     public function getRouteKeyName(): string

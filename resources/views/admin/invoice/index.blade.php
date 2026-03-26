@@ -16,16 +16,23 @@
         @else
         <x-ui.table>
             <x-slot:header>
-                <th>Invoice #</th>
+                <th>Invoice</th>
                 <th>Details</th>
-                <th class="hidden md:table-cell">Status</th>
-                <th class="hidden md:table-cell">Issue Date</th>
-                <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
+                <th class="hidden md:table-cell text-center">Status</th>
+                <th class="hidden md:table-cell text-center">Issued / Due</th>
+                <th>Amount <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
                 <th class="text-center">Actions</th>
             </x-slot:header>
             <x-slot:body>
                 @foreach ($invoices as $invoice)
                 @php
+                $statusLabel = $invoice->displayStatusLabel();
+                $statusBadgeClass = $invoice->displayStatusBadgeClass();
+                $contentsSummary = $invoice->contentsSummary();
+                $issuedDate = $invoice->issue_date?->format('M j, Y') ?? '-';
+                $dueDate = $invoice->due_date?->format('M j, Y') ?? '-';
+                $isOverdue = $invoice->isOverdue();
+                $dueDateClass = $isOverdue ? 'text-rose-700 font-semibold' : 'text-gray-600';
                 $settlementKind = $invoice->expectedSettlementKind();
                 $allocated = (float) $invoice->allocations
                 ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
@@ -40,11 +47,18 @@
                     </td>
                     <td>
                         <div>{{ $invoice->user?->getName() ?? '-' }}</div>
-                        <div class="md:hidden text-xs text-gray-600 mt-1">{{ \App\Models\Invoice::statusLabel((string) $invoice->status) }}</div>
-                        <div class="md:hidden text-xs text-gray-600">{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</div>
+                        <div class="mt-1 text-xs text-gray-600">{{ $contentsSummary }}</div>
                     </td>
-                    <td class="hidden md:table-cell">{{ \App\Models\Invoice::statusLabel((string) $invoice->status) }}</td>
-                    <td class="hidden md:table-cell">{{ $invoice->issue_date?->format('M j, Y') ?? '-' }}</td>
+                    <td class="hidden md:table-cell text-center">
+                        <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
+                    </td>
+                    <td class="hidden md:table-cell text-center">
+                        <div class="flex flex-col items-center justify-center gap-1 whitespace-nowrap text-xs">
+                            <div class="text-gray-600">Issued {{ $issuedDate }}</div>
+                            <div class="w-full border-t border-gray-200"></div>
+                            <div class="{{ $dueDateClass }}">Due {{ $dueDate }}</div>
+                        </div>
+                    </td>
                     <td>
                         <div>Total: ${{ number_format((float) $invoice->total_amount, 2) }}</div>
                         <div class="text-xs text-gray-600">GST: ${{ number_format($invoice->gst_amount, 2) }}</div>
@@ -106,16 +120,21 @@
                         </div>
                     </td>
                     </tr>
-                    @foreach(($invoice->taxAdjustments ?? collect())->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0) as $adjustment)
+                @foreach(($invoice->taxAdjustments ?? collect())->sortByDesc(fn ($adjustment) => optional($adjustment->issue_date)->timestamp ?? optional($adjustment->created_at)->timestamp ?? 0) as $adjustment)
+                    @php
+                        $adjustmentBadgeClass = 'border-slate-200 bg-slate-50 text-slate-700';
+                    @endphp
                     <tr class="bg-gray-50">
-                        <td>↳ {{ $adjustment->adjustment_number }}</td>
+                        <td class="text-center!">↳ {{ $adjustment->adjustment_number }}</td>
                         <td>
-                            <div>Tax Adjustment</div>
+                            <div class="whitespace-nowrap">Tax Adjustment</div>
                             <div class="text-xs text-gray-600">{{ $invoice->user?->getName() ?? '-' }}</div>
                             <div class="md:hidden text-xs text-gray-600">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</div>
                         </td>
-                        <td class="hidden md:table-cell">Tax Adjustment</td>
-                        <td class="hidden md:table-cell">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</td>
+                        <td class="hidden md:table-cell text-center">
+                            <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ $adjustmentBadgeClass }}">Tax Adjustment</span>
+                        </td>
+                        <td class="hidden md:table-cell text-center">{{ $adjustment->issue_date?->format('M j, Y') ?? '-' }}</td>
                         <td>${{ number_format((float) $adjustment->total_amount, 2) }}</td>
                         <td>
                             <div class="flex justify-center sm:justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">

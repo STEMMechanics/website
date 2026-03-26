@@ -37,6 +37,7 @@
                 ])
                 ->count()
             : 0;
+        $overdueInvoiceCount = $isAdmin ? \App\Models\Invoice::overdueCount() : 0;
         $adminNavSections = $isAdmin ? [
             [
                 'title' => 'Store',
@@ -74,7 +75,7 @@
                     ['label' => 'BAS', 'route' => route('admin.bas.index'), 'icon' => 'fa-solid fa-calculator', 'active' => ['admin.bas.*']],
                     ['label' => 'Expenses', 'route' => route('admin.expense.index'), 'icon' => 'fa-solid fa-receipt', 'active' => ['admin.expense.*']],
                     ['label' => 'Refunds', 'route' => route('admin.payment.refunds'), 'icon' => 'fa-solid fa-coins', 'active' => ['admin.payment.refunds*'], 'badge' => $manualRefundQueueCount],
-                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*']],
+                    ['label' => 'Invoices', 'route' => route('admin.invoice.index'), 'icon' => 'fa-solid fa-file-invoice-dollar', 'active' => ['admin.invoice.*', 'admin.tax_adjustment.*'], 'badge' => $overdueInvoiceCount],
                     ['label' => 'Payments', 'route' => route('admin.payment.index'), 'icon' => 'fa-solid fa-money-check-dollar', 'active' => ['admin.payment.index', 'admin.payment.create', 'admin.payment.edit', 'admin.payment.receipt', 'admin.payment.square.*', 'admin.payment.refund.manual']],
                     ['label' => 'Quotes', 'route' => route('admin.quote.index'), 'icon' => 'fa-regular fa-file-lines', 'active' => ['admin.quote.*']],
                     ['label' => 'Square Events', 'route' => route('admin.server.square-events'), 'icon' => 'fa-solid fa-plug-circle-bolt', 'active' => ['admin.server.square-events*', 'admin.server.square-webhooks*']],

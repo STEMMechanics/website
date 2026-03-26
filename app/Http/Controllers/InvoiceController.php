@@ -45,7 +45,7 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $query = Invoice::query()
-            ->with(['user', 'allocations.customerPayment.refundOf', 'taxAdjustments']);
+            ->with(['user', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments']);
 
         if ($request->filled('search')) {
             $search = $request->search;
