@@ -3,7 +3,7 @@
 
     <x-container class="mt-8">
         <div class="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-            <div class="bg-gradient-to-r from-sky-50 via-white to-amber-50 px-6 py-10 sm:px-10">
+            <div class="bg-white px-6 py-10 sm:px-10">
                 <div class="max-w-2xl">
                     <h1 class="mt-5 text-3xl font-bold text-gray-900 sm:text-4xl">The store is temporarily unavailable.</h1>
                     <p class="mt-4 text-base text-gray-600 sm:text-lg">

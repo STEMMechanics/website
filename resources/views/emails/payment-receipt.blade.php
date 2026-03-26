@@ -6,9 +6,16 @@ Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
 @if($isRefund ?? false)
 Refund processed for invoice **{{ $invoiceNumber }}**.
+Your refund receipt is attached.
 @else
-Payment received for the following allocations. {{ $statusSummary }}
 Payment received for invoice **{{ $invoiceNumber }}**. {{ $statusSummary }}
+@if(trim((string) $paymentMethod) === 'Account Credit')
+Your credit receipt is attached.
+@elseif((bool) ($hasInvoiceAttachment ?? false))
+Your invoice and payment receipt are attached.
+@else
+Your payment receipt is attached.
+@endif
 @endif
 
 @if(!empty($invoiceSummary))

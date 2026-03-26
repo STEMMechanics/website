@@ -14,6 +14,8 @@ class InvoiceDocumentBundle extends Mailable
 
     public string $invoiceNumber;
 
+    public ?string $orderNumber;
+
     public ?string $initiatedByEmail;
 
     public ?string $initiatedByName;
@@ -33,6 +35,7 @@ class InvoiceDocumentBundle extends Mailable
     public function __construct(
         string $recipientName,
         string $invoiceNumber,
+        ?string $orderNumber,
         array $attachments,
         ?float $outstandingAmount = null,
         ?string $payUrl = null,
@@ -41,6 +44,7 @@ class InvoiceDocumentBundle extends Mailable
     ) {
         $this->recipientName = $recipientName;
         $this->invoiceNumber = $invoiceNumber;
+        $this->orderNumber = trim((string) ($orderNumber ?? '')) ?: null;
         $this->attachmentsPayload = collect($attachments)->map(function ($attachment): array {
             $content = (string) $attachment['content'];
 
@@ -60,8 +64,12 @@ class InvoiceDocumentBundle extends Mailable
     {
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
 
+        $subject = $this->orderNumber !== null
+            ? 'Your order '.$this->orderNumber.' and invoice '.$this->invoiceNumber.' from STEMMechanics'
+            : 'Your invoice '.$this->invoiceNumber.' and related documents from STEMMechanics';
+
         $mail = $this
-            ->subject('Your invoice '.$this->invoiceNumber.' is ready from STEMMechanics')
+            ->subject($subject)
             ->markdown('emails.invoice-document-bundle');
 
         if ($adminBcc !== '') {

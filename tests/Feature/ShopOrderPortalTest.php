@@ -830,8 +830,8 @@ class ShopOrderPortalTest extends TestCase
         });
 
         $this->assertSame(
-            'Your invoice 8650 is ready from STEMMechanics',
-            (new InvoiceDocumentBundle('Robin Customer', '8650', []))->build()->subject
+            'Your order 1003 and invoice 8650 from STEMMechanics',
+            (new InvoiceDocumentBundle('Robin Customer', '8650', '1003', []))->build()->subject
         );
     }
 

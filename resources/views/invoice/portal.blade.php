@@ -83,8 +83,8 @@
                             <div class="font-medium text-gray-700">Invoice total</div>
                             <div class="font-semibold text-gray-950">${{ number_format((float) ($adjustedTotalAmount ?? $invoice->total_amount), 2) }}</div>
                         </div>
-                        <div class="mt-2 flex items-center justify-between gap-4 border-t border-gray-200 pt-3">
-                            <div class="font-medium text-gray-700">Paid</div>
+                        <div class="mt-2 flex items-center justify-between gap-4 border-t border-gray-200 pt-3 {{ $outstandingAmount >= 0.0001 ?: 'text-lg' }}">
+                            <div class="{{ $outstandingAmount >= 0.0001 ? 'font-medium' : 'font-semibold' }} text-gray-700">Paid</div>
                             <div class="font-semibold text-gray-950">${{ number_format($grossPaidAmount, 2) }}</div>
                         </div>
                         @if($refundedPaidAmount > 0.0001)

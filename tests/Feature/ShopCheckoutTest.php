@@ -77,6 +77,7 @@ class ShopCheckoutTest extends TestCase
             'reference' => 'Account credit grant',
         ]);
 
+        /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_DIGITAL,
@@ -98,6 +99,10 @@ class ShopCheckoutTest extends TestCase
         $order = StoreOrder::query()->sole();
 
         $response->assertRedirect(route('account.order.show', $order));
+        $response->assertSessionHas(
+            'message',
+            'Payment completed successfully. Your order email and receipt have been emailed.'
+        );
         $this->assertTrue($order->isPaid());
         $this->assertSame(1, InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->count());
         $this->assertSame(19.95, (float) InvoicePaymentAllocation::query()->where('invoice_id', $order->invoice_id)->sum('allocated_amount'));
@@ -130,6 +135,7 @@ class ShopCheckoutTest extends TestCase
 
     public function test_digital_product_page_shows_licence_tiers(): void
     {
+        /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_DIGITAL,
@@ -169,6 +175,7 @@ class ShopCheckoutTest extends TestCase
 
     public function test_physical_variant_without_inventory_shows_sold_out_on_product_page(): void
     {
+        /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
@@ -195,6 +202,7 @@ class ShopCheckoutTest extends TestCase
 
     public function test_product_page_shows_variant_specific_backorder_dates(): void
     {
+        /** @var Product $product */
         $product = Product::factory()->create([
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,

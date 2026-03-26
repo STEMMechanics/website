@@ -453,19 +453,23 @@ class StoreOrderService
             return false;
         }
 
-        $invoice->loadMissing('user', 'lines', 'allocations.customerPayment');
+        $invoice->loadMissing('user', 'lines', 'allocations.customerPayment', 'storeOrders');
         $invoicePdf = $this->buildInvoicePdf($invoice)->output();
         if ($invoicePdf === '') {
             return false;
         }
 
         [$initiatedByEmail, $initiatedByName] = $this->mailInitiatorIdentity($actingUser);
+        $linkedOrderNumber = $invoice->storeOrders
+            ->sortByDesc(fn (StoreOrder $order) => optional($order->created_at)->timestamp ?? (int) $order->id)
+            ->first()?->order_number;
 
         dispatch(new SendEmail(
             $recipient,
             new InvoiceDocumentBundle(
                 recipientName: trim((string) ($recipientName ?: $invoice->user?->getName() ?: $invoice->billing_name ?: $recipient)),
                 invoiceNumber: (string) $invoice->invoice_number,
+                orderNumber: $linkedOrderNumber !== null ? (string) $linkedOrderNumber : null,
                 attachments: [[
                     'filename' => $this->invoicePdfFilename($invoice),
                     'content' => $invoicePdf,
@@ -1776,6 +1780,10 @@ class StoreOrderService
             ];
         }
 
+        $invoice->loadMissing('storeOrders');
+        $linkedOrderNumber = $invoice->storeOrders
+            ->sortByDesc(fn (StoreOrder $order) => optional($order->created_at)->timestamp ?? (int) $order->id)
+            ->first()?->order_number;
         [$initiatedByEmail, $initiatedByName] = $this->mailInitiatorIdentity($actingUser);
 
         dispatch(new SendEmail(
@@ -1783,6 +1791,7 @@ class StoreOrderService
             new InvoiceDocumentBundle(
                 recipientName: $invoice->user?->getName() ?: (string) ($invoice->billing_name ?: $recipient),
                 invoiceNumber: (string) $invoice->invoice_number,
+                orderNumber: $linkedOrderNumber !== null ? (string) $linkedOrderNumber : null,
                 attachments: $attachments,
                 outstandingAmount: $invoice->outstandingAmount(),
                 payUrl: $invoice->outstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,

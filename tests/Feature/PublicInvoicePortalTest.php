@@ -13,9 +13,11 @@ use App\Models\Quote;
 use App\Models\StoreOrder;
 use App\Models\User;
 use App\Models\Token;
+use App\Services\SquareApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
+use Mockery;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -259,20 +261,34 @@ class PublicInvoicePortalTest extends TestCase
         $method->invoke($controller, $invoice, $cardPayment);
 
         Queue::assertPushed(SendEmail::class, 2);
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            return $job->mailable instanceof PaymentReceiptPdf
-                && $job->mailable->receiptNumber === (string) $job->mailable->receiptNumber
-                && $job->mailable->paymentMethod === 'Credit Card'
-                && $job->mailable->creditAppliedAmount === null
-                && $job->mailable->creditReferenceSummary === null
-                && $job->mailable->orderTotalAmount === null;
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($invoice): bool {
+            /** @var PaymentReceiptPdf $mailable */
+            $mailable = $job->mailable;
+            $rendered = $mailable->build()->render();
+
+            return $mailable instanceof PaymentReceiptPdf
+                && $mailable->receiptNumber === (string) $mailable->receiptNumber
+                && $mailable->paymentMethod === 'Credit Card'
+                && $mailable->creditAppliedAmount === null
+                && $mailable->creditReferenceSummary === null
+                && $mailable->orderTotalAmount === null
+                && $mailable->hasInvoiceAttachment === true
+                && $mailable->build()->subject === 'Your payment receipt for invoice '.$invoice->invoice_number
+                && str_contains($rendered, 'Your invoice and payment receipt are attached.');
         });
-        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($cardPayment): bool {
-            return $job->mailable instanceof PaymentReceiptPdf
-                && $job->mailable->receiptNumber === (string) ($cardPayment->id + 1)
-                && $job->mailable->paymentMethod === 'Account Credit'
-                && $job->mailable->creditAppliedAmount === null
-                && $job->mailable->orderTotalAmount === null;
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($cardPayment, $invoice): bool {
+            /** @var PaymentReceiptPdf $mailable */
+            $mailable = $job->mailable;
+            $rendered = $mailable->build()->render();
+
+            return $mailable instanceof PaymentReceiptPdf
+                && $mailable->receiptNumber === (string) ($cardPayment->id + 1)
+                && $mailable->paymentMethod === 'Account Credit'
+                && $mailable->creditAppliedAmount === null
+                && $mailable->orderTotalAmount === null
+                && $mailable->hasInvoiceAttachment === false
+                && $mailable->build()->subject === 'Your payment receipt for invoice '.$invoice->invoice_number
+                && str_contains($rendered, 'Your credit receipt is attached.');
         });
     }
 
@@ -338,5 +354,65 @@ class PublicInvoicePortalTest extends TestCase
         });
 
         $this->assertSame((int) $invoice->id, (int) $order->invoice_id);
+    }
+
+    public function test_public_invoice_payment_shows_receipt_email_message(): void
+    {
+        Queue::fake();
+        config()->set('services.square.enabled', true);
+        config()->set('services.square.location_id', 'L123');
+        config()->set('services.square.application_id', 'A123');
+
+        $squareApi = Mockery::mock(SquareApiService::class);
+        $squareApi->shouldReceive('isEnabled')->andReturn(true);
+        /** @phpstan-ignore-next-line */
+        $squareApi->shouldReceive('createPayment')->once()->andReturn([
+            'payment' => [
+                'id' => 'sq-payment-1',
+                'status' => 'COMPLETED',
+                'reference_id' => 'payment:1',
+                'order_id' => 'sq-order-1',
+                'location_id' => 'L123',
+                'receipt_url' => 'https://squareup.example/receipt',
+                'amount_money' => ['amount' => 11000],
+                'card_details' => [
+                    'status' => 'CAPTURED',
+                    'card' => [
+                        'card_brand' => 'VISA',
+                        'last_4' => '1111',
+                    ],
+                ],
+                'created_at' => now()->toIso8601String(),
+                'updated_at' => now()->toIso8601String(),
+            ],
+        ]);
+        /** @phpstan-ignore-next-line */
+        $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
+        $this->app->instance(SquareApiService::class, $squareApi);
+
+        $user = User::factory()->create([
+            'firstname' => 'Pat',
+            'surname' => 'Customer',
+            'email' => 'pat.customer@example.com',
+        ]);
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'billing_name' => 'Pat Customer',
+            'billing_email' => 'pat.customer@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'subtotal_amount' => 100.00,
+            'gst_amount' => 10.00,
+            'total_amount' => 110.00,
+        ]);
+
+        $response = $this->post(route('invoice.public.pay.process', $invoice), [
+            'source_id' => 'cnon:card-nonce-ok',
+        ]);
+
+        $response->assertRedirect(route('invoice.public.pay.show', $invoice));
+        $response->assertSessionHas('message', 'Payment completed successfully. Your receipt has been emailed.');
+        $response->assertSessionHas('message-title', 'Payment success');
     }
 }

@@ -69,6 +69,7 @@ class ShopOrderEmailTest extends TestCase
 
         $squareApi = Mockery::mock(SquareApiService::class);
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
+        /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('createPayment')->once()->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
@@ -89,6 +90,7 @@ class ShopOrderEmailTest extends TestCase
                 'updated_at' => now()->toIso8601String(),
             ],
         ]);
+        /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
         $this->app->instance(SquareApiService::class, $squareApi);
 
@@ -110,11 +112,16 @@ class ShopOrderEmailTest extends TestCase
             'source_id' => 'cnon:card-nonce-ok',
         ]);
 
+        /** @var StoreOrder $order */
         $order = StoreOrder::query()->firstOrFail();
 
         $response->assertRedirect(route('shop.order.tracking', [
             'accessToken' => $order->access_token,
         ]));
+        $response->assertSessionHas(
+            'message',
+            'Payment completed successfully. Your order email and receipt have been emailed.'
+        );
 
         Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($order): bool {
             return $job->to === 'morgan@example.com'
@@ -133,6 +140,7 @@ class ShopOrderEmailTest extends TestCase
 
     public function test_store_order_emails_render_expected_delivery_copy_and_tracking_links(): void
     {
+        /** @var StoreOrder $order */
         $order = StoreOrder::factory()->create([
             'order_number' => '381465',
             'status' => StoreOrder::STATUS_PROCESSING,

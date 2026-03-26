@@ -198,7 +198,7 @@ class StoreOrderController extends Controller
             return redirect()->to($this->orderRedirectUrl($storeOrder, $isAccountView, $accessToken));
         }
 
-        session()->flash('message', 'Payment completed successfully.');
+        session()->flash('message', 'Payment completed successfully. Your order email and receipt have been emailed.');
         session()->flash('message-title', 'Payment success');
         session()->flash('message-type', 'success');
         $this->rememberGuestOrderDocumentAccess($request, $storeOrder);

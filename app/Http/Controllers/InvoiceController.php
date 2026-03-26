@@ -424,7 +424,7 @@ class InvoiceController extends Controller
             return redirect()->to($returnUrl);
         }
 
-        $invoice->loadMissing('user', 'allocations.customerPayment', 'taxAdjustments.lines');
+        $invoice->loadMissing('user', 'allocations.customerPayment', 'taxAdjustments.lines', 'storeOrders');
         $attachments = [];
 
         $invoicePdf = $this->buildInvoicePdf($invoice)->output();
@@ -462,11 +462,15 @@ class InvoiceController extends Controller
         }
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
+        $linkedStoreOrder = $invoice->storeOrders
+            ->sortByDesc(fn (StoreOrder $order) => optional($order->created_at)->timestamp ?? (int) $order->id)
+            ->first();
 
         try {
             dispatch(new SendEmail($recipient, new InvoiceDocumentBundle(
                 recipientName: $invoice->user?->getName() ?: (string) ($invoice->billing_name ?: $recipient),
                 invoiceNumber: (string) $invoice->invoice_number,
+                orderNumber: $linkedStoreOrder instanceof StoreOrder ? (string) $linkedStoreOrder->order_number : null,
                 attachments: $attachments,
                 outstandingAmount: $invoice->outstandingAmount(),
                 payUrl: $invoice->outstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
@@ -978,7 +982,12 @@ class InvoiceController extends Controller
             }
         }
 
-        session()->flash('message', 'Payment completed successfully.');
+        $invoice->loadMissing('storeOrders');
+        $successMessage = $invoice->storeOrders->isNotEmpty()
+            ? 'Payment completed successfully. Your order email and receipt have been emailed.'
+            : 'Payment completed successfully. Your receipt has been emailed.';
+
+        session()->flash('message', $successMessage);
         session()->flash('message-title', 'Payment success');
         session()->flash('message-type', 'success');
 
@@ -1333,6 +1342,7 @@ class InvoiceController extends Controller
 
         $receiptNumber = (string) $customerPayment->id;
         $pdfBinary = $this->buildPaymentReceiptPdf($invoice, $customerPayment)->output();
+        $invoicePdfBinary = $this->buildInvoicePdf($invoice)->output();
 
         dispatch(new SendEmail($recipient, new PaymentReceiptPdf(
             recipientName: $invoice->user?->getName() ?? (string) ($invoice->billing_name ?: $recipient),
@@ -1353,6 +1363,9 @@ class InvoiceController extends Controller
             creditAppliedAmount: null,
             creditReferenceSummary: null,
             orderTotalAmount: null,
+            invoicePdfContent: $invoicePdfBinary,
+            invoicePdfFilename: $this->getInvoicePdfFilename($invoice),
+            hasInvoiceAttachment: true,
         )))->onQueue('mail');
 
         $creditAppliedAmount = $this->paymentReceiptCreditAppliedAmount($invoice, $customerPayment);
