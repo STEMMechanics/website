@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
+use App\Models\InvoicePaymentAllocation;
+use App\Models\Payment;
 use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -108,6 +110,58 @@ class AdminInvoiceTaxAdjustmentTest extends TestCase
         $this->assertSame(-50.00, round((float) $adjustment->total_amount, 2));
         $this->assertSame(-50.00, round((float) $adjustment->subtotal_amount, 2));
         $this->assertSame(0.00, round((float) $adjustment->gst_amount, 2));
+    }
+
+    public function test_tax_adjustment_that_clears_the_remaining_balance_marks_the_invoice_paid(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->subDays(7)->toDateString(),
+            'due_date' => now()->subDay()->toDateString(),
+            'subtotal_amount' => 35.00,
+            'gst_amount' => 0.00,
+            'total_amount' => 35.00,
+        ]);
+        $line = InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'line_number' => 1,
+            'description' => 'Workshop booking',
+            'quantity' => 1.00,
+            'unit_price_ex_tax' => 35.00,
+            'tax_rate' => 0.00,
+            'line_total_ex_tax' => 35.00,
+            'tax_amount' => 0.00,
+            'line_total_inc_tax' => 35.00,
+        ]);
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'kind' => Payment::KIND_PAYMENT,
+            'total_amount' => 17.50,
+            'gst_amount' => 0.00,
+        ]);
+        InvoicePaymentAllocation::query()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 17.50,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.tax_adjustment.store', $invoice), [
+                'refund_qty' => [
+                    $line->id => '0.50',
+                ],
+                'reason' => 'Balance correction.',
+            ])
+            ->assertRedirect();
+
+        $freshInvoice = $invoice->fresh();
+
+        $this->assertSame(Invoice::STATUS_PAID, (string) $freshInvoice?->status);
+        $this->assertSame(0.00, round((float) $freshInvoice?->outstandingAmount(), 2));
     }
 
     private function createAdminUser(): User

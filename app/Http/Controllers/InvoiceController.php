@@ -1689,24 +1689,13 @@ class InvoiceController extends Controller
 
     private function syncInvoicePaidState(Invoice $invoice, ?Payment $customerPayment = null): void
     {
-        $allocated = $this->invoiceAllocatedTotal($invoice);
-        $invoiceTotal = $invoice->dueAmount();
-        $isPaid = $allocated >= ($invoiceTotal - 0.0001);
+        $becamePaid = $invoice->syncPaidState();
 
-        if ($isPaid) {
-            $wasPaid = (string) $invoice->status === Invoice::STATUS_PAID;
-            $invoice->status = Invoice::STATUS_PAID;
-            $invoice->save();
-
-            if ($this->invoiceHasTicketContent($invoice)) {
+        if ($becamePaid && $this->invoiceHasTicketContent($invoice)) {
                 Ticket::query()
                     ->where('invoice_id', $invoice->id)
                     ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
                     ->update(['status' => Ticket::STATUS_DONE]);
-            }
-        } elseif ($invoice->status === Invoice::STATUS_PAID) {
-            $invoice->status = Invoice::STATUS_ISSUED;
-            $invoice->save();
         }
     }
 

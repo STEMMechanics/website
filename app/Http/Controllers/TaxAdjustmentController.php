@@ -159,6 +159,7 @@ class TaxAdjustmentController extends Controller
             }
 
             $summary = $this->reconcileCreditAllocations($invoice, $adjustment);
+            $invoice->syncPaidState();
         });
 
         $allocated = (float) ($summary['allocated'] ?? 0);

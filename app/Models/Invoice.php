@@ -298,6 +298,32 @@ class Invoice extends Model
             : $this->statusBadgeClass();
     }
 
+    public function syncPaidState(): bool
+    {
+        $freshInvoice = $this->fresh();
+        $referenceInvoice = $freshInvoice instanceof self ? $freshInvoice : $this;
+        $shouldBePaid = $referenceInvoice->outstandingAmount() <= 0.0001;
+        $isPaid = (string) $this->status === self::STATUS_PAID;
+
+        if ($shouldBePaid) {
+            if (! $isPaid) {
+                $this->status = self::STATUS_PAID;
+                $this->save();
+
+                return true;
+            }
+
+            return false;
+        }
+
+        if ($isPaid) {
+            $this->status = self::STATUS_ISSUED;
+            $this->save();
+        }
+
+        return false;
+    }
+
     public function isOverdue(): bool
     {
         if ((float) $this->total_amount <= 0) {

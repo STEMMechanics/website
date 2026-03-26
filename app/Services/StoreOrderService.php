@@ -3836,13 +3836,7 @@ class StoreOrderService
 
     private function syncInvoiceState(Invoice $invoice): void
     {
-        if ($invoice->outstandingAmount() <= 0.0001) {
-            $invoice->status = Invoice::STATUS_PAID;
-        } elseif ((string) $invoice->status === Invoice::STATUS_PAID) {
-            $invoice->status = Invoice::STATUS_ISSUED;
-        }
-
-        $invoice->save();
+        $invoice->syncPaidState();
     }
 
     private function squareDateTime($value): ?Carbon

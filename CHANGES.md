@@ -3,6 +3,7 @@
 ## 1.4.2
 
 - Improved display of invoice data in the admin pages
+- TAN will now invoice sync to update invoice statuses
 
 ## 1.4.1
 
