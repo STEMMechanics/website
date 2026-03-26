@@ -21,6 +21,6 @@ class EmailSignatureFormatter
             return $brandName;
         }
 
-        return $firstName.' / '.$brandName;
+        return $firstName.' // '.$brandName;
     }
 }
