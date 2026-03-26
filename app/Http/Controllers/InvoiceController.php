@@ -630,13 +630,8 @@ class InvoiceController extends Controller
                     initiatedByName: $initiatedByName,
                     payUrl: route('invoice.public.pay.show', $invoice),
                 );
-                $allCcRecipients = $ccRecipients;
-                if ($initiatedByEmail !== null) {
-                    $allCcRecipients[] = $initiatedByEmail;
-                }
-
                 $normalizedCcRecipients = [];
-                foreach ($allCcRecipients as $ccEmail) {
+                foreach ($ccRecipients as $ccEmail) {
                     $normalizedCcRecipients[strtolower($ccEmail)] = $ccEmail;
                 }
 
@@ -696,9 +691,6 @@ class InvoiceController extends Controller
                 );
 
                 $allCcRecipients = $ccRecipients;
-                if ($initiatedByEmail !== null) {
-                    $allCcRecipients[] = $initiatedByEmail;
-                }
 
                 $normalizedCcRecipients = [];
                 foreach ($allCcRecipients as $ccEmail) {

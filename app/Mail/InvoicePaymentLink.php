@@ -55,7 +55,6 @@ class InvoicePaymentLink extends Mailable
         }
 
         if (! empty($this->initiatedByEmail)) {
-            $mail->replyTo($this->initiatedByEmail, $this->initiatedByName ?: null);
             $mail->from($this->initiatedByEmail, $this->initiatedByName ?: null);
         }
 

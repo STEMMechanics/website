@@ -99,11 +99,6 @@ class FinanceDocumentPdf extends Mailable
             $mail->bcc($adminBcc);
         }
 
-        if (! empty($this->initiatedByEmail)) {
-            $mail->replyTo($this->initiatedByEmail, $this->initiatedByName ?: null);
-            $mail->from($this->initiatedByEmail, $this->initiatedByName ?: null);
-        }
-
         return $mail;
     }
 

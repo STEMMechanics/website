@@ -56,8 +56,8 @@ class FinanceDocumentEmailFlowTest extends TestCase
             $this->assertInstanceOf(FinanceDocumentPdf::class, $job->mailable);
             $cc = array_map('strtolower', $this->extractAddressList($job->mailable, 'cc'));
             $this->assertContains('team@example.com', $cc);
-            $this->assertContains(strtolower((string) $admin->email), $cc);
             $this->assertNotContains('alpha@example.com', $cc);
+            $this->assertContains(strtolower((string) $admin->email), $cc);
 
             return true;
         });
@@ -68,8 +68,8 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
             $cc = array_map('strtolower', $this->extractAddressList($job->mailable, 'cc'));
             $this->assertContains('team@example.com', $cc);
-            $this->assertContains(strtolower((string) $admin->email), $cc);
             $this->assertNotContains('beta@example.com', $cc);
+            $this->assertContains(strtolower((string) $admin->email), $cc);
 
             return true;
         });
@@ -201,7 +201,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
             $cc = array_map('strtolower', $this->extractAddressList($job->mailable, 'cc'));
             $this->assertContains('ops@example.com', $cc);
-            $this->assertContains(strtolower((string) $admin->email), $cc);
+            $this->assertNotContains(strtolower((string) $admin->email), $cc);
             $this->assertNotContains('first@example.com', $cc);
 
             return true;
@@ -213,7 +213,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
             $cc = array_map('strtolower', $this->extractAddressList($job->mailable, 'cc'));
             $this->assertContains('ops@example.com', $cc);
-            $this->assertContains(strtolower((string) $admin->email), $cc);
+            $this->assertNotContains(strtolower((string) $admin->email), $cc);
             $this->assertNotContains('second@example.com', $cc);
 
             return true;
