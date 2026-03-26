@@ -4,5 +4,5 @@ Hi there,
 {{ $messageBody }}
 
 Thanks,<br>
-{{ !empty($initiatedByName) ? $initiatedByName : config('app.name') }}
+{{ \App\Support\EmailSignatureFormatter::resolve($initiatedByName ?? null) }}
 @endcomponent

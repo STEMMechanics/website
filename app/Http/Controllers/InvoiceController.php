@@ -196,6 +196,10 @@ class InvoiceController extends Controller
             $invoice->updateFiles($request->input('private_files'), 'private');
         }
 
+        if ($request->boolean('save_and_email') && (string) $invoice->status !== Invoice::STATUS_DRAFT) {
+            session()->flash('invoice-email-open', true);
+        }
+
         session()->flash('message', 'Invoice has been updated');
         session()->flash('message-title', 'Invoice updated');
         session()->flash('message-type', 'success');
@@ -654,6 +658,8 @@ class InvoiceController extends Controller
             return redirect()->back();
         }
 
+        $this->appendInvoiceEmailPrivateNote($invoice, $recipients, $initiatedByName);
+
         session()->flash('message', 'Invoice PDF emailed to '.implode(', ', $recipients));
         session()->flash('message-title', 'Email sent');
         session()->flash('message-type', 'success');
@@ -882,14 +888,15 @@ class InvoiceController extends Controller
                 $customerPayment->gst_amount = round(min($invoiceGst, ($outstandingAmount / $invoiceTotal) * $invoiceGst), 2);
                 $customerPayment->notes = 'Online invoice payment';
                 $customerPayment->save();
+                $amountCents = (int) round($outstandingAmount * 100);
 
                 $response = $squareApi->createPayment([
-                    'idempotency_key' => 'invoice-'.$lockedInvoice->id.'-custpay-'.$customerPayment->id,
+                    'idempotency_key' => 'invoice-'.$lockedInvoice->id.'-custpay-'.$customerPayment->id.'-amount-'.$amountCents,
                     'source_id' => trim((string) $request->input('source_id')),
                     'location_id' => $locationId,
                     'reference_id' => 'payment:'.$customerPayment->id,
                     'amount_money' => [
-                        'amount' => (int) round($outstandingAmount * 100),
+                        'amount' => $amountCents,
                         'currency' => 'AUD',
                     ],
                     'autocomplete' => true,
@@ -1146,6 +1153,25 @@ class InvoiceController extends Controller
         }
 
         return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+    }
+
+    /**
+     * @param  array<int, string>  $recipients
+     */
+    private function appendInvoiceEmailPrivateNote(Invoice $invoice, array $recipients, ?string $initiatedByName): void
+    {
+        $existingNotes = trim((string) ($invoice->notes ?? ''));
+        $recipientsList = implode(', ', array_values(array_filter(array_map('trim', $recipients), fn (string $email): bool => $email !== '')));
+        if ($recipientsList === '') {
+            return;
+        }
+
+        $senderLabel = \App\Support\EmailSignatureFormatter::resolve($initiatedByName);
+        $timestamp = now()->format('Y-m-d g:i a');
+        $line = $timestamp.' - Invoice emailed to '.$recipientsList.' by '.$senderLabel;
+
+        $invoice->notes = $existingNotes !== '' ? $existingNotes."\n".$line : $line;
+        $invoice->save();
     }
 
     private function resolveInvoiceEmailCcRecipients(Request $request): array

@@ -26,5 +26,5 @@ There is no amount owing on this invoice.
 @endif
 
 Thanks,<br>
-{{ $initiatedByName ?: config('app.name') }}
+{{ \App\Support\EmailSignatureFormatter::resolve($initiatedByName ?? null) }}
 @endcomponent

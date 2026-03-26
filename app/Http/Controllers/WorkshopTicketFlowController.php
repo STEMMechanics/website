@@ -366,15 +366,16 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->gst_amount = 0;
                 $customerPayment->notes = 'Workshop "'.$workshop->title.'" ticket purchase';
                 $customerPayment->save();
+                $amountCents = (int) round($remainingAmount * 100);
 
                 try {
                     $paymentResponse = $squareApi->createPayment([
-                        'idempotency_key' => 'ticket-flow-'.$workshop->id.'-custpay-'.$customerPayment->id,
+                        'idempotency_key' => 'ticket-flow-'.$workshop->id.'-custpay-'.$customerPayment->id.'-amount-'.$amountCents,
                         'source_id' => (string) $validated['source_id'],
                         'location_id' => $locationId,
                         'reference_id' => 'payment:'.$customerPayment->id,
                         'amount_money' => [
-                            'amount' => (int) round($remainingAmount * 100),
+                            'amount' => $amountCents,
                             'currency' => 'AUD',
                         ],
                         'autocomplete' => true,

@@ -104,7 +104,7 @@
             <div class="flex justify-end mb-4 gap-2">
                 @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                     <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                    <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}" x-data="{ open: @js($errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultInvoiceEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
+                    <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}" x-data="{ open: @js(session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultInvoiceEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
                         @csrf
                         <x-ui.button type="submit" x-on:click.prevent="open = true">Email Invoice</x-ui.button>
 
@@ -318,6 +318,11 @@
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-data="{
                 isLocked: @js($isLocked),
+                invoiceStatus: @js((string) old('status', $invoice->status ?? \App\Models\Invoice::STATUS_DRAFT)),
+                issueNow: @js((bool) old('issue_now', false)),
+                canSaveAndEmail() {
+                    return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
+                },
                 issueDate: @js(old('issue_date', isset($invoice) && $invoice->issue_date ? $invoice->issue_date->format('Y-m-d') : now()->format('Y-m-d'))),
                 dueDate: @js(old('due_date', isset($invoice) && $invoice->due_date ? $invoice->due_date->format('Y-m-d') : '')),
                 lineItems: (() => {
@@ -631,6 +636,7 @@
                             :noWrapper="true"
                             :inline="true"
                             labelClass="pt-0"
+                            x-model="issueNow"
                         />
                     </div>
                 @endif
@@ -858,7 +864,7 @@
 
             </fieldset>
 
-            <x-ui.input type="textarea" label="Notes" name="notes" value="{{ old('notes', $invoice->notes ?? '') }}" />
+            <x-ui.input type="textarea" label="Private Notes" name="notes" value="{{ old('notes', $invoice->notes ?? '') }}" />
             <x-admin.finance-file-manager
                 label="Private Files"
                 info="Admin-only files attached to this invoice."
@@ -871,18 +877,27 @@
             />
 
             <div class="flex justify-end mt-8 gap-4">
-                @if(isset($invoice))
                 <x-ui.button
-                    type="button"
-                    color="danger"
-                    x-data
-                    x-on:click.prevent="SM.confirmDelete(
+                        type="button"
+                        color="danger-outline"
+                        x-data
+                        x-on:click.prevent="SM.confirmDelete(
                         '{{ csrf_token() }}',
                         '{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'Delete draft invoice?' : 'Cancel invoice?' }}',
                         '{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'This will permanently delete this draft invoice. Continue?' : 'This will cancel the invoice and keep it for audit records. Continue?' }}',
                         '{{ route('admin.invoice.destroy', $invoice) }}'
-                    )"
+                )"
                 >{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'Delete Draft' : 'Cancel Invoice' }}</x-ui.button>
+                @if(isset($invoice))
+                <x-ui.button
+                    type="submit"
+                    color="primary-outline"
+                    name="save_and_email"
+                    value="1"
+                    x-bind:disabled="!canSaveAndEmail()"
+                >
+                    Save and Email
+                </x-ui.button>
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </div>

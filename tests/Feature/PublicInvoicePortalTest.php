@@ -50,7 +50,7 @@ class PublicInvoicePortalTest extends TestCase
         $response = $this->get(route('invoice.public.pay.show', $invoice));
 
         $response->assertOk();
-        $response->assertSeeText('Invoice Payment');
+        $response->assertSeeText('Invoice '.$invoice->invoice_number);
         $response->assertSeeText('Issued Date');
         $response->assertSeeText('Outstanding');
         $response->assertDontSee('pat.client@example.com');
@@ -366,7 +366,10 @@ class PublicInvoicePortalTest extends TestCase
         $squareApi = Mockery::mock(SquareApiService::class);
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
         /** @phpstan-ignore-next-line */
-        $squareApi->shouldReceive('createPayment')->once()->andReturn([
+        $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            return (int) data_get($payload, 'amount_money.amount') === 11000
+                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-11000');
+        }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
                 'status' => 'COMPLETED',

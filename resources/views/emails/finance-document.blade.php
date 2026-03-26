@@ -70,5 +70,5 @@ Your {{ $documentType }} **{{ $documentNumber }}** is attached as a PDF.
 @endif
 
 Thanks,<br>
-{{ !empty($initiatedByName) ? $initiatedByName : config('app.name') }}
+{{ \App\Support\EmailSignatureFormatter::resolve($initiatedByName ?? null) }}
 @endcomponent

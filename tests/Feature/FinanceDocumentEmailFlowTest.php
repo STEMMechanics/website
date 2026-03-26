@@ -125,6 +125,47 @@ class FinanceDocumentEmailFlowTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_invoice_save_and_email_reopens_email_modal_after_finalizing(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $owner->id,
+            'billing_email' => 'customer@example.com',
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'kind' => 'generic',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->put(route('admin.invoice.update', $invoice), [
+                'invoice_number' => $invoice->invoice_number,
+                'user_id' => $owner->id,
+                'issue_now' => 1,
+                'issue_date' => now()->toDateString(),
+                'due_date' => now()->addDays(14)->toDateString(),
+                'purchase_order_number' => $invoice->purchase_order_number,
+                'notes' => $invoice->notes,
+                'line_items_json' => json_encode([[
+                    'kind' => 'generic',
+                    'description' => 'Workshop materials',
+                    'notes' => '',
+                    'quantity' => 1,
+                    'unit_price' => 10,
+                    'gst_applicable' => true,
+                ]]),
+                'save_and_email' => 1,
+            ]);
+
+        $response->assertRedirect(route('admin.invoice.edit', $invoice));
+        $response->assertSessionHas('invoice-email-open', true);
+        $this->assertSame(Invoice::STATUS_ISSUED, (string) $invoice->fresh()->status);
+    }
+
     public function test_invoice_email_parses_dedupes_recipients_and_filters_cc(): void
     {
         Queue::fake();
@@ -283,9 +324,51 @@ class FinanceDocumentEmailFlowTest extends TestCase
         $this->assertStringNotContainsString('{{pay}}', $resolved);
     }
 
-    private function createAdminUser(): User
+    public function test_invoice_email_appends_private_note_when_sent_to_customer(): void
     {
-        $admin = User::factory()->create();
+        Queue::fake();
+
+        $admin = $this->createAdminUser([
+            'firstname' => 'James',
+            'surname' => 'Collins',
+            'email' => 'james@example.com',
+        ]);
+        $owner = User::factory()->create([
+            'firstname' => 'Pat',
+            'surname' => 'Customer',
+            'email' => 'pat@example.com',
+        ]);
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $owner->id,
+            'billing_name' => 'Pat Customer',
+            'billing_email' => 'pat@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'kind' => 'generic',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->post(route('admin.invoice.email', $invoice), [
+                'recipient_emails' => 'pat@example.com',
+                'email_message' => 'Invoice message',
+            ]);
+
+        $response->assertRedirect(route('admin.invoice.edit', $invoice));
+        $response->assertSessionHasNoErrors();
+        Queue::assertPushed(SendEmail::class, 1);
+
+        $freshInvoice = $invoice->fresh();
+        $this->assertInstanceOf(Invoice::class, $freshInvoice);
+        $this->assertStringContainsString('Invoice emailed to pat@example.com by James / STEMMechanics', (string) $freshInvoice->notes);
+    }
+
+    private function createAdminUser(array $overrides = []): User
+    {
+        $admin = User::factory()->create($overrides);
         UserGroup::query()->create([
             'user_id' => $admin->id,
             'slug' => 'admin',

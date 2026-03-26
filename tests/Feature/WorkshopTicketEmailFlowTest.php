@@ -48,7 +48,11 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
         $squareApi = Mockery::mock(SquareApiService::class);
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
-        $squareApi->shouldReceive('createPayment')->once()->andReturn([
+        /** @phpstan-ignore-next-line */
+        $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            return (int) data_get($payload, 'amount_money.amount') === 1500
+                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-1500');
+        }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
                 'status' => 'COMPLETED',
@@ -68,6 +72,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
                 'updated_at' => now()->toIso8601String(),
             ],
         ]);
+        /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
         $this->app->instance(SquareApiService::class, $squareApi);
 
@@ -116,25 +121,35 @@ class WorkshopTicketEmailFlowTest extends TestCase
         });
 
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            $job->mailable->build();
+            $mailable = $job->mailable;
+            if (! $mailable instanceof TicketOrderConfirmation) {
+                return false;
+            }
+
+            /** @var TicketOrderConfirmation $mailable */
+            $mailable->build();
 
             return $job->to === 'buyer@example.com'
-                && $job->mailable instanceof TicketOrderConfirmation
-                && $job->mailable->hasInvoiceAttachment
-                && $job->mailable->hasReceiptAttachment
-                && $job->mailable->ticketAttachmentCount === 1
-                && $this->mailableSubject($job->mailable) === 'Your ticket and receipt for Ticket Email Workshop';
+                && $mailable->hasInvoiceAttachment
+                && $mailable->hasReceiptAttachment
+                && $mailable->ticketAttachmentCount === 1
+                && $this->mailableSubject($mailable) === 'Your ticket and receipt for Ticket Email Workshop';
         });
 
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            $job->mailable->build();
+            $mailable = $job->mailable;
+            if (! $mailable instanceof TicketAttendeeUpdate) {
+                return false;
+            }
+
+            /** @var TicketAttendeeUpdate $mailable */
+            $mailable->build();
 
             return $job->to === 'holder@example.com'
-                && $job->mailable instanceof TicketAttendeeUpdate
-                && $job->mailable->mode === 'new_holder'
-                && $job->mailable->recipientName === 'Ticket Holder'
-                && $job->mailable->purchaserName === 'Jamie Example'
-                && $this->mailableSubject($job->mailable) === "You're in! Your workshop ticket for Ticket Email Workshop";
+                && $mailable->mode === 'new_holder'
+                && $mailable->recipientName === 'Ticket Holder'
+                && $mailable->purchaserName === 'Jamie Example'
+                && $this->mailableSubject($mailable) === "You're in! Your workshop ticket for Ticket Email Workshop";
         });
     }
 
@@ -162,8 +177,10 @@ class WorkshopTicketEmailFlowTest extends TestCase
 
         $squareApi = Mockery::mock(SquareApiService::class);
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
+        /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
-            return (int) data_get($payload, 'amount_money.amount') === 1000;
+            return (int) data_get($payload, 'amount_money.amount') === 1000
+                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-1000');
         }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
@@ -184,6 +201,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
                 'updated_at' => now()->toIso8601String(),
             ],
         ]);
+        /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
         $this->app->instance(SquareApiService::class, $squareApi);
 
@@ -243,22 +261,26 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $this->assertSame(10.00, (float) InvoicePaymentAllocation::query()->where('payment_id', $cardPayment->id)->sum('allocated_amount'));
 
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            $job->mailable->build();
+            $mailable = $job->mailable;
+            if (! $mailable instanceof TicketOrderConfirmation) {
+                return false;
+            }
+
+            $mailable->build();
 
             return $job->to === 'buyer-credit@example.com'
-                && $job->mailable instanceof TicketOrderConfirmation
-                && $job->mailable->hasInvoiceAttachment
-                && $job->mailable->hasReceiptAttachment
-                && $job->mailable->hasCreditReceiptAttachment
-                && $job->mailable->receiptAttachmentCount === 1
-                && $job->mailable->creditReceiptAttachmentCount === 1
-                && $job->mailable->ticketAttachmentCount === 1
-                && $job->mailable->paymentMethodLabel === 'Account Credit + Credit Card'
-                && $job->mailable->creditAppliedAmount === 5.00
-                && $job->mailable->paymentAmount === 10.00
-                && is_string($job->mailable->creditReferenceSummary)
-                && $job->mailable->creditReferenceSummary !== ''
-                && $this->mailableSubject($job->mailable) === 'Your ticket and receipts for Ticket Email Workshop';
+                && $mailable->hasInvoiceAttachment
+                && $mailable->hasReceiptAttachment
+                && $mailable->hasCreditReceiptAttachment
+                && $mailable->receiptAttachmentCount === 1
+                && $mailable->creditReceiptAttachmentCount === 1
+                && $mailable->ticketAttachmentCount === 1
+                && $mailable->paymentMethodLabel === 'Account Credit + Credit Card'
+                && $mailable->creditAppliedAmount === 5.00
+                && $mailable->paymentAmount === 10.00
+                && is_string($mailable->creditReferenceSummary)
+                && $mailable->creditReferenceSummary !== ''
+                && $this->mailableSubject($mailable) === 'Your ticket and receipts for Ticket Email Workshop';
         });
     }
 
@@ -284,6 +306,7 @@ class WorkshopTicketEmailFlowTest extends TestCase
     {
         $author = User::factory()->create();
         $location = Location::factory()->create();
+        /** @var Media $hero */
         $hero = Media::factory()->create([
             'name' => 'hero-'.strtolower((string) fake()->unique()->bothify('######')).'.png',
             'mime_type' => 'image/png',

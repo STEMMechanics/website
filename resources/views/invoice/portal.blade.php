@@ -1,5 +1,5 @@
 <x-layout>
-    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My Invoices">{{ $isPublic ? 'Invoice Payment' : 'Invoice '.$invoice->invoice_number }}</x-mast>
+    <x-mast backRoute="{{ $isPublic ? '' : 'account.invoice.index' }}" backTitle="My Invoices">{{ 'Invoice '.$invoice->invoice_number }}</x-mast>
 
     <x-container class="max-w-5xl mx-auto mt-6 space-y-8">
         @php

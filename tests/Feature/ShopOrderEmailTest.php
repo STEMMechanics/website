@@ -70,7 +70,10 @@ class ShopOrderEmailTest extends TestCase
         $squareApi = Mockery::mock(SquareApiService::class);
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
         /** @phpstan-ignore-next-line */
-        $squareApi->shouldReceive('createPayment')->once()->andReturn([
+        $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            return (int) data_get($payload, 'amount_money.amount') === 1995
+                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-1995');
+        }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
                 'status' => 'COMPLETED',

@@ -2790,15 +2790,16 @@ class StoreOrderService
         $customerPayment->gst_amount = $this->proratedGst($invoice, $outstandingAmount);
         $customerPayment->notes = 'Online store payment';
         $customerPayment->save();
+        $amountCents = (int) round($outstandingAmount * 100);
 
         try {
             $response = $this->squareApi->createPayment([
-                'idempotency_key' => 'store-order-'.$order->id.'-payment-'.$customerPayment->id,
+                'idempotency_key' => 'store-order-'.$order->id.'-payment-'.$customerPayment->id.'-amount-'.$amountCents,
                 'source_id' => trim($sourceId),
                 'location_id' => $locationId,
                 'reference_id' => 'payment:'.$customerPayment->id,
                 'amount_money' => [
-                    'amount' => (int) round($outstandingAmount * 100),
+                    'amount' => $amountCents,
                     'currency' => 'AUD',
                 ],
                 'autocomplete' => true,

@@ -19,5 +19,5 @@ You can also open the invoice payment page directly:
 {{ $pdfUrl }}
 
 Thanks,<br>
-{{ !empty($initiatedByName) ? $initiatedByName : config('app.name') }}
+{{ \App\Support\EmailSignatureFormatter::resolve($initiatedByName ?? null) }}
 @endcomponent
