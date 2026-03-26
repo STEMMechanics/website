@@ -363,7 +363,7 @@ class FinanceDocumentEmailFlowTest extends TestCase
 
         $freshInvoice = $invoice->fresh();
         $this->assertInstanceOf(Invoice::class, $freshInvoice);
-        $this->assertStringContainsString('Invoice emailed to pat@example.com by James / STEMMechanics', (string) $freshInvoice->notes);
+        $this->assertStringContainsString('Invoice emailed to pat@example.com by James // STEMMechanics', (string) $freshInvoice->notes);
     }
 
     private function createAdminUser(array $overrides = []): User
