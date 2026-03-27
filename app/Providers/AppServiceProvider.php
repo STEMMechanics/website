@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Passport\Passport;
 use Throwable;
 
 class AppServiceProvider extends ServiceProvider
@@ -46,6 +47,8 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->ensurePdfArtifactDirectoriesExist();
+        Passport::tokensCan(config('openid.passport.tokens_can'));
+        Passport::authorizationView('auth.oauth.authorize');
 
         RateLimiter::for('login', function (Request $request): array {
             $email = strtolower(trim((string) $request->input('email', '')));

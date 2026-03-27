@@ -6,7 +6,9 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
 use App\Http\Controllers\ChildAccountController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\Account\ConnectedAppController;
 use App\Http\Controllers\CustomPageController;
+use App\Http\Controllers\Admin\OAuthClientController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceFileController;
@@ -32,6 +34,7 @@ use App\Http\Controllers\ShopProductController;
 use App\Http\Controllers\ShopSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SiteOptionController;
+use App\Http\Controllers\OpenId\UserInfoController;
 use App\Http\Controllers\SquareWebhookController;
 use App\Http\Controllers\StemcraftController;
 use App\Http\Controllers\StoreOrderController;
@@ -143,6 +146,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::post('/account/discussions/unsubscribe-all', [AccountController::class, 'unsubscribeAllDiscussionNotifications'])->name('account.discussions.unsubscribe-all');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::get('/account/connected-apps', [ConnectedAppController::class, 'index'])->name('account.oauth-apps.index');
+    Route::delete('/account/connected-apps', [ConnectedAppController::class, 'destroyAll'])->name('account.oauth-apps.destroy-all');
+    Route::delete('/account/connected-apps/{client}', [ConnectedAppController::class, 'destroy'])->name('account.oauth-apps.destroy');
     Route::get('/account/media', [MediaController::class, 'account_index'])->name('account.media.index');
     Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
@@ -218,6 +224,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'postRegister'])->name('register.store');
 Route::get('/update-email', [AuthController::class, 'updateEmail'])->name('update.email');
+Route::get('/oauth/userinfo', UserInfoController::class)->middleware('auth:api')->name('openid.userinfo');
 
 Route::get('/about', function () {
     return view('about');
@@ -278,6 +285,12 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/users/{user}/payments', [UserController::class, 'payments'])->name('admin.user.payments');
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
+    Route::get('/admin/oauth-clients', [OAuthClientController::class, 'index'])->name('admin.oauth-clients.index');
+    Route::post('/admin/oauth-clients', [OAuthClientController::class, 'store'])->name('admin.oauth-clients.store');
+    Route::get('/admin/oauth-clients/{client}/edit', [OAuthClientController::class, 'edit'])->name('admin.oauth-clients.edit');
+    Route::put('/admin/oauth-clients/{client}', [OAuthClientController::class, 'update'])->name('admin.oauth-clients.update');
+    Route::post('/admin/oauth-clients/{client}/rotate-secret', [OAuthClientController::class, 'rotateSecret'])->name('admin.oauth-clients.rotate-secret');
+    Route::delete('/admin/oauth-clients/{client}', [OAuthClientController::class, 'destroy'])->name('admin.oauth-clients.destroy');
     Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
     Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
     Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');

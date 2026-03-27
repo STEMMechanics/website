@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Jobs\SendEmail;
-use App\Models\Media;
 use App\Mail\UserLoginTFADisabled;
 use App\Mail\UserLoginTFAEnabled;
 use App\Traits\UUID;
@@ -16,10 +15,12 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Laravel\Passport\Contracts\OAuthenticatable;
+use Laravel\Passport\HasApiTokens;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
 {
-    use HasFactory, Notifiable, UUID;
+    use HasApiTokens, HasFactory, Notifiable, UUID;
 
     /**
      * @var array<string, bool>

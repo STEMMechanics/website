@@ -281,6 +281,16 @@ $childAccounts = collect($childAccounts ?? []);
                         @endforeach
                     </div>
                 </section>
+
+                <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Connected Apps</h2>
+                            <p class="mt-1 text-sm text-gray-600">Review the external platforms that can access your account and revoke them at any time.</p>
+                        </div>
+                        <x-ui.button href="{{ route('account.oauth-apps.index') }}" color="primary-outline">Manage connected apps</x-ui.button>
+                    </div>
+                </section>
             </div>
         </form>
 

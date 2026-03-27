@@ -12,6 +12,7 @@ class SecurityHeaders
     {
         /** @var Response $response */
         $response = $next($request);
+        $giteaOrigin = $this->normalizeOrigin((string) config('services.gitea.base_url', ''));
 
         // Hide PHP runtime/version details from response headers.
         $response->headers->remove('X-Powered-By');
@@ -26,9 +27,13 @@ class SecurityHeaders
         $requiredDirectives = [
             "frame-ancestors 'self'",
             "base-uri 'self'",
-            "form-action 'self'",
             "object-src 'none'",
         ];
+        $formAction = "form-action 'self'";
+        if ($giteaOrigin !== '') {
+            $formAction .= ' '.$giteaOrigin;
+        }
+        $requiredDirectives[] = $formAction;
         if ($csp === '') {
             $response->headers->set('Content-Security-Policy', implode('; ', $requiredDirectives));
         } else {
@@ -66,5 +71,25 @@ class SecurityHeaders
         }
 
         return $response;
+    }
+
+    private function normalizeOrigin(string $url): string
+    {
+        $trimmed = trim($url);
+        if ($trimmed === '') {
+            return '';
+        }
+
+        $parts = parse_url($trimmed);
+        if (! is_array($parts) || empty($parts['scheme']) || empty($parts['host'])) {
+            return '';
+        }
+
+        $origin = $parts['scheme'].'://'.$parts['host'];
+        if (isset($parts['port'])) {
+            $origin .= ':'.$parts['port'];
+        }
+
+        return $origin;
     }
 }

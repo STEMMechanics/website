@@ -5,7 +5,7 @@
             <li>
                 <h3 class="font-bold mb-2">Community</h3>
             </li>
-            <li><a href="https://github.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">GitHub</a></li>
+            <li><a href="https://git.stemmechanics.com.au/" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Gitea</a></li>
             <!-- <li><a href="https://discord.gg/yNzk4x7mpD" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Discord</a></li> -->
             <li><a href="https://www.facebook.com/stemmechanics" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Facebook</a></li>
             <li><a href="https://jenkins.stemmechanics.com.au/" class="text-sm hover:text-primary-color" referrerpolicy="no-referrer">Jenkins</a></li>

@@ -2,7 +2,7 @@
 
 ## 1.4.3
 
-- Added Gitea Auth support
+- Added OpenID/OAuth2 support
 
 ## 1.4.2
 
