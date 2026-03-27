@@ -3,6 +3,7 @@
 ## 1.4.3
 
 - Added OpenID/OAuth2 support
+- Dependency updates
 
 ## 1.4.2
 
