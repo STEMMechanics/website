@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.3
+
+- Added Gitea Auth support
+
 ## 1.4.2
 
 - Improved display of invoice data in the admin pages

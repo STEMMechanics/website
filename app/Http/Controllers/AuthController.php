@@ -15,6 +15,7 @@ use App\Support\RememberedDeviceManager;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -33,8 +34,15 @@ class AuthController extends Controller
      */
     public function showLogin(Request $request): View|RedirectResponse
     {
+        $redirectTo = $this->resolveGiteaRedirectTo($request);
+        if ($redirectTo !== null) {
+            $request->session()->put('url.intended', $redirectTo);
+        }
+
         if (auth()->check()) {
-            return redirect()->action([HomeController::class, 'index']);
+            return $redirectTo !== null
+                ? redirect()->to($redirectTo)
+                : redirect()->action([HomeController::class, 'index']);
         }
 
         $token = $request->query('token');
@@ -57,6 +65,24 @@ class AuthController extends Controller
         return view('auth.login', [
             'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
+    }
+
+    /**
+     * Expose the current user to Gitea through a reverse-proxy auth request.
+     */
+    public function giteaAuth(Request $request): Response
+    {
+        $user = Auth::user();
+        if (! $user instanceof User) {
+            return response('', 401);
+        }
+
+        $response = response()->noContent();
+        $response->headers->set('X-WEBAUTH-USER', (string) $user->username);
+        $response->headers->set('X-WEBAUTH-EMAIL', (string) $user->email);
+        $response->headers->set('X-WEBAUTH-FULLNAME', trim((string) $user->getName()));
+
+        return $response;
     }
 
     /**
@@ -501,6 +527,47 @@ class AuthController extends Controller
         }
 
         return $query->where('username', User::normalizeUsername($identifier))->first();
+    }
+
+    private function resolveGiteaRedirectTo(Request $request): ?string
+    {
+        $redirectTo = trim((string) $request->query('redirect_to', ''));
+        if ($redirectTo === '') {
+            return null;
+        }
+
+        $giteaBaseUrl = trim((string) config('services.gitea.base_url', ''));
+        if ($giteaBaseUrl === '') {
+            return null;
+        }
+
+        $allowedParts = parse_url($giteaBaseUrl);
+        $targetParts = parse_url($redirectTo);
+        if (! is_array($allowedParts) || ! is_array($targetParts)) {
+            return null;
+        }
+
+        $allowedScheme = $allowedParts['scheme'] ?? null;
+        $allowedHost = $allowedParts['host'] ?? null;
+        $allowedPort = $allowedParts['port'] ?? null;
+
+        $targetScheme = $targetParts['scheme'] ?? null;
+        $targetHost = $targetParts['host'] ?? null;
+        $targetPort = $targetParts['port'] ?? null;
+
+        if (! is_string($allowedScheme) || ! is_string($allowedHost)) {
+            return null;
+        }
+
+        if ($targetScheme !== $allowedScheme || $targetHost !== $allowedHost) {
+            return null;
+        }
+
+        if ($allowedPort !== null && $targetPort !== $allowedPort) {
+            return null;
+        }
+
+        return $redirectTo;
     }
 
     private function storePendingPasswordLogin(Request $request, User $user, array $data): void

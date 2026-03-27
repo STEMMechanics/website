@@ -47,4 +47,8 @@ return [
         'output_log' => env('DEPLOY_OUTPUT_LOG', '/var/tmp/stemmechanics_deploy.log'),
     ],
 
+    'gitea' => [
+        'base_url' => env('GITEA_BASE_URL'),
+    ],
+
 ];
