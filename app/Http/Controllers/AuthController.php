@@ -15,7 +15,6 @@ use App\Support\RememberedDeviceManager;
 use GrantHolle\Altcha\Rules\ValidAltcha;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -24,7 +23,6 @@ use Illuminate\View\View;
 class AuthController extends Controller
 {
     private const PASSWORD_LOGIN_SESSION_KEY = 'auth.password_login';
-    private const GITEA_RETURN_COOKIE = 'gitea_return_to';
 
     public function __construct(
         private readonly RememberedDeviceManager $rememberedDeviceManager
@@ -35,24 +33,8 @@ class AuthController extends Controller
      */
     public function showLogin(Request $request): View|RedirectResponse
     {
-        $redirectTo = $this->resolveGiteaRedirectTo($request);
-        if ($redirectTo !== null) {
-            $request->session()->put('url.intended', $redirectTo);
-        }
-        $forgetGiteaReturnCookie = $request->hasCookie(self::GITEA_RETURN_COOKIE)
-            ? cookie()->forget(self::GITEA_RETURN_COOKIE)
-            : null;
-
         if (auth()->check()) {
-            $response = $redirectTo !== null
-                ? redirect()->to($redirectTo)
-                : redirect()->action([HomeController::class, 'index']);
-
-            if ($forgetGiteaReturnCookie !== null) {
-                $response->withCookie($forgetGiteaReturnCookie);
-            }
-
-            return $response;
+            return redirect()->action([HomeController::class, 'index']);
         }
 
         $token = $request->query('token');
@@ -75,28 +57,6 @@ class AuthController extends Controller
         $response = view('auth.login', [
             'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
-
-        if ($forgetGiteaReturnCookie !== null) {
-            $response->withCookie($forgetGiteaReturnCookie);
-        }
-
-        return $response;
-    }
-
-    /**
-     * Expose the current user to Gitea through a reverse-proxy auth request.
-     */
-    public function giteaAuth(Request $request): Response
-    {
-        $user = Auth::user();
-        if (! $user instanceof User) {
-            return response('Unauthenticated', 401);
-        }
-
-        $response = response('OK', 200)
-            ->header('X-WEBAUTH-USER', (string) $user->username)
-            ->header('X-WEBAUTH-EMAIL', (string) $user->email)
-            ->header('X-WEBAUTH-FULLNAME', trim((string) $user->getName()));
 
         return $response;
     }
@@ -543,50 +503,6 @@ class AuthController extends Controller
         }
 
         return $query->where('username', User::normalizeUsername($identifier))->first();
-    }
-
-    private function resolveGiteaRedirectTo(Request $request): ?string
-    {
-        $redirectTo = trim((string) $request->query('redirect_to', ''));
-        if ($redirectTo === '') {
-            $redirectTo = trim((string) $request->cookie(self::GITEA_RETURN_COOKIE, ''));
-        }
-        if ($redirectTo === '') {
-            return null;
-        }
-
-        $giteaBaseUrl = trim((string) config('services.gitea.base_url', ''));
-        if ($giteaBaseUrl === '') {
-            return null;
-        }
-
-        $allowedParts = parse_url($giteaBaseUrl);
-        $targetParts = parse_url($redirectTo);
-        if (! is_array($allowedParts) || ! is_array($targetParts)) {
-            return null;
-        }
-
-        $allowedScheme = $allowedParts['scheme'] ?? null;
-        $allowedHost = $allowedParts['host'] ?? null;
-        $allowedPort = $allowedParts['port'] ?? null;
-
-        $targetScheme = $targetParts['scheme'] ?? null;
-        $targetHost = $targetParts['host'] ?? null;
-        $targetPort = $targetParts['port'] ?? null;
-
-        if (! is_string($allowedScheme) || ! is_string($allowedHost)) {
-            return null;
-        }
-
-        if ($targetScheme !== $allowedScheme || $targetHost !== $allowedHost) {
-            return null;
-        }
-
-        if ($allowedPort !== null && $targetPort !== $allowedPort) {
-            return null;
-        }
-
-        return $redirectTo;
     }
 
     private function storePendingPasswordLogin(Request $request, User $user, array $data): void

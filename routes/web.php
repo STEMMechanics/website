@@ -218,7 +218,6 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
 Route::post('/register', [AuthController::class, 'postRegister'])->name('register.store');
 Route::get('/update-email', [AuthController::class, 'updateEmail'])->name('update.email');
-Route::get('/sso/gitea/auth', [AuthController::class, 'giteaAuth'])->name('gitea.auth');
 
 Route::get('/about', function () {
     return view('about');
