@@ -24,6 +24,7 @@ use Illuminate\View\View;
 class AuthController extends Controller
 {
     private const PASSWORD_LOGIN_SESSION_KEY = 'auth.password_login';
+    private const GITEA_RETURN_COOKIE = 'gitea_return_to';
 
     public function __construct(
         private readonly RememberedDeviceManager $rememberedDeviceManager
@@ -38,11 +39,20 @@ class AuthController extends Controller
         if ($redirectTo !== null) {
             $request->session()->put('url.intended', $redirectTo);
         }
+        $forgetGiteaReturnCookie = $request->hasCookie(self::GITEA_RETURN_COOKIE)
+            ? cookie()->forget(self::GITEA_RETURN_COOKIE)
+            : null;
 
         if (auth()->check()) {
-            return $redirectTo !== null
+            $response = $redirectTo !== null
                 ? redirect()->to($redirectTo)
                 : redirect()->action([HomeController::class, 'index']);
+
+            if ($forgetGiteaReturnCookie !== null) {
+                $response->withCookie($forgetGiteaReturnCookie);
+            }
+
+            return $response;
         }
 
         $token = $request->query('token');
@@ -62,9 +72,15 @@ class AuthController extends Controller
             );
         }
 
-        return view('auth.login', [
+        $response = view('auth.login', [
             'rememberedLogin' => $this->rememberedDeviceManager->getRememberedEmail($request),
         ]);
+
+        if ($forgetGiteaReturnCookie !== null) {
+            $response->withCookie($forgetGiteaReturnCookie);
+        }
+
+        return $response;
     }
 
     /**
@@ -532,6 +548,9 @@ class AuthController extends Controller
     private function resolveGiteaRedirectTo(Request $request): ?string
     {
         $redirectTo = trim((string) $request->query('redirect_to', ''));
+        if ($redirectTo === '') {
+            $redirectTo = trim((string) $request->cookie(self::GITEA_RETURN_COOKIE, ''));
+        }
         if ($redirectTo === '') {
             return null;
         }

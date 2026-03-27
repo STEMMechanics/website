@@ -53,9 +53,8 @@ class GiteaSsoTest extends TestCase
 
         $returnTo = 'https://git.example.com/projects/acme';
 
-        $this->get(route('login', [
-            'redirect_to' => $returnTo,
-        ]))
+        $this->withCookie('gitea_return_to', $returnTo)
+            ->get(route('login'))
             ->assertOk()
             ->assertSessionHas('url.intended', $returnTo);
 
