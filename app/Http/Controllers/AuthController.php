@@ -90,13 +90,13 @@ class AuthController extends Controller
     {
         $user = Auth::user();
         if (! $user instanceof User) {
-            return response('', 401);
+            return response('Unauthenticated', 401);
         }
 
-        $response = response()->noContent();
-        $response->headers->set('X-WEBAUTH-USER', (string) $user->username);
-        $response->headers->set('X-WEBAUTH-EMAIL', (string) $user->email);
-        $response->headers->set('X-WEBAUTH-FULLNAME', trim((string) $user->getName()));
+        $response = response('OK', 200)
+            ->header('X-WEBAUTH-USER', (string) $user->username)
+            ->header('X-WEBAUTH-EMAIL', (string) $user->email)
+            ->header('X-WEBAUTH-FULLNAME', trim((string) $user->getName()));
 
         return $response;
     }
