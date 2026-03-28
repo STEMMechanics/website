@@ -4,7 +4,7 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="account.show" backTitle="Account Settings">
+    <x-mast backRoute="account.children.index" backTitle="Child Accounts">
         Child Approvals
     </x-mast>
 

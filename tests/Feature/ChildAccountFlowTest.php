@@ -40,7 +40,7 @@ class ChildAccountFlowTest extends TestCase
 
         $child = User::query()->where('username', 'kid-forum')->firstOrFail();
 
-        $response->assertRedirect(route('account.show'));
+        $response->assertRedirect(route('account.children.index'));
         $this->assertSame((string) $parent->id, (string) $child->parent_user_id);
         $this->assertTrue($child->isChildAccount());
 
@@ -56,6 +56,24 @@ class ChildAccountFlowTest extends TestCase
 
         $loginResponse->assertRedirect(route('index'));
         $this->assertAuthenticatedAs($child);
+    }
+
+    public function test_parent_can_view_the_child_accounts_page(): void
+    {
+        $parent = User::factory()->create();
+        User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'username' => 'kid-overview',
+            'email' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $this->actingAs($parent)
+            ->get(route('account.children.index'))
+            ->assertOk()
+            ->assertSeeText('Child Accounts')
+            ->assertSeeText('kid-overview')
+            ->assertSeeText('Create child account');
     }
 
     public function test_child_password_login_persists_across_follow_up_page_requests(): void
@@ -205,7 +223,7 @@ class ChildAccountFlowTest extends TestCase
                 'avatar_offset_x' => '12',
                 'avatar_offset_y' => '-8',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child->refresh();
         $this->assertSame(User::AVATAR_MODE_MEDIA, $child->avatar_mode);
@@ -228,7 +246,7 @@ class ChildAccountFlowTest extends TestCase
                 'avatar_background_color' => '#0EA5E9',
                 'avatar_media_name' => '',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child->refresh();
         $this->assertSame(User::AVATAR_MODE_ICON, $child->avatar_mode);
@@ -252,7 +270,7 @@ class ChildAccountFlowTest extends TestCase
                 'avatar_letters' => 'sm2',
                 'avatar_background_color' => '16a34a',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child->refresh();
         $this->assertSame(User::AVATAR_MODE_LETTERS, $child->avatar_mode);
@@ -276,7 +294,7 @@ class ChildAccountFlowTest extends TestCase
                 'child_forum_reply_requires_approval' => '1',
                 'child_parent_notified_on_forum_replies' => '1',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child = User::query()->where('username', 'kid-moderation')->firstOrFail();
         $this->assertTrue($child->child_forum_topic_requires_approval);
@@ -294,7 +312,7 @@ class ChildAccountFlowTest extends TestCase
                 'child_forum_reply_requires_approval' => '1',
                 'child_parent_notified_on_forum_replies' => '1',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child->refresh();
         $this->assertFalse($child->child_forum_topic_requires_approval);
@@ -331,11 +349,11 @@ class ChildAccountFlowTest extends TestCase
             ->from(route('account.show'))
             ->post(route('account.update'), [
                 'username' => (string) $child->username,
-                'avatar_mode' => User::AVATAR_MODE_MEDIA,
-                'avatar_media_name' => (string) $childMedia->name,
-                'avatar_letters' => 'NEW',
-                'avatar_background_color' => '#16A34A',
-            ])
+            'avatar_mode' => User::AVATAR_MODE_MEDIA,
+            'avatar_media_name' => (string) $childMedia->name,
+            'avatar_letters' => 'NEW',
+            'avatar_background_color' => '#16A34A',
+        ])
             ->assertRedirect(route('account.show'));
 
         $child->refresh();
@@ -532,7 +550,11 @@ class ChildAccountFlowTest extends TestCase
             ->get(route('account.show'))
             ->assertOk()
             ->assertSeeText('2 child approvals pending')
-            ->assertSeeText('Child approvals')
+            ->assertSeeText('Child approvals');
+
+        $this->actingAs($parent)
+            ->get(route('account.children.index'))
+            ->assertOk()
             ->assertSeeText('Pending child approvals')
             ->assertSeeText('2 discussion submissions are waiting for review.');
     }
@@ -697,7 +719,7 @@ class ChildAccountFlowTest extends TestCase
             ->delete(route('account.children.destroy', $child), [
                 'delete_discussion_threads' => '0',
             ])
-            ->assertRedirect(route('account.show'));
+            ->assertRedirect(route('account.children.index'));
 
         $child->refresh();
         $reply->refresh();

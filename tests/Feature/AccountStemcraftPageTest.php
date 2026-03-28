@@ -119,19 +119,96 @@ class AccountStemcraftPageTest extends TestCase
         $response = $this->actingAs($user)->get(route('account.stemcraft.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Player stats');
-        $response->assertSeeText('Play Time');
-        $response->assertSeeText('1h');
-        $response->assertSeeText('Total play time recorded by the server in ticks.');
-        $response->assertSeeText('Mob Kills');
-        $response->assertSeeText('42');
-        $response->assertSeeText('Fish Caught');
-        $response->assertSeeText('5');
-        $response->assertSeeText('Bucket Fills');
-        $response->assertSeeText('3');
-        $response->assertSeeText('Distance Walked');
-        $response->assertSeeText('1.45 km');
-        $response->assertSeeText('All cached stats');
-        $response->assertSeeText('Quests Completed');
+        $response->assertSeeText('View player stats');
+        $response->assertDontSeeText('All cached stats');
+        $response->assertDontSeeText('Play Time');
+    }
+
+    public function test_child_account_with_linked_minecraft_profile_can_view_read_only_stemcraft_page(): void
+    {
+        $parent = User::factory()->create();
+        $child = User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'username' => 'kid-player',
+            'email' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $account = MinecraftAccount::query()->create([
+            'user_id' => $child->id,
+            'platform' => 'java',
+            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'username' => 'KidPlayer',
+            'is_whitelisted' => true,
+        ]);
+
+        $response = $this->actingAs($child)->get(route('account.stemcraft.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Read-only access');
+        $response->assertSeeText('View your linked STEMCraft accounts and whitelist status.');
+        $response->assertSeeText('KidPlayer');
+        $response->assertSeeText('View player stats');
+        $response->assertDontSeeText('Add Minecraft Account');
+        $response->assertDontSeeText('Remove account');
+        $this->assertSame((string) $child->id, (string) $account->user_id);
+    }
+
+    public function test_parent_can_reassign_minecraft_account_to_a_child_without_needing_minecraft_group_access(): void
+    {
+        $parent = User::factory()->create();
+        $child = User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'username' => 'kid-owner',
+            'email' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $account = MinecraftAccount::query()->create([
+            'user_id' => $parent->id,
+            'platform' => 'java',
+            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'username' => 'FamilyPlayer',
+            'is_whitelisted' => true,
+        ]);
+
+        $this->actingAs($parent)
+            ->patch(route('account.stemcraft.owner.update', $account), [
+                'user_id' => (string) $child->id,
+            ])
+            ->assertRedirect(route('account.stemcraft.index'));
+
+        $account->refresh();
+        $this->assertSame((string) $child->id, (string) $account->user_id);
+
+        $this->actingAs($parent)
+            ->get(route('account.stemcraft.index'))
+            ->assertOk()
+            ->assertSeeText('FamilyPlayer');
+
+        $this->actingAs($child)
+            ->get(route('account.stemcraft.index'))
+            ->assertOk()
+            ->assertSeeText('Read-only access')
+            ->assertSeeText('FamilyPlayer')
+            ->assertDontSeeText('Add Minecraft Account');
+    }
+
+    public function test_parent_without_minecraft_group_can_view_stemcraft_but_cannot_add_accounts(): void
+    {
+        $parent = User::factory()->create();
+
+        $this->actingAs($parent)
+            ->get(route('account.stemcraft.index'))
+            ->assertOk()
+            ->assertSeeText('Limited access')
+            ->assertDontSeeText('Add Minecraft Account');
+
+        $this->actingAs($parent)
+            ->post(route('account.stemcraft.store'), [
+                'platform' => 'java',
+                'username' => 'ParentPlayer',
+            ])
+            ->assertForbidden();
     }
 }

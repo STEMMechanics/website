@@ -7,8 +7,8 @@
 
 <x-layout>
     <x-mast
-        backRoute="account.show"
-        backTitle="Account Settings"
+        backRoute="account.children.index"
+        backTitle="Child Accounts"
         description="{{ $isNew ? 'Create a child account with its own username, password, avatar, and discussion permissions.' : 'Manage this child account including username, password, avatar, and discussion permissions.' }}"
     >
         {{ $isNew ? 'Create Child Account' : 'Manage Child Account' }}

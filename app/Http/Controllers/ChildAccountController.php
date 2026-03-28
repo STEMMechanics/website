@@ -21,6 +21,22 @@ class ChildAccountController extends Controller
         private readonly UserAnonymizer $userAnonymizer
     ) {}
 
+    public function index(Request $request): View
+    {
+        $parent = $request->user();
+        abort_unless($parent && $parent->isFullAccount(), 403);
+
+        $childAccounts = $this->managedChildAccounts($parent);
+        $totalPendingChildApprovals = (int) $childAccounts->sum(
+            fn (User $childAccount) => (int) ($childAccount->pending_topic_count ?? 0) + (int) ($childAccount->pending_reply_count ?? 0)
+        );
+
+        return view('account.children.index', [
+            'childAccounts' => $childAccounts,
+            'totalPendingChildApprovals' => $totalPendingChildApprovals,
+        ]);
+    }
+
     public function create(Request $request): View
     {
         $parent = $request->user();
@@ -97,7 +113,7 @@ class ChildAccountController extends Controller
         session()->flash('message-title', 'Child account saved');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('account.show');
+        return redirect()->route('account.children.index');
     }
 
     public function edit(Request $request, User $child): View
@@ -158,7 +174,7 @@ class ChildAccountController extends Controller
         session()->flash('message-title', 'Child account saved');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('account.show');
+        return redirect()->route('account.children.index');
     }
 
     public function destroy(Request $request, User $child): RedirectResponse
@@ -176,7 +192,7 @@ class ChildAccountController extends Controller
         session()->flash('message-title', 'Child account removed');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('account.show');
+        return redirect()->route('account.children.index');
     }
 
     public function bulkUpdateApprovals(Request $request): RedirectResponse
@@ -584,12 +600,7 @@ class ChildAccountController extends Controller
 
     private function pendingForumDataForParent(User $parent): array
     {
-        /** @var \Illuminate\Database\Eloquent\Collection<string, User> $children */
-        $children = $parent->children()
-            ->whereNull('anonymized_at')
-            ->orderBy('username')
-            ->get()
-            ->keyBy('id');
+        $children = $this->managedChildAccounts($parent)->keyBy('id');
 
         $childIds = $children->keys()->all();
 
@@ -699,5 +710,22 @@ class ChildAccountController extends Controller
     private function nullableForumDateTime(mixed $value): ?\Carbon\Carbon
     {
         return $value instanceof \Carbon\Carbon ? $value : null;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     */
+    private function managedChildAccounts(User $parent)
+    {
+        return $parent->children()
+            ->whereNull('anonymized_at')
+            ->withCount([
+                'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
+                'forumPosts as pending_reply_count' => fn ($query) => $query
+                    ->where('is_approved', false)
+                    ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
+            ])
+            ->orderBy('username')
+            ->get();
     }
 }

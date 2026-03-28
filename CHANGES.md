@@ -4,6 +4,7 @@
 
 - Added OpenID/OAuth2 support
 - Dependency updates
+- User account cleanup
 
 ## 1.4.2
 

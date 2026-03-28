@@ -11,6 +11,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class StemcraftController extends Controller
@@ -42,6 +43,8 @@ class StemcraftController extends Controller
     public function stats(Request $request, MinecraftWebhookBridgeService $minecraftWebhookBridgeService): View
     {
         $selectedPeriod = MinecraftPlayerStat::resolvePeriod((string) $request->query('period')) ?? MinecraftPlayerStat::PERIOD_ALL;
+        $search = trim((string) $request->query('search', ''));
+        $playerLookup = trim((string) $request->query('player', ''));
 
         /** @var Collection<int, MinecraftPlayerStat> $playerStats */
         $playerStats = MinecraftPlayerStat::query()
@@ -49,6 +52,21 @@ class StemcraftController extends Controller
             ->orderBy('username')
             ->get();
         $leaderboardStats = $this->buildLeaderboardStats($playerStats);
+        $matchingPlayers = $search !== ''
+            ? $this->searchPlayerStats($playerStats, $search)
+            : collect();
+        $playerSuggestions = $playerStats
+            ->flatMap(fn (MinecraftPlayerStat $playerStat): array => [
+                (string) $playerStat->username,
+                (string) $playerStat->uuid,
+            ])
+            ->map(fn (string $value): string => trim($value))
+            ->filter(fn (string $value): bool => $value !== '')
+            ->unique()
+            ->take(30)
+            ->values();
+        $selectedPlayerStat = $this->findPlayerStat($playerStats, $playerLookup);
+
         $lastSyncedAtAnyPeriod = MinecraftPlayerStat::query()
             ->whereNotNull('fetched_at')
             ->orderByDesc('fetched_at')
@@ -56,9 +74,14 @@ class StemcraftController extends Controller
 
         return view('stemcraft.leaderboards', [
             'selectedPeriod' => $selectedPeriod,
+            'search' => $search,
+            'playerLookup' => $playerLookup,
             'periodOptions' => MinecraftPlayerStat::PERIODS,
             'periodLabel' => MinecraftPlayerStat::periodLabel($selectedPeriod),
             'leaderboardStats' => $leaderboardStats,
+            'matchingPlayers' => $matchingPlayers,
+            'playerSuggestions' => $playerSuggestions,
+            'selectedPlayerStat' => $selectedPlayerStat,
             'trackedPlayerCount' => $playerStats->count(),
             'lastSyncedAt' => $playerStats
                 ->filter(fn (MinecraftPlayerStat $playerStat): bool => $playerStat->fetched_at !== null)
@@ -220,6 +243,60 @@ class StemcraftController extends Controller
         }
 
         return $leaderboards;
+    }
+
+    /**
+     * @param  Collection<int, MinecraftPlayerStat>  $playerStats
+     * @return Collection<int, MinecraftPlayerStat>
+     */
+    private function searchPlayerStats(Collection $playerStats, string $search): Collection
+    {
+        $needle = Str::lower(trim($search));
+        if ($needle === '') {
+            return collect();
+        }
+
+        return $playerStats
+            ->filter(function (MinecraftPlayerStat $playerStat) use ($needle): bool {
+                $username = Str::lower((string) $playerStat->username);
+                $uuid = Str::lower((string) $playerStat->uuid);
+                $platform = Str::lower((string) ($playerStat->platform ?? ''));
+
+                return str_contains($username, $needle)
+                    || str_contains($uuid, $needle)
+                    || ($platform !== '' && str_contains($platform, $needle));
+            })
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, MinecraftPlayerStat>  $playerStats
+     */
+    private function findPlayerStat(Collection $playerStats, string $lookup): ?MinecraftPlayerStat
+    {
+        $lookup = trim($lookup);
+        if ($lookup === '') {
+            return null;
+        }
+
+        $byUuid = $playerStats->first(function (MinecraftPlayerStat $playerStat) use ($lookup): bool {
+            return Str::lower(trim((string) $playerStat->uuid)) === Str::lower($lookup);
+        });
+        if ($byUuid instanceof MinecraftPlayerStat) {
+            return $byUuid;
+        }
+
+        $byUsername = $playerStats->first(function (MinecraftPlayerStat $playerStat) use ($lookup): bool {
+            return Str::lower(trim((string) $playerStat->username)) === Str::lower($lookup);
+        });
+        if ($byUsername instanceof MinecraftPlayerStat) {
+            return $byUsername;
+        }
+
+        return $playerStats->first(function (MinecraftPlayerStat $playerStat) use ($lookup): bool {
+            return str_contains(Str::lower(trim((string) $playerStat->username)), Str::lower($lookup))
+                || str_contains(Str::lower(trim((string) $playerStat->uuid)), Str::lower($lookup));
+        });
     }
 
     /**

@@ -189,4 +189,120 @@ class StemcraftStatsPageTest extends TestCase
         $response->assertSeeText('45m');
         $response->assertDontSeeText('0.75');
     }
+
+    public function test_public_stats_page_can_open_a_selected_player_detail_panel(): void
+    {
+        MinecraftPlayerStat::query()->create([
+            'uuid' => '77777777-7777-7777-7777-777777777777',
+            'platform' => 'java',
+            'username' => 'DetailPlayer',
+            'period' => 'all',
+            'captured_at' => now()->subHours(2),
+            'fetched_at' => now()->subHour(),
+            'stats' => [[
+                'key' => 'play_time',
+                'title' => 'Play Time',
+                'description' => 'Total play time recorded by the server in ticks.',
+                'value' => 72000,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'mob_kills',
+                'title' => 'Mob Kills',
+                'description' => 'Number of mob kills made by the player.',
+                'value' => 84,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'quests_completed',
+                'title' => 'Quests Completed',
+                'description' => 'Completed quests tracked by another plugin.',
+                'value' => 12,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'fish_caught',
+                'title' => 'Fish Caught',
+                'description' => 'Number of fish caught by the player.',
+                'value' => 8,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'bucket_fills',
+                'title' => 'Bucket Fills',
+                'description' => 'Number of times the player filled a bucket with water or lava.',
+                'value' => 4,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'distance_walked_cm',
+                'title' => 'Distance Walked',
+                'description' => 'Distance walked by the player in centimeters.',
+                'value' => 145230,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ], [
+                'key' => 'jumps',
+                'title' => 'Jumps',
+                'description' => 'Number of jumps made by the player.',
+                'value' => 800,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ]],
+        ]);
+
+        $response = $this->get(route('stemcraft.leaderboards', ['player' => '77777777-7777-7777-7777-777777777777']));
+
+        $response->assertOk();
+        $response->assertSeeText('Player detail');
+        $response->assertSeeText('DetailPlayer');
+        $response->assertSeeText('Back to rankings');
+        $response->assertSeeText('Lookup player');
+        $response->assertSeeText('All stats');
+        $response->assertSeeText('Play Time');
+        $response->assertSeeText('1h');
+        $response->assertSeeText('Mob Kills');
+        $response->assertSeeText('84');
+        $response->assertSeeText('Quests Completed');
+        $response->assertDontSeeText('All cached stats');
+        $response->assertDontSeeText('Search results');
+        $response->assertDontSeeText('Tracked players');
+        $response->assertDontSeeText('Server Info');
+    }
+
+    public function test_public_stats_page_searches_for_players(): void
+    {
+        MinecraftPlayerStat::query()->create([
+            'uuid' => '88888888-8888-8888-8888-888888888888',
+            'username' => 'PlayerTarget',
+            'period' => 'all',
+            'captured_at' => now()->subHours(2),
+            'fetched_at' => now()->subHour(),
+            'stats' => [[
+                'key' => 'mob_kills',
+                'title' => 'Mob Kills',
+                'description' => 'Number of mob kills made by the player.',
+                'value' => 21,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ]],
+        ]);
+
+        MinecraftPlayerStat::query()->create([
+            'uuid' => '99999999-9999-9999-9999-999999999999',
+            'username' => 'AnotherPlayer',
+            'period' => 'all',
+            'captured_at' => now()->subHours(2),
+            'fetched_at' => now()->subHour(),
+            'stats' => [[
+                'key' => 'mob_kills',
+                'title' => 'Mob Kills',
+                'description' => 'Number of mob kills made by the player.',
+                'value' => 13,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ]],
+        ]);
+
+        $response = $this->get(route('stemcraft.leaderboards', ['search' => 'Player']));
+
+        $response->assertOk();
+        $response->assertSeeText('Search results');
+        $response->assertSeeText('PlayerTarget');
+        $response->assertSeeText('AnotherPlayer');
+        $response->assertSeeText('View');
+        $response->assertDontSeeText('No cached players matched');
+        $response->assertDontSeeText('Player detail');
+    }
 }

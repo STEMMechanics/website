@@ -60,20 +60,7 @@ class AccountController extends Controller
             return view('account-child', $baseViewData);
         }
 
-        $childAccounts = $user->children()
-            ->whereNull('anonymized_at')
-            ->withCount([
-                'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
-                'forumPosts as pending_reply_count' => fn ($query) => $query
-                    ->where('is_approved', false)
-                    ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
-            ])
-            ->get();
-
-        return view('account', [
-            ...$baseViewData,
-            'childAccounts' => $childAccounts,
-        ]);
+        return view('account', $baseViewData);
     }
 
     /**

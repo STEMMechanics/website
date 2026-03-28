@@ -751,6 +751,31 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         return $this->hasGroup('minecraft');
     }
 
+    public function hasLinkedMinecraftAccounts(): bool
+    {
+        return $this->minecraftAccounts()->exists();
+    }
+
+    public function canViewMinecraftPage(): bool
+    {
+        return $this->hasMinecraftAccess() || $this->hasLinkedMinecraftAccounts();
+    }
+
+    public function canManageMinecraftAccounts(): bool
+    {
+        return ! $this->isChildAccount();
+    }
+
+    public function canCreateMinecraftAccounts(): bool
+    {
+        return $this->hasMinecraftAccess() || $this->hasGroup('admin') || $this->hasGroup('minecraft-org');
+    }
+
+    public function canAccessMinecraftPage(): bool
+    {
+        return $this->canManageMinecraftAccounts() || $this->canViewMinecraftPage();
+    }
+
     public static function normalizeUsername(string $value): string
     {
         $normalized = Str::of($value)

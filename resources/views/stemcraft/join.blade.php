@@ -56,7 +56,7 @@
                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-color text-sm font-semibold text-white">2</div>
                             <div>
                                 <h3 class="font-semibold text-gray-900">Check that access is already approved</h3>
-                                <p class="mt-1 text-sm leading-6 text-gray-600">Under the account menu, you should see the <a href="{{ route('account.stemcraft.index') }}" class="cursor-pointer text-sky-500 hover:text-sky-700">My STEMCraft</a> option.</p>
+                                <p class="mt-1 text-sm leading-6 text-gray-600">Under the account menu, you should see the <a href="{{ route('account.stemcraft.index') }}" class="cursor-pointer text-sky-500 hover:text-sky-700">STEMCraft</a> option.</p>
                             </div>
                         </div>
                         <div class="flex gap-4 rounded-3xl bg-gray-50 p-4">

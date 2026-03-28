@@ -153,6 +153,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/account/media/{media}', [MediaController::class, 'account_destroy'])->name('account.media.destroy');
     Route::delete('/account/devices/{token}', [AccountController::class, 'destroyRememberedDevice'])->name('account.device.destroy');
     Route::patch('/account/devices/{token}/nickname', [AccountController::class, 'updateRememberedDeviceNickname'])->name('account.device.nickname.update');
+    Route::get('/account/children', [ChildAccountController::class, 'index'])->name('account.children.index');
     Route::get('/account/children/create', [ChildAccountController::class, 'create'])->name('account.children.create');
     Route::get('/account/children/approvals', [ChildAccountController::class, 'approvals'])->name('account.children.approvals');
     Route::post('/account/children/approvals/bulk', [ChildAccountController::class, 'bulkUpdateApprovals'])->name('account.children.approvals.bulk');
@@ -166,6 +167,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/account/children/{child}/forum-posts/{forumPost}/approve-link', [ChildAccountController::class, 'approvePostFromEmail'])->middleware('signed')->name('account.children.post.approve-link');
     Route::post('/account/children/{child}/forum-posts/{forumPost}/approve', [ChildAccountController::class, 'approvePost'])->name('account.children.post.approve');
     Route::post('/account/children/{child}/forum-posts/{forumPost}/reject', [ChildAccountController::class, 'rejectPost'])->name('account.children.post.reject');
+    Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
+    Route::patch('/account/stemcraft/accounts/{minecraftAccount}/owner', [MinecraftController::class, 'accountUpdateOwner'])->name('account.stemcraft.owner.update');
 
     Route::middleware('full-account')->group(function () {
         Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
@@ -191,7 +194,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/account/orders/{storeOrder}', [StoreOrderController::class, 'accountShow'])->name('account.order.show');
         Route::post('/account/orders/{storeOrder}/pay', [StoreOrderController::class, 'accountPay'])->name('account.order.pay');
         Route::get('/account/orders/{storeOrder}/downloads/{storeOrderItemDownload}', [StoreOrderController::class, 'accountDownload'])->name('account.order.download');
-        Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
         Route::post('/account/stemcraft/accounts', [MinecraftController::class, 'accountStore'])->name('account.stemcraft.store');
         Route::delete('/account/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'accountDestroy'])->name('account.stemcraft.destroy');
     });
