@@ -7,6 +7,7 @@
 - User account and leaderboard cleanup
 - Added classroom support
 - Change GITEA_BASE_URL to trusted providers
+- Changed admin /webhooks to /webhook-logs for clarity
 
 ## 1.4.2
 

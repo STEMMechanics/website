@@ -42,7 +42,7 @@ class AdminStemcraftWebhookRetryTest extends TestCase
         ]);
 
         $initialLogCount = MinecraftWebhookLog::query()->count();
-        $response = $this->actingAs($admin)->post(route('admin.stemcraft.webhooks.retry', $log));
+        $response = $this->actingAs($admin)->post(route('admin.stemcraft.webhook-logs.retry', $log));
 
         $response->assertStatus(422);
         $this->assertSame($initialLogCount, MinecraftWebhookLog::query()->count());
@@ -70,12 +70,12 @@ class AdminStemcraftWebhookRetryTest extends TestCase
             'last_attempted_at' => now(),
         ]);
 
-        $response = $this->actingAs($admin)->get(route('admin.stemcraft.webhooks.index'));
+        $response = $this->actingAs($admin)->get(route('admin.stemcraft.webhook-logs.index'));
 
         $response->assertOk();
         $response->assertDontSee('>Actions<', false);
         $response->assertSeeText('Retry');
-        $response->assertSee('stemcraft\\/webhooks\\/snapshot', false);
+        $response->assertSee('stemcraft\\/webhook-logs\\/snapshot', false);
     }
 
     public function test_webhook_snapshot_returns_rendered_results_html(): void
@@ -101,7 +101,7 @@ class AdminStemcraftWebhookRetryTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)
-            ->getJson(route('admin.stemcraft.webhooks.snapshot', ['status' => 'failed']));
+            ->getJson(route('admin.stemcraft.webhook-logs.snapshot', ['status' => 'failed']));
 
         $response->assertOk();
         $response->assertJsonStructure(['resultsHtml']);

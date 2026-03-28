@@ -3,7 +3,7 @@
         ['title' => 'Accounts', 'route' => route('admin.stemcraft.index')],
         ['title' => 'Punishments', 'route' => route('admin.stemcraft.punishments.index')],
         ['title' => 'Messaging', 'route' => route('admin.stemcraft.messages.index')],
-        ['title' => 'Webhooks', 'route' => route('admin.stemcraft.webhooks.index')],
+            ['title' => 'Webhook Logs', 'route' => route('admin.stemcraft.webhook-logs.index')],
         ['title' => 'Management', 'route' => route('admin.stemcraft.management.index')],
     ]" />
 

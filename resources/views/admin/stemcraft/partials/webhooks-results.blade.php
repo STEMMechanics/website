@@ -119,7 +119,7 @@
                 </details>
                 @if($canRetry)
                     <div class="mt-4 flex justify-end">
-                        <form method="POST" action="{{ route('admin.stemcraft.webhooks.retry', $log) }}">
+                        <form method="POST" action="{{ route('admin.stemcraft.webhook-logs.retry', $log) }}">
                             @csrf
                             <x-ui.button type="submit" color="outline">Retry</x-ui.button>
                         </form>
@@ -222,7 +222,7 @@
                             @endif
                             @if($canRetry)
                                 <div class="mt-3">
-                                    <form method="POST" action="{{ route('admin.stemcraft.webhooks.retry', $log) }}">
+                                    <form method="POST" action="{{ route('admin.stemcraft.webhook-logs.retry', $log) }}">
                                         @csrf
                                         <x-ui.button type="submit" color="outline">Retry</x-ui.button>
                                     </form>

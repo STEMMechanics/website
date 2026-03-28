@@ -332,7 +332,7 @@ class MinecraftController extends Controller
         session()->flash('message-title', 'Webhook retry queued');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.stemcraft.webhooks.index', [
+        return redirect()->route('admin.stemcraft.webhook-logs.index', [
             'highlight' => $retryLog?->id,
         ]);
     }

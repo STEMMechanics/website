@@ -322,8 +322,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
     Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');
     Route::get('/admin/stemcraft/messages/snapshot', [MinecraftController::class, 'adminMessagesSnapshot'])->name('admin.stemcraft.messages.snapshot');
-    Route::get('/admin/stemcraft/webhooks', [MinecraftController::class, 'adminWebhooksIndex'])->name('admin.stemcraft.webhooks.index');
-    Route::get('/admin/stemcraft/webhooks/snapshot', [MinecraftController::class, 'adminWebhooksSnapshot'])->name('admin.stemcraft.webhooks.snapshot');
+    Route::get('/admin/stemcraft/webhook-logs', [MinecraftController::class, 'adminWebhooksIndex'])->name('admin.stemcraft.webhook-logs.index');
+    Route::get('/admin/stemcraft/webhook-logs/snapshot', [MinecraftController::class, 'adminWebhooksSnapshot'])->name('admin.stemcraft.webhook-logs.snapshot');
     Route::get('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementIndex'])->name('admin.stemcraft.management.index');
     Route::get('/admin/stemcraft/management/snapshot', [MinecraftController::class, 'adminManagementSnapshot'])->name('admin.stemcraft.management.snapshot');
     Route::post('/admin/stemcraft/management', [MinecraftController::class, 'adminManagementExecute'])->name('admin.stemcraft.management.execute');
@@ -333,7 +333,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/stemcraft/accounts/{minecraftAccount}', [MinecraftController::class, 'adminUpdate'])->name('admin.stemcraft.update');
     Route::post('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentStore'])->name('admin.stemcraft.punishments.store');
     Route::delete('/admin/stemcraft/punishments/{minecraftPenalty}', [MinecraftController::class, 'adminPunishmentLift'])->name('admin.stemcraft.punishments.destroy');
-    Route::post('/admin/stemcraft/webhooks/{minecraftWebhookLog}/retry', [MinecraftController::class, 'adminWebhookRetry'])->name('admin.stemcraft.webhooks.retry');
+    Route::post('/admin/stemcraft/webhook-logs/{minecraftWebhookLog}/retry', [MinecraftController::class, 'adminWebhookRetry'])->name('admin.stemcraft.webhook-logs.retry');
     Route::post('/admin/stemcraft/blacklist', [MinecraftController::class, 'adminBlacklistStore'])->name('admin.stemcraft.blacklist.store');
     Route::delete('/admin/stemcraft/blacklist/{minecraftBlacklistEntry}', [MinecraftController::class, 'adminBlacklistLift'])->name('admin.stemcraft.blacklist.destroy');
 

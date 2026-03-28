@@ -3,7 +3,7 @@
         ['title' => 'Accounts', 'route' => route('admin.stemcraft.index')],
         ['title' => 'Punishments', 'route' => route('admin.stemcraft.punishments.index')],
         ['title' => 'Messaging', 'route' => route('admin.stemcraft.messages.index')],
-        ['title' => 'Webhooks', 'route' => route('admin.stemcraft.webhooks.index')],
+        ['title' => 'Webhook Logs', 'route' => route('admin.stemcraft.webhook-logs.index')],
         ['title' => 'Management', 'route' => route('admin.stemcraft.management.index')],
     ]" />
 
@@ -14,7 +14,7 @@
                 <p class="mt-2 text-sm leading-6 text-gray-600">Track what the website has sent to the Minecraft server, what the website has received back from the server, whether delivery succeeded, and when retries are queued.</p>
             </div>
 
-            <form method="GET" action="{{ route('admin.stemcraft.webhooks.index') }}" class="mt-6 grid gap-4 lg:grid-cols-4 items-center">
+            <form method="GET" action="{{ route('admin.stemcraft.webhook-logs.index') }}" class="mt-6 grid gap-4 lg:grid-cols-4 items-center">
                 <x-ui.input name="search" label="Search" value="{{ $search }}" />
                 <x-ui.select name="direction" label="Direction">
                     <option value="">All directions</option>
@@ -42,7 +42,7 @@
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 const results = document.getElementById('stemcraft-webhooks-results');
-                const snapshotUrl = @js(route('admin.stemcraft.webhooks.snapshot', request()->query()));
+                const snapshotUrl = @js(route('admin.stemcraft.webhook-logs.snapshot', request()->query()));
 
                 if (!results || !snapshotUrl) {
                     return;
