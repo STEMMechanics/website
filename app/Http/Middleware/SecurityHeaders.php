@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Laravel\Passport\Client as PassportClient;
 use Symfony\Component\HttpFoundation\Response;
 
 class SecurityHeaders
@@ -12,7 +13,7 @@ class SecurityHeaders
     {
         /** @var Response $response */
         $response = $next($request);
-        $giteaOrigin = $this->normalizeOrigin((string) config('services.gitea.base_url', ''));
+        $oauthOrigins = $this->oauthCallbackOrigins();
 
         // Hide PHP runtime/version details from response headers.
         $response->headers->remove('X-Powered-By');
@@ -29,12 +30,8 @@ class SecurityHeaders
             "base-uri 'self'",
             "object-src 'none'",
         ];
-        $formAction = "form-action 'self'";
-        if ($giteaOrigin !== '') {
-            $formAction .= ' '.$giteaOrigin;
-        }
-        $requiredDirectives[] = $formAction;
         if ($csp === '') {
+            $requiredDirectives[] = $this->formActionDirective($oauthOrigins);
             $response->headers->set('Content-Security-Policy', implode('; ', $requiredDirectives));
         } else {
             $cspLower = strtolower($csp);
@@ -44,7 +41,7 @@ class SecurityHeaders
                     $csp .= '; '.$directive;
                 }
             }
-            $response->headers->set('Content-Security-Policy', $csp);
+            $response->headers->set('Content-Security-Policy', $this->replaceFormActionDirective($csp, $oauthOrigins));
         }
 
         // Stop MIME sniffing and enforce declared Content-Type.
@@ -91,5 +88,48 @@ class SecurityHeaders
         }
 
         return $origin;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function oauthCallbackOrigins(): array
+    {
+        return PassportClient::query()
+            ->where('revoked', false)
+            ->get()
+            ->flatMap(function (PassportClient $client): array {
+                return array_map(
+                    fn (mixed $redirectUri): string => $this->normalizeOrigin((string) $redirectUri),
+                    is_array($client->redirect_uris) ? $client->redirect_uris : []
+                );
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  list<string>  $origins
+     */
+    private function formActionDirective(array $origins): string
+    {
+        $sources = array_merge(["'self'"], $origins);
+
+        return 'form-action '.implode(' ', array_values(array_unique($sources)));
+    }
+
+    /**
+     * @param  list<string>  $origins
+     */
+    private function replaceFormActionDirective(string $csp, array $origins): string
+    {
+        $directive = $this->formActionDirective($origins);
+        if (preg_match('/(?:^|;\s*)form-action\b[^;]*/i', $csp) === 1) {
+            return (string) preg_replace('/(?:^|;\s*)form-action\b[^;]*/i', '; '.$directive, $csp, 1);
+        }
+
+        return trim($csp.'; '.$directive, '; ');
     }
 }

@@ -6,6 +6,7 @@
 - Dependency updates
 - User account and leaderboard cleanup
 - Added classroom support
+- Change GITEA_BASE_URL to trusted providers
 
 ## 1.4.2
 
