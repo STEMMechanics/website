@@ -8,6 +8,7 @@
 - Added classroom support
 - Change GITEA_BASE_URL to trusted providers
 - Changed admin /webhooks to /webhook-logs for clarity
+- Added admin button to for artisan clear and queue restart
 
 ## 1.4.2
 

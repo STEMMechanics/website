@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SiteOption;
+use App\Services\ServerMaintenanceService;
 use App\Support\ShopShippingSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -123,6 +124,23 @@ class SiteOptionController extends Controller
         session()->flash('message', 'Default site options have been reset and any missing options were created');
         session()->flash('message-title', 'Defaults restored');
         session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.site_option.index');
+    }
+
+    public function refreshMaintenance(Request $request, ServerMaintenanceService $serverMaintenanceService): RedirectResponse|JsonResponse
+    {
+        abort_unless((bool) ($request->user()?->isAdmin() ?? false), 403);
+
+        $result = $serverMaintenanceService->refreshCachesAndRestartQueue();
+
+        if ($request->expectsJson()) {
+            return response()->json($result, $result['success'] ? 200 : 500);
+        }
+
+        session()->flash('message', $result['message']);
+        session()->flash('message-title', $result['success'] ? 'Maintenance complete' : 'Maintenance failed');
+        session()->flash('message-type', $result['success'] ? 'success' : 'danger');
 
         return redirect()->route('admin.site_option.index');
     }

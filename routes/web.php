@@ -353,6 +353,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/options/create', [SiteOptionController::class, 'create'])->name('admin.site_option.create');
     Route::post('/admin/server/options', [SiteOptionController::class, 'store'])->name('admin.site_option.store');
     Route::post('/admin/server/options/reset-defaults', [SiteOptionController::class, 'resetAllDefaults'])->name('admin.site_option.reset-defaults');
+    Route::post('/admin/server/options/maintenance-refresh', [SiteOptionController::class, 'refreshMaintenance'])->name('admin.site_option.maintenance-refresh');
     Route::get('/admin/server/options/{siteOption}', [SiteOptionController::class, 'edit'])->name('admin.site_option.edit');
     Route::put('/admin/server/options/{siteOption}', [SiteOptionController::class, 'update'])->name('admin.site_option.update');
     Route::post('/admin/server/options/{siteOption}/reset-default', [SiteOptionController::class, 'resetDefault'])->name('admin.site_option.reset-default');
