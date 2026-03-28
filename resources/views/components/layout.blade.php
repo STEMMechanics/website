@@ -106,6 +106,7 @@
     <script src="/script.js?v={{ @filemtime(public_path('script.js')) ?: time() }}"></script>
 
     @livewireStyles
+    @stack('head')
     @vite('resources/js/app.js')
     @vite('resources/css/app.css')
     <style>

@@ -39,6 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'webhooks/square',
             'webhooks/stemcraft/server',
             'webhooks/minecraft/server',
+            'webhooks/livekit',
             'unsubscribe/*',
         ]);
     })

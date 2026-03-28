@@ -360,6 +360,22 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         return $this->hasMany(MinecraftAccount::class);
     }
 
+    /**
+     * @return HasMany<ClassEnrolment, $this>
+     */
+    public function classEnrolments(): HasMany
+    {
+        return $this->hasMany(ClassEnrolment::class);
+    }
+
+    /**
+     * @return HasMany<ClassHelpRequest, $this>
+     */
+    public function classHelpRequests(): HasMany
+    {
+        return $this->hasMany(ClassHelpRequest::class);
+    }
+
     public function forumTopics(): HasMany
     {
         return $this->hasMany(ForumTopic::class);
@@ -774,6 +790,23 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
     public function canAccessMinecraftPage(): bool
     {
         return $this->canManageMinecraftAccounts() || $this->canViewMinecraftPage();
+    }
+
+    public function canJoinClassSession(ClassSession $classSession): bool
+    {
+        return $this->isAdmin()
+            || $classSession->canJoin($this);
+    }
+
+    public function canManageClassSession(ClassSession $classSession): bool
+    {
+        return $this->isAdmin()
+            || $classSession->canManage($this);
+    }
+
+    public function classroomParticipantIdentity(ClassSession $classSession): string
+    {
+        return 'class-'.$classSession->id.'-user-'.$this->id;
     }
 
     public static function normalizeUsername(string $value): string

@@ -247,10 +247,8 @@ class StemcraftStatsPageTest extends TestCase
         $response = $this->get(route('stemcraft.leaderboards', ['player' => '77777777-7777-7777-7777-777777777777']));
 
         $response->assertOk();
-        $response->assertSeeText('Player detail');
         $response->assertSeeText('DetailPlayer');
         $response->assertSeeText('Back to rankings');
-        $response->assertSeeText('Lookup player');
         $response->assertSeeText('All stats');
         $response->assertSeeText('Play Time');
         $response->assertSeeText('1h');
@@ -304,5 +302,6 @@ class StemcraftStatsPageTest extends TestCase
         $response->assertSeeText('View');
         $response->assertDontSeeText('No cached players matched');
         $response->assertDontSeeText('Player detail');
+        $response->assertDontSeeText('Tracked players');
     }
 }

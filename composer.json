@@ -10,6 +10,7 @@
         "ext-imagick": "*",
         "ext-mbstring": "*",
         "ext-zip": "*",
+        "agence104/livekit-server-sdk": "^1.3",
         "barryvdh/laravel-dompdf": "^3.1",
         "blaspsoft/blasp": "^3.1",
         "chillerlan/php-qrcode": "^5.0",

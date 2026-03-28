@@ -1,14 +1,18 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Account\ClassroomController as AccountClassroomController;
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BasController;
 use App\Http\Controllers\ChildAccountController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Account\ConnectedAppController;
+use App\Http\Controllers\ClassHelpRequestController;
+use App\Http\Controllers\ClassroomController;
 use App\Http\Controllers\CustomPageController;
 use App\Http\Controllers\Admin\OAuthClientController;
+use App\Http\Controllers\Admin\ClassroomController as AdminClassroomController;
 use App\Http\Controllers\EmailSubscriptionController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\FinanceFileController;
@@ -17,8 +21,12 @@ use App\Http\Controllers\ForumController;
 use App\Http\Controllers\ForumModerationController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\ClassroomChatController;
+use App\Http\Controllers\ClassroomClientErrorController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\MediaController;
+use App\Http\Controllers\LiveKitTokenController;
+use App\Http\Controllers\LiveKitWebhookController;
 use App\Http\Controllers\MinecraftController;
 use App\Http\Controllers\MinecraftWebhookController;
 use App\Http\Controllers\PaymentController;
@@ -124,10 +132,11 @@ Route::get('/invoices/{invoice}/receipts/{payment}/pdf', [InvoiceController::cla
 Route::get('/pay/{invoice}', [InvoiceController::class, 'publicPayShow'])->name('invoice.public.pay.show');
 Route::post('/pay/{invoice}', [InvoiceController::class, 'publicPayProcess'])->middleware('throttle:invoice-public')->name('invoice.public.pay.process');
 Route::post('/pay/{invoice}/email-documents', [InvoiceController::class, 'publicEmailDocuments'])->middleware('throttle:invoice-public')->name('invoice.public.email-documents');
-Route::post('/webhooks/square', [SquareWebhookController::class, 'handle'])->name('webhook.square');
-Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.stemcraft.server');
-Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
-Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
+    Route::post('/webhooks/square', [SquareWebhookController::class, 'handle'])->name('webhook.square');
+    Route::post('/webhooks/stemcraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.stemcraft.server');
+    Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
+    Route::post('/webhooks/livekit', [LiveKitWebhookController::class, 'handle'])->name('webhook.livekit');
+    Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
 
 Route::middleware('nocache')->group(function () {
     Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');
@@ -146,6 +155,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::post('/account/discussions/unsubscribe-all', [AccountController::class, 'unsubscribeAllDiscussionNotifications'])->name('account.discussions.unsubscribe-all');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
+    Route::get('/account/classrooms', [AccountClassroomController::class, 'index'])->name('account.classrooms.index');
     Route::get('/account/connected-apps', [ConnectedAppController::class, 'index'])->name('account.oauth-apps.index');
     Route::delete('/account/connected-apps', [ConnectedAppController::class, 'destroyAll'])->name('account.oauth-apps.destroy-all');
     Route::delete('/account/connected-apps/{client}', [ConnectedAppController::class, 'destroy'])->name('account.oauth-apps.destroy');
@@ -169,6 +179,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/children/{child}/forum-posts/{forumPost}/reject', [ChildAccountController::class, 'rejectPost'])->name('account.children.post.reject');
     Route::get('/account/stemcraft', [MinecraftController::class, 'accountIndex'])->name('account.stemcraft.index');
     Route::patch('/account/stemcraft/accounts/{minecraftAccount}/owner', [MinecraftController::class, 'accountUpdateOwner'])->name('account.stemcraft.owner.update');
+    Route::get('/class/{classSession}', [ClassroomController::class, 'show'])->name('class.show');
+    Route::get('/class/{classSession}/help-requests', [ClassHelpRequestController::class, 'index'])->name('class.help-requests.index');
+    Route::post('/class/{classSession}/help-request', [ClassHelpRequestController::class, 'store'])->name('class.help-requests.store');
+    Route::post('/class/{classSession}/help-request/{helpRequest}/approve', [ClassHelpRequestController::class, 'approve'])->name('class.help-requests.approve');
+    Route::post('/class/{classSession}/help-request/{helpRequest}/revoke', [ClassHelpRequestController::class, 'revoke'])->name('class.help-requests.revoke');
+    Route::post('/class/{classSession}/chat', [ClassroomChatController::class, 'store'])->name('class.chat.store');
+    Route::post('/class/{classSession}/client-error', [ClassroomClientErrorController::class, 'store'])->name('class.client-error.store');
+    Route::post('/api/livekit/token', [LiveKitTokenController::class, 'store'])->name('livekit.token');
 
     Route::middleware('full-account')->group(function () {
         Route::get('/account/invoices', [InvoiceController::class, 'accountIndex'])->name('account.invoice.index');
@@ -293,6 +311,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/oauth-clients/{client}', [OAuthClientController::class, 'update'])->name('admin.oauth-clients.update');
     Route::post('/admin/oauth-clients/{client}/rotate-secret', [OAuthClientController::class, 'rotateSecret'])->name('admin.oauth-clients.rotate-secret');
     Route::delete('/admin/oauth-clients/{client}', [OAuthClientController::class, 'destroy'])->name('admin.oauth-clients.destroy');
+    Route::get('/admin/classrooms', [AdminClassroomController::class, 'index'])->name('admin.classroom.index');
+    Route::get('/admin/classrooms/create', [AdminClassroomController::class, 'create'])->name('admin.classroom.create');
+    Route::post('/admin/classrooms', [AdminClassroomController::class, 'store'])->name('admin.classroom.store');
+    Route::get('/admin/classrooms/{classSession}/duplicate', [AdminClassroomController::class, 'duplicate'])->name('admin.classroom.duplicate');
+    Route::get('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'edit'])->name('admin.classroom.edit');
+    Route::put('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'update'])->name('admin.classroom.update');
+    Route::delete('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'destroy'])->name('admin.classroom.destroy');
     Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
     Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
     Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');

@@ -5,6 +5,7 @@
 - Added OpenID/OAuth2 support
 - Dependency updates
 - User account and leaderboard cleanup
+- Added classroom support
 
 ## 1.4.2
 
