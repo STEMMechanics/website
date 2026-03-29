@@ -32,6 +32,6 @@ class StemcraftPublicPagesTest extends TestCase
 
         $this->get(route('stemcraft.leaderboards'))
             ->assertOk()
-            ->assertSee('Cached STEMCraft player stats');
+            ->assertSee('No player stats available yet');
     }
 }

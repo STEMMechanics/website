@@ -4,8 +4,10 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Passport\Client as PassportClient;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 class SecurityHeaders
 {
@@ -95,6 +97,14 @@ class SecurityHeaders
      */
     private function oauthCallbackOrigins(): array
     {
+        try {
+            if (! Schema::hasTable('oauth_clients')) {
+                return [];
+            }
+        } catch (Throwable) {
+            return [];
+        }
+
         return PassportClient::query()
             ->where('revoked', false)
             ->get()

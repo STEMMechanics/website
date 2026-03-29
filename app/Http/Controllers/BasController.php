@@ -86,7 +86,7 @@ class BasController extends Controller
             $selectedMonth = now()->subMonthNoOverflow()->format('Y-m');
         }
 
-        $start = Carbon::createFromFormat('Y-m', $selectedMonth, config('app.timezone'))->startOfMonth();
+        $start = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $end = (clone $start)->endOfMonth();
 
         $expensesQuery = Expense::query()

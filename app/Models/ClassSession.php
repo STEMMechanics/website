@@ -75,7 +75,8 @@ class ClassSession extends Model
 
             $classSession->term_number = $classSession->currentTermNumber();
 
-            $classSession->access_group_slug = $slug;
+            $accessGroupSlug = trim((string) ($classSession->access_group_slug ?? ''));
+            $classSession->access_group_slug = $accessGroupSlug !== '' ? $accessGroupSlug : $slug;
 
             if (is_array($classSession->broadcast_sessions_json)) {
                 $classSession->broadcast_sessions_json = collect($classSession->broadcast_sessions_json)

@@ -1,0 +1,283 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Method App\\Http\\Controllers\\Account\\ConnectedAppController\:\:buildConnectedApps\(\) should return Illuminate\\Support\\Collection\<int, array\{client\: Laravel\\Passport\\Client, scopes\: list\<string\>, last_authorized_at\: string\|null, token_count\: int\}\> but returns Illuminate\\Support\\Collection\<int, array\{client\: Laravel\\Passport\\Client, scopes\: array\<int, mixed\>, last_authorized_at\: mixed, token_count\: int\}\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/Account/ConnectedAppController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$username\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Property App\\Models\\ClassSession\:\:\$room_name \(string\) does not accept null\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Property App\\Models\\ClassSession\:\:\$slug \(string\) does not accept null\.$#'
+			identifier: assign.propertyType
+			count: 1
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>forum_category_id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>name" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Http/Controllers/Admin/ClassroomController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Passport\\Client\:\:\$grant_types\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Http/Controllers/Admin/OAuthClientController.php
+
+		-
+			message: '#^Method App\\Http\\Controllers\\ChildAccountController\:\:managedChildAccounts\(\) should return Illuminate\\Database\\Eloquent\\Collection\<int, App\\Models\\User\> but returns Illuminate\\Database\\Eloquent\\Collection\<int, Illuminate\\Database\\Eloquent\\Model\>\.$#'
+			identifier: return.type
+			count: 1
+			path: app/Http/Controllers/ChildAccountController.php
+
+		-
+			message: '#^Property App\\Http\\Controllers\\ClassHelpRequestController\:\:\$tokenService is never read, only written\.$#'
+			identifier: property.onlyWritten
+			count: 1
+			path: app/Http/Controllers/ClassHelpRequestController.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: app/Http/Controllers/ClassHelpRequestController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/ClassroomClientErrorController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>username" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Http/Controllers/ClassroomClientErrorController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: string, label\: non\-falsy\-string\}, Closure\(App\\Models\\User\)\: array\{id\: string, label\: non\-falsy\-string\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Http/Controllers/MinecraftController.php
+
+		-
+			message: '#^Access to an undefined property Laravel\\Passport\\Client\:\:\$redirect_uris\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Http/Middleware/SecurityHeaders.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$username\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Models/ClassSession.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Models/ClassSession.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>username" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/ClassSession.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>year" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Models/ClassSession.php
+
+		-
+			message: '#^Return type \(Illuminate\\Database\\Eloquent\\Relations\\HasMany\<App\\Models\\Token, \$this\(App\\Models\\User\)\>\) of method App\\Models\\User\:\:tokens\(\) should be compatible with return type \(Illuminate\\Database\\Eloquent\\Relations\\HasMany\<Laravel\\Passport\\Token, Illuminate\\Foundation\\Auth\\User\>\) of method Laravel\\Passport\\Contracts\\OAuthenticatable\:\:tokens\(\)$#'
+			identifier: method.childReturnType
+			count: 1
+			path: app/Models/User.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:canManage\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Policies/ClassSessionPolicy.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>classroom_sessions_json" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Classroom/ClassroomAdminSyncService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$username\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:hasGroup\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:isAdmin\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:roleForUser\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>username" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/Classroom/ClassroomChatService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 3
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$username\.$#'
+			identifier: property.notFound
+			count: 4
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 6
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Offset ''label'' on array\{starts_at\: string\|null, ends_at\: string\|null, label\: string\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>forumCategory" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>username" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 6
+			path: app/Services/Classroom/ClassroomStateService.php
+
+		-
+			message: '#^Call to function method_exists\(\) with Livekit\\ParticipantInfo and ''getName'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: app/Services/LiveKit/LiveKitParticipantService.php
+
+		-
+			message: '#^Parameter \#1 \$var of method Livekit\\ParticipantPermission\:\:setCanPublishSources\(\) expects Google\\Protobuf\\Internal\\RepeatedField&iterable\<int\>, array given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/LiveKit/LiveKitParticipantService.php
+
+		-
+			message: '#^Parameter \#1 \$var of method Livekit\\ParticipantPermission\:\:setCanPublishSources\(\) expects Google\\Protobuf\\Internal\\RepeatedField&iterable\<int\>, array\<int, int\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/LiveKit/LiveKitParticipantService.php
+
+		-
+			message: '#^Parameter \#1 \$var of method Livekit\\ParticipantPermission\:\:setCanPublishSources\(\) expects Google\\Protobuf\\Internal\\RepeatedField&iterable\<int\>, list\<int\> given\.$#'
+			identifier: argument.type
+			count: 1
+			path: app/Services/LiveKit/LiveKitParticipantService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$username\.$#'
+			identifier: property.notFound
+			count: 2
+			path: app/Services/LiveKit/LiveKitTokenService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:getName\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: app/Services/LiveKit/LiveKitTokenService.php
+
+		-
+			message: '#^Method App\\Services\\LiveKit\\LiveKitTokenService\:\:publishSourcesForHelpRequest\(\) is unused\.$#'
+			identifier: method.unused
+			count: 1
+			path: app/Services/LiveKit/LiveKitTokenService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>username" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 2
+			path: app/Services/LiveKit/LiveKitTokenService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: app/Services/WorkshopTicketOrderEmailService.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>registration" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: app/Services/WorkshopTicketOrderEmailService.php
