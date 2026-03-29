@@ -56,6 +56,18 @@
         'initialReportAuthor' => $reportAuthor,
         'titleModalOpen' => $titleModalOpen,
     ];
+
+    $tabs = [];
+    if ($category->classSession) {
+        $tabs[] = [
+            'title' => 'Course',
+            'route' => route('class.show', $category->classSession),
+        ];
+        $tabs[] = [
+            'title' => 'Forum',
+            'route' => route('forum.category.show', $category->slug),
+        ];
+    }
 @endphp
 
 <script>
@@ -63,7 +75,7 @@
 </script>
 
 <x-layout>
-    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">{!! $topic->formattedTitle(false) !!}</x-mast>
+    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}" :tabs="$tabs">{!! $topic->formattedTitle(false) !!}</x-mast>
 
     <x-container class="py-8" id="forum-topic-page">
         <div id="forum-topic-meta">

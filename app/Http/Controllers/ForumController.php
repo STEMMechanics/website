@@ -40,6 +40,7 @@ class ForumController extends Controller
     public function showCategory(Request $request, string $categorySlug): View|RedirectResponse
     {
         $category = $this->findCategoryOrFail($categorySlug);
+        $category->loadMissing('classSession');
         abort_if($category->isDivider(), 404);
         $user = $request->user();
 

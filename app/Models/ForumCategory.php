@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class ForumCategory extends Model
@@ -39,6 +40,11 @@ class ForumCategory extends Model
         return $this->hasManyThrough(ForumPost::class, ForumTopic::class)
             ->where('forum_topics.is_approved', true)
             ->where('forum_posts.is_approved', true);
+    }
+
+    public function classSession(): HasOne
+    {
+        return $this->hasOne(ClassSession::class, 'forum_category_id');
     }
 
     public function canRead(?User $user): bool

@@ -28,21 +28,20 @@ class ClassHelpRequestFlowTest extends TestCase
             'email' => 'student.one@example.com',
         ]);
 
-        UserGroup::query()->create([
-            'user_id' => (string) $teacher->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
-        UserGroup::query()->create([
-            'user_id' => (string) $student->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
         $classSession = ClassSession::query()->create([
             'title' => 'Microbit T1',
             'slug' => 'microbit-t1',
             'room_name' => 'microbit-t1',
-            'access_group_slug' => 'microbit-t1-2026',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $teacher->id,
+            'slug' => $classSession->slug,
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $student->id,
+            'slug' => $classSession->slug,
         ]);
 
         ClassEnrolment::query()->create([
@@ -84,21 +83,20 @@ class ClassHelpRequestFlowTest extends TestCase
             'email' => 'student.two@example.com',
         ]);
 
-        UserGroup::query()->create([
-            'user_id' => (string) $teacher->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
-        UserGroup::query()->create([
-            'user_id' => (string) $student->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
         $classSession = ClassSession::query()->create([
             'title' => 'Microbit T1',
             'slug' => 'microbit-t1',
             'room_name' => 'microbit-t1',
-            'access_group_slug' => 'microbit-t1-2026',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $teacher->id,
+            'slug' => $classSession->slug,
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $student->id,
+            'slug' => $classSession->slug,
         ]);
 
         ClassEnrolment::query()->create([
@@ -139,21 +137,20 @@ class ClassHelpRequestFlowTest extends TestCase
             'email' => 'student.five@example.com',
         ]);
 
-        UserGroup::query()->create([
-            'user_id' => (string) $teacher->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
-        UserGroup::query()->create([
-            'user_id' => (string) $student->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
         $classSession = ClassSession::query()->create([
             'title' => 'Microbit T1',
             'slug' => 'microbit-t1',
             'room_name' => 'microbit-t1',
-            'access_group_slug' => 'microbit-t1-2026',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $teacher->id,
+            'slug' => $classSession->slug,
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $student->id,
+            'slug' => $classSession->slug,
         ]);
 
         ClassEnrolment::query()->create([
@@ -201,21 +198,20 @@ class ClassHelpRequestFlowTest extends TestCase
             'email' => 'student.three@example.com',
         ]);
 
-        UserGroup::query()->create([
-            'user_id' => (string) $teacher->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
-        UserGroup::query()->create([
-            'user_id' => (string) $student->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
         $classSession = ClassSession::query()->create([
             'title' => 'Microbit T1',
             'slug' => 'microbit-t1',
             'room_name' => 'microbit-t1',
-            'access_group_slug' => 'microbit-t1-2026',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $teacher->id,
+            'slug' => $classSession->slug,
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $student->id,
+            'slug' => $classSession->slug,
         ]);
 
         ClassEnrolment::query()->create([
@@ -253,16 +249,15 @@ class ClassHelpRequestFlowTest extends TestCase
             'email' => 'teacher.four@example.com',
         ]);
 
-        UserGroup::query()->create([
-            'user_id' => (string) $teacher->id,
-            'slug' => 'microbit-t1-2026',
-        ]);
-
         $classSession = ClassSession::query()->create([
             'title' => 'Microbit T1',
             'slug' => 'microbit-t1',
             'room_name' => 'microbit-t1',
-            'access_group_slug' => 'microbit-t1-2026',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $teacher->id,
+            'slug' => $classSession->slug,
         ]);
 
         ClassEnrolment::query()->create([

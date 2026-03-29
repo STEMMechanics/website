@@ -66,7 +66,7 @@ class WorkshopTicketService
 
     public function canStartTicketCheckout(Workshop $workshop): bool
     {
-        if ($workshop->registration !== 'tickets') {
+        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
             return false;
         }
 
@@ -92,7 +92,7 @@ class WorkshopTicketService
 
     public function syncManagedTicketStatus(Workshop $workshop): void
     {
-        if ($workshop->registration !== 'tickets') {
+        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
             return;
         }
 

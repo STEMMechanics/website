@@ -49,10 +49,37 @@ function readRootConfig() {
         helpRequestStoreEndpoint: root.dataset.helpRequestStoreEndpoint || '',
         helpRequestApprovePattern: root.dataset.helpRequestApprovePattern || '',
         helpRequestRevokePattern: root.dataset.helpRequestRevokePattern || '',
+        broadcastStartEndpoint: root.dataset.broadcastStartEndpoint || '',
+        broadcastEndEndpoint: root.dataset.broadcastEndEndpoint || '',
         chatStoreEndpoint: root.dataset.chatStoreEndpoint || '',
         clientErrorEndpoint: root.dataset.clientErrorEndpoint || '',
         csrfToken: root.dataset.csrfToken || document.head.querySelector('meta[name="csrf-token"]')?.content || '',
     };
+}
+
+function mergeClassroomState(currentState, nextState) {
+    if (!currentState) {
+        return nextState;
+    }
+
+    if (!nextState) {
+        return currentState;
+    }
+
+    const nextKeys = Object.keys(nextState);
+    const isPartialClassSessionUpdate = nextKeys.length === 1 && nextState.classSession && !nextState.viewer;
+
+    if (isPartialClassSessionUpdate) {
+        return {
+            ...currentState,
+            classSession: {
+                ...currentState.classSession,
+                ...nextState.classSession,
+            },
+        };
+    }
+
+    return nextState;
 }
 
 function asArray(value) {
@@ -115,8 +142,136 @@ function getParticipantLabel(participant) {
     return `${getParticipantUsername(participant)} (${getParticipantRoleLabel(participant)})`;
 }
 
+function getChatMessageUsername(chatMessage) {
+    return String(chatMessage?.username || chatMessage?.name || 'Participant');
+}
+
+function getChatMessageRole(chatMessage) {
+    return String(chatMessage?.role || (chatMessage?.isTeacher ? 'teacher' : 'student'));
+}
+
 function getTrackDisplaySource(trackRef) {
     return Number(trackRef?.source ?? Track.Source.Unknown);
+}
+
+function parseClassroomDateTime(value) {
+    const raw = String(value || '').trim();
+    if (raw === '') {
+        return null;
+    }
+
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatClassroomTimeLabel(date, options = {}) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const localeOptions = {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        ...(options.includeYear ? {year: 'numeric'} : {}),
+    };
+
+    return date.toLocaleString([], localeOptions);
+}
+
+function formatClassroomCountdown(targetDate) {
+    if (!(targetDate instanceof Date) || Number.isNaN(targetDate.getTime())) {
+        return '';
+    }
+
+    const now = new Date();
+    const diffMs = targetDate.getTime() - now.getTime();
+    const diffAbs = Math.abs(diffMs);
+    const minutes = Math.round(diffAbs / 60000);
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+
+    if (diffMs < 0) {
+        if (minutes <= 60) {
+            return `Started ${minutes <= 1 ? 'just now' : `${minutes}m ago`}`;
+        }
+
+        return `Started ${hours}h ${remainingMinutes}m ago`;
+    }
+
+    if (diffMs <= 24 * 60 * 60 * 1000) {
+        if (minutes < 60) {
+            return `Starts in ${minutes <= 1 ? '1 minute' : `${minutes} minutes`}`;
+        }
+
+        return `Starts in ${hours}h ${remainingMinutes}m`;
+    }
+
+    return formatClassroomTimeLabel(targetDate);
+}
+
+function parseClassroomSchedule(schedule) {
+    return asArray(schedule)
+        .map((entry) => ({
+            startsAt: parseClassroomDateTime(entry?.startsAt || entry?.starts_at),
+            endsAt: parseClassroomDateTime(entry?.endsAt || entry?.ends_at),
+        }))
+        .filter((entry) => entry.startsAt || entry.endsAt)
+        .sort((left, right) => {
+            const leftTime = left.startsAt ? left.startsAt.getTime() : Number.MAX_SAFE_INTEGER;
+            const rightTime = right.startsAt ? right.startsAt.getTime() : Number.MAX_SAFE_INTEGER;
+            return leftTime - rightTime;
+        });
+}
+
+function getClassroomIdleState(schedule) {
+    const parsedSchedule = parseClassroomSchedule(schedule);
+    const now = Date.now();
+    const lateStartWindowMs = 60 * 60 * 1000;
+    const relevantSession = parsedSchedule.find((entry) => {
+        if (!entry.startsAt) {
+            return false;
+        }
+
+        const startsAt = entry.startsAt.getTime();
+        return startsAt >= (now - lateStartWindowMs);
+    }) || null;
+
+    if (relevantSession?.startsAt) {
+        const diffMs = relevantSession.startsAt.getTime() - now;
+        if (diffMs < 0 && Math.abs(diffMs) <= lateStartWindowMs) {
+            return {
+                mode: 'expanded',
+                summary: 'The next live stream begins shortly.',
+                icon: 'fa-solid fa-circle-play',
+            };
+        }
+
+        if (diffMs > 0 && diffMs <= 24 * 60 * 60 * 1000) {
+            return {
+                mode: 'compact',
+                summary: formatClassroomCountdown(relevantSession.startsAt)
+                    .replace(/^Starts in\s+/i, 'The next live stream begins in ')
+                    .replace(/^Started\s+/i, 'The next live stream began '),
+                icon: 'fa-solid fa-calendar-clock',
+            };
+        }
+
+        if (diffMs > 24 * 60 * 60 * 1000) {
+            return {
+                mode: 'compact',
+                summary: `The next live stream begins at ${formatClassroomTimeLabel(relevantSession.startsAt, {includeYear: true})}`,
+                icon: 'fa-solid fa-calendar-clock',
+            };
+        }
+    }
+
+    return {
+        mode: 'compact',
+        summary: 'No more live streams are scheduled.',
+        icon: 'fa-regular fa-calendar-xmark',
+    };
 }
 
 function pickTrackForParticipant(trackRefs, participantId) {
@@ -297,7 +452,7 @@ function ParticipantAvatar({
                     type="button"
                     onClick={onClick}
                     title={title || displayName}
-                    className="group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white shadow-sm ring-1 ring-slate-200 transition hover:scale-[1.03] hover:ring-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                    className="group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/70 transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300"
                     style={{backgroundColor}}
                 >
                     {avatarUrl && avatarMode === 'media' ? (
@@ -313,7 +468,7 @@ function ParticipantAvatar({
             ) : (
                 <div
                     title={title || displayName}
-                    className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white shadow-sm ring-1 ring-slate-200"
+                    className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/70"
                     style={{backgroundColor}}
                 >
                     {avatarUrl && avatarMode === 'media' ? (
@@ -329,13 +484,21 @@ function ParticipantAvatar({
             )}
 
             {showTeacherBadge ? (
-                <span className="absolute -right-0.5 -top-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-white bg-slate-950 px-1 text-[9px] font-semibold uppercase leading-none text-white shadow-sm">
-                    T
+                <span
+                    className="absolute -left-1 -top-1 inline-flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border border-white bg-slate-950 shadow-sm"
+                    title="Teacher"
+                    aria-label="Teacher"
+                >
+                    <img src="/toolbox-sm.png" alt="" className="h-full w-full object-contain p-0.5" />
                 </span>
             ) : null}
 
             {showPresenterBadge ? (
-                <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-emerald-500 shadow-sm" />
+                <span
+                    className="absolute -right-1 -top-1 h-5 w-5 rounded-full border-2 border-white bg-emerald-500 shadow-sm"
+                    title="Presenter"
+                    aria-label="Presenter"
+                />
             ) : null}
 
             {(requestBadgeTitle || requestBadgeClickable) ? (
@@ -345,14 +508,14 @@ function ParticipantAvatar({
                         onClick={onRequestBadgeClick}
                         title={requestBadgeTitle || displayName}
                         aria-label={requestBadgeTitle || displayName}
-                        className="absolute -left-0.5 -bottom-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-[10px] text-white shadow-sm transition hover:scale-105 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+                        className="absolute -bottom-1 -left-1 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-[10px] text-white shadow-sm transition hover:scale-105 hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
                     >
                         <i className={requestBadgeIconClass || 'fa-solid fa-video'} aria-hidden="true"></i>
                     </button>
                 ) : (
                     <span
                         title={requestBadgeTitle || displayName}
-                        className="absolute -left-0.5 -bottom-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-[10px] text-white shadow-sm"
+                        className="absolute -bottom-1 -left-1 inline-flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-sky-500 text-[10px] text-white shadow-sm"
                     >
                         <i className={requestBadgeIconClass || 'fa-solid fa-video'} aria-hidden="true"></i>
                     </span>
@@ -410,11 +573,15 @@ async function reportClientError(endpoint, { csrfToken = '', message = '', sourc
     }
 }
 
-function ParticipantMediaCard({ title, subtitle, trackRef, emptyLabel, headerActions = null, panelId = null }) {
+function ParticipantMediaCard({ title, subtitle, trackRef, emptyLabel, headerActions = null, panelId = null, compactWhenEmpty = false, embedded = false }) {
     const hasRenderableTrack = Boolean(trackRef?.publication?.track);
+    const emptyContainerClasses = compactWhenEmpty ? 'flex min-h-[8rem] w-full items-center justify-center p-4' : 'flex min-h-[18rem] w-full items-center justify-center bg-slate-900 p-4';
+    const rootClasses = embedded
+        ? 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-950'
+        : 'overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-lg';
 
     return (
-        <section id={panelId || undefined} className="overflow-hidden rounded-[2rem] border border-slate-200 bg-slate-950 shadow-lg">
+        <section id={panelId || undefined} className={rootClasses}>
             <div className="flex items-start justify-between gap-3 border-b border-slate-800 bg-slate-900 px-5 py-4 text-white">
                 <div className="min-w-0">
                     {subtitle ? <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">{subtitle}</div> : null}
@@ -422,19 +589,20 @@ function ParticipantMediaCard({ title, subtitle, trackRef, emptyLabel, headerAct
                 </div>
                 {headerActions ? <div className="flex flex-wrap items-center justify-end gap-2">{headerActions}</div> : null}
             </div>
-            <div className="flex aspect-video items-center justify-center bg-slate-900 p-4">
+            <div className={hasRenderableTrack ? 'flex flex-1 items-center justify-center bg-slate-900 p-4' : `${emptyContainerClasses} flex-1`}>
                 {hasRenderableTrack ? (
-                    <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[1.5rem] bg-black">
+                    <div className="flex h-full w-full min-h-[24rem] items-center justify-center overflow-hidden rounded-lg bg-black">
                         <VideoTrack
                             trackRef={trackRef}
                             className="h-full w-full object-contain"
                         />
                     </div>
                 ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                        <div className="max-w-md rounded-[1.5rem] border border-white/10 bg-slate-800/90 px-6 py-5 text-center text-slate-200 shadow-lg">
-                            <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Waiting</div>
-                            <div className="mt-2 text-sm leading-6 text-slate-200">{emptyLabel}</div>
+                    <div className="flex h-full w-full flex-1 items-center justify-center p-4">
+                        <div className={`max-w-2xl rounded-lg border px-5 py-4 text-center shadow-lg ${compactWhenEmpty ? 'border-slate-200 bg-white/95 text-slate-800' : 'border-white/10 bg-slate-800/90 text-slate-200'}`}>
+                            <div className={`text-sm font-medium leading-6 ${compactWhenEmpty ? 'text-slate-700' : 'text-slate-200'}`}>
+                                {emptyLabel}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -506,7 +674,7 @@ function CameraSourceMenu({ track, disabled = false, onDeviceError = null }) {
             {open ? (
                 <div
                     ref={menuRef}
-                    className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+                    className="absolute right-0 top-full z-20 mt-2 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-xl"
                 >
                     <div className="px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
                         Camera source
@@ -542,6 +710,7 @@ function LiveChatPanel({
     state,
     participants,
     presenterParticipant,
+    hasPresenterStream = false,
     tokenInfo,
     chatStoreEndpoint,
     helpRequestStoreEndpoint,
@@ -550,6 +719,7 @@ function LiveChatPanel({
     onPromoteRequest,
     onApproveAndStartRequest,
     onDismissRequest,
+    embedded = false,
 }) {
     const room = useRoomContext();
     const [messages, setMessages] = useState(() => asArray(state.chatMessages));
@@ -721,81 +891,114 @@ function LiveChatPanel({
         }
     };
 
+    const rootClassName = embedded
+        ? 'flex h-full min-h-0 flex-col bg-slate-900/95 p-3 text-slate-100'
+        : 'flex h-full min-h-0 flex-col rounded-lg border border-slate-800 bg-slate-900/95 p-4 text-slate-100 shadow-sm';
+
+    const messageNameClass = (chatMessage) => (
+        getChatMessageRole(chatMessage) === 'teacher'
+            ? 'text-sky-300'
+            : 'text-slate-300'
+    );
+
     return (
-        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className={rootClassName}>
             <div className="flex items-center justify-between gap-3">
                 <div>
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Live chat</div>
-                    <h3 className="mt-1 text-base font-semibold text-slate-950">Room conversation</h3>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Live chat</div>
                 </div>
-                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {!state.classSession?.liveChatEnabled
-                        ? 'Forum only'
-                        : teacherConnected
-                            ? 'Enabled'
-                            : 'Waiting for teacher'}
-                </span>
             </div>
 
             {chatEnabled ? (
-                <>
-                    <div className="mt-4 max-h-72 space-y-3 overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                <div className="mt-2 flex min-h-0 flex-1 flex-col">
+                    <div className="min-h-0 flex-1 overflow-y-auto px-0 py-0">
                         {messages.length === 0 ? (
-                            <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+                            <div className="flex h-full min-h-[10rem] items-center justify-center p-4 text-sm text-slate-400">
                                 No live chat messages yet.
                             </div>
                         ) : (
-                            messages.map((chatMessage) => {
-                                const isSelf = chatMessage?.identity === tokenInfo?.participantIdentity;
-                                const sentAt = chatMessage?.createdAt ? new Date(chatMessage.createdAt) : null;
-                                const timeLabel = sentAt && ! Number.isNaN(sentAt.getTime())
-                                    ? sentAt.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
-                                    : '';
+                            <div className="flex flex-col">
+                                {messages.map((chatMessage) => {
+                                    const isSelf = chatMessage?.identity === tokenInfo?.participantIdentity;
+                                    const sentAt = chatMessage?.createdAt ? new Date(chatMessage.createdAt) : null;
+                                    const timeLabel = sentAt && ! Number.isNaN(sentAt.getTime())
+                                        ? sentAt.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
+                                        : '';
 
-                                return (
-                                    <div
-                                        key={chatMessage.id}
-                                        className={`rounded-2xl border px-3 py-2 ${isSelf ? 'ml-8 border-sky-200 bg-sky-100' : 'mr-8 border-slate-200 bg-white'}`}
-                                    >
-                                        <div className="flex items-center justify-between gap-3 text-xs font-semibold text-slate-500">
-                                            <span>{chatMessage.name || 'Participant'}</span>
-                                            <span>{timeLabel}</span>
+                                    return (
+                                        <div
+                                            key={chatMessage.id}
+                                            className="w-full py-1"
+                                        >
+                                            <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+                                                <span className={messageNameClass(chatMessage)}>{getChatMessageUsername(chatMessage)}</span>
+                                                <span className="text-slate-400">{timeLabel}</span>
+                                            </div>
+                                            <p className={`mt-0 text-sm leading-6 text-slate-100 ${isSelf ? 'pl-2' : ''}`}>{chatMessage.displayMessage || chatMessage.message}</p>
                                         </div>
-                                        <p className="mt-1 text-sm leading-6 text-slate-800">{chatMessage.displayMessage || chatMessage.message}</p>
-                                    </div>
-                                );
-                            })
+                                    );
+                                })}
+                            </div>
                         )}
                     </div>
 
-                    <form onSubmit={sendMessage} className="mt-3 space-y-2">
-                        <label className="sr-only" htmlFor="classroom-chat-message">
-                            Send a message
-                        </label>
-                        <textarea
-                            id="classroom-chat-message"
-                            value={draft}
-                            onChange={(event) => setDraft(event.target.value)}
-                            rows={3}
-                            placeholder="Type a short message..."
-                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                        />
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs leading-5 text-slate-500">
-                                Keep the live chat brief. Longer discussion can continue in the forum.
-                            </p>
+                    <div className="mt-auto space-y-1 pt-0">
+                        <form onSubmit={sendMessage} className="flex items-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950">
+                            <label className="sr-only" htmlFor="classroom-chat-message">
+                                Send a message
+                            </label>
+                            <input
+                                id="classroom-chat-message"
+                                value={draft}
+                                onChange={(event) => setDraft(event.target.value)}
+                                placeholder="Type a message"
+                                className="min-w-0 flex-1 border-0 bg-transparent px-4 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:ring-0"
+                            />
                             <button
                                 type="submit"
                                 disabled={isSending || draft.trim() === ''}
-                                className="rounded-full bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                                className="border-l border-slate-700 bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700"
                             >
                                 Send
                             </button>
+                        </form>
+
+                        <div className="mt-4 flex flex-wrap items-center justify-start gap-2">
+                            {orderedParticipants.length > 0 ? orderedParticipants.map((participant) => {
+                                const participantUserId = getParticipantUserId(participant);
+                                const request = pendingRequestByUserId.get(participantUserId) || null;
+                                const isPresenter = hasPresenterStream && participant.identity === presenterParticipant?.identity;
+                                const isStudent = getParticipantRole(participant) === 'student';
+                                const requestBadgeIconClass = request?.type === 'screen'
+                                    ? 'fa-solid fa-display'
+                                    : request?.type === 'camera'
+                                        ? 'fa-solid fa-video'
+                                        : null;
+
+                                return (
+                                    <ParticipantAvatar
+                                        key={participant.identity}
+                                        participant={participant}
+                                        title={getParticipantLabel(participant)}
+                                        onClick={isTeacher && isStudent ? () => setRequestTarget({
+                                            participant,
+                                            userId: resolveParticipantUserId(participant, state),
+                                            identity: resolveParticipantIdentity(participant),
+                                            label: getParticipantLabel(participant),
+                                        }) : null}
+                                        showTeacherBadge={getParticipantRole(participant) === 'teacher'}
+                                        showPresenterBadge={isPresenter}
+                                        requestBadgeTitle={request ? `${request.requestedByName || 'Teacher'} requested ${request.typeLabel.toLowerCase()}` : null}
+                                        requestBadgeIconClass={requestBadgeIconClass}
+                                        onRequestBadgeClick={isTeacher && request ? () => cancelRequest(request) : null}
+                                    />
+                                );
+                            }) : null}
                         </div>
-                    </form>
-                </>
-            ) : (
-                <div className="mt-3 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-600">
+                    </div>
+                </div>
+                ) : (
+                <div className="mt-2 flex min-h-0 flex-1 items-center rounded-lg border border-dashed border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-400">
                     {state.classSession?.liveChatEnabled
                         ? 'Live chat opens when the teacher joins the room.'
                         : 'Live chat is turned off for this session. Use the forum for longer discussion.'}
@@ -803,13 +1006,13 @@ function LiveChatPanel({
             )}
 
             {error ? (
-                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                     {error}
                 </div>
             ) : null}
 
             {isTeacher && recentRequest && ['done', 'rejected'].includes(recentRequest.status) ? (
-                <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                <div className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
                     <div className="font-semibold">Broadcast update.</div>
                     <div className="mt-1 leading-6">
                         {describeHelpRequestResolution(recentRequest)}
@@ -819,12 +1022,12 @@ function LiveChatPanel({
 
             {requestTarget && isTeacher ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6">
-                    <div className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-5 shadow-2xl">
-                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Request broadcast</div>
-                        <div className="mt-2 text-lg font-semibold text-slate-950">
+                    <div className="w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 p-5 text-slate-100 shadow-2xl">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Request broadcast</div>
+                        <div className="mt-2 text-lg font-semibold text-slate-50">
                             Ask {requestTarget.label} to publish.
                         </div>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
+                        <p className="mt-2 text-sm leading-6 text-slate-300">
                             They will see a prompt to accept or reject camera or screen sharing.
                         </p>
                         <div className="mt-4 flex flex-wrap gap-2">
@@ -856,7 +1059,7 @@ function LiveChatPanel({
 
             {currentMine && currentMine.status === 'pending' ? (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6">
-                    <div className="w-full max-w-md rounded-[2rem] border border-slate-200 bg-white p-5 shadow-2xl">
+                    <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl">
                         <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Broadcast request</div>
                         <div className="mt-2 text-lg font-semibold text-slate-950">
                             {currentMine.requestedByName || 'Teacher'} requested your {currentMine.typeLabel.toLowerCase()}.
@@ -884,38 +1087,6 @@ function LiveChatPanel({
                 </div>
             ) : null}
 
-            <div className="mt-4 flex flex-wrap gap-2">
-                {orderedParticipants.length > 0 ? orderedParticipants.map((participant) => {
-                    const participantUserId = getParticipantUserId(participant);
-                    const request = pendingRequestByUserId.get(participantUserId) || null;
-                    const isPresenter = participant.identity === presenterParticipant?.identity;
-                    const isStudent = getParticipantRole(participant) === 'student';
-                    const requestBadgeIconClass = request?.type === 'screen'
-                        ? 'fa-solid fa-display'
-                        : request?.type === 'camera'
-                            ? 'fa-solid fa-video'
-                            : null;
-
-                    return (
-                        <ParticipantAvatar
-                            key={participant.identity}
-                            participant={participant}
-                            title={getParticipantLabel(participant)}
-                            onClick={isTeacher && isStudent ? () => setRequestTarget({
-                                participant,
-                                userId: resolveParticipantUserId(participant, state),
-                                identity: resolveParticipantIdentity(participant),
-                                label: getParticipantLabel(participant),
-                            }) : null}
-                            showTeacherBadge={getParticipantRole(participant) === 'teacher'}
-                            showPresenterBadge={isPresenter}
-                            requestBadgeTitle={request ? `${request.requestedByName || 'Teacher'} requested ${request.typeLabel.toLowerCase()}` : null}
-                            requestBadgeIconClass={requestBadgeIconClass}
-                            onRequestBadgeClick={isTeacher && request ? () => cancelRequest(request) : null}
-                        />
-                    );
-                }) : null}
-            </div>
         </section>
     );
 }
@@ -927,12 +1098,15 @@ function ClassroomRoomContent({
     chatStoreEndpoint,
     clientErrorEndpoint,
     helpRequestStoreEndpoint,
+    broadcastStartEndpoint,
+    broadcastEndEndpoint,
     endpoints,
     onStateUpdate,
     flashMessage,
     setFlashMessage,
 }) {
     const room = useRoomContext();
+    const { message: classroomStateMessage, send: sendClassroomState } = useDataChannel('classroom-state');
     const participants = useParticipants();
     const tracks = useTracks(TRACK_SOURCES);
     const {
@@ -960,12 +1134,74 @@ function ClassroomRoomContent({
 
     const presenterTitle = presenterParticipant ? getParticipantLabel(presenterParticipant) : 'Teacher';
     const presenterSubtitle = null;
-    const presenterEmptyLabel = activeRequest
-        ? activePresenterParticipant
-            ? `Waiting for ${getParticipantUsername(activePresenterParticipant) || activeRequest?.requestedForUsername || 'the participant'} to start publishing.`
-            : 'The student left. Teacher is back in control.'
-        : 'Waiting for the teacher to join the room.';
-    const noActiveStream = !presenterTrack?.publication?.track;
+    const isBroadcastOpen = Boolean(state.classSession?.isLiveBroadcastOpen);
+    const [localBroadcastEndedAt, setLocalBroadcastEndedAt] = useState(0);
+    const broadcastEndedAt = parseClassroomDateTime(state.classSession?.liveBroadcastEndedAt);
+    const endedReferenceAt = broadcastEndedAt || (localBroadcastEndedAt > 0 ? new Date(localBroadcastEndedAt) : null);
+    const broadcastCloseAt = endedReferenceAt ? new Date(endedReferenceAt.getTime() + (15 * 60 * 1000)) : null;
+    const broadcastRecentlyEnded = Boolean(broadcastCloseAt && broadcastCloseAt.getTime() > Date.now());
+    const classroomSchedule = asArray(state.classSession?.broadcastSchedule?.length ? state.classSession.broadcastSchedule : state.workshop?.classroomSessions);
+    const presenterIdleState = getClassroomIdleState(classroomSchedule);
+    const hasPresenterStream = Boolean(presenterTrack?.publication?.track);
+    const broadcastHasActivePresenter = isBroadcastOpen && hasPresenterStream;
+    const presenterEmptyLabel = isBroadcastOpen
+        ? 'Live stream is open. Waiting for the teacher to join.'
+        : broadcastRecentlyEnded && broadcastCloseAt
+            ? `Live stream ended. This room closes ${formatClassroomCountdown(broadcastCloseAt).replace(/^Starts in /i, 'in ').replace(/^Started /i, 'in ')}.`
+            : presenterIdleState.summary;
+    const presenterIdleIcon = isBroadcastOpen
+        ? 'fa-solid fa-broadcast-tower'
+        : broadcastRecentlyEnded
+            ? 'fa-solid fa-circle-stop'
+            : (presenterIdleState.icon || 'fa-solid fa-calendar-clock');
+    const lastPresenterEndedStorageKey = state?.classSession?.id ? `classroom:last-stream-ended-at:${state.classSession.id}` : '';
+    const lastPresenterWasStreamingRef = React.useRef(hasPresenterStream);
+    const [lastPresenterEndedAt, setLastPresenterEndedAt] = useState(() => {
+        if (typeof window === 'undefined' || lastPresenterEndedStorageKey === '') {
+            return 0;
+        }
+
+        const storedValue = Number(window.localStorage.getItem(lastPresenterEndedStorageKey) || 0);
+        return Number.isFinite(storedValue) && storedValue > 0 ? storedValue : 0;
+    });
+    const [clockTick, setClockTick] = useState(0);
+
+    useEffect(() => {
+        const interval = window.setInterval(() => {
+            setClockTick((value) => value + 1);
+        }, 60_000);
+
+        return () => {
+            window.clearInterval(interval);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (lastPresenterEndedStorageKey === '') {
+            lastPresenterWasStreamingRef.current = hasPresenterStream;
+            return;
+        }
+
+        if (lastPresenterWasStreamingRef.current && !hasPresenterStream) {
+            const endedAt = Date.now();
+            lastPresenterWasStreamingRef.current = false;
+            setLastPresenterEndedAt(endedAt);
+            window.localStorage.setItem(lastPresenterEndedStorageKey, String(endedAt));
+            return;
+        }
+
+        if (hasPresenterStream) {
+            lastPresenterWasStreamingRef.current = true;
+            setLastPresenterEndedAt(0);
+            window.localStorage.removeItem(lastPresenterEndedStorageKey);
+            return;
+        }
+
+        lastPresenterWasStreamingRef.current = false;
+    }, [hasPresenterStream, lastPresenterEndedStorageKey]);
+
+    const recentlyEnded = lastPresenterEndedAt > 0 && (Date.now() - lastPresenterEndedAt) <= (15 * 60 * 1000);
+    const presenterShellExpanded = broadcastHasActivePresenter || isBroadcastOpen || recentlyEnded || broadcastRecentlyEnded || presenterIdleState.mode === 'expanded';
     const [pendingPublishRequest, setPendingPublishRequest] = useState(null);
     const publishAttemptRef = React.useRef('');
     const lastRecentAnnouncementRef = React.useRef('');
@@ -974,10 +1210,92 @@ function ClassroomRoomContent({
     const canPublishMicrophone = canPublishSource(permissions, Track.Source.Microphone);
     const canPublishScreenShare = canPublishSource(permissions, Track.Source.ScreenShare);
     const canChangeCameraDevice = canPublishCamera || Boolean(cameraTrack);
-    const showPublishControls = state.viewer?.role === 'teacher'
-        || canPublishCamera
-        || canPublishMicrophone
-        || canPublishScreenShare;
+
+    const startBroadcast = async () => {
+        if (!broadcastStartEndpoint) {
+            return;
+        }
+
+        try {
+            const payload = await requestJson(broadcastStartEndpoint, {
+                csrfToken,
+            });
+            setLocalBroadcastEndedAt(0);
+            setLastPresenterEndedAt(0);
+            const nextState = payload.state || state;
+            onStateUpdate(nextState);
+            if (payload.state) {
+                await sendClassroomState(new TextEncoder().encode(JSON.stringify({
+                    type: 'classroom-state',
+                    state: {classSession: payload.state.classSession},
+                })), {reliable: true});
+            }
+        } catch (error) {
+            setFlashMessage(error.message || 'Could not start livestream.');
+        }
+    };
+
+    const endBroadcast = async () => {
+        if (!broadcastEndEndpoint) {
+            return;
+        }
+
+        try {
+            const endedAt = Date.now();
+            const optimisticState = {
+                ...state,
+                classSession: {
+                    ...state.classSession,
+                    isLiveBroadcastOpen: false,
+                    liveBroadcastEndedAt: new Date(endedAt).toISOString(),
+                    liveBroadcastEndedByUserId: String(tokenInfo?.userId || tokenInfo?.participantUserId || tokenInfo?.participantIdentity || state.classSession?.liveBroadcastEndedByUserId || ''),
+                },
+            };
+
+            setLocalBroadcastEndedAt(endedAt);
+            setLastPresenterEndedAt(endedAt);
+            onStateUpdate(optimisticState);
+            await sendClassroomState(new TextEncoder().encode(JSON.stringify({
+                type: 'classroom-state',
+                state: {classSession: optimisticState.classSession},
+            })), {reliable: true});
+
+            if (activeRequest) {
+                await revokeRequest(activeRequest, {
+                    participantIdentity: tokenInfo?.participantIdentity || '',
+                    resolution_reason: 'Livestream ended.',
+                });
+            }
+
+            if (room?.localParticipant) {
+                const stopTasks = [];
+                if (isCameraEnabled) {
+                    stopTasks.push(room.localParticipant.setCameraEnabled(false));
+                }
+                if (isScreenShareEnabled) {
+                    stopTasks.push(room.localParticipant.setScreenShareEnabled(false));
+                }
+
+                if (stopTasks.length > 0) {
+                    await Promise.allSettled(stopTasks);
+                }
+            }
+
+            const payload = await requestJson(broadcastEndEndpoint, {
+                csrfToken,
+            });
+            const nextState = payload.state || optimisticState;
+            onStateUpdate(nextState);
+            if (payload.state) {
+                await sendClassroomState(new TextEncoder().encode(JSON.stringify({
+                    type: 'classroom-state',
+                    state: {classSession: payload.state.classSession},
+                })), {reliable: true});
+            }
+        } catch (error) {
+            setFlashMessage(error.message || 'Could not end livestream.');
+        }
+    };
 
     const clearPendingPublishTracks = () => {
         publishAttemptRef.current = '';
@@ -1070,6 +1388,21 @@ function ClassroomRoomContent({
             window.removeEventListener('unhandledrejection', handleUnhandledRejection);
         };
     }, [clientErrorEndpoint, csrfToken, myRequest?.status, myRequest?.type, state?.classSession?.id, state?.classSession?.slug, tokenInfo?.participantIdentity]);
+
+    useEffect(() => {
+        const payload = classroomStateMessage?.payload;
+        if (!payload) {
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(new TextDecoder().decode(payload));
+            if (parsed?.type === 'classroom-state' && parsed?.state) {
+                onStateUpdate((current) => mergeClassroomState(current, parsed.state));
+            }
+        } catch (_error) {
+        }
+    }, [classroomStateMessage?.payload, onStateUpdate]);
 
     useEffect(() => {
         if (!room?.localParticipant || !pendingPublishRequest || !myRequest) {
@@ -1239,206 +1572,336 @@ function ClassroomRoomContent({
         await panel.requestFullscreen();
     };
 
+    const teacherHeaderActions = state.viewer?.canManage ? (
+        <div className="flex flex-wrap items-center gap-2">
+            <TrackToggle
+                source={Track.Source.Microphone}
+                showIcon
+                disabled={!canPublishMicrophone}
+                initialState={false}
+                onDeviceError={(error) => setFlashMessage(error.message)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Microphone"
+                aria-label="Microphone"
+            />
+            <TrackToggle
+                source={Track.Source.Camera}
+                showIcon
+                disabled={!canPublishCamera}
+                initialState={false}
+                onDeviceError={(error) => setFlashMessage(error.message)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Camera"
+                aria-label="Camera"
+            />
+            <CameraSourceMenu
+                track={cameraTrack?.track}
+                disabled={!canChangeCameraDevice}
+                onDeviceError={(error) => setFlashMessage(error.message)}
+            />
+            <TrackToggle
+                source={Track.Source.ScreenShare}
+                showIcon
+                disabled={!canPublishScreenShare}
+                initialState={false}
+                captureOptions={{audio: true, selfBrowserSurface: 'include'}}
+                onDeviceError={(error) => setFlashMessage(error.message)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                title="Screen share"
+                aria-label="Screen share"
+            />
+            <button
+                type="button"
+                onClick={() => void toggleFullscreen()}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+                title="Fullscreen"
+                aria-label="Fullscreen"
+            >
+                <i className="fa-solid fa-expand" aria-hidden="true"></i>
+            </button>
+            {activeRequest ? (
+                <button
+                    type="button"
+                    onClick={() => revokeRequest(activeRequest)}
+                    className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                    title="Take control"
+                    aria-label="Take control"
+                >
+                    Take control
+                </button>
+            ) : null}
+            {isBroadcastOpen ? (
+                <button
+                    type="button"
+                    onClick={() => void endBroadcast()}
+                    className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                    title="End livestream"
+                    aria-label="End livestream"
+                >
+                    <i className="fa-solid fa-circle-stop mr-2" aria-hidden="true"></i>
+                    End livestream
+                </button>
+            ) : null}
+        </div>
+    ) : null;
+
     return (
         <>
             <RoomAudioRenderer />
 
-            <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
-                <h1 className="text-3xl font-semibold text-slate-950">{state.classSession?.title}</h1>
-                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                    {state.classSession?.summary || 'A calm, structured LiveKit classroom.'}
-                </p>
-            </div>
+            <div className="space-y-6">
+                {broadcastHasActivePresenter ? (
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
+                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                            <ParticipantMediaCard
+                                embedded
+                                panelId={presenterPanelId}
+                                title={presenterTitle}
+                                subtitle={presenterSubtitle}
+                                trackRef={presenterTrack}
+                                emptyLabel={presenterIdleState.summary}
+                                headerActions={
+                                    state.viewer?.canManage ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <TrackToggle
+                                                source={Track.Source.Microphone}
+                                                showIcon
+                                                disabled={!canPublishMicrophone}
+                                                initialState={false}
+                                                onDeviceError={(error) => setFlashMessage(error.message)}
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                title="Microphone"
+                                                aria-label="Microphone"
+                                            />
+                                            <TrackToggle
+                                                source={Track.Source.Camera}
+                                                showIcon
+                                                disabled={!canPublishCamera}
+                                                initialState={false}
+                                                onDeviceError={(error) => setFlashMessage(error.message)}
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                title="Camera"
+                                                aria-label="Camera"
+                                            />
+                                            <CameraSourceMenu
+                                                track={cameraTrack?.track}
+                                                disabled={!canChangeCameraDevice}
+                                                onDeviceError={(error) => setFlashMessage(error.message)}
+                                            />
+                                            <TrackToggle
+                                                source={Track.Source.ScreenShare}
+                                                showIcon
+                                                disabled={!canPublishScreenShare}
+                                                initialState={false}
+                                                captureOptions={{audio: true, selfBrowserSurface: 'include'}}
+                                                onDeviceError={(error) => setFlashMessage(error.message)}
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+                                                title="Screen share"
+                                                aria-label="Screen share"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => void toggleFullscreen()}
+                                                className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
+                                                title="Fullscreen"
+                                                aria-label="Fullscreen"
+                                            >
+                                                <i className="fa-solid fa-expand" aria-hidden="true"></i>
+                                            </button>
+                                            {activeRequest ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => revokeRequest(activeRequest)}
+                                                    className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                                    title="Take control"
+                                                    aria-label="Take control"
+                                                >
+                                                    Take control
+                                                </button>
+                                            ) : null}
+                                            {isBroadcastOpen ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void endBroadcast()}
+                                                    className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                                    title="End livestream"
+                                                    aria-label="End livestream"
+                                                >
+                                                    <i className="fa-solid fa-circle-stop mr-2" aria-hidden="true"></i>
+                                                    End livestream
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    ) : myRequest?.status === 'approved' ? (
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
+                                                {studentStartingPublish
+                                                        ? `Starting ${myRequest.typeLabel.toLowerCase()}...`
+                                                        : studentSharingActive
+                                                            ? `${myRequest.typeLabel} live`
+                                                            : `Ready for ${myRequest.typeLabel.toLowerCase()}`}
+                                            </span>
+                                            {studentSharingActive ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => void stopMySharing()}
+                                                    className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                                    title="Stop sharing"
+                                                    aria-label="Stop sharing"
+                                                >
+                                                    Stop sharing
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    ) : null
+                                }
+                            />
 
-            <div className="grid gap-6 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
-                <div className="space-y-6">
-                    <ParticipantMediaCard
-                        panelId={presenterPanelId}
-                        title={presenterTitle}
-                        subtitle={presenterSubtitle}
-                        trackRef={presenterTrack}
-                        emptyLabel={presenterEmptyLabel}
-                        headerActions={
-                            state.viewer?.role === 'teacher' ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <TrackToggle
-                                        source={Track.Source.Microphone}
-                                        showIcon
-                                        disabled={!canPublishMicrophone}
-                                        initialState={false}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Microphone"
-                                        aria-label="Microphone"
-                                    />
-                                    <TrackToggle
-                                        source={Track.Source.Camera}
-                                        showIcon
-                                        disabled={!canPublishCamera}
-                                        initialState={false}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Camera"
-                                        aria-label="Camera"
-                                    />
-                                    <CameraSourceMenu
-                                        track={cameraTrack?.track}
-                                        disabled={!canChangeCameraDevice}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                    />
-                                    <TrackToggle
-                                        source={Track.Source.ScreenShare}
-                                        showIcon
-                                        disabled={!canPublishScreenShare}
-                                        initialState={false}
-                                        captureOptions={{audio: true, selfBrowserSurface: 'include'}}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Screen share"
-                                        aria-label="Screen share"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => void toggleFullscreen()}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
-                                        title="Fullscreen"
-                                        aria-label="Fullscreen"
-                                    >
-                                        <i className="fa-solid fa-expand" aria-hidden="true"></i>
-                                    </button>
-                                    {activeRequest ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => revokeRequest(activeRequest)}
-                                            className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
-                                            title="Take control"
-                                            aria-label="Take control"
-                                        >
-                                            Take control
-                                        </button>
+                            <div className="min-h-0 border-t border-slate-800 xl:border-l xl:border-t-0">
+                                <LiveChatPanel
+                                    embedded
+                                    state={state}
+                                    participants={participants}
+                                    presenterParticipant={presenterParticipant}
+                                    hasPresenterStream={broadcastHasActivePresenter}
+                                    tokenInfo={tokenInfo}
+                                    chatStoreEndpoint={chatStoreEndpoint}
+                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                    csrfToken={csrfToken}
+                                    onStateUpdate={onStateUpdate}
+                                    onPromoteRequest={approveRequest}
+                                    onApproveAndStartRequest={(request) => {
+                                        setPendingPublishRequest({
+                                            id: request.id,
+                                            type: request.type,
+                                        });
+                                    }}
+                                    onDismissRequest={revokeRequest}
+                                />
+                            </div>
+                        </div>
+                    </section>
+                ) : isBroadcastOpen ? (
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
+                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                            <ParticipantMediaCard
+                                embedded
+                                panelId={presenterPanelId}
+                                title={presenterTitle}
+                                subtitle={presenterSubtitle}
+                                trackRef={presenterTrack}
+                                emptyLabel={presenterEmptyLabel}
+                                headerActions={teacherHeaderActions}
+                            />
+
+                            <div className="min-h-0 border-t border-slate-800 xl:border-l xl:border-t-0">
+                                <LiveChatPanel
+                                    embedded
+                                    state={state}
+                                    participants={participants}
+                                    presenterParticipant={presenterParticipant}
+                                    hasPresenterStream={broadcastHasActivePresenter}
+                                    tokenInfo={tokenInfo}
+                                    chatStoreEndpoint={chatStoreEndpoint}
+                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                    csrfToken={csrfToken}
+                                    onStateUpdate={onStateUpdate}
+                                    onPromoteRequest={approveRequest}
+                                    onApproveAndStartRequest={(request) => {
+                                        setPendingPublishRequest({
+                                            id: request.id,
+                                            type: request.type,
+                                        });
+                                    }}
+                                    onDismissRequest={revokeRequest}
+                                />
+                            </div>
+                        </div>
+                    </section>
+                ) : broadcastRecentlyEnded ? (
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
+                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                            <div className="flex min-h-[36rem] items-center justify-center px-6 py-10 text-slate-100">
+                                <div className="max-w-3xl rounded-lg border border-white/10 bg-slate-800/90 px-5 py-4 text-center shadow-lg">
+                                    <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">
+                                        Livestream
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-center gap-3 text-sm font-medium leading-6 text-slate-200">
+                                        <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
+                                        <span>{presenterEmptyLabel}</span>
+                                    </div>
+                                    {state.viewer?.canManage ? (
+                                        <div className="mt-4 flex justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={() => void startBroadcast()}
+                                                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                            >
+                                                <i className="fa-solid fa-circle-play" aria-hidden="true"></i>
+                                                Start livestream
+                                            </button>
+                                        </div>
                                     ) : null}
                                 </div>
-                            ) : myRequest?.status === 'approved' ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <span className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-                                        {studentStartingPublish
-                                                ? `Starting ${myRequest.typeLabel.toLowerCase()}...`
-                                                : studentSharingActive
-                                                    ? `${myRequest.typeLabel} live`
-                                                    : `Ready for ${myRequest.typeLabel.toLowerCase()}`}
-                                    </span>
-                                    {studentSharingActive ? (
-                                        <button
-                                            type="button"
-                                            onClick={() => void stopMySharing()}
-                                            className="inline-flex h-9 items-center rounded-full border border-white/15 bg-white/10 px-3 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
-                                            title="Stop sharing"
-                                            aria-label="Stop sharing"
-                                        >
-                                            Stop sharing
-                                        </button>
-                                    ) : null}
-                                </div>
-                            ) : showPublishControls ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <TrackToggle
-                                        source={Track.Source.Microphone}
-                                        showIcon
-                                        disabled={!canPublishMicrophone}
-                                        initialState={false}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Microphone"
-                                        aria-label="Microphone"
-                                    />
-                                    <TrackToggle
-                                        source={Track.Source.Camera}
-                                        showIcon
-                                        disabled={!canPublishCamera}
-                                        initialState={false}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Camera"
-                                        aria-label="Camera"
-                                    />
-                                    <CameraSourceMenu
-                                        track={cameraTrack?.track}
-                                        disabled={!canChangeCameraDevice}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                    />
-                                    <TrackToggle
-                                        source={Track.Source.ScreenShare}
-                                        showIcon
-                                        disabled={!canPublishScreenShare}
-                                        initialState={false}
-                                        captureOptions={{audio: true, selfBrowserSurface: 'include'}}
-                                        onDeviceError={(error) => setFlashMessage(error.message)}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
-                                        title="Screen share"
-                                        aria-label="Screen share"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => void toggleFullscreen()}
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-white/10 text-white transition hover:bg-white/20"
-                                        title="Fullscreen"
-                                        aria-label="Fullscreen"
-                                    >
-                                        <i className="fa-solid fa-expand" aria-hidden="true"></i>
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white">
-                                    Awaiting teacher approval
-                                </div>
-                            )
-                        }
-                    />
-
-                    {flashMessage ? (
-                        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                            {flashMessage}
+                            </div>
+                            <div className="border-t border-slate-800 xl:border-l xl:border-t-0">
+                                <LiveChatPanel
+                                    embedded
+                                    state={state}
+                                    participants={participants}
+                                    presenterParticipant={presenterParticipant}
+                                    hasPresenterStream={broadcastHasActivePresenter}
+                                    tokenInfo={tokenInfo}
+                                    chatStoreEndpoint={chatStoreEndpoint}
+                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                    csrfToken={csrfToken}
+                                    onStateUpdate={onStateUpdate}
+                                    onPromoteRequest={approveRequest}
+                                    onApproveAndStartRequest={(request) => {
+                                        setPendingPublishRequest({
+                                            id: request.id,
+                                            type: request.type,
+                                        });
+                                    }}
+                                    onDismissRequest={revokeRequest}
+                                />
+                            </div>
                         </div>
-                    ) : null}
-
-                    {noActiveStream ? (
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            No one is broadcasting right now. The classroom is live, but the presenter panel is waiting for a camera or screen share.
+                    </section>
+                ) : (
+                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-1 py-2'}`}>
+                        <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'min-h-[36rem]' : ''}`}>
+                            <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-3 text-sm font-medium'}`}>
+                                <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
+                                <span>{presenterEmptyLabel}</span>
+                            </div>
                         </div>
-                    ) : null}
-                </div>
+                    </section>
+                )}
 
-                <aside className="space-y-4">
-                    <LiveChatPanel
-                        state={state}
-                        participants={participants}
-                        presenterParticipant={presenterParticipant}
-                        tokenInfo={tokenInfo}
-                        chatStoreEndpoint={chatStoreEndpoint}
-                        helpRequestStoreEndpoint={helpRequestStoreEndpoint}
-                        csrfToken={csrfToken}
-                        onStateUpdate={onStateUpdate}
-                        onPromoteRequest={approveRequest}
-                        onApproveAndStartRequest={(request) => {
-                            setPendingPublishRequest({
-                                id: request.id,
-                                type: request.type,
-                            });
-                        }}
-                        onDismissRequest={revokeRequest}
-                    />
-                </aside>
+                {flashMessage ? (
+                    <div className="fixed right-4 top-4 z-50 max-w-md rounded-lg border border-sky-400/20 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-2xl shadow-slate-950/40">
+                        <div className="flex items-start gap-3">
+                            <i className="fa-solid fa-circle-info mt-0.5 text-sky-300" aria-hidden="true"></i>
+                            <div className="min-w-0 leading-6">
+                                {flashMessage}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
 
-                <section className="rounded-[2rem] border border-gray-200 bg-white p-5 shadow-sm xl:col-span-2">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Instructions</div>
-                    {state.classSession?.instructionsHtml ? (
+                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Course</div>
+                    </div>
+                    {state.workshop?.content || state.classSession?.instructionsHtml ? (
                         <div
                             className="prose prose-slate mt-4 max-w-none prose-headings:scroll-m-20 prose-headings:font-semibold prose-p:leading-7 prose-li:leading-7"
-                            dangerouslySetInnerHTML={{ __html: state.classSession.instructionsHtml }}
+                            dangerouslySetInnerHTML={{ __html: state.workshop?.content || state.classSession.instructionsHtml }}
                         />
                     ) : (
                         <p className="mt-3 text-sm leading-6 text-gray-600">
-                            Instructions can be added per class session and shown here.
+                            Course notes can be added per workshop or class session and shown here.
                         </p>
                     )}
                 </section>
@@ -1455,6 +1918,8 @@ function ClassroomRoom({
     chatStoreEndpoint,
     clientErrorEndpoint,
     helpRequestEndpoints,
+    broadcastStartEndpoint,
+    broadcastEndEndpoint,
     onStateUpdate,
     flashMessage,
     setFlashMessage,
@@ -1477,6 +1942,8 @@ function ClassroomRoom({
                 chatStoreEndpoint={chatStoreEndpoint}
                 clientErrorEndpoint={clientErrorEndpoint}
                 helpRequestStoreEndpoint={helpRequestEndpoints.store}
+                broadcastStartEndpoint={broadcastStartEndpoint}
+                broadcastEndEndpoint={broadcastEndEndpoint}
                 endpoints={helpRequestEndpoints}
                 onStateUpdate={onStateUpdate}
                 flashMessage={flashMessage}
@@ -1492,6 +1959,20 @@ function ClassroomApp() {
     const [state, setState] = useState(initialState || null);
     const [tokenInfo, setTokenInfo] = useState(null);
     const [flashMessage, setFlashMessage] = useState('');
+
+    useEffect(() => {
+        if (!flashMessage) {
+            return () => {};
+        }
+
+        const timer = window.setTimeout(() => {
+            setFlashMessage('');
+        }, 5000);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [flashMessage]);
 
     useEffect(() => {
         if (!state || !rootConfig?.tokenEndpoint) {
@@ -1543,7 +2024,7 @@ function ClassroomApp() {
                 });
 
                 if (!cancelled && payload) {
-                    setState(payload);
+                    setState((current) => mergeClassroomState(current, payload));
                 }
             } catch (_error) {
             }
@@ -1576,6 +2057,8 @@ function ClassroomApp() {
             csrfToken={rootConfig.csrfToken}
             chatStoreEndpoint={rootConfig.chatStoreEndpoint}
             clientErrorEndpoint={rootConfig.clientErrorEndpoint}
+            broadcastStartEndpoint={rootConfig.broadcastStartEndpoint}
+            broadcastEndEndpoint={rootConfig.broadcastEndEndpoint}
             helpRequestEndpoints={{
                 store: rootConfig.helpRequestStoreEndpoint,
                 approve: rootConfig.helpRequestApprovePattern,

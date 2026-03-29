@@ -47,12 +47,19 @@ class ClassroomChatService
      */
     public function serialize(ClassChatMessage $chatMessage): array
     {
+        $user = $chatMessage->user;
+        $isTeacher = $user?->isAdmin()
+            || $user?->hasGroup('minecraft-org')
+            || (($chatMessage->classSession?->roleForUser($user) ?? null) === 'teacher');
+
         return [
             'id' => (string) $chatMessage->id,
             'classSessionId' => (string) $chatMessage->class_session_id,
             'userId' => (string) $chatMessage->user_id,
             'name' => (string) ($chatMessage->user?->getName() ?? $chatMessage->user?->username ?? ''),
             'username' => (string) ($chatMessage->user?->username ?? ''),
+            'role' => $isTeacher ? 'teacher' : 'student',
+            'isTeacher' => $isTeacher,
             'message' => (string) $chatMessage->display_message,
             'displayMessage' => (string) $chatMessage->display_message,
             'rawMessage' => (string) $chatMessage->raw_message,

@@ -86,4 +86,43 @@ class ClassroomRoleTest extends TestCase
             'type' => ClassHelpRequest::TYPE_CAMERA,
         ]);
     }
+
+    public function test_manageable_accounts_can_start_and_end_the_livestream(): void
+    {
+        $admin = User::factory()->create([
+            'username' => 'admin.user',
+            'email' => 'admin@example.com',
+        ]);
+
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $classSession = ClassSession::query()->create([
+            'title' => 'Admin Classroom Check',
+            'slug' => 'admin-classroom-check',
+            'room_name' => 'admin-classroom-check',
+            'summary' => 'Role behaviour test',
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('class.broadcast.start', $classSession))
+            ->assertOk()
+            ->assertJsonPath('state.classSession.isLiveBroadcastOpen', true);
+
+        $classSession->refresh();
+        $this->assertNotNull($classSession->live_broadcast_started_at);
+        $this->assertNull($classSession->live_broadcast_ended_at);
+        $this->assertSame((string) $admin->id, (string) $classSession->live_broadcast_started_by_user_id);
+
+        $this->actingAs($admin)
+            ->postJson(route('class.broadcast.end', $classSession))
+            ->assertOk()
+            ->assertJsonPath('state.classSession.isLiveBroadcastOpen', false);
+
+        $classSession->refresh();
+        $this->assertNotNull($classSession->live_broadcast_ended_at);
+        $this->assertSame((string) $admin->id, (string) $classSession->live_broadcast_ended_by_user_id);
+    }
 }

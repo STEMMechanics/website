@@ -22,7 +22,7 @@ class ClassroomClientErrorTest extends TestCase
 
         UserGroup::query()->create([
             'user_id' => (string) $user->id,
-            'slug' => 'microbit-t1-2026',
+            'slug' => 'microbit-t1',
         ]);
 
         $classSession = ClassSession::query()->create([

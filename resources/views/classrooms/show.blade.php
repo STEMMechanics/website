@@ -1,7 +1,21 @@
 @php
     $classSession = $state['classSession'] ?? [];
+    $workshop = $state['workshop'] ?? [];
     $viewer = $state['viewer'] ?? [];
     $pageTitle = trim((string) ($classSession['title'] ?? 'Classroom'));
+    $tabs = [];
+    if (! empty($classSession['slug'] ?? '')) {
+        $tabs[] = [
+            'title' => 'Course',
+            'route' => route('class.show', $classSession['slug']),
+        ];
+    }
+    if (! empty($classSession['forumCategoryUrl'] ?? '')) {
+        $tabs[] = [
+            'title' => 'Forum',
+            'route' => (string) $classSession['forumCategoryUrl'],
+        ];
+    }
 @endphp
 
 <x-layout :title="$pageTitle" :description="trim((string) ($classSession['summary'] ?? ''))">
@@ -9,7 +23,7 @@
         @vite('resources/js/classroom.jsx')
     @endpush
 
-    <x-mast :back-title="__('Back')" :back-route="'account.stemcraft.index'" :description="trim((string) ($classSession['summary'] ?? ''))">{{ $pageTitle }}</x-mast>
+    <x-mast :back-title="__('Back')" :back-route="'account.stemcraft.index'" :description="trim((string) ($classSession['summary'] ?? ''))" :tabs="$tabs">{{ $pageTitle }}</x-mast>
 
     <x-container inner-class="max-w-7xl" class="py-8">
         <div
@@ -21,6 +35,8 @@
             data-help-request-store-endpoint="{{ $helpRequestStoreEndpoint }}"
             data-help-request-approve-pattern="{{ $helpRequestApprovePattern }}"
             data-help-request-revoke-pattern="{{ $helpRequestRevokePattern }}"
+            data-broadcast-start-endpoint="{{ $broadcastStartEndpoint }}"
+            data-broadcast-end-endpoint="{{ $broadcastEndEndpoint }}"
             data-chat-store-endpoint="{{ route('class.chat.store', ['classSession' => $classSession['slug'] ?? '']) }}"
             data-client-error-endpoint="{{ $clientErrorEndpoint }}"
             data-csrf-token="{{ csrf_token() }}"

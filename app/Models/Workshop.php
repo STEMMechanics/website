@@ -5,11 +5,14 @@ namespace App\Models;
 use App\Helpers;
 use App\Traits\HasFiles;
 use App\Traits\Slug;
+use App\Models\ClassSession;
+use App\Models\ForumCategory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Workshop extends Model
 {
@@ -27,6 +30,9 @@ class Workshop extends Model
         'ages',
         'registration',
         'registration_data',
+        'class_session_id',
+        'classroom_forum_category_id',
+        'classroom_sessions_json',
         'private_code',
         'hosted_for',
         'is_private',
@@ -54,6 +60,7 @@ class Workshop extends Model
         'max_tickets' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
+        'classroom_sessions_json' => 'array',
     ];
 
     /**
@@ -86,6 +93,22 @@ class Workshop extends Model
     public function pickListTemplate(): BelongsTo
     {
         return $this->belongsTo(PickListTemplate::class, 'pick_list_template_id');
+    }
+
+    /**
+     * @return BelongsTo<ClassSession, $this>
+     */
+    public function classSession(): BelongsTo
+    {
+        return $this->belongsTo(ClassSession::class, 'class_session_id');
+    }
+
+    /**
+     * @return BelongsTo<ForumCategory, $this>
+     */
+    public function classroomForumCategory(): BelongsTo
+    {
+        return $this->belongsTo(ForumCategory::class, 'classroom_forum_category_id');
     }
 
     /**
@@ -165,6 +188,87 @@ class Workshop extends Model
     {
         return $this->isPrivate()
             && trim((string) ($this->private_code ?? '')) !== '';
+    }
+
+    public function usesClassroomRegistration(): bool
+    {
+        return (string) $this->registration === 'classroom';
+    }
+
+    /**
+     * @return array<int, array{starts_at: ?string, ends_at: ?string, label: string}>
+     */
+    public function classroomSchedule(): array
+    {
+        if ($this->relationLoaded('classSession') && $this->classSession instanceof ClassSession) {
+            $schedule = $this->classSession->broadcastSchedule();
+            if ($schedule !== []) {
+                return $schedule;
+            }
+        }
+
+        if ($this->classSession instanceof ClassSession) {
+            $schedule = $this->classSession->broadcastSchedule();
+            if ($schedule !== []) {
+                return $schedule;
+            }
+        }
+
+        $schedule = $this->classroom_sessions_json;
+        if (! is_array($schedule)) {
+            return [];
+        }
+
+        return collect($schedule)
+            ->map(function ($entry): array {
+                $startsAt = self::normalizeDateTimeLocalValue(data_get($entry, 'starts_at', null));
+                $endsAt = self::normalizeDateTimeLocalValue(data_get($entry, 'ends_at', null));
+                $label = trim((string) data_get($entry, 'label', ''));
+
+                return [
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
+                    'label' => $label,
+                ];
+            })
+            ->filter(fn (array $entry): bool => $entry['starts_at'] !== null || $entry['ends_at'] !== null || $entry['label'] !== '')
+            ->values()
+            ->all();
+    }
+
+    private static function normalizeDateTimeLocalValue(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $value) === 1) {
+            return $value;
+        }
+
+        foreach ([
+            'd/m/Y, H:i',
+            'd/m/Y, h:i a',
+            'd/m/Y, g:i a',
+            'j/m/Y, H:i',
+            'j/m/Y, h:i a',
+            'j/m/Y, g:i a',
+            'd/m/Y H:i',
+            'j/m/Y H:i',
+        ] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value)->format('Y-m-d\TH:i');
+            } catch (\Throwable) {
+                // Try the next known classroom format.
+            }
+        }
+
+        try {
+            return Carbon::parse($value)->format('Y-m-d\TH:i');
+        } catch (\Throwable) {
+            return $value;
+        }
     }
 
     public function isPrivate(): bool

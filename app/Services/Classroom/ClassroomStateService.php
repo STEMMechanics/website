@@ -15,7 +15,7 @@ class ClassroomStateService
      */
     public function stateFor(User $viewer, ClassSession $classSession): array
     {
-        $classSession->loadMissing(['forumCategory', 'createdBy', 'duplicatedFrom', 'chatMessages.user']);
+        $classSession->loadMissing(['forumCategory', 'createdBy', 'duplicatedFrom', 'chatMessages.user', 'workshop.classSession.forumCategory']);
 
         $role = $classSession->roleForUser($viewer);
         $canManage = $classSession->canManage($viewer);
@@ -60,8 +60,9 @@ class ClassroomStateService
                 'canRequestBroadcast' => $canManage,
             ],
             'classSession' => $this->serializeClassSession($classSession),
+            'workshop' => $classSession->workshop ? $this->serializeWorkshop($classSession->workshop) : null,
             'enrolments' => $this->serializeEnrolments($enrolments),
-            'chatMessages' => $this->serializeChatMessages($chatMessages),
+            'chatMessages' => $this->serializeChatMessages($classSession, $chatMessages),
             'helpRequests' => [
                 'pending' => $pendingRequests,
                 'active' => $activeRequest ? $this->serializeHelpRequest($activeRequest) : null,
@@ -86,11 +87,67 @@ class ClassroomStateService
             'accessGroupSlug' => (string) ($classSession->access_group_slug ?? ''),
             'forumCategoryId' => $classSession->forum_category_id ? (string) $classSession->forum_category_id : null,
             'forumCategoryName' => $classSession->forumCategory?->name,
+            'forumCategoryUrl' => $classSession->forumCategory ? route('forum.category.show', $classSession->forumCategory->slug) : null,
             'liveChatEnabled' => (bool) $classSession->live_chat_enabled,
             'startsAt' => $classSession->starts_at?->toIso8601String(),
             'endsAt' => $classSession->ends_at?->toIso8601String(),
+            'broadcastSchedule' => $this->serializeClassroomSchedule(
+                $classSession->broadcastSchedule() !== []
+                    ? $classSession->broadcastSchedule()
+                    : ($classSession->workshop?->classroomSchedule() ?? [])
+            ),
+            'liveBroadcastStartedAt' => $classSession->live_broadcast_started_at?->toIso8601String(),
+            'liveBroadcastEndedAt' => $classSession->live_broadcast_ended_at?->toIso8601String(),
+            'liveBroadcastStartedByUserId' => $classSession->live_broadcast_started_by_user_id ? (string) $classSession->live_broadcast_started_by_user_id : null,
+            'liveBroadcastEndedByUserId' => $classSession->live_broadcast_ended_by_user_id ? (string) $classSession->live_broadcast_ended_by_user_id : null,
+            'isLiveBroadcastOpen' => $classSession->isLiveBroadcastOpen(),
             'createdByName' => $classSession->createdBy?->getName(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function serializeWorkshop(\App\Models\Workshop $workshop): array
+    {
+        $forumCategory = $workshop->classSession?->forumCategory ?? $workshop->classroomForumCategory;
+
+        return [
+            'id' => (string) $workshop->id,
+            'title' => (string) $workshop->title,
+            'content' => (string) ($workshop->content ?? ''),
+            'registration' => (string) ($workshop->registration ?? ''),
+            'ticketGroupSlug' => (string) ($workshop->ticket_group_slug ?? ''),
+            'classroomSessions' => $this->serializeClassroomSchedule($workshop->classroomSchedule()),
+            'courseUrl' => route('workshop.show', $workshop),
+            'forumCategory' => $forumCategory ? [
+                'id' => (string) $forumCategory->id,
+                'slug' => (string) $forumCategory->slug,
+                'name' => (string) $forumCategory->name,
+                'url' => route('forum.category.show', $forumCategory->slug),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{starts_at: ?string, ends_at: ?string, label: string}>  $schedule
+     * @return list<array<string, mixed>>
+     */
+    public function serializeClassroomSchedule(array $schedule): array
+    {
+        return collect($schedule)
+            ->map(function (array $entry): array {
+                $startsAt = $entry['starts_at'] ? \Illuminate\Support\Carbon::parse((string) $entry['starts_at']) : null;
+                $endsAt = $entry['ends_at'] ? \Illuminate\Support\Carbon::parse((string) $entry['ends_at']) : null;
+
+                return [
+                    'startsAt' => $startsAt?->toIso8601String(),
+                    'endsAt' => $endsAt?->toIso8601String(),
+                    'label' => (string) ($entry['label'] ?? ''),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**
@@ -161,16 +218,23 @@ class ClassroomStateService
     /**
      * @return list<array<string, mixed>>
      */
-    public function serializeChatMessages(Collection $messages): array
+    public function serializeChatMessages(ClassSession $classSession, Collection $messages): array
     {
         return $messages
-            ->map(function ($message): array {
+            ->map(function ($message) use ($classSession): array {
+                $user = $message->user;
+                $isTeacher = $user?->isAdmin()
+                    || $user?->hasGroup('minecraft-org')
+                    || (($classSession->roleForUser($user) ?? null) === 'teacher');
+
                 return [
                     'id' => (string) $message->id,
                     'classSessionId' => (string) $message->class_session_id,
                     'userId' => (string) $message->user_id,
-                    'name' => (string) ($message->user?->getName() ?? $message->user?->username ?? ''),
+                    'name' => (string) ($message->user?->username ?? $message->user?->getName() ?? ''),
                     'username' => (string) ($message->user?->username ?? ''),
+                    'role' => $isTeacher ? 'teacher' : 'student',
+                    'isTeacher' => $isTeacher,
                     'message' => (string) $message->display_message,
                     'displayMessage' => (string) $message->display_message,
                     'isBlocked' => (bool) $message->is_blocked,

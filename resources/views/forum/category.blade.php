@@ -1,5 +1,20 @@
+@php
+    $tabs = [];
+    $classSession = $category->classSession ?? null;
+    if ($classSession) {
+        $tabs[] = [
+            'title' => 'Course',
+            'route' => route('class.show', $classSession),
+        ];
+        $tabs[] = [
+            'title' => 'Forum',
+            'route' => route('forum.category.show', $category->slug),
+        ];
+    }
+@endphp
+
 <x-layout>
-    <x-mast backRoute="forum.index" backTitle="Discussions">{{ $category->name }}</x-mast>
+    <x-mast backRoute="forum.index" backTitle="Discussions" :tabs="$tabs">{{ $category->name }}</x-mast>
 
     @php($unreadTopicLookup = array_flip($unreadTopicIds ?? []))
 

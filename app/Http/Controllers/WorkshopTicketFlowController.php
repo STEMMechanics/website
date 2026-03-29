@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendWorkshopTicketOrderEmail;
+use App\Jobs\SendEmail;
+use App\Mail\UserRegister;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -51,7 +53,9 @@ class WorkshopTicketFlowController extends Controller
 
         $ticketService->cleanupExpiredHolds($workshop);
         if (! $ticketService->canStartTicketCheckout($workshop)) {
-            session()->flash('message', 'Tickets are not available for this workshop.');
+            session()->flash('message', $workshop->usesClassroomRegistration()
+                ? 'Classroom access is not available for this workshop.'
+                : 'Tickets are not available for this workshop.');
             session()->flash('message-title', 'Unavailable');
             session()->flash('message-type', 'danger');
 
@@ -78,7 +82,9 @@ class WorkshopTicketFlowController extends Controller
         $ticketService->cleanupExpiredHolds($workshop);
         if (! $ticketService->canStartTicketCheckout($workshop)) {
             throw ValidationException::withMessages([
-                'quantity' => 'Tickets are no longer available for this workshop.',
+                'quantity' => $workshop->usesClassroomRegistration()
+                    ? 'Classroom access is no longer available for this workshop.'
+                    : 'Tickets are no longer available for this workshop.',
             ]);
         }
 
@@ -120,7 +126,7 @@ class WorkshopTicketFlowController extends Controller
             'email' => strtolower(trim((string) $validated['email'])),
             'phone' => trim((string) ($validated['phone'] ?? '')),
         ];
-        $purchaserUserId = $this->resolveCheckoutUserId($purchaser);
+        $purchaserUserId = $this->resolveCheckoutUserId($workshop, $purchaser);
 
         $holdIds = DB::transaction(function () use ($workshop, $ticketService, $validated, $purchaser, $purchaserUserId) {
             $ticketService->cleanupExpiredHolds($workshop);
@@ -184,7 +190,9 @@ class WorkshopTicketFlowController extends Controller
 
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
-            session()->flash('message', 'Your ticket hold expired. Please start again.');
+            session()->flash('message', $workshop->usesClassroomRegistration()
+                ? 'Your classroom access hold expired. Please start again.'
+                : 'Your ticket hold expired. Please start again.');
             session()->flash('message-title', 'Hold expired');
             session()->flash('message-type', 'warning');
 
@@ -250,7 +258,9 @@ class WorkshopTicketFlowController extends Controller
 
         if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
             $this->clearFlowSession($workshop);
-            session()->flash('message', 'Your ticket hold expired. Please start again.');
+            session()->flash('message', $workshop->usesClassroomRegistration()
+                ? 'Your classroom access hold expired. Please start again.'
+                : 'Your ticket hold expired. Please start again.');
             session()->flash('message-title', 'Hold expired');
             session()->flash('message-type', 'warning');
 
@@ -302,7 +312,7 @@ class WorkshopTicketFlowController extends Controller
 
             $purchaserUserId = trim((string) ($session['purchaser_user_id'] ?? ''));
             if ($purchaserUserId === '') {
-                $purchaserUserId = $this->resolveCheckoutUserId($session['purchaser'] ?? []);
+                $purchaserUserId = $this->resolveCheckoutUserId($workshop, $session['purchaser'] ?? []);
             }
 
             $invoice = null;
@@ -364,7 +374,7 @@ class WorkshopTicketFlowController extends Controller
                 $customerPayment->reference = 'Workshop '.$workshop->title.' ticket' . (count($ticketReferences) > 1 ? 's' : '') . ' ['.implode(',', $ticketReferences).']';
                 $customerPayment->total_amount = $remainingAmount;
                 $customerPayment->gst_amount = 0;
-                $customerPayment->notes = 'Workshop "'.$workshop->title.'" ticket purchase';
+                $customerPayment->notes = 'Workshop "'.$workshop->title.'" '.($workshop->usesClassroomRegistration() ? 'classroom access' : 'ticket').' purchase';
                 $customerPayment->save();
                 $amountCents = (int) round($remainingAmount * 100);
 
@@ -527,7 +537,7 @@ class WorkshopTicketFlowController extends Controller
 
             $purchaserUserId = trim((string) ($session['purchaser_user_id'] ?? ''));
             if ($purchaserUserId === '') {
-                $purchaserUserId = $this->resolveCheckoutUserId($session['purchaser'] ?? []);
+                $purchaserUserId = $this->resolveCheckoutUserId($workshop, $session['purchaser'] ?? []);
             }
 
             foreach ($holds as $ticket) {
@@ -824,10 +834,12 @@ class WorkshopTicketFlowController extends Controller
             abort(500, 'Unable to create download archive.');
         }
 
-        foreach ($tickets as $ticket) {
-            $ticketPdf = $this->buildTicketPdfBinary($ticket);
-            if ($ticketPdf !== null) {
-                $zip->addFromString($this->ticketPdfFilename($ticket), $ticketPdf);
+        if (! $workshop->usesClassroomRegistration()) {
+            foreach ($tickets as $ticket) {
+                $ticketPdf = $this->buildTicketPdfBinary($ticket);
+                if ($ticketPdf !== null) {
+                    $zip->addFromString($this->ticketPdfFilename($ticket), $ticketPdf);
+                }
             }
         }
 
@@ -1009,7 +1021,7 @@ class WorkshopTicketFlowController extends Controller
         ];
     }
 
-    private function resolveCheckoutUserId(array $purchaser): ?string
+    private function resolveCheckoutUserId(Workshop $workshop, array $purchaser): ?string
     {
         $checkoutUser = $this->checkoutAccountUser();
         if ($checkoutUser instanceof User) {
@@ -1034,6 +1046,10 @@ class WorkshopTicketFlowController extends Controller
             $user->phone = $phone !== '' ? $phone : null;
             $user->save();
 
+            if ($workshop->usesClassroomRegistration()) {
+                $this->sendClassroomAccountInvite($user);
+            }
+
             return (string) $user->id;
         }
 
@@ -1048,9 +1064,29 @@ class WorkshopTicketFlowController extends Controller
                 $user->phone = $phone;
             }
             $user->save();
+
+            if ($workshop->usesClassroomRegistration()) {
+                $this->sendClassroomAccountInvite($user);
+            }
         }
 
         return (string) $user->id;
+    }
+
+    private function sendClassroomAccountInvite(User $user): void
+    {
+        $email = strtolower(trim((string) ($user->email ?? '')));
+        if ($email === '') {
+            return;
+        }
+
+        $user->tokens()->where('type', 'register')->delete();
+        $token = $user->tokens()->create([
+            'type' => 'register',
+            'data' => ['url' => session()->pull('url.intended', null)],
+        ]);
+
+        dispatch(new SendEmail($email, new UserRegister($token->id, $email)))->onQueue('mail');
     }
 
     private function getFlowSession(Workshop $workshop): ?array
@@ -1198,7 +1234,9 @@ class WorkshopTicketFlowController extends Controller
 
     private function redirectToWorkshopWithCheckoutExpiredToast(Workshop $workshop): RedirectResponse
     {
-        session()->flash('message', 'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.');
+        session()->flash('message', $workshop->usesClassroomRegistration()
+            ? 'Your classroom checkout session expired while this page was open. Reload this page or restart checkout before saving access details.'
+            : 'Your checkout session expired while this page was open. Reload this page or restart checkout before saving ticket details.');
         session()->flash('message-title', 'Session expired');
         session()->flash('message-type', 'warning');
 

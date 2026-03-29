@@ -51,12 +51,13 @@ class TicketAttendeeUpdate extends Mailable
     public function build(): static
     {
         $workshopTitle = (string) ($this->workshop['title'] ?? 'this workshop');
+        $isClassroomAccess = (string) ($this->workshop['registration'] ?? '') === 'classroom';
         $subject = match ($this->mode) {
-            'transferred_away' => 'Your workshop ticket has been transferred',
-            'details_updated' => 'Your workshop ticket details were updated',
-            'cancelled' => 'Your ticket to '.$workshopTitle.' has been cancelled',
-            'new_holder' => "You're in! Your workshop ticket for ".$workshopTitle,
-            default => 'You have been issued a workshop ticket',
+            'transferred_away' => $isClassroomAccess ? 'Your classroom access has been transferred' : 'Your workshop ticket has been transferred',
+            'details_updated' => $isClassroomAccess ? 'Your classroom access details were updated' : 'Your workshop ticket details were updated',
+            'cancelled' => $isClassroomAccess ? 'Your classroom access to '.$workshopTitle.' has been cancelled' : 'Your ticket to '.$workshopTitle.' has been cancelled',
+            'new_holder' => $isClassroomAccess ? "You're in! Your classroom access for ".$workshopTitle : "You're in! Your workshop ticket for ".$workshopTitle,
+            default => $isClassroomAccess ? 'You have been issued classroom access' : 'You have been issued a workshop ticket',
         };
 
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));

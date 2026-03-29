@@ -185,6 +185,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/class/{classSession}/help-request/{helpRequest}/approve', [ClassHelpRequestController::class, 'approve'])->name('class.help-requests.approve');
     Route::post('/class/{classSession}/help-request/{helpRequest}/revoke', [ClassHelpRequestController::class, 'revoke'])->name('class.help-requests.revoke');
     Route::post('/class/{classSession}/chat', [ClassroomChatController::class, 'store'])->name('class.chat.store');
+    Route::post('/class/{classSession}/broadcast/start', [ClassroomController::class, 'startBroadcast'])->name('class.broadcast.start');
+    Route::post('/class/{classSession}/broadcast/end', [ClassroomController::class, 'endBroadcast'])->name('class.broadcast.end');
     Route::post('/class/{classSession}/client-error', [ClassroomClientErrorController::class, 'store'])->name('class.client-error.store');
     Route::post('/api/livekit/token', [LiveKitTokenController::class, 'store'])->name('livekit.token');
 

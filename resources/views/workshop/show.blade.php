@@ -55,7 +55,7 @@
 
     $rawPrice = trim((string) ($workshop->price ?? ''));
     $hasBookableOffer = ! $workshop->isPrivate()
-        && in_array((string) ($workshop->registration ?? ''), ['tickets', 'link'], true);
+        && in_array((string) ($workshop->registration ?? ''), ['tickets', 'classroom', 'link'], true);
     if ($hasBookableOffer && ($rawPrice === '' || is_numeric($rawPrice))) {
         $offerUrl = $workshop->registration === 'link' && trim((string) ($workshop->registration_data ?? '')) !== ''
             ? trim((string) $workshop->registration_data)
@@ -72,13 +72,14 @@
     }
 @endphp
 
-<x-layout
+    <x-layout
     :title="$workshop->title"
     :description="$seoDescription"
     :canonical="route('workshop.show', $workshop)"
     :noindex="(bool) $workshop->is_hidden"
     :jsonLd="$eventJsonLd"
 >
+    <x-mast>{{ $workshop->title }}</x-mast>
     <x-container>
         <x-ui.image-hero :image="$workshop->hero?->url" class="my-8" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
@@ -117,6 +118,19 @@
                             </p>
                         @else
                             <div class="sm-registration-full">This workshop is currently full.</div>
+                        @endif
+                    @elseif($workshop->registration === 'classroom')
+                        @if($availableTickets === null || (int) $availableTickets > 0)
+                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Classroom Access</x-ui.button>
+                            <p class="text-xs text-gray-600 text-center mb-2">
+                                @if($availableTickets === null)
+                                    Classroom access available now.
+                                @else
+                                    {{ $availableTickets }} access slot{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
+                                @endif
+                            </p>
+                        @else
+                            <div class="sm-registration-full">This classroom is currently full.</div>
                         @endif
                     @elseif($workshop->registration === 'link')
                         @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
@@ -207,6 +221,16 @@
                         </div>
                     @elseif($workshop->registration === 'message')
                         <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
+                    @elseif($workshop->registration === 'classroom')
+                        <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                            <div class="font-semibold">Classroom access</div>
+                            <p class="mt-2 leading-6">
+                                This workshop includes classroom access. Sign in with the account linked to your registration group to open the classroom and join the live sessions.
+                            </p>
+                            @if($workshop->classSession)
+                                <x-ui.button class="mt-4" href="{{ route('class.show', $workshop->classSession) }}">Open Classroom</x-ui.button>
+                            @endif
+                        </div>
                     @endif
                 @endif
                 @if(auth()->user()?->isAdmin())

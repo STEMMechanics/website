@@ -39,11 +39,13 @@ class WorkshopRegistrationGroupService
             }
 
             $workshop = $ticket->workshop;
-            if (! $workshop instanceof Workshop || (string) $workshop->registration !== 'tickets') {
+            if (! $workshop instanceof Workshop || ! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
                 continue;
             }
 
-            $slug = UserGroup::normalizeSlug((string) ($workshop->ticket_group_slug ?? ''));
+            $slug = (string) $workshop->registration === 'classroom' && $workshop->classSession instanceof \App\Models\ClassSession
+                ? UserGroup::normalizeSlug((string) ($workshop->classSession->access_group_slug ?: $workshop->classSession->slug))
+                : UserGroup::normalizeSlug((string) ($workshop->ticket_group_slug ?? ''));
             if ($slug === '') {
                 continue;
             }

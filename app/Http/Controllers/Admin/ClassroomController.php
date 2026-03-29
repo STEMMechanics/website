@@ -8,6 +8,7 @@ use App\Models\ClassSession;
 use App\Models\ForumCategory;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Services\Classroom\ClassroomAdminSyncService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,10 @@ use Illuminate\View\View;
 
 class ClassroomController extends Controller
 {
+    public function __construct(
+        private readonly ClassroomAdminSyncService $syncService
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -79,6 +84,14 @@ class ClassroomController extends Controller
             }
 
             $classSession->save();
+            if (($validated['forum_category_choice'] ?? '') === 'create') {
+                $this->syncService->ensureForumCategory(
+                    $classSession,
+                    $validated['forum_category_name'],
+                    true
+                );
+            }
+            $this->syncService->syncDerivedLinks($classSession);
             $this->syncEnrolments($classSession, $validated);
 
             return $classSession;
@@ -103,10 +116,19 @@ class ClassroomController extends Controller
     public function update(Request $request, ClassSession $classSession): RedirectResponse
     {
         $validated = $this->validateClassSession($request, $classSession);
+        $originalSlug = (string) $classSession->slug;
 
-        DB::transaction(function () use ($validated, $request, $classSession): void {
+        DB::transaction(function () use ($validated, $request, $classSession, $originalSlug): void {
             $classSession->fill($this->classSessionAttributes($validated, $request));
             $classSession->save();
+            if (($validated['forum_category_choice'] ?? '') === 'create') {
+                $this->syncService->ensureForumCategory(
+                    $classSession,
+                    $validated['forum_category_name'],
+                    true
+                );
+            }
+            $this->syncService->syncDerivedLinks($classSession, $originalSlug);
             $this->syncEnrolments($classSession, $validated);
         });
 
@@ -126,12 +148,21 @@ class ClassroomController extends Controller
                 'id',
                 'slug',
                 'room_name',
+                'workshop_id',
+                'forum_category_id',
+                'access_group_slug',
+                'live_broadcast_started_at',
+                'live_broadcast_ended_at',
+                'live_broadcast_started_by_user_id',
+                'live_broadcast_ended_by_user_id',
                 'created_at',
                 'updated_at',
             ]);
             $duplicate->title = $classSession->title.' (copy)';
             $duplicate->slug = null;
             $duplicate->room_name = null;
+            $duplicate->forum_category_id = null;
+            $duplicate->access_group_slug = null;
             $duplicate->created_by_user_id = (string) auth()->id();
             $duplicate->duplicated_from_class_session_id = $classSession->id;
             $duplicate->save();
@@ -171,12 +202,24 @@ class ClassroomController extends Controller
             ? $session
             : $sourceClassSession;
 
+        $forumCategoryName = old('forum_category_name');
+        if ($forumCategoryName === null) {
+            $forumCategoryName = $session?->forumCategory?->name ?? ($sourceClassSession?->forumCategory?->name ?? ($session?->title ? $session->title.' Forum' : ''));
+        }
+
+        $teacherIdentifiers = $this->identifiersForRole($baseSession, ClassEnrolment::ROLE_TEACHER);
+        if ($teacherIdentifiers === [] && $baseSession === null && auth()->check()) {
+            $teacherIdentifiers = [$this->preferredIdentifier(auth()->user())];
+        }
+
         return [
             'classSession' => $session,
             'sourceClassSession' => $sourceClassSession,
             'forumCategories' => ForumCategory::query()->orderBy('name')->get(),
             'groupSuggestions' => $this->groupSuggestions(),
-            'teacherIdentifiers' => $this->identifiersForRole($baseSession, ClassEnrolment::ROLE_TEACHER),
+            'forumCategoryChoice' => old('forum_category_choice', $session?->forum_category_id ?? ''),
+            'forumCategoryName' => $forumCategoryName,
+            'teacherIdentifiers' => $teacherIdentifiers,
             'studentIdentifiers' => $this->identifiersForRole($baseSession, ClassEnrolment::ROLE_STUDENT),
         ];
     }
@@ -191,12 +234,21 @@ class ClassroomController extends Controller
             'id',
             'slug',
             'room_name',
+            'workshop_id',
+            'forum_category_id',
+            'access_group_slug',
+            'live_broadcast_started_at',
+            'live_broadcast_ended_at',
+            'live_broadcast_started_by_user_id',
+            'live_broadcast_ended_by_user_id',
             'created_at',
             'updated_at',
         ]);
         $duplicate->title = $sourceClassSession->title.' (copy)';
         $duplicate->slug = '';
         $duplicate->room_name = '';
+        $duplicate->forum_category_id = null;
+        $duplicate->access_group_slug = null;
         $duplicate->created_by_user_id = null;
         $duplicate->duplicated_from_class_session_id = $sourceClassSession->id;
 
@@ -236,28 +288,39 @@ class ClassroomController extends Controller
                 'max:255',
                 Rule::unique('class_sessions', 'room_name')->ignore($classSession?->id),
             ],
-            'access_group_slug' => ['nullable', 'string', 'max:80'],
-            'forum_category_id' => ['nullable', 'uuid', 'exists:forum_categories,id'],
+            'forum_category_choice' => ['nullable', 'string', 'max:255'],
+            'forum_category_name' => ['nullable', 'string', 'max:255'],
             'summary' => ['nullable', 'string', 'max:255'],
             'instructions_html' => ['nullable', 'string'],
             'live_chat_enabled' => ['nullable', 'boolean'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+            'broadcast_sessions_json' => ['nullable', 'json'],
             'teacher_identifiers' => ['nullable', 'string', 'max:5000'],
             'student_identifiers' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        $forumCategoryChoice = trim((string) ($validated['forum_category_choice'] ?? ''));
+        if ($forumCategoryChoice !== '' && $forumCategoryChoice !== 'create') {
+            if (! ForumCategory::query()->whereKey($forumCategoryChoice)->exists()) {
+                throw ValidationException::withMessages([
+                    'forum_category_choice' => 'Please choose a valid forum category.',
+                ]);
+            }
+        }
 
         return [
             'title' => trim((string) $validated['title']),
             'slug' => trim((string) ($validated['slug'] ?? '')),
             'room_name' => trim((string) ($validated['room_name'] ?? '')),
-            'access_group_slug' => UserGroup::normalizeSlug((string) ($validated['access_group_slug'] ?? '')),
-            'forum_category_id' => trim((string) ($validated['forum_category_id'] ?? '')),
+            'forum_category_choice' => $forumCategoryChoice,
             'summary' => trim((string) ($validated['summary'] ?? '')),
             'instructions_html' => (string) ($validated['instructions_html'] ?? ''),
             'live_chat_enabled' => $request->boolean('live_chat_enabled'),
             'starts_at' => trim((string) ($validated['starts_at'] ?? '')) !== '' ? trim((string) $validated['starts_at']) : null,
             'ends_at' => trim((string) ($validated['ends_at'] ?? '')) !== '' ? trim((string) $validated['ends_at']) : null,
+            'broadcast_sessions_json' => trim((string) ($request->input('broadcast_sessions_json', '') ?? '')),
+            'forum_category_name' => trim((string) ($validated['forum_category_name'] ?? '')),
             'teacher_identifiers' => $this->parseIdentifiers((string) ($validated['teacher_identifiers'] ?? '')),
             'student_identifiers' => $this->parseIdentifiers((string) ($validated['student_identifiers'] ?? '')),
         ];
@@ -269,17 +332,21 @@ class ClassroomController extends Controller
      */
     private function classSessionAttributes(array $validated, Request $request): array
     {
+        $forumCategoryChoice = (string) ($validated['forum_category_choice'] ?? '');
+
         return [
             'title' => $validated['title'],
             'slug' => $validated['slug'] !== '' ? $validated['slug'] : null,
             'room_name' => $validated['room_name'] !== '' ? $validated['room_name'] : null,
-            'access_group_slug' => $validated['access_group_slug'] !== '' ? $validated['access_group_slug'] : null,
-            'forum_category_id' => $validated['forum_category_id'] !== '' ? $validated['forum_category_id'] : null,
+            'forum_category_id' => $forumCategoryChoice !== '' && $forumCategoryChoice !== 'create' ? $forumCategoryChoice : null,
             'summary' => $validated['summary'] !== '' ? $validated['summary'] : null,
             'instructions_html' => $validated['instructions_html'] !== '' ? $validated['instructions_html'] : null,
             'live_chat_enabled' => $request->boolean('live_chat_enabled'),
             'starts_at' => $validated['starts_at'] !== null ? $validated['starts_at'] : null,
             'ends_at' => $validated['ends_at'] !== null ? $validated['ends_at'] : null,
+            'broadcast_sessions_json' => trim((string) ($validated['broadcast_sessions_json'] ?? '')) !== ''
+                ? json_decode((string) $validated['broadcast_sessions_json'], true, 512, JSON_THROW_ON_ERROR)
+                : [],
         ];
     }
 
@@ -417,5 +484,20 @@ class ClassroomController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function preferredIdentifier(User $user): string
+    {
+        $username = trim((string) ($user->username ?? ''));
+        if ($username !== '') {
+            return $username;
+        }
+
+        $email = trim((string) ($user->email ?? ''));
+        if ($email !== '') {
+            return $email;
+        }
+
+        return (string) $user->id;
     }
 }
