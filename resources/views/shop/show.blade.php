@@ -743,7 +743,7 @@
 
                             @if($productDescriptionHtml !== '')
                                 <article class="mt-8 content text-gray-700">
-                                    {!! $productDescriptionHtml !!}
+                                    {!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) $productDescriptionHtml) !!}
                                 </article>
                             @elseif(trim((string) $product->short_description) !== '')
                                 <p class="mt-8 text-base leading-7 text-gray-700">{{ $product->short_description }}</p>

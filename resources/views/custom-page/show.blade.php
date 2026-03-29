@@ -15,13 +15,13 @@
     @endif
 
     <x-container class="py-8">
-        @if($page->hero?->url)
+    @if($page->hero?->url)
             <x-ui.image-hero :image="$page->hero->url" class="mb-8" />
         @endif
 
         @unless($page->show_mast)
             <h1 class="text-3xl font-bold mb-4">{{ $page->title }}</h1>
         @endunless
-        <article class="content">{!! $page->content !!}</article>
+        <article class="content">{!! \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($page->content ?? '')) !!}</article>
     </x-container>
 </x-layout>

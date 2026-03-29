@@ -115,6 +115,66 @@ input::-webkit-datetime-edit {
     list-style: circle;
 }
 
+details.sm-collapsible-node {
+    @apply my-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50;
+}
+
+details.sm-collapsible-node > summary {
+    @apply flex list-none items-center justify-between gap-3 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800;
+    cursor: pointer;
+}
+
+details.sm-collapsible-node > summary::-webkit-details-marker {
+    display: none;
+}
+
+details.sm-collapsible-node .sm-collapsible-node__summary-title {
+    @apply flex min-w-0 flex-1 items-center gap-2;
+}
+
+details.sm-collapsible-node .sm-collapsible-node__summary-text {
+    @apply min-w-0 truncate;
+}
+
+details.sm-collapsible-node .sm-collapsible-node__summary-actions {
+    @apply flex flex-shrink-0 items-center gap-2;
+}
+
+details.sm-collapsible-node .sm-collapsible-node__button {
+    @apply rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100;
+}
+
+details.sm-collapsible-node .sm-collapsible-node__content {
+    @apply px-4 py-3;
+}
+
+details.sm-collapsible-node--public > summary {
+    @apply justify-start;
+}
+
+details.sm-collapsible-node--public > summary::before {
+    content: '';
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    margin-right: 0.75rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    color: #64748b;
+    transform: rotate(-45deg);
+    transform-origin: center;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+details.sm-collapsible-node--public[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+details.sm-collapsible-node--public > summary .sm-collapsible-node__chevron {
+    display: none;
+}
+
 .image-background {
     @apply bg-no-repeat bg-center bg-cover;
     background-image: url('/home-hero.webp');
@@ -264,6 +324,83 @@ body.swal2-height-auto {
         display: flow-root;
         overflow-x: auto;
         min-width: 0;
+    }
+
+    .tiptap ul,
+    .content ul {
+        @apply my-3 pl-6;
+        list-style: disc;
+        list-style-position: outside;
+    }
+
+    .tiptap ol,
+    .content ol {
+        @apply my-3 pl-6;
+        list-style: decimal;
+        list-style-position: outside;
+    }
+
+    .tiptap li,
+    .content li {
+        display: list-item;
+    }
+
+    .tiptap li p,
+    .content li p {
+        @apply mb-0;
+    }
+
+    .tiptap .sm-collapsible-node,
+    .content .sm-collapsible-node,
+    details.sm-collapsible-node {
+        @apply my-4 overflow-hidden rounded-lg border border-slate-200 bg-slate-50;
+    }
+
+    .tiptap .sm-collapsible-node__summary,
+    .content .sm-collapsible-node__summary,
+    details.sm-collapsible-node > summary {
+        @apply flex list-none items-center justify-between gap-3 bg-slate-100 px-4 py-3 text-sm font-semibold text-slate-800;
+        cursor: pointer;
+    }
+
+    .tiptap .sm-collapsible-node__summary::-webkit-details-marker,
+    .content .sm-collapsible-node__summary::-webkit-details-marker,
+    details.sm-collapsible-node > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .tiptap .sm-collapsible-node__summary-title,
+    .content .sm-collapsible-node__summary-title,
+    details.sm-collapsible-node .sm-collapsible-node__summary-title {
+        @apply min-w-0 flex-1 truncate;
+    }
+
+    .tiptap .sm-collapsible-node__summary-actions,
+    .content .sm-collapsible-node__summary-actions {
+        @apply flex flex-shrink-0 items-center gap-2;
+    }
+
+    .tiptap .sm-collapsible-node__button,
+    .content .sm-collapsible-node__button {
+        @apply rounded-md border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-100;
+    }
+
+    .tiptap .sm-collapsible-node__chevron,
+    .content .sm-collapsible-node__chevron,
+    details.sm-collapsible-node .sm-collapsible-node__chevron {
+        @apply inline-flex items-center justify-center text-slate-500 transition-transform duration-200;
+    }
+
+    details.sm-collapsible-node[open] > summary .sm-collapsible-node__chevron,
+    .content .sm-collapsible-node[open] > .sm-collapsible-node__summary .sm-collapsible-node__chevron,
+    .tiptap .sm-collapsible-node[open] > .sm-collapsible-node__summary .sm-collapsible-node__chevron {
+        transform: rotate(90deg);
+    }
+
+    .tiptap .sm-collapsible-node__content,
+    .content .sm-collapsible-node__content,
+    details.sm-collapsible-node .sm-collapsible-node__content {
+        @apply px-4 py-3;
     }
 
     @media (min-height: 512px) {

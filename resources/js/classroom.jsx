@@ -1890,13 +1890,13 @@ function ClassroomRoomContent({
                     </div>
                 ) : null}
 
-                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm editor">
                     <div className="flex items-center justify-between gap-3">
                         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Course</div>
                     </div>
                     {state.workshop?.content || state.classSession?.instructionsHtml ? (
                         <div
-                            className="prose prose-slate mt-4 max-w-none prose-headings:scroll-m-20 prose-headings:font-semibold prose-p:leading-7 prose-li:leading-7"
+                            className="content mt-4 max-w-none"
                             dangerouslySetInnerHTML={{ __html: state.workshop?.content || state.classSession.instructionsHtml }}
                         />
                     ) : (

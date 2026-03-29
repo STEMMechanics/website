@@ -425,6 +425,13 @@
                     <i class="fa-solid fa-paragraph"></i>
                 </button>
                 <div class="border-l border-l-gray-300 mx-1"></div>
+                <button
+                    @click.prevent="insertCollapsibleSection()"
+                    title="Insert collapsible section"
+                    aria-label="Insert collapsible section">
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="border-l border-l-gray-300 mx-1"></div>
                 <div class="editor-toolbar-dropdown hidden md:block" x-data="{ open: false }">
                     <button
                         type="button"

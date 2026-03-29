@@ -1,5 +1,8 @@
 <x-layout>
     <x-container>
+        @php
+            $postContent = \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($post->content ?? ''));
+        @endphp
         <x-ui.image-hero :image="$post->hero?->url" class="my-8" />
         <h1 class="text-3xl font-bold mb-2">{{ $post->title }}</h1>
         <div class="flex justify-between align-middle mb-4">
@@ -8,7 +11,7 @@
                 <x-ui.button href="{{ route('admin.post.edit', $post) }}">Edit Article</x-ui.button>
             @endif
         </div>
-        <article class="content mb-4">{!! $post->content !!}</article>
+        <article class="content mb-4">{!! $postContent !!}</article>
         <x-ui.gallery class="mt-16" value="{{ \App\Helpers::arrayToString($post->files('gallery')->orderBy('mediables.created_at')->pluck('name')->toArray()) }}" />
         <x-ui.filelist class="mt-16" label="Videos" value="{!! $post->files('videos')->orderBy('name')->get() !!}" />
         <x-ui.filelist class="mt-16" label="Files" value="{!! $post->files()->orderBy('name')->get() !!}" />

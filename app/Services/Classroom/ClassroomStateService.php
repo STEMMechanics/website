@@ -6,6 +6,7 @@ use App\Models\ClassEnrolment;
 use App\Models\ClassHelpRequest;
 use App\Models\ClassSession;
 use App\Models\User;
+use App\Support\HtmlContentTransformer;
 use Illuminate\Support\Collection;
 
 class ClassroomStateService
@@ -83,7 +84,7 @@ class ClassroomStateService
             'title' => (string) $classSession->title,
             'roomName' => (string) $classSession->room_name,
             'summary' => (string) ($classSession->summary ?? ''),
-            'instructionsHtml' => (string) ($classSession->instructions_html ?? ''),
+            'instructionsHtml' => HtmlContentTransformer::collapseSectionsForDisplay((string) ($classSession->instructions_html ?? '')),
             'accessGroupSlug' => (string) ($classSession->access_group_slug ?? ''),
             'forumCategoryId' => $classSession->forum_category_id ? (string) $classSession->forum_category_id : null,
             'forumCategoryName' => $classSession->forumCategory?->name,
@@ -115,7 +116,7 @@ class ClassroomStateService
         return [
             'id' => (string) $workshop->id,
             'title' => (string) $workshop->title,
-            'content' => (string) ($workshop->content ?? ''),
+            'content' => HtmlContentTransformer::collapseSectionsForDisplay((string) ($workshop->content ?? '')),
             'registration' => (string) ($workshop->registration ?? ''),
             'ticketGroupSlug' => (string) ($workshop->ticket_group_slug ?? ''),
             'classroomSessions' => $this->serializeClassroomSchedule($workshop->classroomSchedule()),

@@ -71,6 +71,9 @@
         ];
     }
 @endphp
+@php
+    $workshopContent = \App\Support\HtmlContentTransformer::collapseSectionsForDisplay((string) ($workshop->content ?? ''));
+@endphp
 
     <x-layout
     :title="$workshop->title"
@@ -85,7 +88,7 @@
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
             <div class="flex flex-col flex-1">
                 <h1 class="text-3xl font-bold mb-6">{!! $workshop->title !!}</h1>
-                <article class="content mb-4">{!! $workshop->content !!}</article>
+                <article class="content mb-4">{!! $workshopContent !!}</article>
                 <x-ui.filelist class="mt-16" value="{!! $workshop->files()->orderBy('name')->get() !!}" />
             </div>
             <div class="flex flex-col sm:pt-8 basis-64 grow-0 shrink-0">
@@ -236,9 +239,7 @@
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
                     @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
-                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">
-                            {{ (int) ($interestCount ?? 0) > 0 ? 'View Interests ('.number_format((int) $interestCount).')' : 'View Interests' }}
-                        </x-ui.button>
+                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif
                     @if($workshop->pick_list_template_id)
                         <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.pick-list', $workshop) }}">Pick List</x-ui.button>

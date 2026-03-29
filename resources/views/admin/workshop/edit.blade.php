@@ -207,10 +207,6 @@ $savedTickets = isset($workshop)
             return;
             }
 
-            if (window.SM && typeof window.SM.setFormProcessing === 'function') {
-            window.SM.setFormProcessing(form, true, { submitLabel: 'Saving...' });
-            }
-
             form.submit();
             },
             async handleSubmit() {

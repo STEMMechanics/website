@@ -9,6 +9,7 @@
 - Change GITEA_BASE_URL to trusted providers
 - Changed admin /webhooks to /webhook-logs for clarity
 - Added admin button to for artisan clear and queue restart
+- Collapsable section and tip tap fixes
 
 ## 1.4.2
 

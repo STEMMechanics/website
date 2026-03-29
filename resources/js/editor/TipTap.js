@@ -16,6 +16,7 @@ import {SmileyReplacer} from "./SmileyReplacer.js";
 import {Small} from "./Small.js";
 import {ExtraSmall} from "./ExtraSmall.js";
 import {Box} from "./Box.js";
+import {Collapsible} from "./Collapsible.js";
 import {Spoiler} from "./Spoiler.js";
 
 let cachedLinkOptions = null;
@@ -1347,6 +1348,7 @@ document.addEventListener('alpine:init', () => {
                         Small,
                         ExtraSmall,
                         Box,
+                        Collapsible,
                         Spoiler
                     ],
                     content: content,
@@ -1599,6 +1601,25 @@ document.addEventListener('alpine:init', () => {
             },
             toggleBox(opts) {
                 editor.chain().toggleBox(opts).focus().run()
+            },
+            insertCollapsibleSection() {
+                const defaultTitle = 'Section';
+                const title = typeof window.prompt === 'function'
+                    ? window.prompt('Collapsible section title', defaultTitle)
+                    : defaultTitle;
+
+                if (title === null) {
+                    return;
+                }
+
+                editor.chain().focus().insertContent({
+                    type: 'collapsibleSection',
+                    attrs: {
+                        title: String(title || '').trim() || defaultTitle,
+                        open: false,
+                    },
+                    content: [{ type: 'paragraph' }],
+                }).run()
             },
             canTable(command, _updatedAt = null) {
                 if (!editor) {
