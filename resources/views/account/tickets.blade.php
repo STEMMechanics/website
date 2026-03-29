@@ -44,35 +44,26 @@
     }">
         <x-ui.toolbar>
             <x-slot:left>
-                <x-ui.checkbox
-                    label="Show cancelled/refunded"
-                    :noWrapper="true"
-                    :inline="true"
-                    labelClass="text-sm pt-0"
-                    x-model="showCancelledRefunded" />
+                @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
+                    <div class="rounded border border-amber-200 bg-amber-50 text-center px-4 py-2 flex flex-col">
+                        @php
+                            $invoiceCount = ((int) ($ticketOutstandingInvoiceCount ?? 0));
+                        @endphp
+                        <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
+                        <div class="mt-1 text-xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
+                    </div>
+                @endif
             </x-slot:left>
             <x-slot:right>
+                <x-ui.checkbox
+                        label="Show cancelled/refunded"
+                        :noWrapper="true"
+                        :inline="true"
+                        labelClass="text-sm pt-0 whitespace-nowrap"
+                        x-model="showCancelledRefunded" />
                 <x-ui.search name="search" label="Search" />
             </x-slot:right>
         </x-ui.toolbar>
-
-        @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
-        <section class="mt-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-sm">
-            <div class="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                <div>
-                    <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
-                    <div class="mt-2 text-3xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
-                    <div class="mt-2 text-sm leading-6 text-amber-900">
-                        This is grouped by invoice. If multiple tickets share one invoice, a single bank transfer covers them all.
-                    </div>
-                </div>
-                <div class="rounded-2xl border border-amber-200 bg-white/70 px-4 py-3 text-sm text-amber-950">
-                    <div class="font-semibold">{{ (int) ($ticketOutstandingInvoiceCount ?? 0) }} {{ (int) ($ticketOutstandingInvoiceCount ?? 0) === 1 ? 'invoice' : 'invoices' }}</div>
-                    <div class="mt-1 text-amber-800">Shared invoices only count once in the total.</div>
-                </div>
-            </div>
-        </section>
-        @endif
 
         @if($tickets->isEmpty())
         <x-none-found item="tickets" search="{{ request()->get('search') }}" />
@@ -112,18 +103,21 @@
                     <td>
                         <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
                         <div class="md:hidden text-xs text-gray-600 whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
+                        @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
+                            <div class="md:hidden mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
+                        @endif
                     </td>
                     <td>
                         <div>{{ $workshopTitle }}</div>
                         <div class="text-xs text-gray-600">{{ $workshopDate }} - {{ $workshopLocation }}</div>
-                        @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
-                        <div class="mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
-                        @endif
                         <div class="lg:hidden text-xs text-gray-600 mt-1">Purchased: {{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="lg:hidden text-xs text-gray-600">{{ $ticketHolderName }} - {{ $ticketHolderContact }}</div>
                     </td>
                     <td class="hidden md:table-cell">
                         <div class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
+                        @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
+                            <div class="mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
+                        @endif
                     </td>
                     <td class="hidden lg:table-cell">{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
                     <td class="hidden lg:table-cell">

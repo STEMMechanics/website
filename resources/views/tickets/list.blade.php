@@ -41,36 +41,30 @@
             this.cancelTicketLabel = '';
         }
     }">
-        <p class="my-4 text-sm text-gray-600">Showing tickets for <strong>{{ $email }}</strong></p>
+        <div class="flex flex-col my-4 gap-4 md:flex-row md:justify-between">
+            <p class="text-sm text-gray-600">Showing tickets for <strong>{{ $email }}</strong></p>
 
-        @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
-            <section class="mb-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-sm">
-                <div class="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-                    <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
-                        <div class="mt-2 text-3xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
-                        <div class="mt-2 text-sm leading-6 text-amber-900">
-                            This is grouped by invoice. If multiple tickets share one invoice, a single bank transfer covers them all.
-                        </div>
-                    </div>
-                    <div class="rounded-2xl border border-amber-200 bg-white/70 px-4 py-3 text-sm text-amber-950">
-                        <div class="font-semibold">{{ (int) ($ticketOutstandingInvoiceCount ?? 0) }} {{ (int) ($ticketOutstandingInvoiceCount ?? 0) === 1 ? 'invoice' : 'invoices' }}</div>
-                        <div class="mt-1 text-amber-800">Shared invoices only count once in the total.</div>
-                    </div>
+            @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
+                <div class="rounded border border-amber-200 bg-amber-50 text-center px-4 py-2 flex flex-col">
+                    @php
+                        $invoiceCount = ((int) ($ticketOutstandingInvoiceCount ?? 0));
+                    @endphp
+                    <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
+                    <div class="mt-1 text-xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
                 </div>
-            </section>
-        @endif
+            @endif
+        </div>
 
         @if($tickets->isEmpty())
             <x-none-found item="tickets" />
         @else
             <x-ui.table>
                 <x-slot:header>
+                    <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Ticket #</th>
                     <th>Workshop Details</th>
-                    <th class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">Status</th>
-                    <th>Ticket Ref</th>
-                    <th>Purchased At</th>
-                    <th>Ticket Holder Details</th>
+                    <th class="hidden md:table-cell">Status</th>
+                    <th class="hidden lg:table-cell">Purchased At</th>
+                    <th class="hidden lg:table-cell">Ticket Holder Details</th>
                     <th>Actions</th>
                 </x-slot:header>
                 <x-slot:body>
@@ -97,23 +91,31 @@
                         @endphp
                         <tr style="{{ in_array((int) $ticket->status, [\App\Models\Ticket::STATUS_CANCELLED, \App\Models\Ticket::STATUS_REISSUED], true) ? 'background-color: rgb(254 226 226);' : '' }}">
                             <td>
+                                <div>{{ $ticket->reference_code ?: $ticket->id }}</div>
+                                <div class="md:hidden text-xs text-gray-600 whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
+                                @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
+                                    <div class="md:hidden mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
+                                @endif
+                            </td>
+                            <td>
                                 <div>{{ $workshopTitle }}</div>
                                 <div class="text-xs text-gray-600">{{ $workshopDate }} - {{ $workshopLocation }}</div>
+                                <div class="lg:hidden text-xs text-gray-600 mt-1">Purchased: {{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div class="lg:hidden text-xs text-gray-600">{{ $ticketHolderName }} - {{ $ticketHolderContact }}</div>
+                            </td>
+                            <td class="hidden md:table-cell">
+                                <div class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
                                 @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
                                     <div class="mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
                                 @endif
                             </td>
-                            <td>
-                                <div class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>
-                            </td>
-                            <td>{{ $ticket->reference_code ?: $ticket->id }}</td>
-                            <td>{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                            <td>
+                            <td class="hidden lg:table-cell">{{ $ticket->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
+                            <td class="hidden lg:table-cell">
                                 <div>{{ $ticketHolderName }}</div>
                                 <div class="text-xs text-gray-600">{{ $ticketHolderContact }}</div>
                             </td>
                             <td>
-                                <div class="flex justify-center gap-3">
+                                <div class="flex justify-center gap-3 whitespace-nowrap">
                                     @if($canOpenTicketPdf)
                                         <a href="{{ route('tickets.pdf', ['ticket' => $ticket, 'token' => $accessToken]) }}" target="_blank" class="hover:text-primary-color" title="Open Ticket PDF"><i class="fa-regular fa-file-pdf"></i></a>
                                     @else
