@@ -308,11 +308,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.user.update');
     Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.user.destroy');
     Route::get('/admin/oauth-clients', [OAuthClientController::class, 'index'])->name('admin.oauth-clients.index');
+    Route::get('/admin/oauth-clients/create', [OAuthClientController::class, 'create'])->name('admin.oauth-clients.create');
     Route::post('/admin/oauth-clients', [OAuthClientController::class, 'store'])->name('admin.oauth-clients.store');
     Route::get('/admin/oauth-clients/{client}/edit', [OAuthClientController::class, 'edit'])->name('admin.oauth-clients.edit');
     Route::put('/admin/oauth-clients/{client}', [OAuthClientController::class, 'update'])->name('admin.oauth-clients.update');
     Route::post('/admin/oauth-clients/{client}/rotate-secret', [OAuthClientController::class, 'rotateSecret'])->name('admin.oauth-clients.rotate-secret');
     Route::delete('/admin/oauth-clients/{client}', [OAuthClientController::class, 'destroy'])->name('admin.oauth-clients.destroy');
+    Route::delete('/admin/oauth-clients/{client}/purge', [OAuthClientController::class, 'purge'])->name('admin.oauth-clients.purge');
     Route::get('/admin/classrooms', [AdminClassroomController::class, 'index'])->name('admin.classroom.index');
     Route::get('/admin/classrooms/create', [AdminClassroomController::class, 'create'])->name('admin.classroom.create');
     Route::post('/admin/classrooms', [AdminClassroomController::class, 'store'])->name('admin.classroom.store');

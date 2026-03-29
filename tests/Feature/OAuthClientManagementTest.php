@@ -21,26 +21,33 @@ class OAuthClientManagementTest extends TestCase
         $admin = $this->createAdminUser();
 
         $this->actingAs($admin)
-            ->post(route('admin.oauth-clients.store'), [
-                'name' => 'Gitea',
-                'redirect_uris' => 'https://git.stemmechanics.com.au/user/oauth2/STEMMechanics/callback',
-            ])
-            ->assertRedirect(route('admin.oauth-clients.index'));
-
-        $this->actingAs($admin)
             ->get(route('admin.oauth-clients.index'))
             ->assertOk()
             ->assertSeeText('OAuth Clients')
             ->assertSeeText('OpenID Connect')
-            ->assertSeeText('Gitea and similar providers')
-            ->assertSee(route('openid.discovery'))
+            ->assertSeeText('Create client')
             ->assertSee('https://www.stemmechanics.com.au/toolbox-sm.png')
             ->assertSeeText('Supported scopes')
             ->assertSeeText('openid')
             ->assertSeeText('profile')
             ->assertSeeText('email')
-            ->assertSeeText('SSH public key claim')
-            ->assertSeeText('Gitea');
+            ->assertSeeText('Discovery details');
+
+        $this->actingAs($admin)
+            ->get(route('admin.oauth-clients.create'))
+            ->assertOk()
+            ->assertSeeText('Create OAuth Client')
+            ->assertSeeText('Before you create')
+            ->assertSeeText('Auto Discovery URL')
+            ->assertSeeText('Client name')
+            ->assertSeeText('OpenID Connect');
+
+        $this->actingAs($admin)
+            ->post(route('admin.oauth-clients.store'), [
+                'name' => 'Gitea',
+                'redirect_uris' => 'https://git.stemmechanics.com.au/user/oauth2/STEMMechanics/callback',
+            ])
+            ->assertRedirect(route('admin.oauth-clients.index'));
 
         $this->assertDatabaseHas('oauth_clients', [
             'name' => 'Gitea',
@@ -52,7 +59,7 @@ class OAuthClientManagementTest extends TestCase
         $this->assertNotEmpty($client->secret);
     }
 
-    public function test_admin_can_rotate_and_revoke_oauth_clients(): void
+    public function test_admin_can_rotate_revoke_and_purge_oauth_clients(): void
     {
         $admin = $this->createAdminUser();
         $client = app(ClientRepository::class)->createAuthorizationCodeGrantClient(
@@ -103,6 +110,20 @@ class OAuthClientManagementTest extends TestCase
         $this->assertDatabaseHas('oauth_refresh_tokens', [
             'id' => $refreshTokenId,
             'revoked' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.oauth-clients.index'))
+            ->assertOk()
+            ->assertSeeText('Delete permanently')
+            ->assertSeeText('Gitea');
+
+        $this->actingAs($admin)
+            ->delete(route('admin.oauth-clients.purge', $client))
+            ->assertRedirect(route('admin.oauth-clients.index'));
+
+        $this->assertDatabaseMissing('oauth_clients', [
+            'id' => $client->id,
         ]);
     }
 

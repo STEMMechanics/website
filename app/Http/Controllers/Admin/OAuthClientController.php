@@ -32,6 +32,17 @@ class OAuthClientController extends Controller
         ]);
     }
 
+    public function create(): View
+    {
+        return view('admin.oauth-clients.create', [
+            'openidScopes' => array_keys(config('openid.passport.tokens_can', [])),
+            'openidDiscoveryUrl' => route('openid.discovery'),
+            'openidJwksUrl' => route('openid.jwks'),
+            'openidUserinfoUrl' => route('openid.userinfo'),
+            'openidLogoUrl' => 'https://www.stemmechanics.com.au/toolbox-sm.png',
+        ]);
+    }
+
     public function store(Request $request, ClientRepository $clients): RedirectResponse
     {
         $validated = $request->validate([
@@ -135,6 +146,21 @@ class OAuthClientController extends Controller
         $clients->delete($client);
 
         session()->flash('message', 'OAuth client revoked.');
+        session()->flash('message-title', $client->name);
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.oauth-clients.index');
+    }
+
+    public function purge(PassportClient $client): RedirectResponse
+    {
+        if (! $client->revoked) {
+            abort(409, 'Revoke the client before deleting it permanently.');
+        }
+
+        $client->delete();
+
+        session()->flash('message', 'OAuth client deleted permanently.');
         session()->flash('message-title', $client->name);
         session()->flash('message-type', 'success');
 
