@@ -31,6 +31,15 @@ class OAuthClientManagementTest extends TestCase
             ->get(route('admin.oauth-clients.index'))
             ->assertOk()
             ->assertSeeText('OAuth Clients')
+            ->assertSeeText('OpenID Connect')
+            ->assertSeeText('Gitea and similar providers')
+            ->assertSee(route('openid.discovery'))
+            ->assertSee('https://www.stemmechanics.com.au/toolbox-sm.png')
+            ->assertSeeText('Supported scopes')
+            ->assertSeeText('openid')
+            ->assertSeeText('profile')
+            ->assertSeeText('email')
+            ->assertSeeText('SSH public key claim')
             ->assertSeeText('Gitea');
 
         $this->assertDatabaseHas('oauth_clients', [

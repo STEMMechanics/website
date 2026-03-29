@@ -3,6 +3,11 @@
     $recentClientSecret = trim((string) ($recentClientSecret ?? ''));
     $clients = collect($clients ?? []);
     $internalClients = collect($internalClients ?? []);
+    $openidScopes = array_values(array_keys(config('openid.passport.tokens_can', [])));
+    $openidDiscoveryUrl = route('openid.discovery');
+    $openidJwksUrl = route('openid.jwks');
+    $openidUserinfoUrl = route('openid.userinfo');
+    $openidLogoUrl = 'https://www.stemmechanics.com.au/toolbox-sm.png';
 @endphp
 
 <x-layout>
@@ -37,49 +42,140 @@
 
         <div class="mt-8 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Create client</h2>
-                    <p class="mt-1 text-sm text-gray-600">Add a new OAuth client for another platform or integration.</p>
+                <div class="rounded-3xl border border-sky-200 bg-sky-50 p-4">
+                    <div class="flex items-start gap-4">
+                        <img src="{{ $openidLogoUrl }}" alt="STEMMechanics toolbox icon" class="h-16 w-16 flex-none rounded-2xl bg-white p-2 shadow-sm ring-1 ring-sky-200">
+                        <div class="min-w-0">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">OpenID Connect</div>
+                            <h2 class="mt-1 text-lg font-semibold text-sky-950">Discovery details</h2>
+                            <p class="mt-1 text-sm leading-6 text-sky-900">
+                                Use these values when wiring a relying party or identity provider.
+                            </p>
+                        </div>
+                    </div>
+
+                    <dl class="mt-4 grid gap-3 text-sm">
+                        <div class="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-sky-100">
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-sky-700">Logo URL</dt>
+                            <dd class="mt-1 break-all text-gray-900">{{ $openidLogoUrl }}</dd>
+                        </div>
+                        <div class="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-sky-100">
+                            <dt class="text-xs font-semibold uppercase tracking-wide text-sky-700">Discovery URL</dt>
+                            <dd class="mt-1 break-all text-gray-900">{{ $openidDiscoveryUrl }}</dd>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <div class="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-sky-100">
+                                <dt class="text-xs font-semibold uppercase tracking-wide text-sky-700">JWKS URI</dt>
+                                <dd class="mt-1 break-all text-gray-900">{{ $openidJwksUrl }}</dd>
+                            </div>
+                            <div class="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-sky-100">
+                                <dt class="text-xs font-semibold uppercase tracking-wide text-sky-700">UserInfo URI</dt>
+                                <dd class="mt-1 break-all text-gray-900">{{ $openidUserinfoUrl }}</dd>
+                            </div>
+                        </div>
+                    </dl>
+
+                    <div class="mt-4 rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-sky-100">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Supported scopes</div>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @foreach($openidScopes as $scope)
+                                <span class="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">{{ $scope }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+
+                    <div class="mt-4 rounded-2xl bg-white px-4 py-4 shadow-sm ring-1 ring-sky-100">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-sky-700">Gitea and similar providers</div>
+                        <p class="mt-2 text-sm leading-6 text-gray-700">
+                            These are the values most OpenID Connect clients will ask for. Anything marked optional can usually be left blank unless you want to enforce extra login rules.
+                        </p>
+
+                        <dl class="mt-4 space-y-3 text-sm">
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Icon URL</dt>
+                                <dd class="break-all text-gray-700">{{ $openidLogoUrl }}</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">OpenID discovery URL</dt>
+                                <dd class="break-all text-gray-700">{{ $openidDiscoveryUrl }}</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Additional scopes</dt>
+                                <dd class="text-gray-700">openid profile email</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Full name claim</dt>
+                                <dd class="text-gray-700">name</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Email claim</dt>
+                                <dd class="text-gray-700">email</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Username claim</dt>
+                                <dd class="text-gray-700">preferred_username</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">SSH public key claim</dt>
+                                <dd class="text-gray-700">Not currently exposed by this site</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Required claim</dt>
+                                <dd class="text-gray-700">Optional. Leave blank unless you want to require a specific claim value.</dd>
+                            </div>
+                            <div class="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                                <dt class="font-semibold text-gray-900">Group claim</dt>
+                                <dd class="text-gray-700">Not currently exposed by this site</dd>
+                            </div>
+                        </dl>
+                    </div>
                 </div>
 
-                <form method="POST" action="{{ route('admin.oauth-clients.store') }}" class="mt-6">
-                    @csrf
-                    <x-ui.input label="Client name" name="name" value="{{ old('name') }}" placeholder="Gitea" />
-                    <x-ui.input
-                        type="textarea"
-                        label="Redirect URIs"
-                        name="redirect_uris"
-                        value="{{ old('redirect_uris') }}"
-                        placeholder="https://git.example.com/user/oauth2/stemmechanics/callback"
-                        fieldClasses="min-h-[10rem]"
-                    />
-
-                    <div class="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4">
-                        <x-ui.checkbox
-                            label="Public client (no secret)"
-                            name="public_client"
-                            checked="{{ old('public_client', false) }}"
-                        />
-                        <x-ui.checkbox
-                            label="Enable device authorization flow"
-                            name="enable_device_flow"
-                            checked="{{ old('enable_device_flow', false) }}"
-                        />
+                <div class="mt-6">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Create client</h2>
+                        <p class="mt-1 text-sm text-gray-600">Add a new OAuth client for another platform or integration.</p>
                     </div>
 
-                    <div class="mt-6">
-                        <x-ui.button type="submit" color="primary" class="w-full">Create client</x-ui.button>
-                    </div>
-                </form>
+                    <form method="POST" action="{{ route('admin.oauth-clients.store') }}" class="mt-6">
+                        @csrf
+                        <x-ui.input label="Client name" name="name" value="{{ old('name') }}" placeholder="Gitea" />
+                        <x-ui.input
+                            type="textarea"
+                            label="Redirect URIs"
+                            name="redirect_uris"
+                            value="{{ old('redirect_uris') }}"
+                            placeholder="https://git.example.com/user/oauth2/stemmechanics/callback"
+                            fieldClasses="min-h-[10rem]"
+                        />
+
+                        <div class="mt-5 space-y-3 rounded-2xl bg-gray-50 p-4">
+                            <x-ui.checkbox
+                                label="Public client (no secret)"
+                                name="public_client"
+                                checked="{{ old('public_client', false) }}"
+                            />
+                            <x-ui.checkbox
+                                label="Enable device authorization flow"
+                                name="enable_device_flow"
+                                checked="{{ old('enable_device_flow', false) }}"
+                            />
+                        </div>
+
+                        <div class="mt-6">
+                            <x-ui.button type="submit" color="primary" class="w-full">Create client</x-ui.button>
+                        </div>
+                    </form>
+                </div>
             </section>
 
             <section class="space-y-4">
                 <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <h2 class="text-lg font-semibold text-gray-900">Login clients</h2>
-                        <p class="mt-1 text-sm text-gray-600">These are the OAuth clients that can sign users in from external platforms.</p>
-                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-gray-900">Login clients</h2>
+                            <p class="mt-1 text-sm text-gray-600">These are the OAuth clients that can sign users in from external platforms.</p>
+                        </div>
                         <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $clients->count() }} total</div>
                     </div>
                 </div>
