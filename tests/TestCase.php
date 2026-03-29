@@ -29,6 +29,8 @@ abstract class TestCase extends BaseTestCase
         $publicKeyPath = storage_path('oauth-public.key');
 
         if ($this->passportKeysAreValid($privateKeyPath, $publicKeyPath)) {
+            @chmod($privateKeyPath, 0600);
+            @chmod($publicKeyPath, 0600);
             self::$passportKeysEnsured = true;
 
             return;
@@ -58,7 +60,7 @@ abstract class TestCase extends BaseTestCase
         file_put_contents($publicKeyPath, $publicKey);
 
         @chmod($privateKeyPath, 0600);
-        @chmod($publicKeyPath, 0644);
+        @chmod($publicKeyPath, 0600);
 
         self::$passportKeysEnsured = true;
     }
