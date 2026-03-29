@@ -12,6 +12,7 @@
 - Collapsable section and tip tap fixes
 - Added site option to hide child accounts
 - Fixed blade parsing error
+- My Tickets page now lists outstanding payments
 
 ## 1.4.2
 

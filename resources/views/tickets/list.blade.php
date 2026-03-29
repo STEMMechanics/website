@@ -43,6 +43,24 @@
     }">
         <p class="my-4 text-sm text-gray-600">Showing tickets for <strong>{{ $email }}</strong></p>
 
+        @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
+            <section class="mb-6 overflow-hidden rounded-3xl border border-amber-200 bg-amber-50 shadow-sm">
+                <div class="grid gap-4 p-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                    <div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
+                        <div class="mt-2 text-3xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
+                        <div class="mt-2 text-sm leading-6 text-amber-900">
+                            This is grouped by invoice. If multiple tickets share one invoice, a single bank transfer covers them all.
+                        </div>
+                    </div>
+                    <div class="rounded-2xl border border-amber-200 bg-white/70 px-4 py-3 text-sm text-amber-950">
+                        <div class="font-semibold">{{ (int) ($ticketOutstandingInvoiceCount ?? 0) }} {{ (int) ($ticketOutstandingInvoiceCount ?? 0) === 1 ? 'invoice' : 'invoices' }}</div>
+                        <div class="mt-1 text-amber-800">Shared invoices only count once in the total.</div>
+                    </div>
+                </div>
+            </section>
+        @endif
+
         @if($tickets->isEmpty())
             <x-none-found item="tickets" />
         @else
@@ -66,6 +84,7 @@
                             $ticketHolderPhone = trim((string) ($ticket->phone ?? ''));
                             $contactParts = array_values(array_filter([$ticketHolderEmail, $ticketHolderPhone], fn ($value) => $value !== ''));
                             $ticketHolderContact = count($contactParts) > 0 ? implode(' - ', $contactParts) : '-';
+                            $ticketOutstandingAmount = (float) ($ticketOutstandingByInvoiceId[(string) ($ticket->invoice_id ?? '')] ?? 0);
                             $canEditHolderDetails = ($tokenPurchaserUserId ?? null) !== null
                                 && (string) ($ticket->user_id ?? '') !== ''
                                 && (string) ($ticket->user_id ?? '') === (string) $tokenPurchaserUserId;
@@ -80,6 +99,9 @@
                             <td>
                                 <div>{{ $workshopTitle }}</div>
                                 <div class="text-xs text-gray-600">{{ $workshopDate }} - {{ $workshopLocation }}</div>
+                                @if($ticketOutstandingAmount > 0.0001 && (int) $ticket->status !== \App\Models\Ticket::STATUS_PAID)
+                                    <div class="mt-1 text-xs font-semibold text-amber-700">Still to pay: {{ money($ticketOutstandingAmount) }}</div>
+                                @endif
                             </td>
                             <td>
                                 <div class="whitespace-nowrap" style="overflow-wrap: normal; word-break: normal;">{{ $ticket->customer_status_label }}</div>

@@ -53,7 +53,7 @@ class TicketController extends Controller
         $user = auth()->user();
 
         $query = Ticket::query()
-            ->with(['workshop.location', 'user'])
+            ->with(['workshop.location', 'user', 'invoice'])
             ->where(function (Builder $builder) use ($user): void {
                 $builder->where('user_id', $user?->id);
                 $email = strtolower(trim((string) ($user->email ?? '')));
@@ -78,6 +78,8 @@ class TicketController extends Controller
             });
         }
 
+        $ticketOutstandingSummary = $this->ticketOutstandingSummary(clone $query);
+
         $tickets = $query
             ->orderByDesc('created_at')
             ->paginate(20)
@@ -85,6 +87,9 @@ class TicketController extends Controller
 
         return view('account.tickets', [
             'tickets' => $tickets,
+            'ticketOutstandingByInvoiceId' => $ticketOutstandingSummary['byInvoiceId'],
+            'ticketOutstandingInvoiceCount' => $ticketOutstandingSummary['invoiceCount'],
+            'ticketOutstandingTotal' => $ticketOutstandingSummary['total'],
             'pageTitle' => 'My Tickets',
         ]);
     }
@@ -225,8 +230,8 @@ class TicketController extends Controller
 
         $tokenPurchaserUserId = $this->purchaserUserIdForToken($token, $email);
 
-        $tickets = Ticket::query()
-            ->with(['workshop.location', 'user'])
+        $ticketQuery = Ticket::query()
+            ->with(['workshop.location', 'user', 'invoice'])
             ->where(function (Builder $builder) use ($email, $tokenPurchaserUserId): void {
                 $builder->whereRaw('LOWER(email) = ?', [$email]);
                 if ($tokenPurchaserUserId !== null) {
@@ -236,7 +241,10 @@ class TicketController extends Controller
             ->where(function ($builder) {
                 $builder->where('status', '!=', Ticket::STATUS_HOLD)
                     ->orWhere('created_at', '>=', now()->subMinutes(10));
-            })
+            });
+
+        $ticketOutstandingSummary = $this->ticketOutstandingSummary(clone $ticketQuery);
+        $tickets = $ticketQuery
             ->orderByDesc('created_at')
             ->get();
 
@@ -245,6 +253,9 @@ class TicketController extends Controller
             'email' => $email,
             'accessToken' => $tokenString,
             'tokenPurchaserUserId' => $tokenPurchaserUserId,
+            'ticketOutstandingByInvoiceId' => $ticketOutstandingSummary['byInvoiceId'],
+            'ticketOutstandingInvoiceCount' => $ticketOutstandingSummary['invoiceCount'],
+            'ticketOutstandingTotal' => $ticketOutstandingSummary['total'],
             'pageTitle' => 'My Tickets',
         ]);
     }
@@ -2266,6 +2277,59 @@ class TicketController extends Controller
         });
 
         return $query;
+    }
+
+    /**
+     * @return array{byInvoiceId: array<string, float>, invoiceCount: int, total: float}
+     */
+    private function ticketOutstandingSummary(Builder $query): array
+    {
+        $invoiceIds = (clone $query)
+            ->reorder()
+            ->whereNotNull('invoice_id')
+            ->select('invoice_id')
+            ->distinct()
+            ->pluck('invoice_id')
+            ->map(fn ($invoiceId): string => trim((string) $invoiceId))
+            ->filter(fn (string $invoiceId): bool => $invoiceId !== '')
+            ->values();
+
+        if ($invoiceIds->isEmpty()) {
+            return [
+                'byInvoiceId' => [],
+                'invoiceCount' => 0,
+                'total' => 0.0,
+            ];
+        }
+
+        $invoices = Invoice::query()
+            ->whereIn('id', $invoiceIds)
+            ->get()
+            ->keyBy(fn (Invoice $invoice): string => (string) $invoice->id);
+
+        $byInvoiceId = [];
+        $total = 0.0;
+
+        foreach ($invoiceIds as $invoiceId) {
+            $invoice = $invoices->get($invoiceId);
+            if (! $invoice instanceof Invoice) {
+                continue;
+            }
+
+            $outstanding = round((float) $invoice->outstandingAmount(), 2);
+            if ($outstanding <= 0.0001) {
+                continue;
+            }
+
+            $byInvoiceId[$invoiceId] = $outstanding;
+            $total = round($total + $outstanding, 2);
+        }
+
+        return [
+            'byInvoiceId' => $byInvoiceId,
+            'invoiceCount' => count($byInvoiceId),
+            'total' => $total,
+        ];
     }
 
     private function purchaserUserIdForToken(Token $token, string $tokenEmail): ?string
