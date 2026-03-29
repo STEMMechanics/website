@@ -14,6 +14,7 @@
 - Fixed blade parsing error
 - My Tickets page now lists outstanding payments
 - Improved UI
+- Image selector retains previous value on form validation error
 
 ## 1.4.2
 

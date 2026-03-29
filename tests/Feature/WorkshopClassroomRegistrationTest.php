@@ -71,6 +71,36 @@ class WorkshopClassroomRegistrationTest extends TestCase
             ->assertDontSee(route('class.show', $workshop->classSession), false);
     }
 
+    public function test_workshop_create_validation_keeps_the_selected_hero_image(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $startsAt = now()->addDays(7);
+
+        $this->from(route('admin.workshop.create'))
+            ->followingRedirects()
+            ->actingAs($admin)
+            ->post(route('admin.workshop.store'), [
+                'title' => 'Image Retention Workshop',
+                'content' => '',
+                'type' => 'online',
+                'location_id' => null,
+                'starts_at' => $startsAt->toDateTimeString(),
+                'ends_at' => $startsAt->copy()->addHours(2)->toDateTimeString(),
+                'publish_at' => now()->subDay()->toDateTimeString(),
+                'closes_at' => $startsAt->copy()->subDay()->toDateTimeString(),
+                'status' => 'open',
+                'is_private' => 0,
+                'is_hidden' => 0,
+                'hero_media_name' => $heroName,
+                'registration' => 'none',
+            ])
+            ->assertOk()
+            ->assertSeeText('Item content is required')
+            ->assertSee('value="'.$heroName.'"', false);
+    }
+
     public function test_admin_can_link_a_workshop_to_an_existing_classroom(): void
     {
         $admin = $this->createAdminUser();

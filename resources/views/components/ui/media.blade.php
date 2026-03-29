@@ -1,6 +1,10 @@
 @props(['type' => 'text', 'name', 'label' => 'File', 'value' => null, 'info', 'mime_type' => 'image/*', 'allow_multiple' => 'false', 'allow_uploads' => 'false'])
 
 @php
+    $selectedValue = old($name, $value);
+    if (is_array($selectedValue)) {
+        $selectedValue = '';
+    }
     $hasError = $errors->has($name);
     $allowUploads = filter_var($allow_uploads, FILTER_VALIDATE_BOOLEAN);
     $mediaUiUid = substr(md5($name), 0, 12);
@@ -54,7 +58,7 @@
         </div>
     </div>
 
-    <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $value }}">
+    <input class="hidden" type="text" id="{{ $name }}" name="{{ $name }}" value="{{ $selectedValue }}">
 </div>
 
 <script>
@@ -358,7 +362,7 @@
             }
         @endif
 
-        const currentValue = @js((string) $value);
+        const currentValue = @js((string) $selectedValue);
         if (currentValue !== '') {
             updateMedia(@js($name), currentValue);
         } else {
