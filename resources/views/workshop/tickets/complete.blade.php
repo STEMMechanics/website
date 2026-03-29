@@ -1,5 +1,7 @@
 <x-layout>
-    @php($isClassroomAccess = $workshop->usesClassroomRegistration())
+    @php
+        $isClassroomAccess = $workshop->usesClassroomRegistration();
+    @endphp
     <x-mast>{{ $isClassroomAccess ? 'Classroom Access Confirmed' : 'Tickets Confirmed' }}</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
@@ -48,7 +50,9 @@
                 'rows' => $summaryRows,
                 ])
 
-                @php($hasReceipt = isset($payment) && $payment instanceof \App\Models\Payment)
+                @php
+                    $hasReceipt = isset($payment) && $payment instanceof \App\Models\Payment;
+                @endphp
 
                 @if($sentToEmail !== '')
                 <div class="text-sm my-6">

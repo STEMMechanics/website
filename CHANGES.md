@@ -11,6 +11,7 @@
 - Added admin button to for artisan clear and queue restart
 - Collapsable section and tip tap fixes
 - Added site option to hide child accounts
+- Fixed blade parsing error
 
 ## 1.4.2
 
