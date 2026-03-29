@@ -4,6 +4,8 @@
     @php
         $canManageAccounts = (bool) ($canManageAccounts ?? false);
         $canCreateAccounts = (bool) ($canCreateAccounts ?? false);
+        $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
+        $hasChildAccounts = (bool) (auth()->user()?->isFullAccount() ? auth()->user()?->children()->whereNull('anonymized_at')->exists() : false);
         $isChildAccount = (bool) auth()->user()?->isChildAccount();
         $ownerOptions = collect($ownerOptions ?? []);
         $currentUserId = (string) auth()->id();
@@ -59,7 +61,9 @@
                             ? 'Use this page to connect Java or Bedrock usernames to your website profile, check whitelist status, and jump into player stats when you need them.'
                             : ($canManageAccounts
                                 ? 'You can review linked accounts and manage ownership here. Player stats now live on the leaderboard page.'
-                                : 'This page shows the Minecraft accounts linked to your profile. Player stats now live on the leaderboard page, while account management stays with the parent or admin account.') }}
+                                : ($childAccountsEnabled
+                                    ? 'This page shows the Minecraft accounts linked to your profile. Player stats now live on the leaderboard page, while account management stays with the parent or admin account.'
+                                    : 'This page shows the Minecraft accounts linked to your profile. Player stats now live on the leaderboard page.')) }}
                     </p>
                 </div>
 
@@ -77,7 +81,7 @@
                     </div>
                 @else
                     <div class="mt-8 rounded-3xl border border-sky-100 bg-sky-50 px-5 py-4 text-sm leading-6 text-sky-900">
-                        Child profiles can view their linked Minecraft stats here, but they cannot add or remove linked accounts.
+                        Linked profiles can view their linked Minecraft stats here, but they cannot add or remove linked accounts.
                     </div>
                 @endif
 
@@ -114,28 +118,30 @@
                                                 <span class="inline-flex items-center rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">{{ $account->platform }}</span>
                                                 <span class="text-sm font-semibold {{ $status['class'] }}">{{ $status['label'] }}</span>
                                             </div>
-                                            <div class="text-sm text-gray-500">
-                                                <span class="font-semibold text-gray-700">Linked to</span>: {{ $ownerLabel }}
-                                                <span
-                                                        class="text-xs ml-2 text-primary-color hover:text-primary-color-dark hover:underline cursor-pointer"
-                                                        data-dialog-action="{{ route('account.stemcraft.owner.update', $account) }}"
-                                                        data-dialog-title="Update linked profile"
-                                                        data-dialog-description="Move this Minecraft account to your profile or one of your child profiles."
-                                                        data-dialog-current-owner-id="{{ (string) $account->user_id }}"
-                                                        data-dialog-current-owner-label="{{ e($ownerLabel) }}"
-                                                        data-dialog-account-label="{{ e($account->username.' ('.$account->platform.')') }}"
-                                                        x-on:click="openOwnerDialog({
-                                                        action: $el.dataset.dialogAction,
-                                                        title: $el.dataset.dialogTitle,
-                                                        description: $el.dataset.dialogDescription,
-                                                        currentOwnerId: $el.dataset.dialogCurrentOwnerId,
-                                                        currentOwnerLabel: $el.dataset.dialogCurrentOwnerLabel,
-                                                        accountLabel: $el.dataset.dialogAccountLabel,
-                                                    })"
-                                                >
-                                                    [Change]
-                                                </span>
-                                            </div>
+                                            @if($childAccountsEnabled || $hasChildAccounts)
+                                                <div class="text-sm text-gray-500">
+                                                    <span class="font-semibold text-gray-700">Linked to</span>: {{ $ownerLabel }}
+                                                    <span
+                                                            class="text-xs ml-2 text-primary-color hover:text-primary-color-dark hover:underline cursor-pointer"
+                                                            data-dialog-action="{{ route('account.stemcraft.owner.update', $account) }}"
+                                                            data-dialog-title="Update linked profile"
+                                                            data-dialog-description="Move this Minecraft account to your profile or one of your child profiles."
+                                                            data-dialog-current-owner-id="{{ (string) $account->user_id }}"
+                                                            data-dialog-current-owner-label="{{ e($ownerLabel) }}"
+                                                            data-dialog-account-label="{{ e($account->username.' ('.$account->platform.')') }}"
+                                                            x-on:click="openOwnerDialog({
+                                                            action: $el.dataset.dialogAction,
+                                                            title: $el.dataset.dialogTitle,
+                                                            description: $el.dataset.dialogDescription,
+                                                            currentOwnerId: $el.dataset.dialogCurrentOwnerId,
+                                                            currentOwnerLabel: $el.dataset.dialogCurrentOwnerLabel,
+                                                            accountLabel: $el.dataset.dialogAccountLabel,
+                                                        })"
+                                                    >
+                                                        [Change]
+                                                    </span>
+                                                </div>
+                                            @endif
                                             <div class="mt-1 text-xs font-mono text-gray-900">{{ $account->uuid ?: 'Pending first login' }}</div>
                                         </div>
 
@@ -292,32 +298,32 @@
                     </div>
                 </section>
 
-                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900">{{ $canCreateAccounts ? 'Before you add an account' : 'Need a parent to link an account?' }}</h2>
-                    <div class="mt-4 space-y-4 text-sm leading-6 text-gray-600">
-                        @if($canCreateAccounts)
-                            <p>Add the exact Minecraft username you use on the server.</p>
-                            <p>Java and Bedrock usernames can be linked separately if you use both.</p>
-                            <p>If the UUID still says pending, it usually means that player has not logged into STEMCraft yet.</p>
-                        @elseif($isChildAccount)
-                            <p>This is a read-only view for child accounts. A parent or admin can link a Minecraft username to your profile.</p>
-                            <p>Once linked, your profile will show your account stats, sessions, and moderation history here.</p>
-                        @elseif($canManageAccounts)
-                            <p>You can view linked Minecraft accounts and manage existing ownership from this page.</p>
-                            <p>Adding new Minecraft usernames is restricted to parents or admins with Minecraft access.</p>
-                        @else
+                    <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-gray-900">{{ $canCreateAccounts ? 'Before you add an account' : ($childAccountsEnabled ? 'Need a parent to link an account?' : 'Need help linking an account?') }}</h2>
+                        <div class="mt-4 space-y-4 text-sm leading-6 text-gray-600">
+                            @if($canCreateAccounts)
+                                <p>Add the exact Minecraft username you use on the server.</p>
+                                <p>Java and Bedrock usernames can be linked separately if you use both.</p>
+                                <p>If the UUID still says pending, it usually means that player has not logged into STEMCraft yet.</p>
+                            @elseif($isChildAccount)
+                                <p>{{ $childAccountsEnabled ? 'This is a read-only view for child accounts. A parent or admin can link a Minecraft username to your profile.' : 'This is a read-only linked-account view. A parent or admin can link a Minecraft username to your profile.' }}</p>
+                                <p>Once linked, your profile will show your account stats, sessions, and moderation history here.</p>
+                            @elseif($canManageAccounts)
+                                <p>You can view linked Minecraft accounts and manage existing ownership from this page.</p>
+                                <p>Adding new Minecraft usernames is restricted to parents or admins with Minecraft access.</p>
+                            @else
                             <p>This page is available for inspection only. You can review the linked accounts and their stats, but management actions stay with the parent or admin account.</p>
                             <p>If you need a Minecraft username linked, ask a parent or admin to update it from their account.</p>
                         @endif
                     </div>
                 </section>
 
-                <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                    <h2 class="text-lg font-semibold text-gray-900">Need help?</h2>
-                    <p class="mt-3 text-sm leading-6 text-gray-600">If an account is not linking correctly, or if you need help with whitelist access, get in touch and include the username you are trying to use. Player stats now live on the leaderboard page.</p>
-                    <div class="mt-5 flex flex-col gap-3">
-                        <x-ui.button href="{{ route('stemcraft.leaderboards') }}" color="primary-outline">Player leaderboards</x-ui.button>
-                        <x-ui.button href="{{ route('contact') }}">Contact support</x-ui.button>
+                    <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <h2 class="text-lg font-semibold text-gray-900">Need help?</h2>
+                        <p class="mt-3 text-sm leading-6 text-gray-600">If an account is not linking correctly, or if you need help with whitelist access, get in touch and include the username you are trying to use. Player stats now live on the leaderboard page.</p>
+                        <div class="mt-5 flex flex-col gap-3">
+                            <x-ui.button href="{{ route('stemcraft.leaderboards') }}" color="primary-outline">Player leaderboards</x-ui.button>
+                            <x-ui.button href="{{ route('contact') }}">Contact support</x-ui.button>
                         <x-ui.button href="{{ route('account.show') }}" color="primary-outline">Back to account settings</x-ui.button>
                     </div>
                 </section>

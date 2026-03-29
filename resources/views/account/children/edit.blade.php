@@ -3,15 +3,22 @@
     $pendingTopics = collect($pendingTopics ?? []);
     $pendingReplies = collect($pendingReplies ?? []);
     $pendingApprovalCount = $pendingTopics->count() + $pendingReplies->count();
+    $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
 @endphp
 
 <x-layout>
     <x-mast
         backRoute="account.children.index"
-        backTitle="Child Accounts"
-        description="{{ $isNew ? 'Create a child account with its own username, password, avatar, and discussion permissions.' : 'Manage this child account including username, password, avatar, and discussion permissions.' }}"
+        backTitle="{{ $childAccountsEnabled ? 'Child Accounts' : 'Linked Accounts' }}"
+        description="{{ $isNew
+            ? ($childAccountsEnabled
+                ? 'Create a child account with its own username, password, avatar, and discussion permissions.'
+                : 'Create a linked account with its own username, password, avatar, and discussion permissions.')
+            : ($childAccountsEnabled
+                ? 'Manage this child account including username, password, avatar, and discussion permissions.'
+                : 'Manage this linked account including username, password, avatar, and discussion permissions.') }}"
     >
-        {{ $isNew ? 'Create Child Account' : 'Manage Child Account' }}
+        {{ $isNew ? ($childAccountsEnabled ? 'Create Child Account' : 'Create Linked Account') : ($childAccountsEnabled ? 'Manage Child Account' : 'Manage Linked Account') }}
     </x-mast>
 
     <x-container inner-class="max-w-6xl">
@@ -192,22 +199,22 @@
                     <form
                         method="POST"
                         action="{{ route('account.children.destroy', $child) }}"
-                        data-delete-title="Delete child account?"
-                        data-delete-message="Are you sure you want to delete this child account? This action cannot be undone."
-                        data-delete-secondary-message="Any workshop tickets for this child account will remain valid."
+                        data-delete-title="{{ $childAccountsEnabled ? 'Delete child account?' : 'Delete linked account?' }}"
+                        data-delete-message="{{ $childAccountsEnabled ? 'Are you sure you want to delete this child account? This action cannot be undone.' : 'Are you sure you want to delete this linked account? This action cannot be undone.' }}"
+                        data-delete-secondary-message="{{ $childAccountsEnabled ? 'Any workshop tickets for this child account will remain valid.' : 'Any workshop tickets for this linked account will remain valid.' }}"
                         x-data
                         x-on:submit.prevent="SM.confirmAccountDelete($el)"
                     >
                         @csrf
                         @method('DELETE')
                         <input type="hidden" name="delete_discussion_threads" value="0" />
-                        <x-ui.button type="submit" color="danger-outline">Delete child account</x-ui.button>
+                        <x-ui.button type="submit" color="danger-outline">{{ $childAccountsEnabled ? 'Delete child account' : 'Delete linked account' }}</x-ui.button>
                     </form>
                 @else
                     <div></div>
                 @endif
                 <div class="flex gap-3">
-                    <x-ui.button type="submit" form="child-account-settings-form">{{ $isNew ? 'Create child account' : 'Save child account' }}</x-ui.button>
+                    <x-ui.button type="submit" form="child-account-settings-form">{{ $isNew ? ($childAccountsEnabled ? 'Create child account' : 'Create linked account') : ($childAccountsEnabled ? 'Save child account' : 'Save linked account') }}</x-ui.button>
                 </div>
             </div>
         </div>

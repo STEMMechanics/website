@@ -1,11 +1,12 @@
 @php
     $childApprovalGroups = collect($childApprovalGroups ?? []);
     $pendingApprovalCount = (int) ($pendingApprovalCount ?? 0);
+    $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
 @endphp
 
 <x-layout>
-    <x-mast backRoute="account.children.index" backTitle="Child Accounts">
-        Child Approvals
+    <x-mast backRoute="account.children.index" backTitle="{{ $childAccountsEnabled ? 'Child Accounts' : 'Linked Accounts' }}">
+        {{ $childAccountsEnabled ? 'Child Approvals' : 'Approvals' }}
     </x-mast>
 
     <x-container inner-class="max-w-6xl">
@@ -14,7 +15,7 @@
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h2 class="text-lg font-semibold text-gray-900">Combined Approval Queue</h2>
-                        <p class="mt-1 text-sm text-gray-600">Review pending discussion threads and replies from all child accounts.</p>
+                        <p class="mt-1 text-sm text-gray-600">{{ $childAccountsEnabled ? 'Review pending discussion threads and replies from all child accounts.' : 'Review pending discussion threads and replies from all linked accounts.' }}</p>
                     </div>
                 </div>
 
@@ -35,7 +36,7 @@
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
                                         <h3 class="text-lg font-semibold text-gray-900">{{ $child->username }}</h3>
-                                        <p class="mt-1 text-sm text-gray-600">Pending discussion approvals for this child account.</p>
+                                        <p class="mt-1 text-sm text-gray-600">{{ $childAccountsEnabled ? 'Pending discussion approvals for this child account.' : 'Pending discussion approvals for this linked account.' }}</p>
                                     </div>
                                 </div>
 

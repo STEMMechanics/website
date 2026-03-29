@@ -10,18 +10,28 @@
         $hasMyMedia = $navUser ? $navUser->media()->exists() : false;
         $forumUnreadCount = $navUser ? \App\Models\ForumTopic::unreadCountForUser($navUser) : 0;
         $canViewMinecraftPage = (bool) ($navUser?->canViewMinecraftPage() ?? false);
+        $childAccountsEnabled = \App\Models\SiteOption::booleanValue('users.child-accounts-enabled', true);
+        $managedChildAccountCount = 0;
+        $hasManagedChildAccounts = false;
         $pendingChildApprovalCount = 0;
         if ($navUser?->isFullAccount()) {
-            $pendingChildApprovalCount = (int) $navUser->children()
+            $managedChildAccountCount = (int) $navUser->children()
                 ->whereNull('anonymized_at')
-                ->withCount([
-                    'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
-                    'forumPosts as pending_reply_count' => fn ($query) => $query
-                        ->where('is_approved', false)
-                        ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
-                ])
-                ->get()
-                ->sum(fn ($child) => (int) ($child->pending_topic_count ?? 0) + (int) ($child->pending_reply_count ?? 0));
+                ->count();
+            $hasManagedChildAccounts = $managedChildAccountCount > 0;
+
+            if ($childAccountsEnabled || $hasManagedChildAccounts) {
+                $pendingChildApprovalCount = (int) $navUser->children()
+                    ->whereNull('anonymized_at')
+                    ->withCount([
+                        'forumTopics as pending_topic_count' => fn ($query) => $query->where('is_approved', false),
+                        'forumPosts as pending_reply_count' => fn ($query) => $query
+                            ->where('is_approved', false)
+                            ->whereHas('topic', fn ($topicQuery) => $topicQuery->where('is_approved', true)),
+                    ])
+                    ->get()
+                    ->sum(fn ($child) => (int) ($child->pending_topic_count ?? 0) + (int) ($child->pending_reply_count ?? 0));
+            }
         }
         $shopCart = app(\App\Services\StoreCartService::class);
         $shopCartPayload = $shopCart->payload([
@@ -149,11 +159,11 @@
                 </a>
                 <button type="button" @click="userMenuOpen=!userMenuOpen" @keydown.escape="userMenuOpen=false" class="relative flex text-gray-400 hover:text-white" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span class="sr-only">Open user menu</span>
-                    @if($pendingChildApprovalCount > 0)
+                    @if($childAccountsEnabled && $pendingChildApprovalCount > 0)
                         <span class="sr-only">{{ $pendingChildApprovalCount }} child {{ \Illuminate\Support\Str::plural('approval', $pendingChildApprovalCount) }} pending</span>
                     @endif
                     <i class="fa-regular fa-user-circle text-gray-800 hover:text-sky-500 transition"></i>
-                    @if($pendingChildApprovalCount > 0)
+                    @if($childAccountsEnabled && $pendingChildApprovalCount > 0)
                         <span class="bg-orange-500 text-white text-xxs absolute -right-3 -top-2 min-w-4 px-1 text-center rounded-full">{{ $pendingChildApprovalCount }}</span>
                     @endif
                 </button>
@@ -279,11 +289,11 @@
                 @if($canViewMinecraftPage)
                     <a href="{{ route('account.stemcraft.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-cube w-4 mr-2"></i>STEMCraft</a>
                 @endif
-                @if($navUser?->isFullAccount())
+                @if(($childAccountsEnabled || $hasManagedChildAccounts) && $navUser?->isFullAccount())
                     <a href="{{ route('account.children.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-users w-4 mr-2"></i>Child Accounts</a>
                 @endif
                 <a href="{{ route('account.oauth-apps.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-plug w-4 mr-2"></i>Connected Apps</a>
-                @if($pendingChildApprovalCount > 0)
+                @if(($childAccountsEnabled || $hasManagedChildAccounts) && $pendingChildApprovalCount > 0)
                     <a href="{{ route('account.children.approvals') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1">
                         <i class="fa-solid fa-user-shield w-4 mr-2"></i>Child approvals
                         <span class="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">{{ $pendingChildApprovalCount }}</span>

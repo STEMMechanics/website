@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ForumPost;
 use App\Models\ForumTopic;
 use App\Models\Media;
+use App\Models\SiteOption;
 use App\Models\User;
 use App\Rules\UsernameRule;
 use App\Support\ForumContent;
@@ -34,6 +35,7 @@ class ChildAccountController extends Controller
         return view('account.children.index', [
             'childAccounts' => $childAccounts,
             'totalPendingChildApprovals' => $totalPendingChildApprovals,
+            'childAccountsEnabled' => SiteOption::booleanValue('users.child-accounts-enabled', true),
         ]);
     }
 
@@ -41,6 +43,7 @@ class ChildAccountController extends Controller
     {
         $parent = $request->user();
         abort_unless($parent && $parent->isFullAccount(), 403);
+        abort_unless(SiteOption::booleanValue('users.child-accounts-enabled', true), 404);
 
         return view('account.children.edit', [
             'child' => new User([
@@ -71,6 +74,7 @@ class ChildAccountController extends Controller
     {
         $parent = $request->user();
         abort_unless($parent && $parent->isFullAccount(), 403);
+        abort_unless(SiteOption::booleanValue('users.child-accounts-enabled', true), 404);
 
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:32', 'unique:users,username', new UsernameRule(false)],
@@ -181,6 +185,10 @@ class ChildAccountController extends Controller
     {
         $parent = $request->user();
         $this->authorizeChildManagement($parent, $child);
+        $remainingChildCount = $parent?->children()
+            ->whereNull('anonymized_at')
+            ->whereKeyNot((string) $child->id)
+            ->count() ?? 0;
 
         $this->userAnonymizer->anonymize(
             $child,
@@ -192,7 +200,7 @@ class ChildAccountController extends Controller
         session()->flash('message-title', 'Child account removed');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('account.children.index');
+        return redirect()->route($remainingChildCount > 0 ? 'account.children.index' : 'account.show');
     }
 
     public function bulkUpdateApprovals(Request $request): RedirectResponse

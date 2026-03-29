@@ -10,6 +10,7 @@
 - Changed admin /webhooks to /webhook-logs for clarity
 - Added admin button to for artisan clear and queue restart
 - Collapsable section and tip tap fixes
+- Added site option to hide child accounts
 
 ## 1.4.2
 

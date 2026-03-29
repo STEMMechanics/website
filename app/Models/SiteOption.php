@@ -139,6 +139,11 @@ class SiteOption extends Model
                 'value' => 'stemcraft, stemmechanics, stemmech, admin, administrator, staff, mod, moderator, owner, support',
                 'description' => 'Comma-separated username words blocked for non-admin accounts. Matching is done on whole username parts separated by dots, underscores, or hyphens.',
             ],
+            'users.child-accounts-enabled' => [
+                'value' => '1',
+                'description' => 'Master switch for child account creation and child-account navigation links. Existing child accounts remain usable when disabled.',
+                'input_type' => 'boolean',
+            ],
             'moderation.content-filter.enabled' => [
                 'value' => '1',
                 'description' => 'Master switch for configurable content filtering.',
@@ -274,5 +279,13 @@ class SiteOption extends Model
     public static function valueToHtml(string $name, ?string $default = null): HtmlString
     {
         return new HtmlString(nl2br(e((string) static::value($name, $default))));
+    }
+
+    public static function booleanValue(string $name, bool $default = false): bool
+    {
+        $fallback = $default ? '1' : '0';
+        $raw = trim((string) (static::value($name, static::defaultValue($name) ?? $fallback) ?? $fallback));
+
+        return in_array(strtolower($raw), ['1', 'true', 'yes', 'on'], true);
     }
 }

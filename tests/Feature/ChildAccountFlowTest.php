@@ -8,6 +8,7 @@ use App\Models\ForumCategory;
 use App\Models\ForumPost;
 use App\Models\ForumTopic;
 use App\Models\Media;
+use App\Models\SiteOption;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -56,6 +57,89 @@ class ChildAccountFlowTest extends TestCase
 
         $loginResponse->assertRedirect(route('index'));
         $this->assertAuthenticatedAs($child);
+    }
+
+    public function test_child_account_creation_can_be_disabled_by_site_option(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'users.child-accounts-enabled'],
+            ['value' => '0']
+        );
+
+        $parent = User::factory()->create();
+
+        $this->actingAs($parent)
+            ->get(route('account.children.index'))
+            ->assertOk()
+            ->assertSeeText('Linked Accounts')
+            ->assertDontSeeText('Create child account');
+
+        $this->actingAs($parent)
+            ->get(route('account.children.create'))
+            ->assertNotFound();
+
+        $this->actingAs($parent)
+            ->post(route('account.children.store'), [
+                'username' => 'kid-disabled',
+                'password' => 'secret1234',
+                'password_confirmation' => 'secret1234',
+            ])
+            ->assertNotFound();
+
+        $this->actingAs($parent)
+            ->get(route('index'))
+            ->assertOk()
+            ->assertDontSeeText('Child Accounts')
+            ->assertDontSeeText('Child approvals');
+    }
+
+    public function test_parent_with_existing_child_accounts_still_sees_child_account_menu_when_disabled(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'users.child-accounts-enabled'],
+            ['value' => '0']
+        );
+
+        $parent = User::factory()->create();
+        User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'username' => 'kid-existing',
+            'email' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $this->actingAs($parent)
+            ->get(route('index'))
+            ->assertOk()
+            ->assertSeeText('Child Accounts');
+
+        $this->actingAs($parent)
+            ->get(route('account.children.index'))
+            ->assertOk()
+            ->assertSeeText('Linked Accounts')
+            ->assertDontSeeText('Create child account');
+    }
+
+    public function test_deleting_the_last_child_account_returns_to_account_settings_when_child_accounts_are_disabled(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'users.child-accounts-enabled'],
+            ['value' => '0']
+        );
+
+        $parent = User::factory()->create();
+        $child = User::factory()->create([
+            'parent_user_id' => $parent->id,
+            'username' => 'kid-last',
+            'email' => null,
+            'email_verified_at' => null,
+        ]);
+
+        $this->actingAs($parent)
+            ->delete(route('account.children.destroy', $child), [
+                'delete_discussion_threads' => '0',
+            ])
+            ->assertRedirect(route('account.show'));
     }
 
     public function test_parent_can_view_the_child_accounts_page(): void
@@ -719,7 +803,7 @@ class ChildAccountFlowTest extends TestCase
             ->delete(route('account.children.destroy', $child), [
                 'delete_discussion_threads' => '0',
             ])
-            ->assertRedirect(route('account.children.index'));
+            ->assertRedirect(route('account.show'));
 
         $child->refresh();
         $reply->refresh();
