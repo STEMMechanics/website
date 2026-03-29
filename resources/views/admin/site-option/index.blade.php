@@ -6,7 +6,6 @@
             id="site-options-app"
             data-csrf="{{ csrf_token() }}"
             data-reset-all-url="{{ route('admin.site_option.reset-defaults') }}"
-            data-maintenance-refresh-url="{{ route('admin.site_option.maintenance-refresh') }}"
             data-update-url-template="{{ route('admin.site_option.update', ['siteOption' => '__ID__']) }}"
             data-reset-url-template="{{ route('admin.site_option.reset-default', ['siteOption' => '__ID__']) }}"
             data-generate-secret-url-template="{{ route('admin.site_option.generate-secret', ['siteOption' => '__ID__']) }}"
@@ -15,7 +14,6 @@
                 <x-slot:left>
                     <x-ui.button href="{{ route('admin.site_option.create') }}">Create</x-ui.button>
                     <x-ui.button type="button" color="outline" class="ml-2" id="site-options-reset-all-button">Reset All Defaults</x-ui.button>
-                    <x-ui.button type="button" color="danger" class="ml-2" id="site-options-maintenance-refresh-button">Clear Cache & Restart Queue</x-ui.button>
                 </x-slot:left>
                 <x-slot:right>
                     <x-ui.search name="search" label="Search" />
@@ -173,7 +171,6 @@
         const updateUrlTemplate = String(root.dataset.updateUrlTemplate || '');
         const resetUrlTemplate = String(root.dataset.resetUrlTemplate || '');
         const resetAllUrl = String(root.dataset.resetAllUrl || '');
-        const maintenanceRefreshUrl = String(root.dataset.maintenanceRefreshUrl || '');
         const generateSecretUrlTemplate = String(root.dataset.generateSecretUrlTemplate || '');
 
         const modal = document.getElementById('site-option-modal');
@@ -185,7 +182,6 @@
         const modalCancel = document.getElementById('site-option-modal-cancel');
         const modalSave = document.getElementById('site-option-modal-save');
         const resetAllButton = document.getElementById('site-options-reset-all-button');
-        const maintenanceRefreshButton = document.getElementById('site-options-maintenance-refresh-button');
         let currentOptionId = null;
 
         const previewText = (value) => {
@@ -251,21 +247,6 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#039;');
-        };
-
-        const maintenanceResultHtml = (payload) => {
-            const commands = Array.isArray(payload?.commands) ? payload.commands : [];
-            if (commands.length === 0) {
-                return escapeHtml(String(payload?.message || 'No command results were returned.'));
-            }
-
-            const rows = commands.map((entry) => {
-                const status = entry?.success ? 'OK' : 'Failed';
-                const details = [entry?.output, entry?.error].filter((value) => String(value || '').trim() !== '').join(' ');
-                return '<li><strong>' + escapeHtml(String(entry?.command || 'command')) + '</strong> - ' + escapeHtml(status) + (details !== '' ? ': ' + escapeHtml(details) : '') + '</li>';
-            }).join('');
-
-            return '<div class="space-y-2"><p>' + escapeHtml(String(payload?.message || 'Maintenance commands finished.')) + '</p><ul class="list-disc space-y-1 pl-5 text-left">' + rows + '</ul></div>';
         };
 
         const rowForId = (id) => document.getElementById('site-option-row-' + id);
@@ -506,42 +487,6 @@
                     }
                 } finally {
                     resetAllButton.disabled = false;
-                }
-            });
-        }
-
-        if (maintenanceRefreshButton) {
-            maintenanceRefreshButton.addEventListener('click', async () => {
-                const result = await confirmDialog(
-                    'Clear caches and restart queues?',
-                    'This will run optimize:clear, config:clear, cache:clear, view:clear, and queue:restart on the server.',
-                    'Run Maintenance',
-                    '#b91c1c'
-                );
-
-                if (!result || result.isConfirmed !== true) {
-                    return;
-                }
-
-                try {
-                    maintenanceRefreshButton.disabled = true;
-                    const payload = await fetchJson(maintenanceRefreshUrl, {
-                        method: 'POST',
-                    });
-                    if (window.SM && typeof window.SM.notice === 'function') {
-                        window.SM.notice('Maintenance complete', maintenanceResultHtml(payload), 'success', { toast: true });
-                    }
-                } catch (error) {
-                    const payload = error?.payload || null;
-                    const html = maintenanceResultHtml(payload || {
-                        message: error.message || 'Could not run the maintenance commands.',
-                        commands: [],
-                    });
-                    if (window.SM && typeof window.SM.notice === 'function') {
-                        window.SM.notice('Maintenance failed', html, 'danger', { toast: true });
-                    }
-                } finally {
-                    maintenanceRefreshButton.disabled = false;
                 }
             });
         }

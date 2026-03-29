@@ -8,7 +8,7 @@ use Throwable;
 class ServerMaintenanceService
 {
     /**
-     * Run the cache/queue maintenance commands used from the admin site options page.
+     * Run the cache/queue maintenance commands used from the admin server info page.
      *
      * @return array{success: bool, message: string, commands: array<int, array{command: string, success: bool, exit_code: int|null, output: string, error: string|null}>}
      */
