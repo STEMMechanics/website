@@ -204,9 +204,12 @@
                 },
                 selectedCustomerId: @js($selectedCustomerId),
                 invoiceOptions: @js($invoiceOptions ?? []),
+                existingInvoiceOptionsById: @js($existingInvoiceOptionsById ?? []),
                 selectedInvoiceOption(invoiceId) {
                     const key = String(parseInt(invoiceId || 0));
-                    return this.invoiceOptions.find((invoice) => String(invoice.id) === key) || null;
+                    return this.invoiceOptions.find((invoice) => String(invoice.id) === key)
+                        || this.existingInvoiceOptionsById[key]
+                        || null;
                 },
                 invoiceViewUrls: @js($invoiceViewUrls),
                 invoiceRemainingById: @js($invoiceRemainingLookup),
@@ -260,7 +263,7 @@
 
             <x-ui.input type="text" label="Total Amount" name="total_amount" value="{{ old('total_amount', $customerPayment->total_amount ?? (isset($prefillTotalAmount) && $prefillTotalAmount !== null ? number_format((float) $prefillTotalAmount, 2, '.', '') : '0.00')) }}" :moneyFormat="true" :disabled="$isCoreLocked" x-ref="totalAmountInput" />
 
-            <div class="border rounded-lg p-4 mb-4" x-init="serializeAllocations()">
+            <div class="border rounded-lg p-4 mb-4 border-gray-400" x-init="serializeAllocations()">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
@@ -297,7 +300,7 @@
                                                     -
                                                 @endif
                                             </td>
-                                            <td class="py-2 pr-3 text-right">${{ number_format((float) $allocation->allocated_amount, 2) }}</td>
+                                            <td class="py-2 pr-3 text-right">Remaining: ${{ number_format((float) $allocation->allocated_amount, 2) }}</td>
                                             <td class="py-2">
                                                 @if($allocation->taxAdjustment && $allocation->invoice)
                                                     <a href="{{ route('admin.tax_adjustment.edit', ['invoice' => $allocation->invoice, 'taxAdjustment' => $allocation->taxAdjustment]) }}" target="_blank" rel="noopener noreferrer" class="text-gray-600 hover:text-primary-color" title="Open tax adjustment">
@@ -396,7 +399,7 @@
                                     </div>
                                     <div class="flex shrink-0 items-center gap-2 text-xs text-gray-500">
                                         <template x-if="currentInvoice()">
-                                            <span x-text="formatMoney(currentInvoice()?.remaining_amount || 0)"></span>
+                                            <span x-text="'Remaining: '+formatMoney(currentInvoice()?.remaining_amount || 0)"></span>
                                         </template>
                                         <i class="fa-solid fa-chevron-down text-[10px]"></i>
                                     </div>
@@ -439,7 +442,6 @@
                                             >Clear selection</button>
                                         </div>
                                     @endif
-                                    <div class="text-xs text-gray-500" x-show="selectedCustomerId !== ''" x-cloak>Showing invoices for the selected customer only.</div>
                                 </div>
                                 <div class="max-h-72 overflow-auto py-1">
                                     <template x-if="filteredInvoiceOptions().length === 0">
@@ -454,47 +456,25 @@
                                             <div class="flex items-start justify-between gap-3">
                                                 <div class="min-w-0">
                                                     <div class="truncate text-sm font-medium text-gray-900" x-text="option.selection_label"></div>
-                                                    <div class="mt-1 text-xs text-gray-500">
-                                                        <span x-text="option.customer_email || 'No email'"></span>
-                                                        <span x-show="option.ticket_summary" x-cloak> · <span x-text="option.ticket_summary"></span></span>
-                                                    </div>
-                                                    <div class="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                                                        <span class="rounded-full bg-gray-100 px-2 py-0.5" x-text="option.payment_state_label"></span>
-                                                        <span x-show="option.paid_amount > 0.0001 && option.remaining_amount > 0.0001" x-cloak class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900" x-text="formatMoney(option.paid_amount || 0) + ' paid'"></span>
-                                                    </div>
                                                 </div>
                                                 <div class="flex shrink-0 flex-col items-end text-right text-xs text-gray-500">
-                                                    <span class="font-semibold text-gray-900" x-text="formatMoney(option.remaining_amount || 0)"></span>
-                                                    <span x-text="option.status_label"></span>
-                                                    <span x-text="formatMoney(option.total_amount || 0)"></span>
+                                                    <span class="font-semibold text-gray-900" x-text="'Remaining: ' + formatMoney(option.remaining_amount || 0)"></span>
+                                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500" x-text="option.payment_state_label"></span>
                                                 </div>
                                             </div>
                                         </button>
                                     </template>
                                 </div>
                             </div>
-                            <div class="mt-2 text-xs text-gray-600" x-show="allocation.invoice_id" x-cloak>
-                                <template x-if="selectedInvoiceOption(allocation.invoice_id)">
-                                    <div class="space-y-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
-                                        <div class="font-semibold text-gray-900" x-text="selectedInvoiceOption(allocation.invoice_id)?.label"></div>
-                                        <div x-show="selectedInvoiceOption(allocation.invoice_id)?.ticket_summary">
-                                            <span class="font-medium text-gray-700">Tickets:</span>
-                                            <span x-text="selectedInvoiceOption(allocation.invoice_id)?.ticket_summary"></span>
-                                        </div>
-                                        <div>
-                                            <span class="font-medium text-gray-700">Remaining:</span>
-                                            <span x-text="formatMoney(selectedInvoiceOption(allocation.invoice_id)?.remaining_amount || 0)"></span>
-                                        </div>
-                                    </div>
-                                </template>
+                        </div>
+                        <div class="col-span-3 h-full flex flex-col">
+                            <label class="block text-sm pl-1">Amount</label>
+                            <div class="flex flex-1 items-center">
+                                <input type="text" class="mt-1 disabled:bg-gray-100 bg-white block px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
                             </div>
                         </div>
-                        <div class="col-span-3">
-                            <label class="block text-sm pl-1">Amount</label>
-                            <input type="text" class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="allocation.allocated_amount" x-on:input="serializeAllocations()" x-on:blur="normalizeAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }} />
-                        </div>
-                        <div class="col-span-1">
-                            <div class="h-[42px] flex items-center gap-3">
+                        <div class="col-span-1 h-full">
+                            <div class="h-full flex items-center gap-3 pt-5">
                                 <a x-show="invoiceEditUrl(allocation.invoice_id)"
                                    x-bind:href="invoiceEditUrl(allocation.invoice_id)"
                                    target="_blank"
@@ -516,8 +496,24 @@
 
             <x-ui.input type="textarea" label="Notes (Private)" name="notes" value="{{ old('notes', $customerPayment->notes ?? '') }}" />
 
+            @if(! $isExisting)
+                <label class="mt-5 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
+                    <input
+                        type="checkbox"
+                        name="email_receipt"
+                        value="1"
+                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                        @checked(old('email_receipt'))
+                    >
+                    <span>
+                        <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
+                        <span class="mt-1 block text-xs text-gray-500">Optional. A receipt email will only be sent if this is checked and one invoice can be identified for the payment.</span>
+                    </span>
+                </label>
+            @endif
+
             @isset($customerPayment)
-                <div class="border rounded-lg p-4 mb-4">
+                <div class="border rounded-lg p-4 mb-4 border-gray-400">
                     <h3 class="font-bold text-lg mb-3">Payment Progress</h3>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
                         <div><span class="font-semibold">Original Amount:</span> ${{ number_format((float) $customerPayment->total_amount, 2) }}</div>
@@ -529,7 +525,7 @@
                 </div>
 
                 @if($isSquareManaged && ! $isRefundRecord)
-                    <div class="border rounded-lg p-4 mb-4">
+                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
                         <h3 class="font-bold text-lg mb-3">Square Integration</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                             <div><span class="font-semibold">Gateway:</span> {{ $customerPayment->gateway_provider ?? '-' }}</div>
@@ -569,7 +565,7 @@
                         </div>
                     </div>
                 @elseif($isSquareManaged && $isRefundRecord)
-                    <div class="border rounded-lg p-4 mb-4">
+                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
                         <h3 class="font-bold text-lg mb-3">Square Refund</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                             <div><span class="font-semibold">Gateway:</span> {{ $customerPayment->gateway_provider ?? '-' }}</div>
@@ -583,7 +579,7 @@
                 @endif
 
                 @if(! $isCreditGrant)
-                    <div class="border rounded-lg p-4 mb-4">
+                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
                         <h3 class="font-bold text-lg mb-3">Receipt Links</h3>
                         <div class="flex flex-wrap gap-3">
                             <a
@@ -603,7 +599,7 @@
                         @endif
                     </div>
 
-                    <div class="border rounded-lg p-4 mb-4">
+                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
                         <h3 class="font-bold text-lg mb-3">Refund History</h3>
                         @if($refundHistory->isEmpty())
                             <div class="text-sm text-gray-500">No refund records linked to this payment.</div>

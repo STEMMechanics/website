@@ -436,7 +436,10 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         $validated = $this->validateRequest($request);
-        DB::transaction(function () use ($validated, $request): void {
+        $emailReceipt = $request->boolean('email_receipt', false);
+        $payment = null;
+
+        DB::transaction(function () use ($validated, $request, &$payment): void {
             $payment = new Payment();
             $payment->fill($validated);
             $payment->kind = Payment::KIND_PAYMENT;
@@ -447,6 +450,10 @@ class PaymentController extends Controller
 
             $this->syncAllocations($payment, $request);
         });
+
+        if ($emailReceipt && $payment instanceof Payment) {
+            $this->sendPaymentReceiptEmail($payment);
+        }
 
         session()->flash('message', 'Payment has been recorded');
         session()->flash('message-title', 'Payment recorded');
@@ -474,18 +481,28 @@ class PaymentController extends Controller
 
             return [(string) $invoice->id => $remaining];
         })->all();
+        $customerPayment = $payment->load(
+            'allocations.invoice.user',
+            'allocations.taxAdjustment',
+            'refundOf',
+            'refunds.allocations.invoice',
+            'refunds.user'
+        );
+        $existingInvoiceOptionsById = collect($this->paymentInvoiceOptions(
+            $customerPayment->allocations
+                ->map(fn ($allocation) => $allocation->invoice)
+                ->filter()
+                ->values()
+        ))->mapWithKeys(function (array $option): array {
+            return [(string) $option['id'] => $option];
+        })->all();
 
         return view('admin.payment.edit', [
-            'customerPayment' => $payment->load(
-                'allocations.invoice',
-                'allocations.taxAdjustment',
-                'refundOf',
-                'refunds.allocations.invoice',
-                'refunds.user'
-            ),
+            'customerPayment' => $customerPayment,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'invoices' => $invoices,
             'invoiceOptions' => $invoiceOptions,
+            'existingInvoiceOptionsById' => $existingInvoiceOptionsById,
             'invoiceRemainingById' => $invoiceRemainingById,
             'paymentMethods' => Payment::PAYMENT_METHODS,
             'initialAllocations' => [],
@@ -866,6 +883,7 @@ class PaymentController extends Controller
             'total_amount' => ['required', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string'],
             'allocations_json' => ['nullable', 'string'],
+            'email_receipt' => ['nullable', 'boolean'],
         ]);
     }
 
@@ -1130,6 +1148,59 @@ class PaymentController extends Controller
                 invoiceSummary: $invoiceNumbers->isNotEmpty() ? 'Related invoice'.($invoiceNumbers->count() > 1 ? 's' : '').': '.$invoiceNumbers->implode(', ') : null,
             )
         ))->onQueue('mail');
+    }
+
+    private function sendPaymentReceiptEmail(Payment $payment): bool
+    {
+        $payment->loadMissing('user', 'allocations.invoice', 'allocations.taxAdjustment');
+
+        $recipient = strtolower(trim((string) ($payment->user?->email ?: '')));
+        if ($recipient === '' || ! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        $invoiceNumbers = $payment->allocations
+            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
+            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
+            ->filter(fn (string $invoiceNumber): bool => $invoiceNumber !== '')
+            ->unique()
+            ->values();
+
+        if ($invoiceNumbers->count() !== 1) {
+            return false;
+        }
+
+        $pdfBinary = $this->buildPaymentReceiptPdf($payment)->output();
+        if ($pdfBinary === '') {
+            return false;
+        }
+
+        dispatch(new SendEmail(
+            $recipient,
+            new PaymentReceiptPdf(
+                recipientName: $payment->user?->getName() ?: 'Customer',
+                invoiceNumber: (string) $invoiceNumbers->first(),
+                receiptNumber: (string) $payment->id,
+                amount: money(abs((float) $payment->total_amount)),
+                paidOn: $payment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
+                paymentMethod: Payment::paymentMethodLabel((string) ($payment->payment_method ?? Payment::PAYMENT_METHOD_OTHER)),
+                receiptUrl: (string) ($payment->square_receipt_url ?? ''),
+                isRefund: false,
+                pdfContent: $pdfBinary,
+                pdfFilename: $this->getPaymentReceiptPdfFilename($payment),
+                invoiceSummary: 'Invoice '.$invoiceNumbers->first(),
+                statusSummary: '',
+                outstandingBeforeSummary: null,
+                appliedAmountSummary: null,
+                creditSummary: null,
+                creditAppliedAmount: null,
+                creditReferenceSummary: null,
+                orderTotalAmount: null,
+                hasInvoiceAttachment: false,
+            )
+        ))->onQueue('mail');
+
+        return true;
     }
 
     private function buildPaymentReceiptPdf(Payment $payment): \Barryvdh\DomPDF\PDF

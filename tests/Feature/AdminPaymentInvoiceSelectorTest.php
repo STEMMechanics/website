@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEmail;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use App\Mail\PaymentReceiptPdf;
 use Tests\TestCase;
 
 class AdminPaymentInvoiceSelectorTest extends TestCase
@@ -92,6 +95,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertSee('Select invoice', false);
         $response->assertSee('Search invoices', false);
         $response->assertSee('Add all', false);
+        $response->assertSee('Email receipt to customer', false);
         $response->assertSee('INV-100001', false);
         $response->assertSee('Jane Doe', false);
         $response->assertSee('INV-100002', false);
@@ -100,6 +104,95 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertDontSee('INV-100003', false);
         $response->assertDontSee('Filter Invoices', false);
         $response->assertDontSee('Invoice scope', false);
+    }
+
+    public function test_payment_edit_page_keeps_previous_allocation_labels_even_when_the_invoice_is_now_paid(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Taylor',
+            'surname' => 'Jones',
+            'email' => 'taylor.jones@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-200001',
+            'user_id' => $customer->id,
+            'billing_name' => 'Taylor Jones',
+            'billing_email' => 'taylor.jones@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 80.00,
+            'subtotal_amount' => 72.73,
+            'gst_amount' => 7.27,
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'total_amount' => 80.00,
+            'gst_amount' => 0.00,
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 80.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.edit', $payment));
+
+        $response->assertOk();
+        $response->assertSee('INV-200001', false);
+        $response->assertSee('Paid in full', false);
+    }
+
+    public function test_payment_store_can_email_a_receipt_when_requested(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Morgan',
+            'surname' => 'Lee',
+            'email' => 'morgan.lee@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-300001',
+            'user_id' => $customer->id,
+            'billing_name' => 'Morgan Lee',
+            'billing_email' => 'morgan.lee@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 60.00,
+            'subtotal_amount' => 54.55,
+            'gst_amount' => 5.45,
+        ]);
+
+        Queue::fake();
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.store'), [
+            'user_id' => $customer->id,
+            'received_on' => now()->format('Y-m-d H:i:s'),
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'reference' => 'BT-300001',
+            'total_amount' => 60.00,
+            'notes' => 'Bank transfer',
+            'email_receipt' => 1,
+            'allocations_json' => json_encode([
+                [
+                    'invoice_id' => $invoice->id,
+                    'allocated_amount' => 60.00,
+                ],
+            ]),
+        ]);
+
+        $response->assertRedirect(route('admin.payment.index'));
+        $response->assertSessionHasNoErrors();
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'morgan.lee@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->invoiceNumber === 'INV-300001'
+                && $job->mailable->invoiceSummary === 'Invoice INV-300001';
+        });
     }
 
     private function createAdminUser(): User
