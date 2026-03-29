@@ -42,10 +42,10 @@
         },
         showCancelledRefunded: false
     }">
-        <x-ui.toolbar>
+        <x-ui.toolbar break="md">
             <x-slot:left>
                 @if((float) ($ticketOutstandingTotal ?? 0) > 0.0001)
-                    <div class="rounded border border-amber-200 bg-amber-50 text-center px-4 py-2 flex flex-col">
+                    <div class="rounded border border-amber-200 bg-amber-50 text-center px-4 py-2 flex flex-col w-full md:w-auto">
                         @php
                             $invoiceCount = ((int) ($ticketOutstandingInvoiceCount ?? 0));
                         @endphp
