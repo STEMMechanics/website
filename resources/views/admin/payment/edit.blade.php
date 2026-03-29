@@ -74,6 +74,7 @@
     $invoiceRemainingLookup = collect($invoiceRemainingById ?? [])->mapWithKeys(function ($value, $key) {
         return [(string) $key => round((float) $value, 2)];
     })->all();
+    $selectedCustomerId = (string) old('user_id', $customerPayment->user_id ?? ($prefillUserId ?? ''));
 @endphp
 
 <x-layout>
@@ -112,6 +113,46 @@
                 addAllocation() {
                     this.allocations.push({ invoice_id: '', allocated_amount: '0.00' });
                 },
+                addAllAllocations() {
+                    const customerId = String(this.selectedCustomerId || '').trim();
+                    let remainingFunds = this.paymentTotal();
+                    const generated = [];
+
+                    for (const option of (this.invoiceOptions || [])) {
+                        if (customerId !== '' && String(option?.user_id || '').trim() !== customerId) {
+                            continue;
+                        }
+
+                        const invoiceId = parseInt(option?.id || 0);
+                        if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+                            continue;
+                        }
+
+                        const invoiceRemaining = parseFloat(this.invoiceRemainingById[String(invoiceId)] || option?.remaining_amount || 0);
+                        if (!(invoiceRemaining > 0.0001)) {
+                            continue;
+                        }
+
+                        if (!(remainingFunds > 0.0001)) {
+                            break;
+                        }
+
+                        const allocatedAmount = Math.max(0, Math.min(invoiceRemaining, remainingFunds));
+                        const normalizedAmount = this.normalizeMoney(allocatedAmount);
+                        if (!(parseFloat(normalizedAmount) > 0.0001)) {
+                            continue;
+                        }
+
+                        generated.push({
+                            invoice_id: invoiceId,
+                            allocated_amount: normalizedAmount,
+                        });
+                        remainingFunds = Math.max(0, parseFloat((remainingFunds - parseFloat(normalizedAmount)).toFixed(2)));
+                    }
+
+                    this.allocations = generated;
+                    this.serializeAllocations();
+                },
                 removeAllocation(index) {
                     this.allocations.splice(index, 1);
                     this.serializeAllocations();
@@ -119,6 +160,10 @@
                 normalizeMoney(value) {
                     const parsed = parseFloat(value || 0);
                     return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+                },
+                formatMoney(value) {
+                    const parsed = parseFloat(value || 0);
+                    return '$' + (Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00');
                 },
                 normalizeAllocation(index) {
                     this.allocations[index].allocated_amount = this.normalizeMoney(this.allocations[index]?.allocated_amount);
@@ -157,9 +202,17 @@
                     const key = String(parseInt(invoiceId || 0));
                     return this.invoiceViewUrls[key] || '';
                 },
+                selectedCustomerId: @js($selectedCustomerId),
+                invoiceOptions: @js($invoiceOptions ?? []),
+                selectedInvoiceOption(invoiceId) {
+                    const key = String(parseInt(invoiceId || 0));
+                    return this.invoiceOptions.find((invoice) => String(invoice.id) === key) || null;
+                },
                 invoiceViewUrls: @js($invoiceViewUrls),
                 invoiceRemainingById: @js($invoiceRemainingLookup),
               }"
+              x-on:admin-linked-user-changed.window="selectedCustomerId = $event.detail?.userId || ''"
+              x-on:payment-add-all.window="addAllAllocations()"
               x-on:submit.prevent="serializeAllocations(); $el.submit()">
             @isset($customerPayment)
                 @method('PUT')
@@ -211,7 +264,9 @@
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="font-bold text-lg">Invoice Allocations</h3>
                     @if($canAddAllocations)
-                        <button type="button" class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color text-white whitespace-nowrap text-center justify-center rounded-md px-8 py-1.5 text-sm font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-on:click.prevent="addAllocation()">Add Allocation</button>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-semibold leading-6 text-gray-700 shadow-sm transition hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color" x-on:click.prevent="addAllocation()">Add Allocation</button>
+                        </div>
                     @endif
                 </div>
                 @if($errors->has('allocations_json'))
@@ -267,15 +322,172 @@
                 </template>
 
                 <template x-for="(allocation, index) in allocations" :key="index">
-                    <div class="grid grid-cols-12 gap-3 items-end mb-3">
-                        <div class="col-span-8">
+                    <div
+                        class="grid grid-cols-12 gap-3 items-start mb-3"
+                        x-data="{
+                            open: false,
+                            query: '',
+                            focusSearch() {
+                                this.$nextTick(() => this.$refs.search?.focus());
+                            },
+                            currentInvoice() {
+                                return this.selectedInvoiceOption(allocation.invoice_id);
+                            },
+                            selectedInvoiceLabel() {
+                                const current = this.currentInvoice();
+                                return current ? current.selection_label : 'Select invoice';
+                            },
+                            selectedInvoiceMeta() {
+                                const current = this.currentInvoice();
+                                if (!current) {
+                                    return '';
+                                }
+
+                                return [current.status_label, current.ticket_summary].filter((value) => String(value || '').trim() !== '').join(' · ');
+                            },
+                            filteredInvoiceOptions() {
+                                const customerId = String(this.selectedCustomerId || '').trim();
+                                const needle = String(this.query || '').toLowerCase().trim();
+
+                                return (this.invoiceOptions || []).filter((option) => {
+                                    if (customerId !== '' && String(option?.user_id || '').trim() !== customerId) {
+                                        return false;
+                                    }
+
+                                    if (needle === '') {
+                                        return true;
+                                    }
+
+                                    return String(option?.search || '').toLowerCase().includes(needle);
+                                });
+                            },
+                            selectInvoice(option) {
+                                allocation.invoice_id = option.id;
+                                this.open = false;
+                                this.query = '';
+                                this.autoFillAllocation(index);
+                            },
+                            clearInvoice() {
+                                allocation.invoice_id = '';
+                                allocation.allocated_amount = '0.00';
+                                this.open = false;
+                                this.query = '';
+                                this.serializeAllocations();
+                            },
+                        }"
+                        @click.outside="open = false"
+                        @keydown.escape.window="open = false"
+                    >
+                        <div class="col-span-8 relative">
                             <label class="block text-sm pl-1">Invoice</label>
-                            <select class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="allocation.invoice_id" x-on:change="autoFillAllocation(index)" {{ $canEditAllocations ? '' : 'disabled' }}>
-                                <option value="">Select invoice</option>
-                                @foreach($invoices as $invoice)
-                                    <option value="{{ $invoice->id }}">{{ $invoice->invoice_number }} - {{ $invoice->user?->getName() ?? 'No customer' }} - ${{ number_format((float) $invoice->total_amount, 2) }}</option>
-                                @endforeach
-                            </select>
+                            <button
+                                type="button"
+                                class="disabled:bg-gray-100 bg-white block mt-1 px-3 py-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 shadow-sm text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                @if($canEditAllocations)
+                                    x-on:click="open = !open; if (open) { focusSearch(); }"
+                                @else
+                                    disabled
+                                @endif
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="truncate font-medium" x-text="selectedInvoiceLabel()"></div>
+                                        <div class="mt-1 text-xs text-gray-500" x-show="selectedInvoiceMeta()" x-cloak x-text="selectedInvoiceMeta()"></div>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-2 text-xs text-gray-500">
+                                        <template x-if="currentInvoice()">
+                                            <span x-text="formatMoney(currentInvoice()?.remaining_amount || 0)"></span>
+                                        </template>
+                                        <i class="fa-solid fa-chevron-down text-[10px]"></i>
+                                    </div>
+                                </div>
+                            </button>
+                            <div
+                                x-show="open"
+                                x-cloak
+                                class="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-xl"
+                            >
+                                <div class="border-b border-gray-200 p-3 space-y-3">
+                                    <div class="flex items-end gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Search invoices</label>
+                                            <input
+                                                x-ref="search"
+                                                type="text"
+                                                class="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm focus:border-primary-color focus:outline-none focus:ring-1 focus:ring-primary-color"
+                                                placeholder="Invoice, customer, email, ticket..."
+                                                x-model="query"
+                                                x-on:keydown.escape.prevent="open = false"
+                                            />
+                                        </div>
+                                        @if($canEditAllocations)
+                                            <button
+                                                type="button"
+                                                class="shrink-0 rounded-md bg-primary-color px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-primary-color-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-color"
+                                                x-on:click.prevent="$dispatch('payment-add-all'); open = false"
+                                                title="Automatically distribute the payment total across invoices from top to bottom"
+                                            >Add all</button>
+                                        @endif
+                                    </div>
+                                    @if($canEditAllocations)
+                                        <div class="flex justify-end">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-semibold text-gray-600 hover:text-primary-color disabled:opacity-40"
+                                                x-show="allocation.invoice_id"
+                                                x-on:click.prevent="clearInvoice()"
+                                            >Clear selection</button>
+                                        </div>
+                                    @endif
+                                    <div class="text-xs text-gray-500" x-show="selectedCustomerId !== ''" x-cloak>Showing invoices for the selected customer only.</div>
+                                </div>
+                                <div class="max-h-72 overflow-auto py-1">
+                                    <template x-if="filteredInvoiceOptions().length === 0">
+                                        <div class="px-4 py-6 text-sm text-gray-500">No invoices match this filter.</div>
+                                    </template>
+                                    <template x-for="option in filteredInvoiceOptions()" :key="option.id">
+                                        <button
+                                            type="button"
+                                            class="w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 last:border-b-0"
+                                            x-on:mousedown.prevent="selectInvoice(option)"
+                                        >
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div class="min-w-0">
+                                                    <div class="truncate text-sm font-medium text-gray-900" x-text="option.selection_label"></div>
+                                                    <div class="mt-1 text-xs text-gray-500">
+                                                        <span x-text="option.customer_email || 'No email'"></span>
+                                                        <span x-show="option.ticket_summary" x-cloak> · <span x-text="option.ticket_summary"></span></span>
+                                                    </div>
+                                                    <div class="mt-1 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                                                        <span class="rounded-full bg-gray-100 px-2 py-0.5" x-text="option.payment_state_label"></span>
+                                                        <span x-show="option.paid_amount > 0.0001 && option.remaining_amount > 0.0001" x-cloak class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-900" x-text="formatMoney(option.paid_amount || 0) + ' paid'"></span>
+                                                    </div>
+                                                </div>
+                                                <div class="flex shrink-0 flex-col items-end text-right text-xs text-gray-500">
+                                                    <span class="font-semibold text-gray-900" x-text="formatMoney(option.remaining_amount || 0)"></span>
+                                                    <span x-text="option.status_label"></span>
+                                                    <span x-text="formatMoney(option.total_amount || 0)"></span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    </template>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-xs text-gray-600" x-show="allocation.invoice_id" x-cloak>
+                                <template x-if="selectedInvoiceOption(allocation.invoice_id)">
+                                    <div class="space-y-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="font-semibold text-gray-900" x-text="selectedInvoiceOption(allocation.invoice_id)?.label"></div>
+                                        <div x-show="selectedInvoiceOption(allocation.invoice_id)?.ticket_summary">
+                                            <span class="font-medium text-gray-700">Tickets:</span>
+                                            <span x-text="selectedInvoiceOption(allocation.invoice_id)?.ticket_summary"></span>
+                                        </div>
+                                        <div>
+                                            <span class="font-medium text-gray-700">Remaining:</span>
+                                            <span x-text="formatMoney(selectedInvoiceOption(allocation.invoice_id)?.remaining_amount || 0)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
                         </div>
                         <div class="col-span-3">
                             <label class="block text-sm pl-1">Amount</label>

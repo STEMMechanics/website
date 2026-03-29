@@ -373,14 +373,24 @@ class PaymentController extends Controller
 
     public function create(Request $request)
     {
-        $initialAllocations = [];
+        $initialAllocations = [
+            [
+                'invoice_id' => '',
+                'allocated_amount' => 0.00,
+            ],
+        ];
         $prefillUserId = '';
         $prefillTotalAmount = null;
         $invoices = Invoice::query()
-            ->with('user')
+            ->with(['user', 'tickets'])
             ->where('total_amount', '>', 0)
             ->orderBy('issue_date', 'desc')
             ->get();
+        $invoices = $invoices
+            ->filter(fn (Invoice $invoice): bool => (string) $invoice->status !== Invoice::STATUS_DRAFT
+                && (float) $invoice->outstandingAmount() > 0.0001)
+            ->values();
+        $invoiceOptions = $this->paymentInvoiceOptions($invoices);
         $invoiceRemainingById = $invoices->mapWithKeys(function (Invoice $invoice) {
             $remaining = $invoice->outstandingAmount();
 
@@ -402,10 +412,10 @@ class PaymentController extends Controller
 
             if ($seedInvoice) {
                 $outstanding = $seedInvoice->outstandingAmount();
-                $initialAllocations[] = [
+                $initialAllocations = [[
                     'invoice_id' => (int) $seedInvoice->id,
                     'allocated_amount' => $outstanding > 0 ? $outstanding : (float) $seedInvoice->absoluteTotalAmount(),
-                ];
+                ]];
                 $prefillTotalAmount = $outstanding > 0 ? $outstanding : (float) $seedInvoice->absoluteTotalAmount();
                 $prefillUserId = (string) ($seedInvoice->user_id ?? '');
             }
@@ -414,6 +424,7 @@ class PaymentController extends Controller
         return view('admin.payment.edit', [
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'invoices' => $invoices,
+            'invoiceOptions' => $invoiceOptions,
             'invoiceRemainingById' => $invoiceRemainingById,
             'paymentMethods' => Payment::PAYMENT_METHODS,
             'initialAllocations' => $initialAllocations,
@@ -450,7 +461,14 @@ class PaymentController extends Controller
         if ($payment->refund_of_payment_id === null) {
             $invoiceQuery->where('total_amount', '>', 0);
         }
-        $invoices = $invoiceQuery->orderBy('issue_date', 'desc')->get();
+        $invoiceQuery->with(['tickets']);
+        $invoices = $invoiceQuery
+            ->orderBy('issue_date', 'desc')
+            ->get()
+            ->filter(fn (Invoice $invoice): bool => (string) $invoice->status !== Invoice::STATUS_DRAFT
+                && (float) $invoice->outstandingAmount() > 0.0001)
+            ->values();
+        $invoiceOptions = $this->paymentInvoiceOptions($invoices);
         $invoiceRemainingById = $invoices->mapWithKeys(function (Invoice $invoice) {
             $remaining = $invoice->outstandingAmount();
 
@@ -467,6 +485,7 @@ class PaymentController extends Controller
             ),
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'invoices' => $invoices,
+            'invoiceOptions' => $invoiceOptions,
             'invoiceRemainingById' => $invoiceRemainingById,
             'paymentMethods' => Payment::PAYMENT_METHODS,
             'initialAllocations' => [],
@@ -1226,6 +1245,134 @@ class PaymentController extends Controller
         $paymentKind = (string) ($payment->kind ?? Payment::KIND_PAYMENT);
 
         return $invoice->expectedSettlementKind() === $paymentKind;
+    }
+
+    /**
+     * @param  iterable<Invoice>  $invoices
+     * @return array<int, array{
+     *     id: string,
+     *     user_id: string,
+     *     invoice_number: string,
+     *     label: string,
+     *     selection_label: string,
+     *     search: string,
+     *     customer_name: string,
+     *     customer_email: string,
+     *     status_label: string,
+     *     payment_state_label: string,
+     *     ticket_summary: string,
+     *     remaining_amount: float,
+     *     total_amount: float
+     * }>
+     */
+    private function paymentInvoiceOptions(iterable $invoices): array
+    {
+        $options = [];
+
+        foreach ($invoices as $invoice) {
+            if (! $invoice instanceof Invoice) {
+                continue;
+            }
+
+            $customerNameSource = $invoice->user instanceof User
+                ? $invoice->user->getName()
+                : (string) ($invoice->billing_name ?? '');
+            $customerName = trim((string) $customerNameSource);
+            if ($customerName === '') {
+                $customerName = 'No customer';
+            }
+
+            $customerEmailSource = trim((string) ($invoice->billing_email ?? ''));
+            if ($customerEmailSource === '' && $invoice->user instanceof User) {
+                $customerEmailSource = (string) ($invoice->user->email ?? '');
+            }
+            $customerEmail = strtolower(trim($customerEmailSource));
+            $statusLabel = Invoice::statusLabel((string) $invoice->status);
+            $remainingAmount = round((float) $invoice->outstandingAmount(), 2);
+            $totalAmount = round((float) $invoice->dueAmount(), 2);
+            $paidAmount = round(max(0, $totalAmount - $remainingAmount), 2);
+            $invoiceNumber = trim((string) $invoice->invoice_number);
+            $ticketSummary = $this->paymentInvoiceTicketSummary($invoice);
+            $paymentStateLabel = $remainingAmount <= 0.0001
+                ? 'Paid in full'
+                : ($paidAmount > 0.0001
+                    ? 'Partially paid'
+                    : 'Unpaid');
+            $summaryParts = array_filter([
+                'Remaining '.money($remainingAmount),
+                'Total '.money($totalAmount),
+                $ticketSummary !== '' ? $ticketSummary : null,
+            ]);
+
+            $labelParts = array_filter([
+                $invoiceNumber,
+                $customerName.($customerEmail !== '' ? ' <'.$customerEmail.'>' : ''),
+                $statusLabel,
+                implode(' | ', $summaryParts),
+            ]);
+
+            $searchParts = array_filter([
+                (string) $invoice->invoice_number,
+                strtolower($customerName),
+                $customerEmail,
+                strtolower($statusLabel),
+                strtolower($ticketSummary),
+                strtolower((string) $invoice->id),
+            ]);
+
+            $options[] = [
+                'id' => (string) $invoice->id,
+                'user_id' => (string) ($invoice->user_id ?? ''),
+                'invoice_number' => $invoiceNumber,
+                'label' => implode(' | ', $labelParts),
+                'selection_label' => implode(' · ', array_filter([
+                    $invoiceNumber !== '' ? 'Invoice '.$invoiceNumber : 'Invoice #'.$invoice->id,
+                    $customerName,
+                ])),
+                'search' => implode(' ', $searchParts),
+                'customer_name' => $customerName,
+                'customer_email' => $customerEmail,
+                'status_label' => $statusLabel,
+                'payment_state_label' => $paymentStateLabel,
+                'ticket_summary' => $ticketSummary,
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => $remainingAmount,
+                'total_amount' => $totalAmount,
+            ];
+        }
+
+        return $options;
+    }
+
+    private function paymentInvoiceTicketSummary(Invoice $invoice): string
+    {
+        $tickets = $invoice->tickets
+            ->filter(fn (Ticket $ticket): bool => trim((string) ($ticket->reference_code ?? '')) !== '' || trim((string) ($ticket->id ?? '')) !== '')
+            ->sortBy(fn (Ticket $ticket): int => (int) $ticket->id)
+            ->values();
+
+        if ($tickets->isEmpty()) {
+            return '';
+        }
+
+        $ticketCount = $tickets->count();
+        $ticketRefs = $tickets
+            ->take(3)
+            ->map(function (Ticket $ticket): string {
+                $reference = trim((string) ($ticket->reference_code ?: '#'.$ticket->id));
+                $holder = trim((string) trim(($ticket->firstname ?? '').' '.($ticket->surname ?? '')));
+                $status = trim((string) $ticket->customer_status_label);
+
+                $details = array_filter([$holder !== '' ? $holder : null, $status !== '' ? $status : null]);
+                if ($details === []) {
+                    return $reference;
+                }
+
+                return $reference.' ('.implode(' - ', $details).')';
+            })
+            ->implode(', ');
+
+        return $ticketCount.' ticket'.($ticketCount === 1 ? '' : 's').': '.$ticketRefs;
     }
 
     private function paymentUnallocatedAmount(Payment $payment): float

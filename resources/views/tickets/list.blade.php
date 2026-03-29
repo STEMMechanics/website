@@ -51,6 +51,7 @@
                     @endphp
                     <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">Total still to pay</div>
                     <div class="mt-1 text-xl font-bold text-amber-950">{{ money((float) $ticketOutstandingTotal) }}</div>
+                    <div class="mt-1 text-xs font-medium text-amber-800">{{ $invoiceCount }} {{ \Illuminate\Support\Str::plural('invoice', $invoiceCount) }}</div>
                 </div>
             @endif
         </div>

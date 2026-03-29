@@ -13,6 +13,7 @@
 - Added site option to hide child accounts
 - Fixed blade parsing error
 - My Tickets page now lists outstanding payments
+- Improved UI
 
 ## 1.4.2
 

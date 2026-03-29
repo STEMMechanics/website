@@ -100,6 +100,12 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
         this.$refs.linkedUserId.value = option?.id || '';
         this.linkedUserOpen = false;
         this.linkedUserSelectedIndex = -1;
+        window.dispatchEvent(new CustomEvent('admin-linked-user-changed', {
+            detail: {
+                userId: option?.id || '',
+                label: option?.label || '',
+            },
+        }));
     },
     confirmLinkedUser() {
         if (!this.linkedUserOpen) {
@@ -179,6 +185,12 @@ $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : 
             this.$refs.linkedUserId.value = user.id;
             this.refreshLinkedUsers();
             this.closeCreateUser();
+            window.dispatchEvent(new CustomEvent('admin-linked-user-changed', {
+                detail: {
+                    userId: user.id,
+                    label: user.label,
+                },
+            }));
         } catch (error) {
             this.createUserError = error?.message || 'Unable to create user.';
         } finally {

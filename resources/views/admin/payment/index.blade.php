@@ -19,6 +19,7 @@
                         :checked="request()->boolean('unallocated_only')"
                         :noWrapper="true"
                         :inline="true"
+                        label-class="whitespace-nowrap"
                         onchange="this.form.submit()" />
                 </form>
                 <x-ui.search name="search" label="Search" class="w-full sm:flex-1" />
