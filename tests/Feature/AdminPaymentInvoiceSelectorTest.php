@@ -191,8 +191,132 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
             return $job->to === 'morgan.lee@example.com'
                 && $job->mailable instanceof PaymentReceiptPdf
                 && $job->mailable->invoiceNumber === 'INV-300001'
-                && $job->mailable->invoiceSummary === 'Invoice INV-300001';
+                && $job->mailable->invoiceSummary === null;
         });
+    }
+
+    public function test_payment_store_can_email_a_receipt_for_multiple_allocations(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Avery',
+            'surname' => 'Ng',
+            'email' => 'avery.ng@example.com',
+        ]);
+
+        $firstInvoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-300010',
+            'user_id' => $customer->id,
+            'billing_name' => 'Avery Ng',
+            'billing_email' => 'avery.ng@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 40.00,
+            'subtotal_amount' => 36.36,
+            'gst_amount' => 3.64,
+        ]);
+        $secondInvoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-300011',
+            'user_id' => $customer->id,
+            'billing_name' => 'Avery Ng',
+            'billing_email' => 'avery.ng@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 20.00,
+            'subtotal_amount' => 18.18,
+            'gst_amount' => 1.82,
+        ]);
+
+        Queue::fake();
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.store'), [
+            'user_id' => $customer->id,
+            'received_on' => now()->format('Y-m-d H:i:s'),
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'reference' => 'BT-300010',
+            'total_amount' => 60.00,
+            'notes' => 'Bank transfer',
+            'email_receipt' => 1,
+            'allocations_json' => json_encode([
+                [
+                    'invoice_id' => $firstInvoice->id,
+                    'allocated_amount' => 40.00,
+                ],
+                [
+                    'invoice_id' => $secondInvoice->id,
+                    'allocated_amount' => 20.00,
+                ],
+            ]),
+        ]);
+
+        $response->assertRedirect(route('admin.payment.index'));
+        $response->assertSessionHasNoErrors();
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'avery.ng@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->invoiceNumber === 'INV-300010, INV-300011'
+                && $job->mailable->invoiceSummary === "INV-300010 (\$40.00 paid)\nINV-300011 (\$20.00 paid)";
+        });
+    }
+
+    public function test_payment_receipt_pdf_view_renders_an_allocation_breakdown_for_multiple_invoices(): void
+    {
+        $html = view('pdf.payment-receipt', [
+            'receiptTitle' => 'Payment Receipt',
+            'isRefund' => false,
+            'amountLabel' => 'Amount Paid',
+            'receiptNumber' => '123',
+            'invoiceLabel' => 'Invoice Numbers',
+            'invoiceNumber' => 'INV-1, INV-2',
+            'invoiceSummary' => "INV-1 (\$10.00 paid)\nINV-2 (\$20.00 paid)",
+            'customerName' => 'Test Customer',
+            'amountPaid' => 30.00,
+            'gstAmount' => 0.00,
+            'paymentMethod' => 'Bank Transfer',
+            'paidOn' => 'Mar 30, 2026 12:51 pm',
+            'reference' => '',
+            'gatewayProvider' => '',
+            'gatewayStatus' => '',
+            'transactionId' => '',
+            'squareOrderId' => '',
+            'cardBrand' => '',
+            'cardLast4' => '',
+            'squareReceiptUrl' => '',
+            'gatewayProcessedAt' => '',
+            'footerMessage' => 'Thanks',
+        ])->render();
+
+        $this->assertStringContainsString('Invoice Numbers', $html);
+        $this->assertStringNotContainsString('INV-1, INV-2', $html);
+        $this->assertStringContainsString('INV-1 ($10.00 paid)', $html);
+        $this->assertStringContainsString('INV-2 ($20.00 paid)', $html);
+    }
+
+    public function test_payment_receipt_email_view_renders_multi_line_summary_as_bullets(): void
+    {
+        $html = app(\Illuminate\Mail\Markdown::class)->render('emails.payment-receipt', [
+            'recipientName' => 'Avery Ng',
+            'invoiceNumber' => 'INV-300010, INV-300011',
+            'receiptNumber' => '123',
+            'amount' => '$60.00',
+            'paidOn' => 'Mar 30, 2026 12:51 pm',
+            'paymentMethod' => 'Bank Transfer',
+            'receiptUrl' => null,
+            'isRefund' => false,
+            'invoiceSummary' => "INV-300010 (\$40.00 paid)\nINV-300011 (\$20.00 paid)",
+            'statusSummary' => '',
+            'outstandingBeforeSummary' => null,
+            'appliedAmountSummary' => null,
+            'creditSummary' => null,
+            'creditAppliedAmount' => null,
+            'creditReferenceSummary' => null,
+            'orderTotalAmount' => null,
+            'hasInvoiceAttachment' => false,
+        ]);
+
+        $this->assertStringContainsString('<ul', $html);
+        $this->assertStringContainsString('<li', $html);
+        $this->assertStringContainsString('INV-300010 ($40.00 paid)', $html);
+        $this->assertStringContainsString('INV-300011 ($20.00 paid)', $html);
     }
 
     private function createAdminUser(): User

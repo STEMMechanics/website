@@ -1159,14 +1159,8 @@ class PaymentController extends Controller
             return false;
         }
 
-        $invoiceNumbers = $payment->allocations
-            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
-            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
-            ->filter(fn (string $invoiceNumber): bool => $invoiceNumber !== '')
-            ->unique()
-            ->values();
-
-        if ($invoiceNumbers->count() !== 1) {
+        [$invoiceNumberDisplay, $invoiceSummary] = $this->paymentReceiptInvoiceAllocationSummary($payment);
+        if ($invoiceNumberDisplay === '') {
             return false;
         }
 
@@ -1179,7 +1173,7 @@ class PaymentController extends Controller
             $recipient,
             new PaymentReceiptPdf(
                 recipientName: $payment->user?->getName() ?: 'Customer',
-                invoiceNumber: (string) $invoiceNumbers->first(),
+                invoiceNumber: $invoiceNumberDisplay,
                 receiptNumber: (string) $payment->id,
                 amount: money(abs((float) $payment->total_amount)),
                 paidOn: $payment->received_on?->format('M j, Y g:i a') ?? now()->format('M j, Y g:i a'),
@@ -1188,7 +1182,7 @@ class PaymentController extends Controller
                 isRefund: false,
                 pdfContent: $pdfBinary,
                 pdfFilename: $this->getPaymentReceiptPdfFilename($payment),
-                invoiceSummary: 'Invoice '.$invoiceNumbers->first(),
+                invoiceSummary: $invoiceSummary,
                 statusSummary: '',
                 outstandingBeforeSummary: null,
                 appliedAmountSummary: null,
@@ -1201,6 +1195,47 @@ class PaymentController extends Controller
         ))->onQueue('mail');
 
         return true;
+    }
+
+    /**
+     * @return array{0: string, 1: ?string}
+     */
+    private function paymentReceiptInvoiceAllocationSummary(Payment $payment): array
+    {
+        $invoiceAllocations = $payment->allocations
+            ->filter(fn ($allocation): bool => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice instanceof Invoice)
+            ->map(function ($allocation): array {
+                return [
+                    'invoice_number' => trim((string) ($allocation->invoice->invoice_number ?? '')),
+                    'amount' => (float) $allocation->allocated_amount,
+                ];
+            })
+            ->filter(fn (array $row): bool => $row['invoice_number'] !== '')
+            ->groupBy('invoice_number')
+            ->map(function ($rows, string $invoiceNumber): array {
+                return [
+                    'invoice_number' => $invoiceNumber,
+                    'amount' => round((float) collect($rows)->sum('amount'), 2),
+                ];
+            })
+            ->values();
+
+        if ($invoiceAllocations->isEmpty()) {
+            return ['', null];
+        }
+
+        $invoiceNumbersDisplay = $invoiceAllocations->pluck('invoice_number')->implode(', ');
+        if ($invoiceAllocations->count() === 1) {
+            return [$invoiceNumbersDisplay, null];
+        }
+
+        $invoiceSummary = $invoiceAllocations
+            ->map(function (array $row): string {
+                return $row['invoice_number'].' ($'.number_format((float) $row['amount'], 2).' paid)';
+            })
+            ->implode("\n");
+
+        return [$invoiceNumbersDisplay, $invoiceSummary];
     }
 
     private function buildPaymentReceiptPdf(Payment $payment): \Barryvdh\DomPDF\PDF
@@ -1219,14 +1254,9 @@ class PaymentController extends Controller
             ])
             ->values();
 
-        $invoiceNumbers = $payment->allocations
-            ->filter(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
-            ->map(fn ($allocation) => trim((string) ($allocation->invoice->invoice_number ?? '')))
-            ->filter(fn ($number) => $number !== '')
-            ->unique()
-            ->values();
         $hasTaxAdjustmentAllocations = $payment->allocations
             ->contains(fn ($allocation) => abs((float) $allocation->allocated_amount) > 0.0001 && $allocation->taxAdjustment);
+        [$allocationInvoiceNumbers, $allocationSummary] = $this->paymentReceiptInvoiceAllocationSummary($payment);
 
         $allocatedTotal = (float) $allocationRows->sum('amount');
         $totalAmount = abs((float) $payment->total_amount);
@@ -1248,9 +1278,9 @@ class PaymentController extends Controller
         $invoiceSummary = implode(', ', $invoiceSummaryParts);
 
         // Match the customer-facing invoice receipt style when this payment maps to invoice(s) only.
-        if (! $hasTaxAdjustmentAllocations && $invoiceNumbers->isNotEmpty()) {
-            $invoiceLabel = $invoiceNumbers->count() > 1 ? 'Invoice Numbers' : 'Invoice Number';
-            $invoiceSummary = $invoiceNumbers->implode(', ');
+        if (! $hasTaxAdjustmentAllocations && $allocationInvoiceNumbers !== '') {
+            $invoiceLabel = str_contains($allocationInvoiceNumbers, ',') ? 'Invoice Numbers' : 'Invoice Number';
+            $invoiceSummary = $allocationSummary ?: $allocationInvoiceNumbers;
         }
 
         $amountRaw = (float) $payment->total_amount;
@@ -1272,6 +1302,7 @@ class PaymentController extends Controller
             'receiptNumber' => (string) $payment->id,
             'invoiceLabel' => $invoiceLabel,
             'invoiceNumber' => $invoiceSummary,
+            'invoiceSummary' => $allocationSummary,
             'customerName' => $payment->user?->getName() ?: 'Customer',
             'amountPaid' => $amountRaw,
             'gstAmount' => abs((float) $payment->gst_amount),

@@ -19,7 +19,21 @@ Your payment receipt is attached.
 @endif
 
 @if(!empty($invoiceSummary))
-**Summary:** {{ $invoiceSummary }}<br>
+@php
+    $summaryLines = collect(preg_split('/\r\n|\r|\n/', (string) $invoiceSummary))
+        ->map(fn (string $line): string => trim($line))
+        ->filter(fn (string $line): bool => $line !== '')
+        ->values();
+@endphp
+@if($summaryLines->count() > 1)
+**Summary:**
+
+@foreach($summaryLines as $line)
+- {{ $line }}
+@endforeach
+@else
+**Summary:** {{ $summaryLines->first() }}<br>
+@endif
 @endif
 
 **{{ ($isRefund ?? false) ? 'Amount Refunded' : 'Amount Paid' }}:** {{ $amount }}<br>

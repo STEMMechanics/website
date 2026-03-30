@@ -34,6 +34,7 @@
     $cardDisplay = trim($cardBrand.($cardLast4 !== '' ? ' ending in '.$cardLast4 : ''));
     $invoiceDisplay = trim((string) ($invoiceNumber ?? ''));
     $invoiceLabelDisplay = trim((string) ($invoiceLabel ?? ''));
+    $invoiceSummaryDisplay = trim((string) ($invoiceSummary ?? ''));
     $receiptNumberLabel = trim((string) ($receiptNumberLabel ?? ''));
     $creditReferenceSummary = trim((string) ($creditReferenceSummary ?? ''));
     $headlineLabel = 'receipt';
@@ -134,7 +135,8 @@
                 @if($invoiceDisplay !== '')
                 <tr>
                     <td>{{ $invoiceLabelDisplay }}</td>
-                    <td style="white-space: pre-line;">{{ $invoiceDisplay }}</td>
+                    <td style="white-space: pre-line;">@if($invoiceSummaryDisplay !== '')
+{{ $invoiceSummaryDisplay }}@else{{ $invoiceDisplay }}@endif</td>
                 </tr>
                 @endif
                 @if($reference !== '')
