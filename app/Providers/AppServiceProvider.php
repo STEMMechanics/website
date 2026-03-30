@@ -11,6 +11,7 @@ use App\Models\Payment;
 use App\Models\SiteOption;
 use App\Models\Ticket;
 use App\Models\User;
+use App\Support\PassportKeyManager;
 use App\Observers\AuditLogObserver;
 use App\Policies\AuditLogPolicy;
 use App\Policies\ClassSessionPolicy;
@@ -50,6 +51,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->ensurePdfArtifactDirectoriesExist();
+        app(PassportKeyManager::class)->ensureKeysExist();
         Passport::tokensCan(config('openid.passport.tokens_can'));
         Passport::authorizationView('auth.oauth.authorize');
 
