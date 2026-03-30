@@ -15,6 +15,7 @@
 - My Tickets page now lists outstanding payments
 - Improved UI
 - Image selector retains previous value on form validation error
+- Email receipt option for bank transfers
 
 ## 1.4.2
 
