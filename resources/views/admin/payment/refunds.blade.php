@@ -11,25 +11,29 @@
     <x-mast>Refunds</x-mast>
 
     <x-container>
-        <form method="GET" action="{{ url()->current() }}" class="w-full my-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
-            <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
-                <input type="checkbox" name="hide_completed" value="1" {{ $hideCompleted ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
-                Hide completed refunds
-            </label>
-            <div class="flex w-full md:max-w-md">
-                <input
-                    type="text"
-                    name="search"
-                    value="{{ request()->query('search', '') }}"
-                    placeholder="Search"
-                    autocomplete="off"
-                    class="grow rounded-l-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
-                >
-                <x-ui.button type="submit" class="rounded-l-none px-6">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                </x-ui.button>
-            </div>
-        </form>
+        <x-ui.toolbar>
+            <x-slot:right>
+                <form method="GET" action="{{ url()->current() }}" class="w-full flex flex-col gap-4 md:flex-row md:items-center md:justify-end">
+                    <label class="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <input type="checkbox" name="hide_completed" value="1" {{ $hideCompleted ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-primary-color focus:ring-primary-color">
+                        Hide completed refunds
+                    </label>
+                    <div class="flex w-full md:max-w-md">
+                        <input
+                            type="text"
+                            name="search"
+                            value="{{ request()->query('search', '') }}"
+                            placeholder="Search"
+                            autocomplete="off"
+                            class="grow rounded-l-lg border border-gray-300 bg-white px-2.5 py-2.5 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0"
+                        >
+                        <x-ui.button type="submit" class="rounded-l-none px-6">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </x-ui.button>
+                    </div>
+                </form>
+            </x-slot:right>
+        </x-ui.toolbar>
 
         @if($manualRefunds->isEmpty())
             <x-none-found item="manual refund items" search="{{ request()->get('search') }}" />
@@ -369,21 +373,21 @@
                                     <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold whitespace-nowrap {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
                                 </td>
                                 <td class="align-top">
-                                    <div class="flex flex-wrap items-center justify-center gap-2">
+                                    <div class="flex justify-center gap-3 whitespace-nowrap">
                                         @if($paymentUrl)
-                                            <a href="{{ $paymentUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open payment">
+                                            <a href="{{ $paymentUrl }}" class="hover:text-primary-color" title="Open payment">
                                                 <i class="fa-solid fa-pen-to-square"></i>
                                                 <span class="sr-only">Open payment</span>
                                             </a>
                                         @endif
                                         @if($invoiceUrl)
-                                            <a href="{{ $invoiceUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open invoice">
+                                            <a href="{{ $invoiceUrl }}" class="hover:text-primary-color" title="Open invoice">
                                                 <i class="fa-regular fa-file-lines"></i>
                                                 <span class="sr-only">Open invoice</span>
                                             </a>
                                         @endif
                                         @if($workshopUrl)
-                                            <a href="{{ $workshopUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Open workshop tickets">
+                                            <a href="{{ $workshopUrl }}" class="hover:text-primary-color" title="Open workshop tickets">
                                                 <i class="fa-solid fa-ticket"></i>
                                                 <span class="sr-only">Open workshop tickets</span>
                                             </a>

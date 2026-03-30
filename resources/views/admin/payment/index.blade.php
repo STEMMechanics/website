@@ -2,11 +2,11 @@
     <x-mast>Payments</x-mast>
 
     <x-container>
-        <div class="flex flex-col sm:flex-row my-4 items-center gap-3 sm:gap-4">
-            <div class="w-full sm:flex-1">
-                <x-ui.button href="{{ route('admin.payment.create') }}">Record</x-ui.button>
-            </div>
-            <div class="w-full sm:flex-1 flex flex-col sm:flex-row gap-3 sm:gap-4">
+        <x-ui.toolbar break="md">
+            <x-slot:left>
+                <x-ui.button href="{{ route('admin.payment.create') }}" class="w-full md:w-auto">Record</x-ui.button>
+            </x-slot:left>
+            <x-slot:right>
                 <form method="GET" action="{{ route('admin.payment.index') }}" class="flex flex-wrap items-center gap-2">
                     @if(request()->filled('search'))
                     <input type="hidden" name="search" value="{{ request('search') }}">
@@ -23,8 +23,8 @@
                         onchange="this.form.submit()" />
                 </form>
                 <x-ui.search name="search" label="Search" class="w-full sm:flex-1" />
-            </div>
-        </div>
+            </x-slot:right>
+        </x-ui.toolbar>
 
         @if($customerPayments->isEmpty())
         <x-none-found item="payments" search="{{ request()->get('search') }}" />
