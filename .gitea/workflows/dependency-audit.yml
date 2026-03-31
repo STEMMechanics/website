@@ -1,0 +1,33 @@
+name: dependency-audit
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "17 20 * * *" # daily, about 6:17am Brisbane if server runs UTC
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: laravel-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate composer files
+        run: composer validate --strict
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Audit Composer dependencies
+        run: composer audit
+
+      - name: Clean install Node dependencies
+        run: npm ci
+
+      - name: Audit npm dependencies
+        run: npm audit --audit-level=high

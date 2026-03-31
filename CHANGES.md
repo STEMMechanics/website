@@ -16,6 +16,7 @@
 - Improved UI
 - Image selector retains previous value on form validation error
 - Email receipt option for bank transfers
+- Security and auditing
 
 ## 1.4.2
 

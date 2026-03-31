@@ -11,12 +11,13 @@ class QaCommand extends Command
         {--without-tty : Disable TTY output for child processes}
         {--tests-only : Run tests only}
         {--stan-only : Run PHPStan only}
+        {--no-audit : Skip composer audit}
         {--test-memory-limit=1G : Memory limit passed to PHPUnit, e.g. 512M or 1G}
         {--stan-memory-limit=1G : Memory limit passed to phpstan, e.g. 1G or 2G}
         {--test=* : Additional args passed to artisan test}
         {--stan=* : Additional args passed to phpstan analyse}';
 
-    protected $description = 'Run quality checks (tests and PHPStan)';
+    protected $description = 'Run quality checks (tests, PHPStan, and composer audit)';
 
     public function handle(): int
     {
@@ -30,6 +31,7 @@ class QaCommand extends Command
         }
 
         $withoutTty = (bool) $this->option('without-tty');
+        $skipAudit = (bool) $this->option('no-audit');
 
         if (! $stanOnly) {
             $testArgs = array_values(array_map('strval', (array) $this->option('test')));
@@ -80,6 +82,18 @@ class QaCommand extends Command
             }
         }
 
+        if (! $testsOnly && ! $stanOnly && ! $skipAudit) {
+            $auditExitCode = $this->runStep(
+                'Running composer audit',
+                ['composer', 'audit', '--no-interaction'],
+                $withoutTty
+            );
+
+            if ($auditExitCode !== 0) {
+                return $auditExitCode;
+            }
+        }
+
         $this->info('QA checks passed.');
 
         return self::SUCCESS;
@@ -89,7 +103,7 @@ class QaCommand extends Command
      * @param array<int, string> $command
      * @param array<string, string> $env
      */
-    private function runStep(string $title, array $command, bool $withoutTty, array $env = []): int
+    protected function runStep(string $title, array $command, bool $withoutTty, array $env = []): int
     {
         $this->newLine();
         $this->line('<fg=cyan>'.$title.'</>');
