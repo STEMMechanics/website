@@ -64,7 +64,7 @@
                 <x-slot:right>
                     <div class="flex relative">
                         <input
-                            class="bg-white flex-grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
+                            class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
                             autocomplete="off"
                             placeholder="Search Tickets"
                             type="text"

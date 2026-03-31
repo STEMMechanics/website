@@ -262,7 +262,7 @@
                                                     <x-ui.button
                                                         type="link"
                                                         href="{{ $isAccountView ? route('account.order.download', ['storeOrder' => $order, 'storeOrderItemDownload' => $download]) : route('shop.order.tracking.download', ['accessToken' => $accessToken, 'storeOrderItemDownload' => $download]) }}"
-                                                        class="!px-5 !py-2.5 whitespace-nowrap"
+                                                        class="px-5! py-2.5! whitespace-nowrap"
                                                     >
                                                         {{ $isAccountView ? 'Download '.$downloadTitle : 'Unlock '.$downloadTitle }}
                                                     </x-ui.button>
@@ -511,7 +511,7 @@
                                                 <x-ui.button
                                                     type="link"
                                                     href="{{ $isAccountView ? route('account.order.download', ['storeOrder' => $order, 'storeOrderItemDownload' => $download]) : route('shop.order.tracking.download', ['accessToken' => $accessToken, 'storeOrderItemDownload' => $download]) }}"
-                                                    class="!px-5"
+                                                    class="px-5!"
                                                 >
                                                     {{ $isAccountView ? 'Download' : 'Verify Email to Download' }}
                                                 </x-ui.button>

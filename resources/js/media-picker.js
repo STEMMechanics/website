@@ -706,7 +706,7 @@ const SMMediaPicker = {
                 <div id="content-browser" class="flex flex-col h-full min-h-0 w-full p-4" data-media-tab-panel="browser" style="display:none">
                     <form x-on:submit.prevent="SMMediaPicker.search()">
                         <div class="flex mb-2">
-                            <input class="bg-white flex-grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
+                            <input class="bg-white grow px-2.5 py-1 text-xs text-gray-900 bg-transparent rounded-l-lg border appearance-none focus:outline-none focus:ring-0 focus:border-blue-600 peer border-gray-300 focus:ring-indigo-300" autocomplete="off" placeholder="Search" type="text" name="search" x-bind:disabled="$store.media.uploading" />
                             <button class="hover:bg-primary-color-dark focus-visible:outline-primary-color bg-primary-color rounded-l-none px-4 justify-center rounded-md text-white py-1.5 text-xs font-semibold leading-6 shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 transition" x-bind:disabled="$store.media.uploading"><i class="fa-solid fa-magnifying-glass"></i></button>
                         </div>
                     </form>
@@ -723,7 +723,7 @@ const SMMediaPicker = {
                                 <i x-show="item.password" class="fa-solid fa-lock text-gray-600 bg-white p-0.75 rounded-full" title="Password protected" style="text-shadow: -1px -1px 0 #FFF, 1px -1px 0 #FFF, -1px 1px 0 #FFF, 1px 1px 0 #FFF;"></i>
                             </div>
                             <div x-show="$store.media.selected.some(i => i === item.name)" class="absolute -top-1.5 -right-2 w-6 h-6 bg-primary-color text-white z-10 flex items-center justify-center text-lg border border-white rounded"><i class="fa-solid fa-check"></i></div>
-                            <div class="group/image relative flex-grow flex items-center justify-center select-none">
+                            <div class="group/image relative grow flex items-center justify-center select-none">
                                 <img x-bind:src="item.thumbnail" class="rounded max-h-32 pointer-events-none" />
                             </div>
                             <div class="text-xs whitespace-nowrap overflow-hidden text-ellipsis" x-text="item.name" x-bind:title="item.name"></div>

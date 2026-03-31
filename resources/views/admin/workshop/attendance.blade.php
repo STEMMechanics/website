@@ -647,7 +647,7 @@
                     />
                     <div class="mt-2 flex relative">
                         <input
-                            class="bg-white flex-grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
+                            class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
                             autocomplete="off"
                             placeholder="Find Ticket or Person"
                             type="text"
@@ -814,7 +814,7 @@
                                                 </td>
                                                 <td rowspan="{{ $groupRowspan }}" class="align-top">
                                                     @if($groupCanRecordPayment)
-                                                        <x-ui.button type="button" color="outline" class="!px-3 !py-1.5 text-xs" x-on:click="openPaymentModalForInvoice({{ $groupInvoiceId }})">Record</x-ui.button>
+                                                        <x-ui.button type="button" color="outline" class="px-3! py-1.5! text-xs" x-on:click="openPaymentModalForInvoice({{ $groupInvoiceId }})">Record</x-ui.button>
                                                     @elseif($groupInvoiceMeta)
                                                         <span class="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">Paid</span>
                                                     @else
@@ -827,7 +827,7 @@
                                                     <x-ui.button
                                                         type="button"
                                                         color="danger-outline"
-                                                        class="!px-2.5 !py-1 text-xs"
+                                                        class="px-2.5! py-1! text-xs"
                                                         x-on:click="openCancelTicketModal({{ (int) $ticket->id }}, {{ (int) ($ticket->invoice_id ?? 0) }})">
                                                         Cancel
                                                     </x-ui.button>

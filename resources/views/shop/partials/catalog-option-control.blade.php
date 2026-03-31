@@ -289,7 +289,7 @@
     <x-ui.button
         type="button"
         color="primary"
-        class="shop-product-card-action-link w-full !px-5"
+        class="shop-product-card-action-link w-full px-5!"
         x-bind:disabled="Boolean(busyCartLineKey)"
         @click="openDialog()"
     >
@@ -297,7 +297,7 @@
     </x-ui.button>
 
     <noscript>
-        <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full !px-5">
+        <x-ui.button type="link" href="{{ route('shop.product.show', $product) }}" class="shop-product-card-action-link w-full px-5!">
             View Product
         </x-ui.button>
     </noscript>

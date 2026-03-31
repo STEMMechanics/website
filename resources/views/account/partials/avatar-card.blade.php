@@ -442,12 +442,12 @@
 
         <div class="mt-5 flex flex-wrap justify-center gap-2">
             @if($avatarPickerAvailable)
-                <x-ui.button type="button" color="primary-outline" class="!px-5" x-on:click.prevent="openAvatarPicker()">
+                <x-ui.button type="button" color="primary-outline" class="px-5!" x-on:click.prevent="openAvatarPicker()">
                     {{ $avatarPresetSelectionEnabled ? 'Choose Avatar' : 'Select Image' }}
                 </x-ui.button>
             @endif
             @if($avatarEditable && $avatarMediaPersistenceEnabled)
-                <x-ui.button type="button" color="secondary" class="!px-5" x-show="avatarMediaName" x-on:click.prevent="setAvatarMedia('')">
+                <x-ui.button type="button" color="secondary" class="px-5!" x-show="avatarMediaName" x-on:click.prevent="setAvatarMedia('')">
                     Remove Image
                 </x-ui.button>
             @endif

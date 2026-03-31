@@ -295,7 +295,7 @@
                     </div>
                     <div class="flex flex-col gap-2">
                         <div x-show="productType === '{{ \App\Models\Product::PRODUCT_TYPE_PHYSICAL }}'" x-cloak>
-                            <x-ui.input name="inventory_quantity" label="Base Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" info="Leave blank for unlimited." class="!mb-0" />
+                            <x-ui.input name="inventory_quantity" label="Base Inventory Quantity" type="number" min="0" :value="$product->inventory_quantity ?? ''" info="Leave blank for unlimited." class="mb-0!" />
                         </div>
                         <div class="my-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
                             <x-ui.checkbox

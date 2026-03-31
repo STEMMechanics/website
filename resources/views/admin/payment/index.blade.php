@@ -57,7 +57,7 @@
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
                 @endphp
                 <tr>
-                    <td class="!text-center">
+                    <td class="text-center!">
                         <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $customerPayment->id }}</a>
                     </td>
                     <td class="">
@@ -94,7 +94,7 @@
                 $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
                 @endphp
                 <tr class="bg-gray-50">
-                    <td class="!text-center">
+                    <td class="text-center!">
                         <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $refund->id }}</a>
                     </td>
                     <td>

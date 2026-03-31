@@ -185,7 +185,7 @@
                     <input type="hidden" name="edit_post_id" id="forum-reply-edit-post-id" value="{{ $editingPost?->id }}">
                     <input type="hidden" name="reply_to_post_id" id="forum-reply-to-post-id" value="{{ $modalReplyPostId }}">
                     <div class="space-y-5 px-6 py-5">
-                        <x-ui.editor name="body" :value="old('body', $replyPrefillBody)" label="" :allowHeadings="false" class="forum-reply-editor !border-0 mt-0" />
+                        <x-ui.editor name="body" :value="old('body', $replyPrefillBody)" label="" :allowHeadings="false" class="forum-reply-editor border-0! mt-0" />
                         <div class="rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-4 pt-4 space-y-4">
                             <input
                                 id="forum-reply-attachments"

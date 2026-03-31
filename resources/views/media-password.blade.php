@@ -1,6 +1,6 @@
 <x-layout :bodyClass="'image-background'">
     @props(['formmethod' => 'POST', 'formaction' => ''])
-    <div class="flex items-center justify-center flex-grow py-24" x-data>
+    <div class="flex items-center justify-center grow py-24" x-data>
         <div x-show="$store.request.show" class="w-full mx-2 max-w-lg p-8 pb-6 bg-white rounded-md shadow-deep">
             <h2 class="text-2xl font-bold mb-4 text-center">Password Required</h2>
             <div class="flex justify-center gap-4 mb-4">

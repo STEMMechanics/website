@@ -8,7 +8,7 @@
             </x-slot:left>
             <x-slot:right>
                 <form method="GET" action="{{ url()->current() }}" class="flex">
-                    <input class="bg-white flex-grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300" type="text" name="search" placeholder="Search" value="{{ request('search', '') }}" />
+                    <input class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300" type="text" name="search" placeholder="Search" value="{{ request('search', '') }}" />
                     <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
                 </form>
             </x-slot:right>

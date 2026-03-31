@@ -237,13 +237,13 @@
                             type="number"
                             min="0"
                             :value="$maxSatchelWeightGrams"
-                            class="!mb-0"
+                            class="mb-0!"
                         />
                         <x-ui.input
                             name="boxed_shipping_label"
                             label="Manual Quote Label"
                             :value="$boxedShipping['label']"
-                            class="!mb-0"
+                            class="mb-0!"
                         />
                         <x-ui.input
                             name="boxed_shipping_amount"
@@ -251,7 +251,7 @@
                             moneyFormat="true"
                             :value="$boxedShipping['amount'] !== null ? number_format((float) $boxedShipping['amount'], 2, '.', '') : ''"
                             info="Leave blank to require a manual quote instead of allowing checkout."
-                            class="!mb-0"
+                            class="mb-0!"
                         />
                     </div>
 
@@ -292,7 +292,7 @@
                                                 <input type="text" class="{{ $inlineInputClasses }}" :name="`tracking_link_templates[${templateIndex}][template]`" placeholder="https://example.com/track?id={tracking}" x-model="trackingLinkTemplate.template">
                                             </div>
                                         </div>
-                                        <x-ui.button type="button" color="danger-outline" class="!px-4" x-on:click="removeTrackingLinkTemplate(templateIndex)">Remove</x-ui.button>
+                                        <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removeTrackingLinkTemplate(templateIndex)">Remove</x-ui.button>
                                     </div>
                                 </div>
                             </template>
@@ -339,7 +339,7 @@
                                     </div>
                                     <p class="mt-2 text-sm text-gray-500" x-text="channelUsesFreeCollection(method) ? 'No package pricing set. This will behave as a free collection or pickup option.' : 'Customers can choose this channel when its package options fit their order.'"></p>
                                 </div>
-                                <x-ui.button type="button" color="danger-outline" class="!px-4" x-on:click="removeShippingMethod(index)">Remove</x-ui.button>
+                                <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removeShippingMethod(index)">Remove</x-ui.button>
                             </div>
 
                             <div class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -428,7 +428,7 @@
                                                     </div>
                                                     <p class="mt-1 text-sm text-gray-500">Use package rows to define the parcel sizes and prices available in this channel.</p>
                                                 </div>
-                                                <x-ui.button type="button" color="danger-outline" class="!px-4" x-on:click="removePackage(index, packageIndex)">Remove</x-ui.button>
+                                                <x-ui.button type="button" color="danger-outline" class="px-4!" x-on:click="removePackage(index, packageIndex)">Remove</x-ui.button>
                                             </div>
 
                                             <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -444,7 +444,7 @@
                                                     <label class="mb-1 block text-sm font-medium text-gray-700">Sort Order</label>
                                                     <input type="number" min="1" class="{{ $inlineInputClasses }}" :name="`shipping_methods[${index}][packages][${packageIndex}][sort_order]`" x-model="packageOption.sort_order">
                                                 </div>
-                                                <label class="{{ $toggleCardClasses }} !px-3 !py-2.5">
+                                                <label class="{{ $toggleCardClasses }} px-3! py-2.5!">
                                                     <input type="checkbox" class="mt-0.5 h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500" x-model="packageOption.is_active">
                                                     <span class="block">
                                                         <span class="block font-medium text-gray-900">Active</span>

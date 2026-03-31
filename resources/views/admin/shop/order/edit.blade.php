@@ -1366,7 +1366,7 @@
                                                                 x-model="itemUi['{{ $item->id }}'].trackingCarrier"
                                                                 x-on:blur="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value); applyTrackingLinkTemplateToItem({{ $item->id }})"
                                                                 x-on:input="syncItemTrackingModeFromCarrier({{ $item->id }}, $event.target.value)"
-                                                                class="!mb-0"
+                                                                class="mb-0!"
                                                             />
                                                         </div>
                                                         <div>
@@ -1548,7 +1548,7 @@
                                                 x-model="bulkTrackingCarrier"
                                                 x-on:blur="syncBulkTrackingModeFromCarrier($event.target.value); applyTrackingLinkTemplateToBulk()"
                                                 x-on:input="syncBulkTrackingModeFromCarrier($event.target.value)"
-                                                class="!mb-0"
+                                                class="mb-0!"
                                             />
                                             <div>
                                                 <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-700">Dispatch date</label>

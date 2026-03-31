@@ -50,7 +50,7 @@
                 <div class="flex">
                     <div class="self-center">
                         <p class="mb-6 text-left">Each workshop blends practical problem-solving, creativity and fosters teamwork so learners can build confidence while creating something they are proud of.</p>
-                        <div class="flex flex-grow justify-center items-center">
+                        <div class="flex grow justify-center items-center">
                             <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
                         </div>
                     </div>

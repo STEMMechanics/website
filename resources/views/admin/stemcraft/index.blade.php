@@ -16,7 +16,7 @@
                 <form method="GET" action="{{ url()->current() }}" class="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <x-ui.checkbox name="only_linked" value="1" label="Only linked" :checked="request()->boolean('only_linked')" :noWrapper="true" :inline="true" labelClass="text-sm pt-0" onchange="this.form.submit()" />
                     <div class="flex">
-                        <input class="bg-white flex-grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300" type="text" name="search" placeholder="Search" value="{{ request('search', '') }}" />
+                        <input class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300" type="text" name="search" placeholder="Search" value="{{ request('search', '') }}" />
                         <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
                     </div>
                 </form>
