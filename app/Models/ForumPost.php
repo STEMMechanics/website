@@ -178,7 +178,7 @@ class ForumPost extends Model
             return;
         }
 
-        $this->body = '<p><em>deleted</em></p>';
+        $this->body = '<p><em>Post was deleted</em></p>';
         $this->deleted_at = now();
         $this->edited_at = now();
         $this->save();

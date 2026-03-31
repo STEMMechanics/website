@@ -416,7 +416,7 @@ class ForumController extends Controller
         $attachmentsAdded = 0;
         $attachmentsRemoved = 0;
 
-        DB::transaction(function () use ($forumPost, $topic, $body, $validated, &$attachmentsAdded, &$attachmentsRemoved, $request): void {
+        DB::transaction(function () use ($forumPost, $body, $validated, &$attachmentsAdded, &$attachmentsRemoved, $request): void {
             if ($forumPost->body !== $body) {
                 $forumPost->body = $body;
             }

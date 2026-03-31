@@ -7,6 +7,7 @@ use App\Models\ClassSession;
 use App\Models\User;
 use App\Services\LiveKit\LiveKitParticipantService;
 use Illuminate\Support\Facades\Log;
+use Livekit\DataPacket\Kind as DataPacketKind;
 use Livekit\ParticipantInfo;
 use Livekit\TrackInfo;
 use Livekit\TrackSource;
@@ -190,7 +191,7 @@ class ClassroomBroadcastLifecycleService
             $this->roomServiceClient()->sendData(
                 (string) $classSession->room_name,
                 $payload,
-                \Livekit\DataPacket_Kind::RELIABLE,
+                DataPacketKind::RELIABLE,
                 [],
                 'classroom-state'
             );

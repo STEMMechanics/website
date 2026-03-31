@@ -853,7 +853,7 @@ class ChildAccountFlowTest extends TestCase
         $reply->refresh();
 
         $this->assertNotNull($reply->deleted_at);
-        $this->assertSame('<p><em>deleted</em></p>', $reply->body);
+        $this->assertSame('<p><em>Post was deleted</em></p>', $reply->body);
 
         $this->get(route('forum.topic.show', [
             'categorySlug' => $category->slug,

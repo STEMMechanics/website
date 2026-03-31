@@ -6,9 +6,9 @@ use App\Models\ClassChatParticipantState;
 use App\Models\ClassChatMessage;
 use App\Models\ClassSession;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use App\Services\MinecraftMessageModerationService;
 use App\Support\MinecraftMessageModerationResult;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -58,14 +58,14 @@ class ClassroomChatService
         }
 
         $chatMessage->forceFill([
-            'deleted_at' => CarbonImmutable::now(),
+            'deleted_at' => Carbon::now(),
             'deleted_by_user_id' => $deletedBy->id,
         ])->save();
     }
 
     public function clearMessages(ClassSession $classSession, User $clearedBy): int
     {
-        $timestamp = CarbonImmutable::now();
+        $timestamp = Carbon::now();
 
         return ClassChatMessage::query()
             ->where('class_session_id', $classSession->id)
@@ -90,7 +90,7 @@ class ClassroomChatService
 
             if ($disabled) {
                 $state->disabled_by_user_id = $disabledBy->id;
-                $state->disabled_at = CarbonImmutable::now();
+                $state->disabled_at = Carbon::now();
                 $state->save();
 
                 return;

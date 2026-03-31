@@ -89,6 +89,19 @@ function asArray(value) {
     return Array.isArray(value) ? value : [];
 }
 
+function confirmAction(title, message, confirmLabel = 'Confirm') {
+    return new Promise((resolve) => {
+        if (window.SM && typeof window.SM.confirm === 'function') {
+            window.SM.confirm(title, message, confirmLabel, (isConfirmed) => {
+                resolve(Boolean(isConfirmed));
+            });
+            return;
+        }
+
+        resolve(false);
+    });
+}
+
 function getParticipantRole(participant) {
     return String(participant?.attributes?.app_user_role || participant?.attributes?.role || participant?.metadata?.role || '');
 }
@@ -918,7 +931,8 @@ function LiveChatPanel({
             return;
         }
 
-        if (!window.confirm('Delete this chat message for everyone?')) {
+        const confirmed = await confirmAction('Delete chat message', 'Delete this chat message for everyone?', 'Delete');
+        if (!confirmed) {
             return;
         }
 
@@ -941,7 +955,8 @@ function LiveChatPanel({
             return;
         }
 
-        if (!window.confirm('Clear all live chat messages?')) {
+        const confirmed = await confirmAction('Clear chat', 'Clear all live chat messages?', 'Clear');
+        if (!confirmed) {
             return;
         }
 
@@ -975,7 +990,12 @@ function LiveChatPanel({
         const nextDisabled = !currentlyMuted;
         const actionLabel = nextDisabled ? 'disable' : 'enable';
 
-        if (!window.confirm(`Do you want to ${actionLabel} chat for ${getParticipantDisplayName(participant)}?`)) {
+        const confirmed = await confirmAction(
+            `${actionLabel === 'disable' ? 'Disable' : 'Enable'} chat`,
+            `Do you want to ${actionLabel} chat for ${getParticipantDisplayName(participant)}?`,
+            actionLabel === 'disable' ? 'Disable' : 'Enable'
+        );
+        if (!confirmed) {
             return;
         }
 
