@@ -46,9 +46,9 @@ class ForumIndexCourseDiscussionsTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('forum.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Other forums');
+        $response->assertSeeText('Categories');
         $response->assertSeeText('Course discussions');
-        $response->assertSeeInOrder(['Other forums', 'General chat', 'Course discussions', 'Course one'], false);
+        $response->assertSeeInOrder(['Categories', 'General chat', 'Course discussions', 'Course one'], false);
         $response->assertSee('data-unread-count="2"', false);
     }
 
