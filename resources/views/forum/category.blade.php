@@ -20,8 +20,8 @@
 
     <x-container class="py-8" id="forum-category-page">
         @if($canWrite)
-            <div class="mb-6 flex justify-start">
-                <x-ui.button href="{{ route('forum.topic.create', $category->slug) }}" class="!px-5">Create Thread</x-ui.button>
+            <div class="mb-6 -mt-4 flex justify-start">
+                <x-ui.button href="{{ route('forum.topic.create', $category->slug) }}" class="px-5!">Create Thread</x-ui.button>
             </div>
         @endif
 

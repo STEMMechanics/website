@@ -102,6 +102,15 @@ function confirmAction(title, message, confirmLabel = 'Confirm') {
     });
 }
 
+function liveStreamConnectionErrorMessage(error) {
+    const message = String(error?.message || error || '').trim();
+    if (/pc connection|peer connection/i.test(message)) {
+        return 'Could not connect to Live Stream server.';
+    }
+
+    return message || 'Unable to connect to Live Stream server.';
+}
+
 function getParticipantRole(participant) {
     return String(participant?.attributes?.app_user_role || participant?.attributes?.role || participant?.metadata?.role || '');
 }
@@ -293,6 +302,7 @@ function getClassroomIdleState(schedule) {
         mode: 'compact',
         summary: 'No more live streams are scheduled.',
         icon: 'fa-regular fa-calendar-xmark',
+        allowDynamicSession: true,
     };
 }
 
@@ -1508,12 +1518,13 @@ function ClassroomRoomContent({
         : broadcastRecentlyEnded
             ? 'fa-solid fa-circle-stop'
             : (presenterIdleState.icon || 'fa-solid fa-calendar-clock');
-    const canStartScheduledBroadcast = Boolean(
+    const canStartBroadcast = Boolean(
         state.viewer?.canManage
         && !isBroadcastOpen
         && !broadcastRecentlyEnded
-        && presenterIdleState.mode === 'expanded'
+        && (presenterIdleState.mode === 'expanded' || presenterIdleState.allowDynamicSession)
     );
+    const startBroadcastButtonLabel = 'Start Livestream';
     const lastPresenterEndedStorageKey = state?.classSession?.id ? `classroom:last-stream-ended-at:${state.classSession.id}` : '';
     const lastPresenterWasStreamingRef = React.useRef(hasPresenterStream);
     const [lastPresenterEndedAt, setLastPresenterEndedAt] = useState(() => {
@@ -2209,7 +2220,7 @@ function ClassroomRoomContent({
                                         <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
                                         <span>{presenterEmptyLabel}</span>
                                     </div>
-                                    {canStartScheduledBroadcast ? (
+                                    {canStartBroadcast ? (
                                         <div className="mt-4 flex justify-center">
                                             <button
                                                 type="button"
@@ -2217,7 +2228,7 @@ function ClassroomRoomContent({
                                                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
                                             >
                                                 <i className="fa-solid fa-circle-play" aria-hidden="true"></i>
-                                                Start livestream
+                                                {startBroadcastButtonLabel}
                                             </button>
                                         </div>
                                     ) : null}
@@ -2253,21 +2264,21 @@ function ClassroomRoomContent({
                         </div>
                     </section>
                 ) : (
-                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg transition-all duration-300 ease-out ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-1 py-2 lg:float-right lg:mr-2 lg:mt-2 lg:w-96'}`}>
+                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg transition-all duration-300 ease-out ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-3 py-3 lg:float-right lg:mr-2 lg:mt-2 lg:w-[34rem]'}`}>
                         <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'min-h-[36rem]' : ''}`}>
-                            <div className={`flex w-full flex-col items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-3 text-sm font-medium'}`}>
+                            <div className={`flex w-full flex-col items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-4 text-sm font-medium sm:flex-row sm:items-center sm:justify-between sm:gap-6'}`}>
                                 <div className="flex items-center justify-center gap-3">
                                     <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
-                                    <span>{presenterEmptyLabel}</span>
+                                    <span className={presenterShellExpanded ? '' : 'text-center sm:text-left'}>{presenterEmptyLabel}</span>
                                 </div>
-                                {canStartScheduledBroadcast ? (
+                                {canStartBroadcast ? (
                                     <button
                                         type="button"
                                         onClick={() => void startBroadcast()}
-                                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20 sm:shrink-0"
                                     >
                                         <i className="fa-solid fa-circle-play" aria-hidden="true"></i>
-                                        Start livestream
+                                        {startBroadcastButtonLabel}
                                     </button>
                                 ) : null}
                             </div>
@@ -2331,7 +2342,7 @@ function ClassroomRoom({
             audio={false}
             video={false}
             screen={false}
-            onError={(error) => setFlashMessage(error.message)}
+            onError={(error) => setFlashMessage(liveStreamConnectionErrorMessage(error))}
             className="space-y-6"
         >
             <ClassroomRoomContent
@@ -2399,7 +2410,7 @@ function ClassroomApp() {
                 setTokenInfo(payload);
             } catch (error) {
                 if (!cancelled) {
-                    setFlashMessage(error.message || 'Unable to connect to LiveKit.');
+                    setFlashMessage(liveStreamConnectionErrorMessage(error));
                 }
             }
         };
