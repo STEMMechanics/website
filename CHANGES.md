@@ -17,6 +17,7 @@
 - Image selector retains previous value on form validation error
 - Email receipt option for bank transfers
 - Security and auditing
+- Integrated deploy script into repo
 
 ## 1.4.2
 

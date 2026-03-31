@@ -1245,7 +1245,7 @@ class ServerController extends Controller
 
     private function getDeployScriptPath(): string
     {
-        return (string) config('services.deploy.script_path', '/app/deploy.sh');
+        return (string) config('services.deploy.script_path', '/app/scripts/deploy.sh');
     }
 
     private function getDeployOutputPath(): string

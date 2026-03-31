@@ -64,6 +64,7 @@ Standard Laravel deployment. This repo uses a release‑tag based flow. The serv
 - Checks out that tag
 - Runs `composer install`, migrations, and `npm run build`
 - Updates `APP_VERSION` and `APP_COMMIT` in `.env`
+- Uses `scripts/deploy.sh` by default, with `DEPLOY_SCRIPT_PATH` available if you need to override the location.
 
 See `CHANGES.md` for release notes.
 

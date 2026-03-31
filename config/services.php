@@ -43,7 +43,7 @@ return [
     ],
 
     'deploy' => [
-        'script_path' => env('DEPLOY_SCRIPT_PATH', '/app/deploy.sh'),
+        'script_path' => env('DEPLOY_SCRIPT_PATH', '/app/scripts/deploy.sh'),
         'output_log' => env('DEPLOY_OUTPUT_LOG', '/var/tmp/stemmechanics_deploy.log'),
     ],
 
