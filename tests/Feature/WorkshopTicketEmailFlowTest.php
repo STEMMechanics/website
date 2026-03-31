@@ -50,8 +50,11 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
         /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            $idempotencyKey = (string) data_get($payload, 'idempotency_key', '');
+
             return (int) data_get($payload, 'amount_money.amount') === 1500
-                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-1500');
+                && str_contains($idempotencyKey, '-amt-1500')
+                && strlen($idempotencyKey) <= 45;
         }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',
@@ -179,8 +182,11 @@ class WorkshopTicketEmailFlowTest extends TestCase
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
         /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            $idempotencyKey = (string) data_get($payload, 'idempotency_key', '');
+
             return (int) data_get($payload, 'amount_money.amount') === 1000
-                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-1000');
+                && str_contains($idempotencyKey, '-amt-1000')
+                && strlen($idempotencyKey) <= 45;
         }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',

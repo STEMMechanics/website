@@ -18,6 +18,7 @@
 - Email receipt option for bank transfers
 - Security and auditing
 - Integrated deploy script into repo
+- Fix for Square idempotency_key limit
 
 ## 1.4.2
 

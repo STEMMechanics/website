@@ -379,8 +379,8 @@ class WorkshopTicketFlowController extends Controller
                 $amountCents = (int) round($remainingAmount * 100);
 
                 try {
-                    $paymentResponse = $squareApi->createPayment([
-                        'idempotency_key' => 'ticket-flow-'.$workshop->id.'-custpay-'.$customerPayment->id.'-amount-'.$amountCents,
+                $paymentResponse = $squareApi->createPayment([
+                        'idempotency_key' => 'tkt-'.$workshop->id.'-pay-'.$customerPayment->id.'-amt-'.$amountCents,
                         'source_id' => (string) $validated['source_id'],
                         'location_id' => $locationId,
                         'reference_id' => 'payment:'.$customerPayment->id,

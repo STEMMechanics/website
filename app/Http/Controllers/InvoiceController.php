@@ -883,7 +883,7 @@ class InvoiceController extends Controller
                 $amountCents = (int) round($outstandingAmount * 100);
 
                 $response = $squareApi->createPayment([
-                    'idempotency_key' => 'invoice-'.$lockedInvoice->id.'-custpay-'.$customerPayment->id.'-amount-'.$amountCents,
+                    'idempotency_key' => 'inv-'.$lockedInvoice->id.'-pay-'.$customerPayment->id.'-amt-'.$amountCents,
                     'source_id' => trim((string) $request->input('source_id')),
                     'location_id' => $locationId,
                     'reference_id' => 'payment:'.$customerPayment->id,

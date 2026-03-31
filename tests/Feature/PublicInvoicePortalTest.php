@@ -367,8 +367,11 @@ class PublicInvoicePortalTest extends TestCase
         $squareApi->shouldReceive('isEnabled')->andReturn(true);
         /** @phpstan-ignore-next-line */
         $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            $idempotencyKey = (string) data_get($payload, 'idempotency_key', '');
+
             return (int) data_get($payload, 'amount_money.amount') === 11000
-                && str_contains((string) data_get($payload, 'idempotency_key', ''), '-amount-11000');
+                && str_contains($idempotencyKey, '-amt-11000')
+                && strlen($idempotencyKey) <= 45;
         }))->andReturn([
             'payment' => [
                 'id' => 'sq-payment-1',

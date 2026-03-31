@@ -681,7 +681,7 @@
                             <h3 class="font-bold text-lg mb-3">Process Square Refund</h3>
                             <x-ui.input type="number" step="0.01" min="0.01" label="Refund Amount (optional)" name="amount" value="" info="Leave blank to refund remaining amount. This creates a refund payment record against unallocated credit only." :moneyFormat="true" />
                             <x-ui.input label="Reason (optional)" name="reason" value="" />
-                            <x-ui.input label="Idempotency Key (optional)" name="idempotency_key" value="" />
+                            <x-ui.input label="Idempotency Key (optional)" name="idempotency_key" value="" info="Optional. Max 45 characters to match Square." />
                             <div class="mt-4 text-right">
                                 <x-ui.button type="submit" color="dark" x-bind:disabled="isSubmitting">
                                     <span x-show="!isSubmitting">Process Refund</span>

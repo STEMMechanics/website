@@ -2123,11 +2123,7 @@ class StoreOrderService
             $cancellationIdPart = $cancellation instanceof StoreOrderItemCancellation
                 ? 'cn-'.$cancellation->id
                 : 'batch';
-            $idempotencyKey = mb_substr(
-                'ord-'.$order->id.'-'.$cancellationIdPart.'-an-'.$adjustment->id.'-cp-'.$customerPayment->id.'-'.$refundCents,
-                0,
-                120
-            );
+            $idempotencyKey = 'o'.$order->id.'-'.$cancellationIdPart.'-'.$refundCents;
 
             $operation = SquareRefundOperation::query()->firstOrCreate(
                 ['idempotency_key' => $idempotencyKey],
@@ -2348,11 +2344,7 @@ class StoreOrderService
             return null;
         }
 
-        $idempotencyKey = mb_substr(
-            'ord-manual-'.$order->id.'-inv-'.$invoice->id.'-cp-'.$candidatePayment->id.'-'.$requestedCents,
-            0,
-            120
-        );
+        $idempotencyKey = 'o'.$order->id.'-i'.$invoice->id.'-p'.$candidatePayment->id.'-'.$requestedCents;
 
         return SquareRefundOperation::query()->firstOrCreate(
             ['idempotency_key' => $idempotencyKey],
@@ -2794,7 +2786,7 @@ class StoreOrderService
 
         try {
             $response = $this->squareApi->createPayment([
-                'idempotency_key' => 'store-order-'.$order->id.'-payment-'.$customerPayment->id.'-amount-'.$amountCents,
+                'idempotency_key' => 'ord-'.$order->id.'-pay-'.$customerPayment->id.'-amt-'.$amountCents,
                 'source_id' => trim($sourceId),
                 'location_id' => $locationId,
                 'reference_id' => 'payment:'.$customerPayment->id,

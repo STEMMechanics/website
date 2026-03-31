@@ -1222,11 +1222,7 @@ class TicketController extends Controller
             $allocationCents = max(0, (int) round(((float) $allocation->allocated_amount) * 100));
             $refundCents = min($remaining, $refundable, max(1, $allocationCents));
 
-            $idempotencyKey = mb_substr(
-                'tkt-'.$ticket->id.'-an-'.$adjustmentNote->id.'-cp-'.$customerPayment->id.'-'.$refundCents,
-                0,
-                120
-            );
+            $idempotencyKey = 't'.$ticket->id.'-a'.$adjustmentNote->id.'-p'.$customerPayment->id.'-'.$refundCents;
 
             $operation = SquareRefundOperation::query()->firstOrCreate(
                 ['idempotency_key' => $idempotencyKey],
@@ -1692,11 +1688,7 @@ class TicketController extends Controller
             return null;
         }
 
-        $idempotencyKey = mb_substr(
-            'tkt-manual-'.$ticket->id.'-inv-'.$invoice->id.'-cp-'.$candidatePayment->id.'-'.$requestedCents,
-            0,
-            120
-        );
+        $idempotencyKey = 't'.$ticket->id.'-i'.$invoice->id.'-p'.$candidatePayment->id.'-'.$requestedCents;
 
         return SquareRefundOperation::query()->firstOrCreate(
             ['idempotency_key' => $idempotencyKey],

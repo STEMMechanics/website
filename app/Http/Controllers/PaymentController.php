@@ -572,12 +572,12 @@ class PaymentController extends Controller
 
         $validated = $request->validate([
             'source_id' => ['required', 'string', 'max:255'],
-            'idempotency_key' => ['nullable', 'string', 'max:120'],
+            'idempotency_key' => ['nullable', 'string', 'max:45'],
             'autocomplete' => ['nullable', 'boolean'],
         ]);
 
         $idempotencyKey = trim((string) ($validated['idempotency_key'] ?? ''));
-        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'custpay-'.$payment->id.'-'.now()->format('Uu');
+        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'pay-'.$payment->id.'-'.now()->format('Uu');
         $locationId = (string) config('services.square.location_id');
         if ($locationId === '') {
             return $this->squareErrorRedirect('Square location ID is not configured.');
@@ -662,7 +662,7 @@ class PaymentController extends Controller
         $validated = $request->validate([
             'amount' => ['nullable', 'numeric', 'min:0.01'],
             'reason' => ['nullable', 'string', 'max:255'],
-            'idempotency_key' => ['nullable', 'string', 'max:120'],
+            'idempotency_key' => ['nullable', 'string', 'max:45'],
         ]);
 
         if (! is_string($payment->square_payment_id) || trim($payment->square_payment_id) === '') {
@@ -697,7 +697,7 @@ class PaymentController extends Controller
         }
 
         $idempotencyKey = trim((string) ($validated['idempotency_key'] ?? ''));
-        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'custpay-refund-'.$payment->id.'-'.now()->format('Uu');
+        $idempotencyKey = $idempotencyKey !== '' ? $idempotencyKey : 'ref-'.$payment->id.'-'.now()->format('Uu');
 
         try {
             $response = $squareApi->createRefund([
