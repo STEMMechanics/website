@@ -2,14 +2,42 @@
     <x-mast>Invoices</x-mast>
 
     <x-container>
-        <x-ui.toolbar>
-            <x-slot:left>
-                <x-ui.button href="{{ route('admin.invoice.create') }}">Create</x-ui.button>
+        <x-ui.toolbar break="md">
+            <x-slot:left class="flex-0">
+                <x-ui.button href="{{ route('admin.invoice.create') }}" class="w-full md:w-auto">Create</x-ui.button>
             </x-slot:left>
             <x-slot:right>
-                <x-ui.search name="search" label="Search" />
+                <div class="flex gap-3 flex-col md:flex-row">
+                    <form method="GET" action="{{ route('admin.invoice.index') }}">
+                        <input type="hidden" name="search" value="{{ request()->query('search', '') }}">
+                        <x-ui.select
+                            name="status"
+                            label="Status"
+                            inline-label
+                            class="mb-0"
+                            select-class="mt-0 md:min-w-38"
+                            onchange="this.form.submit()">
+                            <option value="">All statuses</option>
+                            @foreach(\App\Models\Invoice::STATUSES as $invoiceStatus)
+                                <option value="{{ $invoiceStatus }}" @selected(request()->query('status', '') === $invoiceStatus)>{{ \App\Models\Invoice::statusLabel($invoiceStatus) }}</option>
+                            @endforeach
+                        </x-ui.select>
+                    </form>
+                    <x-ui.search name="search" label="Search" class="w-full sm:flex-1" />
+                </div>
             </x-slot:right>
         </x-ui.toolbar>
+
+        <div class="mb-4 flex flex-rpw gap-3">
+            <div class="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Still outstanding</div>
+                <div class="mt-1 text-2xl font-bold text-gray-900">{{ money((float) ($summaryOutstandingAmount ?? 0)) }}</div>
+            </div>
+            <div class="flex-1 rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Overdue</div>
+                <div class="mt-1 text-2xl font-bold text-rose-700">{{ money((float) ($summaryOverdueAmount ?? 0)) }}</div>
+            </div>
+        </div>
 
         @if($invoices->isEmpty())
         <x-none-found item="invoices" search="{{ request()->get('search') }}" />

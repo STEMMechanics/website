@@ -1,4 +1,4 @@
-@props(['innerClass' => '', 'type' => 'text', 'name', 'label', 'value' => '', 'floating' => false, 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'noLabel' => false, 'inlineLabel' => false])
+@props(['innerClass' => '', 'selectClass' => '', 'name', 'label', 'value' => '', 'readonly' => false, 'disabled' => false, 'info', 'error' => null, 'noLabel' => false, 'inlineLabel' => false])
 
 @php
     if ($error === null) {
@@ -13,31 +13,20 @@
 @endphp
 
 <div class="{{ twMerge(['mb-4'], $inlineLabel ? ['flex', 'items-center'] : '', $attributes->get('class')) }} {{ $attributes->only('x-show') }}">
-    @if($floating)
-        <div class="relative">
-            @if($type === 'textarea')
-                <textarea class="{{ twMerge(['pt-4'], $classes) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['x-show','style']) }}>{{ $value }}</textarea>
-            @else
-                <input class="{{ twMerge(['pt-4'], $classes) }}" autocomplete="off" placeholder=" " value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes }} />
-            @endif
-            <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
+    @if(!$noLabel && !$inlineLabel)
+        <div class="flex items-center justify-between mb-1">
+                <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}</label>
+                <div class="text-xs text-gray-500">{{ $labelRight ?? '' }}</div>
         </div>
-    @else
-            @if(!$noLabel && !$inlineLabel)
-                <div class="flex items-center justify-between mb-1">
-                        <label for="{{ $name }}" class="block text-sm pl-1">{{ $label }}</label>
-                        <div class="text-xs text-gray-500">{{ $labelRight ?? '' }}</div>
-                </div>
-            @elseif($inlineLabel)
-                <label for="{{ $name }}" class="inline-block text-sm mr-3">{{ $label }}</label>
-            @endif
-            <div class="{{ twMerge(['relative'], $inlineLabel ? 'inline-block flex-1' : '', $innerClass) }}">
-                <select class="{{ twMerge(['pt-2.5'], $classes) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['x-show','style']) }}>
-                    {{ $slot }}
-                </select>
-                <i class="fa-solid fa-caret-down absolute text-gray-700 text-2xl right-3 bottom-2.25 pointer-events-none"></i>
-            </div>
+    @elseif($inlineLabel)
+        <label for="{{ $name }}" class="inline-block text-sm mr-3">{{ $label }}</label>
     @endif
+    <div class="{{ twMerge(['relative'], $inlineLabel ? 'inline-block flex-1' : '', $innerClass) }}">
+        <select class="{{ twMerge(['pt-2.5'], $classes, $selectClass) }}" name="{{ $name }}" {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['x-show','style']) }}>
+            {{ $slot }}
+        </select>
+        <i class="fa-solid fa-caret-down absolute text-gray-700 text-2xl right-3 bottom-2.25 pointer-events-none"></i>
+    </div>
     @if(isset($info) && $info !== '')
         <div class="text-xs text-gray-500 ml-2 mt-1">{{ $info }}</div>
     @endif

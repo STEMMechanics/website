@@ -103,6 +103,75 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSeeText('Newtons Cradle x 2');
     }
 
+    public function test_admin_invoice_index_can_filter_by_status(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-DRAFT-1001',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_DRAFT,
+            'total_amount' => 80.00,
+            'subtotal_amount' => 72.73,
+            'gst_amount' => 7.27,
+        ]);
+        $overdueInvoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-OVERDUE-1002',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_OVERDUE,
+            'issue_date' => now()->subDays(21)->toDateString(),
+            'due_date' => now()->subDays(7)->toDateString(),
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index', [
+            'status' => Invoice::STATUS_OVERDUE,
+        ]));
+
+        $response->assertOk();
+        $response->assertSeeText('INV-OVERDUE-1002');
+        $response->assertDontSeeText('INV-DRAFT-1001');
+    }
+
+    public function test_admin_invoice_index_shows_outstanding_and_overdue_totals(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-OVERDUE-1001',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_SENT,
+            'issue_date' => now()->subDays(21)->toDateString(),
+            'due_date' => now()->subDays(7)->toDateString(),
+            'total_amount' => 75.00,
+            'subtotal_amount' => 68.18,
+            'gst_amount' => 6.82,
+        ]);
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-ACTIVE-1002',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('$195.00');
+        $response->assertSeeText('Overdue');
+        $response->assertSeeText('$75.00');
+    }
+
     public function test_overdue_invoice_statuses_can_be_refreshed_and_badged_in_the_navbar(): void
     {
         $admin = $this->createAdminUser();

@@ -47,6 +47,11 @@ class InvoiceController extends Controller
         $query = Invoice::query()
             ->with(['user', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments']);
 
+        $status = trim((string) $request->query('status', ''));
+        if ($status !== '' && in_array($status, Invoice::STATUSES, true)) {
+            $query->where('status', $status);
+        }
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($builder) use ($search) {
@@ -63,10 +68,20 @@ class InvoiceController extends Controller
             });
         }
 
+        $summaryInvoices = (clone $query)->get();
+        $summaryOutstandingAmount = round($summaryInvoices->sum(function (Invoice $invoice): float {
+            return $this->outstandingAmountForIndexInvoice($invoice);
+        }), 2);
+        $summaryOverdueAmount = round($summaryInvoices->sum(function (Invoice $invoice): float {
+            return $invoice->isOverdue() ? $this->outstandingAmountForIndexInvoice($invoice) : 0;
+        }), 2);
+
         $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
 
         return view('admin.invoice.index', [
             'invoices' => $invoices,
+            'summaryOutstandingAmount' => $summaryOutstandingAmount,
+            'summaryOverdueAmount' => $summaryOverdueAmount,
         ]);
     }
 
@@ -78,6 +93,17 @@ class InvoiceController extends Controller
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
             'lineItemsSeed' => [],
         ]);
+    }
+
+    private function outstandingAmountForIndexInvoice(Invoice $invoice): float
+    {
+        $settlementKind = $invoice->expectedSettlementKind();
+        $allocated = (float) $invoice->allocations
+            ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
+            ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $settlementKind)
+            ->sum('allocated_amount');
+
+        return max(0, round($invoice->dueAmount() - $allocated, 2));
     }
 
     public function store(Request $request)
