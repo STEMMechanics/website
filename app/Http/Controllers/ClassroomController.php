@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClassSession;
+use App\Models\ForumTopic;
 use App\Services\Classroom\ClassroomStateService;
+use App\Services\Classroom\ClassroomBroadcastLifecycleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -11,7 +13,8 @@ use Illuminate\View\View;
 class ClassroomController extends Controller
 {
     public function __construct(
-        private readonly ClassroomStateService $stateService
+        private readonly ClassroomStateService $stateService,
+        private readonly ClassroomBroadcastLifecycleService $broadcastLifecycleService
     ) {}
 
     public function show(Request $request, ClassSession $classSession): View
@@ -19,9 +22,16 @@ class ClassroomController extends Controller
         $this->authorize('view', $classSession);
 
         $state = $this->stateService->stateFor($request->user(), $classSession);
+        $forumUnreadCount = 0;
+        $forumCategoryId = (string) ($classSession->forum_category_id ?? '');
+        if ($forumCategoryId !== '' && $request->user()) {
+            $forumUnreadCountByCategoryId = ForumTopic::unreadCountMapForUser($request->user());
+            $forumUnreadCount = (int) ($forumUnreadCountByCategoryId[$forumCategoryId] ?? 0);
+        }
 
         return view('classrooms.show', [
             'state' => $state,
+            'forumUnreadCount' => $forumUnreadCount,
             'livekitUrl' => config('livekit.url'),
             'tokenEndpoint' => route('livekit.token'),
             'helpRequestStateEndpoint' => route('class.help-requests.index', $classSession),
@@ -38,12 +48,7 @@ class ClassroomController extends Controller
     {
         $this->authorize('manage', $classSession);
 
-        $classSession->forceFill([
-            'live_broadcast_started_at' => now(),
-            'live_broadcast_ended_at' => null,
-            'live_broadcast_started_by_user_id' => (string) $request->user()->id,
-            'live_broadcast_ended_by_user_id' => null,
-        ])->save();
+        $this->broadcastLifecycleService->startBroadcast($classSession, $request->user());
 
         $state = $this->stateService->stateFor($request->user(), $classSession);
 
@@ -57,10 +62,7 @@ class ClassroomController extends Controller
     {
         $this->authorize('manage', $classSession);
 
-        $classSession->forceFill([
-            'live_broadcast_ended_at' => now(),
-            'live_broadcast_ended_by_user_id' => (string) $request->user()->id,
-        ])->save();
+        $this->broadcastLifecycleService->endBroadcast($classSession, $request->user());
 
         $state = $this->stateService->stateFor($request->user(), $classSession);
 

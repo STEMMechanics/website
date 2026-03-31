@@ -2,12 +2,12 @@
     @php
         $isClassroomAccess = $workshop->usesClassroomRegistration();
     @endphp
-    <x-mast>{{ $isClassroomAccess ? 'Classroom Access Confirmed' : 'Tickets Confirmed' }}</x-mast>
+    <x-mast>{{ $isClassroomAccess ? 'Course Access Confirmed' : 'Tickets Confirmed' }}</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
         <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 flex gap-6">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Classroom Access Complete' : 'Checkout Complete' }}</h2>
+                <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Course Access Complete' : 'Checkout Complete' }}</h2>
 
                 @php
                 $creditAppliedAmount = round((float) ($session['credit_applied_amount'] ?? 0), 2);
@@ -59,13 +59,13 @@
                     <i class="fa-solid fa-check-circle text-green-600 mr-1"></i>
                     @if($hasReceipt)
                         @if($isClassroomAccess)
-                            Your invoice, receipt, and classroom access details have been emailed to <strong>{{ $sentToEmail }}</strong>.
+                            Your invoice, receipt, and course access details have been emailed to <strong>{{ $sentToEmail }}</strong>.
                         @else
                             Your invoice, receipt, and ticket{{ $tickets->count() === 1 ? '' : 's' }} have been emailed to <strong>{{ $sentToEmail }}</strong>.
                         @endif
                     @else
                         @if($isClassroomAccess)
-                            Your invoice and classroom access details have been emailed to <strong>{{ $sentToEmail }}</strong>.
+                            Your invoice and course access details have been emailed to <strong>{{ $sentToEmail }}</strong>.
                         @else
                             Your invoice and ticket{{ $tickets->count() === 1 ? '' : 's' }} have been emailed to <strong>{{ $sentToEmail }}</strong>.
                         @endif
@@ -79,7 +79,7 @@
                         <thead>
                             <tr class="bg-gray-100 text-left text-sm rounded-t-lg">
                                 <th class="px-3 py-2">ID</th>
-                                <th class="px-3 py-2">{{ $isClassroomAccess ? 'Access Holder' : 'Ticket' }}</th>
+                                <th class="px-3 py-2">{{ $isClassroomAccess ? 'Course Holder' : 'Ticket' }}</th>
                                 @unless($isClassroomAccess)
                                     <th class="px-3 py-2 text-center">&nbsp;</th>
                                 @endunless

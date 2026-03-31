@@ -6,8 +6,9 @@ use App\Models\ClassSession;
 use App\Services\Classroom\ClassroomBroadcastLifecycleService;
 use Illuminate\Support\Facades\Log;
 use Livekit\ParticipantInfo;
+use Livekit\TrackInfo;
+use Livekit\TrackSource;
 use Livekit\WebhookEvent;
-use RuntimeException;
 
 class LiveKitWebhookService
 {
@@ -47,9 +48,29 @@ class LiveKitWebhookService
             $context['class_session_slug'] = (string) $classSession->slug;
         }
 
+        if ($event->getTrack() instanceof TrackInfo) {
+            $track = $event->getTrack();
+            $context['track_sid'] = (string) $track->getSid();
+            $context['track_source'] = $this->trackSourceLabel((int) $track->getSource());
+            $context['track_type'] = (int) $track->getType();
+        }
+
         if (in_array($event->getEvent(), ['participant_joined', 'participant_left', 'participant_connection_aborted'], true)) {
             $this->handleParticipantLifecycleEvent((string) $event->getEvent(), $room?->getName() ?? '', $participant);
             Log::info('LiveKit participant event', $context);
+
+            return;
+        }
+
+        if ($event->getEvent() === 'track_published') {
+            $this->handleTrackPublishedEvent($room?->getName() ?? '', $participant, $event->getTrack());
+            Log::info('LiveKit track published event', $context);
+
+            return;
+        }
+
+        if ($event->getEvent() === 'track_unpublished') {
+            Log::info('LiveKit track unpublished event', $context);
 
             return;
         }
@@ -75,6 +96,24 @@ class LiveKitWebhookService
         $this->broadcastLifecycleService->handleParticipantLeft($classSession, $participant);
     }
 
+    private function handleTrackPublishedEvent(string $roomName, ?ParticipantInfo $participant, ?TrackInfo $track): void
+    {
+        if ($participant === null || ! $track instanceof TrackInfo) {
+            return;
+        }
+
+        if ((int) $track->getSource() !== TrackSource::CAMERA) {
+            return;
+        }
+
+        $classSession = $this->resolveClassSession($roomName);
+        if (! $classSession instanceof ClassSession) {
+            return;
+        }
+
+        $this->broadcastLifecycleService->markCameraPublished($classSession, $participant, $track);
+    }
+
     private function resolveClassSession(string $roomName): ?ClassSession
     {
         $roomName = trim($roomName);
@@ -86,5 +125,16 @@ class LiveKitWebhookService
             ->where('room_name', $roomName)
             ->orWhere('slug', $roomName)
             ->first();
+    }
+
+    private function trackSourceLabel(int $source): string
+    {
+        return match ($source) {
+            TrackSource::CAMERA => 'CAMERA',
+            TrackSource::MICROPHONE => 'MICROPHONE',
+            TrackSource::SCREEN_SHARE => 'SCREEN_SHARE',
+            TrackSource::SCREEN_SHARE_AUDIO => 'SCREEN_SHARE_AUDIO',
+            default => 'UNKNOWN',
+        };
     }
 }

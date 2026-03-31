@@ -1,8 +1,6 @@
 <x-layout>
     <x-mast>Discussions</x-mast>
 
-    @php($unreadCategoryLookup = array_flip($unreadCategoryIds ?? []))
-
     <x-container class="py-8" id="forum-index-page">
         <div class="mb-8 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -12,13 +10,17 @@
             </div>
         </div>
 
-        @if($categories->isEmpty())
+        @if($regularCategories->isEmpty() && $courseCategories->isEmpty())
             <div id="forum-index-empty" class="rounded-lg border border-gray-200 bg-white p-6 text-gray-600">
                 There are no discussions available for your account yet.
             </div>
         @else
             <div id="forum-index-categories" class="space-y-4">
-                @include('forum.partials.category-list', ['categories' => $categories, 'unreadCategoryLookup' => $unreadCategoryLookup])
+                @include('forum.partials.category-groups', [
+                    'regularCategories' => $regularCategories,
+                    'courseCategories' => $courseCategories,
+                    'unreadCategoryCounts' => $unreadCategoryCounts,
+                ])
             </div>
         @endif
     </x-container>
@@ -31,7 +33,7 @@
         const empty = document.getElementById('forum-index-empty');
         const snapshotUrl = @js(route('forum.index.snapshot'));
 
-        if (!root || !list || !empty || !snapshotUrl) {
+        if (!root || !list || !snapshotUrl) {
             return;
         }
 
@@ -54,10 +56,14 @@
 
                 if (html === '') {
                     list.innerHTML = '';
-                    empty.classList.remove('hidden');
+                    if (empty) {
+                        empty.classList.remove('hidden');
+                    }
                 } else {
                     list.innerHTML = html;
-                    empty.classList.add('hidden');
+                    if (empty) {
+                        empty.classList.add('hidden');
+                    }
                     if (window.Alpine?.initTree) {
                         window.Alpine.initTree(list);
                     }

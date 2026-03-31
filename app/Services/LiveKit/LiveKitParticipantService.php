@@ -131,6 +131,25 @@ class LiveKitParticipantService
         return $this->extractParticipantUserId($participant);
     }
 
+    public function participantRoleFromInfo(ParticipantInfo $participant): ?string
+    {
+        $attributes = $this->participantInfoAttributes($participant);
+        $metadata = $this->participantInfoMetadata($participant);
+
+        foreach ([
+            $attributes['app_user_role'] ?? null,
+            $attributes['role'] ?? null,
+            $metadata['role'] ?? null,
+        ] as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
     public function resolveParticipantUserIdByLabels(ClassSession $classSession, string $username, string $displayName = ''): ?string
     {
         $normalizedUsername = trim($username);

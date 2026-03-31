@@ -25,31 +25,31 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.classroom.index" backTitle="Classrooms">{{ $isEditing ? 'Edit' : 'Create' }} Classroom</x-mast>
+    <x-mast backRoute="admin.course.index" backTitle="Courses">{{ $isEditing ? 'Edit' : 'Create' }} Course</x-mast>
 
     <x-container>
         @if($isEditing)
             <div class="mb-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div class="flex flex-wrap items-center gap-3">
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Open classroom</div>
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Open course</div>
                         <div class="text-lg font-semibold text-gray-900">{{ $classSession->title }}</div>
                     </div>
-                    <x-ui.button href="{{ route('class.show', $classSession) }}" color="primary-outline">Open classroom</x-ui.button>
-                    <x-ui.button href="{{ route('admin.classroom.duplicate', $classSession) }}" color="secondary">Duplicate</x-ui.button>
+                    <x-ui.button href="{{ route('class.show', $classSession) }}" color="primary-outline">Open course</x-ui.button>
+                    <x-ui.button href="{{ route('admin.course.duplicate', $classSession) }}" color="secondary">Duplicate</x-ui.button>
                 </div>
             </div>
         @elseif(isset($sourceClassSession) && $sourceClassSession)
             <div class="mb-6 rounded-3xl border border-sky-200 bg-sky-50 p-5 text-sky-950">
                 <div class="text-xs font-semibold uppercase tracking-wide">Duplicating from</div>
                 <div class="mt-1 text-lg font-semibold">{{ $sourceClassSession->title }}</div>
-                <div class="mt-1 text-sm text-sky-800">This form is prefilled from the selected classroom. Adjust the room, forum, and schedule before saving.</div>
+                <div class="mt-1 text-sm text-sky-800">This form is prefilled from the selected course. Adjust the room, forum, and schedule before saving.</div>
             </div>
         @endif
 
         <form
             method="POST"
-            action="{{ $isEditing ? route('admin.classroom.update', $classSession) : route('admin.classroom.store') }}"
+            action="{{ $isEditing ? route('admin.course.update', $classSession) : route('admin.course.store') }}"
             class="space-y-8"
             x-data="classroomAdminForm({
                 title: @js($title),
@@ -65,14 +65,14 @@
             @endif
 
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                <h2 class="text-xl font-semibold text-gray-900">Classroom details</h2>
+                <h2 class="text-xl font-semibold text-gray-900">Course details</h2>
                 <div class="mt-6 grid gap-4 md:grid-cols-2">
                     <x-ui.input name="title" label="Title" :value="$title" x-model="titleValue" x-on:blur="autofillDerivedFields()" />
                     <x-ui.input name="slug" label="Slug" :value="$slug" info="Leave blank to auto-generate from the title and start year." x-model="slugValue" x-on:input="slugManual = true" />
                     <x-ui.input name="room_name" label="Room name" :value="$roomName" info="Leave blank to auto-generate from the slug." x-model="roomNameValue" x-on:input="roomManual = true" />
                     <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4 md:col-span-2">
                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Access group</div>
-                        <div class="mt-1 text-sm text-gray-700">This classroom uses the classroom slug as the group slug. Students in <span class="font-semibold text-gray-900">{{ $isEditing ? $classSession->slug : 'the saved slug' }}</span> can join automatically.</div>
+                        <div class="mt-1 text-sm text-gray-700">This course uses the course slug as the group slug. Students in <span class="font-semibold text-gray-900">{{ $isEditing ? $classSession->slug : 'the saved slug' }}</span> can join automatically.</div>
                     </div>
                     <x-ui.select name="forum_category_choice" label="Forum category" x-model="forumCategoryChoice">
                         <option value="">No forum category</option>
@@ -84,7 +84,7 @@
                         @endforeach
                     </x-ui.select>
                     <div class="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4" x-show="forumCategoryChoice === 'create'" x-cloak>
-                        <x-ui.input name="forum_category_name" label="New forum category name" :value="$forumCategoryName" info="This creates a linked forum category for classroom participants." />
+                        <x-ui.input name="forum_category_name" label="New forum category name" :value="$forumCategoryName" info="This creates a linked forum category for course participants." />
                     </div>
                     <x-ui.checkbox name="live_chat_enabled" label="Enable live chat" value="1" :checked="(bool) $liveChatEnabled" />
                     <x-ui.input type="datetime-local" name="starts_at" label="Starts at" :value="$startsAtValue" x-model="startsAtValue" x-on:change="autofillDerivedFields()" />
@@ -93,7 +93,7 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Live stream schedule</h3>
-                                <p class="mt-1 text-sm text-gray-600">Add the live session start and end times here. The classroom shows the next scheduled stream when nobody is live.</p>
+                                <p class="mt-1 text-sm text-gray-600">Add the live session start and end times here. The course shows the next scheduled stream when nobody is live.</p>
                             </div>
                             <x-ui.button type="button" color="primary-outline" x-on:click="addSession()">Add session</x-ui.button>
                         </div>
@@ -122,7 +122,7 @@
                         </div>
                     </div>
                     <div class="md:col-span-2">
-                        <x-ui.input type="textarea" name="summary" label="Summary" :value="$summary" info="Short description shown on the classroom page." />
+                        <x-ui.input type="textarea" name="summary" label="Summary" :value="$summary" info="Short description shown on the course page." />
                     </div>
                 </div>
             </section>
@@ -134,14 +134,14 @@
                         name="instructions_html"
                         :label="null"
                         :value="$instructionsHtml"
-                        info="Use headings to break the class into sections. The editor stores HTML and the classroom renders it directly for participants."
+                        info="Use headings to break the class into sections. The editor stores HTML and the course renders it directly for participants."
                     />
                 </div>
             </section>
 
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
                 <h2 class="text-xl font-semibold text-gray-900">Enrolments</h2>
-                <p class="mt-2 text-sm text-gray-600">Enter one identifier per line. Use a username, email address, or UUID. Teachers can manage the room; students join view-only by default.</p>
+                <p class="mt-2 text-sm text-gray-600">Enter one identifier per line. Use a username, email address, or UUID. Students join view-only by default.</p>
 
                 <div class="mt-6 grid gap-4 lg:grid-cols-2">
                     <x-ui.input
@@ -177,16 +177,16 @@
 
             <div class="flex flex-wrap justify-between gap-3">
                 <div class="flex flex-wrap gap-3">
-                    <x-ui.button href="{{ route('admin.classroom.index') }}" color="secondary">Back</x-ui.button>
+                    <x-ui.button href="{{ route('admin.course.index') }}" color="secondary">Back</x-ui.button>
                     @if($isEditing)
-                        <x-ui.button href="{{ route('admin.classroom.duplicate', $classSession) }}" color="primary-outline">Duplicate</x-ui.button>
+                        <x-ui.button href="{{ route('admin.course.duplicate', $classSession) }}" color="primary-outline">Duplicate</x-ui.button>
                     @endif
                 </div>
                 <div class="flex flex-wrap gap-3">
                     @if($isEditing)
-                        <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete classroom?', 'Are you sure you want to delete this classroom? This action cannot be undone.', '{{ route('admin.classroom.destroy', $classSession) }}')">Delete</x-ui.button>
+                        <x-ui.button type="button" color="danger" x-data x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete course?', 'Are you sure you want to delete this course? This action cannot be undone.', '{{ route('admin.course.destroy', $classSession) }}')">Delete</x-ui.button>
                     @endif
-                    <x-ui.button type="submit">Save classroom</x-ui.button>
+                    <x-ui.button type="submit">Save course</x-ui.button>
                 </div>
             </div>
         </form>

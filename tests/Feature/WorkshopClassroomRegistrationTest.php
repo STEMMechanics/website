@@ -67,7 +67,7 @@ class WorkshopClassroomRegistrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSeeText('Get Classroom Access')
+            ->assertSeeText('Get Course Access')
             ->assertDontSee(route('class.show', $workshop->classSession), false);
     }
 
@@ -157,7 +157,7 @@ class WorkshopClassroomRegistrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('forum.category.show', $forumCategory->slug))
             ->assertOk()
-            ->assertSeeText('Classroom');
+            ->assertSeeText('Course');
     }
 
     public function test_classroom_checkout_invites_missing_accounts_and_assigns_the_access_group(): void

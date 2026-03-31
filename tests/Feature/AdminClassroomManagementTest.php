@@ -28,7 +28,7 @@ class AdminClassroomManagementTest extends TestCase
         $sessionStart = Carbon::create(2026, 3, 29, 15, 44, 0);
         $sessionEnd = (clone $sessionStart)->addHours(2);
 
-        $response = $this->actingAs($admin)->post(route('admin.classroom.store'), [
+        $response = $this->actingAs($admin)->post(route('admin.course.store'), [
             'title' => 'Microbit Term 1',
             'slug' => '',
             'room_name' => '',
@@ -49,7 +49,7 @@ class AdminClassroomManagementTest extends TestCase
         ]);
 
         $classSession = ClassSession::query()->where('title', 'Microbit Term 1')->firstOrFail();
-        $response->assertRedirect(route('admin.classroom.edit', $classSession));
+        $response->assertRedirect(route('admin.course.edit', $classSession));
 
         $this->assertSame('Microbit Term 1', $classSession->title);
         $this->assertNotEmpty($classSession->slug);
@@ -87,12 +87,12 @@ class AdminClassroomManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.classroom.edit', $classSession))
+            ->get(route('admin.course.edit', $classSession))
             ->assertOk()
-            ->assertSeeText('Edit Classroom')
+            ->assertSeeText('Edit Course')
             ->assertSeeText('Current enrolments');
 
-        $duplicateResponse = $this->actingAs($admin)->get(route('admin.classroom.create', [
+        $duplicateResponse = $this->actingAs($admin)->get(route('admin.course.create', [
             'duplicate_from' => $classSession->id,
         ]));
 
@@ -106,7 +106,7 @@ class AdminClassroomManagementTest extends TestCase
         $originalRoomName = $classSession->room_name;
 
         $this->actingAs($admin)
-            ->put(route('admin.classroom.update', $classSession), [
+            ->put(route('admin.course.update', $classSession), [
                 'title' => 'Microbit Term 1 Updated',
                 'slug' => 'microbit-term-1-updated',
                 'room_name' => $classSession->room_name,
@@ -118,7 +118,7 @@ class AdminClassroomManagementTest extends TestCase
                 'teacher_identifiers' => $student->email,
                 'student_identifiers' => $teacher->email,
             ])
-            ->assertRedirect(route('admin.classroom.edit', ['classSession' => 'microbit-term-1-updated']));
+            ->assertRedirect(route('admin.course.edit', ['classSession' => 'microbit-term-1-updated']));
 
         $classSession->refresh();
         $this->assertSame('Microbit Term 1 Updated', $classSession->title);
@@ -155,7 +155,7 @@ class AdminClassroomManagementTest extends TestCase
             'slug' => $originalSlug,
         ]);
 
-        $duplicateActionResponse = $this->actingAs($admin)->get(route('admin.classroom.duplicate', $classSession));
+        $duplicateActionResponse = $this->actingAs($admin)->get(route('admin.course.duplicate', $classSession));
         $duplicateActionResponse->assertRedirect();
 
         $duplicated = ClassSession::query()->where('duplicated_from_class_session_id', $classSession->id)->latest('created_at')->firstOrFail();
@@ -169,8 +169,8 @@ class AdminClassroomManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->delete(route('admin.classroom.destroy', $classSession))
-            ->assertRedirect(route('admin.classroom.index'));
+            ->delete(route('admin.course.destroy', $classSession))
+            ->assertRedirect(route('admin.course.index'));
 
         $this->assertDatabaseMissing('class_sessions', [
             'id' => $classSession->id,
@@ -182,7 +182,7 @@ class AdminClassroomManagementTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->get(route('admin.classroom.index'))
+            ->get(route('admin.course.index'))
             ->assertForbidden();
     }
 
@@ -199,11 +199,11 @@ class AdminClassroomManagementTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('admin.classroom.index'))
+            ->get(route('admin.course.index'))
             ->assertOk()
-            ->assertSeeText('Classrooms')
+            ->assertSeeText('Courses')
             ->assertSeeText($classSession->title)
-            ->assertSee(route('admin.classroom.edit', $classSession), false)
+            ->assertSee(route('admin.course.edit', $classSession), false)
             ->assertSee(route('class.show', $classSession), false);
     }
 

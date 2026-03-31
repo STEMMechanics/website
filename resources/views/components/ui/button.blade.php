@@ -19,7 +19,7 @@
         'yellow' => "hover:bg-yellow-800 focus-visible:outline-yellow-600 bg-yellow-600 text-white {$disabledClasses}",
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
-    $commonClasses = twMerge(['whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
+    $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
     $hrefValue = html_entity_decode((string) ($href ?? '#'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
     if((isset($type) && $type === 'link')) {

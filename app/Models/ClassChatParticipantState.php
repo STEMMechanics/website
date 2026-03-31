@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class ClassChatMessage extends Model
+class ClassChatParticipantState extends Model
 {
     use HasFactory;
     use UUID;
@@ -15,19 +15,12 @@ class ClassChatMessage extends Model
     protected $fillable = [
         'class_session_id',
         'user_id',
-        'raw_message',
-        'display_message',
-        'is_blocked',
-        'moderation_reason',
-        'moderation_reason_label',
-        'moderation_reason_detail',
-        'deleted_at',
-        'deleted_by_user_id',
+        'disabled_by_user_id',
+        'disabled_at',
     ];
 
     protected $casts = [
-        'is_blocked' => 'boolean',
-        'deleted_at' => 'datetime',
+        'disabled_at' => 'datetime',
     ];
 
     public function classSession(): BelongsTo
@@ -40,8 +33,8 @@ class ClassChatMessage extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function deletedBy(): BelongsTo
+    public function disabledBy(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'deleted_by_user_id');
+        return $this->belongsTo(User::class, 'disabled_by_user_id');
     }
 }

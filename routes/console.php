@@ -189,3 +189,7 @@ Schedule::command('minecraft:messages:send-failure-alerts')
 Schedule::command('minecraft:player-stats:sync')
     ->everyFourHours()
     ->withoutOverlapping();
+
+Schedule::command('classroom:broadcasts:auto-end-stale')
+    ->everyMinute()
+    ->withoutOverlapping();

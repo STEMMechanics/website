@@ -2,24 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers;
 use App\Contracts\ContentFilter;
 use App\Jobs\SendEmail;
 use App\Mail\ChildForumActivityNotification;
 use App\Mail\ForumPostReport;
 use App\Models\ForumCategory;
 use App\Models\ForumPost;
+use App\Models\ForumPostAttachment;
 use App\Models\ForumPostReaction;
 use App\Models\ForumTopic;
 use App\Models\ForumTopicUserState;
+use App\Models\User;
 use App\Support\ForumContent;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ForumController extends Controller
 {
@@ -29,11 +37,16 @@ class ForumController extends Controller
 
     public function index(Request $request): View
     {
-        ['categories' => $categories, 'unreadCategoryIds' => $unreadCategoryIds] = $this->buildForumIndexData($request->user());
+        [
+            'regularCategories' => $regularCategories,
+            'courseCategories' => $courseCategories,
+            'unreadCategoryCounts' => $unreadCategoryCounts,
+        ] = $this->buildForumIndexData($request->user());
 
         return view('forum.index', [
-            'categories' => $categories,
-            'unreadCategoryIds' => $unreadCategoryIds,
+            'regularCategories' => $regularCategories,
+            'courseCategories' => $courseCategories,
+            'unreadCategoryCounts' => $unreadCategoryCounts,
         ]);
     }
 
@@ -88,10 +101,10 @@ class ForumController extends Controller
         abort_if($category->isDivider(), 404);
         abort_unless($this->canCreateTopic($request->user(), $category), 403);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'title' => ['required', 'string', 'max:200'],
             'body' => ['required', 'string'],
-        ]);
+        ], $this->forumAttachmentValidationRules($request->user())));
 
         $body = ForumContent::normalize((string) $validated['body']);
         if (! ForumContent::hasMeaningfulContent($body)) {
@@ -124,24 +137,32 @@ class ForumController extends Controller
 
         $author = $request->user();
         $requiresApproval = $author?->childForumTopicRequiresApproval() ?? false;
+        /** @var ForumTopic|null $topic */
+        $topic = null;
+        /** @var ForumPost|null $post */
+        $post = null;
 
-        $topic = new ForumTopic();
-        $topic->forum_category_id = (string) $category->id;
-        $topic->user_id = (string) $author->id;
-        $topic->title = $title;
-        $topic->slug = ForumTopic::generateUniqueSlug($topic->title, (string) $category->id);
-        $topic->last_post_at = now();
-        $topic->last_post_user_id = (string) $author->id;
-        $topic->is_approved = ! $requiresApproval;
-        $topic->save();
+        DB::transaction(function () use ($category, $author, $requiresApproval, $title, $body, $validated, &$topic, &$post): void {
+            $topic = new ForumTopic();
+            $topic->forum_category_id = (string) $category->id;
+            $topic->user_id = (string) $author->id;
+            $topic->title = $title;
+            $topic->slug = ForumTopic::generateUniqueSlug($topic->title, (string) $category->id);
+            $topic->last_post_at = now();
+            $topic->last_post_user_id = (string) $author->id;
+            $topic->is_approved = ! $requiresApproval;
+            $topic->save();
 
-        $post = new ForumPost();
-        $post->forum_topic_id = (string) $topic->id;
-        $post->user_id = (string) $author->id;
-        $post->is_topic_starter = true;
-        $post->is_approved = ! $requiresApproval;
-        $post->body = $body;
-        $post->save();
+            $post = new ForumPost();
+            $post->forum_topic_id = (string) $topic->id;
+            $post->user_id = (string) $author->id;
+            $post->is_topic_starter = true;
+            $post->is_approved = ! $requiresApproval;
+            $post->body = $body;
+            $post->save();
+
+            $this->saveForumPostAttachments($post, $validated['attachments'] ?? [], $author);
+        });
 
         if ($requiresApproval) {
             $this->notifyParentOfChildForumActivity(
@@ -248,40 +269,46 @@ class ForumController extends Controller
         ]));
     }
 
-    public function storePost(Request $request, string $categorySlug, string $topicSlug): RedirectResponse
+    public function storePost(Request $request, string $categorySlug, string $topicSlug): RedirectResponse|JsonResponse
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         abort_unless($topic->canReply($request->user()), 403);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'body' => ['required', 'string'],
             'reply_to_post_id' => ['nullable', 'string'],
-        ]);
+        ], $this->forumAttachmentValidationRules($request->user())));
 
         $body = ForumContent::normalize((string) $validated['body']);
         if (! ForumContent::hasMeaningfulContent($body)) {
-            return back()
-                ->withErrors(['body' => 'Reply content cannot be empty.'])
-                ->withInput();
+            throw ValidationException::withMessages([
+                'body' => 'Reply content cannot be empty.',
+            ]);
         }
 
         $bodyFilter = $this->contentFilter->inspect($body, 'forum');
         if ($bodyFilter->blocked) {
-            return back()
-                ->withErrors(['body' => $bodyFilter->message ?? 'Reply content is not allowed.'])
-                ->withInput();
+            throw ValidationException::withMessages([
+                'body' => $bodyFilter->message ?? 'Reply content is not allowed.',
+            ]);
         }
 
         $author = $request->user();
         $requiresApproval = $author?->childForumReplyRequiresApproval() ?? false;
+        /** @var ForumPost|null $post */
+        $post = null;
 
-        $post = new ForumPost();
-        $post->forum_topic_id = (string) $topic->id;
-        $post->parent_forum_post_id = $this->validatedReplyParentId($topic, $validated['reply_to_post_id'] ?? null);
-        $post->user_id = (string) $author->id;
-        $post->is_approved = ! $requiresApproval;
-        $post->body = $body;
-        $post->save();
+        DB::transaction(function () use ($topic, $author, $requiresApproval, $body, $validated, &$post): void {
+            $post = new ForumPost();
+            $post->forum_topic_id = (string) $topic->id;
+            $post->parent_forum_post_id = $this->validatedReplyParentId($topic, $validated['reply_to_post_id'] ?? null);
+            $post->user_id = (string) $author->id;
+            $post->is_approved = ! $requiresApproval;
+            $post->body = $body;
+            $post->save();
+
+            $this->saveForumPostAttachments($post, $validated['attachments'] ?? [], $author);
+        });
 
         if ($requiresApproval) {
             $this->notifyParentOfChildForumActivity(
@@ -298,6 +325,17 @@ class ForumController extends Controller
             session()->flash('message', 'Your reply has been submitted for parent approval.');
             session()->flash('message-title', 'Approval required');
             session()->flash('message-type', 'info');
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'redirect' => route('forum.topic.show', [
+                        'categorySlug' => $topic->category->slug,
+                        'topicSlug' => $topic->slug,
+                        'sort' => $this->normalizedReplySort($request->query('sort')),
+                    ]),
+                    'message' => 'Your reply has been submitted for parent approval.',
+                ]);
+            }
 
             return redirect()->to(route('forum.topic.show', [
                 'categorySlug' => $topic->category->slug,
@@ -336,45 +374,76 @@ class ForumController extends Controller
         session()->flash('message-title', 'Discussion updated');
         session()->flash('message-type', 'success');
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'redirect' => route('forum.topic.show', $redirectParams).'#post-'.$post->id,
+                'message' => 'Reply posted.',
+            ]);
+        }
+
         return redirect()->to(route('forum.topic.show', $redirectParams).'#post-'.$post->id);
     }
 
-    public function updatePost(Request $request, string $categorySlug, string $topicSlug, ForumPost $forumPost): RedirectResponse
+    public function updatePost(Request $request, string $categorySlug, string $topicSlug, ForumPost $forumPost): RedirectResponse|JsonResponse
     {
         $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
         abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
         abort_unless($forumPost->is_approved && ! $forumPost->isDeleted(), 404);
         abort_unless($forumPost->canEdit($request->user()), 403);
 
-        $validated = $request->validate([
+        $validated = $request->validate(array_merge([
             'body' => ['required', 'string'],
             'modal_mode' => ['nullable', 'string'],
             'edit_post_id' => ['nullable', 'string'],
-        ]);
+            'removed_attachments' => ['nullable', 'array'],
+            'removed_attachments.*' => ['string'],
+        ], $this->forumAttachmentValidationRules($request->user())));
 
         $body = ForumContent::normalize((string) $validated['body']);
         if (! ForumContent::hasMeaningfulContent($body)) {
-            return back()
-                ->withErrors(['body' => 'Post content cannot be empty.'])
-                ->withInput();
+            throw ValidationException::withMessages([
+                'body' => 'Post content cannot be empty.',
+            ]);
         }
 
         $bodyFilter = $this->contentFilter->inspect($body, 'forum');
         if ($bodyFilter->blocked) {
-            return back()
-                ->withErrors(['body' => $bodyFilter->message ?? 'Post content is not allowed.'])
-                ->withInput();
+            throw ValidationException::withMessages([
+                'body' => $bodyFilter->message ?? 'Post content is not allowed.',
+            ]);
         }
 
-        if ($forumPost->body !== $body) {
-            $forumPost->body = $body;
-            $forumPost->edited_at = now();
-            $forumPost->save();
-        }
+        $attachmentsAdded = 0;
+        $attachmentsRemoved = 0;
+
+        DB::transaction(function () use ($forumPost, $topic, $body, $validated, &$attachmentsAdded, &$attachmentsRemoved, $request): void {
+            if ($forumPost->body !== $body) {
+                $forumPost->body = $body;
+            }
+
+            $attachmentsRemoved = $this->removeForumPostAttachments($forumPost, $validated['removed_attachments'] ?? []);
+            $attachmentsAdded = $this->saveForumPostAttachments($forumPost, $validated['attachments'] ?? [], $request->user());
+
+            if ($forumPost->isDirty('body') || $attachmentsRemoved > 0 || $attachmentsAdded > 0) {
+                $forumPost->edited_at = now();
+                $forumPost->save();
+            }
+        });
 
         session()->flash('message', 'Post updated.');
         session()->flash('message-title', 'Discussion updated');
         session()->flash('message-type', 'success');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'redirect' => route('forum.topic.show', [
+                    'categorySlug' => $topic->category->slug,
+                    'topicSlug' => $topic->slug,
+                    'sort' => $this->normalizedReplySort($request->query('sort')),
+                ]).'#post-'.$forumPost->id,
+                'message' => 'Post updated.',
+            ]);
+        }
 
         return redirect()->to(route('forum.topic.show', [
             'categorySlug' => $topic->category->slug,
@@ -486,14 +555,19 @@ class ForumController extends Controller
 
     public function indexSnapshot(Request $request): JsonResponse
     {
-        ['categories' => $categories, 'unreadCategoryIds' => $unreadCategoryIds] = $this->buildForumIndexData($request->user());
+        [
+            'regularCategories' => $regularCategories,
+            'courseCategories' => $courseCategories,
+            'unreadCategoryCounts' => $unreadCategoryCounts,
+        ] = $this->buildForumIndexData($request->user());
 
         return response()->json([
-            'categoriesHtml' => $categories->isEmpty()
+            'categoriesHtml' => $regularCategories->isEmpty() && $courseCategories->isEmpty()
                 ? ''
-                : view('forum.partials.category-list', [
-                    'categories' => $categories,
-                    'unreadCategoryLookup' => array_flip($unreadCategoryIds),
+                : view('forum.partials.category-groups', [
+                    'regularCategories' => $regularCategories,
+                    'courseCategories' => $courseCategories,
+                    'unreadCategoryCounts' => $unreadCategoryCounts,
                 ])->render(),
         ]);
     }
@@ -519,13 +593,6 @@ class ForumController extends Controller
         ] = $this->buildForumCategoryData($category, $user);
 
         return response()->json([
-            'metaHtml' => view('forum.partials.category-meta', [
-                'threadCount' => $threadCount,
-                'commentCount' => $commentCount,
-                'viewCount' => $viewCount,
-                'latestActivityAt' => $latestActivityAt,
-                'latestActivityAuthorName' => $latestActivityAuthorName,
-            ])->render(),
             'threadsHtml' => $topics->isEmpty()
                 ? ''
                 : view('forum.partials.thread-list', [
@@ -534,8 +601,8 @@ class ForumController extends Controller
                     'unreadTopicLookup' => array_flip($unreadTopicIds),
                 ])->render(),
             'paginationHtml' => $topics->appends($request->query())->links()->toHtml(),
-            'emptyHtml' => $topics->isEmpty()
-                ? '<div class="rounded-lg border border-gray-200 bg-white p-6 text-gray-600">No threads have been created in this category yet.</div>'
+            'emptyText' => $topics->isEmpty()
+                ? 'No threads have been created in this category yet.'
                 : '',
         ]);
     }
@@ -668,6 +735,7 @@ class ForumController extends Controller
         );
 
         $redirectUrl = route('forum.category.show', $topic->category->slug);
+        $this->deleteForumTopicAttachments($topic);
         $topic->delete();
 
         session()->flash('message', 'Thread deleted.');
@@ -697,6 +765,7 @@ class ForumController extends Controller
             return back();
         }
 
+        $this->deleteForumPostAttachments($forumPost);
         $forumPost->softDeleteToPlaceholder();
         $this->syncTopicActivity($topic);
 
@@ -709,6 +778,26 @@ class ForumController extends Controller
             'topicSlug' => $topic->slug,
             'sort' => $this->normalizedReplySort($request->query('sort')),
         ]));
+    }
+
+    public function downloadAttachment(Request $request, string $categorySlug, string $topicSlug, ForumPost $forumPost, ForumPostAttachment $attachment): StreamedResponse|RedirectResponse
+    {
+        $topic = $this->findTopicOrFail($categorySlug, $topicSlug);
+
+        if ($response = $this->forumReadAccessWebResponse($request, $topic->canRead($request->user()), 'discussion thread')) {
+            return $response;
+        }
+
+        abort_unless((string) $forumPost->forum_topic_id === (string) $topic->id, 404);
+        abort_unless($forumPost->is_approved && ! $forumPost->isDeleted(), 404);
+        abort_unless((string) $attachment->forum_post_id === (string) $forumPost->id, 404);
+        abort_unless($forumPost->attachments->contains(fn (ForumPostAttachment $postAttachment): bool => (string) $postAttachment->id === (string) $attachment->id), 404);
+        abort_unless(Storage::disk('local')->exists($attachment->storage_path), 404);
+
+        return Storage::disk('local')->download(
+            $attachment->storage_path,
+            $attachment->downloadFileName()
+        );
     }
 
     private function findCategoryOrFail(string $slug): ForumCategory
@@ -793,6 +882,135 @@ class ForumController extends Controller
             ->exists()
             ? $postId
             : null;
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function forumAttachmentValidationRules(?User $user): array
+    {
+        $maxSize = max((int) ceil(Helpers::getMaxUploadSize($user) / 1024), 1);
+
+        return [
+            'attachments' => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:'.$maxSize],
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $files
+     */
+    private function saveForumPostAttachments(ForumPost $post, array $files, ?User $author): int
+    {
+        $savedCount = 0;
+        $storedPaths = [];
+        $nextSortOrder = (int) ($post->attachments()->max('sort_order') ?? 0);
+
+        try {
+            foreach ($files as $file) {
+                if (! $file instanceof UploadedFile) {
+                    continue;
+                }
+
+                $originalFilename = trim((string) $file->getClientOriginalName());
+                $safeFilename = Helpers::cleanFileName($originalFilename);
+                if ($safeFilename === '') {
+                    $safeFilename = 'attachment';
+                }
+
+                $directory = 'forum-post-attachments/'.(string) $post->id;
+                $storedFilename = Str::uuid()->toString().'-'.$safeFilename;
+                $storedPath = Storage::disk('local')->putFileAs($directory, $file, $storedFilename);
+
+                if (! is_string($storedPath) || $storedPath === '') {
+                    throw new \RuntimeException('Attachment upload failed.');
+                }
+
+                $storedPaths[] = $storedPath;
+
+                ForumPostAttachment::query()->create([
+                    'forum_post_id' => (string) $post->id,
+                    'uploaded_by_user_id' => $author?->id,
+                    'original_filename' => $originalFilename !== '' ? $originalFilename : $safeFilename,
+                    'storage_path' => $storedPath,
+                    'mime_type' => $file->getClientMimeType() ?: null,
+                    'size_bytes' => (int) $file->getSize(),
+                    'sort_order' => ++$nextSortOrder,
+                ]);
+
+                $savedCount++;
+            }
+        } catch (\Throwable $e) {
+            if ($storedPaths !== []) {
+                Storage::disk('local')->delete($storedPaths);
+            }
+
+            throw $e;
+        }
+
+        return $savedCount;
+    }
+
+    private function deleteForumPostAttachments(ForumPost $post): void
+    {
+        $directory = 'forum-post-attachments/'.(string) $post->id;
+        Storage::disk('local')->deleteDirectory($directory);
+        ForumPostAttachment::query()
+            ->where('forum_post_id', $post->id)
+            ->delete();
+    }
+
+    /**
+     * @param  array<int, mixed>  $attachmentIds
+     */
+    private function removeForumPostAttachments(ForumPost $post, array $attachmentIds): int
+    {
+        $normalizedIds = collect($attachmentIds)
+            ->map(fn ($attachmentId): string => (string) $attachmentId)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalizedIds === []) {
+            return 0;
+        }
+
+        $attachments = ForumPostAttachment::query()
+            ->where('forum_post_id', $post->id)
+            ->whereIn('id', $normalizedIds)
+            ->get(['id', 'storage_path']);
+
+        if ($attachments->isEmpty()) {
+            return 0;
+        }
+
+        $storagePaths = $attachments->pluck('storage_path')->filter()->values()->all();
+        $removedCount = $attachments->count();
+
+        ForumPostAttachment::query()
+            ->where('forum_post_id', $post->id)
+            ->whereIn('id', $attachments->pluck('id')->all())
+            ->delete();
+
+        if ($storagePaths !== []) {
+            DB::afterCommit(static function () use ($storagePaths): void {
+                Storage::disk('local')->delete($storagePaths);
+            });
+        }
+
+        return $removedCount;
+    }
+
+    private function deleteForumTopicAttachments(ForumTopic $topic): void
+    {
+        ForumPost::query()
+            ->where('forum_topic_id', $topic->id)
+            ->select(['id'])
+            ->get()
+            ->each(function (ForumPost $post): void {
+                $this->deleteForumPostAttachments($post);
+            });
     }
 
     private function recordTopicView(Request $request, ForumTopic $topic): void
@@ -892,12 +1110,12 @@ class ForumController extends Controller
         $replySort = $this->normalizedReplySort($request->query('sort'));
         /** @var ForumPost|null $firstPost */
         $firstPost = $topic->firstPost()
-            ->with(['user.avatarMedia', 'reactions.user'])
+            ->with(['user.avatarMedia', 'reactions.user', 'attachments'])
             ->first();
 
         /** @var Collection<int, ForumPost> $allPosts */
         $allPosts = ForumPost::query()
-            ->with(['user.avatarMedia', 'reactions.user', 'parentPost.user.avatarMedia'])
+            ->with(['user.avatarMedia', 'reactions.user', 'parentPost.user.avatarMedia', 'attachments'])
             ->where('forum_topic_id', $topic->id)
             ->where('is_approved', true)
             ->when($firstPost !== null, function ($query) use ($firstPost) {
@@ -1029,6 +1247,7 @@ class ForumController extends Controller
     private function buildForumIndexData($user): array
     {
         $categories = ForumCategory::query()
+            ->with('classSession')
             ->withCount(['topics', 'posts'])
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -1036,18 +1255,18 @@ class ForumController extends Controller
             ->filter(fn (ForumCategory $category) => $category->canRead($user))
             ->values();
 
-        $unreadCategoryIds = $user
-            ? ForumTopic::unreadForUserQuery($user)
-                ->pluck('forum_topics.forum_category_id')
-                ->map(fn ($id) => (string) $id)
-                ->unique()
-                ->values()
-                ->all()
-            : [];
+        $unreadCategoryCounts = $user ? ForumTopic::unreadCountMapForUser($user) : [];
+        $courseCategories = $categories
+            ->filter(fn (ForumCategory $category) => $category->classSession !== null)
+            ->values();
+        $regularCategories = $categories
+            ->reject(fn (ForumCategory $category) => $category->classSession !== null)
+            ->values();
 
         return [
-            'categories' => $categories,
-            'unreadCategoryIds' => $unreadCategoryIds,
+            'regularCategories' => $regularCategories,
+            'courseCategories' => $courseCategories,
+            'unreadCategoryCounts' => $unreadCategoryCounts,
         ];
     }
 

@@ -532,7 +532,7 @@ $savedTickets = isset($workshop)
                         <x-ui.select label="Registration" name="registration" x-model="registration" onchange="document.getElementsByName('registration_data').forEach((e)=>e.value='')">
                             <option value="none" {{ (old('registration', $workshop->registration ?? '')) === 'none' ? 'selected' : '' }}>None</option>
                             <option value="tickets" {{ (old('registration', $workshop->registration ?? '')) === 'tickets' ? 'selected' : '' }}>Tickets</option>
-                            <option value="classroom" {{ (old('registration', $workshop->registration ?? '')) === 'classroom' ? 'selected' : '' }}>Classroom</option>
+                            <option value="classroom" {{ (old('registration', $workshop->registration ?? '')) === 'classroom' ? 'selected' : '' }}>Course</option>
                             <option value="interest" {{ (old('registration', $workshop->registration ?? '')) === 'interest' ? 'selected' : '' }}>Interest</option>
                             <option value="link" {{ (old('registration', $workshop->registration ?? '')) === 'link' ? 'selected' : '' }}>External Link</option>
                             <option value="email" {{ (old('registration', $workshop->registration ?? '')) === 'email' ? 'selected' : '' }}>External Email</option>
@@ -571,16 +571,16 @@ $savedTickets = isset($workshop)
                 </div>
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900" x-show="registration==='classroom'">
                     <div class="space-y-4">
-                        <div>Classroom access groups, forum categories, opening/closing dates, and stream schedule are managed from the Classroom admin screen.</div>
-                        <x-ui.select label="Existing classroom" name="class_session_id" :value="$selectedClassSessionId">
-                            <option value="">Create a new classroom automatically</option>
+                        <div>Course access groups, forum categories, opening/closing dates, and stream schedule are managed from the Course admin screen.</div>
+                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId">
+                            <option value="">Create a new course automatically</option>
                             @foreach(($classSessions ?? collect()) as $linkedClassSession)
                                 <option value="{{ $linkedClassSession->id }}" @selected((string) $selectedClassSessionId === (string) $linkedClassSession->id)>
                                     {{ $linkedClassSession->title }} — {{ $linkedClassSession->slug }}
                                 </option>
                             @endforeach
                         </x-ui.select>
-                        <div class="text-xs text-sky-800">Choose an existing classroom if you already created one. Leave this blank if the workshop should create a new classroom shell.</div>
+                        <div class="text-xs text-sky-800">Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.</div>
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">

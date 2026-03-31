@@ -52,6 +52,9 @@ function readRootConfig() {
         broadcastStartEndpoint: root.dataset.broadcastStartEndpoint || '',
         broadcastEndEndpoint: root.dataset.broadcastEndEndpoint || '',
         chatStoreEndpoint: root.dataset.chatStoreEndpoint || '',
+        chatClearEndpoint: root.dataset.chatClearEndpoint || '',
+        chatDeleteMessageEndpoint: root.dataset.chatDeleteMessageEndpoint || '',
+        chatParticipantEndpoint: root.dataset.chatParticipantEndpoint || '',
         clientErrorEndpoint: root.dataset.clientErrorEndpoint || '',
         csrfToken: root.dataset.csrfToken || document.head.querySelector('meta[name="csrf-token"]')?.content || '',
     };
@@ -92,6 +95,12 @@ function getParticipantRole(participant) {
 
 function getParticipantUserId(participant) {
     return String(participant?.attributes?.app_user_id || participant?.attributes?.user_id || participant?.metadata?.user_id || '');
+}
+
+function getParticipantUserIdFromIdentity(identity) {
+    const value = String(identity || '');
+    const match = value.match(/-user-([0-9a-f-]{36})$/i);
+    return match?.[1] || '';
 }
 
 function getParticipantDisplayName(participant) {
@@ -430,6 +439,7 @@ function ParticipantAvatar({
     participant,
     title = null,
     onClick = null,
+    onContextMenu = null,
     showTeacherBadge = false,
     showPresenterBadge = false,
     requestBadgeTitle = null,
@@ -443,6 +453,7 @@ function ParticipantAvatar({
     const backgroundColor = getParticipantAvatarBackgroundColor(participant);
     const displayName = getParticipantDisplayName(participant);
     const clickable = typeof onClick === 'function';
+    const contextMenuClickable = typeof onContextMenu === 'function';
     const requestBadgeClickable = typeof onRequestBadgeClick === 'function' && requestBadgeIconClass !== null;
 
     return (
@@ -451,6 +462,7 @@ function ParticipantAvatar({
                 <button
                     type="button"
                     onClick={onClick}
+                    onContextMenu={contextMenuClickable ? onContextMenu : undefined}
                     title={title || displayName}
                     className="group relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/70 transition hover:scale-[1.03] focus:outline-none focus:ring-2 focus:ring-sky-300"
                     style={{backgroundColor}}
@@ -468,6 +480,7 @@ function ParticipantAvatar({
             ) : (
                 <div
                     title={title || displayName}
+                    onContextMenu={contextMenuClickable ? onContextMenu : undefined}
                     className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-white/70"
                     style={{backgroundColor}}
                 >
@@ -713,9 +726,14 @@ function LiveChatPanel({
     hasPresenterStream = false,
     tokenInfo,
     chatStoreEndpoint,
+    chatClearEndpoint,
+    chatDeleteMessageEndpoint,
+    chatParticipantEndpoint,
     helpRequestStoreEndpoint,
     csrfToken,
     onStateUpdate,
+    onBroadcastState,
+    setFlashMessage,
     onPromoteRequest,
     onApproveAndStartRequest,
     onDismissRequest,
@@ -726,6 +744,12 @@ function LiveChatPanel({
     const [draft, setDraft] = useState('');
     const [error, setError] = useState('');
     const [requestTarget, setRequestTarget] = useState(null);
+    const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+    const [avatarMenu, setAvatarMenu] = useState(null);
+    const headerMenuRef = React.useRef(null);
+    const headerMenuButtonRef = React.useRef(null);
+    const avatarMenuRef = React.useRef(null);
+    const messageListRef = React.useRef(null);
     const { message, send, isSending } = useDataChannel('classroom-chat');
     const currentMine = state.helpRequests?.mine
         || [...asArray(state.helpRequests?.pending), ...asArray(state.helpRequests?.active ? [state.helpRequests.active] : [])]
@@ -735,19 +759,87 @@ function LiveChatPanel({
     const teacherConnected = orderedParticipants.some((participant) => getParticipantRole(participant) === 'teacher');
     const isTeacher = state.viewer?.role === 'teacher';
     const chatEnabled = Boolean(state.classSession?.liveChatEnabled && teacherConnected);
+    const mutedUserIds = new Set(asArray(state.classSession?.chatMutedUserIds).map((userId) => String(userId)));
+    const viewerUserId = String(
+        state.viewer?.id
+        || tokenInfo?.userId
+        || tokenInfo?.participantUserId
+        || getParticipantUserIdFromIdentity(tokenInfo?.participantIdentity)
+        || ''
+    );
+    const viewerChatMuted = viewerUserId !== '' && mutedUserIds.has(viewerUserId);
+    const chatInputDisabled = !chatEnabled || viewerChatMuted;
     const pendingRequestByUserId = new Map(asArray(state.helpRequests?.pending).map((request) => [String(request.userId || ''), request]));
     const recentRequest = state.helpRequests?.recent || null;
+    const chatDeleteMessageUrl = (messageId) => String(chatDeleteMessageEndpoint || '').replace('__MESSAGE__', encodeURIComponent(String(messageId || '')));
+    const chatParticipantUrl = (userId) => String(chatParticipantEndpoint || '').replace('__USER__', encodeURIComponent(String(userId || '')));
+    const mutedToastShownRef = React.useRef(false);
+    const syncStateAfterChatAction = async (nextState) => {
+        if (!nextState) {
+            return;
+        }
+
+        onStateUpdate(nextState);
+
+        if (typeof onBroadcastState === 'function') {
+            await onBroadcastState(nextState);
+        }
+    };
+
     useEffect(() => {
-        setMessages((current) => {
-            const next = [...current];
-            asArray(state.chatMessages).forEach((chatMessage) => {
-                if (!next.some((item) => item.id === chatMessage.id)) {
-                    next.push(chatMessage);
-                }
-            });
-            return next.slice(-50);
-        });
+        setMessages(asArray(state.chatMessages));
     }, [state.chatMessages]);
+
+    useEffect(() => {
+        if (!viewerChatMuted) {
+            mutedToastShownRef.current = false;
+            return;
+        }
+
+        if (mutedToastShownRef.current) {
+            return;
+        }
+
+        mutedToastShownRef.current = true;
+        if (typeof setFlashMessage === 'function') {
+            setFlashMessage('Chat has been disabled for you by the teacher.');
+        }
+    }, [setFlashMessage, viewerChatMuted]);
+
+    useEffect(() => {
+        if (!headerMenuOpen && !avatarMenu) {
+            return () => {};
+        }
+
+        const handlePointerDown = (event) => {
+            const target = event.target;
+            if (!(target instanceof Node)) {
+                return;
+            }
+
+            if (headerMenuRef.current?.contains(target) || headerMenuButtonRef.current?.contains(target) || avatarMenuRef.current?.contains(target)) {
+                return;
+            }
+
+            setHeaderMenuOpen(false);
+            setAvatarMenu(null);
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') {
+                setHeaderMenuOpen(false);
+                setAvatarMenu(null);
+            }
+        };
+
+        window.addEventListener('pointerdown', handlePointerDown);
+        window.addEventListener('keydown', handleEscape);
+
+        return () => {
+            window.removeEventListener('pointerdown', handlePointerDown);
+            window.removeEventListener('keydown', handleEscape);
+        };
+    }, [avatarMenu, headerMenuOpen]);
 
     useEffect(() => {
         const payload = message?.payload;
@@ -774,6 +866,13 @@ function LiveChatPanel({
 
     const sendMessage = async (event) => {
         event.preventDefault();
+        if (viewerChatMuted) {
+            if (typeof setFlashMessage === 'function') {
+                setFlashMessage('Chat has been disabled for you by the teacher.');
+            }
+            return;
+        }
+
         if (!chatEnabled) {
             setError('Chat is available when the teacher is connected.');
             return;
@@ -812,6 +911,118 @@ function LiveChatPanel({
         } catch (caughtError) {
             setError(caughtError.message || 'Could not send chat message.');
         }
+    };
+
+    const deleteMessageForAll = async (chatMessage) => {
+        if (!isTeacher || !chatMessage?.id || !chatDeleteMessageEndpoint) {
+            return;
+        }
+
+        if (!window.confirm('Delete this chat message for everyone?')) {
+            return;
+        }
+
+        try {
+            const payload = await requestJson(chatDeleteMessageUrl(chatMessage.id), {
+                method: 'DELETE',
+                csrfToken,
+            });
+
+            await syncStateAfterChatAction(payload.state || state);
+            setMessages(asArray(payload.state?.chatMessages || []));
+            setError('');
+        } catch (caughtError) {
+            setError(caughtError.message || 'Could not delete chat message.');
+        }
+    };
+
+    const clearAllChat = async () => {
+        if (!isTeacher || !chatClearEndpoint) {
+            return;
+        }
+
+        if (!window.confirm('Clear all live chat messages?')) {
+            return;
+        }
+
+        try {
+            const payload = await requestJson(chatClearEndpoint, {
+                method: 'DELETE',
+                csrfToken,
+            });
+
+            await syncStateAfterChatAction(payload.state || state);
+            setMessages(asArray(payload.state?.chatMessages || []));
+            setHeaderMenuOpen(false);
+            setError('');
+        } catch (caughtError) {
+            setError(caughtError.message || 'Could not clear chat.');
+        }
+    };
+
+    const toggleParticipantChat = async (participant) => {
+        if (!isTeacher || !chatParticipantEndpoint) {
+            return;
+        }
+
+        const participantUserId = resolveParticipantUserId(participant, state);
+        if (participantUserId === '') {
+            setError('Could not identify that participant.');
+            return;
+        }
+
+        const currentlyMuted = mutedUserIds.has(participantUserId);
+        const nextDisabled = !currentlyMuted;
+        const actionLabel = nextDisabled ? 'disable' : 'enable';
+
+        if (!window.confirm(`Do you want to ${actionLabel} chat for ${getParticipantDisplayName(participant)}?`)) {
+            return;
+        }
+
+        try {
+            const payload = await requestJson(chatParticipantUrl(participantUserId), {
+                method: 'PUT',
+                body: {
+                    disabled: nextDisabled,
+                },
+                csrfToken,
+            });
+
+            await syncStateAfterChatAction(payload.state || state);
+            setMessages(asArray(payload.state?.chatMessages || []));
+            setAvatarMenu(null);
+            setError('');
+        } catch (caughtError) {
+            setError(caughtError.message || `Could not ${actionLabel} chat.`);
+        }
+    };
+
+    const downloadChat = () => {
+        if (!isTeacher) {
+            return;
+        }
+
+        const lines = messages.map((chatMessage) => {
+            const sentAt = chatMessage?.createdAt ? new Date(chatMessage.createdAt) : null;
+            const timeLabel = sentAt && ! Number.isNaN(sentAt.getTime())
+                ? sentAt.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
+                : '';
+
+            return [timeLabel, getChatMessageUsername(chatMessage), chatMessage.displayMessage || chatMessage.message]
+                .filter((value) => String(value || '').trim() !== '')
+                .join(' | ');
+        });
+
+        const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = `${String(state.classSession?.title || 'chat').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'chat'}.txt`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.URL.revokeObjectURL(url);
+        setHeaderMenuOpen(false);
     };
 
     const sendBroadcastRequest = async (target, type) => {
@@ -892,8 +1103,8 @@ function LiveChatPanel({
     };
 
     const rootClassName = embedded
-        ? 'flex h-full min-h-0 flex-col bg-slate-900/95 p-3 text-slate-100'
-        : 'flex h-full min-h-0 flex-col rounded-lg border border-slate-800 bg-slate-900/95 p-4 text-slate-100 shadow-sm';
+        ? 'flex h-full min-h-0 flex-col overflow-hidden bg-slate-900/95 p-3 text-slate-100'
+        : 'flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-slate-800 bg-slate-900/95 p-4 text-slate-100 shadow-sm';
 
     const messageNameClass = (chatMessage) => (
         getChatMessageRole(chatMessage) === 'teacher'
@@ -901,44 +1112,100 @@ function LiveChatPanel({
             : 'text-slate-300'
     );
 
+    const chatUnavailableMessage = !state.classSession?.liveChatEnabled
+        ? 'Live chat is turned off for this session. Use the forum for longer discussion.'
+        : !teacherConnected
+            ? 'Live chat opens when the teacher joins the room.'
+            : '';
+    const visibleMessages = [...messages].reverse();
+
     return (
         <section className={rootClassName}>
             <div className="flex items-center justify-between gap-3">
                 <div>
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Live chat</div>
                 </div>
+                {isTeacher ? (
+                    <div className="relative">
+                        <button
+                            ref={headerMenuButtonRef}
+                            type="button"
+                            onClick={() => setHeaderMenuOpen((current) => !current)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-slate-200 transition hover:bg-white/10"
+                            title="Chat options"
+                            aria-label="Chat options"
+                        >
+                            <i className="fa-solid fa-ellipsis-vertical" aria-hidden="true"></i>
+                        </button>
+
+                        {headerMenuOpen ? (
+                            <div
+                                ref={headerMenuRef}
+                                className="absolute right-0 top-full z-20 mt-2 w-48 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 py-1 shadow-2xl"
+                            >
+                                <button
+                                    type="button"
+                                    onClick={downloadChat}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition hover:bg-slate-800"
+                                >
+                                    <i className="fa-solid fa-download w-4 text-slate-400" aria-hidden="true"></i>
+                                    Download chat
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void clearAllChat()}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-100 transition hover:bg-rose-500/10"
+                                >
+                                    <i className="fa-solid fa-trash w-4 text-rose-300" aria-hidden="true"></i>
+                                    Clear chat
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
             </div>
 
             {chatEnabled ? (
-                <div className="mt-2 flex min-h-0 flex-1 flex-col">
-                    <div className="min-h-0 flex-1 overflow-y-auto px-0 py-0">
-                        {messages.length === 0 ? (
+                <div className="mt-2 flex min-h-0 flex-1 flex-col overflow-hidden">
+                    <div ref={messageListRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
+                        {visibleMessages.length === 0 ? (
                             <div className="flex h-full min-h-[10rem] items-center justify-center p-4 text-sm text-slate-400">
                                 No live chat messages yet.
                             </div>
                         ) : (
-                            <div className="flex flex-col">
-                                {messages.map((chatMessage) => {
-                                    const isSelf = chatMessage?.identity === tokenInfo?.participantIdentity;
-                                    const sentAt = chatMessage?.createdAt ? new Date(chatMessage.createdAt) : null;
-                                    const timeLabel = sentAt && ! Number.isNaN(sentAt.getTime())
-                                        ? sentAt.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
-                                        : '';
+                            visibleMessages.map((chatMessage) => {
+                                const isSelf = chatMessage?.identity === tokenInfo?.participantIdentity;
+                                const sentAt = chatMessage?.createdAt ? new Date(chatMessage.createdAt) : null;
+                                const timeLabel = sentAt && ! Number.isNaN(sentAt.getTime())
+                                    ? sentAt.toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})
+                                    : '';
 
-                                    return (
-                                        <div
-                                            key={chatMessage.id}
-                                            className="w-full py-1"
-                                        >
-                                            <div className="flex items-center justify-between gap-3 text-xs font-semibold">
-                                                <span className={messageNameClass(chatMessage)}>{getChatMessageUsername(chatMessage)}</span>
-                                                <span className="text-slate-400">{timeLabel}</span>
+                                return (
+                                    <div
+                                        key={chatMessage.id}
+                                        className="group w-full rounded-lg px-2 py-1.5 transition hover:bg-white/5"
+                                    >
+                                        <div className="flex items-center justify-between gap-3 text-xs font-semibold">
+                                            <div className="flex min-w-0 items-center gap-2">
+                                                <span className={`truncate ${messageNameClass(chatMessage)}`}>{getChatMessageUsername(chatMessage)}</span>
+                                                {isTeacher ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => void deleteMessageForAll(chatMessage)}
+                                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full text-rose-300 opacity-0 transition hover:bg-rose-500/10 hover:text-rose-200 group-hover:opacity-100"
+                                                        title="Delete message for everyone"
+                                                        aria-label="Delete message for everyone"
+                                                    >
+                                                        <i className="fa-solid fa-xmark" aria-hidden="true"></i>
+                                                    </button>
+                                                ) : null}
                                             </div>
-                                            <p className={`mt-0 text-sm leading-6 text-slate-100 ${isSelf ? 'pl-2' : ''}`}>{chatMessage.displayMessage || chatMessage.message}</p>
+                                            <span className="text-slate-400">{timeLabel}</span>
                                         </div>
-                                    );
-                                })}
-                            </div>
+                                        <p className={`mt-0 text-sm leading-6 text-slate-100 ${isSelf ? 'pl-2' : ''}`}>{chatMessage.displayMessage || chatMessage.message}</p>
+                                    </div>
+                                );
+                            })
                         )}
                     </div>
 
@@ -952,11 +1219,12 @@ function LiveChatPanel({
                                 value={draft}
                                 onChange={(event) => setDraft(event.target.value)}
                                 placeholder="Type a message"
-                                className="min-w-0 flex-1 border-0 bg-transparent px-4 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:ring-0"
+                                disabled={chatInputDisabled}
+                                className="min-w-0 flex-1 border-0 bg-transparent px-4 py-2.5 text-sm text-slate-100 outline-none transition placeholder:text-slate-500 focus:ring-0 disabled:cursor-not-allowed disabled:text-slate-500"
                             />
                             <button
                                 type="submit"
-                                disabled={isSending || draft.trim() === ''}
+                                disabled={isSending || draft.trim() === '' || chatInputDisabled}
                                 className="border-l border-slate-700 bg-sky-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700"
                             >
                                 Send
@@ -986,6 +1254,15 @@ function LiveChatPanel({
                                             identity: resolveParticipantIdentity(participant),
                                             label: getParticipantLabel(participant),
                                         }) : null}
+                                        onContextMenu={isTeacher ? (event) => {
+                                            event.preventDefault();
+                                            setAvatarMenu({
+                                                participant,
+                                                userId: resolveParticipantUserId(participant, state),
+                                                x: event.clientX,
+                                                y: event.clientY,
+                                            });
+                                        } : null}
                                         showTeacherBadge={getParticipantRole(participant) === 'teacher'}
                                         showPresenterBadge={isPresenter}
                                         requestBadgeTitle={request ? `${request.requestedByName || 'Teacher'} requested ${request.typeLabel.toLowerCase()}` : null}
@@ -997,11 +1274,9 @@ function LiveChatPanel({
                         </div>
                     </div>
                 </div>
-                ) : (
+            ) : (
                 <div className="mt-2 flex min-h-0 flex-1 items-center rounded-lg border border-dashed border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-400">
-                    {state.classSession?.liveChatEnabled
-                        ? 'Live chat opens when the teacher joins the room.'
-                        : 'Live chat is turned off for this session. Use the forum for longer discussion.'}
+                    {chatUnavailableMessage || 'Live chat is unavailable right now.'}
                 </div>
             )}
 
@@ -1016,6 +1291,45 @@ function LiveChatPanel({
                     <div className="font-semibold">Broadcast update.</div>
                     <div className="mt-1 leading-6">
                         {describeHelpRequestResolution(recentRequest)}
+                    </div>
+                </div>
+            ) : null}
+
+            {avatarMenu && isTeacher ? (
+                <div className="fixed inset-0 z-50">
+                    <button
+                        type="button"
+                        aria-label="Close chat participant menu"
+                        className="absolute inset-0 z-0 cursor-default bg-transparent"
+                        onClick={() => setAvatarMenu(null)}
+                    />
+                    <div
+                        ref={avatarMenuRef}
+                        className="absolute z-10 w-56 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 py-1 shadow-2xl"
+                        style={{
+                            left: `${Math.max(8, Math.min((avatarMenu.x || 0), window.innerWidth - 224 - 16))}px`,
+                            top: `${Math.max(8, Math.min((avatarMenu.y || 0), window.innerHeight - 120 - 16))}px`,
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => void toggleParticipantChat(avatarMenu.participant)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-100 transition hover:bg-slate-800"
+                        >
+                            <i className="fa-solid fa-comment-slash w-4 text-slate-400" aria-hidden="true"></i>
+                            {mutedUserIds.has(String(avatarMenu.userId || '')) ? 'Enable chat' : 'Disable chat'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAvatarMenu(null);
+                                void clearAllChat();
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-rose-100 transition hover:bg-rose-500/10"
+                        >
+                            <i className="fa-solid fa-trash w-4 text-rose-300" aria-hidden="true"></i>
+                            Delete all chat
+                        </button>
                     </div>
                 </div>
             ) : null}
@@ -1096,6 +1410,9 @@ function ClassroomRoomContent({
     tokenInfo,
     csrfToken,
     chatStoreEndpoint,
+    chatClearEndpoint,
+    chatDeleteMessageEndpoint,
+    chatParticipantEndpoint,
     clientErrorEndpoint,
     helpRequestStoreEndpoint,
     broadcastStartEndpoint,
@@ -1115,6 +1432,16 @@ function ClassroomRoomContent({
         isScreenShareEnabled,
     } = useLocalParticipant();
     const permissions = useLocalParticipantPermissions();
+    const broadcastClassroomState = async (nextState) => {
+        if (!nextState) {
+            return;
+        }
+
+        await sendClassroomState(new TextEncoder().encode(JSON.stringify({
+            type: 'classroom-state',
+            state: nextState,
+        })), {reliable: true});
+    };
     const teacherUserId = asArray(state.enrolments).find((enrolment) => enrolment?.isTeacher)?.userId || '';
     const activeRequest = state.helpRequests?.active || null;
     const recentRequest = state.helpRequests?.recent || null;
@@ -1138,8 +1465,15 @@ function ClassroomRoomContent({
     const [localBroadcastEndedAt, setLocalBroadcastEndedAt] = useState(0);
     const broadcastEndedAt = parseClassroomDateTime(state.classSession?.liveBroadcastEndedAt);
     const endedReferenceAt = broadcastEndedAt || (localBroadcastEndedAt > 0 ? new Date(localBroadcastEndedAt) : null);
-    const broadcastCloseAt = endedReferenceAt ? new Date(endedReferenceAt.getTime() + (15 * 60 * 1000)) : null;
-    const broadcastRecentlyEnded = Boolean(broadcastCloseAt && broadcastCloseAt.getTime() > Date.now());
+    const hasNonTeacherParticipants = participants.some((participant) => getParticipantRole(participant) !== 'teacher');
+    const broadcastCloseAt = endedReferenceAt
+        ? new Date(endedReferenceAt.getTime() + (hasNonTeacherParticipants ? (15 * 60 * 1000) : 0))
+        : null;
+    const broadcastRecentlyEnded = Boolean(
+        broadcastCloseAt
+        && hasNonTeacherParticipants
+        && broadcastCloseAt.getTime() > Date.now()
+    );
     const classroomSchedule = asArray(state.classSession?.broadcastSchedule?.length ? state.classSession.broadcastSchedule : state.workshop?.classroomSessions);
     const presenterIdleState = getClassroomIdleState(classroomSchedule);
     const hasPresenterStream = Boolean(presenterTrack?.publication?.track);
@@ -1154,6 +1488,12 @@ function ClassroomRoomContent({
         : broadcastRecentlyEnded
             ? 'fa-solid fa-circle-stop'
             : (presenterIdleState.icon || 'fa-solid fa-calendar-clock');
+    const canStartScheduledBroadcast = Boolean(
+        state.viewer?.canManage
+        && !isBroadcastOpen
+        && !broadcastRecentlyEnded
+        && presenterIdleState.mode === 'expanded'
+    );
     const lastPresenterEndedStorageKey = state?.classSession?.id ? `classroom:last-stream-ended-at:${state.classSession.id}` : '';
     const lastPresenterWasStreamingRef = React.useRef(hasPresenterStream);
     const [lastPresenterEndedAt, setLastPresenterEndedAt] = useState(() => {
@@ -1182,6 +1522,13 @@ function ClassroomRoomContent({
             return;
         }
 
+        if (!hasNonTeacherParticipants && lastPresenterEndedAt > 0) {
+            lastPresenterWasStreamingRef.current = hasPresenterStream;
+            setLastPresenterEndedAt(0);
+            window.localStorage.removeItem(lastPresenterEndedStorageKey);
+            return;
+        }
+
         if (lastPresenterWasStreamingRef.current && !hasPresenterStream) {
             const endedAt = Date.now();
             lastPresenterWasStreamingRef.current = false;
@@ -1198,9 +1545,11 @@ function ClassroomRoomContent({
         }
 
         lastPresenterWasStreamingRef.current = false;
-    }, [hasPresenterStream, lastPresenterEndedStorageKey]);
+    }, [hasNonTeacherParticipants, hasPresenterStream, lastPresenterEndedAt, lastPresenterEndedStorageKey]);
 
-    const recentlyEnded = lastPresenterEndedAt > 0 && (Date.now() - lastPresenterEndedAt) <= (15 * 60 * 1000);
+    const recentlyEnded = lastPresenterEndedAt > 0
+        && hasNonTeacherParticipants
+        && (Date.now() - lastPresenterEndedAt) <= (15 * 60 * 1000);
     const presenterShellExpanded = broadcastHasActivePresenter || isBroadcastOpen || recentlyEnded || broadcastRecentlyEnded || presenterIdleState.mode === 'expanded';
     const [pendingPublishRequest, setPendingPublishRequest] = useState(null);
     const publishAttemptRef = React.useRef('');
@@ -1651,8 +2000,8 @@ function ClassroomRoomContent({
 
             <div className="space-y-6">
                 {broadcastHasActivePresenter ? (
-                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
-                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem] xl:h-[36rem] xl:min-h-0">
+                        <div className="grid min-h-[36rem] gap-px xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
                             <ParticipantMediaCard
                                 embedded
                                 panelId={presenterPanelId}
@@ -1757,23 +2106,28 @@ function ClassroomRoomContent({
                                 }
                             />
 
-                            <div className="min-h-0 border-t border-slate-800 xl:border-l xl:border-t-0">
+                            <div className="min-h-0 max-h-[24rem] overflow-hidden border-t border-slate-800 xl:h-full xl:max-h-none xl:border-l xl:border-t-0">
                                 <LiveChatPanel
                                     embedded
                                     state={state}
                                     participants={participants}
                                     presenterParticipant={presenterParticipant}
                                     hasPresenterStream={broadcastHasActivePresenter}
-                                    tokenInfo={tokenInfo}
-                                    chatStoreEndpoint={chatStoreEndpoint}
-                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
-                                    csrfToken={csrfToken}
-                                    onStateUpdate={onStateUpdate}
-                                    onPromoteRequest={approveRequest}
-                                    onApproveAndStartRequest={(request) => {
-                                        setPendingPublishRequest({
-                                            id: request.id,
-                                            type: request.type,
+                                tokenInfo={tokenInfo}
+                                chatStoreEndpoint={chatStoreEndpoint}
+                                chatClearEndpoint={chatClearEndpoint}
+                                chatDeleteMessageEndpoint={chatDeleteMessageEndpoint}
+                                chatParticipantEndpoint={chatParticipantEndpoint}
+                                helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                csrfToken={csrfToken}
+                                onStateUpdate={onStateUpdate}
+                                onBroadcastState={broadcastClassroomState}
+                                setFlashMessage={setFlashMessage}
+                                onPromoteRequest={approveRequest}
+                                onApproveAndStartRequest={(request) => {
+                                    setPendingPublishRequest({
+                                        id: request.id,
+                                        type: request.type,
                                         });
                                     }}
                                     onDismissRequest={revokeRequest}
@@ -1782,8 +2136,8 @@ function ClassroomRoomContent({
                         </div>
                     </section>
                 ) : isBroadcastOpen ? (
-                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
-                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem] xl:h-[36rem] xl:min-h-0">
+                        <div className="grid min-h-[36rem] gap-px xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
                             <ParticipantMediaCard
                                 embedded
                                 panelId={presenterPanelId}
@@ -1794,23 +2148,28 @@ function ClassroomRoomContent({
                                 headerActions={teacherHeaderActions}
                             />
 
-                            <div className="min-h-0 border-t border-slate-800 xl:border-l xl:border-t-0">
+                            <div className="min-h-0 max-h-[24rem] overflow-hidden border-t border-slate-800 xl:h-full xl:max-h-none xl:border-l xl:border-t-0">
                                 <LiveChatPanel
                                     embedded
                                     state={state}
                                     participants={participants}
                                     presenterParticipant={presenterParticipant}
                                     hasPresenterStream={broadcastHasActivePresenter}
-                                    tokenInfo={tokenInfo}
-                                    chatStoreEndpoint={chatStoreEndpoint}
-                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
-                                    csrfToken={csrfToken}
-                                    onStateUpdate={onStateUpdate}
-                                    onPromoteRequest={approveRequest}
-                                    onApproveAndStartRequest={(request) => {
-                                        setPendingPublishRequest({
-                                            id: request.id,
-                                            type: request.type,
+                                tokenInfo={tokenInfo}
+                                chatStoreEndpoint={chatStoreEndpoint}
+                                chatClearEndpoint={chatClearEndpoint}
+                                chatDeleteMessageEndpoint={chatDeleteMessageEndpoint}
+                                chatParticipantEndpoint={chatParticipantEndpoint}
+                                helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                csrfToken={csrfToken}
+                                onStateUpdate={onStateUpdate}
+                                onBroadcastState={broadcastClassroomState}
+                                setFlashMessage={setFlashMessage}
+                                onPromoteRequest={approveRequest}
+                                onApproveAndStartRequest={(request) => {
+                                    setPendingPublishRequest({
+                                        id: request.id,
+                                        type: request.type,
                                         });
                                     }}
                                     onDismissRequest={revokeRequest}
@@ -1819,8 +2178,8 @@ function ClassroomRoomContent({
                         </div>
                     </section>
                 ) : broadcastRecentlyEnded ? (
-                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem]">
-                        <div className="grid min-h-[36rem] gap-px xl:grid-cols-[minmax(0,1.6fr)_22rem]">
+                    <section className="overflow-hidden rounded-lg border border-slate-800 bg-slate-950 shadow-lg min-h-[36rem] xl:h-[36rem] xl:min-h-0">
+                        <div className="grid min-h-[36rem] gap-px xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1.6fr)_22rem]">
                             <div className="flex min-h-[36rem] items-center justify-center px-6 py-10 text-slate-100">
                                 <div className="max-w-3xl rounded-lg border border-white/10 bg-slate-800/90 px-5 py-4 text-center shadow-lg">
                                     <div className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-200">
@@ -1830,7 +2189,7 @@ function ClassroomRoomContent({
                                         <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
                                         <span>{presenterEmptyLabel}</span>
                                     </div>
-                                    {state.viewer?.canManage ? (
+                                    {canStartScheduledBroadcast ? (
                                         <div className="mt-4 flex justify-center">
                                             <button
                                                 type="button"
@@ -1844,23 +2203,28 @@ function ClassroomRoomContent({
                                     ) : null}
                                 </div>
                             </div>
-                            <div className="border-t border-slate-800 xl:border-l xl:border-t-0">
+                            <div className="min-h-0 max-h-[24rem] overflow-hidden border-t border-slate-800 xl:h-full xl:max-h-none xl:border-l xl:border-t-0">
                                 <LiveChatPanel
                                     embedded
                                     state={state}
                                     participants={participants}
                                     presenterParticipant={presenterParticipant}
                                     hasPresenterStream={broadcastHasActivePresenter}
-                                    tokenInfo={tokenInfo}
-                                    chatStoreEndpoint={chatStoreEndpoint}
-                                    helpRequestStoreEndpoint={helpRequestStoreEndpoint}
-                                    csrfToken={csrfToken}
-                                    onStateUpdate={onStateUpdate}
-                                    onPromoteRequest={approveRequest}
-                                    onApproveAndStartRequest={(request) => {
-                                        setPendingPublishRequest({
-                                            id: request.id,
-                                            type: request.type,
+                                tokenInfo={tokenInfo}
+                                chatStoreEndpoint={chatStoreEndpoint}
+                                chatClearEndpoint={chatClearEndpoint}
+                                chatDeleteMessageEndpoint={chatDeleteMessageEndpoint}
+                                chatParticipantEndpoint={chatParticipantEndpoint}
+                                helpRequestStoreEndpoint={helpRequestStoreEndpoint}
+                                csrfToken={csrfToken}
+                                onStateUpdate={onStateUpdate}
+                                onBroadcastState={broadcastClassroomState}
+                                setFlashMessage={setFlashMessage}
+                                onPromoteRequest={approveRequest}
+                                onApproveAndStartRequest={(request) => {
+                                    setPendingPublishRequest({
+                                        id: request.id,
+                                        type: request.type,
                                         });
                                     }}
                                     onDismissRequest={revokeRequest}
@@ -1869,18 +2233,30 @@ function ClassroomRoomContent({
                         </div>
                     </section>
                 ) : (
-                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-1 py-2'}`}>
+                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg transition-all duration-300 ease-out ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-1 py-2 lg:float-right lg:mr-2 lg:mt-2 lg:w-96'}`}>
                         <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'min-h-[36rem]' : ''}`}>
-                            <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-3 text-sm font-medium'}`}>
-                                <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
-                                <span>{presenterEmptyLabel}</span>
+                            <div className={`flex w-full flex-col items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-3 text-sm font-medium'}`}>
+                                <div className="flex items-center justify-center gap-3">
+                                    <i className={`${presenterIdleIcon} text-sky-300`} aria-hidden="true"></i>
+                                    <span>{presenterEmptyLabel}</span>
+                                </div>
+                                {canStartScheduledBroadcast ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => void startBroadcast()}
+                                        className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-white/20"
+                                    >
+                                        <i className="fa-solid fa-circle-play" aria-hidden="true"></i>
+                                        Start livestream
+                                    </button>
+                                ) : null}
                             </div>
                         </div>
                     </section>
                 )}
 
                 {flashMessage ? (
-                    <div className="fixed right-4 top-4 z-50 max-w-md rounded-lg border border-sky-400/20 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-2xl shadow-slate-950/40">
+                    <div className="fixed right-4 top-20 z-[220] max-w-md rounded-lg border border-sky-400/20 bg-slate-950/95 px-4 py-3 text-sm text-slate-100 shadow-2xl shadow-slate-950/40">
                         <div className="flex items-start gap-3">
                             <i className="fa-solid fa-circle-info mt-0.5 text-sky-300" aria-hidden="true"></i>
                             <div className="min-w-0 leading-6">
@@ -1916,6 +2292,9 @@ function ClassroomRoom({
     livekitUrl,
     csrfToken,
     chatStoreEndpoint,
+    chatClearEndpoint,
+    chatDeleteMessageEndpoint,
+    chatParticipantEndpoint,
     clientErrorEndpoint,
     helpRequestEndpoints,
     broadcastStartEndpoint,
@@ -1940,6 +2319,9 @@ function ClassroomRoom({
                 tokenInfo={tokenInfo}
                 csrfToken={csrfToken}
                 chatStoreEndpoint={chatStoreEndpoint}
+                chatClearEndpoint={chatClearEndpoint}
+                chatDeleteMessageEndpoint={chatDeleteMessageEndpoint}
+                chatParticipantEndpoint={chatParticipantEndpoint}
                 clientErrorEndpoint={clientErrorEndpoint}
                 helpRequestStoreEndpoint={helpRequestEndpoints.store}
                 broadcastStartEndpoint={broadcastStartEndpoint}
@@ -2056,6 +2438,9 @@ function ClassroomApp() {
             livekitUrl={rootConfig.livekitUrl}
             csrfToken={rootConfig.csrfToken}
             chatStoreEndpoint={rootConfig.chatStoreEndpoint}
+            chatClearEndpoint={rootConfig.chatClearEndpoint}
+            chatDeleteMessageEndpoint={rootConfig.chatDeleteMessageEndpoint}
+            chatParticipantEndpoint={rootConfig.chatParticipantEndpoint}
             clientErrorEndpoint={rootConfig.clientErrorEndpoint}
             broadcastStartEndpoint={rootConfig.broadcastStartEndpoint}
             broadcastEndEndpoint={rootConfig.broadcastEndEndpoint}

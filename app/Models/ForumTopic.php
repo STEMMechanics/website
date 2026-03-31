@@ -192,6 +192,18 @@ class ForumTopic extends Model
     }
 
     /**
+     * @return array<string, int>
+     */
+    public static function unreadCountMapForUser(User $user): array
+    {
+        return static::unreadForUserQuery($user)
+            ->get(['forum_topics.id', 'forum_topics.forum_category_id'])
+            ->groupBy(fn (self $topic): string => (string) $topic->forum_category_id)
+            ->map(fn (Collection $topics): int => $topics->count())
+            ->all();
+    }
+
+    /**
      * @param  Collection<int, ForumTopic>  $topics
      * @return list<string>
      */

@@ -124,16 +124,16 @@
                         @endif
                     @elseif($workshop->registration === 'classroom')
                         @if($availableTickets === null || (int) $availableTickets > 0)
-                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Classroom Access</x-ui.button>
+                            <x-ui.button href="{{ route('workshop.ticket.flow.start', $workshop) }}" class="mb-2">Get Course Access</x-ui.button>
                             <p class="text-xs text-gray-600 text-center mb-2">
                                 @if($availableTickets === null)
-                                    Classroom access available now.
+                                    Course access available now.
                                 @else
                                     {{ $availableTickets }} access slot{{ (int) $availableTickets === 1 ? '' : 's' }} remaining
                                 @endif
                             </p>
                         @else
-                            <div class="sm-registration-full">This classroom is currently full.</div>
+                            <div class="sm-registration-full">This course is currently full.</div>
                         @endif
                     @elseif($workshop->registration === 'link')
                         @if($workshop->isPrivate() && !($privateLockedNoCode ?? false))
@@ -226,12 +226,12 @@
                         <div class="sm-registration-message">{{ $workshop->registration_data }}</div>
                     @elseif($workshop->registration === 'classroom')
                         <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
-                            <div class="font-semibold">Classroom access</div>
+                            <div class="font-semibold">Course access</div>
                             <p class="mt-2 leading-6">
-                                This workshop includes classroom access. Sign in with the account linked to your registration group to open the classroom and join the live sessions.
+                                This workshop includes course access. Sign in with the account linked to your registration group to open the course and join the live sessions.
                             </p>
                             @if($workshop->classSession)
-                                <x-ui.button class="mt-4" href="{{ route('class.show', $workshop->classSession) }}">Open Classroom</x-ui.button>
+                                <x-ui.button class="mt-4" href="{{ route('class.show', $workshop->classSession) }}">Open Course</x-ui.button>
                             @endif
                         </div>
                     @endif

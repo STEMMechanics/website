@@ -19,39 +19,11 @@
     @php($unreadTopicLookup = array_flip($unreadTopicIds ?? []))
 
     <x-container class="py-8" id="forum-category-page">
-        <div class="mb-8 -mt-8 rounded-b-lg border border-gray-200 bg-white p-6 shadow-[0_18px_48px_rgba(15,23,42,0.05)] sm:p-8">
-            <div class="flex flex-col gap-12 md:flex-row md:justify-between">
-                <div class="max-w-3xl">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-gray-400">Category</p>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900 whitespace-nowrap">{{ $category->name }}</h1>
-                    @if($category->description)
-                        <p class="mt-3 whitespace-pre-line text-base leading-7 text-gray-600">{{ $category->description }}</p>
-                    @endif
-                    <div class="mt-5 flex flex-wrap items-center gap-3">
-                        @auth
-                            @if($canWrite)
-                                <x-ui.button href="{{ route('forum.topic.create', $category->slug) }}" class="!px-5">Create Thread</x-ui.button>
-                            @else
-                                <span class="text-sm text-gray-500">You can read this category, but you do not have permission to create threads here.</span>
-                            @endif
-                        @else
-                            <span class="text-sm text-gray-500">Log in to create a thread.</span>
-                            <x-ui.button color="outline" href="{{ route('login') }}" class="!rounded-full !px-5">Log In</x-ui.button>
-                        @endauth
-                    </div>
-                </div>
-
-                <div id="forum-category-meta-panel" class="hidden md:block">
-                    @include('forum.partials.category-meta', [
-                        'threadCount' => $threadCount,
-                        'commentCount' => $commentCount,
-                        'viewCount' => $viewCount,
-                        'latestActivityAt' => $latestActivityAt,
-                        'latestActivityAuthorName' => $latestActivityAuthorName,
-                    ])
-                </div>
+        @if($canWrite)
+            <div class="mb-6 flex justify-start">
+                <x-ui.button href="{{ route('forum.topic.create', $category->slug) }}" class="!px-5">Create Thread</x-ui.button>
             </div>
-        </div>
+        @endif
 
         @if($topics->isEmpty())
             <div id="forum-category-empty" class="rounded-lg border border-gray-200 bg-white p-6 text-gray-600">
@@ -72,7 +44,6 @@
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const root = document.getElementById('forum-category-page');
-        const meta = document.getElementById('forum-category-meta-panel');
         const list = document.getElementById('forum-category-threads');
         const pagination = document.getElementById('forum-category-pagination');
         const empty = document.getElementById('forum-category-empty');
@@ -99,10 +70,6 @@
                 const payload = await response.json();
                 const threadsHtml = String(payload?.threadsHtml || '').trim();
 
-                if (meta && typeof payload?.metaHtml === 'string' && payload.metaHtml.trim() !== '') {
-                    meta.innerHTML = payload.metaHtml;
-                }
-
                 if (threadsHtml === '') {
                     if (list) {
                         list.innerHTML = '';
@@ -111,7 +78,7 @@
                         pagination.innerHTML = '';
                     }
                     if (empty) {
-                        empty.innerHTML = payload?.emptyHtml || 'No threads have been created in this category yet.';
+                        empty.textContent = payload?.emptyText || 'No threads have been created in this category yet.';
                         empty.classList.remove('hidden');
                     }
                 } else {

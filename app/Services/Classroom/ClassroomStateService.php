@@ -90,6 +90,7 @@ class ClassroomStateService
             'forumCategoryName' => $classSession->forumCategory?->name,
             'forumCategoryUrl' => $classSession->forumCategory ? route('forum.category.show', $classSession->forumCategory->slug) : null,
             'liveChatEnabled' => (bool) $classSession->live_chat_enabled,
+            'chatMutedUserIds' => $classSession->chatMutedUserIds(),
             'startsAt' => $classSession->starts_at?->toIso8601String(),
             'endsAt' => $classSession->ends_at?->toIso8601String(),
             'broadcastSchedule' => $this->serializeClassroomSchedule(
@@ -98,6 +99,7 @@ class ClassroomStateService
                     : ($classSession->workshop?->classroomSchedule() ?? [])
             ),
             'liveBroadcastStartedAt' => $classSession->live_broadcast_started_at?->toIso8601String(),
+            'liveBroadcastCameraStartedAt' => $classSession->live_broadcast_camera_started_at?->toIso8601String(),
             'liveBroadcastEndedAt' => $classSession->live_broadcast_ended_at?->toIso8601String(),
             'liveBroadcastStartedByUserId' => $classSession->live_broadcast_started_by_user_id ? (string) $classSession->live_broadcast_started_by_user_id : null,
             'liveBroadcastEndedByUserId' => $classSession->live_broadcast_ended_by_user_id ? (string) $classSession->live_broadcast_ended_by_user_id : null,
@@ -232,6 +234,7 @@ class ClassroomStateService
                     'id' => (string) $message->id,
                     'classSessionId' => (string) $message->class_session_id,
                     'userId' => (string) $message->user_id,
+                    'identity' => 'class-'.$message->class_session_id.'-user-'.$message->user_id,
                     'name' => (string) ($message->user?->username ?? $message->user?->getName() ?? ''),
                     'username' => (string) ($message->user?->username ?? ''),
                     'role' => $isTeacher ? 'teacher' : 'student',

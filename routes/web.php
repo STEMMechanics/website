@@ -143,6 +143,7 @@ Route::middleware('nocache')->group(function () {
     Route::get('/forum/snapshot', [ForumController::class, 'indexSnapshot'])->name('forum.index.snapshot');
     Route::get('/forum/{categorySlug}', [ForumController::class, 'showCategory'])->name('forum.category.show');
     Route::get('/forum/{categorySlug}/snapshot', [ForumController::class, 'categorySnapshot'])->name('forum.category.snapshot');
+    Route::get('/forum/{categorySlug}/{topicSlug}/posts/{forumPost}/attachments/{attachment}', [ForumController::class, 'downloadAttachment'])->name('forum.post.attachment.download');
 });
 
 Route::middleware('auth')->group(function () {
@@ -155,7 +156,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/account/password', [AccountController::class, 'updatePassword'])->name('account.password.update');
     Route::post('/account/discussions/unsubscribe-all', [AccountController::class, 'unsubscribeAllDiscussionNotifications'])->name('account.discussions.unsubscribe-all');
     Route::delete('/account', [AccountController::class, 'destroy'])->name('account.destroy');
-    Route::get('/account/classrooms', [AccountClassroomController::class, 'index'])->name('account.classrooms.index');
+    Route::get('/account/courses', [AccountClassroomController::class, 'index'])->name('account.course.index');
     Route::get('/account/connected-apps', [ConnectedAppController::class, 'index'])->name('account.oauth-apps.index');
     Route::delete('/account/connected-apps', [ConnectedAppController::class, 'destroyAll'])->name('account.oauth-apps.destroy-all');
     Route::delete('/account/connected-apps/{client}', [ConnectedAppController::class, 'destroy'])->name('account.oauth-apps.destroy');
@@ -185,6 +186,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/class/{classSession}/help-request/{helpRequest}/approve', [ClassHelpRequestController::class, 'approve'])->name('class.help-requests.approve');
     Route::post('/class/{classSession}/help-request/{helpRequest}/revoke', [ClassHelpRequestController::class, 'revoke'])->name('class.help-requests.revoke');
     Route::post('/class/{classSession}/chat', [ClassroomChatController::class, 'store'])->name('class.chat.store');
+    Route::delete('/class/{classSession}/chat', [ClassroomChatController::class, 'clear'])->name('class.chat.clear');
+    Route::delete('/class/{classSession}/chat/{chatMessage}', [ClassroomChatController::class, 'destroy'])->name('class.chat.destroy');
+    Route::put('/class/{classSession}/chat/participants/{user}', [ClassroomChatController::class, 'updateParticipantState'])->name('class.chat.participant.update');
     Route::post('/class/{classSession}/broadcast/start', [ClassroomController::class, 'startBroadcast'])->name('class.broadcast.start');
     Route::post('/class/{classSession}/broadcast/end', [ClassroomController::class, 'endBroadcast'])->name('class.broadcast.end');
     Route::post('/class/{classSession}/client-error', [ClassroomClientErrorController::class, 'store'])->name('class.client-error.store');
@@ -315,13 +319,13 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/oauth-clients/{client}/rotate-secret', [OAuthClientController::class, 'rotateSecret'])->name('admin.oauth-clients.rotate-secret');
     Route::delete('/admin/oauth-clients/{client}', [OAuthClientController::class, 'destroy'])->name('admin.oauth-clients.destroy');
     Route::delete('/admin/oauth-clients/{client}/purge', [OAuthClientController::class, 'purge'])->name('admin.oauth-clients.purge');
-    Route::get('/admin/classrooms', [AdminClassroomController::class, 'index'])->name('admin.classroom.index');
-    Route::get('/admin/classrooms/create', [AdminClassroomController::class, 'create'])->name('admin.classroom.create');
-    Route::post('/admin/classrooms', [AdminClassroomController::class, 'store'])->name('admin.classroom.store');
-    Route::get('/admin/classrooms/{classSession}/duplicate', [AdminClassroomController::class, 'duplicate'])->name('admin.classroom.duplicate');
-    Route::get('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'edit'])->name('admin.classroom.edit');
-    Route::put('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'update'])->name('admin.classroom.update');
-    Route::delete('/admin/classrooms/{classSession}', [AdminClassroomController::class, 'destroy'])->name('admin.classroom.destroy');
+    Route::get('/admin/courses', [AdminClassroomController::class, 'index'])->name('admin.course.index');
+    Route::get('/admin/courses/create', [AdminClassroomController::class, 'create'])->name('admin.course.create');
+    Route::post('/admin/courses', [AdminClassroomController::class, 'store'])->name('admin.course.store');
+    Route::get('/admin/courses/{classSession}/duplicate', [AdminClassroomController::class, 'duplicate'])->name('admin.course.duplicate');
+    Route::get('/admin/courses/{classSession}', [AdminClassroomController::class, 'edit'])->name('admin.course.edit');
+    Route::put('/admin/courses/{classSession}', [AdminClassroomController::class, 'update'])->name('admin.course.update');
+    Route::delete('/admin/courses/{classSession}', [AdminClassroomController::class, 'destroy'])->name('admin.course.destroy');
     Route::get('/admin/stemcraft/accounts', [MinecraftController::class, 'adminIndex'])->name('admin.stemcraft.index');
     Route::get('/admin/stemcraft/punishments', [MinecraftController::class, 'adminPunishmentsIndex'])->name('admin.stemcraft.punishments.index');
     Route::get('/admin/stemcraft/messages', [MinecraftController::class, 'adminMessagesIndex'])->name('admin.stemcraft.messages.index');

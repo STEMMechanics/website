@@ -34,6 +34,7 @@ class ClassSession extends Model
         'ends_at',
         'broadcast_sessions_json',
         'live_broadcast_started_at',
+        'live_broadcast_camera_started_at',
         'live_broadcast_ended_at',
         'live_broadcast_started_by_user_id',
         'live_broadcast_ended_by_user_id',
@@ -46,6 +47,7 @@ class ClassSession extends Model
         'ends_at' => 'datetime',
         'broadcast_sessions_json' => 'array',
         'live_broadcast_started_at' => 'datetime',
+        'live_broadcast_camera_started_at' => 'datetime',
         'live_broadcast_ended_at' => 'datetime',
     ];
 
@@ -143,7 +145,36 @@ class ClassSession extends Model
      */
     public function chatMessages(): HasMany
     {
-        return $this->hasMany(ClassChatMessage::class)->orderBy('created_at');
+        return $this->hasMany(ClassChatMessage::class)
+            ->whereNull('deleted_at')
+            ->orderBy('created_at');
+    }
+
+    /**
+     * @return HasMany<ClassChatParticipantState, $this>
+     */
+    public function chatParticipantStates(): HasMany
+    {
+        return $this->hasMany(ClassChatParticipantState::class)->orderBy('created_at');
+    }
+
+    public function chatMutedUserIds(): array
+    {
+        return $this->chatParticipantStates()
+            ->pluck('user_id')
+            ->map(fn ($userId): string => (string) $userId)
+            ->all();
+    }
+
+    public function isChatMutedForUser(?User $user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return $this->chatParticipantStates()
+            ->where('user_id', (string) $user->id)
+            ->exists();
     }
 
     public function teacherEnrolment(): HasOne

@@ -31,11 +31,7 @@ class ClassroomController extends Controller
         $query = ClassSession::query()
             ->with(['createdBy', 'forumCategory'])
             ->withCount([
-                'enrolments',
-                'enrolments as teacher_count' => fn (Builder $builder) => $builder->where('role', ClassEnrolment::ROLE_TEACHER),
                 'enrolments as student_count' => fn (Builder $builder) => $builder->where('role', ClassEnrolment::ROLE_STUDENT),
-                'helpRequests as pending_help_request_count' => fn (Builder $builder) => $builder->where('status', 'pending'),
-                'helpRequests as active_help_request_count' => fn (Builder $builder) => $builder->where('status', 'approved'),
             ]);
 
         if ($search !== '') {
@@ -97,11 +93,11 @@ class ClassroomController extends Controller
             return $classSession;
         });
 
-        session()->flash('message', 'Classroom has been created.');
-        session()->flash('message-title', 'Classroom created');
+        session()->flash('message', 'Course has been created.');
+        session()->flash('message-title', 'Course created');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.classroom.edit', $classSession);
+        return redirect()->route('admin.course.edit', $classSession);
     }
 
     public function edit(ClassSession $classSession): View
@@ -132,11 +128,11 @@ class ClassroomController extends Controller
             $this->syncEnrolments($classSession, $validated);
         });
 
-        session()->flash('message', 'Classroom updated.');
+        session()->flash('message', 'Course updated.');
         session()->flash('message-title', $classSession->title);
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.classroom.edit', $classSession);
+        return redirect()->route('admin.course.edit', $classSession);
     }
 
     public function duplicate(ClassSession $classSession): RedirectResponse
@@ -172,11 +168,11 @@ class ClassroomController extends Controller
             return $duplicate;
         });
 
-        session()->flash('message', 'Classroom duplicated.');
-        session()->flash('message-title', 'Classroom duplicated');
+        session()->flash('message', 'Course duplicated.');
+        session()->flash('message-title', 'Course duplicated');
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.classroom.edit', $duplicate);
+        return redirect()->route('admin.course.edit', $duplicate);
     }
 
     public function destroy(ClassSession $classSession): RedirectResponse
@@ -184,11 +180,11 @@ class ClassroomController extends Controller
         $title = $classSession->title;
         $classSession->delete();
 
-        session()->flash('message', 'Classroom deleted.');
+        session()->flash('message', 'Course deleted.');
         session()->flash('message-title', $title);
         session()->flash('message-type', 'success');
 
-        return redirect()->route('admin.classroom.index');
+        return redirect()->route('admin.course.index');
     }
 
     /**

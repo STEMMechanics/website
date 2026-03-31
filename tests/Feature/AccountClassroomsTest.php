@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\ClassEnrolment;
 use App\Models\ClassSession;
+use App\Models\ForumCategory;
+use App\Models\ForumPost;
+use App\Models\ForumTopic;
+use App\Models\ForumTopicUserState;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,7 +24,7 @@ class AccountClassroomsTest extends TestCase
         $this->actingAs($user)
             ->get(route('account.show'))
             ->assertOk()
-            ->assertSee(route('account.classrooms.index'), false);
+            ->assertSee(route('account.course.index'), false);
     }
 
     public function test_account_classrooms_page_lists_accessible_classrooms_and_hides_inaccessible_ones(): void
@@ -53,6 +57,19 @@ class AccountClassroomsTest extends TestCase
             'ends_at' => now()->addDay(),
         ]);
 
+        $forumCategory = ForumCategory::query()->create([
+            'name' => 'Course discussion',
+            'slug' => 'course-discussion',
+            'read_group_slug' => 'user',
+            'write_group_slug' => 'user',
+        ]);
+        $enrolledClass->forceFill([
+            'forum_category_id' => $forumCategory->id,
+        ])->save();
+        $forumAuthor = User::factory()->create();
+        $this->createUnreadForumTopic($forumCategory, $forumAuthor, $user, 'Course update 1');
+        $this->createUnreadForumTopic($forumCategory, $forumAuthor, $user, 'Course update 2');
+
         ClassEnrolment::query()->create([
             'class_session_id' => $enrolledClass->id,
             'user_id' => $user->id,
@@ -67,16 +84,45 @@ class AccountClassroomsTest extends TestCase
             'summary' => 'Should not be visible',
         ]);
 
-        $response = $this->actingAs($user)->get(route('account.classrooms.index'));
+        $response = $this->actingAs($user)->get(route('account.course.index'));
 
         $response->assertOk();
-        $response->assertSeeText('Classrooms');
+        $response->assertSeeText('Courses');
         $response->assertSeeText('Microbit T1');
         $response->assertSeeText('Special Workshop');
+        $response->assertSee('aria-label="2 unread discussion notifications"', false);
         $response->assertDontSeeText('Hidden Classroom');
         $response->assertSee(route('class.show', $groupClass), false);
         $response->assertSee(route('class.show', $enrolledClass), false);
         $response->assertSeeText('Upcoming sessions');
         $response->assertSeeText('Current sessions');
+    }
+
+    private function createUnreadForumTopic(ForumCategory $category, User $author, User $reader, string $title): ForumTopic
+    {
+        $topic = ForumTopic::query()->create([
+            'forum_category_id' => $category->id,
+            'user_id' => $author->id,
+            'last_post_user_id' => $author->id,
+            'title' => $title,
+            'slug' => ForumTopic::generateUniqueSlug($title, (string) $category->id),
+            'last_post_at' => now(),
+        ]);
+
+        ForumPost::query()->create([
+            'forum_topic_id' => $topic->id,
+            'user_id' => $author->id,
+            'is_topic_starter' => true,
+            'is_approved' => true,
+            'body' => '<p>Unread topic.</p>',
+        ]);
+
+        ForumTopicUserState::query()->create([
+            'forum_topic_id' => $topic->id,
+            'user_id' => $reader->id,
+            'notifications_enabled' => true,
+        ]);
+
+        return $topic;
     }
 }

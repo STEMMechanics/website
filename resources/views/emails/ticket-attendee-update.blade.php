@@ -3,13 +3,13 @@ Hi {{ $recipientName !== '' ? $recipientName : 'there' }},
 
 @php($isClassroomAccess = (string) ($workshop['registration'] ?? '') === 'classroom')
 @if($mode === 'transferred_away')
-Your {{ $isClassroomAccess ? 'classroom access' : 'ticket' }} for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** has been transferred to another attendee.
+Your {{ $isClassroomAccess ? 'course access' : 'ticket' }} for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** has been transferred to another attendee.
 @elseif($mode === 'details_updated')
-You're in! Your {{ $isClassroomAccess ? 'classroom access' : 'ticket details' }} were updated for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** workshop.
+You're in! Your {{ $isClassroomAccess ? 'course access' : 'ticket details' }} were updated for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** workshop.
 @elseif($mode === 'cancelled')
-Your {{ $isClassroomAccess ? 'classroom access' : 'ticket' }} for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** has been cancelled.
+Your {{ $isClassroomAccess ? 'course access' : 'ticket' }} for **{{ (string) ($workshop['title'] ?? 'this workshop') }}** has been cancelled.
 @else
-You're in! {{ $purchaserName !== '' ? $purchaserName : 'A purchaser' }} has purchased {{ $isClassroomAccess ? 'classroom access' : 'a ticket' }} for you for **{{ (string) ($workshop['title'] ?? 'this workshop') }}**.
+You're in! {{ $purchaserName !== '' ? $purchaserName : 'A purchaser' }} has purchased {{ $isClassroomAccess ? 'course access' : 'a ticket' }} for you for **{{ (string) ($workshop['title'] ?? 'this workshop') }}**.
 @endif
 
 **Workshop:** {{ (string) ($workshop['title'] ?? '-') }}<br>
@@ -29,7 +29,7 @@ You're in! {{ $purchaserName !== '' ? $purchaserName : 'A purchaser' }} has purc
 @endif
 
 @if($isClassroomAccess)
-Your classroom access details are included when relevant, or available from your account dashboard when you sign in.
+Your course access details are included when relevant, or available from your account dashboard when you sign in.
 @else
 @if($mode === 'details_updated')
 Your updated ticket PDF is attached.
@@ -39,7 +39,7 @@ Your ticket PDF is attached.
 @endif
 
 @if($isClassroomAccess)
-You can also access your classrooms from the [Classrooms]({{ url('/account/classrooms') }}) page when you are signed in.
+You can also access your courses from the [Courses]({{ url('/account/courses') }}) page when you are signed in.
 @else
 You can also retrieve your ticket using the [My Tickets]({{ url('/tickets') }}) link.
 @endif

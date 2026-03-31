@@ -79,6 +79,14 @@
         <div class="content mt-4">
             {!! $post->body !!}
         </div>
+        @if(! $isDeletedPost)
+            <div data-forum-post-attachments class="hidden">
+                <div data-forum-attachments-list>
+                    @include('forum.partials.edit-post-attachments', ['post' => $post, 'category' => $category, 'topic' => $topic])
+                </div>
+            </div>
+            @include('forum.partials.post-attachments', ['post' => $post, 'category' => $category, 'topic' => $topic])
+        @endif
         <div class="mt-5 pr-2 flex items-center justify-between border-t border-gray-200 pt-4">
             @auth
                 <div class="flex flex-wrap gap-2">

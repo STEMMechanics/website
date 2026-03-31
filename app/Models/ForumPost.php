@@ -14,6 +14,7 @@ use Illuminate\Support\Collection;
  * @property-read ForumTopic $topic
  * @property-read User|null $user
  * @property-read ForumPost|null $parentPost
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ForumPostAttachment> $attachments
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ForumPostReaction> $reactions
  */
 class ForumPost extends Model
@@ -87,6 +88,16 @@ class ForumPost extends Model
     public function childPosts(): HasMany
     {
         return $this->hasMany(self::class, 'parent_forum_post_id');
+    }
+
+    /**
+     * @return HasMany<ForumPostAttachment, $this>
+     */
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ForumPostAttachment::class, 'forum_post_id')
+            ->orderBy('sort_order')
+            ->orderBy('created_at');
     }
 
     /**

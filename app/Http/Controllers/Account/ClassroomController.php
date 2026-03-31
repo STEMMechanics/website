@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Account;
 use App\Http\Controllers\Controller;
 use App\Models\ClassEnrolment;
 use App\Models\ClassSession;
+use App\Models\ForumTopic;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class ClassroomController extends Controller
         /** @var User $user */
         $user = $request->user();
         $now = now();
+        $forumUnreadCountByCategoryId = $user ? ForumTopic::unreadCountMapForUser($user) : [];
 
         $classSessions = ClassSession::query()
             ->with(['forumCategory', 'createdBy'])
@@ -33,9 +35,10 @@ class ClassroomController extends Controller
             ->filter(function (ClassSession $classSession) use ($user): bool {
                 return $classSession->canJoin($user) || $classSession->canManage($user);
             })
-            ->map(function (ClassSession $classSession) use ($user, $now): array {
+            ->map(function (ClassSession $classSession) use ($user, $now, $forumUnreadCountByCategoryId): array {
                 $role = $classSession->roleForUser($user);
                 $status = $this->statusForSession($classSession, $now);
+                $forumCategoryId = (string) ($classSession->forum_category_id ?? '');
 
                 return [
                     'classSession' => $classSession,
@@ -45,6 +48,7 @@ class ClassroomController extends Controller
                     'statusClass' => $status['class'],
                     'openUrl' => route('class.show', $classSession),
                     'badgeLabel' => $role === ClassEnrolment::ROLE_TEACHER ? 'Teacher' : 'Student',
+                    'forumUnreadCount' => (int) ($forumUnreadCountByCategoryId[$forumCategoryId] ?? 0),
                 ];
             });
 

@@ -72,7 +72,7 @@
                 [
                     'title' => 'Workshops & Community',
                     'items' => [
-                    ['label' => 'Classrooms', 'route' => route('admin.classroom.index'), 'icon' => 'fa-solid fa-chalkboard-user', 'active' => ['admin.classroom.*']],
+                    ['label' => 'Courses', 'route' => route('admin.course.index'), 'icon' => 'fa-solid fa-chalkboard-user', 'active' => ['admin.course.*']],
                     ['label' => 'Workshops', 'route' => route('admin.workshop.index'), 'icon' => 'fa-solid fa-bullhorn', 'active' => ['admin.workshop.*']],
                     ['label' => 'Tickets', 'route' => route('admin.ticket.index'), 'icon' => 'fa-solid fa-ticket', 'active' => ['admin.ticket.*']],
                     ['label' => 'Discussion Categories', 'route' => route('admin.forum.category.index'), 'icon' => 'fa-regular fa-comments', 'active' => ['admin.forum.category.*']],
@@ -269,7 +269,7 @@
                 <div class="border-t border-gray-200 my-2"></div>
                 <a href="{{ route('account.show') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-user-pen w-4 mr-2"></i>Account</a>
                 <div class="border-t border-gray-200 my-2"></div>
-                <a href="{{ route('account.classrooms.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chalkboard-user w-4 mr-2"></i>Classrooms</a>
+                <a href="{{ route('account.course.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-chalkboard-user w-4 mr-2"></i>Courses</a>
                 <a href="{{ route('account.ticket.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-ticket w-4 mr-2"></i>Tickets</a>
                 @if($hasMyOrders)
                 <a href="{{ route('account.order.index') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-box-open w-4 mr-2"></i>Orders</a>

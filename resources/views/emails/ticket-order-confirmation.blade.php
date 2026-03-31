@@ -21,7 +21,7 @@ if ($ticketAttachmentCount > 0) {
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your classroom access is confirmed.
+Your course access is confirmed.
 @else
 Your ticket order is confirmed.
 @endif
@@ -35,7 +35,7 @@ Your ticket order is confirmed.
 **Course:** {{ (string) $workshop['courseUrl'] }}<br>
 @endif
 @if(!empty($workshop['classroomUrl'] ?? ''))
-**Classroom:** {{ (string) $workshop['classroomUrl'] }}<br>
+**Course:** {{ (string) $workshop['classroomUrl'] }}<br>
 @endif
 @if(!empty($workshop['forumUrl'] ?? ''))
 **Forum:** {{ (string) $workshop['forumUrl'] }}<br>
@@ -89,14 +89,14 @@ Your {{ $attachmentLabels[0] }} and {{ $attachmentLabels[1] }} are attached.
 Your {{ implode(', ', array_slice($attachmentLabels, 0, -1)) }}, and {{ $attachmentLabels[count($attachmentLabels) - 1] }} are attached.
 @else
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your classroom access details are included in this email and will also be available from your account dashboard once you sign in.
+Your course access details are included in this email and will also be available from your account dashboard once you sign in.
 @else
 Tickets will be emailed after ticket holder details are confirmed.
 @endif
 @endif
 
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-If you have a STEMMechanics account, open your classrooms from the [Classrooms]({{ url('/account/classrooms') }}) page when logged in. If you do not have an account yet, use the registration email we sent to finish creating one.
+If you have a STEMMechanics account, open your courses from the [Courses]({{ url('/account/courses') }}) page when logged in. If you do not have an account yet, use the registration email we sent to finish creating one.
 @else
 If you have a STEMMechanics account, you can manage your tickets and invoices from your account dashboard when logged in. You can also manage your tickets using the [My Tickets]({{ url('/tickets') }}) link.
 @endif

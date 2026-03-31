@@ -4,7 +4,7 @@
 @endphp
 
 <x-layout>
-    <x-mast>{{ $workshop->usesClassroomRegistration() ? 'Classroom Checkout' : 'Ticket Checkout' }}</x-mast>
+    <x-mast>{{ $workshop->usesClassroomRegistration() ? 'Course Checkout' : 'Ticket Checkout' }}</x-mast>
 
     <x-container class="max-w-3xl mt-6 mx-auto">
         @php($isClassroomAccess = $workshop->usesClassroomRegistration())
@@ -22,12 +22,12 @@
                 })"
             x-init="startHoldTimer()">
             <div class="flex-1">
-                <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Access Payment' : 'Payment' }}</h2>
+                <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Course Payment' : 'Payment' }}</h2>
 
                 @include('workshop.tickets.partials.summary', [
                 'workshop' => $workshop,
                 'rows' => [
-                ['label' => $isClassroomAccess ? 'Access' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')],
+                ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')],
                 ['label' => 'Total Cost', 'value' => $totalAmount > 0 ? '$'.number_format($totalAmount, 2) : 'Free'],
                 ],
                 ])
@@ -76,7 +76,7 @@
                     @endif
 
                     <div class="my-12 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-center" x-show="expired" x-cloak>
-                        {{ $isClassroomAccess ? 'Your access hold has now expired.' : 'Your ticket hold has now expired.' }}
+                        {{ $isClassroomAccess ? 'Your course access hold has now expired.' : 'Your ticket hold has now expired.' }}
                     </div>
                     <input
                         type="hidden"
@@ -217,12 +217,12 @@
 
             submitButtonLabel() {
                 if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
-                    return this.isClassroomAccess ? 'Confirm Access' : 'Complete Purchase';
+                    return this.isClassroomAccess ? 'Confirm Course Access' : 'Complete Purchase';
                 }
                 if (this.paymentMethod === 'credit_card') {
-                    return this.isClassroomAccess ? 'Confirm Access' : 'Purchase Tickets';
+                    return this.isClassroomAccess ? 'Confirm Course Access' : 'Purchase Tickets';
                 }
-                return this.isClassroomAccess ? 'Reserve Access' : 'Reserve Tickets';
+                return this.isClassroomAccess ? 'Reserve Course Access' : 'Reserve Tickets';
             },
 
             onPaymentMethodChange() {
@@ -319,7 +319,7 @@
                 }
                 this.errorMessage = '';
                 if (this.expired) {
-                    this.errorMessage = this.isClassroomAccess ? 'Your access hold has expired.' : 'Your ticket hold has expired.';
+                    this.errorMessage = this.isClassroomAccess ? 'Your course access hold has expired.' : 'Your ticket hold has expired.';
                     return;
                 }
 
