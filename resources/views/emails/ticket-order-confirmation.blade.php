@@ -21,7 +21,7 @@ if ($ticketAttachmentCount > 0) {
 Hi {{ $recipientFirstName !== '' ? $recipientFirstName : $recipientName }},
 
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your course access is confirmed.
+Your course registration is confirmed.
 @else
 Your ticket order is confirmed.
 @endif
@@ -64,7 +64,7 @@ $paymentAmount = round((float) ($paymentAmount ?? 0), 2);
 @endif
 @endif
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-**Access holders:** {{ (int) ($ticketCount ?? count($tickets)) }}
+**Registration holders:** {{ (int) ($ticketCount ?? count($tickets)) }}
 @else
 **Number of Tickets:** {{ (int) ($ticketCount ?? count($tickets)) }}
 @endif
@@ -89,7 +89,7 @@ Your {{ $attachmentLabels[0] }} and {{ $attachmentLabels[1] }} are attached.
 Your {{ implode(', ', array_slice($attachmentLabels, 0, -1)) }}, and {{ $attachmentLabels[count($attachmentLabels) - 1] }} are attached.
 @else
 @if((string) ($workshop['registration'] ?? '') === 'classroom')
-Your course access details are included in this email and will also be available from your account dashboard once you sign in.
+Your course registration details are included in this email and will also be available from your account dashboard once you sign in.
 @else
 Tickets will be emailed after ticket holder details are confirmed.
 @endif

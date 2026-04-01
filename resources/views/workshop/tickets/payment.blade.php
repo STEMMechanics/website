@@ -76,7 +76,7 @@
                     @endif
 
                     <div class="my-12 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-center" x-show="expired" x-cloak>
-                        {{ $isClassroomAccess ? 'Your course access hold has now expired.' : 'Your ticket hold has now expired.' }}
+                        {{ $isClassroomAccess ? 'Your course registration hold has now expired.' : 'Your ticket hold has now expired.' }}
                     </div>
                     <input
                         type="hidden"
@@ -217,12 +217,12 @@
 
             submitButtonLabel() {
                 if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
-                    return this.isClassroomAccess ? 'Confirm Course Access' : 'Complete Purchase';
+                    return this.isClassroomAccess ? 'Confirm Registration' : 'Complete Purchase';
                 }
                 if (this.paymentMethod === 'credit_card') {
-                    return this.isClassroomAccess ? 'Confirm Course Access' : 'Purchase Tickets';
+                    return this.isClassroomAccess ? 'Confirm Registration' : 'Purchase Tickets';
                 }
-                return this.isClassroomAccess ? 'Reserve Course Access' : 'Reserve Tickets';
+                return this.isClassroomAccess ? 'Enrol Now' : 'Reserve Tickets';
             },
 
             onPaymentMethodChange() {
@@ -319,7 +319,7 @@
                 }
                 this.errorMessage = '';
                 if (this.expired) {
-                    this.errorMessage = this.isClassroomAccess ? 'Your course access hold has expired.' : 'Your ticket hold has expired.';
+                    this.errorMessage = this.isClassroomAccess ? 'Your course registration hold has expired.' : 'Your ticket hold has expired.';
                     return;
                 }
 

@@ -2,6 +2,27 @@
 $workshopContent = isset($workshop) ? $workshop->content : '';
 $workshopStatusForForm = old('status', $workshop->status ?? 'draft');
 $selectedClassSessionId = old('class_session_id', $workshop->class_session_id ?? '');
+$workshopStartValue = \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '');
+$workshopEndValue = \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '');
+$managedClassSessions = collect(($classSessions ?? collect())->all())
+    ->map(function ($classSession): array {
+        $schedule = $classSession->broadcastSchedule();
+        $firstEntry = $schedule[0] ?? null;
+        $lastEntry = $schedule !== [] ? $schedule[array_key_last($schedule)] : null;
+
+        return [
+            'id' => (string) $classSession->id,
+            'title' => (string) $classSession->title,
+            'slug' => (string) $classSession->slug,
+            'has_schedule' => $schedule !== [],
+            'course_starts_at' => (string) \App\Helpers::timestampNoSeconds($classSession->starts_at ?? ''),
+            'course_ends_at' => (string) \App\Helpers::timestampNoSeconds($classSession->ends_at ?? ''),
+            'starts_at' => (string) ($firstEntry['starts_at'] ?? ''),
+            'ends_at' => (string) ($lastEntry['ends_at'] ?? ($lastEntry['starts_at'] ?? '')),
+        ];
+    })
+    ->values()
+    ->all();
 if (in_array($workshopStatusForForm, ['private', 'hidden'], true)) {
     $workshopStatusForForm = 'open';
 }
@@ -36,8 +57,12 @@ $savedTickets = isset($workshop)
             registration: @js(old('registration', $workshop->registration ?? 'none')),
             maxTickets: @js(old('max_tickets', $workshop->max_tickets ?? '')),
             ticketGroupRaw: @js(old('ticket_group_slug', $workshop->ticket_group_slug ?? '')),
-            originalStartsAt: @js(isset($workshop) ? \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') : ''),
-            originalEndsAt: @js(isset($workshop) ? \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') : ''),
+            selectedClassSessionId: @js($selectedClassSessionId),
+            classSessions: @js($managedClassSessions),
+            managedStartFallback: @js($workshopStartValue),
+            managedEndFallback: @js($workshopEndValue),
+            originalStartsAt: @js(isset($workshop) ? $workshopStartValue : ''),
+            originalEndsAt: @js(isset($workshop) ? $workshopEndValue : ''),
             originalLocationId: @js(isset($workshop) ? trim((string) ($workshop->location_id ?? '')) : ''),
             ticketHolderNotificationCount: @js((int) ($ticketChangeNotificationRecipientCount ?? 0)),
             notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
@@ -180,6 +205,40 @@ $savedTickets = isset($workshop)
             },
             currentEndsAt() {
             return String(this.$refs.endsAt?.value || '').trim();
+            },
+            selectedCourseSession() {
+            return this.classSessions.find((session) => String(session.id) === String(this.selectedClassSessionId || '')) || null;
+            },
+            isCourseManaged() {
+            return this.registration === 'classroom' && String(this.selectedClassSessionId || '').trim() !== '';
+            },
+            courseManagedStartValue() {
+            const session = this.selectedCourseSession();
+            if (this.isCourseManaged() && session) {
+                if (String(session.starts_at || '').trim() !== '') {
+                    return String(session.starts_at || '').trim();
+                }
+
+                if (String(session.course_starts_at || '').trim() !== '') {
+                    return String(session.course_starts_at || '').trim();
+                }
+            }
+
+            return String(this.managedStartFallback || '').trim();
+            },
+            courseManagedEndValue() {
+            const session = this.selectedCourseSession();
+            if (this.isCourseManaged() && session) {
+                if (String(session.ends_at || '').trim() !== '') {
+                    return String(session.ends_at || '').trim();
+                }
+
+                if (String(session.course_ends_at || '').trim() !== '') {
+                    return String(session.course_ends_at || '').trim();
+                }
+            }
+
+            return String(this.managedEndFallback || '').trim();
             },
             normalizedCurrentLocationId() {
             if (this.type !== 'physical') {
@@ -425,10 +484,29 @@ $savedTickets = isset($workshop)
             </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="Start Date" name="starts_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '') }}" onchange="updatedStartsAt()" x-ref="startsAt" />
+                        <x-ui.input
+                            type="datetime-local"
+                            label="Start Date"
+                            name="starts_at"
+                            value="{{ $workshopStartValue }}"
+                            onchange="updatedStartsAt()"
+                            x-ref="startsAt"
+                            x-bind:disabled="isCourseManaged()"
+                            x-bind:value="isCourseManaged() ? courseManagedStartValue() : '{{ $workshopStartValue }}'"
+                        />
+                        <input type="hidden" name="starts_at" x-bind:disabled="!isCourseManaged()" x-bind:value="courseManagedStartValue()">
                     </div>
                     <div class="flex-1">
-                        <x-ui.input type="datetime-local" label="End Date" name="ends_at" value="{{ \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '') }}" x-ref="endsAt" />
+                        <x-ui.input
+                            type="datetime-local"
+                            label="End Date"
+                            name="ends_at"
+                            value="{{ $workshopEndValue }}"
+                            x-ref="endsAt"
+                            x-bind:disabled="isCourseManaged()"
+                            x-bind:value="isCourseManaged() ? courseManagedEndValue() : '{{ $workshopEndValue }}'"
+                        />
+                        <input type="hidden" name="ends_at" x-bind:disabled="!isCourseManaged()" x-bind:value="courseManagedEndValue()">
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
@@ -572,7 +650,7 @@ $savedTickets = isset($workshop)
                 <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900" x-show="registration==='classroom'">
                     <div class="space-y-4">
                         <div>Course access groups, forum categories, opening/closing dates, and stream schedule are managed from the Course admin screen.</div>
-                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId">
+                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId" x-model="selectedClassSessionId">
                             <option value="">Create a new course automatically</option>
                             @foreach(($classSessions ?? collect()) as $linkedClassSession)
                                 <option value="{{ $linkedClassSession->id }}" @selected((string) $selectedClassSessionId === (string) $linkedClassSession->id)>
@@ -580,6 +658,10 @@ $savedTickets = isset($workshop)
                                 </option>
                             @endforeach
                         </x-ui.select>
+                        <div class="text-xs text-sky-800" x-show="isCourseManaged()" x-cloak>
+                            <span x-show="selectedCourseSession() && selectedCourseSession().has_schedule">These fields are set automatically based on the linked course information.</span>
+                            <span x-show="selectedCourseSession() && !selectedCourseSession().has_schedule">The linked course does not have livestream times set yet, so this workshop will use the course start/end times.</span>
+                        </div>
                         <div class="text-xs text-sky-800">Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.</div>
                     </div>
                 </div>

@@ -67,7 +67,7 @@ class WorkshopClassroomRegistrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('workshop.show', $workshop))
             ->assertOk()
-            ->assertSeeText('Get Course Access')
+            ->assertSeeText('Enrol Now')
             ->assertDontSee(route('class.show', $workshop->classSession), false);
     }
 
@@ -158,6 +158,127 @@ class WorkshopClassroomRegistrationTest extends TestCase
             ->get(route('forum.category.show', $forumCategory->slug))
             ->assertOk()
             ->assertSeeText('Course');
+    }
+
+    public function test_classroom_workshop_public_pages_show_course_schedule_summary_and_course_date_fallback(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $firstStart = now()->addDays(2)->setTime(17, 30);
+        $secondStart = $firstStart->copy()->addWeek();
+        $classSession = ClassSession::query()->create([
+            'title' => 'Weekly Classroom',
+            'starts_at' => $firstStart,
+            'ends_at' => $secondStart->copy()->addHour(),
+            'broadcast_sessions_json' => [
+                [
+                    'starts_at' => $firstStart->toDateTimeString(),
+                    'ends_at' => $firstStart->copy()->addHour()->toDateTimeString(),
+                    'label' => 'Week 1',
+                ],
+                [
+                    'starts_at' => $secondStart->toDateTimeString(),
+                    'ends_at' => $secondStart->copy()->addHour()->toDateTimeString(),
+                    'label' => 'Week 2',
+                ],
+            ],
+        ]);
+        $workshop = Workshop::query()->create([
+            'title' => 'Weekly Classroom Workshop',
+            'content' => '<p>Course content.</p>',
+            'starts_at' => $firstStart,
+            'ends_at' => $secondStart->copy()->addHour(),
+            'publish_at' => now()->subDay(),
+            'closes_at' => $firstStart->copy()->subDay(),
+            'status' => 'open',
+            'price' => 'Free',
+            'registration' => 'classroom',
+            'max_tickets' => 12,
+            'class_session_id' => $classSession->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $indexResponse = $this->get(route('workshop.index'));
+        $indexResponse->assertOk()
+            ->assertSeeText($workshop->title)
+            ->assertSeeText('weekly')
+            ->assertSeeText($workshop->courseScheduleFirstStartLabel());
+
+        $showResponse = $this->get(route('workshop.show', $workshop));
+        $showResponse->assertOk()
+            ->assertSeeText('This course streams weekly.')
+            ->assertSeeText($workshop->courseScheduleDisplayLines()[0])
+            ->assertSeeText($workshop->courseScheduleDisplayLines()[1]);
+
+        $anytimeClassSession = ClassSession::query()->create([
+            'title' => 'Anytime Classroom',
+            'starts_at' => now()->addDays(4),
+            'ends_at' => now()->addDays(4)->addHours(2),
+        ]);
+        $anytimeWorkshop = Workshop::query()->create([
+            'title' => 'Anytime Classroom Workshop',
+            'content' => '<p>Course content.</p>',
+            'starts_at' => now()->addDays(4),
+            'ends_at' => now()->addDays(4)->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addDays(3),
+            'status' => 'open',
+            'price' => 'Free',
+            'registration' => 'classroom',
+            'max_tickets' => 12,
+            'class_session_id' => $anytimeClassSession->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $this->get(route('workshop.show', $anytimeWorkshop))
+            ->assertOk()
+            ->assertSeeText($anytimeWorkshop->courseScheduleDisplayLines()[0])
+            ->assertDontSeeText('This course streams weekly.');
+    }
+
+    public function test_admin_workshop_edit_disables_course_schedule_fields_when_a_course_is_linked(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $firstStart = now()->addDays(3)->setTime(16, 0);
+        $classSession = ClassSession::query()->create([
+            'title' => 'Linked Classroom',
+            'starts_at' => $firstStart,
+            'ends_at' => $firstStart->copy()->addHour(),
+            'broadcast_sessions_json' => [
+                [
+                    'starts_at' => $firstStart->toDateTimeString(),
+                    'ends_at' => $firstStart->copy()->addHour()->toDateTimeString(),
+                    'label' => 'Week 1',
+                ],
+            ],
+        ]);
+        $workshop = Workshop::query()->create([
+            'title' => 'Linked Classroom Workshop',
+            'content' => '<p>Course content.</p>',
+            'starts_at' => $firstStart,
+            'ends_at' => $firstStart->copy()->addHour(),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now()->addDays(2),
+            'status' => 'open',
+            'price' => 'Free',
+            'registration' => 'classroom',
+            'max_tickets' => 12,
+            'class_session_id' => $classSession->id,
+            'user_id' => $owner->id,
+            'hero_media_name' => $heroName,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.edit', $workshop))
+            ->assertOk()
+            ->assertSeeText('These fields are set automatically based on the linked course information.')
+            ->assertSee('x-bind:disabled="isCourseManaged()"', false)
+            ->assertSee('x-model="selectedClassSessionId"', false);
     }
 
     public function test_classroom_checkout_invites_missing_accounts_and_assigns_the_access_group(): void

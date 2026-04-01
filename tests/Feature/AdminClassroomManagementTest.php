@@ -106,7 +106,7 @@ class AdminClassroomManagementTest extends TestCase
             ->assertSeeText('Course notes')
             ->assertSeeText('Enrolments')
             ->assertSeeText('Deleting this course will remove student access.')
-            ->assertSeeText('1 enrolled student will lose access if you delete this course.')
+            ->assertSeeText('1 Enroled student will lose access if you delete this course.')
             ->assertSeeText('The linked forum category will remain unless it is deleted separately.')
             ->assertDontSeeText('Teacher identifiers')
             ->assertDontSeeText('Access group')
@@ -202,6 +202,53 @@ class AdminClassroomManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_cannot_save_course_streams_outside_the_course_window(): void
+    {
+        $admin = $this->createAdminUser();
+        $heroMedia = Media::query()->create([
+            'name' => 'microbit-term-2-hero.png',
+            'title' => 'Microbit Term 2 Hero',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
+        $sessionStart = Carbon::create(2026, 6, 1, 9, 0, 0);
+        $sessionEnd = (clone $sessionStart)->addHours(3);
+        $streamStart = (clone $sessionEnd)->addHour();
+        $streamEnd = (clone $streamStart)->addHour();
+
+        $this->actingAs($admin)
+            ->post(route('admin.course.store'), [
+                'title' => 'Microbit Term 2',
+                'slug' => '',
+                'room_name' => '',
+                'hero_media_name' => $heroMedia->name,
+                'summary' => 'Intro classroom',
+                'instructions_html' => '<p>Welcome</p>',
+                'live_chat_enabled' => 1,
+                'forum_category_choice' => 'create',
+                'forum_category_name' => 'Microbit Term 2 Forum',
+                'starts_at' => $sessionStart->format('Y-m-d H:i:s'),
+                'ends_at' => $sessionEnd->format('Y-m-d H:i:s'),
+                'broadcast_sessions_json' => json_encode([
+                    [
+                        'starts_at' => $streamStart->format('d/m/Y, h:i a'),
+                        'ends_at' => $streamEnd->format('d/m/Y, h:i a'),
+                        'label' => 'Session 1',
+                    ],
+                ], JSON_THROW_ON_ERROR),
+                'teacher_identifiers' => '',
+                'student_identifiers' => '',
+            ])
+            ->assertSessionHasErrors([
+                'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
+            ]);
+
+        $this->assertDatabaseMissing('class_sessions', [
+            'title' => 'Microbit Term 2',
+        ]);
+    }
+
     public function test_admin_classroom_edit_page_marks_paid_students_and_admin_added_students(): void
     {
         $admin = $this->createAdminUser();
@@ -270,7 +317,7 @@ class AdminClassroomManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Paid via workshop purchase')
             ->assertSeeText('Added by admin')
-            ->assertSeeText('2 enrolled students will lose access if you delete this course.')
+            ->assertSeeText('2 Enroled students will lose access if you delete this course.')
             ->assertSeeText('1 of those students paid through a workshop purchase.');
     }
 

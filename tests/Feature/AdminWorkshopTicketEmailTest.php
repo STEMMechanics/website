@@ -228,6 +228,7 @@ class AdminWorkshopTicketEmailTest extends TestCase
         $payment = Payment::factory()->create([
             'user_id' => $customer->id,
             'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 25.00,
         ]);
         InvoicePaymentAllocation::factory()->create([

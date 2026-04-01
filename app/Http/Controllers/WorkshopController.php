@@ -165,6 +165,7 @@ class WorkshopController extends Controller
             $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
             $workshopData['class_session_id'] = $classSessionId !== '' ? $classSessionId : null;
         }
+        $this->applyWorkshopClassroomSchedule($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -357,6 +358,7 @@ class WorkshopController extends Controller
             $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
             $workshopData['class_session_id'] = $classSessionId !== '' ? $classSessionId : null;
         }
+        $this->applyWorkshopClassroomSchedule($workshopData);
         if (! isset($workshopData['pick_list_template_id']) || trim((string) $workshopData['pick_list_template_id']) === '') {
             $workshopData['pick_list_template_id'] = null;
         }
@@ -2468,6 +2470,52 @@ class WorkshopController extends Controller
         $workshop->class_session_id = (string) $classSession->id;
         $workshop->ticket_group_slug = (string) $classSession->slug;
         $workshop->saveQuietly();
+    }
+
+    /**
+     * @param  array<string, mixed>  $workshopData
+     */
+    private function applyWorkshopClassroomSchedule(array &$workshopData): void
+    {
+        if ((string) ($workshopData['registration'] ?? 'none') !== 'classroom') {
+            return;
+        }
+
+        $classSessionId = trim((string) ($workshopData['class_session_id'] ?? ''));
+        if ($classSessionId === '') {
+            return;
+        }
+
+        $classSession = ClassSession::query()->find($classSessionId);
+        if (! $classSession instanceof ClassSession) {
+            return;
+        }
+
+        $schedule = $classSession->broadcastSchedule();
+        if ($schedule !== []) {
+            $firstEntry = $schedule[0] ?? [];
+            $lastEntry = $schedule[array_key_last($schedule)] ?? [];
+            $firstStartsAt = trim((string) ($firstEntry['starts_at'] ?? ''));
+            $lastEndsAt = trim((string) ($lastEntry['ends_at'] ?? ($lastEntry['starts_at'] ?? '')));
+
+            if ($firstStartsAt !== '') {
+                $workshopData['starts_at'] = Carbon::parse($firstStartsAt)->format('Y-m-d H:i');
+            }
+
+            if ($lastEndsAt !== '') {
+                $workshopData['ends_at'] = Carbon::parse($lastEndsAt)->format('Y-m-d H:i');
+            }
+
+            return;
+        }
+
+        if ($classSession->starts_at) {
+            $workshopData['starts_at'] = Carbon::parse($classSession->starts_at)->format('Y-m-d H:i');
+        }
+
+        if ($classSession->ends_at) {
+            $workshopData['ends_at'] = Carbon::parse($classSession->ends_at)->format('Y-m-d H:i');
+        }
     }
 
     private function privateAccessSessionKey(Workshop $workshop): string

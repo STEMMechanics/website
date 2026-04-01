@@ -8,6 +8,9 @@
     @foreach($workshops as $workshop)
         @php
             $locationName = $workshop->getLocationName();
+            $scheduleLabel = $workshop->courseScheduleFirstStartLabel();
+            $cadenceLabel = $workshop->courseScheduleCadenceLabel();
+            $scheduleSuffix = $cadenceLabel ? ' - '.$cadenceLabel : '';
         @endphp
         @if($locationName !== $currentLocation)
             <h2 style="margin-top: 32px; margin-bottom: 6px">{{ $locationName }}</h2>
@@ -15,7 +18,7 @@
                 $currentLocation = $locationName;
             @endphp
         @endif
-        <p style="margin-bottom: 6px">{{ $workshop->starts_at->format('D, j M, g:i A') . ' - ' }}<a href="{{ route('workshop.show', $workshop->slug) }}">{{ $workshop->title }}</a> ({{ ($workshop->price && is_numeric($workshop->price) && $workshop->price != '0' ? '$' . number_format((float)$workshop->price, 2) : 'Free') . ( $workshop->status === 'scheduled' ? ' / Opens Soon' : '') }})</p>
+        <p style="margin-bottom: 6px">{{ $scheduleLabel . ' - ' }}<a href="{{ route('workshop.show', $workshop->slug) }}">{{ $workshop->title }}</a>{{ $scheduleSuffix }} ({{ ($workshop->price && is_numeric($workshop->price) && $workshop->price != '0' ? '$' . number_format((float)$workshop->price, 2) : 'Free') . ( $workshop->status === 'scheduled' ? ' / Opens Soon' : '') }})</p>
     @endforeach
     <p class="tall center" style="margin-top: 32px">
         @component('mail::button', ['url' => 'https://stemmechanics.com.au/workshops'])

@@ -56,7 +56,7 @@ class AccountClassroomsTest extends TestCase
             'starts_at' => now()->addDay(),
         ]);
 
-        $enrolledClass = ClassSession::query()->create([
+        $EnroledClass = ClassSession::query()->create([
             'title' => 'Special Workshop',
             'slug' => 'special-workshop',
             'room_name' => 'special-workshop',
@@ -72,7 +72,7 @@ class AccountClassroomsTest extends TestCase
             'read_group_slug' => 'user',
             'write_group_slug' => 'user',
         ]);
-        $enrolledClass->forceFill([
+        $EnroledClass->forceFill([
             'forum_category_id' => $forumCategory->id,
         ])->save();
         $forumAuthor = User::factory()->create();
@@ -80,7 +80,7 @@ class AccountClassroomsTest extends TestCase
         $this->createUnreadForumTopic($forumCategory, $forumAuthor, $user, 'Course update 2');
 
         ClassEnrolment::query()->create([
-            'class_session_id' => $enrolledClass->id,
+            'class_session_id' => $EnroledClass->id,
             'user_id' => $user->id,
             'role' => ClassEnrolment::ROLE_STUDENT,
         ]);
@@ -103,7 +103,7 @@ class AccountClassroomsTest extends TestCase
         $response->assertSee('aria-label="2 unread discussion notifications"', false);
         $response->assertDontSeeText('Hidden Classroom');
         $response->assertSee(route('class.show', $groupClass), false);
-        $response->assertSee(route('class.show', $enrolledClass), false);
+        $response->assertSee(route('class.show', $EnroledClass), false);
         $response->assertSeeText('Upcoming courses');
         $response->assertSeeText('Active courses');
     }

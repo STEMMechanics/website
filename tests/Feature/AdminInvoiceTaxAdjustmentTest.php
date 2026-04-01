@@ -140,6 +140,7 @@ class AdminInvoiceTaxAdjustmentTest extends TestCase
             'user_id' => $customer->id,
             'created_by' => $admin->id,
             'kind' => Payment::KIND_PAYMENT,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 17.50,
             'gst_amount' => 0.00,
         ]);

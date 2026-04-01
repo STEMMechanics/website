@@ -74,6 +74,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $partialPayment = Payment::factory()->create([
             'user_id' => $secondCustomer->id,
             'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 30.00,
             'gst_amount' => 0.00,
         ]);
@@ -135,6 +136,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $payment = Payment::factory()->create([
             'user_id' => $customer->id,
             'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 80.00,
             'gst_amount' => 0.00,
         ]);

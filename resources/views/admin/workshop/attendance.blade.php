@@ -633,30 +633,32 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
-                <form method="GET" action="{{ route('admin.workshop.attendance', $workshop) }}" class="mb-4 w-full lg:max-w-2xl">
-                    <x-ui.checkbox
-                        name="show_cancelled"
-                        value="1"
-                        label="Show cancelled tickets"
-                        :checked="$showCancelledTickets"
-                        :noWrapper="true"
-                        :inline="true"
-                        labelClass="text-sm pt-0"
-                        onchange="this.form.submit()"
-                    />
-                    <div class="mt-2 flex relative">
-                        <input
-                            class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
-                            autocomplete="off"
-                            placeholder="Find Ticket or Person"
-                            type="text"
-                            name="search"
-                            value="{{ $ticketSearch }}"
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
+                    <form method="GET" action="{{ route('admin.workshop.attendance', $workshop) }}" class="mb-4 w-full lg:max-w-2xl">
+                        <x-ui.checkbox
+                            name="show_cancelled"
+                            value="1"
+                            label="Show cancelled tickets"
+                            :checked="$showCancelledTickets"
+                            :noWrapper="true"
+                            :inline="true"
+                            labelClass="text-sm pt-0"
+                            onchange="this.form.submit()"
                         />
-                        <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
-                    </div>
-                </form>
+                        <div class="mt-2 flex relative">
+                            <input
+                                class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
+                                autocomplete="off"
+                                placeholder="Find Ticket or Person"
+                                type="text"
+                                name="search"
+                                value="{{ $ticketSearch }}"
+                            />
+                            <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
+                        </div>
+                    </form>
+                </div>
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>
                 @else
@@ -799,7 +801,7 @@
                                             </td>
                                             <td>{{ $ticket->customer_status_label }}</td>
                                             @if($loop->first)
-                                                <td rowspan="{{ $groupRowspan }}" class="align-top">
+                                                <td rowspan="{{ $groupRowspan }}">
                                                     @if($groupFirstTicket->invoice)
                                                         <a href="{{ route('admin.invoice.edit', $groupFirstTicket->invoice) }}" class="text-primary-color hover:underline">{{ $groupInvoiceMeta['number'] ?? ($groupFirstTicket->invoice->invoice_number ?: '#'.$groupFirstTicket->invoice->id) }}</a>
                                                         @if($groupInvoiceMeta)
@@ -812,11 +814,11 @@
                                                         <span class="text-gray-500">No linked invoice</span>
                                                     @endif
                                                 </td>
-                                                <td rowspan="{{ $groupRowspan }}" class="align-top">
+                                                <td rowspan="{{ $groupRowspan }}" class="text-center">
                                                     @if($groupCanRecordPayment)
                                                         <x-ui.button type="button" color="outline" class="px-3! py-1.5! text-xs" x-on:click="openPaymentModalForInvoice({{ $groupInvoiceId }})">Record</x-ui.button>
                                                     @elseif($groupInvoiceMeta)
-                                                        <span class="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">Paid</span>
+                                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-800">Paid</span>
                                                     @else
                                                         <span class="text-gray-400">-</span>
                                                     @endif

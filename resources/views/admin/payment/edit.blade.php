@@ -282,7 +282,7 @@
             </div>
 
             <div
-                class="mb-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 flex flex-col gap-4 md:flex-row md:items-center justify-between shadow-sm"
+                class="mb-3 rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 flex flex-col gap-4 md:flex-row md:items-center justify-between shadow-sm"
                 x-show="selectedPaymentMethod === bankTransferMethod"
                 x-cloak
             >
@@ -304,19 +304,12 @@
                     </span>
                 </label>
 
+                @if(!isset($customerPayment) || !$customerPayment->cleared_at)
                 <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                    Invoice allocations will not apply until the transfer is marked as cleared.
+                    <span class="font-semibold">Pending clearance:</span> Invoice allocations will not apply until the transfer is marked as cleared.
                 </div>
+                @endif
             </div>
-
-            @if((string) old('payment_method', $customerPayment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER)
-                <div class="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Clearance Status</div>
-                    <div class="mt-1 text-sm font-semibold text-gray-900">
-                        {{ isset($customerPayment) && $customerPayment->cleared_at ? 'Cleared' : 'Pending clearance' }}
-                    </div>
-                </div>
-            @endif
 
             <x-ui.input label="Reference" name="reference" value="{{ old('reference', $customerPayment->reference ?? '') }}" :disabled="!$canEditLinkage" />
 
@@ -341,7 +334,7 @@
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead>
-                                    <tr class="border-b border-gray-200">
+                                    <tr class="border-b border-gray-300">
                                         <th class="text-left py-2 pr-3">Document</th>
                                         <th class="text-right py-2 pr-3">Amount</th>
                                         <th class="text-left py-2">Action</th>
@@ -405,7 +398,7 @@
                                     return '';
                                 }
 
-                                return [current.status_label, current.ticket_summary].filter((value) => String(value || '').trim() !== '').join(' · ');
+                                return [current.status_label, current.payment_state_label, current.ticket_summary].filter((value) => String(value || '').trim() !== '').join(' · ');
                             },
                             filteredInvoiceOptions() {
                                 const customerId = String(this.selectedCustomerId || '').trim();
@@ -469,7 +462,7 @@
                                 x-cloak
                                 class="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-lg border border-gray-300 bg-white shadow-xl"
                             >
-                                <div class="border-b border-gray-200 p-3 space-y-3">
+                                <div class="border-b border-gray-300 p-3 space-y-3">
                                     <div class="flex items-end gap-3">
                                         <div class="min-w-0 flex-1">
                                             <label class="block text-xs font-semibold uppercase tracking-wide text-gray-500">Search invoices</label>
@@ -659,7 +652,7 @@
                         </div>
 
                         <h3 class="text-sm mb-1">Refund Details</h3>
-                        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                        <div class="mb-4 rounded-lg border border-gray-300 bg-white p-4">
                             @if($refundHistory->isEmpty())
                                 <div class="text-sm text-gray-500">No refund records linked to this payment.</div>
                             @else
@@ -753,7 +746,7 @@
                     @else
                         <form method="POST"
                               action="{{ route('admin.payment.refund.manual', $customerPayment) }}"
-                              class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+                              class="rounded-lg border border-gray-300 bg-white p-4"
                               x-data="{ isSubmitting: false }"
                               x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();">
                             @csrf

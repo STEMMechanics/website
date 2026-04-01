@@ -7,6 +7,7 @@ use App\Traits\HasFiles;
 use App\Traits\Slug;
 use App\Models\ClassSession;
 use App\Models\ForumCategory;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -167,6 +168,24 @@ class Workshop extends Model
 
     public function getTicketTimeRangeLabel(): string
     {
+        if ($this->usesClassroomRegistration()) {
+            if ($this->effectiveScheduleEntries() === []) {
+                return 'Anytime';
+            }
+
+            $start = $this->effectiveStartsAt();
+            $end = $this->effectiveEndsAt();
+
+            if (! $start || ! $end) {
+                return 'Anytime';
+            }
+
+            return Helpers::createTicketTimeDurationStr(
+                $start->toDateTimeString(),
+                $end->toDateTimeString()
+            );
+        }
+
         if (! $this->starts_at || ! $this->ends_at) {
             return $this->starts_at?->format('M j, Y g:i a') ?? '-';
         }
@@ -198,6 +217,155 @@ class Workshop extends Model
     /**
      * @return array<int, array{starts_at: ?string, ends_at: ?string, label: string}>
      */
+    public function effectiveScheduleEntries(): array
+    {
+        return $this->usesClassroomRegistration()
+            ? $this->classroomSchedule()
+            : [];
+    }
+
+    public function effectiveStartsAt(): ?CarbonInterface
+    {
+        $entries = $this->effectiveScheduleEntries();
+        if ($entries !== []) {
+            $firstStartsAt = trim((string) ($entries[0]['starts_at'] ?? ''));
+            if ($firstStartsAt !== '') {
+                try {
+                    return Carbon::parse($firstStartsAt);
+                } catch (\Throwable) {
+                    return null;
+                }
+            }
+        }
+
+        return $this->starts_at;
+    }
+
+    public function effectiveEndsAt(): ?CarbonInterface
+    {
+        $entries = $this->effectiveScheduleEntries();
+        if ($entries !== []) {
+            $lastEntry = $entries[array_key_last($entries)] ?? [];
+            $lastEndsAt = trim((string) ($lastEntry['ends_at'] ?? ''));
+            if ($lastEndsAt !== '') {
+                try {
+                    return Carbon::parse($lastEndsAt);
+                } catch (\Throwable) {
+                    return null;
+                }
+            }
+
+            $lastStartsAt = trim((string) ($lastEntry['starts_at'] ?? ''));
+            if ($lastStartsAt !== '') {
+                try {
+                    return Carbon::parse($lastStartsAt);
+                } catch (\Throwable) {
+                    return null;
+                }
+            }
+        }
+
+        return $this->ends_at;
+    }
+
+    public function courseScheduleFirstStartLabel(): string
+    {
+        if ($this->usesClassroomRegistration() && $this->effectiveScheduleEntries() === []) {
+            return 'Anytime';
+        }
+
+        $start = $this->effectiveStartsAt();
+        if (! $start) {
+            return 'Anytime';
+        }
+
+        return $start->format('j/m/Y @ g:i a');
+    }
+
+    public function courseScheduleCadenceLabel(): ?string
+    {
+        $entries = $this->effectiveScheduleEntries();
+        $starts = collect($entries)
+            ->pluck('starts_at')
+            ->filter()
+            ->values();
+
+        if ($starts->count() < 2) {
+            return null;
+        }
+
+        try {
+            $first = Carbon::parse((string) $starts[0]);
+            $second = Carbon::parse((string) $starts[1]);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $days = abs($first->diffInDays($second));
+        if ($days >= 6 && $days <= 8) {
+            return 'weekly';
+        }
+
+        if ($days >= 13 && $days <= 15) {
+            return 'fortnightly';
+        }
+
+        if ($days >= 27 && $days <= 32) {
+            return 'monthly';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function courseScheduleDisplayLines(): array
+    {
+        $entries = $this->effectiveScheduleEntries();
+        if ($entries === []) {
+            return ['Anytime'];
+        }
+
+        return collect($entries)
+            ->map(function (array $entry): string {
+                $startsAt = trim((string) ($entry['starts_at'] ?? ''));
+                $endsAt = trim((string) ($entry['ends_at'] ?? ''));
+                $label = trim((string) $entry['label']);
+
+                if ($startsAt === '') {
+                    return $label !== '' ? $label : 'Anytime';
+                }
+
+                try {
+                    $start = Carbon::parse($startsAt);
+                } catch (\Throwable) {
+                    return $label !== '' ? $label : $startsAt;
+                }
+
+                $line = $start->format('D j M Y g:ia');
+                if ($endsAt !== '') {
+                    try {
+                        $end = Carbon::parse($endsAt);
+                        $line .= ' - '.$end->format('g:ia');
+                    } catch (\Throwable) {
+                        // Ignore malformed end dates and keep the start time.
+                    }
+                }
+
+                if ($label !== '') {
+                    $line .= ' - '.$label;
+                }
+
+                return $line;
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{starts_at: ?string, ends_at: ?string, label: string}>
+     */
     public function classroomSchedule(): array
     {
         if ($this->relationLoaded('classSession') && $this->classSession instanceof ClassSession) {
@@ -205,12 +373,32 @@ class Workshop extends Model
             if ($schedule !== []) {
                 return $schedule;
             }
+
+            $classSessionStartsAt = trim((string) ($this->classSession->starts_at?->toDateTimeString() ?? ''));
+            $classSessionEndsAt = trim((string) ($this->classSession->ends_at?->toDateTimeString() ?? ''));
+            if ($classSessionStartsAt !== '' || $classSessionEndsAt !== '') {
+                return [[
+                    'starts_at' => $classSessionStartsAt !== '' ? Carbon::parse($classSessionStartsAt)->format('Y-m-d\TH:i') : null,
+                    'ends_at' => $classSessionEndsAt !== '' ? Carbon::parse($classSessionEndsAt)->format('Y-m-d\TH:i') : null,
+                    'label' => '',
+                ]];
+            }
         }
 
         if ($this->classSession instanceof ClassSession) {
             $schedule = $this->classSession->broadcastSchedule();
             if ($schedule !== []) {
                 return $schedule;
+            }
+
+            $classSessionStartsAt = trim((string) ($this->classSession->starts_at?->toDateTimeString() ?? ''));
+            $classSessionEndsAt = trim((string) ($this->classSession->ends_at?->toDateTimeString() ?? ''));
+            if ($classSessionStartsAt !== '' || $classSessionEndsAt !== '') {
+                return [[
+                    'starts_at' => $classSessionStartsAt !== '' ? Carbon::parse($classSessionStartsAt)->format('Y-m-d\TH:i') : null,
+                    'ends_at' => $classSessionEndsAt !== '' ? Carbon::parse($classSessionEndsAt)->format('Y-m-d\TH:i') : null,
+                    'label' => '',
+                ]];
             }
         }
 

@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -311,6 +312,8 @@ class ClassroomController extends Controller
             }
         }
 
+        $this->validateBroadcastScheduleWithinCourseWindow($validated);
+
         return [
             'title' => trim((string) $validated['title']),
             'slug' => trim((string) ($validated['slug'] ?? '')),
@@ -352,6 +355,57 @@ class ClassroomController extends Controller
                 ? json_decode((string) $validated['broadcast_sessions_json'], true, 512, JSON_THROW_ON_ERROR)
                 : [],
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function validateBroadcastScheduleWithinCourseWindow(array $validated): void
+    {
+        $courseStartsAt = trim((string) ($validated['starts_at'] ?? ''));
+        $courseEndsAt = trim((string) ($validated['ends_at'] ?? ''));
+        if ($courseStartsAt === '' && $courseEndsAt === '') {
+            return;
+        }
+
+        $scheduleJson = trim((string) ($validated['broadcast_sessions_json'] ?? ''));
+        if ($scheduleJson === '') {
+            return;
+        }
+
+        $schedule = json_decode($scheduleJson, true, 512, JSON_THROW_ON_ERROR);
+        if (! is_array($schedule)) {
+            return;
+        }
+
+        $windowStartsAt = $courseStartsAt !== '' ? Carbon::parse($courseStartsAt) : null;
+        $windowEndsAt = $courseEndsAt !== '' ? Carbon::parse($courseEndsAt) : null;
+
+        foreach ($schedule as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+
+            foreach (['starts_at', 'ends_at'] as $field) {
+                $value = trim((string) data_get($entry, $field, ''));
+                if ($value === '') {
+                    continue;
+                }
+
+                $entryDateTime = Carbon::parse($value);
+                if ($windowStartsAt instanceof Carbon && $entryDateTime->lt($windowStartsAt)) {
+                    throw ValidationException::withMessages([
+                        'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
+                    ]);
+                }
+
+                if ($windowEndsAt instanceof Carbon && $entryDateTime->gt($windowEndsAt)) {
+                    throw ValidationException::withMessages([
+                        'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
+                    ]);
+                }
+            }
+        }
     }
 
     /**

@@ -6,14 +6,14 @@
 @endphp
 
     <x-layout>
-    <x-mast description="You can find all the courses you are enrolled in on this page.">Courses</x-mast>
+    <x-mast description="You can find all the courses you are enroled in on this page.">Courses</x-mast>
 
     <x-container inner-class="max-w-6xl" class="py-8">
         <section class="rounded-3xl border border-slate-200 bg-white px-6 pb-6 shadow-sm sm:px-8 sm:pb-8 w-full">
             @if(!$hasClassrooms)
                 <h2 class="text-lg font-semibold text-gray-900 mt-8">No courses yet</h2>
                 <p class="mt-2 text-sm leading-6 text-gray-600">
-                    If you have enrolled in a course or workshop group, it will show up here.
+                    If you have enroled in a course or workshop group, it will show up here.
                 </p>
             @else
                 @if($currentSessions->isNotEmpty())

@@ -916,6 +916,7 @@ class WorkshopTicketFlowController extends Controller
         $totalAmount = round($ticketPriceAmount * $quantity, 2);
 
         $invoice = new Invoice();
+        $effectiveStartsAt = $workshop->effectiveStartsAt();
         $invoice->invoice_number = $this->documentNumbers->nextInvoiceNumber();
         $invoice->user_id = $purchaserUserId ?: $this->checkoutAccountUserId();
         $invoice->billing_name = trim((string) (($purchaser['firstname'] ?? '').' '.($purchaser['surname'] ?? '')));
@@ -923,8 +924,8 @@ class WorkshopTicketFlowController extends Controller
         $invoice->billing_phone = trim((string) ($purchaser['phone'] ?? ''));
         $invoice->status = 'draft';
         $invoice->issue_date = Carbon::today();
-        $invoice->due_date = $workshop->starts_at
-            ? Carbon::parse($workshop->starts_at)->startOfDay()
+        $invoice->due_date = $effectiveStartsAt
+            ? Carbon::instance($effectiveStartsAt)->startOfDay()
             : Carbon::today();
         $invoice->subtotal_amount = 0;
         $invoice->gst_amount = 0;
@@ -953,7 +954,7 @@ class WorkshopTicketFlowController extends Controller
             $line->kind = 'ticket';
             $line->description = $workshop->title.' - Ticket '.$ticketReference;
             $line->notes = trim(implode("\n", [
-                'Workshop date/time: '.($workshop->starts_at?->format('M j, Y g:i a') ?? '-'),
+                'Workshop date/time: '.$workshop->getTicketTimeRangeLabel(),
                 'Workshop location: '.((string) ($workshop->getLocationName())),
             ]));
             $line->details_json = [

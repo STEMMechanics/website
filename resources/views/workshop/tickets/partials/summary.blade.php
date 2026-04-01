@@ -5,7 +5,7 @@
     </tr>
     <tr>
         <th class="text-left pr-4">Date</th>
-        <td>{!! implode(', ', \App\Helpers::createTimeDurationStr($workshop->starts_at, $workshop->ends_at)) !!}</td>
+        <td>{{ $workshop->getTicketTimeRangeLabel() }}</td>
     </tr>
     @if(!empty($workshop->hosted_for))
     <tr>

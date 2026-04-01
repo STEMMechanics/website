@@ -239,6 +239,7 @@ class ShopDownloadAccessTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 10.00,
             'gst_amount' => 0.91,
         ]);

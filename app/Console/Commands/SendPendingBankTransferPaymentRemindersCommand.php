@@ -55,7 +55,7 @@ class SendPendingBankTransferPaymentRemindersCommand extends Command
             return [
                 'id' => (int) $payment->id,
                 'customer_name' => $payment->user?->getName() ?: 'Unknown customer',
-                'customer_email' => (string) ($payment->user?->email ?? '-'),
+                'customer_email' => (string) (($payment->user?->email) ?: '-'),
                 'received_on' => $payment->received_on?->format('j M Y g:i a') ?? '-',
                 'age_label' => $payment->received_on instanceof Carbon
                     ? $payment->received_on->diffForHumans()

@@ -327,9 +327,9 @@ function pickTeacherParticipant(participants) {
 function pickPresenterParticipant(participants, teacherUserId) {
     const teacherId = String(teacherUserId || '');
     if (teacherId !== '') {
-        const enrolledTeacher = pickParticipantByUserId(participants, teacherId);
-        if (enrolledTeacher) {
-            return enrolledTeacher;
+        const EnroledTeacher = pickParticipantByUserId(participants, teacherId);
+        if (EnroledTeacher) {
+            return EnroledTeacher;
         }
     }
 

@@ -84,6 +84,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 45.00,
             'gst_amount' => 4.09,
         ]);
@@ -179,6 +180,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 65.00,
             'gst_amount' => 5.91,
         ]);
@@ -409,6 +411,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'received_on' => now()->subDay(),
             'total_amount' => 84.00,
             'gst_amount' => 7.64,
@@ -459,6 +462,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'received_on' => now()->subDay(),
             'total_amount' => 84.00,
             'gst_amount' => 7.64,
@@ -523,6 +527,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 84.00,
             'gst_amount' => 7.64,
         ]);
@@ -548,6 +553,7 @@ class ShopOrderPortalTest extends TestCase
             'kind' => Payment::KIND_REFUND,
             'refund_of_payment_id' => $payment->id,
             'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 12.00,
             'gst_amount' => 0,
         ]);
@@ -609,6 +615,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 84.00,
             'gst_amount' => 7.64,
         ]);
@@ -634,6 +641,7 @@ class ShopOrderPortalTest extends TestCase
             'kind' => Payment::KIND_REFUND,
             'refund_of_payment_id' => $payment->id,
             'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'total_amount' => 12.00,
             'gst_amount' => 0,
         ]);
@@ -761,6 +769,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'received_on' => now()->subDay(),
             'total_amount' => 84.00,
             'gst_amount' => 7.64,
@@ -806,6 +815,7 @@ class ShopOrderPortalTest extends TestCase
         ]);
 
         $payment = Payment::factory()->create([
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
             'received_on' => now()->subDay(),
             'total_amount' => 84.00,
             'gst_amount' => 7.64,

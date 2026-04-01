@@ -9,6 +9,8 @@
         ? $workshop->hosted_for
         : ($workshop->is_private ? 'Private Location' : $workshop->getLocationName());
     $locationIcon = $showHostedFor ? 'fa-solid fa-building' : 'fa-solid fa-location-dot';
+    $cardStartLabel = $workshop->courseScheduleFirstStartLabel();
+    $cardCadenceLabel = $workshop->courseScheduleCadenceLabel();
 
     if($workshop->status === 'scheduled') {
         $statusClass = 'soon';
@@ -18,23 +20,27 @@
 
 <a href="{{ route('workshop.show', $workshop) }}" class="relative overflow-hidden p-0.5 hover:scale-[101%] transition-all">
     <div class="flex flex-col bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-all {{ $attributes->get('class') }}">
-        <div class="shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white">
-            <div class="text-gray-600 font-bold leading-none">{{ $workshop->starts_at->format('j') }}</div>
-            <div class="text-gray-600 text-xs uppercase">{{ $workshop->starts_at->format('M') }}</div>
+        <div class="shadow border border-gray-200 rounded px-3 py-2 absolute top-2 left-2 flex flex-col justify-center items-center bg-white {{ $cardStartLabel === 'Anytime' ? 'w-auto min-w-20' : 'w-14' }}">
+            @if($cardStartLabel === 'Anytime')
+                <div class="text-gray-600 text-sm font-bold leading-none whitespace-nowrap">Anytime</div>
+            @else
+                <div class="text-gray-600 font-bold leading-none">{{ $workshop->effectiveStartsAt()?->format('j') ?? $workshop->starts_at?->format('j') }}</div>
+                <div class="text-gray-600 text-xs uppercase">{{ $workshop->effectiveStartsAt()?->format('M') ?? $workshop->starts_at?->format('M') }}</div>
+            @endif
         </div>
         <div class="shadow-lg border border-white/50 absolute flex items-center justify-center top-5 -right-9 bg-gray-500 w-36 text-sm text-white font-bold uppercase py-1 rotate-45 h-8 sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
         <img src="{{ $workshop->hero?->url }}?md" alt="{{ $workshop->title }}" class="w-full h-64 object-cover object-center">
-        <div class="flex-grow p-4 flex flex-col">
-            <h2 class="flex-grow {{ strlen($workshop->title) > 25 ? 'text-lg' : 'text-xl' }} font-bold mb-2 whitespace-nowrap overflow-hidden text-ellipsis">{{ $workshop->title }}</h2>
+        <div class="grow p-4 flex flex-col">
+            <h2 class="grow {{ strlen($workshop->title) > 25 ? 'text-lg' : 'text-xl' }} font-bold mb-2 whitespace-nowrap overflow-hidden text-ellipsis">{{ $workshop->title }}</h2>
             <div class="text-gray-600 text-sm mb-1 flex gap-2">
                 <div class="w-6 flex items-center justify-center">
                     <i class="fa-regular fa-calendar"></i>
-                </div>{{ $workshop->starts_at->format('j/m/Y @ g:i a') }}
+                </div>{{ $cardStartLabel }}
             </div>
             <div class="text-gray-600 text-sm mb-1 flex gap-2">
                 <div class="w-6 flex items-center justify-center">
                     <i class="{{ $locationIcon }}"></i>
-                </div>{{ $locationLabel }}
+                </div>{{ $locationLabel }}@if($cardCadenceLabel) - {{ $cardCadenceLabel }}@endif
             </div>
             @if($workshop->ages)
                 <div class="text-gray-600 text-sm mb-1 flex gap-2">

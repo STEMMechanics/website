@@ -85,7 +85,6 @@
                             name="hero_media_name"
                             :value="$heroMediaValue"
                             allow_uploads="true"
-                            info="Shown on course listings only, not inside the course."
                         />
                     </div>
                     <div class="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4" x-data="classroomScheduleEditor(@js($broadcastSchedule))" x-init="init()">
@@ -140,7 +139,6 @@
                 <div class="mt-4">
                     <x-ui.editor
                         name="instructions_html"
-                        label="Course notes"
                         :value="$instructionsHtml"
                     />
                 </div>
@@ -241,7 +239,7 @@
                         <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                             <div class="font-semibold">Deleting this course will remove student access.</div>
                             <div class="mt-1">
-                                {{ $studentEnrolmentCount }} enrolled student{{ $studentEnrolmentCount === 1 ? '' : 's' }} will lose access if you delete this course.
+                                {{ $studentEnrolmentCount }} Enroled student{{ $studentEnrolmentCount === 1 ? '' : 's' }} will lose access if you delete this course.
                             </div>
                             @if($paidStudentEnrolmentCount > 0)
                                 <div class="mt-1">
