@@ -12,18 +12,48 @@
             <p class="absolute bottom-3 right-5 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded">Steady Hand Game in Ravenshoe</p>
         </x-container>
     </section>
-    <section id="events" class="py-12">
+    <section id="events" class="py-16 bg-[linear-gradient(to_bottom,var(--color-gray-50)_0%,var(--color-gray-50)_95%,var(--color-rose-50)_100%)]">
         <x-container>
-            <h2 class="text-2xl font-bold mb-6">Upcoming workshops</h2>
+            <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <h2 class="text-2xl font-bold">Upcoming workshops</h2>
+                <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start">View all workshops</x-ui.button>
+            </div>
             @if($workshops->isEmpty())
                 <x-on-holiday />
             @else
-                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 w-full">
+                <div class="grid w-full gap-8 md:grid-cols-2 lg:grid-cols-3">
                     @foreach($workshops as $index => $workshop)
                         <x-panel-workshop :workshop="$workshop" class="{{ $index === 3 ? 'lg:hidden' : '' }}" />
                     @endforeach
                 </div>
             @endif
+        </x-container>
+    </section>
+    <section id="audiences">
+        <x-container class="py-16 px-12 bg-[linear-gradient(to_bottom,var(--color-rose-50)_0%,var(--color-rose-50)_95%,var(--color-emerald-50)_100%)]">
+            <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
+                <div class="overflow-hidden sm:min-h-80 lg:order-2 lg:min-h-80 rounded-lg">
+                    <img
+                        src="{{ asset('home-schools.webp') }}"
+                        alt="A workshop scene for schools and groups"
+                        class="h-48 w-full object-cover object-center sm:h-64 lg:h-full"
+                        loading="lazy"
+                    >
+                </div>
+
+                <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-rose-500">Workshops for groups</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">We run workshops for schools, organisations, and community groups.</h2>
+                    <div class="flex-1">
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Whether you are planning something for a school, an organisation, an OSHC program, or another group setting, we can tailor a workshop to suit the audience, the venue, and the learning goals you want to achieve.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Tell us what you are looking for and we can shape the session around your group, from hands-on creative tech to STEM activities that are practical, engaging, and easy to run.</p>
+                    </div>
+
+                    <div class="mt-8">
+                        <x-ui.button href="{{ route('contact') }}" class="font-normal">Enquire about a workshop</x-ui.button>
+                    </div>
+                </div>
+            </div>
         </x-container>
     </section>
 {{--    <section id="news" class="py-12">--}}
@@ -41,61 +71,77 @@
 {{--        </x-container>--}}
 {{--    </section>--}}
     <section id="skills">
-        <x-container class="bg-gray-200 py-32" inner-class="flex flex-row gap-16">
-            <div class="flex-1 min-h-72 hidden md:block">
-                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url({{asset('home-green-screen.webp')}})"></div>
-            </div>
-            <div class="flex flex-col flex-1 text-center">
-                <h2 class="text-3xl mb-4 text-center md:text-left">Build skills while having a great time</h2>
-                <div class="flex">
-                    <div class="self-center">
-                        <p class="mb-6 text-left">Each workshop blends practical problem-solving, creativity and fosters teamwork so learners can build confidence while creating something they are proud of.</p>
-                        <div class="flex grow justify-center items-center">
-                            <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
-                        </div>
+        <x-container class="py-16 px-12 bg-emerald-50">
+            <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
+                <div class="overflow-hidden order-0 sm:min-h-80 lg:min-h-80 rounded-lg">
+                    <img
+                            src="{{ asset('home-green-screen.webp') }}"
+                            alt="Children building and learning together in a workshop"
+                            class="h-48 w-full object-cover object-center sm:h-64 lg:h-full"
+                            loading="lazy"
+                    >
+                </div>
+
+                <div class="order-1 px-6 sm:px-8 lg:px-12 flex flex-col">
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-500">Skill development</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Build skills while having a great time.</h2>
+                    <div class="flex-1">
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Each workshop blends coding, robotics, creative making, and practical problem-solving so learners can build confidence while creating something they are proud of. Activities are set up to be approachable first, then stretched with just enough challenge to keep everyone engaged.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">We keep the pace friendly and hands-on, with room for curiosity, teamwork, and the kind of experimentation that helps ideas stick. That usually means plenty of trying, tweaking, and celebrating the small wins along the way.</p>
                     </div>
-                    <div class="ml-8 hidden sm:block md:hidden">
-                        <div class="h-48 w-48 bg-no-repeat bg-center bg-cover rounded-full" style="background-image:url({{asset('home-green-screen.webp')}})"></div>
+
+                    <div class="mt-8">
+                        <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
                     </div>
                 </div>
             </div>
         </x-container>
     </section>
-    <section id="minecraft" class="bg-center bg-no-repeat bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
-        <x-container class="text-white py-32">
-            <h2 class="text-3xl mb-4">Play on STEMCraft</h2>
-            <p class="mb-4">STEMCraft is our Minecraft space for collaborative builds, weekly challenges, and family-friendly play. Start with the <a href="{{ route('stemcraft.join') }}" class="link">join guide</a>, read the <a href="{{ route('stemcraft.rules') }}" class="link">rules</a>, or browse the <a href="{{ route('stemcraft.punishments') }}" class="link">public punishments log</a>.</p>
-            <div class="mb-4 flex gap-4">
-                <img src="{{  asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12" />
-                <p>We also run workshops on the server, both online and offline, where players experiment, build together, and learn playful mechanics beyond vanilla Minecraft.</p>
+    <section id="minecraft" class="relative overflow-hidden bg-no-repeat bg-center bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
+        <x-container class="relative py-32 px-12">
+            <p class="text-sm font-semibold uppercase tracking-[0.22em] text-amber-100">Minecraft</p>
+            <h2 class="my-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl flex items-center gap-2"><img src="{{ asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12 shrink-0" />Play on STEMCraft.</h2>
+            <div class="min-w-0">
+                <p class="max-w-none text-base leading-7 text-amber-50">STEMCraft is our Minecraft space for collaborative builds, weekly challenges, and family-friendly play. Start with the <a href="{{ route('stemcraft.join') }}" class="link text-amber-500! hover:text-white">join guide</a>, read the <a href="{{ route('stemcraft.rules') }}" class="link text-amber-500! hover:text-white">rules</a>, or browse the <a href="{{ route('stemcraft.punishments') }}" class="link text-amber-500! hover:text-white">public punishments log</a>.</p>
+                <p class="mt-4 max-w-none text-base leading-7 text-amber-50">We also run workshops on the server, both online and offline, where players experiment, build together, and learn playful mechanics beyond vanilla Minecraft.</p>
             </div>
-            <div class="flex flex-wrap gap-3 justify-center mb-4">
-                <x-ui.button href="{{ route('stemcraft.index') }}">STEMCraft Overview</x-ui.button>
-                <x-ui.button color="outline" href="{{ route('stemcraft.join') }}">How to Join</x-ui.button>
-                <x-ui.button color="outline" href="{{ route('stemcraft.rules') }}">Rules</x-ui.button>
-            </div>
-            <div class="flex justify-center">
-                <img src="{{ asset('home-minecraft-address.webp') }}" alt="play.stemcraft.com.au" class="h-12" />
+
+            <div class="flex flex-col items-center mt-3">
+                <div class="mt-6">
+                    <img src="{{ asset('home-minecraft-address.webp') }}" alt="play.stemcraft.com.au" class="h-12 brightness-110" />
+                </div>
+
+                <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
+                    <x-ui.button color="yellow" href="{{ route('stemcraft.index') }}">STEMCraft Overview</x-ui.button>
+                    <x-ui.button color="yellow-outline" href="{{ route('stemcraft.join') }}">How to Join</x-ui.button>
+                    <x-ui.button color="yellow-outline" href="{{ route('stemcraft.rules') }}">Server Rules</x-ui.button>
+                </div>
             </div>
         </x-container>
     </section>
     <section id="support">
-        <x-container class="bg-gray-200 py-32 -mb-12" inner-class="flex flex-row gap-16">
-            <div class="hidden sm:block flex-1">
-                <div class="h-full bg-no-repeat bg-center bg-cover rounded-lg" style="background-image:url({{ asset('home-discord.webp') }})"></div>
-            </div>
-            <div class="flex-1 text-center">
-                <h2 class="text-3xl mb-4 text-left">And the support doesn't stop!</h2>
-                <p class="mb-6 text-left">Though the workshop has come to a close, we remain available to assist you via email and Discord with any projects you undertake at home. We are always happy to help.</p>
-                <div class="flex gap-3 justify-center">
-                    <x-ui.button href="https://discord.gg/yNzk4x7mpD" class="font-normal">Join Discord</x-ui.button>
-                    <x-ui.button color="outline" href="{{ route('contact') }}" class="font-normal">Contact Us</x-ui.button>
+        <x-container class="py-16 px-12 bg-violet-50">
+            <div class="grid gap-y-6 lg:gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] mb-4">
+                <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-violet-500">Stay connected</p>
+                    <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">And the support doesn't stop!</h2>
+                    <div class="flex-1">
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Though the workshop has come to a close, we remain available to assist you via email and Discord with any projects you undertake at home. We are always happy to help.</p>
+                        <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">If you get stuck, contact us and we’ll help you work through it.</p>
+                    </div>
+
+                    <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
+                        <x-ui.button color="purple" href="https://discord.gg/yNzk4x7mpD" class="font-normal">Join Discord</x-ui.button>
+                        <x-ui.button color="purple-outline" href="{{ route('forum.index') }}" class="font-normal">View Discussions</x-ui.button>
+                    </div>
                 </div>
+
+                <div class="order-1 min-h-48 overflow-hidden rounded-lg bg-no-repeat bg-center bg-cover sm:min-h-80 lg:order-2" style="background-image:url({{ asset('home-discord.webp') }})"></div>
             </div>
         </x-container>
     </section>
     <section id="subscribe">
-        <x-container class="bg-primary-color-dark py-24 -mb-12" inner-class="flex justify-center">
+        <x-container class="py-16 -mb-12 bg-sky-700" inner-class="flex justify-center">
             <div class="max-w-[52rem]">
                 <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
                 <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>

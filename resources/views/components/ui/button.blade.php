@@ -11,12 +11,15 @@
         'primary-outline' => "hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
         'primary-outline-sm' => "!font-normal !text-xs !px-4 !py-1 hover:bg-primary-color-dark focus-visible:outline-primary-color text-primary-color border border-primary-color bg-white hover:text-white {$disabledClasses}",
         'secondary' => "hover:bg-gray-200 focus-visible:outline-gray-300 border border-gray-300 bg-gray-100 text-gray-800 {$disabledClasses}",
+        'purple' => "hover:bg-violet-700 focus-visible:outline-violet-600 bg-violet-600 text-white {$disabledClasses}",
+        'purple-outline' => "hover:bg-violet-700 focus-visible:outline-violet-600 text-violet-700 border border-violet-300 bg-white hover:text-white {$disabledClasses}",
         'danger' => "hover:bg-danger-color-dark focus-visible:outline-danger-color bg-danger-color text-white {$disabledClasses}",
         'danger-outline' => "hover:bg-danger-color-dark focus-visible:outline-danger-color text-danger-color border border-danger-color bg-white hover:text-white {$disabledClasses}",
         'success' => "hover:bg-success-color-dark focus-visible:outline-success-color bg-success-color text-white {$disabledClasses}",
         'dark' => "hover:bg-gray-900 focus-visible:outline-gray-800 bg-gray-800 text-white {$disabledClasses}",
         'orange' => "hover:bg-orange-800 focus-visible:outline-orange-600 bg-orange-600 text-white {$disabledClasses}",
         'yellow' => "hover:bg-yellow-800 focus-visible:outline-yellow-600 bg-yellow-600 text-white {$disabledClasses}",
+        'yellow-outline' => "hover:bg-yellow-800 focus-visible:outline-yellow-600 text-yellow-700 border border-yellow-300 bg-white hover:text-white {$disabledClasses}",
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
     $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));
