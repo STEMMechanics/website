@@ -14,7 +14,7 @@ class ClassroomRoleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_admin_accounts_join_classrooms_as_students_not_teachers(): void
+    public function test_admin_accounts_join_classrooms_as_teachers(): void
     {
         $admin = User::factory()->create([
             'username' => 'admin.user',
@@ -35,7 +35,7 @@ class ClassroomRoleTest extends TestCase
 
         $state = app(ClassroomStateService::class)->stateFor($admin, $classSession);
 
-        $this->assertSame('student', $state['viewer']['role']);
+        $this->assertSame('teacher', $state['viewer']['role']);
         $this->assertTrue($state['viewer']['canManage']);
         $this->assertFalse($state['viewer']['canRequestHelp']);
         $this->assertTrue($state['viewer']['canRequestBroadcast']);
@@ -60,14 +60,14 @@ class ClassroomRoleTest extends TestCase
 
         UserGroup::query()->create([
             'user_id' => (string) $student->id,
-            'slug' => 'admin',
+            'slug' => 'classroom-check',
         ]);
 
         $classSession = ClassSession::query()->create([
             'title' => 'Admin Classroom Check',
             'slug' => 'admin-classroom-check',
             'room_name' => 'admin-classroom-check',
-            'access_group_slug' => 'admin',
+            'access_group_slug' => 'classroom-check',
             'summary' => 'Role behaviour test',
         ]);
 

@@ -5,16 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
     server: {
-        host: '0.0.0.0',
+        host: 'localhost',
         port: 5173,
         strictPort: true,
-        hmr: {
-            protocol: 'wss',
-            host: 'test.stemmechanics.com.au',
-            clientPort: 443,
-            // port: 443
-            path: '/vite-hmr'
-        },
     },
     plugins: [
         laravel({

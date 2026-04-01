@@ -292,7 +292,7 @@ function getClassroomIdleState(schedule) {
         if (diffMs > 24 * 60 * 60 * 1000) {
             return {
                 mode: 'compact',
-                summary: `The next live stream begins at ${formatClassroomTimeLabel(relevantSession.startsAt, {includeYear: true})}`,
+                summary: `The next live stream begins on ${formatClassroomTimeLabel(relevantSession.startsAt, {includeYear: true})}`,
                 icon: 'fa-solid fa-calendar-clock',
             };
         }
@@ -1472,7 +1472,9 @@ function ClassroomRoomContent({
             state: nextState,
         })), {reliable: true});
     };
-    const teacherUserId = asArray(state.enrolments).find((enrolment) => enrolment?.isTeacher)?.userId || '';
+    const teacherUserId = asArray(state.enrolments).find((enrolment) => enrolment?.isTeacher)?.userId
+        || (state.viewer?.role === 'teacher' ? state.viewer?.id : '')
+        || '';
     const activeRequest = state.helpRequests?.active || null;
     const recentRequest = state.helpRequests?.recent || null;
     const myRequest = state.helpRequests?.mine
@@ -1521,8 +1523,6 @@ function ClassroomRoomContent({
     const canStartBroadcast = Boolean(
         state.viewer?.canManage
         && !isBroadcastOpen
-        && !broadcastRecentlyEnded
-        && (presenterIdleState.mode === 'expanded' || presenterIdleState.allowDynamicSession)
     );
     const startBroadcastButtonLabel = 'Start Livestream';
     const lastPresenterEndedStorageKey = state?.classSession?.id ? `classroom:last-stream-ended-at:${state.classSession.id}` : '';
@@ -2264,7 +2264,7 @@ function ClassroomRoomContent({
                         </div>
                     </section>
                 ) : (
-                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg transition-all duration-300 ease-out ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-3 py-3 lg:float-right lg:mr-2 lg:mt-2 lg:w-[34rem]'}`}>
+                    <section className={`w-full border border-slate-800 bg-slate-950 text-slate-100 shadow-lg transition-all duration-300 ease-out ${presenterShellExpanded ? 'rounded-lg px-6 py-10 min-h-[36rem]' : 'rounded-lg px-3 py-3 lg:float-right lg:mr-2 lg:mt-2 lg:w-[38rem] xl:w-[42rem]'}`}>
                         <div className={`flex w-full items-center justify-center ${presenterShellExpanded ? 'min-h-[36rem]' : ''}`}>
                             <div className={`flex w-full flex-col items-center justify-center ${presenterShellExpanded ? 'max-w-4xl gap-3 text-center text-2xl font-semibold' : 'gap-4 text-sm font-medium sm:flex-row sm:items-center sm:justify-between sm:gap-6'}`}>
                                 <div className="flex items-center justify-center gap-3">
@@ -2489,5 +2489,16 @@ function ClassroomApp() {
 
 const rootElement = document.getElementById(ROOT_ID);
 if (rootElement instanceof HTMLElement) {
-    createRoot(rootElement).render(<ClassroomApp />);
+    const root = window.__smClassroomRoot || createRoot(rootElement);
+    window.__smClassroomRoot = root;
+    root.render(<ClassroomApp />);
+
+    if (import.meta.hot) {
+        import.meta.hot.dispose(() => {
+            root.unmount();
+            if (window.__smClassroomRoot === root) {
+                window.__smClassroomRoot = null;
+            }
+        });
+    }
 }

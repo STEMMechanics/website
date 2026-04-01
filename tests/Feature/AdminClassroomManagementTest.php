@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\ClassEnrolment;
 use App\Models\ClassSession;
+use App\Models\Media;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Workshop;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -25,6 +28,13 @@ class AdminClassroomManagementTest extends TestCase
             'username' => 'student.one',
             'email' => 'student.one@example.com',
         ]);
+        $heroMedia = Media::query()->create([
+            'name' => 'microbit-term-1-hero.png',
+            'title' => 'Microbit Term 1 Hero',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $admin->id,
+        ]);
         $sessionStart = Carbon::create(2026, 3, 29, 15, 44, 0);
         $sessionEnd = (clone $sessionStart)->addHours(2);
 
@@ -32,6 +42,7 @@ class AdminClassroomManagementTest extends TestCase
             'title' => 'Microbit Term 1',
             'slug' => '',
             'room_name' => '',
+            'hero_media_name' => $heroMedia->name,
             'summary' => 'Intro classroom',
             'instructions_html' => '<p>Welcome</p>',
             'live_chat_enabled' => 1,
@@ -56,6 +67,7 @@ class AdminClassroomManagementTest extends TestCase
         $this->assertMatchesRegularExpression('/^class-.+-term\d+-\d{4}$/', $classSession->slug);
         $this->assertSame($classSession->slug, $classSession->access_group_slug);
         $this->assertSame($classSession->slug, $classSession->room_name);
+        $this->assertSame($heroMedia->name, $classSession->hero_media_name);
         $this->assertTrue($classSession->live_chat_enabled);
         $this->assertSame($classSession->currentTermNumber(), $classSession->term_number);
         $this->assertCount(1, $classSession->broadcastSchedule());
@@ -89,8 +101,16 @@ class AdminClassroomManagementTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.course.edit', $classSession))
             ->assertOk()
-            ->assertSeeText('Edit Course')
-            ->assertSeeText('Current enrolments');
+            ->assertSeeText($classSession->title)
+            ->assertSeeText('Hero image')
+            ->assertSeeText('Course notes')
+            ->assertSeeText('Enrolments')
+            ->assertSeeText('Deleting this course will remove student access.')
+            ->assertSeeText('1 enrolled student will lose access if you delete this course.')
+            ->assertSeeText('The linked forum category will remain unless it is deleted separately.')
+            ->assertDontSeeText('Teacher identifiers')
+            ->assertDontSeeText('Access group')
+            ->assertDontSeeText('Room name');
 
         $duplicateResponse = $this->actingAs($admin)->get(route('admin.course.create', [
             'duplicate_from' => $classSession->id,
@@ -98,9 +118,12 @@ class AdminClassroomManagementTest extends TestCase
 
         $duplicateResponse
             ->assertOk()
-            ->assertSeeText($teacher->username)
-            ->assertSeeText($student->username)
-            ->assertSeeText('Duplicating from');
+            ->assertSeeText('Hero image')
+            ->assertSeeText('Course notes')
+            ->assertSeeText('Enrolments')
+            ->assertDontSeeText('Teacher identifiers')
+            ->assertDontSeeText('Access group')
+            ->assertDontSeeText('Room name');
 
         $originalSlug = $classSession->slug;
         $originalRoomName = $classSession->room_name;
@@ -108,10 +131,11 @@ class AdminClassroomManagementTest extends TestCase
         $this->actingAs($admin)
             ->put(route('admin.course.update', $classSession), [
                 'title' => 'Microbit Term 1 Updated',
-                'slug' => 'microbit-term-1-updated',
-                'room_name' => $classSession->room_name,
-                'forum_category_choice' => (string) $classSession->forum_category_id,
-                'forum_category_name' => 'Microbit Term 1 Forum Updated',
+            'slug' => 'microbit-term-1-updated',
+            'room_name' => $classSession->room_name,
+            'hero_media_name' => $heroMedia->name,
+            'forum_category_choice' => (string) $classSession->forum_category_id,
+            'forum_category_name' => 'Microbit Term 1 Forum Updated',
                 'summary' => 'Updated classroom',
                 'instructions_html' => '<p>Updated instructions</p>',
                 'live_chat_enabled' => 0,
@@ -125,6 +149,7 @@ class AdminClassroomManagementTest extends TestCase
         $this->assertSame('microbit-term-1-updated', $classSession->slug);
         $this->assertSame($classSession->slug, $classSession->access_group_slug);
         $this->assertSame($originalRoomName, $classSession->room_name);
+        $this->assertSame($heroMedia->name, $classSession->hero_media_name);
         $this->assertFalse($classSession->live_chat_enabled);
         $this->assertSame($classSession->currentTermNumber(), $classSession->term_number);
         $this->assertSame('Microbit Term 1 Forum', $classSession->forumCategory?->name);
@@ -177,6 +202,78 @@ class AdminClassroomManagementTest extends TestCase
         ]);
     }
 
+    public function test_admin_classroom_edit_page_marks_paid_students_and_admin_added_students(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshopOwner = User::factory()->create();
+        Media::query()->create([
+            'name' => 'workshop-linked-course-hero.png',
+            'title' => 'Workshop Linked Course Hero',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $workshopOwner->id,
+        ]);
+        $paidStudent = User::factory()->create([
+            'username' => 'paid.student',
+            'email' => 'paid.student@example.com',
+        ]);
+        $manualStudent = User::factory()->create([
+            'username' => 'manual.student',
+            'email' => 'manual.student@example.com',
+        ]);
+        $startsAt = Carbon::create(2026, 4, 1, 10, 0, 0);
+
+        $workshop = Workshop::query()->create([
+            'title' => 'Workshop-linked Course',
+            'content' => '<p>Course content</p>',
+            'starts_at' => $startsAt,
+            'ends_at' => $startsAt->copy()->addHours(2),
+            'publish_at' => now()->subDay(),
+            'closes_at' => now(),
+            'status' => 'open',
+            'price' => '25.00',
+            'registration' => 'classroom',
+            'user_id' => $workshopOwner->id,
+            'hero_media_name' => 'workshop-linked-course-hero.png',
+        ]);
+
+        Ticket::query()->create([
+            'status' => Ticket::STATUS_PAID,
+            'user_id' => $paidStudent->id,
+            'workshop_id' => $workshop->id,
+            'firstname' => 'Paid',
+            'surname' => 'Student',
+            'email' => $paidStudent->email,
+            'phone' => '',
+        ]);
+
+        $classSession = ClassSession::query()->create([
+            'title' => 'Workshop-linked Course',
+            'slug' => 'workshop-linked-course',
+            'room_name' => 'workshop-linked-course',
+            'hero_media_name' => 'workshop-linked-course-hero.png',
+            'workshop_id' => $workshop->id,
+            'created_by_user_id' => $admin->id,
+        ]);
+
+        $classSession->enrolments()->create([
+            'user_id' => $paidStudent->id,
+            'role' => ClassEnrolment::ROLE_STUDENT,
+        ]);
+        $classSession->enrolments()->create([
+            'user_id' => $manualStudent->id,
+            'role' => ClassEnrolment::ROLE_STUDENT,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.course.edit', $classSession))
+            ->assertOk()
+            ->assertSeeText('Paid via workshop purchase')
+            ->assertSeeText('Added by admin')
+            ->assertSeeText('2 enrolled students will lose access if you delete this course.')
+            ->assertSeeText('1 of those students paid through a workshop purchase.');
+    }
+
     public function test_non_admin_cannot_access_classroom_admin_pages(): void
     {
         $user = User::factory()->create();
@@ -205,6 +302,55 @@ class AdminClassroomManagementTest extends TestCase
             ->assertSeeText($classSession->title)
             ->assertSee(route('admin.course.edit', $classSession), false)
             ->assertSee(route('class.show', $classSession), false);
+    }
+
+    public function test_admin_classroom_index_shows_status_students_and_schedule(): void
+    {
+        $admin = $this->createAdminUser();
+        $now = Carbon::create(2026, 4, 1, 12, 0, 0);
+        Carbon::setTestNow($now);
+
+        try {
+            $pending = ClassSession::query()->create([
+                'title' => 'Pending classroom',
+                'slug' => 'pending-classroom',
+                'room_name' => 'pending-classroom-room',
+                'created_by_user_id' => $admin->id,
+                'starts_at' => $now->copy()->addDay(),
+                'ends_at' => $now->copy()->addDays(2),
+            ]);
+
+            $active = ClassSession::query()->create([
+                'title' => 'Active classroom',
+                'slug' => 'active-classroom',
+                'room_name' => 'active-classroom-room',
+                'created_by_user_id' => $admin->id,
+                'starts_at' => $now->copy()->subDay(),
+                'ends_at' => $now->copy()->addDay(),
+            ]);
+
+            $ended = ClassSession::query()->create([
+                'title' => 'Ended classroom',
+                'slug' => 'ended-classroom',
+                'room_name' => 'ended-classroom-room',
+                'created_by_user_id' => $admin->id,
+                'starts_at' => $now->copy()->subDays(3),
+                'ends_at' => $now->copy()->subDay(),
+            ]);
+
+            $this->actingAs($admin)
+                ->get(route('admin.course.index'))
+                ->assertOk()
+                ->assertSeeText('Status')
+                ->assertSeeText('Pending')
+                ->assertSeeText('Active')
+                ->assertSeeText('Ended')
+                ->assertSeeText($pending->starts_at?->format('j M Y g:i a').' - '.$pending->ends_at?->format('j M Y g:i a'))
+                ->assertSeeText($active->starts_at?->format('j M Y g:i a').' - '.$active->ends_at?->format('j M Y g:i a'))
+                ->assertSeeText($ended->starts_at?->format('j M Y g:i a').' - '.$ended->ends_at?->format('j M Y g:i a'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     private function createAdminUser(): User

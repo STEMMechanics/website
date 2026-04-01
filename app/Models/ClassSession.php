@@ -22,6 +22,7 @@ class ClassSession extends Model
         'term_number',
         'slug',
         'room_name',
+        'hero_media_name',
         'access_group_slug',
         'forum_category_id',
         'workshop_id',
@@ -104,6 +105,11 @@ class ClassSession extends Model
     public function forumCategory(): BelongsTo
     {
         return $this->belongsTo(ForumCategory::class, 'forum_category_id');
+    }
+
+    public function hero(): BelongsTo
+    {
+        return $this->belongsTo(Media::class, 'hero_media_name');
     }
 
     public function createdBy(): BelongsTo
@@ -193,6 +199,10 @@ class ClassSession extends Model
             return null;
         }
 
+        if ($user->isAdmin() || $user->hasGroup('minecraft-org')) {
+            return ClassEnrolment::ROLE_TEACHER;
+        }
+
         if ($this->enrolments()
             ->where('user_id', (string) $user->id)
             ->where('role', ClassEnrolment::ROLE_TEACHER)
@@ -212,11 +222,41 @@ class ClassSession extends Model
             return ClassEnrolment::ROLE_STUDENT;
         }
 
-        if ($user->isAdmin()) {
-            return ClassEnrolment::ROLE_STUDENT;
+        return null;
+    }
+
+    public function adminListStatus(): string
+    {
+        if ($this->ends_at !== null && $this->ends_at->isPast()) {
+            return 'ended';
         }
 
-        return null;
+        if ($this->starts_at !== null && $this->starts_at->isFuture()) {
+            return 'pending';
+        }
+
+        return 'active';
+    }
+
+    public function adminListStatusLabel(): string
+    {
+        return match ($this->adminListStatus()) {
+            'pending' => 'Pending',
+            'ended' => 'Ended',
+            default => 'Active',
+        };
+    }
+
+    public function adminListScheduleLabel(): string
+    {
+        $startsAt = $this->starts_at?->format('j M Y g:i a');
+        $endsAt = $this->ends_at?->format('j M Y g:i a');
+
+        if ($startsAt !== null && $endsAt !== null) {
+            return $startsAt.' - '.$endsAt;
+        }
+
+        return $startsAt ?? $endsAt ?? '-';
     }
 
     public function canJoin(?User $user): bool

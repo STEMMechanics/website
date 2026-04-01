@@ -8,6 +8,7 @@ use App\Models\ClassSession;
 use App\Models\ForumCategory;
 use App\Models\User;
 use App\Models\UserGroup;
+use App\Models\Ticket;
 use App\Services\Classroom\ClassroomAdminSyncService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -29,8 +30,9 @@ class ClassroomController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $query = ClassSession::query()
-            ->with(['createdBy', 'forumCategory'])
+            ->with(['createdBy', 'forumCategory', 'hero'])
             ->withCount([
+                'enrolments',
                 'enrolments as student_count' => fn (Builder $builder) => $builder->where('role', ClassEnrolment::ROLE_STUDENT),
             ]);
 
@@ -102,7 +104,7 @@ class ClassroomController extends Controller
 
     public function edit(ClassSession $classSession): View
     {
-        $classSession->loadMissing(['createdBy', 'forumCategory', 'duplicatedFrom', 'enrolments.user']);
+        $classSession->loadMissing(['createdBy', 'forumCategory', 'duplicatedFrom', 'enrolments.user', 'hero']);
 
         return view('admin.classroom.edit', $this->formViewData(
             classSession: $classSession
@@ -193,10 +195,11 @@ class ClassroomController extends Controller
     private function formViewData(?ClassSession $classSession, ?ClassSession $sourceClassSession = null): array
     {
         $session = $classSession ?? $this->defaultClassSessionFromSource($sourceClassSession);
-        $session?->loadMissing(['createdBy', 'forumCategory', 'duplicatedFrom', 'enrolments.user']);
+        $session?->loadMissing(['createdBy', 'forumCategory', 'duplicatedFrom', 'enrolments.user', 'workshop.tickets.user', 'hero']);
         $baseSession = $session instanceof ClassSession && $session->exists
             ? $session
             : $sourceClassSession;
+        $paidStudentUserIds = $this->paidStudentUserIds($baseSession);
 
         $forumCategoryName = old('forum_category_name');
         if ($forumCategoryName === null) {
@@ -212,11 +215,13 @@ class ClassroomController extends Controller
             'classSession' => $session,
             'sourceClassSession' => $sourceClassSession,
             'forumCategories' => ForumCategory::query()->orderBy('name')->get(),
+            'availableUsers' => $this->availableUsers(),
             'groupSuggestions' => $this->groupSuggestions(),
             'forumCategoryChoice' => old('forum_category_choice', $session?->forum_category_id ?? ''),
             'forumCategoryName' => $forumCategoryName,
             'teacherIdentifiers' => $teacherIdentifiers,
             'studentIdentifiers' => $this->identifiersForRole($baseSession, ClassEnrolment::ROLE_STUDENT),
+            'paidStudentUserIds' => $paidStudentUserIds,
         ];
     }
 
@@ -259,7 +264,7 @@ class ClassroomController extends Controller
         }
 
         return ClassSession::query()
-            ->with(['enrolments.user'])
+            ->with(['enrolments.user', 'workshop.tickets.user'])
             ->where('id', $duplicateFrom)
             ->orWhere('slug', $duplicateFrom)
             ->first();
@@ -287,6 +292,7 @@ class ClassroomController extends Controller
             'forum_category_choice' => ['nullable', 'string', 'max:255'],
             'forum_category_name' => ['nullable', 'string', 'max:255'],
             'summary' => ['nullable', 'string', 'max:255'],
+            'hero_media_name' => ['nullable', 'string', 'exists:media,name'],
             'instructions_html' => ['nullable', 'string'],
             'live_chat_enabled' => ['nullable', 'boolean'],
             'starts_at' => ['nullable', 'date'],
@@ -311,6 +317,7 @@ class ClassroomController extends Controller
             'room_name' => trim((string) ($validated['room_name'] ?? '')),
             'forum_category_choice' => $forumCategoryChoice,
             'summary' => trim((string) ($validated['summary'] ?? '')),
+            'hero_media_name' => trim((string) ($validated['hero_media_name'] ?? '')),
             'instructions_html' => (string) ($validated['instructions_html'] ?? ''),
             'live_chat_enabled' => $request->boolean('live_chat_enabled'),
             'starts_at' => trim((string) ($validated['starts_at'] ?? '')) !== '' ? trim((string) $validated['starts_at']) : null,
@@ -336,6 +343,7 @@ class ClassroomController extends Controller
             'room_name' => $validated['room_name'] !== '' ? $validated['room_name'] : null,
             'forum_category_id' => $forumCategoryChoice !== '' && $forumCategoryChoice !== 'create' ? $forumCategoryChoice : null,
             'summary' => $validated['summary'] !== '' ? $validated['summary'] : null,
+            'hero_media_name' => $validated['hero_media_name'] !== '' ? $validated['hero_media_name'] : null,
             'instructions_html' => $validated['instructions_html'] !== '' ? $validated['instructions_html'] : null,
             'live_chat_enabled' => $request->boolean('live_chat_enabled'),
             'starts_at' => $validated['starts_at'] !== null ? $validated['starts_at'] : null,
@@ -458,6 +466,72 @@ class ClassroomController extends Controller
             ->filter(fn (string $slug) => $slug !== '')
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<array{id: string, identifier: string, label: string, username: string, email: string}>
+     */
+    private function availableUsers(): array
+    {
+        return User::query()
+            ->select(['id', 'firstname', 'surname', 'username', 'email'])
+            ->orderBy('firstname')
+            ->orderBy('surname')
+            ->orderBy('username')
+            ->get()
+            ->map(function (User $user): array {
+                return [
+                    'id' => (string) $user->id,
+                    'identifier' => $this->preferredIdentifier($user),
+                    'label' => $this->displayUserLabel($user),
+                    'username' => (string) ($user->username ?? ''),
+                    'email' => (string) ($user->email ?? ''),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function paidStudentUserIds(?ClassSession $classSession): array
+    {
+        if (! $classSession instanceof ClassSession) {
+            return [];
+        }
+
+        $classSession->loadMissing(['workshop.tickets.user']);
+        $workshop = $classSession->workshop;
+        if (! $workshop) {
+            return [];
+        }
+
+        return $workshop->tickets()
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->pluck('user_id')
+            ->map(fn ($userId) => (string) $userId)
+            ->filter(fn (string $userId): bool => $userId !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function displayUserLabel(User $user): string
+    {
+        $name = trim((string) $user->getName());
+        $username = trim((string) ($user->username ?? ''));
+        $email = trim((string) ($user->email ?? ''));
+
+        $label = $name !== '' ? $name : ($username !== '' ? $username : $email);
+        if ($username !== '' && strcasecmp($username, $label) !== 0) {
+            $label .= ' @'.$username;
+        }
+        if ($email !== '') {
+            $label .= ' ('.$email.')';
+        }
+
+        return $label;
     }
 
     /**

@@ -21,7 +21,7 @@ class ClassroomController extends Controller
         $forumUnreadCountByCategoryId = $user ? ForumTopic::unreadCountMapForUser($user) : [];
 
         $classSessions = ClassSession::query()
-            ->with(['forumCategory', 'createdBy'])
+            ->with(['forumCategory', 'createdBy', 'hero'])
             ->withCount([
                 'enrolments',
                 'enrolments as teacher_count' => fn ($query) => $query->where('role', ClassEnrolment::ROLE_TEACHER),

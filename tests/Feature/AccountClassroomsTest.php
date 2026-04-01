@@ -8,6 +8,7 @@ use App\Models\ForumCategory;
 use App\Models\ForumPost;
 use App\Models\ForumTopic;
 use App\Models\ForumTopicUserState;
+use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -33,6 +34,13 @@ class AccountClassroomsTest extends TestCase
             'username' => 'student.one',
             'email' => 'student.one@example.com',
         ]);
+        $heroMedia = Media::query()->create([
+            'name' => 'course-listing-hero.png',
+            'title' => 'Course Listing Hero',
+            'mime_type' => 'image/png',
+            'size' => 1024,
+            'user_id' => $user->id,
+        ]);
 
         UserGroup::query()->create([
             'user_id' => (string) $user->id,
@@ -52,6 +60,7 @@ class AccountClassroomsTest extends TestCase
             'title' => 'Special Workshop',
             'slug' => 'special-workshop',
             'room_name' => 'special-workshop',
+            'hero_media_name' => $heroMedia->name,
             'summary' => 'Enrolment classroom',
             'starts_at' => now()->subDay(),
             'ends_at' => now()->addDay(),
@@ -90,6 +99,7 @@ class AccountClassroomsTest extends TestCase
         $response->assertSeeText('Courses');
         $response->assertSeeText('Microbit T1');
         $response->assertSeeText('Special Workshop');
+        $response->assertSee($heroMedia->url.'?lg', false);
         $response->assertSee('aria-label="2 unread discussion notifications"', false);
         $response->assertDontSeeText('Hidden Classroom');
         $response->assertSee(route('class.show', $groupClass), false);
