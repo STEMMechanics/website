@@ -7,15 +7,15 @@
     <section id="banner" class="bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.7),rgba(0,0,0,.2)),url({{asset('home-hero.webp')}})">
         <x-container class="py-32 relative">
             <h2 class="text-3xl text-white font-bold mb-4">Join the fun!</h2>
-            <p class="text-white max-w-[42rem] mb-3">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
-            <p class="text-white max-w-[42rem]">Our fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills and tools they need to solve any problem that comes their way.</p>
+            <p class="text-white max-w-2xl mb-3">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
+            <p class="text-white max-w-2xl">Our fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills and tools they need to solve any problem that comes their way.</p>
             <p class="absolute bottom-3 right-5 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded">Steady Hand Game in Ravenshoe</p>
         </x-container>
     </section>
     <section id="events" class="py-16 bg-[linear-gradient(to_bottom,var(--color-gray-50)_0%,var(--color-gray-50)_95%,var(--color-rose-50)_100%)]">
         <x-container>
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <h2 class="text-2xl font-bold">Upcoming workshops</h2>
+                <h2 class="-ml-2 text-2xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
                 <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start">View all workshops</x-ui.button>
             </div>
             @if($workshops->isEmpty())
@@ -142,7 +142,7 @@
     </section>
     <section id="subscribe">
         <x-container class="py-16 -mb-12 bg-sky-700" inner-class="flex justify-center">
-            <div class="max-w-[52rem]">
+            <div class="max-w-208">
                 <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
                 <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
                 <livewire:email-subscribe />
