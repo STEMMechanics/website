@@ -36,18 +36,13 @@ class ClassroomController extends Controller
                 return $classSession->canJoin($user) || $classSession->canManage($user);
             })
             ->map(function (ClassSession $classSession) use ($user, $now, $forumUnreadCountByCategoryId): array {
-                $role = $classSession->roleForUser($user);
                 $status = $this->statusForSession($classSession, $now);
                 $forumCategoryId = (string) ($classSession->forum_category_id ?? '');
 
                 return [
                     'classSession' => $classSession,
-                    'role' => $role,
                     'status' => $status['key'],
-                    'statusLabel' => $status['label'],
-                    'statusClass' => $status['class'],
                     'openUrl' => route('class.show', $classSession),
-                    'badgeLabel' => $role === ClassEnrolment::ROLE_TEACHER ? 'Teacher' : 'Student',
                     'forumUnreadCount' => (int) ($forumUnreadCountByCategoryId[$forumCategoryId] ?? 0),
                 ];
             });
