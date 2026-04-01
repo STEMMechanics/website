@@ -182,7 +182,7 @@
             </div>
         </div>
 
-        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-[180]" role="menu" aria-labelledby="page-menu-button" tabindex="-1">
+        <div x-show="pageMenuOpen" @click.away="pageMenuOpen=false" x-cloak class="fixed left-0 top-0 h-full w-full z-180" role="menu" aria-labelledby="page-menu-button" tabindex="-1">
             <div x-show="pageMenuOpen" @click="pageMenuOpen=false" class="absolute inset-0 bg-black/40 backdrop-blur-sm"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0"
@@ -190,7 +190,7 @@
                 x-transition:leave="transition ease-in duration-300"
                 x-transition:leave-start="opacity-100"
                 x-transition:leave-end="opacity-0"></div>
-            <div x-show="pageMenuOpen" class="relative h-full left-0 top-0 w-96 max-w-full bg-white z-[190] shadow-lg p-4 overflow-scroll"
+            <div x-show="pageMenuOpen" class="relative h-full left-0 top-0 w-96 max-w-full bg-white z-190 shadow-lg p-4 pb-18 overflow-y-auto"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0 transform -translate-x-full"
                 x-transition:enter-end="opacity-100 transform translate-x-0"
@@ -251,7 +251,7 @@
             x-show="userMenuOpen"
             @click.away="userMenuOpen=false"
             x-cloak>
-            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="fixed left-0 w-screen z-[180] h-screen bg-black/40 backdrop-blur-sm"
+            <div x-show="userMenuOpen" @click="userMenuOpen=false" class="fixed left-0 w-screen z-180 h-screen bg-black/40 backdrop-blur-sm"
                 x-transition:enter="transition ease-out duration-300"
                 x-transition:enter-start="opacity-0"
                 x-transition:enter-end="opacity-100"
@@ -260,7 +260,7 @@
                 x-transition:leave-end="opacity-0"></div>
             <div
                 x-show="userMenuOpen"
-                class="absolute w-full right-0 sm:right-5 sm:top-12 z-[190] sm:mt-2 sm:w-64 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t border-gray-200 sm:ring-1 ring-black/25 focus:outline-none">
+                class="absolute w-full right-0 sm:right-5 sm:top-12 z-190 sm:mt-2 sm:w-64 origin-top-right sm:rounded-md bg-white py-3 px-2 shadow-lg border-t border-gray-200 sm:ring-1 ring-black/25 focus:outline-none">
                 @if(auth()->guest())
                 <a href="{{ route('register') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-pen-to-square w-4 mr-2"></i>Register</a>
                 <a href="{{ route('login') }}" class="block px-4 py-2 text-sm text-gray-700 rounded transition hover:bg-sky-600 hover:text-white" role="menuitem" tabindex="-1"><i class="fa-solid fa-right-to-bracket w-4 mr-2"></i>Log in</a>
