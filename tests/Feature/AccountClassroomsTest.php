@@ -94,8 +94,8 @@ class AccountClassroomsTest extends TestCase
         $response->assertDontSeeText('Hidden Classroom');
         $response->assertSee(route('class.show', $groupClass), false);
         $response->assertSee(route('class.show', $enrolledClass), false);
-        $response->assertSeeText('Upcoming sessions');
-        $response->assertSeeText('Current sessions');
+        $response->assertSeeText('Upcoming courses');
+        $response->assertSeeText('Active courses');
     }
 
     private function createUnreadForumTopic(ForumCategory $category, User $author, User $reader, string $title): ForumTopic

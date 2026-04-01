@@ -35,7 +35,7 @@ class ClassroomController extends Controller
             ->filter(function (ClassSession $classSession) use ($user): bool {
                 return $classSession->canJoin($user) || $classSession->canManage($user);
             })
-            ->map(function (ClassSession $classSession) use ($user, $now, $forumUnreadCountByCategoryId): array {
+            ->map(function (ClassSession $classSession) use ($now, $forumUnreadCountByCategoryId): array {
                 $status = $this->statusForSession($classSession, $now);
                 $forumCategoryId = (string) ($classSession->forum_category_id ?? '');
 
