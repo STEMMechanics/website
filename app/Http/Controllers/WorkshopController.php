@@ -978,18 +978,7 @@ class WorkshopController extends Controller
                 $relevantInvoiceUserIds = [];
 
                 foreach ($invoices as $invoice) {
-                    $expectedKind = $invoice->expectedSettlementKind();
-                    $settled = round((float) $invoice->allocations
-                        ->filter(function ($allocation) use ($expectedKind): bool {
-                            $payment = $allocation->customerPayment;
-                            if (! $payment || (string) $payment->kind !== $expectedKind) {
-                                return false;
-                            }
-
-                            return ((float) $allocation->allocated_amount) > 0;
-                        })
-                        ->sum('allocated_amount'), 2);
-                    $outstanding = max(0, round($invoice->dueAmount() - $settled, 2));
+                    $outstanding = round((float) $invoice->outstandingAmount(), 2);
 
                     $attendanceInvoiceMeta[(int) $invoice->id] = [
                         'id' => (int) $invoice->id,

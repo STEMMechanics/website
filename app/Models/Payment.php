@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use DateTimeInterface;
 
@@ -81,6 +82,7 @@ class Payment extends Model
         'total_amount',
         'gst_amount',
         'notes',
+        'cleared_at',
         'gateway_provider',
         'gateway_status',
         'gateway_reference_id',
@@ -89,6 +91,7 @@ class Payment extends Model
 
     protected $casts = [
         'received_on' => 'datetime',
+        'cleared_at' => 'datetime',
         'total_amount' => 'decimal:2',
         'gst_amount' => 'decimal:2',
         'square_integration_meta' => 'array',
@@ -210,6 +213,39 @@ class Payment extends Model
     public function isRefund(): bool
     {
         return (string) $this->kind === self::KIND_REFUND || $this->refund_of_payment_id !== null;
+    }
+
+    public function isPendingBankTransfer(): bool
+    {
+        return (string) ($this->kind ?? self::KIND_PAYMENT) === self::KIND_PAYMENT
+            && (string) ($this->payment_method ?? '') === self::PAYMENT_METHOD_BANK_TRANSFER
+            && $this->cleared_at === null;
+    }
+
+    public function clearanceStatusLabel(): string
+    {
+        return $this->isPendingBankTransfer() ? 'Pending clearance' : 'Cleared';
+    }
+
+    public function clearanceStatusClass(): string
+    {
+        return $this->isPendingBankTransfer()
+            ? 'border-amber-200 bg-amber-50 text-amber-800'
+            : 'border-emerald-200 bg-emerald-50 text-emerald-800';
+    }
+
+    public function receiptCanBeEmailed(): bool
+    {
+        return ! $this->isPendingBankTransfer();
+    }
+
+    public function scopePendingBankTransfers(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', self::KIND_PAYMENT)
+            ->where('payment_method', self::PAYMENT_METHOD_BANK_TRANSFER)
+            ->whereNull('cleared_at');
     }
 
     public function isAutoImportedSquarePos(): bool

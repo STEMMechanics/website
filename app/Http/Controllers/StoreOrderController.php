@@ -643,7 +643,8 @@ class StoreOrderController extends Controller
                     return false;
                 }
 
-                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind();
+                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind()
+                    && ! $allocation->customerPayment->isPendingBankTransfer();
             })
             ->map(fn ($allocation): array => $this->paymentReceiptLink(
                 $invoice,

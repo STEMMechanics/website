@@ -611,6 +611,70 @@ class WorkshopAttendanceKioskTest extends TestCase
         });
     }
 
+    public function test_pending_bank_transfer_does_not_make_ticketed_attendance_look_paid(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-PENDING-1',
+            'user_id' => $customer->id,
+            'billing_name' => 'Pending Family',
+            'billing_email' => 'pending@example.com',
+            'billing_phone' => '0400000000',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 90.91,
+            'gst_amount' => 9.09,
+            'total_amount' => 100.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_XFER,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Pending',
+            'surname' => 'Student',
+            'email' => 'pending@example.com',
+            'phone' => '0400000000',
+            'attended_at' => null,
+        ]);
+
+        $payment = Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'reference' => 'BT-PENDING-1',
+            'total_amount' => 100.00,
+            'gst_amount' => 0,
+            'notes' => 'Waiting for clearance',
+            'cleared_at' => null,
+        ]);
+
+        InvoicePaymentAllocation::query()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 100.00,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.attendance', $workshop))
+            ->assertOk()
+            ->assertSee('Record Payment', false)
+            ->assertSee('Outstanding $100.00', false)
+            ->assertSee('Awaiting Bank Transfer', false);
+
+        $ticket->refresh();
+        $this->assertSame(Ticket::STATUS_PENDING_XFER, (int) $ticket->status);
+    }
+
     public function test_ticketed_attendance_page_surfaces_relevant_unallocated_eftpos_transactions(): void
     {
         $admin = $this->createAdminUser();

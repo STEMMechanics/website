@@ -3,14 +3,20 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Console\Commands\SendPendingBankTransferPaymentRemindersCommand;
 use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Payment;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Console\OutputStyle;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use App\Mail\PaymentReceiptPdf;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 class AdminPaymentInvoiceSelectorTest extends TestCase
@@ -146,6 +152,160 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertSee('Paid in full', false);
     }
 
+    public function test_payment_edit_page_shows_bank_transfer_clearance_and_receipt_controls(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Jordan',
+            'surname' => 'Miles',
+            'email' => 'jordan.miles@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-200010',
+            'user_id' => $customer->id,
+            'billing_name' => 'Jordan Miles',
+            'billing_email' => 'jordan.miles@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 75.00,
+            'subtotal_amount' => 68.18,
+            'gst_amount' => 6.82,
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'total_amount' => 75.00,
+            'gst_amount' => 0.00,
+            'cleared_at' => null,
+            'notes' => 'Workshop "Newtons Cradle" ticket purchase',
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 75.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.edit', $payment));
+
+        $response->assertOk();
+        $response->assertSee('Email receipt to customer', false);
+        $response->assertSee('Mark this bank transfer as cleared', false);
+        $response->assertSee('Pending clearance', false);
+        $response->assertSee('x-bind:disabled="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared"', false);
+        $response->assertSeeText('Workshop "Newtons Cradle" ticket purchase');
+    }
+
+    public function test_pending_bank_transfer_remains_unpaid_until_it_is_cleared_and_can_email_receipt_on_update(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Casey',
+            'surname' => 'Brown',
+            'email' => 'casey.brown@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-300020',
+            'user_id' => $customer->id,
+            'billing_name' => 'Casey Brown',
+            'billing_email' => 'casey.brown@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'user_id' => $customer->id,
+            'invoice_id' => $invoice->id,
+            'status' => Ticket::STATUS_PENDING_XFER,
+        ]);
+
+        Queue::fake();
+
+        $storeResponse = $this->actingAs($admin)->post(route('admin.payment.store'), [
+            'user_id' => $customer->id,
+            'received_on' => now()->format('Y-m-d H:i:s'),
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'reference' => 'BT-300020',
+            'total_amount' => 120.00,
+            'notes' => 'Waiting for clearance',
+            'email_receipt' => 1,
+            'allocations_json' => json_encode([
+                [
+                    'invoice_id' => $invoice->id,
+                    'allocated_amount' => 120.00,
+                ],
+            ]),
+        ]);
+
+        $storeResponse->assertRedirect(route('admin.payment.index'));
+        $storeResponse->assertSessionHasNoErrors();
+
+        $payment = Payment::query()->where('reference', 'BT-300020')->firstOrFail();
+        $invoice->refresh();
+
+        $this->assertNull($payment->cleared_at);
+        $this->assertTrue($payment->isPendingBankTransfer());
+        $this->assertSame(Invoice::STATUS_ISSUED, $invoice->status);
+        $this->assertSame(Ticket::STATUS_PENDING_XFER, (int) $ticket->fresh()->status);
+        Queue::assertNotPushed(SendEmail::class);
+
+        $updateResponse = $this->actingAs($admin)->put(route('admin.payment.update', $payment), [
+            'user_id' => $customer->id,
+            'reference' => 'BT-300020',
+            'notes' => 'Cleared by bank',
+            'email_receipt' => 1,
+            'bank_transfer_cleared' => 1,
+            'allocations_json' => json_encode([
+                [
+                    'invoice_id' => $invoice->id,
+                    'allocated_amount' => 120.00,
+                ],
+            ]),
+        ]);
+
+        $updateResponse->assertRedirect();
+        $updateResponse->assertSessionHasNoErrors();
+
+        $payment->refresh();
+        $invoice->refresh();
+
+        $this->assertNotNull($payment->cleared_at);
+        $this->assertFalse($payment->isPendingBankTransfer());
+        $this->assertSame(Invoice::STATUS_PAID, $invoice->status);
+        $this->assertSame(Ticket::STATUS_PAID, (int) $ticket->fresh()->status);
+
+        $secondUpdateResponse = $this->actingAs($admin)->put(route('admin.payment.update', $payment), [
+            'user_id' => $customer->id,
+            'reference' => 'BT-300020',
+            'notes' => 'Attempting to un-clear',
+            'email_receipt' => 0,
+            'allocations_json' => json_encode([
+                [
+                    'invoice_id' => $invoice->id,
+                    'allocated_amount' => 120.00,
+                ],
+            ]),
+        ]);
+
+        $secondUpdateResponse->assertRedirect();
+        $secondUpdateResponse->assertSessionHasNoErrors();
+
+        $payment->refresh();
+        $this->assertNotNull($payment->cleared_at);
+        $this->assertFalse($payment->isPendingBankTransfer());
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($customer): bool {
+            return $job->to === 'casey.brown@example.com'
+                && $job->mailable instanceof PaymentReceiptPdf
+                && $job->mailable->recipientName === $customer->getName()
+                && $job->mailable->invoiceNumber === 'INV-300020';
+        });
+    }
+
     public function test_payment_store_can_email_a_receipt_when_requested(): void
     {
         $admin = $this->createAdminUser();
@@ -175,6 +335,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
             'reference' => 'BT-300001',
             'total_amount' => 60.00,
             'notes' => 'Bank transfer',
+            'bank_transfer_cleared' => 1,
             'email_receipt' => 1,
             'allocations_json' => json_encode([
                 [
@@ -234,6 +395,7 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
             'reference' => 'BT-300010',
             'total_amount' => 60.00,
             'notes' => 'Bank transfer',
+            'bank_transfer_cleared' => 1,
             'email_receipt' => 1,
             'allocations_json' => json_encode([
                 [
@@ -317,6 +479,60 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $this->assertStringContainsString('<li', $html);
         $this->assertStringContainsString('INV-300010 ($40.00 paid)', $html);
         $this->assertStringContainsString('INV-300011 ($20.00 paid)', $html);
+    }
+
+    public function test_admin_pending_bank_transfer_digest_command_queues_a_daily_reminder_email(): void
+    {
+        Mail::fake();
+
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Blake',
+            'surname' => 'Reed',
+            'email' => 'blake.reed@example.com',
+        ]);
+
+        $firstPayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->subDays(3),
+            'total_amount' => 50.00,
+            'gst_amount' => 0.00,
+            'cleared_at' => null,
+            'reference' => 'BT-REM-1',
+        ]);
+        $secondPayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_BANK_TRANSFER,
+            'received_on' => now()->subDays(4),
+            'total_amount' => 75.00,
+            'gst_amount' => 0.00,
+            'cleared_at' => null,
+            'reference' => 'BT-REM-2',
+        ]);
+
+        $this->assertCount(2, Payment::query()
+            ->pendingBankTransfers()
+            ->where('received_on', '<', now()->subDays(2))
+            ->get());
+        $this->assertSame([
+            strtolower((string) $admin->email),
+        ], User::query()
+            ->whereHas('groups', fn ($query) => $query->where('slug', 'admin'))
+            ->pluck('email')
+            ->map(fn ($email) => strtolower((string) $email))
+            ->filter()
+            ->values()
+            ->all());
+
+        $buffer = new BufferedOutput();
+        $command = $this->app->make(SendPendingBankTransferPaymentRemindersCommand::class);
+        $command->setOutput(new OutputStyle(new ArrayInput([]), $buffer));
+        $command->handle();
+        $this->assertStringContainsString('Queued pending bank transfer reminders', $buffer->fetch());
+
     }
 
     private function createAdminUser(): User

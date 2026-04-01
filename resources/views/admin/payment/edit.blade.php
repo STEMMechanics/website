@@ -50,6 +50,15 @@
             ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0.0001 && $allocation->invoice)
             ->values()
         : collect();
+    $receiptLinkItems = isset($customerPayment) && ! $isCreditGrant
+        ? collect([
+            [
+                'number' => (string) $customerPayment->id,
+                'view_url' => route('admin.payment.receipt', $customerPayment),
+                'download_url' => route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]),
+            ],
+        ])
+        : collect();
     $selectedUserId = (string) old('user_id', $customerPayment->user_id ?? ($prefillUserId ?? ''));
     $manualRefundDefaultMethod = isset($customerPayment) && in_array((string) ($customerPayment->payment_method ?? ''), [
         \App\Models\Payment::PAYMENT_METHOD_CASH,
@@ -81,8 +90,14 @@
     <x-mast backRoute="admin.payment.index" backTitle="Payments">{{ isset($customerPayment) ? 'Edit' : 'Record' }} Payment</x-mast>
 
     <x-container class="mt-4">
-        <form method="POST" action="{{ route('admin.payment.' . (isset($customerPayment) ? 'update' : 'store'), $customerPayment ?? []) }}"
+        <form
+            id="payment-edit-form"
+            method="POST"
+            action="{{ route('admin.payment.' . (isset($customerPayment) ? 'update' : 'store'), $customerPayment ?? []) }}"
               x-data="{
+                selectedPaymentMethod: @js(old('payment_method', $customerPayment->payment_method ?? '')),
+                bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
+                bankTransferCleared: @js(old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)),
                 allocations: (() => {
                     try {
                         const parsed = JSON.parse(@js($savedAllocations));
@@ -248,7 +263,14 @@
                 <x-ui.input type="datetime-local" label="Received On" name="received_on" value="{{ old('received_on', isset($customerPayment) && $customerPayment->received_on ? $customerPayment->received_on->format('Y-m-d\\TH:i') : now()->format('Y-m-d\\TH:i')) }}" :disabled="$isCoreLocked" />
                 </div>
                 <div class="flex-1">
-                    <x-ui.select label="Payment Method" name="payment_method" :disabled="$isCoreLocked">
+                    <x-ui.select
+                        id="payment-method"
+                        label="Payment Method"
+                        name="payment_method"
+                        :disabled="$isCoreLocked"
+                        x-model="selectedPaymentMethod"
+                        x-on:change="$dispatch('payment-method-updated', { value: $event.target.value })"
+                    >
                         <option value="" disabled {{ old('payment_method', $customerPayment->payment_method ?? '') === '' ? 'selected' : '' }}>Select payment method</option>
                         @foreach(($paymentMethods ?? \App\Models\Payment::PAYMENT_METHODS) as $paymentMethod)
                             <option value="{{ $paymentMethod }}" {{ old('payment_method', $customerPayment->payment_method ?? '') === $paymentMethod ? 'selected' : '' }}>
@@ -258,6 +280,43 @@
                     </x-ui.select>
                 </div>
             </div>
+
+            <div
+                class="mb-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 flex flex-col gap-4 md:flex-row md:items-center justify-between shadow-sm"
+                x-show="selectedPaymentMethod === bankTransferMethod"
+                x-cloak
+            >
+                <label class="flex items-start gap-3">
+                    <input
+                        id="bank-transfer-cleared"
+                        type="checkbox"
+                        name="bank_transfer_cleared"
+                        value="1"
+                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                        x-model="bankTransferCleared"
+                        x-on:change="$dispatch('bank-transfer-cleared-updated', { checked: $event.target.checked })"
+                        x-bind:disabled="@js(isset($customerPayment) && $customerPayment->cleared_at !== null)"
+                        @checked(old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false))
+                    >
+                    <span>
+                        <span class="block text-sm font-semibold text-gray-900">Mark this bank transfer as cleared</span>
+                        <span class="mt-1 block text-xs text-gray-500">Leave this unchecked if the transfer is still waiting to settle.</span>
+                    </span>
+                </label>
+
+                <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    Invoice allocations will not apply until the transfer is marked as cleared.
+                </div>
+            </div>
+
+            @if((string) old('payment_method', $customerPayment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER)
+                <div class="mb-4 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Clearance Status</div>
+                    <div class="mt-1 text-sm font-semibold text-gray-900">
+                        {{ isset($customerPayment) && $customerPayment->cleared_at ? 'Cleared' : 'Pending clearance' }}
+                    </div>
+                </div>
+            @endif
 
             <x-ui.input label="Reference" name="reference" value="{{ old('reference', $customerPayment->reference ?? '') }}" :disabled="!$canEditLinkage" />
 
@@ -494,187 +553,183 @@
                 </template>
             </div>
 
-            <x-ui.input type="textarea" label="Notes (Private)" name="notes" value="{{ old('notes', $customerPayment->notes ?? '') }}" />
-
-            @if(! $isExisting)
-                <label class="mt-5 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">
-                    <input
-                        type="checkbox"
-                        name="email_receipt"
-                        value="1"
-                        class="mt-1 h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
-                        @checked(old('email_receipt'))
-                    >
-                    <span>
-                        <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
-                        <span class="mt-1 block text-xs text-gray-500">Optional. A receipt email will only be sent if this is checked and one invoice can be identified for the payment.</span>
-                    </span>
-                </label>
-            @endif
+            <x-ui.input type="textarea" label="Notes (Private)" name="notes" :value="old('notes', $customerPayment->notes ?? '')" />
 
             @isset($customerPayment)
-                <div class="border rounded-lg p-4 mb-4 border-gray-400">
-                    <h3 class="font-bold text-lg mb-3">Payment Progress</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
-                        <div><span class="font-semibold">Original Amount:</span> ${{ number_format((float) $customerPayment->total_amount, 2) }}</div>
-                        <div><span class="font-semibold">Refunded:</span> ${{ number_format($recordedRefundedAmount, 2) }}</div>
-                        <div><span class="font-semibold">Remaining Refundable:</span> ${{ number_format($displayRemainingRefundableAmount, 2) }}</div>
-                        <div><span class="font-semibold">Allocated:</span> ${{ number_format($allocatedNetAmount, 2) }}</div>
-                        <div><span class="font-semibold">Unallocated:</span> ${{ number_format($unallocatedAmount, 2) }}</div>
+                <h3 class="text-sm mb-1">Payment Split</h3>
+                <div class="mb-4 rounded-lg border border-gray-300 bg-white p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                        <div><span class="font-semibold w-44 inline-block">Original Amount:</span> ${{ number_format((float) $customerPayment->total_amount, 2) }}</div>
+                        <div><span class="font-semibold w-44 inline-block">Refunded:</span> ${{ number_format($recordedRefundedAmount, 2) }}</div>
+                        <div><span class="font-semibold w-44 inline-block">Remaining Refundable:</span> ${{ number_format($displayRemainingRefundableAmount, 2) }}</div>
+                        <div><span class="font-semibold w-44 inline-block">Allocated:</span> ${{ number_format($allocatedNetAmount, 2) }}</div>
+                        <div><span class="font-semibold w-44 inline-block">Unallocated:</span> ${{ number_format($unallocatedAmount, 2) }}</div>
                     </div>
                 </div>
 
-                @if($isSquareManaged && ! $isRefundRecord)
-                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
-                        <h3 class="font-bold text-lg mb-3">Square Integration</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div><span class="font-semibold">Gateway:</span> {{ $customerPayment->gateway_provider ?? '-' }}</div>
-                            <div><span class="font-semibold">Status:</span> {{ $customerPayment->gateway_status ?? '-' }}</div>
-                            <div><span class="font-semibold">Square Payment ID:</span> {{ $customerPayment->square_payment_id ?? '-' }}</div>
-                            <div><span class="font-semibold">Order ID:</span> {{ $customerPayment->square_order_id ?? '-' }}</div>
-                            <div><span class="font-semibold">Card:</span>
-                                @if($customerPayment->square_card_brand || $customerPayment->square_card_last4)
-                                    {{ trim(($customerPayment->square_card_brand ?? '').' ****'.($customerPayment->square_card_last4 ?? '')) }}
-                                @else
-                                    -
-                                @endif
-                            </div>
-                            <div><span class="font-semibold">Paid/Refunded (cents):</span> {{ (int) ($customerPayment->square_paid_money_amount ?? 0) }} / {{ (int) ($customerPayment->square_refunded_money_amount ?? 0) }}</div>
-                            <div><span class="font-semibold">Square Created:</span> {{ $customerPayment->square_gateway_created_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                            <div><span class="font-semibold">Square Updated:</span> {{ $customerPayment->square_gateway_updated_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                            <div><span class="font-semibold">Last Webhook:</span> {{ $customerPayment->square_last_event_type ?? '-' }}{{ $customerPayment->square_last_event_at ? ' @ '.$customerPayment->square_last_event_at->format('M j, Y g:i a') : '' }}</div>
-                            @php
-                                $squareMeta = is_array($customerPayment->square_integration_meta ?? null)
-                                    ? $customerPayment->square_integration_meta
-                                    : [];
-                            @endphp
-                            @if($squareMeta !== [])
-                                <div class="md:col-span-2 mt-2 border-t border-gray-200 pt-2">
-                                    <div class="font-semibold mb-1">Square Metadata</div>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                        @foreach($squareMeta as $metaKey => $metaValue)
-                                            @continue(is_array($metaValue) || is_object($metaValue))
-                                            <div>
-                                                <span class="font-semibold">{{ \Illuminate\Support\Str::headline((string) $metaKey) }}:</span>
-                                                {{ is_bool($metaValue) ? ($metaValue ? 'true' : 'false') : (string) $metaValue }}
-                                            </div>
-                                        @endforeach
+                @if($isSquareManaged || ! $isCreditGrant)
+                    <h3 class="text-sm mb-1">Transaction Details</h3>
+                    <div class="mb-4 rounded-lg border border-gray-300 bg-white p-4">
+                        @if($isSquareManaged)
+                            <div>
+                                <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Square Integration</div>
+                                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm font-mono">
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Gateway</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->gateway_provider ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Status</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->gateway_status ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Square Payment ID</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_payment_id ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Order ID</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_order_id ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Card</div>
+                                        <div class="mt-1 break-all text-gray-900">
+                                            @if($customerPayment->square_card_brand || $customerPayment->square_card_last4)
+                                                {{ trim(($customerPayment->square_card_brand ?? '').' ****'.($customerPayment->square_card_last4 ?? '')) }}
+                                            @else
+                                                -
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Paid / Refunded (cents)</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ (int) ($customerPayment->square_paid_money_amount ?? 0) }} / {{ (int) ($customerPayment->square_refunded_money_amount ?? 0) }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Square Created</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_gateway_created_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Square Updated</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_gateway_updated_at?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    </div>
+                                    <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 md:col-span-2">
+                                        <div class="text-[11px] uppercase tracking-wide text-gray-500">Last Webhook</div>
+                                        <div class="mt-1 break-all text-gray-900">{{ $customerPayment->square_last_event_type ?? '-' }}{{ $customerPayment->square_last_event_at ? ' @ '.$customerPayment->square_last_event_at->format('M j, Y g:i a') : '' }}</div>
                                     </div>
                                 </div>
-                            @endif
-                        </div>
-                    </div>
-                @elseif($isSquareManaged && $isRefundRecord)
-                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
-                        <h3 class="font-bold text-lg mb-3">Square Refund</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                            <div><span class="font-semibold">Gateway:</span> {{ $customerPayment->gateway_provider ?? '-' }}</div>
-                            <div><span class="font-semibold">Refund Status:</span> {{ $customerPayment->gateway_status ?? '-' }}</div>
-                            <div><span class="font-semibold">Square Refund ID:</span> {{ $customerPayment->gateway_reference_id ?? '-' }}</div>
-                            <div><span class="font-semibold">Original Payment #:</span> {{ $customerPayment->refund_of_payment_id ?? '-' }}</div>
-                            <div><span class="font-semibold">Square Created:</span> {{ $customerPayment->square_gateway_created_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                            <div><span class="font-semibold">Square Updated:</span> {{ $customerPayment->square_gateway_updated_at?->format('M j, Y g:i a') ?? '-' }}</div>
-                        </div>
-                    </div>
-                @endif
-
-                @if(! $isCreditGrant)
-                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
-                        <h3 class="font-bold text-lg mb-3">Receipt Links</h3>
-                        <div class="flex flex-wrap gap-3">
-                            <a
-                                href="{{ route('admin.payment.receipt', $customerPayment) }}"
-                                target="_blank"
-                                class="inline-flex items-center rounded-md bg-primary-color px-4 py-2 text-sm font-semibold text-white hover:bg-primary-color-dark"
-                            >View Payment Receipt</a>
-                            <a
-                                href="{{ route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]) }}"
-                                class="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                            >Download Payment Receipt</a>
-                        </div>
-                        @if($receiptAllocations->isNotEmpty())
-                            <div class="mt-3 text-xs text-gray-600">
-                                Linked invoice allocations: {{ $receiptAllocations->map(fn ($allocation) => $allocation->invoice->invoice_number)->implode(', ') }}
+                                @php
+                                    $squareMeta = is_array($customerPayment->square_integration_meta ?? null)
+                                        ? $customerPayment->square_integration_meta
+                                        : [];
+                                @endphp
+                                @if($squareMeta !== [])
+                                    <div class="mt-4 border-t border-gray-200 pt-4">
+                                        <div class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Square Metadata</div>
+                                        <div class="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm font-mono">
+                                            @foreach($squareMeta as $metaKey => $metaValue)
+                                                @continue(is_array($metaValue) || is_object($metaValue))
+                                                <div class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 md:col-span-1">
+                                                    <div class="text-[11px] uppercase tracking-wide text-gray-500">{{ \Illuminate\Support\Str::headline((string) $metaKey) }}</div>
+                                                    <div class="mt-1 break-all text-gray-900">{{ is_bool($metaValue) ? ($metaValue ? 'true' : 'false') : (string) $metaValue }}</div>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
                             </div>
                         @endif
                     </div>
 
-                    <div class="border rounded-lg p-4 mb-4 border-gray-400">
-                        <h3 class="font-bold text-lg mb-3">Refund History</h3>
-                        @if($refundHistory->isEmpty())
-                            <div class="text-sm text-gray-500">No refund records linked to this payment.</div>
-                        @else
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-gray-200">
-                                            <th class="text-left py-2 pr-3">Refund Payment #</th>
-                                            <th class="text-left py-2 pr-3">Date</th>
-                                            <th class="text-left py-2 pr-3">Method</th>
-                                            <th class="text-right py-2 pr-3">Amount</th>
-                                            <th class="text-left py-2">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($refundHistory as $refund)
-                                            <tr id="refund-{{ $refund->id }}" class="border-b border-gray-100 {{ $highlightRefundId === (int) $refund->id ? 'highlight-row' : '' }}">
-                                                <td class="py-2 pr-3">#{{ $refund->id }}</td>
-                                                <td class="py-2 pr-3">{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
-                                                <td class="py-2 pr-3">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
-                                                <td class="py-2 pr-3 text-right">${{ number_format((float) $refund->total_amount, 2) }}</td>
-                                                <td class="py-2">
-                                                    <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color mr-2" title="Open refund record">
-                                                        <i class="fa-solid fa-up-right-from-square"></i>
-                                                    </a>
-                                                    <a href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" class="hover:text-primary-color mr-2" title="View refund receipt">
-                                                        <i class="fa-regular fa-file-lines"></i>
-                                                    </a>
-                                                    <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="hover:text-primary-color" title="Download refund receipt">
-                                                        <i class="fa-solid fa-download"></i>
-                                                    </a>
-                                                </td>
+                    @if(! $isCreditGrant)
+                        <h3 class="text-sm mb-1">Receipt Links</h3>
+                        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                            @if($receiptLinkItems->isEmpty())
+                                <div class="text-sm text-gray-500">No receipt links available.</div>
+                            @else
+                                <ul class="space-y-2 list-disc pl-5 text-gray-900 marker:text-gray-900">
+                                    @foreach($receiptLinkItems as $receiptLink)
+                                        <li class="py-2 text-sm text-gray-900">
+                                            <div class="flex items-center justify-between gap-3">
+                                                <a href="{{ $receiptLink['view_url'] }}" target="_blank" class="text-primary-color hover:text-primary-color-dark hover:underline" title="View receipt">Receipt #{{ $receiptLink['number'] }}</a>
+                                            </div>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+                        </div>
+
+                        <h3 class="text-sm mb-1">Refund Details</h3>
+                        <div class="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+                            @if($refundHistory->isEmpty())
+                                <div class="text-sm text-gray-500">No refund records linked to this payment.</div>
+                            @else
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-sm">
+                                        <thead>
+                                            <tr class="border-b border-gray-200">
+                                                <th class="text-left py-2 pr-3">Refund Payment #</th>
+                                                <th class="text-left py-2 pr-3">Date</th>
+                                                <th class="text-left py-2 pr-3">Method</th>
+                                                <th class="text-right py-2 pr-3">Amount</th>
+                                                <th class="text-left py-2">Actions</th>
                                             </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
-                            @if($highlightRefundId > 0)
-                                <script>
-                                    window.addEventListener('DOMContentLoaded', function () {
-                                        var target = document.getElementById('refund-{{ $highlightRefundId }}');
-                                        if (target) {
-                                            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        }
-                                    });
-                                </script>
+                                        </thead>
+                                        <tbody>
+                                            @foreach($refundHistory as $refund)
+                                                <tr id="refund-{{ $refund->id }}" class="border-b border-gray-100 {{ $highlightRefundId === (int) $refund->id ? 'highlight-row' : '' }}">
+                                                    <td class="py-2 pr-3">#{{ $refund->id }}</td>
+                                                    <td class="py-2 pr-3">{{ $refund->received_on?->format('M j, Y g:i a') ?? $refund->created_at?->format('M j, Y g:i a') ?? '-' }}</td>
+                                                    <td class="py-2 pr-3">{{ \App\Models\Payment::paymentMethodLabel((string) ($refund->payment_method ?? \App\Models\Payment::PAYMENT_METHOD_OTHER)) }}</td>
+                                                    <td class="py-2 pr-3 text-right">${{ number_format((float) $refund->total_amount, 2) }}</td>
+                                                    <td class="py-2">
+                                                        <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color mr-2" title="Open refund record">
+                                                            <i class="fa-solid fa-up-right-from-square"></i>
+                                                        </a>
+                                                        <a href="{{ route('admin.payment.receipt', $refund) }}" target="_blank" class="hover:text-primary-color mr-2" title="View refund receipt">
+                                                            <i class="fa-regular fa-file-lines"></i>
+                                                        </a>
+                                                        <a href="{{ route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]) }}" class="hover:text-primary-color" title="Download refund receipt">
+                                                            <i class="fa-solid fa-download"></i>
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @if($highlightRefundId > 0)
+                                    <script>
+                                        window.addEventListener('DOMContentLoaded', function () {
+                                            var target = document.getElementById('refund-{{ $highlightRefundId }}');
+                                            if (target) {
+                                                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                            }
+                                        });
+                                    </script>
+                                @endif
                             @endif
-                        @endif
-                    </div>
+                        </div>
+                    @endif
                 @endif
             @endisset
 
-            <div class="flex justify-end mt-8 gap-4">
-                @if(! $isRefundRecord)
-                    <x-ui.button type="submit">Save</x-ui.button>
-                @endif
-            </div>
         </form>
 
         @if(isset($customerPayment) && ! $isRefundRecord)
             <div class="mt-4">
                 @if($isCreditGrant)
-                    <div class="border rounded-lg p-4 text-sm text-gray-600">
+                    <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
                         This payment method is Credit and is not refundable.
                     </div>
                 @elseif($isSquareManaged)
                     @if($squareRemainingCents <= 0 || $displayRemainingRefundableAmount <= 0)
-                        <div class="border rounded-lg p-4 text-sm text-gray-600">
+                        <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
                             Square refund is unavailable because there are no unallocated funds available to refund.
                         </div>
                     @else
                         <form method="POST"
                               action="{{ route('admin.payment.square.refund', $customerPayment) }}"
-                              class="border rounded-lg p-4"
+                              class="rounded-lg border border-gray-300 bg-white p-4"
                               x-data="{ isSubmitting: false }"
                               x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();">
                             @csrf
@@ -692,13 +747,13 @@
                     @endif
                 @else
                     @if($displayRemainingRefundableAmount <= 0)
-                        <div class="border rounded-lg p-4 text-sm text-gray-600">
+                        <div class="rounded-lg border border-gray-300 bg-white p-4 text-sm text-gray-600">
                             Manual refund is unavailable because there are no unallocated funds available to refund.
                         </div>
                     @else
                         <form method="POST"
                               action="{{ route('admin.payment.refund.manual', $customerPayment) }}"
-                              class="border rounded-lg p-4"
+                              class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
                               x-data="{ isSubmitting: false }"
                               x-on:submit.prevent="if (isSubmitting) return; isSubmitting = true; $el.submit();">
                             @csrf
@@ -723,5 +778,43 @@
                 @endif
             </div>
         @endif
+
+        @if(! $isRefundRecord)
+            <div
+                class="mt-8 flex justify-between items-center flex-col sm:flex-row gap-3"
+                x-data="{
+                    selectedPaymentMethod: '',
+                    bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
+                    bankTransferCleared: false,
+                    init() {
+                        this.selectedPaymentMethod = document.getElementById('payment-method')?.value || '';
+                        this.bankTransferCleared = document.getElementById('bank-transfer-cleared')?.checked || false;
+                    }
+                }"
+                x-init="init()"
+                x-on:payment-method-updated.window="selectedPaymentMethod = $event.detail.value"
+                x-on:bank-transfer-cleared-updated.window="bankTransferCleared = $event.detail.checked"
+            >
+                <label
+                    class="flex items-center gap-3"
+                    x-bind:class="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared ? 'opacity-60' : ''"
+                >
+                    <input
+                        type="checkbox"
+                        name="email_receipt"
+                        value="1"
+                        form="payment-edit-form"
+                        class="h-5 w-5 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                        x-bind:disabled="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared"
+                        x-bind:title="selectedPaymentMethod === bankTransferMethod && ! bankTransferCleared ? 'Mark the bank transfer as cleared first' : null"
+                        @checked(old('email_receipt'))
+                    >
+                    <span class="block text-sm font-semibold text-gray-900">Email receipt to customer</span>
+                </label>
+
+                <x-ui.button type="submit" form="payment-edit-form" class="w-full sm:w-auto">Save</x-ui.button>
+            </div>
+        @endif
+
     </x-container>
 </x-layout>

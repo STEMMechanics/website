@@ -97,13 +97,7 @@ class InvoiceController extends Controller
 
     private function outstandingAmountForIndexInvoice(Invoice $invoice): float
     {
-        $settlementKind = $invoice->expectedSettlementKind();
-        $allocated = (float) $invoice->allocations
-            ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
-            ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $settlementKind)
-            ->sum('allocated_amount');
-
-        return max(0, round($invoice->dueAmount() - $allocated, 2));
+        return round((float) $invoice->outstandingAmount(), 2);
     }
 
     public function store(Request $request)
@@ -760,24 +754,25 @@ class InvoiceController extends Controller
     {
         $invoice->loadMissing('user', 'quote', 'lines', 'allocations.customerPayment', 'taxAdjustments.lines', 'storeOrders');
         $this->appendReissueNotesToInvoiceLines($invoice);
-        $settlementKind = $invoice->expectedSettlementKind();
         $grossAllocated = round((float) $invoice->allocations
-            ->filter(function ($allocation) use ($settlementKind) {
+            ->filter(function ($allocation) use ($invoice) {
                 if (! $allocation->customerPayment) {
                     return false;
                 }
 
-                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $settlementKind
+                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind()
+                    && ! $allocation->customerPayment->isPendingBankTransfer()
                     && ((float) $allocation->allocated_amount) > 0;
             })
             ->sum('allocated_amount'), 2);
         $refundedAllocated = round(abs((float) $invoice->allocations
-            ->filter(function ($allocation) use ($settlementKind) {
+            ->filter(function ($allocation) use ($invoice) {
                 if (! $allocation->customerPayment) {
                     return false;
                 }
 
-                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $settlementKind
+                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind()
+                    && ! $allocation->customerPayment->isPendingBankTransfer()
                     && ((float) $allocation->allocated_amount) < 0;
             })
             ->sum('allocated_amount')), 2);
@@ -796,7 +791,8 @@ class InvoiceController extends Controller
                     return false;
                 }
 
-                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind();
+                return (string) ($allocation->customerPayment->kind ?? Payment::KIND_PAYMENT) === $invoice->expectedSettlementKind()
+                    && ! $allocation->customerPayment->isPendingBankTransfer();
             })
             ->map(function ($allocation) use ($invoice, $isAccountView) {
                 $payment = $allocation->customerPayment;

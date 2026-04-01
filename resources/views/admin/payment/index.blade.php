@@ -33,8 +33,9 @@
                 <x-slot:header>
                     <th>ID</th>
                     <th>Details</th>
-                    <th>Amount <span class="font-normal text-xs">(incl GST)</span></th>
+                    <th>Amount <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
                     <th class="hidden md:table-cell">Type</th>
+                    <th class="hidden md:table-cell">Status</th>
                     <th class="hidden lg:table-cell">Allocated</th>
                     <th class="hidden lg:table-cell">Unallocated</th>
                     <th class="text-center">Actions</th>
@@ -45,9 +46,13 @@
                 $allocated = (float) ($customerPayment->allocated_amount_sum ?? 0);
                 $unallocatedBeforeRefund = max(0, round(((float) $customerPayment->total_amount) - $allocated, 2));
                 $unallocated = max(0, round($unallocatedBeforeRefund - (float) $customerPayment->refunds->sum('total_amount'), 2));
-                $typeLabel = (string) ($customerPayment->payment_method ?? '') === \App\Models\Payment::PAYMENT_METHOD_CREDIT
-                ? 'Credit'
-                : 'Payment';
+                $typeLabel = \App\Models\Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? ''));
+                $statusLabel = $customerPayment->isRefund()
+                    ? 'Refund'
+                    : $customerPayment->clearanceStatusLabel();
+                $statusClass = $customerPayment->isRefund()
+                    ? 'border-slate-200 bg-slate-50 text-slate-700'
+                    : $customerPayment->clearanceStatusClass();
                 $allocatedInvoiceNumbers = $customerPayment->allocations
                 ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
                 ->map(fn ($allocation) => (string) $allocation->invoice->invoice_number)
@@ -56,14 +61,17 @@
                 $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
                 @endphp
-                <tr>
+                <tr class="{{ $customerPayment->isPendingBankTransfer() ? 'bg-amber-50/80' : '' }}">
                     <td class="text-center!">
-                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $customerPayment->id }}</a>
+                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">{{ $customerPayment->id }}</a>
                     </td>
                     <td class="">
                         <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
+                        <div class="mt-1 md:hidden inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap {{ $statusClass }}">
+                            {{ $statusLabel }}
+                        </div>
                         <div class="text-xs text-gray-600 lg:hidden mt-1">
                             Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
                         </div>
@@ -73,6 +81,11 @@
                     </td>
                     <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
                     <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
+                    <td class="hidden md:table-cell text-center">
+                        <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ $statusClass }}">
+                            {{ $statusLabel }}
+                        </span>
+                    </td>
                     <td class="hidden lg:table-cell">
                         {{ money((float) $allocated) }}
                         <div class="text-xs text-gray-600">
@@ -104,6 +117,11 @@
                     </td>
                     <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
                     <td class="text-center hidden md:table-cell">Refund</td>
+                    <td class="hidden md:table-cell">
+                        <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap border-slate-200 bg-slate-50 text-slate-700">
+                            Refund
+                        </span>
+                    </td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="w-28">

@@ -452,7 +452,12 @@ class Invoice extends Model
         $query = $this->allocations()
             ->where('allocated_amount', '>', 0)
             ->whereHas('customerPayment', function ($paymentQuery): void {
-                $paymentQuery->where('kind', $this->expectedSettlementKind());
+                $paymentQuery->where('kind', $this->expectedSettlementKind())
+                    ->where(function ($clearanceQuery): void {
+                        $clearanceQuery
+                            ->where('payment_method', '!=', Payment::PAYMENT_METHOD_BANK_TRANSFER)
+                            ->orWhereNotNull('cleared_at');
+                    });
             });
 
         if ($excludingCustomerPaymentId !== null) {

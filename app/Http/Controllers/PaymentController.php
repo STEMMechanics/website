@@ -445,19 +445,26 @@ class PaymentController extends Controller
             $payment->kind = Payment::KIND_PAYMENT;
             $payment->total_amount = round((float) ($validated['total_amount'] ?? 0), 2);
             $payment->gst_amount = 0;
+            $payment->cleared_at = $this->resolveClearedAt($payment, $validated, $request);
             $payment->created_by = Auth::id();
             $payment->save();
 
             $this->syncAllocations($payment, $request);
         });
 
-        if ($emailReceipt && $payment instanceof Payment) {
-            $this->sendPaymentReceiptEmail($payment);
+        if ($emailReceipt && $payment instanceof Payment && $this->sendPaymentReceiptEmail($payment) === false) {
+            session()->flash('message', 'Payment has been recorded. Receipt was not emailed because the payment is still pending clearance or has no allocations yet.');
+            session()->flash('message-title', 'Payment recorded');
+            session()->flash('message-type', 'warning');
+        } elseif ($emailReceipt && $payment instanceof Payment) {
+            session()->flash('message', 'Payment has been recorded and the receipt has been emailed.');
+            session()->flash('message-title', 'Payment recorded');
+            session()->flash('message-type', 'success');
+        } else {
+            session()->flash('message', 'Payment has been recorded');
+            session()->flash('message-title', 'Payment recorded');
+            session()->flash('message-type', 'success');
         }
-
-        session()->flash('message', 'Payment has been recorded');
-        session()->flash('message-title', 'Payment recorded');
-        session()->flash('message-type', 'success');
 
         return redirect()->route('admin.payment.index');
     }
@@ -535,15 +542,29 @@ class PaymentController extends Controller
             'reference' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string'],
             'allocations_json' => ['nullable', 'string'],
+            'email_receipt' => ['nullable', 'boolean'],
+            'bank_transfer_cleared' => ['nullable', 'boolean'],
         ]);
 
         DB::transaction(function () use ($payment, $validated, $request): void {
             $payment->user_id = (string) $validated['user_id'];
             $payment->reference = $validated['reference'] ?? null;
             $payment->notes = $validated['notes'] ?? null;
+            $payment->cleared_at = $this->resolveClearedAt($payment, $validated, $request);
             $payment->save();
             $this->syncAllocations($payment, $request);
         });
+
+        $shouldEmailReceipt = $request->boolean('email_receipt', false);
+        if ($shouldEmailReceipt) {
+            $payment->refresh();
+        }
+        if ($shouldEmailReceipt && $this->sendPaymentReceiptEmail($payment) === false) {
+            session()->flash('message', 'Payment linkage has been updated. Receipt was not emailed because the payment is still pending clearance or has no allocations yet.');
+            session()->flash('message-title', 'Payment updated');
+            session()->flash('message-type', 'warning');
+            return redirect()->back();
+        }
 
         session()->flash('message', 'Payment linkage has been updated');
         session()->flash('message-title', 'Payment updated');
@@ -884,6 +905,7 @@ class PaymentController extends Controller
             'notes' => ['nullable', 'string'],
             'allocations_json' => ['nullable', 'string'],
             'email_receipt' => ['nullable', 'boolean'],
+            'bank_transfer_cleared' => ['nullable', 'boolean'],
         ]);
     }
 
@@ -941,7 +963,9 @@ class PaymentController extends Controller
             ->values()
             ->all();
 
-        $this->syncInvoicesFromAllocations($invoiceIds);
+        if (! $payment->isPendingBankTransfer()) {
+            $this->syncInvoicesFromAllocations($invoiceIds);
+        }
     }
 
     private function extractAllocations(Request $request): array
@@ -1152,6 +1176,10 @@ class PaymentController extends Controller
 
     private function sendPaymentReceiptEmail(Payment $payment): bool
     {
+        if (! $payment->receiptCanBeEmailed()) {
+            return false;
+        }
+
         $payment->loadMissing('user', 'allocations.invoice', 'allocations.taxAdjustment');
 
         $recipient = strtolower(trim((string) ($payment->user?->email ?: '')));
@@ -1195,6 +1223,24 @@ class PaymentController extends Controller
         ))->onQueue('mail');
 
         return true;
+    }
+
+    private function resolveClearedAt(Payment $payment, array $validated, Request $request): ?Carbon
+    {
+        $paymentMethod = (string) ($validated['payment_method'] ?? $payment->payment_method ?? '');
+        $existingClearedAt = $payment->cleared_at instanceof Carbon ? $payment->cleared_at : null;
+
+        if ($existingClearedAt instanceof Carbon) {
+            return $existingClearedAt;
+        }
+
+        if ($paymentMethod === Payment::PAYMENT_METHOD_BANK_TRANSFER) {
+            return $request->boolean('bank_transfer_cleared')
+                ? now()
+                : null;
+        }
+
+        return now();
     }
 
     /**
