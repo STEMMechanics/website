@@ -106,7 +106,7 @@ class AdminClassroomManagementTest extends TestCase
             ->assertSeeText('Course notes')
             ->assertSeeText('Enrolments')
             ->assertSeeText('Deleting this course will remove student access.')
-            ->assertSeeText('1 Enroled student will lose access if you delete this course.')
+            ->assertSeeText('1 Enrolled student will lose access if you delete this course.')
             ->assertSeeText('The linked forum category will remain unless it is deleted separately.')
             ->assertDontSeeText('Teacher identifiers')
             ->assertDontSeeText('Access group')
@@ -317,7 +317,7 @@ class AdminClassroomManagementTest extends TestCase
             ->assertOk()
             ->assertSeeText('Paid via workshop purchase')
             ->assertSeeText('Added by admin')
-            ->assertSeeText('2 Enroled students will lose access if you delete this course.')
+            ->assertSeeText('2 Enrolled students will lose access if you delete this course.')
             ->assertSeeText('1 of those students paid through a workshop purchase.');
     }
 

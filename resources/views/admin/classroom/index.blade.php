@@ -33,7 +33,7 @@
                                 'ended' => 'bg-slate-100 text-slate-700',
                             ][$status] ?? 'bg-gray-100 text-gray-700';
                             $deleteWarning = $studentCount > 0
-                                ? 'This course has '.$studentCount.' Enroled student'.($studentCount === 1 ? '' : 's').'. Deleting it will remove their access immediately. Any linked forum category will not be deleted automatically, and refunds for paid students must be handled separately.'
+                                ? 'This course has '.$studentCount.' Enrolled student'.($studentCount === 1 ? '' : 's').'. Deleting it will remove their access immediately. Any linked forum category will not be deleted automatically, and refunds for paid students must be handled separately.'
                                 : 'Are you sure you want to delete this course? This cannot be undone.';
                         @endphp
                         <tr>

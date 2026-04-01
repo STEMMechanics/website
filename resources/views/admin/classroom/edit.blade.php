@@ -239,7 +239,7 @@
                         <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
                             <div class="font-semibold">Deleting this course will remove student access.</div>
                             <div class="mt-1">
-                                {{ $studentEnrolmentCount }} Enroled student{{ $studentEnrolmentCount === 1 ? '' : 's' }} will lose access if you delete this course.
+                                {{ $studentEnrolmentCount }} Enrolled student{{ $studentEnrolmentCount === 1 ? '' : 's' }} will lose access if you delete this course.
                             </div>
                             @if($paidStudentEnrolmentCount > 0)
                                 <div class="mt-1">
