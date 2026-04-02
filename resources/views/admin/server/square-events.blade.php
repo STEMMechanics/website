@@ -35,7 +35,7 @@
                         </x-ui.select>
                     </div>
                     <div class="w-full sm:w-40 mb-4">
-                        <x-ui.button type="submit" color="outline">Filter</x-ui.button>
+                        <x-ui.button type="submit" color="outline" class="w-full">Filter</x-ui.button>
                     </div>
                 </form>
             </x-slot:left>
@@ -62,7 +62,7 @@
                     @if(request()->filled('event_type'))
                         <input type="hidden" name="event_type" value="{{ request('event_type') }}">
                     @endif
-                    <x-ui.button type="submit" color="outline">Sync Stored Events</x-ui.button>
+                    <x-ui.button type="submit" color="outline" class="w-full sm:w-auto">Sync Stored Events</x-ui.button>
                 </form>
             </div>
             <x-ui.table>
