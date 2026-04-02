@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-rose-500">Workshops for groups</p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-rose-500 mt-4 sm:mt-0">Workshops for groups</p>
                     <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">We run workshops for schools, organisations, and community groups.</h2>
                     <div class="flex-1">
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Whether you are planning something for a school, an organisation, an OSHC program, or another group setting, we can tailor a workshop to suit the audience, the venue, and the learning goals you want to achieve.</p>
@@ -100,7 +100,7 @@
                 </div>
 
                 <div class="order-1 px-6 sm:px-8 lg:px-12 flex flex-col">
-                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-500">Skill development</p>
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-500 mt-4 sm:mt-0">Skill development</p>
                     <h2 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Build skills while having a great time.</h2>
                     <div class="flex-1">
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Each workshop blends coding, robotics, creative making, and practical problem-solving so learners can build confidence while creating something they are proud of. Activities are set up to be approachable first, then stretched with just enough challenge to keep everyone engaged.</p>
@@ -159,7 +159,7 @@
         </x-container>
     </section>
     <section id="support" class="relative">
-        <x-container class="py-16 px-12 bg-violet-50">
+        <x-container class="py-32 px-12 bg-violet-50">
             <div class="grid gap-y-6 lg:gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] mb-4">
                 <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
                     <p class="text-sm font-semibold uppercase tracking-[0.22em] text-violet-500">Stay connected</p>
@@ -188,7 +188,7 @@
         </x-container>
     </section>
     <section id="subscribe">
-        <x-container class="pt-16 pb-24 -mb-12 bg-sky-700 relative" inner-class="flex justify-center">
+        <x-container class="pt-16 pb-24 px-12 -mb-12 bg-sky-700 relative" inner-class="flex justify-center">
             <div class="max-w-208">
                 <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
                 <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
