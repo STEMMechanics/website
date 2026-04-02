@@ -98,7 +98,18 @@
         </x-container>
     </section>
     <section id="minecraft" class="relative overflow-hidden bg-no-repeat bg-center bg-cover" style="background-image:url({{asset('home-minecraft.webp')}})">
-        <x-container class="relative py-32 px-12">
+        <x-container class="relative py-48 px-12">
+            <div class="rotate-180 absolute top-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 80" class="block w-full h-20" preserveAspectRatio="none">
+                    <defs>
+                        <pattern id="blocks-random-top" width="480" height="80" patternUnits="userSpaceOnUse">
+                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#ecfdf5" />
+                        </pattern>
+                    </defs>
+                    <rect width="1440" height="80" fill="url(#blocks-random-top)" />
+                </svg>
+            </div>
+
             <p class="text-sm font-semibold uppercase tracking-[0.22em] text-amber-100">Minecraft</p>
             <h2 class="my-2 text-3xl font-semibold tracking-tight text-white sm:text-4xl flex items-center gap-2"><img src="{{ asset('home-minecraft-edu.webp') }}" alt="Minecraft Education" class="h-12 shrink-0" />Play on STEMCraft.</h2>
             <div class="min-w-0">
@@ -117,9 +128,20 @@
                     <x-ui.button color="yellow-outline" href="{{ route('stemcraft.rules') }}">Server Rules</x-ui.button>
                 </div>
             </div>
+
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 80" class="block w-full h-20" preserveAspectRatio="none">
+                    <defs>
+                        <pattern id="blocks-random-bottom" width="480" height="80" patternUnits="userSpaceOnUse">
+                            <path d="M0 40 H40 V20 H80 V40 H120 V20 H160 V60 H200 V40 H240 V20 H280 V60 H320 V40 H360 V80 H400 V60 H440 V40 H480 V80 H0 Z" fill="#f5f3ff" />
+                        </pattern>
+                    </defs>
+                    <rect width="1440" height="80" fill="url(#blocks-random-bottom)" />
+                </svg>
+            </div>
         </x-container>
     </section>
-    <section id="support">
+    <section id="support" class="relative">
         <x-container class="py-16 px-12 bg-violet-50">
             <div class="grid gap-y-6 lg:gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] mb-4">
                 <div class="order-2 px-6 sm:px-8 lg:order-1 lg:px-12 flex flex-col">
@@ -138,14 +160,30 @@
 
                 <div class="order-1 min-h-48 overflow-hidden rounded-lg bg-no-repeat bg-center bg-cover sm:min-h-80 lg:order-2" style="background-image:url({{ asset('home-discord.webp') }})"></div>
             </div>
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                    <path
+                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
+                            fill="#0069a8"
+                    />
+                </svg>
+            </div>
         </x-container>
     </section>
     <section id="subscribe">
-        <x-container class="py-16 -mb-12 bg-sky-700" inner-class="flex justify-center">
+        <x-container class="pt-16 pb-24 -mb-12 bg-sky-700 relative" inner-class="flex justify-center">
             <div class="max-w-208">
                 <h2 class="text-3xl mb-0 text-white">Want to know what’s coming up?</h2>
                 <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
                 <livewire:email-subscribe />
+            </div>
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                    <path
+                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
+                            fill="#000000"
+                    />
+                </svg>
             </div>
         </x-container>
     </section>

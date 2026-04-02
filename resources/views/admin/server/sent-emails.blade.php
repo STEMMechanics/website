@@ -82,7 +82,7 @@
                             <td class="hidden lg:table-cell text-xs text-red-700">{{ $email->error_message ?? '-' }}</td>
                             <td class="hidden md:table-cell text-xs font-mono">{{ $email->id }}</td>
                             <td>
-                                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold {{ $statusClass }}">{{ ucfirst($status) }}</span>
+                                <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">{{ ucfirst($status) }}</span>
                             </td>
                         </tr>
                     @endforeach
