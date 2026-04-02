@@ -12,8 +12,8 @@
             <p class="absolute bottom-3 right-5 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded">Steady Hand Game in Ravenshoe</p>
         </x-container>
     </section>
-    <section id="events" class="py-16 bg-[linear-gradient(to_bottom,var(--color-gray-50)_0%,var(--color-gray-50)_95%,var(--color-rose-50)_100%)]">
-        <x-container>
+    <section id="events" class="bg-gray-50">
+        <x-container class="relative py-16">
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <h2 class="-ml-2 text-2xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
                 <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start">View all workshops</x-ui.button>
@@ -27,10 +27,19 @@
                     @endforeach
                 </div>
             @endif
+
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                    <path
+                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
+                            fill="#fff1f2"
+                    />
+                </svg>
+            </div>
         </x-container>
     </section>
     <section id="audiences">
-        <x-container class="py-16 px-12 bg-[linear-gradient(to_bottom,var(--color-rose-50)_0%,var(--color-rose-50)_95%,var(--color-emerald-50)_100%)]">
+        <x-container class="relative py-16 px-12 bg-rose-50">
             <div class="grid gap-0 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] mb-4">
                 <div class="overflow-hidden sm:min-h-80 lg:order-2 lg:min-h-80 rounded-lg">
                     <img
@@ -53,6 +62,14 @@
                         <x-ui.button href="{{ route('contact') }}" class="font-normal">Enquire about a workshop</x-ui.button>
                     </div>
                 </div>
+            </div>
+            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                    <path
+                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
+                            fill="#ecfdf5"
+                    />
+                </svg>
             </div>
         </x-container>
     </section>
