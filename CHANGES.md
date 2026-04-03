@@ -19,6 +19,7 @@
 - Security and auditing
 - Integrated deploy script into repo
 - Fix for Square idempotency_key limit
+- Updated email templates
 
 ## 1.4.2
 
