@@ -46,7 +46,7 @@
                                     :noWrapper="true"
                                     inline="true"
                                     inputClass="border-emerald-300"
-                                    labelClass="text-sm font-semibold text-emerald-950"
+                                    labelClass="font-semibold text-emerald-950"
                                     x-model="useAccountCredit"
                                     x-on:change="onCreditToggle()"
                                     class="mb-0"

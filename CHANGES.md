@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.4
+
+- Improved UI
+
 ## 1.4.3
 
 - Added OpenID/OAuth2 support

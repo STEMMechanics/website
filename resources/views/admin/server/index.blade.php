@@ -25,15 +25,13 @@
                         value="1"
                         label="Dev"
                         :noWrapper="true"
-                        :inline="true"
-                        labelClass="text-sm pt-0" />
+                        :inline="true" />
                     <x-ui.checkbox
                         name="force"
                         value="1"
                         label="Force"
                         :noWrapper="true"
-                        :inline="true"
-                        labelClass="text-sm pt-0" />
+                        :inline="true" />
                     <x-ui.button type="submit" color="dark">Run Update</x-ui.button>
                 </form>
             </div>
@@ -55,8 +53,7 @@
                         label="Auto-refresh every 10 seconds"
                         :checked="true"
                         :noWrapper="true"
-                        :inline="true"
-                        labelClass="text-sm pt-0" />
+                        :inline="true" />
                 </div>
             </div>
             @if(!$deployOutputExists)

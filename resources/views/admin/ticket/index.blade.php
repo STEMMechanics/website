@@ -46,7 +46,6 @@
                             :checked="!empty($showInactive)"
                             :noWrapper="true"
                             :inline="true"
-                            labelClass="text-sm pt-0"
                             onchange="this.form.submit()"
                         />
                         <x-ui.checkbox
@@ -56,7 +55,6 @@
                             :checked="!empty($groupByWorkshop)"
                             :noWrapper="true"
                             :inline="true"
-                            labelClass="text-sm pt-0"
                             onchange="this.form.submit()"
                         />
                     </div>

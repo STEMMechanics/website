@@ -12,7 +12,6 @@
                     :checked="!empty($showGhostUsers)"
                     :noWrapper="true"
                     :inline="true"
-                    labelClass="text-sm pt-0"
                     onchange="this.form.submit()" />
                 <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                     <div class="flex relative flex-1">

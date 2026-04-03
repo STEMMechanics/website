@@ -635,7 +635,6 @@
                             :checked="old('issue_now', false)"
                             :noWrapper="true"
                             :inline="true"
-                            labelClass="pt-0"
                             x-model="issueNow"
                         />
                     </div>

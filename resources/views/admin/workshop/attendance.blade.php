@@ -643,7 +643,6 @@
                             :checked="$showCancelledTickets"
                             :noWrapper="true"
                             :inline="true"
-                            labelClass="text-sm pt-0"
                             onchange="this.form.submit()"
                         />
                         <div class="mt-2 flex relative">
@@ -692,7 +691,6 @@
                                                 :small="true"
                                                 :inline="true"
                                                 :noWrapper="true"
-                                                labelClass="text-sm pt-0"
                                                 x-model="ticketAttendance[{{ (int) $ticket->id }}]"
                                                 x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
                                         @else

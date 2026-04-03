@@ -8,7 +8,6 @@
                     label="Show cancelled"
                     :noWrapper="true"
                     :inline="true"
-                    labelClass="text-sm pt-0"
                     x-model="showCancelled" />
             </x-slot:left>
             <x-slot:right>

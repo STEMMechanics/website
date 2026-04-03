@@ -60,7 +60,7 @@
                         label="Show cancelled/refunded"
                         :noWrapper="true"
                         :inline="true"
-                        labelClass="text-sm pt-0 whitespace-nowrap"
+                        labelClass="whitespace-nowrap"
                         x-model="showCancelledRefunded" />
                 <x-ui.search name="search" label="Search" />
             </x-slot:right>
