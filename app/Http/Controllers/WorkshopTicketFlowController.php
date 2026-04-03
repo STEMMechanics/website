@@ -21,12 +21,14 @@ use App\Services\SquareApiService;
 use App\Services\WorkshopRegistrationGroupService;
 use App\Services\WorkshopTicketOrderEmailService;
 use App\Services\WorkshopTicketService;
+use App\Support\InvoiceDueDate;
 use App\Support\AltchaTrust;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use GrantHolle\Altcha\Rules\ValidAltcha;
@@ -207,6 +209,7 @@ class WorkshopTicketFlowController extends Controller
         $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
         $creditUser = $this->checkoutCreditUser($session);
         $accountCreditAvailable = $this->accountCredit->availableCreditForUser($creditUser);
+        $accountTermsDays = $this->checkoutAccountTermsDays();
         $accountCreditLoginHint = $accountCreditAvailable <= 0.0001 && $this->purchaserEmailHasCredit($session);
         $applyAccountCreditDefault = $accountCreditAvailable > 0.0001;
         $accountCreditDebugRows = $this->accountCreditDebugRows($creditUser);
@@ -231,6 +234,9 @@ class WorkshopTicketFlowController extends Controller
             'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
             'totalAmount' => round($ticketService->ticketPriceAmount($workshop) * count($session['hold_ids'] ?? []), 2),
             'accountCreditAvailable' => $accountCreditAvailable,
+            'accountTermsDays' => $accountTermsDays,
+            'canUseAccountTerms' => $accountTermsDays > 0,
+            'accountTermsLabel' => $this->accountTermsLabel($accountTermsDays),
             'accountCreditLoginHint' => $accountCreditLoginHint,
             'applyAccountCreditDefault' => $applyAccountCreditDefault,
             'creditDebug' => $creditDebug,
@@ -267,8 +273,14 @@ class WorkshopTicketFlowController extends Controller
             return redirect()->route('workshop.ticket.flow.start', $workshop);
         }
 
+        $allowedPaymentMethods = ['pay_at_door', 'bank_transfer', 'credit_card', 'credit'];
+        $accountTermsDays = $this->checkoutAccountTermsDays();
+        if ($accountTermsDays > 0) {
+            $allowedPaymentMethods[] = 'account_terms';
+        }
+
         $validated = $request->validate([
-            'payment_method' => ['required', 'in:pay_at_door,bank_transfer,credit_card,credit'],
+            'payment_method' => ['required', Rule::in($allowedPaymentMethods)],
             'source_id' => ['nullable', 'string', 'max:255'],
             'apply_account_credit' => ['nullable', 'boolean'],
         ]);
@@ -283,6 +295,11 @@ class WorkshopTicketFlowController extends Controller
             ? max(0, round($amount - $accountCreditAvailable, 2))
             : $amount;
         $paymentMethod = $amount <= 0 ? 'free' : (string) $validated['payment_method'];
+        if ($paymentMethod === 'account_terms' && $accountTermsDays <= 0) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Account terms are not available for this account.',
+            ]);
+        }
 
         if ($paymentMethod === 'credit_card' && $amountDueAfterCredit > 0.0001 && trim((string) ($validated['source_id'] ?? '')) === '') {
             throw ValidationException::withMessages([
@@ -295,7 +312,7 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
-        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser) {
+        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays) {
             $holds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
@@ -323,7 +340,8 @@ class WorkshopTicketFlowController extends Controller
                     $holds,
                     $ticketPriceAmount,
                     $session['purchaser'] ?? [],
-                    $purchaserUserId !== '' ? $purchaserUserId : null
+                    $purchaserUserId !== '' ? $purchaserUserId : null,
+                    $paymentMethod === 'account_terms' ? $accountTermsDays : null
                 );
                 $creditApplied = $creditUser instanceof User && $applyAccountCredit && $accountCreditAvailable > 0.0001
                     ? $this->accountCredit->applyCreditToInvoice($invoice, $creditUser, (float) $invoice->outstandingAmount())
@@ -344,6 +362,7 @@ class WorkshopTicketFlowController extends Controller
             $ticketStatus = match ($effectivePaymentMethod) {
                 'pay_at_door' => Ticket::STATUS_PENDING_DOOR,
                 'bank_transfer' => Ticket::STATUS_PENDING_XFER,
+                'account_terms' => Ticket::STATUS_ACCOUNT,
                 default => Ticket::STATUS_PAID,
             };
 
@@ -907,7 +926,8 @@ class WorkshopTicketFlowController extends Controller
         $holds,
         float $ticketPriceAmount,
         array $purchaser,
-        ?string $purchaserUserId = null
+        ?string $purchaserUserId = null,
+        ?int $termDays = null
     ): Invoice
     {
         $tickets = collect($holds)->values();
@@ -924,9 +944,11 @@ class WorkshopTicketFlowController extends Controller
         $invoice->billing_phone = trim((string) ($purchaser['phone'] ?? ''));
         $invoice->status = 'draft';
         $invoice->issue_date = Carbon::today();
-        $invoice->due_date = $effectiveStartsAt
-            ? Carbon::instance($effectiveStartsAt)->startOfDay()
-            : Carbon::today();
+        $invoice->due_date = $termDays !== null && $termDays > 0
+            ? InvoiceDueDate::fromIssueDate($invoice->issue_date, $termDays)
+            : ($effectiveStartsAt
+                ? Carbon::instance($effectiveStartsAt)->startOfDay()
+                : Carbon::today());
         $invoice->subtotal_amount = 0;
         $invoice->gst_amount = 0;
         $invoice->total_amount = $totalAmount;
@@ -1174,6 +1196,21 @@ class WorkshopTicketFlowController extends Controller
         return $sessionUser instanceof User && $sessionUser->canPurchaseOrBook()
             ? $sessionUser
             : null;
+    }
+
+    private function checkoutAccountTermsDays(): int
+    {
+        $user = $this->checkoutAccountUser();
+        if (! $user instanceof User || ! $user->hasAccountTerms()) {
+            return 0;
+        }
+
+        return $user->accountTermsDays();
+    }
+
+    private function accountTermsLabel(int $termDays): string
+    {
+        return $termDays <= 0 ? 'Current' : $termDays.' days';
     }
 
     private function purchaserEmailHasCredit(array $session): bool

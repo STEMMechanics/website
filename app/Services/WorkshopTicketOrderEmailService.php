@@ -345,6 +345,7 @@ class WorkshopTicketOrderEmailService
 
         return match ($deliveryPaymentMethod) {
             'credit' => 'Account Credit',
+            'account_terms' => 'Account Terms',
             'credit_card' => 'Credit Card',
             'pay_at_door' => 'Pay at Door',
             'bank_transfer' => 'Bank Transfer',

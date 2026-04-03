@@ -470,6 +470,9 @@ class ShopController extends Controller
         $accountCreditAvailable = $this->accountCredit->availableCreditForUser($user);
         $accountCreditApplied = min($accountCreditAvailable, (float) ($summary['total'] ?? 0));
         $amountDueAfterCredit = max(0, round((float) ($summary['total'] ?? 0) - $accountCreditApplied, 2));
+        $accountTermsDays = $user instanceof User && $user->hasAccountTerms()
+            ? $user->accountTermsDays()
+            : 0;
 
         return view('shop.checkout', [
             'lines' => $lines,
@@ -477,6 +480,9 @@ class ShopController extends Controller
             'accountCreditAvailable' => $accountCreditAvailable,
             'accountCreditApplied' => $accountCreditApplied,
             'amountDueAfterCredit' => $amountDueAfterCredit,
+            'accountTermsDays' => $accountTermsDays,
+            'canUseAccountTerms' => $accountTermsDays > 0,
+            'accountTermsLabel' => $accountTermsDays > 0 ? $accountTermsDays.' days' : 'Current',
             'couponCode' => $summary['coupon_code'] ?? null,
             'cartPayload' => $cart->payload([
                 'shipping_country' => $shippingCountry,
@@ -549,6 +555,15 @@ class ShopController extends Controller
             ]);
         }
 
+        $accountTermsDays = $request->user() instanceof User && $request->user()->hasAccountTerms()
+            ? $request->user()->accountTermsDays()
+            : 0;
+        $canUseAccountTerms = $accountTermsDays > 0;
+        $paymentMethodOptions = ['credit_card'];
+        if ($canUseAccountTerms) {
+            $paymentMethodOptions[] = 'account_terms';
+        }
+
         $validated = $request->validate([
             'billing_name' => ['required', 'string', 'max:120'],
             'billing_email' => ['required', 'email', 'max:255'],
@@ -565,6 +580,7 @@ class ShopController extends Controller
             'shipping_postcode' => [Rule::requiredIf($shippingRequired), 'nullable', 'regex:/^\d{4}$/'],
             'shipping_country' => $this->australianShippingCountryRules($shippingRequired),
             'notes' => ['nullable', 'string'],
+            'payment_method' => ['nullable', 'string', Rule::in($paymentMethodOptions)],
         ]);
 
         $availableShippingCodes = collect($checkoutPreview['shipping_methods'] ?? [])
@@ -607,6 +623,17 @@ class ShopController extends Controller
         $accountCreditAvailable = $this->accountCredit->availableCreditForUser($request->user());
         $accountCreditApplied = min($accountCreditAvailable, (float) ($summary['total'] ?? 0));
         $amountDueAfterCredit = max(0, round((float) ($summary['total'] ?? 0) - $accountCreditApplied, 2));
+        $paymentMethod = trim((string) ($validated['payment_method'] ?? ''));
+        if ($paymentMethod === '' && $amountDueAfterCredit > 0.0001) {
+            $paymentMethod = $canUseAccountTerms ? 'account_terms' : 'credit_card';
+        }
+        if ($paymentMethod === 'account_terms' && ! $canUseAccountTerms) {
+            return redirect()->route('shop.checkout')
+                ->withErrors(['payment_method' => 'Account terms are not available for this account.'])
+                ->withInput()
+                ->with('shop_checkout_step', 'payment');
+        }
+        $validated['payment_method'] = $paymentMethod !== '' ? $paymentMethod : null;
 
         if ($summary['coupon_error']) {
             return redirect()->back()->withErrors([
@@ -649,14 +676,14 @@ class ShopController extends Controller
                 : redirect()->route('shop.order.tracking', ['accessToken' => $order->access_token]);
         }
 
-        if ($amountDueAfterCredit > 0.0001 && ! (bool) config('services.square.enabled')) {
+        if ($amountDueAfterCredit > 0.0001 && $paymentMethod !== 'account_terms' && ! (bool) config('services.square.enabled')) {
             return redirect()->route('shop.checkout')
                 ->withErrors(['source_id' => 'Online card payments are currently unavailable.'])
                 ->withInput()
                 ->with('shop_checkout_step', 'payment');
         }
 
-        $payment = $amountDueAfterCredit > 0.0001
+        $payment = $amountDueAfterCredit > 0.0001 && $paymentMethod !== 'account_terms'
             ? $request->validate([
                 'source_id' => ['required', 'string', 'max:255'],
             ], [
@@ -665,7 +692,9 @@ class ShopController extends Controller
             : ['source_id' => null];
 
         try {
-            $order = $orders->createAndChargeFromCart($lines, $validated, $payment['source_id'] ?? null, $request->user());
+            $order = $paymentMethod === 'account_terms'
+                ? $orders->createFromCart($lines, $validated, $request->user())
+                : $orders->createAndChargeFromCart($lines, $validated, $payment['source_id'] ?? null, $request->user());
         } catch (ValidationException $e) {
             return redirect()->route('shop.checkout')
                 ->withErrors($e->errors())

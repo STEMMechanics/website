@@ -16,6 +16,7 @@
                 'credit_card' => 'Credit Card',
                 'pay_at_door' => 'Pay at Door',
                 'bank_transfer' => 'Bank Transfer',
+                'account_terms' => 'Account Terms',
                 'credit' => 'Account Credit',
                 'free' => 'Free',
                 default => ucwords(str_replace('_', ' ', (string) ($session['payment_method'] ?? '-'))),

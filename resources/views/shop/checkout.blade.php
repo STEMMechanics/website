@@ -14,6 +14,9 @@
     $submitLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Place Order' : 'Complete Order');
     $continueLabel = $requiresManualQuote ? 'Request Quote' : ($hasAmountDue ? 'Enter Payment Details' : 'Complete Order');
     $showPaymentStep = ! $requiresManualQuote && (session('shop_checkout_step') === 'payment' || $errors->has('source_id') || $errors->has('cart'));
+    $accountTermsDays = (int) ($accountTermsDays ?? 0);
+    $canUseAccountTerms = (bool) ($canUseAccountTerms ?? ($accountTermsDays > 0));
+    $accountTermsLabel = trim((string) ($accountTermsLabel ?? ($accountTermsDays > 0 ? $accountTermsDays.' days' : 'Current')));
 @endphp
 
 <x-layout title="Checkout" :canonical="route('shop.checkout')">
@@ -34,6 +37,9 @@
                 accountCreditAvailable: @js($accountCreditAvailable),
                 accountCreditApplied: @js($accountCreditApplied),
                 amountDueAfterCredit: @js($amountDueAfterCredit),
+                accountTermsDays: @js($accountTermsDays),
+                canUseAccountTerms: @js($canUseAccountTerms),
+                paymentMethod: @js(old('payment_method', $canUseAccountTerms ? 'account_terms' : 'credit_card')),
                 squareEnabled: @js($squareEnabled),
                 squareApplicationId: @js($squareApplicationId),
                 squareLocationId: @js($squareLocationId),
@@ -479,25 +485,48 @@
                             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                                 No payment is required for this checkout. Place Order is now available.
                             </div>
-                        @elseif(!$squareEnabled)
+                        @elseif(!$squareEnabled && ! $canUseAccountTerms)
                             <div class="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
                                 Online card payments are currently unavailable.
                             </div>
                         @else
-                            <div class="rounded-2xl border border-gray-200 p-5" x-show="requiresPayment" x-cloak x-init="initSquareCard()">
-                                <div class="flex items-center justify-between gap-4">
-                                    <label class="block text-sm font-semibold text-gray-900">Card Details</label>
-                                    <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
-                                        Secure payment by Square
-                                    </a>
-                                </div>
-{{--                                <div class="mt-4 relative rounded-2xl border border-gray-200 bg-white p-4" x-ref="squareCardShell">--}}
+                            <div class="rounded-2xl border border-gray-200 p-5">
+                                <x-ui.select
+                                    label="Payment Method"
+                                    name="payment_method"
+                                    error=""
+                                    x-model="paymentMethod"
+                                    x-on:change="onPaymentMethodChange()"
+                                    x-on:mousedown="if (isSubmitting || checkoutStep !== 'payment') { $event.preventDefault() }"
+                                    x-on:keydown="if (isSubmitting || checkoutStep !== 'payment') { $event.preventDefault() }">
+                                    @if($canUseAccountTerms)
+                                        <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
+                                    @endif
+                                    <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay by credit card</option>
+                                </x-ui.select>
+
+                                @if($canUseAccountTerms)
+                                    <div
+                                        x-show="paymentMethod === 'account_terms'"
+                                        x-cloak
+                                        class="mt-2 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                                        Your account has {{ $accountTermsDays }}-day terms. This order will be invoiced and payable within {{ $accountTermsDays }} days.
+                                    </div>
+                                @endif
+
+                                <div class="mt-5" x-show="requiresPayment && paymentMethod === 'credit_card'" x-cloak x-init="initSquareCard()">
+                                    <div class="flex items-center justify-between gap-4">
+                                        <label class="block text-sm font-semibold text-gray-900">Card Details</label>
+                                        <a href="https://squareup.com/au/en" target="_blank" rel="noopener noreferrer" class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700">
+                                            Secure payment by Square
+                                        </a>
+                                    </div>
                                     <div x-ref="squareCardContainer" class="mt-4" x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                                     <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
                                         <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
                                     </div>
-{{--                                </div>--}}
-                                <div x-show="errorMessage" x-cloak class="mt-2 text-xs text-red-600" x-text="errorMessage"></div>
+                                    <div x-show="errorMessage" x-cloak class="mt-2 text-xs text-red-600" x-text="errorMessage"></div>
+                                </div>
                             </div>
                         @endif
 
@@ -551,6 +580,7 @@
             squareEnabled: Boolean(config.squareEnabled),
             squareApplicationId: config.squareApplicationId || '',
             squareLocationId: config.squareLocationId || '',
+            paymentMethod: config.paymentMethod || 'credit_card',
             routes: config.routes || {},
             busyLineKey: null,
             couponDraft: config.initialCouponDraft || '',
@@ -569,6 +599,8 @@
             isSubmitting: false,
             isCardLoading: false,
             paymentDetailsEntered: false,
+            accountTermsDays: Number(config.accountTermsDays || 0),
+            canUseAccountTerms: Boolean(config.canUseAccountTerms),
             paymentFields: {
                 cardNumber: { isEmpty: true },
                 expirationDate: { isEmpty: true },
@@ -1131,12 +1163,30 @@
                         return;
                     }
 
+                    if (this.paymentMethod === 'credit_card') {
+                        this.$nextTick(() => this.initSquareCard());
+                    }
+                }
+            },
+
+            onPaymentMethodChange() {
+                this.errorMessage = '';
+                this.sourceId = '';
+                if (this.$refs?.sourceIdInput) {
+                    this.$refs.sourceIdInput.value = '';
+                }
+
+                if (this.paymentMethod === 'credit_card') {
                     this.$nextTick(() => this.initSquareCard());
                 }
             },
 
             canUseCreditCard() {
-                return this.requiresPayment && this.squareEnabled && this.squareApplicationId !== '' && this.squareLocationId !== '';
+                return this.paymentMethod === 'credit_card'
+                    && this.requiresPayment
+                    && this.squareEnabled
+                    && this.squareApplicationId !== ''
+                    && this.squareLocationId !== '';
             },
 
             async goToPayment() {
@@ -1193,6 +1243,10 @@
                 }
 
                 if (!this.requiresPayment) {
+                    return false;
+                }
+
+                if (this.paymentMethod === 'account_terms') {
                     return false;
                 }
 
@@ -1335,7 +1389,7 @@
                     }
                 }
 
-                if (this.requiresPayment) {
+                if (this.requiresPayment && this.paymentMethod === 'credit_card') {
                     if (!this.squareEnabled) {
                         this.errorMessage = 'Online card payments are currently unavailable.';
                         this.isSubmitting = false;

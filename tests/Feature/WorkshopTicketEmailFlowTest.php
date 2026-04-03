@@ -6,6 +6,7 @@ use App\Jobs\SendEmail;
 use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketOrderConfirmation;
+use App\Models\Invoice;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Location;
 use App\Models\Media;
@@ -154,6 +155,44 @@ class WorkshopTicketEmailFlowTest extends TestCase
                 && $mailable->purchaserName === 'Jamie Example'
                 && $this->mailableSubject($mailable) === "You're in! Your workshop ticket for Ticket Email Workshop";
         });
+    }
+
+    public function test_account_terms_ticket_checkout_uses_the_users_terms_for_the_invoice_due_date(): void
+    {
+        $this->travelTo(now()->setDate(2026, 4, 1)->setTime(10, 0));
+
+        $buyer = User::factory()->create([
+            'firstname' => 'Terms',
+            'surname' => 'Buyer',
+            'email' => 'terms-buyer@example.com',
+            'account_terms_days' => 14,
+        ]);
+
+        $workshop = $this->createTicketedWorkshop([
+            'price' => '15.00',
+        ]);
+
+        $this->actingAs($buyer);
+
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1,
+            'firstname' => 'Terms',
+            'surname' => 'Buyer',
+            'email' => 'terms-buyer@example.com',
+            'phone' => '0400123456',
+        ])->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), [
+            'payment_method' => 'account_terms',
+        ])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+
+        $ticket = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->sole();
+        $invoice = Invoice::query()->sole();
+
+        $this->assertSame(Ticket::STATUS_ACCOUNT, (int) $ticket->status);
+        $this->assertSame('2026-04-15', optional($invoice->due_date)->toDateString());
     }
 
     public function test_logged_in_ticket_checkout_uses_account_credit_before_charging_the_remaining_card_amount(): void

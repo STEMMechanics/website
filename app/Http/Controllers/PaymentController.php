@@ -1038,7 +1038,7 @@ class PaymentController extends Controller
                 if ($this->invoiceHasTicketContent($invoice)) {
                     Ticket::query()
                         ->where('invoice_id', $invoice->id)
-                        ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER])
+                        ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])
                         ->update(['status' => Ticket::STATUS_DONE]);
                 }
                 continue;

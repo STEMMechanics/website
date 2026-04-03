@@ -29,6 +29,7 @@ use App\Models\StoreOrderItemTracking;
 use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Support\ShopShippingSettings;
+use App\Support\InvoiceDueDate;
 use Barryvdh\DomPDF\PDF;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -60,12 +61,29 @@ class StoreOrderService
 
         $customer = $this->normalizeCustomerPayload($payload);
         $user = $this->resolveUser($customer, $authUser);
+        $paymentMethod = (string) ($customer['payment_method'] ?? '');
 
         /** @var StoreOrder $order */
-        $order = DB::transaction(function () use ($lines, $customer, $user): StoreOrder {
+        $order = DB::transaction(function () use ($lines, $customer, $user, $paymentMethod, $authUser): StoreOrder {
             $checkout = $this->prepareCheckout($lines, $customer, $user);
 
-            return $this->createOrderRecords($checkout['lines'], $customer, $user, $checkout['totals']);
+            $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $checkout['totals'], true, null, true, $paymentMethod);
+            $invoice = $order->invoice;
+
+            if (
+                $paymentMethod === Payment::PAYMENT_METHOD_ACCOUNT_TERMS
+                && $invoice instanceof Invoice
+                && $user instanceof User
+            ) {
+                $creditApplied = $this->accountCredit->applyCreditToInvoice($invoice, $user, (float) $invoice->outstandingAmount());
+                if ($creditApplied > 0.0001) {
+                    $invoice->refresh();
+                    $order->refresh();
+                    $order->load('invoice');
+                }
+            }
+
+            return $order;
         });
 
         $this->syncOrderState($order);
@@ -87,9 +105,10 @@ class StoreOrderService
 
         $customer = $this->normalizeCustomerPayload($payload);
         $user = $this->resolveUser($customer, $authUser);
+        $paymentMethod = (string) ($customer['payment_method'] ?? '');
 
         /** @var StoreOrder $order */
-        $order = DB::transaction(function () use ($lines, $customer, $user, $sourceId, $authUser): StoreOrder {
+        $order = DB::transaction(function () use ($lines, $customer, $user, $sourceId, $authUser, $paymentMethod): StoreOrder {
             $checkout = $this->prepareCheckout($lines, $customer, $user);
             $totals = $checkout['totals'];
 
@@ -99,7 +118,7 @@ class StoreOrderService
                 ]);
             }
 
-            $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $totals);
+            $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $totals, true, null, true, $paymentMethod);
             $invoice = $order->invoice;
 
             if (! $invoice instanceof Invoice) {
@@ -2574,6 +2593,7 @@ class StoreOrderService
         bool $createInvoice = true,
         ?string $forcedStatus = null,
         bool $reserveInventory = true,
+        ?string $paymentMethod = null,
     ): StoreOrder
     {
         $invoice = null;
@@ -2587,7 +2607,13 @@ class StoreOrderService
             $invoice->status = $totals['total'] <= 0.0001 ? Invoice::STATUS_PAID : Invoice::STATUS_ISSUED;
             $invoice->issue_date = Carbon::today();
             $invoice->issued_at = now();
-            $invoice->due_date = Carbon::today()->addDays(7);
+            $invoice->due_date = (
+                $paymentMethod === Payment::PAYMENT_METHOD_ACCOUNT_TERMS
+                && $user instanceof User
+                && $user->hasAccountTerms()
+            )
+                ? InvoiceDueDate::fromIssueDate($invoice->issue_date, $user->accountTermsDays())
+                : Carbon::today()->addDays(7);
             $invoice->subtotal_amount = $totals['invoice_subtotal'];
             $invoice->gst_amount = $totals['gst'];
             $invoice->total_amount = $totals['total'];
@@ -3716,6 +3742,7 @@ class StoreOrderService
             'shipping_country' => trim((string) ($payload['shipping_country'] ?? 'Australia')) ?: 'Australia',
             'shipping_method_code' => trim((string) ($payload['shipping_method_code'] ?? '')),
             'consolidate_shipments' => (bool) ($payload['consolidate_shipments'] ?? false),
+            'payment_method' => trim((string) ($payload['payment_method'] ?? '')),
             'coupon_code' => Coupon::normalizeCode($payload['coupon_code'] ?? null),
             'preorder_acknowledged' => array_key_exists('preorder_acknowledged', $payload)
                 ? (bool) $payload['preorder_acknowledged']

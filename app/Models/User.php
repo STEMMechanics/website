@@ -33,6 +33,14 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
 
     public const AVATAR_MODE_ICON = 'icon';
 
+    public const ACCOUNT_TERMS_OPTIONS = [
+        0,
+        7,
+        14,
+        21,
+        28,
+    ];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -67,6 +75,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         'billing_postcode',
         'billing_state',
         'billing_country',
+        'account_terms_days',
         'subscribed',
         'agree_tos',
         'child_can_create_forum_topics',
@@ -100,6 +109,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         'child_parent_notified_on_forum_replies' => false,
         'child_can_select_avatar_media' => true,
         'child_can_use_avatar_camera' => true,
+        'account_terms_days' => 0,
     ];
 
     /**
@@ -121,6 +131,7 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         'child_parent_notified_on_forum_replies' => 'boolean',
         'child_can_select_avatar_media' => 'boolean',
         'child_can_use_avatar_camera' => 'boolean',
+        'account_terms_days' => 'integer',
         'anonymized_at' => 'datetime',
     ];
 
@@ -236,6 +247,39 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
             fn (mixed $value, string $key) => static::hasDatabaseColumn($key),
             ARRAY_FILTER_USE_BOTH
         );
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function accountTermsOptions(): array
+    {
+        return [
+            0 => 'Current',
+            7 => '7 days',
+            14 => '14 days',
+            21 => '21 days',
+            28 => '28 days',
+        ];
+    }
+
+    public function accountTermsDays(): int
+    {
+        $days = (int) ($this->account_terms_days ?? 0);
+
+        return in_array($days, self::ACCOUNT_TERMS_OPTIONS, true) ? $days : 0;
+    }
+
+    public function hasAccountTerms(): bool
+    {
+        return $this->accountTermsDays() > 0;
+    }
+
+    public function accountTermsLabel(): string
+    {
+        $days = $this->accountTermsDays();
+
+        return $days <= 0 ? 'Current' : $days.' days';
     }
 
     /**

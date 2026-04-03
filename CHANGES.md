@@ -3,6 +3,7 @@
 ## 1.4.4
 
 - Improved UI
+- Added x-day account support
 
 ## 1.4.3
 

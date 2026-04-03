@@ -1,6 +1,9 @@
 @php
     $accountCreditAvailable = round((float) ($accountCreditAvailable ?? 0), 2);
     $applyAccountCreditDefault = (bool) ($applyAccountCreditDefault ?? ($accountCreditAvailable > 0.0001));
+    $accountTermsDays = (int) ($accountTermsDays ?? 0);
+    $canUseAccountTerms = (bool) ($canUseAccountTerms ?? ($accountTermsDays > 0));
+    $accountTermsLabel = trim((string) ($accountTermsLabel ?? ($accountTermsDays > 0 ? $accountTermsDays.' days' : 'Current')));
 @endphp
 
 <x-layout>
@@ -16,9 +19,12 @@
                     squareEnvironment: @js($squareEnvironment),
                     expiresAt: @js($session['expires_at']),
                     accountCreditAvailable: @js($accountCreditAvailable),
+                    accountTermsDays: @js($accountTermsDays),
+                    canUseAccountTerms: @js($canUseAccountTerms),
                     totalAmount: @js($totalAmount),
                     useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
                     isClassroomAccess: @js($isClassroomAccess),
+                    paymentMethod: @js($totalAmount > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
                 })"
             x-init="startHoldTimer()">
             <div class="flex-1">
@@ -81,7 +87,7 @@
                     <input
                         type="hidden"
                         name="payment_method"
-                        value="credit"
+                        value="{{ $canUseAccountTerms ? 'account_terms' : 'credit' }}"
                         x-bind:name="isFullyCoveredByCredit() ? 'payment_method' : null"
                     >
                     <div x-show="!expired && !isFullyCoveredByCredit()" x-cloak>
@@ -94,6 +100,9 @@
                             x-on:mousedown="if (isSubmitting || expired) { $event.preventDefault() }"
                             x-on:keydown="if (isSubmitting || expired) { $event.preventDefault() }">
                             @if($totalAmount > 0)
+                            @if($canUseAccountTerms)
+                            <option value="account_terms">Charge to account ({{ $accountTermsLabel }})</option>
+                            @endif
                             <option value="pay_at_door">Pay at the door</option>
                             <option value="bank_transfer">Bank transfer</option>
                             <option value="credit_card" {{ ($squareEnabled && $squareApplicationId !== '' && $squareLocationId !== '') ? '' : 'disabled' }}>Pay by credit card</option>
@@ -101,6 +110,11 @@
                             <option value="pay_at_door">No payment required</option>
                             @endif
                         </x-ui.select>
+                        @if($canUseAccountTerms)
+                            <div x-show="paymentMethod === 'account_terms'" x-cloak class="mt-2 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                                Your account has {{ $accountTermsDays }}-day terms. This order will be invoiced and payable within {{ $accountTermsDays }} days.
+                            </div>
+                        @endif
                     </div>
 
                     <div x-show="!expired && !isFullyCoveredByCredit() && paymentMethod === 'credit_card' && remainingAfterCredit() > 0.0001" x-cloak x-init="initSquareCard()">
@@ -176,7 +190,7 @@
 <script>
     function ticketPaymentPage(config) {
         return {
-            paymentMethod: @js($totalAmount > 0 ? old('payment_method', 'pay_at_door') : 'pay_at_door'),
+            paymentMethod: @js($totalAmount > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
             squareEnabled: Boolean(config.squareEnabled),
             squareApplicationId: config.squareApplicationId || '',
             squareLocationId: config.squareLocationId || '',
@@ -189,6 +203,8 @@
             isSubmitting: false,
             isCardLoading: false,
             accountCreditAvailable: Number(config.accountCreditAvailable || 0),
+            accountTermsDays: Number(config.accountTermsDays || 0),
+            canUseAccountTerms: Boolean(config.canUseAccountTerms),
             totalAmount: Number(config.totalAmount || 0),
             useAccountCredit: Boolean(config.useAccountCredit),
 
@@ -216,6 +232,10 @@
             },
 
             submitButtonLabel() {
+                if (this.paymentMethod === 'account_terms') {
+                    return this.isClassroomAccess ? 'Enrol on Account' : 'Place on Account';
+                }
+
                 if (this.isFullyCoveredByCredit() || this.paymentMethod === 'credit') {
                     return this.isClassroomAccess ? 'Confirm Registration' : 'Complete Purchase';
                 }

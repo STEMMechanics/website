@@ -203,6 +203,74 @@ hr {
     text-decoration: underline;
 }
 
+@media only screen and (max-width: 700px) {
+    .newsletter-hero__table,
+    .newsletter-workshop-card__table {
+        width: 100% !important;
+    }
+
+    .newsletter-hero__cell,
+    .newsletter-workshop-card__image-cell,
+    .newsletter-workshop-card__body-cell,
+    .newsletter-workshop-card__meta-cell {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .newsletter-hero__content-cell {
+        padding: 24px !important;
+    }
+
+    .newsletter-hero__media-cell {
+        display: none !important;
+        max-height: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        mso-hide: all !important;
+        padding: 0 !important;
+        width: 0 !important;
+    }
+
+    .newsletter-workshop-card__image {
+        display: none !important;
+        max-height: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        mso-hide: all !important;
+        width: 100% !important;
+        height: auto !important;
+    }
+
+    .newsletter-workshop-card__image-cell {
+        display: none !important;
+        max-height: 0 !important;
+        max-width: 0 !important;
+        overflow: hidden !important;
+        mso-hide: all !important;
+        padding: 0 !important;
+        width: 0 !important;
+    }
+
+    .newsletter-workshop-card__body-cell {
+        padding: 16px 18px 0 !important;
+    }
+
+    .newsletter-workshop-card__meta-cell {
+        padding: 0 18px 18px !important;
+        text-align: left !important;
+    }
+
+    .newsletter-workshop-card__price {
+        margin-bottom: 10px !important;
+        text-align: left !important;
+    }
+
+    .newsletter-workshop-card__cta {
+        width: auto !important;
+    }
+}
+
 /* Tables */
 
 .table table {

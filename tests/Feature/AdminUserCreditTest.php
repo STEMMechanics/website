@@ -71,6 +71,47 @@ class AdminUserCreditTest extends TestCase
         $response->assertSee('Payments');
     }
 
+    public function test_admin_can_set_account_terms_on_a_user(): void
+    {
+        $admin = $this->createAdminUser();
+        $user = User::factory()->create([
+            'firstname' => 'Terms',
+            'surname' => 'Customer',
+            'email' => 'terms-customer@example.com',
+            'username' => 'termscustomer',
+            'phone' => '0400111222',
+        ]);
+
+        $response = $this->actingAs($admin)->put(route('admin.user.update', $user), [
+            'firstname' => 'Terms',
+            'surname' => 'Customer',
+            'company' => '',
+            'email' => 'terms-customer@example.com',
+            'username' => 'termscustomer',
+            'phone' => '0400111222',
+            'account_terms_days' => 21,
+            'groups' => '',
+            'shipping_address' => '',
+            'shipping_address2' => '',
+            'shipping_city' => '',
+            'shipping_postcode' => '',
+            'shipping_country' => '',
+            'shipping_state' => '',
+            'billing_address' => '',
+            'billing_address2' => '',
+            'billing_city' => '',
+            'billing_postcode' => '',
+            'billing_country' => '',
+            'billing_state' => '',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $user->refresh();
+        $this->assertSame(21, (int) $user->account_terms_days);
+    }
+
     public function test_admin_user_finance_page_shows_payment_ledger_and_refund_button(): void
     {
         $admin = $this->createAdminUser();

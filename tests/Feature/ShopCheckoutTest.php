@@ -109,6 +109,46 @@ class ShopCheckoutTest extends TestCase
 
     }
 
+    public function test_logged_in_shop_checkout_can_place_the_order_on_account_terms(): void
+    {
+        Queue::fake();
+
+        $user = User::factory()->create([
+            'firstname' => 'Terms',
+            'surname' => 'Customer',
+            'email' => 'terms-customer@example.com',
+            'account_terms_days' => 14,
+        ]);
+
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 19.95,
+        ]);
+
+        $this->actingAs($user)
+            ->post(route('shop.cart.add', $product), [
+                'quantity' => 1,
+            ])->assertRedirect(route('shop.cart.show'));
+
+        $this->travelTo(now()->setDate(2026, 4, 1)->setTime(10, 0));
+
+        $response = $this->actingAs($user)->post(route('shop.checkout.place-order'), [
+            'billing_name' => 'Terms Customer',
+            'billing_email' => 'terms-customer@example.com',
+            'billing_phone' => '0400111222',
+            'payment_method' => 'account_terms',
+        ]);
+
+        $order = StoreOrder::query()->sole();
+        $order->load('invoice');
+
+        $response->assertRedirect(route('account.order.show', $order));
+        $this->assertSame(StoreOrder::STATUS_PENDING_PAYMENT, (string) $order->status);
+        $this->assertSame('2026-04-15', optional($order->invoice?->due_date)->toDateString());
+        $this->assertSame(0, Payment::query()->count());
+    }
+
     public function test_digital_products_can_be_added_in_multiple_quantities(): void
     {
         $product = Product::factory()->create([

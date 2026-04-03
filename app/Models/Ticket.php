@@ -28,6 +28,8 @@ class Ticket extends Model
 
     public const STATUS_REISSUED = 6;
 
+    public const STATUS_ACCOUNT = 7;
+
     protected $fillable = [
         'reference_code',
         'status',
@@ -77,6 +79,7 @@ class Ticket extends Model
             self::STATUS_CANCELLED => 'cancelled',
             self::STATUS_PENDING_DOOR => 'pending-door',
             self::STATUS_PENDING_XFER => 'pending-xfer',
+            self::STATUS_ACCOUNT => 'account',
             self::STATUS_REISSUED => $this->reissuedStatusLabel(),
             default => 'hold',
         };
@@ -88,6 +91,7 @@ class Ticket extends Model
             self::STATUS_PAID => 'Paid',
             self::STATUS_PENDING_DOOR => 'Reserved (Pay at Door)',
             self::STATUS_PENDING_XFER => 'Awaiting Bank Transfer',
+            self::STATUS_ACCOUNT => 'Account',
             self::STATUS_CANCELLED => 'Cancelled',
             self::STATUS_REISSUED => $this->reissuedCustomerStatusLabel(),
             self::STATUS_HOLD => 'Checkout in Progress',
@@ -102,6 +106,7 @@ class Ticket extends Model
             self::STATUS_DONE,
             self::STATUS_PENDING_DOOR,
             self::STATUS_PENDING_XFER,
+            self::STATUS_ACCOUNT,
         ];
     }
 

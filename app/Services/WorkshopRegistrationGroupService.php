@@ -34,6 +34,7 @@ class WorkshopRegistrationGroupService
                 Ticket::STATUS_PAID,
                 Ticket::STATUS_PENDING_DOOR,
                 Ticket::STATUS_PENDING_XFER,
+                Ticket::STATUS_ACCOUNT,
             ], true)) {
                 continue;
             }

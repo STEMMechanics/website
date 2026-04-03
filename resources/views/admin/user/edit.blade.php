@@ -59,6 +59,11 @@
                 <div class="flex-1"></div>
             </div>
             <x-ui.input label="Company (Optional)" name="company" value="{{ $user->company }}" />
+            <x-ui.select label="Account Terms" name="account_terms_days" info="Set the number of days before invoice payment is due. Current means no extra terms.">
+                @foreach(\App\Models\User::accountTermsOptions() as $days => $label)
+                    <option value="{{ $days }}" @selected((int) old('account_terms_days', $user->accountTermsDays()) === (int) $days)>{{ $label }}</option>
+                @endforeach
+            </x-ui.select>
             <x-ui.input
                 label="Groups (comma or space separated)"
                 name="groups"

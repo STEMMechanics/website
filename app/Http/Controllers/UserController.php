@@ -124,6 +124,7 @@ class UserController extends Controller
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
+            'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -244,6 +245,7 @@ class UserController extends Controller
             'phone' => '',
             'subscribed' => 'nullable',
             'groups' => 'nullable|string|max:2000',
+            'account_terms_days' => ['nullable', 'integer', Rule::in(User::ACCOUNT_TERMS_OPTIONS)],
 
             'shipping_address' => 'required_with:shipping_city,shipping_postcode,shipping_country,shipping_state',
             'shipping_address2' => 'nullable|string|max:255',
@@ -450,6 +452,7 @@ class UserController extends Controller
             'billing_postcode' => trim((string) ($validated['billing_postcode'] ?? '')),
             'billing_country' => trim((string) ($validated['billing_country'] ?? '')),
             'billing_state' => trim((string) ($validated['billing_state'] ?? '')),
+            'account_terms_days' => (int) ($validated['account_terms_days'] ?? 0),
         ];
     }
 

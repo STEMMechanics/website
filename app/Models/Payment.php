@@ -59,6 +59,7 @@ class Payment extends Model
     public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
     public const PAYMENT_METHOD_CREDIT = 'credit';
     public const PAYMENT_METHOD_CREDIT_CARD = 'credit_card';
+    public const PAYMENT_METHOD_ACCOUNT_TERMS = 'account_terms';
     public const PAYMENT_METHOD_EFTPOS = 'eftpos';
     public const PAYMENT_METHOD_OTHER = 'other';
 
@@ -204,6 +205,7 @@ class Payment extends Model
             self::PAYMENT_METHOD_BANK_TRANSFER => 'Bank Transfer',
             self::PAYMENT_METHOD_CREDIT => 'Credit',
             self::PAYMENT_METHOD_CREDIT_CARD => 'Credit Card',
+            self::PAYMENT_METHOD_ACCOUNT_TERMS => 'Account Terms',
             self::PAYMENT_METHOD_EFTPOS => 'EFTPOS',
             self::PAYMENT_METHOD_OTHER => 'Other',
             default => ucwords(str_replace('_', ' ', $paymentMethod)),
