@@ -169,7 +169,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertStringNotContainsString('&lt;h2', $rendered);
         $this->assertStringNotContainsString('&lt;p', $rendered);
         $this->assertStringNotContainsString('Here’s a fresher look', $rendered);
-        $this->assertStringContainsString('logo-dark.svg', $rendered);
+        $this->assertStringContainsString('logo-dark.png', $rendered);
         $this->assertStringContainsString('Test header copy', $rendered);
         $this->assertStringContainsString('Test CTA copy', $rendered);
         $this->assertStringContainsString('Browse Workshop List', $rendered);

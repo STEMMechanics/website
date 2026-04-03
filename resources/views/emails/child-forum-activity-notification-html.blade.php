@@ -15,10 +15,10 @@
                             <a href="{{ config('app.url') }}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">
                                 <img
                                     alt="STEMMechanics Logo"
-                                    src="{{ asset('/logo-dark.svg') }}"
+                                    src="{{ asset('/logo-dark.png') }}"
                                     width="200"
-                                    height="31"
-                                    style="border:0; display:block; width:200px; height:31px;"
+                                    height="36"
+                                    style="border:0; display:block; width:200px; height:36px;"
                                 />
                             </a>
                         </td>

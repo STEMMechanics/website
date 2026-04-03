@@ -64,7 +64,7 @@ class StoreOrderService
         $paymentMethod = (string) ($customer['payment_method'] ?? '');
 
         /** @var StoreOrder $order */
-        $order = DB::transaction(function () use ($lines, $customer, $user, $paymentMethod, $authUser): StoreOrder {
+        $order = DB::transaction(function () use ($lines, $customer, $user, $paymentMethod): StoreOrder {
             $checkout = $this->prepareCheckout($lines, $customer, $user);
 
             $order = $this->createOrderRecords($checkout['lines'], $customer, $user, $checkout['totals'], true, null, true, $paymentMethod);

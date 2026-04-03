@@ -37,7 +37,7 @@ width: 100% !important;
 
 <tr>
 <td class="body" width="100%" cellpadding="0" cellspacing="0" style="border: hidden !important;">
-<table class="inner-body" align="center" width="1028" cellpadding="0" cellspacing="0" role="presentation">
+<table class="inner-body" align="center" width="100%" cellpadding="0" cellspacing="0" role="presentation">
 <tr>
 <td class="content-cell">
 {{ Illuminate\Mail\Markdown::parse($slot) }}
