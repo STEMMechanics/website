@@ -4,6 +4,7 @@
 
 - Improved UI
 - Added x-day account support
+- Improved email template on mobile
 
 ## 1.4.3
 

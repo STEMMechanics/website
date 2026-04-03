@@ -42,17 +42,17 @@
         $ctaTarget = '_blank';
     }
 @endphp
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:780px; margin:0 auto 14px auto;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-workshop-card__table" style="max-width:780px; margin:0 auto 14px auto;">
 <tr>
 <td style="border:1px solid #e2e8f0; border-left:8px solid {{ $accent }}; border-radius: 8px; overflow:hidden; background:#ffffff;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
 <tr>
 @if($heroUrl)
-<td width="240" valign="top" style="padding:0; background:#f8fafc;">
-<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="240" height="240" style="display:block; width:240px; height:240px; object-fit:cover;">
+<td width="256" valign="top" class="newsletter-workshop-card__image-cell" style="padding:0; background:#f8fafc;">
+<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="256" height="256" class="newsletter-workshop-card__image" style="display:block; width:256px; height:256px; object-fit:cover;">
 </td>
 @endif
-<td valign="top" style="padding:18px 18px 18px 18px;">
+<td valign="top" class="newsletter-workshop-card__body-cell" style="padding:18px 18px 18px 18px;">
 <div style="font-size:18px; line-height:1.22; font-weight:800; color:#0f172a; margin:0 0 8px 0;"><a href="{{ route('workshop.show', $workshop->slug) }}" style="color:#0f172a; text-decoration:none;">{{ $workshop->title }}</a></div>
 <div style="display:inline-block; padding:5px 10px; border-radius:999px; background:{{ $accent }}; color:#ffffff; font-size:11px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:10px;">{{ $badgeText !== '' ? $badgeText : $locationName }}</div>
 <div style="font-size:14px; line-height:1.45; color:#475569; margin-bottom:10px;">{{ $scheduleLabel }}@if($cadenceLabel) - {{ $cadenceLabel }}@endif</div>
@@ -67,8 +67,8 @@
 </div>
 @endif
 </td>
-<td width="180" valign="top" style="padding:18px 18px 18px 0; text-align:right;">
-<div style="font-size:24px; line-height:1; font-weight:900; color:#0f172a; letter-spacing:-0.04em; margin-bottom:10px;">{{ $priceLabel }}</div>
+<td width="190" valign="top" class="newsletter-workshop-card__meta-cell" style="padding:18px 18px 18px 0; text-align:right;">
+<div class="newsletter-workshop-card__price" style="font-size:26px; line-height:1; font-weight:900; color:#0f172a; letter-spacing:-0.04em; margin-bottom:12px;">{{ $priceLabel }}</div>
 @php
     $footerParts = [];
 
@@ -87,7 +87,7 @@
 {{ implode(' · ', $footerParts) }}
 </div>
 @endif
-<a href="{{ $ctaUrl }}" @if($ctaTarget) target="{{ $ctaTarget }}" rel="noopener" @endif class="newsletter-workshop-cta" style="display:inline-block; padding:12px 14px; border-radius:12px; background:{{ $accent }}; color:#ffffff; font-size:14px; font-weight:800; text-decoration:none;">{{ $ctaLabel }}</a>
+<a href="{{ $ctaUrl }}" @if($ctaTarget) target="{{ $ctaTarget }}" rel="noopener" @endif class="newsletter-workshop-cta" style="display:inline-block; padding:13px 16px; border-radius:12px; background:{{ $accent }}; color:#ffffff; font-size:15px; font-weight:800; text-decoration:none;">{{ $ctaLabel }}</a>
 </td>
 </tr>
 </table>
