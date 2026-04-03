@@ -14,7 +14,7 @@
                         <td style="background:#0f172a; border-radius:12px; padding:24px 28px;">
                             <a href="{{ config('app.url') }}" target="_blank" rel="noopener" style="display:inline-block; text-decoration:none;">
                                 <img
-                                    alt="{{ config('app.name') }}"
+                                    alt="STEMMechanics Logo"
                                     src="{{ asset('/logo-dark.svg') }}"
                                     width="200"
                                     height="31"
