@@ -276,7 +276,7 @@ class WorkshopClassroomRegistrationTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.workshop.edit', $workshop))
             ->assertOk()
-            ->assertSeeText('These fields are set automatically based on the linked course information.')
+            ->assertSeeText('Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.')
             ->assertSee('x-bind:disabled="isCourseManaged()"', false)
             ->assertSee('x-model="selectedClassSessionId"', false);
     }

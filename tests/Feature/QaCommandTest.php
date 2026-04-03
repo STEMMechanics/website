@@ -22,6 +22,7 @@ class QaCommandTest extends TestCase
             'Running tests',
             'Running PHPStan',
             'Running composer audit',
+            'Running npm audit',
         ], array_column($command->steps, 'title'));
     }
 

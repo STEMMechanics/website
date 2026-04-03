@@ -11,13 +11,13 @@ class QaCommand extends Command
         {--without-tty : Disable TTY output for child processes}
         {--tests-only : Run tests only}
         {--stan-only : Run PHPStan only}
-        {--no-audit : Skip composer audit}
+        {--no-audit : Skip Composer and npm audits}
         {--test-memory-limit=1G : Memory limit passed to PHPUnit, e.g. 512M or 1G}
         {--stan-memory-limit=1G : Memory limit passed to phpstan, e.g. 1G or 2G}
         {--test=* : Additional args passed to artisan test}
         {--stan=* : Additional args passed to phpstan analyse}';
 
-    protected $description = 'Run quality checks (tests, PHPStan, and composer audit)';
+    protected $description = 'Run quality checks (tests, PHPStan, Composer audit, and npm audit)';
 
     public function handle(): int
     {
@@ -83,14 +83,24 @@ class QaCommand extends Command
         }
 
         if (! $testsOnly && ! $stanOnly && ! $skipAudit) {
-            $auditExitCode = $this->runStep(
+            $composerAuditExitCode = $this->runStep(
                 'Running composer audit',
                 ['composer', 'audit', '--no-interaction'],
                 $withoutTty
             );
 
-            if ($auditExitCode !== 0) {
-                return $auditExitCode;
+            if ($composerAuditExitCode !== 0) {
+                return $composerAuditExitCode;
+            }
+
+            $npmAuditExitCode = $this->runStep(
+                'Running npm audit',
+                ['npm', 'audit', '--no-fund'],
+                $withoutTty
+            );
+
+            if ($npmAuditExitCode !== 0) {
+                return $npmAuditExitCode;
             }
         }
 

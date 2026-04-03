@@ -44,8 +44,8 @@ class SiteErrorNotificationService
             'requestMethod' => (string) $request->method(),
             'requestUrl' => (string) $request->fullUrl(),
             'requestUserAgent' => (string) $request->userAgent(),
-            'requestUserId' => (string) ($request->user()?->id ?? ''),
-            'requestUserEmail' => (string) ($request->user()?->email ?? ''),
+            'requestUserId' => (string) ($request->user()->id ?? ''),
+            'requestUserEmail' => (string) ($request->user()->email ?? ''),
         ];
     }
 
