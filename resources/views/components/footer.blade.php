@@ -1,9 +1,9 @@
 <footer class="flex flex-col bg-gray-950 text-gray-400 px-4 py-8 sm:px-12 sm:py-16 mt-12 relative">
-    <div class="absolute rotate-180 top-0 left-0 w-full overflow-hidden leading-none">
-        <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
+    <div class="absolute -top-4 left-0 w-full overflow-hidden leading-none">
+        <svg viewBox="0 0 1440 120" class="block w-full h-4" preserveAspectRatio="none">
             <path
                     d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
-                    fill="#fff1f2"
+                    fill="#030712"
             />
         </svg>
     </div>

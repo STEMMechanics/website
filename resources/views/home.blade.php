@@ -192,14 +192,6 @@
                 <p class="mb-6 text-left text-white">Sign up and we’ll send you updates on new workshops, special sessions and what’s happening around STEMMechanics.</p>
                 <livewire:email-subscribe />
             </div>
-            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
-                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
-                    <path
-                            d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
-                            fill="#000000"
-                    />
-                </svg>
-            </div>
         </x-container>
     </section>
 </x-layout>
