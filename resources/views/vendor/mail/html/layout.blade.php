@@ -25,6 +25,28 @@ padding-right: 24px !important;
 width: 100% !important;
 }
 }
+
+@media only screen and (max-width: 703px) {
+.mobile-hide {
+display: none !important;
+max-height: 0 !important;
+max-width: 0 !important;
+height: 0 !important;
+overflow: hidden !important;
+mso-hide: all !important;
+padding: 0 !important;
+width: 0 !important;
+}
+
+.desktop-hide {
+display: table !important;
+max-height: none !important;
+max-width: 100% !important;
+height: auto !important;
+overflow: visible !important;
+width: 100% !important;
+}
+}
 </style>
 {!! $head ?? '' !!}
 </head>

@@ -21,6 +21,7 @@ class UpcomingWorkshops extends Mailable
     public $heroHeader;
     public $heroCta;
     public $heroButtonLabel;
+    public $heroSubject;
     public $onlineWorkshops;
     public $courses;
     public $workshops;
@@ -29,7 +30,7 @@ class UpcomingWorkshops extends Mailable
     {
         $this->subject = $subject;
         $this->email = $email;
-        [$this->heroHeader, $this->heroCta] = $this->selectHeroCopy();
+        [$this->heroHeader, $this->heroCta, $this->heroSubject] = $this->selectHeroCopy();
         $this->heroButtonLabel = trim((string) config('newsletter.upcoming_workshops.button_label', 'View All Workshops')) ?: 'View All Workshops';
         $this->workshops = $this->getUpcomingWorkshops();
         $this->onlineWorkshops = $this->getUpcomingOnlineWorkshops();
@@ -37,7 +38,7 @@ class UpcomingWorkshops extends Mailable
     }
 
     /**
-     * @return array{0:string,1:string}
+     * @return array{0:string,1:string,2:string}
      */
     private function selectHeroCopy(): array
     {
@@ -56,6 +57,7 @@ class UpcomingWorkshops extends Mailable
             return [
                 'Fresh workshops are ready to book.',
                 'Pick your next session, lock in your place, and keep the momentum going with something hands-on.',
+                'Upcoming Workshops 🌟',
             ];
         }
 
@@ -64,6 +66,7 @@ class UpcomingWorkshops extends Mailable
         return [
             (string) $selected['header'],
             (string) $selected['cta'],
+            (string) ($selected['subject'] ?? 'Upcoming Workshops 🌟'),
         ];
     }
 
@@ -126,7 +129,7 @@ class UpcomingWorkshops extends Mailable
         }
 
         return $this
-            ->subject($this->subject)
+            ->subject($this->heroSubject ?: $this->subject)
             ->markdown('emails.upcoming-workshops')
             ->with([
                 'email' => $this->email,
@@ -134,6 +137,7 @@ class UpcomingWorkshops extends Mailable
                 'heroButtonLabel' => $this->heroButtonLabel,
                 'heroCta' => $this->heroCta,
                 'heroHeader' => $this->heroHeader,
+                'heroSubject' => $this->heroSubject,
                 'onlineWorkshops' => $this->onlineWorkshops,
                 'courses' => $this->courses,
                 'workshops' => $this->workshops,

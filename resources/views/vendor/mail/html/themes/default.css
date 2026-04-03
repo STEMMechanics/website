@@ -204,18 +204,10 @@ hr {
     text-decoration: underline;
 }
 
-@media only screen and (min-width: 520px) {
+/*
+@media only screen and (max-width: 519px) {
     .newsletter-hero__desktop,
     .newsletter-workshop-card__image-shell {
-        display: table !important;
-        max-height: none !important;
-        max-width: 100% !important;
-        height: auto !important;
-        overflow: visible !important;
-        width: 100% !important;
-    }
-
-    .newsletter-hero__mobile {
         display: none !important;
         max-height: 0 !important;
         max-width: 0 !important;
@@ -225,7 +217,17 @@ hr {
         padding: 0 !important;
         width: 0 !important;
     }
+
+    .newsletter-hero__mobile {
+        display: table !important;
+        max-height: none !important;
+        max-width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        width: 100% !important;
+    }
 }
+*/
 
 /* Tables */
 
@@ -290,9 +292,7 @@ hr {
 .button-green,
 .button-success,
 .button-red,
-.button-error,
-.newsletter-hero-cta,
-.newsletter-workshop-cta {
+.button-error {
     transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
 }
 
@@ -352,12 +352,14 @@ hr {
     transform: translateY(-1px);
 }
 
+/*
 .newsletter-hero-cta:hover,
 .newsletter-workshop-cta:hover {
     filter: brightness(1.03);
     transform: translateY(-1px);
     box-shadow: 0 6px 12px rgba(15, 23, 42, 0.08);
 }
+*/
 
 /* Panels */
 

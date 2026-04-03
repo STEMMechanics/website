@@ -51,10 +51,10 @@
                             ? 'Failed'
                             : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT ? 'Sent' : 'Queued');
                         $statusClass = $newsletterStatus === \App\Models\SentEmail::STATUS_FAILED
-                            ? 'border-red-200 bg-red-50 text-red-700'
+                            ? 'text-red-700 bg-red-100 border-red-200'
                             : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT
-                                ? 'border-green-200 bg-green-50 text-green-700'
-                                : 'border-amber-200 bg-amber-50 text-amber-800');
+                                ? 'text-green-700 bg-green-100 border-green-200'
+                                : 'text-amber-700 bg-amber-100 border-amber-200');
                     @endphp
 
                     <article class="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
@@ -75,11 +75,11 @@
                                     @if($statusTimestamp)
                                         <div class="mt-0.5 text-xs text-gray-500">{{ $statusTimestamp->format('M j Y, g:i a') }}</div>
                                     @endif
-                                    <div class="mt-1 inline-flex rounded-full border px-1.5 py-0 text-xs font-semibold {{ $statusClass }}">
+                                    <div class="mt-1 inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">
                                         {{ $statusLabel }}
                                     </div>
                                     @if($newsletterStatus === \App\Models\SentEmail::STATUS_FAILED && ! empty($latestNewsletter->error_message))
-                                        <div class="mt-0.5 text-xs text-gray-500">
+                                        <div class="mt-1 text-xs text-gray-500">
                                             {{ \Illuminate\Support\Str::limit($latestNewsletter->error_message, 120) }}
                                         </div>
                                     @endif
@@ -142,14 +142,14 @@
                                 @if($latestNewsletter === null)
                                     -
                                 @else
-                                    <div class="{{ $newsletterStatus === \App\Models\SentEmail::STATUS_FAILED ? 'text-red-600' : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT ? 'text-green-700' : 'text-amber-700') }}">
-                                        {{ $newsletterStatus === \App\Models\SentEmail::STATUS_FAILED ? 'Failed' : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT ? 'Sent' : 'Queued') }}
+                                    <div class="inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold text-center {{ $statusClass }}">
+                                        {{ $statusLabel }}
                                     </div>
                                     @if($statusTimestamp)
-                                        <div class="text-xs text-gray-500">{{ $statusTimestamp->format('M j Y, g:i a') }}</div>
+                                        <div class="mt-1 text-xs text-gray-500">{{ $statusTimestamp->format('M j Y, g:i a') }}</div>
                                     @endif
                                     @if($newsletterStatus === \App\Models\SentEmail::STATUS_FAILED && ! empty($latestNewsletter->error_message))
-                                        <div class="max-w-xs truncate text-xs text-gray-500" title="{{ $latestNewsletter->error_message }}">
+                                        <div class="mt-1 max-w-xs truncate text-xs text-gray-500" title="{{ $latestNewsletter->error_message }}">
                                             {{ \Illuminate\Support\Str::limit($latestNewsletter->error_message, 80) }}
                                         </div>
                                     @endif

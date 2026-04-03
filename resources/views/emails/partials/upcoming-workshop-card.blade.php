@@ -45,16 +45,20 @@
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-workshop-card__table" style="max-width:780px; margin:0 auto 24px auto; background:#ffffff; border:1px solid #e2e8f0; border-left:8px solid {{ $accent }}; border-radius:8px; overflow:hidden;">
 <tr>
 <td style="padding:18px;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+<tr style="vertical-align:top;">
 @if($heroUrl)
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-workshop-card__image-shell" style="display:none; margin:0 0 16px 0; background:#f8fafc;">
+<td class="newsletter-workshop-card__media-cell mobile-hide" width="220" valign="stretch" style="padding:0 16px 0 0; vertical-align:top;">
+<table role="presentation" width="100%" height="100%" cellspacing="0" cellpadding="0" class="newsletter-workshop-card__image-shell mobile-hide" style="display:table; margin:0; height:100%; border-radius:14px; overflow:hidden;">
 <tr>
-<td>
-<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="780" height="390" class="newsletter-workshop-card__image" style="display:block; width:100%; height:auto; object-fit:cover;">
+<td style="height:100%;">
+<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="220" height="260" class="newsletter-workshop-card__image" style="display:block; width:100%; height:260px; object-fit:cover; border-radius:8px;">
 </td>
 </tr>
 </table>
+</td>
 @endif
-
+<td valign="top" class="newsletter-workshop-card__content-cell" style="{{ $heroUrl ? 'padding:0 0 0 0;' : 'padding:0;' }}">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0;">
 <tr>
 <td style="padding:0 0 8px 0; font-size:18px; line-height:1.22; font-weight:800; color:#0f172a;">
@@ -106,20 +110,23 @@
 @endphp
 
 @if($footerParts !== [])
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 12px 0;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 14px 0;">
 <tr>
 <td style="padding:0; font-size:12px; line-height:1.5; color:#64748b;">{{ implode(' · ', $footerParts) }}</td>
 </tr>
 </table>
 @endif
 
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:16px 0 0 0; border-top:1px solid #e2e8f0;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:20px 0 0 0; border-top:1px solid #e2e8f0;">
 <tr>
 <td valign="middle" style="padding:14px 0 0 0; width:60%;">
 <span class="newsletter-workshop-card__price" style="font-size:20px; line-height:1; font-weight:900; color:#0f172a; letter-spacing:-0.04em;">{{ $priceLabel }}</span>
 </td>
 <td valign="middle" align="right" style="padding:14px 0 0 0; width:40%;">
 <a href="{{ $ctaUrl }}" @if($ctaTarget) target="{{ $ctaTarget }}" rel="noopener" @endif class="newsletter-workshop-cta" style="display:inline-block; padding:11px 16px; border-radius:10px; background:#f8fafc; border:1px solid {{ $accent }}; color:{{ $accent }}; font-size:14px; font-weight:800; text-decoration:none; text-align:center; white-space:nowrap;">{{ $ctaLabel }}</a>
+</td>
+</tr>
+</table>
 </td>
 </tr>
 </table>

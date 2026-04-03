@@ -8,12 +8,14 @@
         ->merge($courses)
         ->sortBy(fn ($workshop) => $workshop->starts_at?->timestamp ?? PHP_INT_MAX)
         ->values();
-    $featuredWorkshop = $allItems->first(fn ($workshop) => filled($workshop->hero?->url))
-        ?? $allItems->first();
+    $heroImageCandidates = $allItems->filter(fn ($workshop) => filled($workshop->hero?->url))->values();
+    $featuredWorkshop = $heroImageCandidates->isNotEmpty()
+        ? \Illuminate\Support\Arr::random($heroImageCandidates->all())
+        : $allItems->first();
     $featuredImageUrl = $featuredWorkshop?->hero?->url ? url((string) $featuredWorkshop->hero->url) : null;
 @endphp
 
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-hero__table newsletter-hero__desktop" style="display:none; max-width:1028px; margin:0 auto 28px auto;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-hero__table mobile-hide" style="display:table; max-width:1028px; margin:0 auto 28px auto;">
 <tr>
 <td style="background:#0f172a; border-radius:12px; overflow:hidden; padding:0;">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
@@ -27,7 +29,7 @@
 </td>
 @if($featuredImageUrl)
 <td width="372" class="newsletter-hero__cell newsletter-hero__media-cell" style="padding:22px 22px 22px 12px; background:#111827; vertical-align:middle;">
-<img src="{{ $featuredImageUrl }}?md" alt="{{ $featuredWorkshop->title }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:14px;">
+<img src="{{ $featuredImageUrl }}?md" alt="{{ $featuredWorkshop->title }}" width="332" height="224" class="newsletter-hero__media-image" style="display:block; width:332px; height:224px; object-fit:cover; border-radius:16px;">
 </td>
 @endif
 </tr>
@@ -36,7 +38,7 @@
 </tr>
 </table>
 
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-hero__table newsletter-hero__mobile" style="display:table; max-width:1028px; margin:0 auto 28px auto;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" class="newsletter-hero__table desktop-hide" style="display:none; max-width:1028px; margin:0 auto 28px auto;">
 <tr>
 <td style="background:#0f172a; border-radius:12px; overflow:hidden; padding:28px 24px;">
 <a href="{{ url('/') }}" style="display:inline-block; margin-bottom:18px;">
