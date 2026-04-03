@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Ticket;
 use App\Services\Classroom\ClassroomAdminSyncService;
+use App\Support\ForumContent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -292,9 +293,9 @@ class ClassroomController extends Controller
             ],
             'forum_category_choice' => ['nullable', 'string', 'max:255'],
             'forum_category_name' => ['nullable', 'string', 'max:255'],
-            'summary' => ['nullable', 'string', 'max:255'],
-            'hero_media_name' => ['nullable', 'string', 'exists:media,name'],
-            'instructions_html' => ['nullable', 'string'],
+            'summary' => ['required', 'string', 'max:255'],
+            'hero_media_name' => ['required', 'string', 'exists:media,name'],
+            'instructions_html' => ['required', 'string'],
             'live_chat_enabled' => ['nullable', 'boolean'],
             'starts_at' => ['nullable', 'date'],
             'ends_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
@@ -313,6 +314,7 @@ class ClassroomController extends Controller
         }
 
         $this->validateBroadcastScheduleWithinCourseWindow($validated);
+        $this->validateRequiredCourseContent($validated);
 
         return [
             'title' => trim((string) $validated['title']),
@@ -362,12 +364,6 @@ class ClassroomController extends Controller
      */
     private function validateBroadcastScheduleWithinCourseWindow(array $validated): void
     {
-        $courseStartsAt = trim((string) ($validated['starts_at'] ?? ''));
-        $courseEndsAt = trim((string) ($validated['ends_at'] ?? ''));
-        if ($courseStartsAt === '' && $courseEndsAt === '') {
-            return;
-        }
-
         $scheduleJson = trim((string) ($validated['broadcast_sessions_json'] ?? ''));
         if ($scheduleJson === '') {
             return;
@@ -378,33 +374,107 @@ class ClassroomController extends Controller
             return;
         }
 
-        $windowStartsAt = $courseStartsAt !== '' ? Carbon::parse($courseStartsAt) : null;
-        $windowEndsAt = $courseEndsAt !== '' ? Carbon::parse($courseEndsAt) : null;
+        $courseStartsAt = trim((string) ($validated['starts_at'] ?? ''));
+        $courseEndsAt = trim((string) ($validated['ends_at'] ?? ''));
+        $earliestLivestreamStartsAt = null;
+        $latestLivestreamEndsAt = null;
 
         foreach ($schedule as $entry) {
             if (! is_array($entry)) {
                 continue;
             }
 
-            foreach (['starts_at', 'ends_at'] as $field) {
-                $value = trim((string) data_get($entry, $field, ''));
-                if ($value === '') {
-                    continue;
-                }
-
-                $entryDateTime = Carbon::parse($value);
-                if ($windowStartsAt instanceof Carbon && $entryDateTime->lt($windowStartsAt)) {
-                    throw ValidationException::withMessages([
-                        'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
-                    ]);
-                }
-
-                if ($windowEndsAt instanceof Carbon && $entryDateTime->gt($windowEndsAt)) {
-                    throw ValidationException::withMessages([
-                        'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
-                    ]);
+            $entryStartsAt = $this->parseClassroomDateTime(data_get($entry, 'starts_at', null));
+            if ($entryStartsAt instanceof Carbon) {
+                if (! ($earliestLivestreamStartsAt instanceof Carbon) || $entryStartsAt->lt($earliestLivestreamStartsAt)) {
+                    $earliestLivestreamStartsAt = $entryStartsAt;
                 }
             }
+
+            $entryEndsAt = $this->parseClassroomDateTime(data_get($entry, 'ends_at', null));
+            if ($entryEndsAt instanceof Carbon) {
+                if (! ($latestLivestreamEndsAt instanceof Carbon) || $entryEndsAt->gt($latestLivestreamEndsAt)) {
+                    $latestLivestreamEndsAt = $entryEndsAt;
+                }
+            }
+        }
+
+        $errors = [];
+
+        if ($earliestLivestreamStartsAt instanceof Carbon) {
+            $courseStartsAtValue = $this->parseClassroomDateTime($courseStartsAt);
+            if ($courseStartsAtValue instanceof Carbon && $courseStartsAtValue->gt($earliestLivestreamStartsAt)) {
+                $errors['starts_at'] = 'Course starts at must be before or equal to the earliest live stream start.';
+            }
+        }
+
+        if ($latestLivestreamEndsAt instanceof Carbon) {
+            $courseEndsAtValue = $this->parseClassroomDateTime($courseEndsAt);
+            if ($courseEndsAtValue instanceof Carbon && $courseEndsAtValue->lte($latestLivestreamEndsAt)) {
+                $errors['ends_at'] = 'Course ends at must be after the latest live stream end.';
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function parseClassroomDateTime(mixed $value): ?Carbon
+    {
+        $value = trim((string) $value);
+        if ($value === '') {
+            return null;
+        }
+
+        foreach ([
+            'Y-m-d\TH:i',
+            'Y-m-d H:i:s',
+            'Y-m-d H:i',
+            'd/m/Y, H:i',
+            'd/m/Y, h:i a',
+            'd/m/Y, g:i a',
+            'j/m/Y, H:i',
+            'j/m/Y, h:i a',
+            'j/m/Y, g:i a',
+            'd/m/Y H:i',
+            'j/m/Y H:i',
+        ] as $format) {
+            try {
+                return Carbon::createFromFormat($format, $value);
+            } catch (\Throwable) {
+                // Try the next known classroom format.
+            }
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function validateRequiredCourseContent(array $validated): void
+    {
+        $errors = [];
+
+        if (trim((string) ($validated['summary'] ?? '')) === '') {
+            $errors['summary'] = 'Course summary is required.';
+        }
+
+        if (! ForumContent::hasMeaningfulContent((string) ($validated['instructions_html'] ?? ''))) {
+            $errors['instructions_html'] = 'Course notes are required.';
+        }
+
+        if (trim((string) ($validated['hero_media_name'] ?? '')) === '') {
+            $errors['hero_media_name'] = 'Course hero image is required.';
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
         }
     }
 

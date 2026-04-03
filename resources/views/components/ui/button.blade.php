@@ -20,6 +20,7 @@
         'orange' => "hover:bg-orange-800 focus-visible:outline-orange-600 bg-orange-600 text-white {$disabledClasses}",
         'yellow' => "hover:bg-yellow-800 focus-visible:outline-yellow-600 bg-yellow-600 text-white {$disabledClasses}",
         'yellow-outline' => "hover:bg-yellow-800 focus-visible:outline-yellow-600 text-yellow-700 border border-yellow-300 bg-white hover:text-white {$disabledClasses}",
+        'rose' => "hover:bg-rose-800 focus-visible:outline-rose-600 bg-rose-600 text-white {$disabledClasses}",
     ];
     $colorClasses = $colorMap[$color] ?? $colorMap['primary'];
     $commonClasses = twMerge(['flex', 'items-center', 'whitespace-nowrap', 'cursor-pointer', 'text-center','justify-center','rounded-md','px-8','py-1.5','text-sm','font-semibold','leading-6','shadow-sm','focus-visible:outline','focus-visible:outline-2','focus-visible:outline-offset-2','transition'], ($class ?? ''));

@@ -1,5 +1,6 @@
 @php
 $workshopContent = isset($workshop) ? $workshop->content : '';
+$workshopSummary = old('summary', isset($workshop) ? (string) ($workshop->getRawOriginal('summary') ?? '') : '');
 $workshopStatusForForm = old('status', $workshop->status ?? 'draft');
 $selectedClassSessionId = old('class_session_id', $workshop->class_session_id ?? '');
 $workshopStartValue = \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '');
@@ -425,6 +426,16 @@ $savedTickets = isset($workshop)
                 <div class="mb-4">
                     <x-ui.media label="Image" name="hero_media_name" value="{{ $workshop->hero_media_name ?? '' }}" allow_uploads="true" />
                 </div>
+                <div class="mb-4">
+                    <x-ui.input
+                        type="textarea"
+                        label="Summary"
+                        name="summary"
+                        :value="$workshopSummary"
+                        rows="4"
+                        info="Short copy used in newsletter emails. Leave blank and the email will generate one from the workshop content."
+                    />
+                </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
                         <x-ui.select label="Type" name="type" x-model="type" x-on:change="if (type !== 'physical') { selectedLocationId = '' } else { initLocationSelection() }">
@@ -567,10 +578,11 @@ $savedTickets = isset($workshop)
                 </div>
 
             <div class="flex flex-col sm:flex-row sm:gap-8">
-                    <div class="flex-1 content-center">
+                    <div class="flex-1 content-center flex gap-8">
                         <x-ui.checkbox
                                 label="Private Workshop"
                                 name="is_private"
+                                info="Visible to the public but requires an access code to register"
                                 value="1"
                                 :checked="(bool) old('is_private', isset($workshop) ? $workshop->isPrivate() : false)"
                                 x-model="isPrivate"
@@ -579,6 +591,7 @@ $savedTickets = isset($workshop)
                         <x-ui.checkbox
                                 label="Hidden Workshop"
                                 name="is_hidden"
+                                info="Not displayed in public lists, search or newsletters"
                                 value="1"
                                 :checked="(bool) old('is_hidden', isset($workshop) ? (bool) $workshop->is_hidden : false)"
                                 x-model="isHidden"
@@ -647,10 +660,12 @@ $savedTickets = isset($workshop)
                     </div>
                     <div class="flex-1"></div>
                 </div>
-                <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900" x-show="registration==='classroom'">
-                    <div class="space-y-4">
-                        <div>Course access groups, forum categories, opening/closing dates, and stream schedule are managed from the Course admin screen.</div>
-                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId" x-model="selectedClassSessionId">
+                <div class="flex flex-col sm:flex-row sm:gap-8" x-show="registration==='classroom'">
+                    <div class="flex-1">
+                        <x-ui.select label="Existing course" name="class_session_id" :value="$selectedClassSessionId" x-model="selectedClassSessionId" info="Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.">
+                            <x-slot name="labelRight">
+                                <a href="{{ route('admin.course.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage courses</a>
+                            </x-slot>
                             <option value="">Create a new course automatically</option>
                             @foreach(($classSessions ?? collect()) as $linkedClassSession)
                                 <option value="{{ $linkedClassSession->id }}" @selected((string) $selectedClassSessionId === (string) $linkedClassSession->id)>
@@ -658,11 +673,6 @@ $savedTickets = isset($workshop)
                                 </option>
                             @endforeach
                         </x-ui.select>
-                        <div class="text-xs text-sky-800" x-show="isCourseManaged()" x-cloak>
-                            <span x-show="selectedCourseSession() && selectedCourseSession().has_schedule">These fields are set automatically based on the linked course information.</span>
-                            <span x-show="selectedCourseSession() && !selectedCourseSession().has_schedule">The linked course does not have livestream times set yet, so this workshop will use the course start/end times.</span>
-                        </div>
-                        <div class="text-xs text-sky-800">Choose an existing course if you already created one. Leave this blank if the workshop should create a new course shell.</div>
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">

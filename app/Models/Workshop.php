@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 class Workshop extends Model
 {
@@ -22,6 +23,7 @@ class Workshop extends Model
     protected $fillable = [
         'title',
         'content',
+        'summary',
         'starts_at',
         'ends_at',
         'publish_at',
@@ -164,6 +166,23 @@ class Workshop extends Model
         }
 
         return $locationName.' - '.$address;
+    }
+
+    public function newsletterSummary(int $limit = 180): string
+    {
+        $summary = trim((string) ($this->summary ?? ''));
+        if ($summary !== '') {
+            return Str::limit((string) Str::of($summary)->squish(), $limit);
+        }
+
+        $content = trim((string) ($this->content ?? ''));
+        if ($content === '') {
+            return '';
+        }
+
+        $content = trim((string) Str::of(strip_tags($content))->squish());
+
+        return Str::limit($content, $limit);
     }
 
     public function getTicketTimeRangeLabel(): string

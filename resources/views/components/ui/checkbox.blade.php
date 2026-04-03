@@ -10,6 +10,7 @@
 'inputClass' => '',
 'labelClass' => '',
 'disabled' => false,
+'info' => '',
 ])
 
 @php
@@ -19,7 +20,7 @@ $sizeClasses = $small
 : ['h-8', 'min-w-8', 'w-8', 'rounded-lg'];
 $wrapperClasses = $noWrapper ? '' : 'mb-4';
 $hasLabel = ($label !== null && $label !== '') || $labelHidden;
-$containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center', ($noWrapper ? $attributes->get('class') : '')]);
+$containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), 'items-start', ($noWrapper ? $attributes->get('class') : '')]);
 @endphp
 
 @if(!$noWrapper)
@@ -37,9 +38,12 @@ $containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), 'items-center',
                 class="{{ twMerge(['bg-white','border','border-gray-300','appearance-none','focus:outline-none','focus:ring-0','focus:border-blue-600','peer','focus:ring-indigo-300','disabled:bg-gray-100','disabled:border-gray-200','disabled:cursor-not-allowed'], $sizeClasses, $inputClass) }}"
                 {{ $attributes->except('class') }} />
 
-            <span
-                class="{{ twMerge(['text-sm','pl-2','pt-1'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}"
-            >{{ $label ?? '' }}</span>
+            <div>
+                <div class="{{ twMerge(['text-sm','pl-2','pt-1.5'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</div>
+                @if($info)
+                    <div class="text-xs pl-2 text-gray-500">{{ $info }}</div>
+                @endif
+            </div>
         </label>
     @else
         <div class="sm-ui-checkbox {{ $small ? 'small ' : '' }}{{ $containerClasses }}">

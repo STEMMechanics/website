@@ -108,6 +108,7 @@ class WorkshopController extends Controller
         $request->validate([
             'title' => 'required',
             'content' => 'required',
+            'summary' => 'nullable|string|max:1000',
             'type' => 'required|in:physical,online',
             'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
@@ -182,6 +183,10 @@ class WorkshopController extends Controller
             $workshopData['registration_data'] = null;
         }
         $this->normalizeWorkshopRegistrationData($workshopData);
+        if (array_key_exists('summary', $workshopData)) {
+            $summary = trim((string) ($workshopData['summary'] ?? ''));
+            $workshopData['summary'] = $summary !== '' ? $summary : null;
+        }
         if (! $workshopData['is_private']) {
             $workshopData['private_code'] = null;
             $workshopData['hosted_for'] = null;
@@ -293,6 +298,7 @@ class WorkshopController extends Controller
         $request->validate([
             'title' => 'required',
             'content' => 'required',
+            'summary' => 'nullable|string|max:1000',
             'type' => 'required|in:physical,online',
             'location_id' => 'nullable|exists:locations,id',
             'starts_at' => 'required',
@@ -390,6 +396,10 @@ class WorkshopController extends Controller
             $workshopData['registration_data'] = null;
         }
         $this->normalizeWorkshopRegistrationData($workshopData);
+        if (array_key_exists('summary', $workshopData)) {
+            $summary = trim((string) ($workshopData['summary'] ?? ''));
+            $workshopData['summary'] = $summary !== '' ? $summary : null;
+        }
         if (! $workshopData['is_private']) {
             $workshopData['private_code'] = null;
             $workshopData['hosted_for'] = null;
@@ -2442,13 +2452,8 @@ class WorkshopController extends Controller
 
         if ($isNewClassSession) {
             $classSession->title = (string) $workshop->title;
-            $classSession->summary = trim((string) ($workshop->content ?? '')) !== ''
-                ? \Illuminate\Support\Str::limit(
-                    (string) \Illuminate\Support\Str::of(strip_tags((string) $workshop->content))->squish(),
-                    220,
-                    ''
-                )
-                : null;
+            $classSessionSummary = $workshop->newsletterSummary(220);
+            $classSession->summary = $classSessionSummary !== '' ? $classSessionSummary : null;
             $classSession->instructions_html = null;
             $classSession->live_chat_enabled = true;
             $classSession->starts_at = $workshop->starts_at;

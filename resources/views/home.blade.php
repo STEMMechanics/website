@@ -15,7 +15,7 @@
     <section id="events" class="bg-gray-50">
         <x-container class="relative py-16">
             <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <h2 class="-ml-2 text-2xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
+                <h2 class="-ml-2 text-xl font-bold bg-sky-500 text-white px-5 py-2 rounded-3xl">Upcoming workshops</h2>
                 <x-ui.button href="{{ route('workshop.index') }}" color="outline" class="self-start">View all workshops</x-ui.button>
             </div>
             @if($workshops->isEmpty())
@@ -29,7 +29,7 @@
             @endif
 
             <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
-                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
                     <path
                             d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
                             fill="#fff1f2"
@@ -58,13 +58,13 @@
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">Tell us what you are looking for and we can shape the session around your group, from hands-on creative tech to STEM activities that are practical, engaging, and easy to run.</p>
                     </div>
 
-                    <div class="mt-8">
-                        <x-ui.button href="{{ route('contact') }}" class="font-normal">Enquire about a workshop</x-ui.button>
+                    <div class="mt-8 mx-auto">
+                        <x-ui.button href="{{ route('contact') }}" class="font-normal py-4" color="rose">Enquire about a workshop</x-ui.button>
                     </div>
                 </div>
             </div>
             <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
-                <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
+                <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
                     <path
                             d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
                             fill="#ecfdf5"
@@ -107,8 +107,8 @@
                         <p class="mt-4 max-w-2xl text-base leading-7 text-gray-600">We keep the pace friendly and hands-on, with room for curiosity, teamwork, and the kind of experimentation that helps ideas stick. That usually means plenty of trying, tweaking, and celebrating the small wins along the way.</p>
                     </div>
 
-                    <div class="mt-8">
-                        <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal">Explore Workshops</x-ui.button>
+                    <div class="mt-8 mx-auto">
+                        <x-ui.button color="success" href="{{ route('workshop.index') }}" class="font-normal py-4">Explore Workshops</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -140,9 +140,7 @@
                 </div>
 
                 <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                    <x-ui.button color="yellow" href="{{ route('stemcraft.index') }}">STEMCraft Overview</x-ui.button>
-                    <x-ui.button color="yellow-outline" href="{{ route('stemcraft.join') }}">How to Join</x-ui.button>
-                    <x-ui.button color="yellow-outline" href="{{ route('stemcraft.rules') }}">Server Rules</x-ui.button>
+                    <x-ui.button color="yellow" href="{{ route('stemcraft.index') }}" class="font-normal py-4">STEMCraft Overview</x-ui.button>
                 </div>
             </div>
 
@@ -170,8 +168,8 @@
                     </div>
 
                     <div class="mt-8 flex gap-3 flex-col w-full sm:flex-row sm:justify-center">
-                        <x-ui.button color="purple" href="https://discord.gg/yNzk4x7mpD" class="font-normal">Join Discord</x-ui.button>
-                        <x-ui.button color="purple-outline" href="{{ route('forum.index') }}" class="font-normal">View Discussions</x-ui.button>
+                        <x-ui.button color="purple" href="https://discord.gg/yNzk4x7mpD" class="font-normal py-4">Join Discord</x-ui.button>
+                        <x-ui.button color="purple-outline" href="{{ route('forum.index') }}" class="font-normal py-4">View Discussions</x-ui.button>
                     </div>
                 </div>
 

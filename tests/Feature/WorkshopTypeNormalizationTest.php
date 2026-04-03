@@ -57,6 +57,7 @@ class WorkshopTypeNormalizationTest extends TestCase
             ->put(route('admin.workshop.update', $workshop), [
                 'title' => 'Now Online Workshop',
                 'content' => '<p>Updated content</p>',
+                'summary' => 'Online workshop summary',
                 'type' => 'online',
                 'location_id' => $location->id,
                 'starts_at' => $workshop->starts_at?->toDateTimeString(),
@@ -71,6 +72,23 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertRedirect(route('admin.workshop.index'));
         $response->assertSessionHasNoErrors();
         $this->assertNull($workshop->fresh()->location_id);
+        $this->assertSame('Online workshop summary', (string) $workshop->fresh()->summary);
+    }
+
+    public function test_admin_workshop_edit_shows_summary_field_and_prefills_saved_value(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'none', 'Existing workshop summary');
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.edit', $workshop));
+
+        $response->assertOk();
+        $response->assertSee('Summary');
+        $response->assertSee('Existing workshop summary', false);
     }
 
     public function test_changing_registration_away_from_tickets_is_blocked_when_active_tickets_exist(): void
@@ -167,11 +185,19 @@ class WorkshopTypeNormalizationTest extends TestCase
         return $heroName;
     }
 
-    private function createWorkshop(User $owner, Location $location, string $heroName, string $registration = 'none'): Workshop
+    private function createWorkshop(
+        User $owner,
+        Location $location,
+        string $heroName,
+        string $registration = 'none',
+        ?string $summary = null,
+        ?string $content = null
+    ): Workshop
     {
         return Workshop::query()->create([
             'title' => 'Physical Workshop',
-            'content' => '<p>Workshop content</p>',
+            'content' => $content ?? '<p>Workshop content</p>',
+            'summary' => $summary,
             'starts_at' => now()->addDays(5),
             'ends_at' => now()->addDays(5)->addHours(2),
             'publish_at' => now()->subDay(),

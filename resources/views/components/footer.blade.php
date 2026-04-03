@@ -1,4 +1,12 @@
-<footer class="flex flex-col bg-gray-950 text-gray-400 px-4 py-8 sm:px-12 sm:py-16 mt-12">
+<footer class="flex flex-col bg-gray-950 text-gray-400 px-4 py-8 sm:px-12 sm:py-16 mt-12 relative">
+    <div class="absolute rotate-180 top-0 left-0 w-full overflow-hidden leading-none">
+        <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
+            <path
+                    d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
+                    fill="#fff1f2"
+            />
+        </svg>
+    </div>
     <section class="grid gap-8 mb-12 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <div class="text-center md:text-left text-sm self-center md:pr-8">STEMMechanics Australia acknowledges the Traditional Owners of Country throughout Australia and the continuing connection to land, cultures and communities. We pay our respect to Aboriginal and Torres Strait Islander cultures; and to Elders both past, present and emerging.</div>
         <ul class="flex flex-col gap-0.5 text-center md:text-left">

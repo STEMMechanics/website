@@ -80,7 +80,7 @@
                     <x-ui.input type="datetime-local" name="starts_at" label="Starts at" :value="$startsAtValue" x-model="startsAtValue" x-on:change="autofillDerivedFields()" />
                     <x-ui.input type="datetime-local" name="ends_at" label="Ends at" :value="$endsAtValue" />
                     <div class="md:col-span-2">
-                        <x-ui.media
+                            <x-ui.media
                             label="Hero image"
                             name="hero_media_name"
                             :value="$heroMediaValue"
@@ -132,13 +132,10 @@
                         <x-ui.input type="textarea" name="summary" label="Summary" :value="$summary" info="Short description shown on the course page." />
                     </div>
                 </div>
-            </section>
-
-            <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-                <h2 class="text-xl font-semibold text-gray-900">Course notes</h2>
                 <div class="mt-4">
                     <x-ui.editor
                         name="instructions_html"
+                        label="Course notes"
                         :value="$instructionsHtml"
                     />
                 </div>

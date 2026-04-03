@@ -255,7 +255,7 @@
                     @endif
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.attendance', $workshop) }}">Attendance</x-ui.button>
                 @endif
-                <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar"></i> Date/Time</h2>
+                <h2 class="text-gray-600 text-lg font-bold mt-4 mb-2"><i class="mr-1 fa-regular fa-calendar w-5 text-center"></i> Date/Time</h2>
                 @if($workshop->usesClassroomRegistration())
                     @if($courseScheduleCadence)
                         <p class="text-gray-600 text-sm pl-6 mb-2">This course streams {{ $courseScheduleCadence }}.</p>
@@ -277,7 +277,7 @@
                 @php($hostedFor = $workshop->hosted_for)
                 @if(!empty($hostedFor))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
-                    <i class="mr-1 fa-solid fa-building"></i>
+                    <i class="mr-1 fa-solid fa-building w-5 text-center"></i>
                     Hosted For
                 </h2>
                 <div class="text-gray-600 text-sm pl-6 mb-6">
@@ -286,7 +286,7 @@
                 @endif
                 @if(!$workshop->isPrivate() || (bool) (auth()->user()?->isAdmin() ?? false))
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
-                    <i class="mr-1 fa-solid fa-location-dot"></i>
+                    <i class="mr-1 fa-solid fa-location-dot w-5 text-center"></i>
                     Location
                 </h2>
                 <div class="text-gray-600 text-sm pl-6 mb-6">
@@ -309,12 +309,12 @@
                     @endif
                 </div>
                 @endif
-                <h2 class="text-gray-600 text-lg font-bold mb-2"><i class="mr-1 fa-regular fa-face-smile"></i> {{ isset($workshop->ages) && $workshop->ages !== '' ? 'Ages ' . $workshop->ages : 'All ages' }}</h2>
-                @if(\App\Helpers::isUnderAge($workshop->ages))
+                <h2 class="text-gray-600 text-lg font-bold mb-2"><i class="mr-1 fa-regular fa-face-smile w-5 text-center"></i> {{ isset($workshop->ages) && $workshop->ages !== '' ? 'Ages ' . $workshop->ages : 'All ages' }}</h2>
+                @if(\App\Helpers::isUnderAge($workshop->ages) && $workshop->getLocationName() !== 'Online')
                     <p class="text-gray-600 text-xs pl-3 ml-2 mb-6 border-l-4 border-l-yellow-400">Parental supervision may be required for children 8 years of age and under.</p>
                 @endif
                 <h2 class="text-gray-600 text-lg font-bold mb-2">
-                    <i class="mr-1 fa-solid fa-dollar-sign"></i>
+                    <i class="mr-1 fa-solid fa-dollar-sign w-5 text-center"></i>
                     {{
                         is_numeric(trim((string) ($workshop->price ?? ''))) && (float) trim((string) ($workshop->price ?? '')) > 0
                             ? number_format((float) trim((string) ($workshop->price ?? '')), 2, '.', '')

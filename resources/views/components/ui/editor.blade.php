@@ -12,6 +12,7 @@
     <div
         x-data="editor($store.{{$name}}_content, @js(route('custom-page.link-options')))"
         x-on:sm-editor-set-content.window="if (($event.detail?.name || '') === '{{ $name }}') { setExternalContent($event.detail?.html || '', { focusEnd: !!$event.detail?.focusEnd }) }"
+        data-has-error="{{ $hasError ? 'true' : 'false' }}"
         class="{{ twMerge(['editor','mt-1'], $attributes->get('class')) }}">
         <template x-if="isLoaded()">
             <div

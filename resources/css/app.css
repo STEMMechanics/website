@@ -266,6 +266,10 @@ body.swal2-height-auto {
     @apply bg-white rounded-lg border border-gray-300;
     min-width: 0;
 
+    &[data-has-error='true'] {
+        @apply border-red-600;
+    }
+
     .menu {
         @apply border-b border-gray-300 flex px-3 py-2 gap-1 flex-wrap;
         min-width: 0;

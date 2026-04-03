@@ -27,13 +27,27 @@
 
     @if($this->message)
         @if($this->success)
-            <p class="mt-4 text-sm text-green-600 mx-auto border-green-800 bg-green-100 py-1 px-4 w-fit">
-                <i class="fa fa-check mr-2"></i>{{ $this->message }}
-            </p>
+            <div class="mt-5 mx-auto max-w-xl rounded-2xl border border-sky-200 bg-white px-4 py-4 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                        <i class="fa fa-check text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="mt-1 text-sm leading-6 text-slate-600">{{ $this->message }}</p>
+                    </div>
+                </div>
+            </div>
         @else
-            <p class="mt-4 text-sm text-red-600 mx-auto border-red-800 bg-red-100 py-1 px-4 w-fit">
-                <i class="fa fa-exclamation-triangle mr-2"></i>{{ $this->message }}
-            </p>
+            <div class="mt-5 mx-auto max-w-xl rounded-2xl border border-rose-200 bg-white px-4 py-4 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-700">
+                        <i class="fa fa-exclamation-triangle text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <p class="mt-1 text-sm leading-6 text-slate-600">{{ $this->message }}</p>
+                    </div>
+                </div>
+            </div>
         @endif
     @endif
 </div>

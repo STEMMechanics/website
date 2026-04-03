@@ -202,7 +202,7 @@ class AdminClassroomManagementTest extends TestCase
         ]);
     }
 
-    public function test_admin_cannot_save_course_streams_outside_the_course_window(): void
+    public function test_admin_cannot_save_course_when_course_window_does_not_cover_the_stream_schedule(): void
     {
         $admin = $this->createAdminUser();
         $heroMedia = Media::query()->create([
@@ -212,10 +212,10 @@ class AdminClassroomManagementTest extends TestCase
             'size' => 1024,
             'user_id' => $admin->id,
         ]);
-        $sessionStart = Carbon::create(2026, 6, 1, 9, 0, 0);
-        $sessionEnd = (clone $sessionStart)->addHours(3);
-        $streamStart = (clone $sessionEnd)->addHour();
-        $streamEnd = (clone $streamStart)->addHour();
+        $streamStart = Carbon::create(2026, 6, 1, 9, 0, 0);
+        $streamEnd = (clone $streamStart)->addHours(2);
+        $sessionStart = (clone $streamStart)->addHour();
+        $sessionEnd = (clone $streamEnd)->subMinutes(30);
 
         $this->actingAs($admin)
             ->post(route('admin.course.store'), [
@@ -241,11 +241,42 @@ class AdminClassroomManagementTest extends TestCase
                 'student_identifiers' => '',
             ])
             ->assertSessionHasErrors([
-                'broadcast_sessions_json' => 'Live stream times must fall within the course start and end dates.',
+                'starts_at' => 'Course starts at must be before or equal to the earliest live stream start.',
+                'ends_at' => 'Course ends at must be after the latest live stream end.',
             ]);
 
         $this->assertDatabaseMissing('class_sessions', [
             'title' => 'Microbit Term 2',
+        ]);
+    }
+
+    public function test_admin_cannot_save_course_without_required_course_fields(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->post(route('admin.course.store'), [
+                'title' => 'Microbit Term 3',
+                'slug' => '',
+                'room_name' => '',
+                'hero_media_name' => '',
+                'summary' => '',
+                'instructions_html' => '',
+                'live_chat_enabled' => 1,
+                'forum_category_choice' => '',
+                'forum_category_name' => '',
+                'broadcast_sessions_json' => '',
+                'teacher_identifiers' => '',
+                'student_identifiers' => '',
+            ])
+            ->assertSessionHasErrors([
+                'hero_media_name',
+                'summary',
+                'instructions_html',
+            ]);
+
+        $this->assertDatabaseMissing('class_sessions', [
+            'title' => 'Microbit Term 3',
         ]);
     }
 

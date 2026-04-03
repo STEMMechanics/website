@@ -69,7 +69,7 @@ class EmailSubscribe extends Component
         if (! empty($this->trap)) {
             $this->reset(['email', 'trap']);
             $this->successState = true;
-            $this->messageText = 'Thanks, you have been subscribed to our newsletter.';
+            $this->messageText = 'You are subscribed. We will send workshop updates to your inbox.';
             return;
         }
 
@@ -127,7 +127,7 @@ class EmailSubscribe extends Component
             dispatch(new SendEmail($subscription->email, new UserWelcome($subscription->email)))->onQueue('mail');
 
             $this->successState = true;
-            $this->messageText = 'Thanks, you have been subscribed to our newsletter.';
+            $this->messageText = 'You are subscribed. We will send workshop updates to your inbox.';
         }
 
         $this->reset(['email', 'trap']);

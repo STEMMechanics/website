@@ -9,6 +9,7 @@ use App\Http\Middleware\NoCache;
 use App\Http\Middleware\ProtectFormSubmission;
 use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\TrackAnalytics;
+use App\Services\SiteErrorNotificationService;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -43,4 +44,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'unsubscribe/*',
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {})->create();
+    ->withExceptions(function (Exceptions $exceptions) {
+        $exceptions->report(function (\Throwable $exception): void {
+            app(SiteErrorNotificationService::class)->notify(
+                $exception,
+                app()->bound('request') ? request() : null
+            );
+        });
+    })->create();
