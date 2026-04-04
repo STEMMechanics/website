@@ -130,6 +130,14 @@
                                 : ($newsletterStatus === \App\Models\SentEmail::STATUS_FAILED
                                     ? ($latestNewsletter->failed_at ?? $latestNewsletter->created_at)
                                     : $latestNewsletter?->created_at);
+                            $statusLabel = $newsletterStatus === \App\Models\SentEmail::STATUS_FAILED
+                                ? 'Failed'
+                                : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT ? 'Sent' : 'Queued');
+                            $statusClass = $newsletterStatus === \App\Models\SentEmail::STATUS_FAILED
+                                ? 'text-red-700 bg-red-100 border-red-200'
+                                : ($newsletterStatus === \App\Models\SentEmail::STATUS_SENT
+                                    ? 'text-green-700 bg-green-100 border-green-200'
+                                    : 'text-amber-700 bg-amber-100 border-amber-200');
                         @endphp
                         <tr>
                             <td>

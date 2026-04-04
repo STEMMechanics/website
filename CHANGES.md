@@ -5,6 +5,7 @@
 - Improved UI
 - Added x-day account support
 - Improved email template on mobile
+- Scheduled email status at times would be incorrect
 
 ## 1.4.3
 

@@ -232,6 +232,46 @@ class AdminSubscriptionNewsletterTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_index_renders_distinct_latest_newsletter_statuses_per_subscription_row(): void
+    {
+        $admin = $this->createAdminUser();
+        $queuedSubscription = EmailSubscriptions::query()->create([
+            'email' => 'queued@example.com',
+            'confirmed' => now()->toDateTimeString(),
+        ]);
+        $sentSubscription = EmailSubscriptions::query()->create([
+            'email' => 'sent@example.com',
+            'confirmed' => now()->toDateTimeString(),
+        ]);
+
+        SentEmail::query()->create([
+            'recipient' => $queuedSubscription->email,
+            'mailable_class' => UpcomingWorkshops::class,
+            'status' => SentEmail::STATUS_QUEUED,
+            'created_at' => now()->subMinutes(5),
+            'updated_at' => now()->subMinutes(5),
+        ]);
+
+        $sent = SentEmail::query()->create([
+            'recipient' => $sentSubscription->email,
+            'mailable_class' => UpcomingWorkshops::class,
+            'status' => SentEmail::STATUS_SENT,
+            'sent_at' => now()->subMinute(),
+        ]);
+        $sent->forceFill([
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ])->saveQuietly();
+
+        $response = $this->actingAs($admin)->get(route('admin.subscription.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('queued@example.com');
+        $response->assertSeeText('sent@example.com');
+        $response->assertSeeText('Queued');
+        $response->assertSeeText('Sent');
+    }
+
     public function test_index_builds_latest_newsletter_status_per_subscription_email(): void
     {
         $admin = $this->createAdminUser();
