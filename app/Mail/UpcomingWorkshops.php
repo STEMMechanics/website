@@ -48,6 +48,7 @@ class UpcomingWorkshops extends Mailable
                 return [
                     'header' => trim((string) ($item['header'] ?? '')),
                     'cta' => trim((string) ($item['cta'] ?? '')),
+                    'subject' => trim((string) ($item['subject'] ?? '')),
                 ];
             })
             ->filter(fn (array $item): bool => $item['header'] !== '' && $item['cta'] !== '')

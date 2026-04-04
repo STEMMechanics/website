@@ -64,6 +64,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         config()->set('newsletter.upcoming_workshops.hero_messages', [[
             'header' => 'Test header copy',
             'cta' => 'Test CTA copy',
+            'subject' => 'Test subject copy',
         ]]);
         config()->set('newsletter.upcoming_workshops.button_label', 'Browse Workshop List');
 
@@ -172,6 +173,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertStringContainsString('logo-dark.png', $rendered);
         $this->assertStringContainsString('Test header copy', $rendered);
         $this->assertStringContainsString('Test CTA copy', $rendered);
+        $this->assertSame('Test subject copy', $mailable->subject);
         $this->assertStringContainsString('Browse Workshop List', $rendered);
         $this->assertStringContainsString('City Lab Robotics Workshop', $rendered);
         $this->assertStringContainsString('North Hall Robotics Workshop', $rendered);
