@@ -9,6 +9,7 @@
     $heroUrl = $showImage && $workshop->hero?->url ? url((string) $workshop->hero->url) : null;
     $locationName = $workshop->getLocationName();
     $scheduleLabel = $workshop->courseScheduleFirstStartLabel();
+    $durationLabel = $workshop->workshopDurationLabel();
     $cadenceLabel = $workshop->courseScheduleCadenceLabel();
     $description = $workshop->newsletterSummary($compact ? 120 : 180);
     $scheduleLines = collect($workshop->usesClassroomRegistration() ? $workshop->courseScheduleDisplayLines() : [])
@@ -52,7 +53,7 @@
 <table role="presentation" width="100%" height="100%" cellspacing="0" cellpadding="0" class="newsletter-workshop-card__image-shell mobile-hide" style="display:table; margin:0; height:100%; border-radius:14px; overflow:hidden;">
 <tr>
 <td style="height:100%;">
-<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="220" height="260" class="newsletter-workshop-card__image" style="display:block; width:100%; height:260px; object-fit:cover; border-radius:8px;">
+<img src="{{ $heroUrl }}?md" alt="{{ $workshop->title }}" width="220" height="260" class="newsletter-workshop-card__image" style="display:block; width:100%; height:260px; object-fit:cover; border-radius:14px;">
 </td>
 </tr>
 </table>
@@ -71,7 +72,7 @@
 </td>
 </tr>
 <tr>
-<td style="padding:0 0 10px 0; font-size:14px; line-height:1.45; color:#475569;">{{ $scheduleLabel }}@if($cadenceLabel) - {{ $cadenceLabel }}@endif</td>
+<td style="padding:0 0 10px 0; font-size:14px; line-height:1.45; color:#475569;">{{ $scheduleLabel }}@if($durationLabel) ({{ $durationLabel }})@endif@if($cadenceLabel) - {{ $cadenceLabel }}@endif</td>
 </tr>
 </table>
 

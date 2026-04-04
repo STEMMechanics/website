@@ -336,6 +336,39 @@ class Workshop extends Model
         return null;
     }
 
+    public function workshopDurationLabel(): ?string
+    {
+        if ($this->usesClassroomRegistration()) {
+            return null;
+        }
+
+        $start = $this->starts_at;
+        $end = $this->ends_at;
+
+        if (! $start || ! $end) {
+            return null;
+        }
+
+        $minutes = max(0, (int) $start->diffInMinutes($end));
+        if ($minutes === 0) {
+            return null;
+        }
+
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+        $parts = [];
+
+        if ($hours > 0) {
+            $parts[] = $hours.' hour'.($hours === 1 ? '' : 's');
+        }
+
+        if ($remainingMinutes > 0) {
+            $parts[] = $remainingMinutes.' minute'.($remainingMinutes === 1 ? '' : 's');
+        }
+
+        return implode(' ', $parts);
+    }
+
     /**
      * @return array<int, string>
      */

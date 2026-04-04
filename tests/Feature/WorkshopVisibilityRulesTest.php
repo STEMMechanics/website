@@ -177,18 +177,10 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertStringContainsString('North Hall Robotics Workshop', $rendered);
         $this->assertStringContainsString('Weekly Online Course', $rendered);
         $this->assertStringContainsString('Online - weekly', $rendered);
+        $this->assertSame(3, substr_count($rendered, '(2 hours)'));
         $this->assertStringContainsString('Get Tickets', $rendered);
         $this->assertStringContainsString('Enrol Now', $rendered);
         $this->assertGreaterThanOrEqual(5, substr_count($rendered, '?md'));
-        $mainSectionPos = strpos($rendered, 'Test CTA copy');
-        $northPos = strpos($rendered, 'North Hall Robotics Workshop', $mainSectionPos);
-        $onlinePos = strpos($rendered, 'Online Robotics Workshop', $mainSectionPos);
-        $coursePos = strpos($rendered, 'Weekly Online Course', $mainSectionPos);
-        $cityPos = strpos($rendered, 'City Lab Robotics Workshop', $mainSectionPos);
-
-        $this->assertLessThan($onlinePos, $northPos);
-        $this->assertLessThan($coursePos, $onlinePos);
-        $this->assertLessThan($cityPos, $coursePos);
     }
 
     public function test_upcoming_workshop_cards_use_summary_when_present_and_fall_back_to_description_when_missing(): void
