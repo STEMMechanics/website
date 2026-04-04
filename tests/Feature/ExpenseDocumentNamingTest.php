@@ -90,6 +90,24 @@ class ExpenseDocumentNamingTest extends TestCase
         Storage::disk('local')->assertExists((string) $expense->receipt_document_path);
     }
 
+    public function test_expense_index_shows_missing_attached_invoice_warning(): void
+    {
+        $admin = $this->createAdminUser();
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'STEM Supplies Co',
+            'invoice_id' => null,
+            'paid_on' => '2026-03-01',
+            'total_amount' => 55.00,
+            'gst_amount' => 5.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('No attached invoice');
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();
