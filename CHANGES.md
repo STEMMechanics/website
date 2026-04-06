@@ -9,6 +9,7 @@
 - Support 3 decimal places in product sizing
 - Allow dynamic backorder dates
 - Product SKU now prefilled
+- No expense attachment notice fix
 
 ## 1.4.3
 

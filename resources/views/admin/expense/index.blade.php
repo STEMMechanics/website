@@ -31,14 +31,14 @@
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $expense->supplier ?: '-' }}</div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $expense->invoice_id ?: 'No invoice ID' }}</div>
                                 <div class="lg:hidden text-xs text-gray-600">{{ $expense->description ?: '-' }}</div>
-                                @if(! $expense->invoice_id)
+                                @if(! $expense->receipt_document_path)
                                     <div class="md:hidden mt-0.5 text-xs text-red-600">(No attached invoice)</div>
                                 @endif
                             </td>
                             <td class="hidden md:table-cell">{{ $expense->supplier ?: '-' }}</td>
                             <td class="hidden md:table-cell">
                                 <div>{{ $expense->invoice_id ?: '-' }}</div>
-                                @if(! $expense->invoice_id)
+                                @if(! $expense->receipt_document_path)
                                     <div class="mt-0.5 text-xs text-red-600">(No attached invoice)</div>
                                 @endif
                             </td>

@@ -96,7 +96,7 @@ class ExpenseDocumentNamingTest extends TestCase
         Expense::factory()->create([
             'created_by' => $admin->id,
             'supplier' => 'STEM Supplies Co',
-            'invoice_id' => null,
+            'invoice_id' => 'INV-12345',
             'paid_on' => '2026-03-01',
             'total_amount' => 55.00,
             'gst_amount' => 5.00,
@@ -106,6 +106,30 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeText('No attached invoice');
+    }
+
+    public function test_expense_index_hides_missing_attached_invoice_warning_when_a_receipt_is_attached(): void
+    {
+        Storage::fake('local');
+
+        $admin = $this->createAdminUser();
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'STEM Supplies Co',
+            'invoice_id' => 'INV-12345',
+            'receipt_document_path' => 'finance/expenses/sample.pdf',
+            'receipt_document_name' => 'sample.pdf',
+            'paid_on' => '2026-03-01',
+            'total_amount' => 55.00,
+            'gst_amount' => 5.00,
+        ]);
+
+        Storage::disk('local')->put('finance/expenses/sample.pdf', 'pdf');
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index'));
+
+        $response->assertOk();
+        $response->assertDontSeeText('No attached invoice');
     }
 
     private function createAdminUser(): User
