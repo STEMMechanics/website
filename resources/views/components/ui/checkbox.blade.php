@@ -20,7 +20,7 @@ $sizeClasses = $small
 : ['h-8', 'min-w-8', 'w-8', 'rounded-lg'];
 $wrapperClasses = $noWrapper ? '' : 'mb-4';
 $hasLabel = ($label !== null && $label !== '') || $labelHidden;
-$containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), 'items-start', ($noWrapper ? $attributes->get('class') : '')]);
+$containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), ($info ? 'items-start' : 'items-center'), ($noWrapper ? $attributes->get('class') : '')]);
 @endphp
 
 @if(!$noWrapper)
