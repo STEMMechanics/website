@@ -28,7 +28,7 @@
                 </div>
             @endif
 
-            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
                 <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
                     <path
                             d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
@@ -63,7 +63,7 @@
                     </div>
                 </div>
             </div>
-            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
                 <svg viewBox="0 0 1440 120" class="block w-full h-5" preserveAspectRatio="none">
                     <path
                             d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
