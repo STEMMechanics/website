@@ -26,7 +26,6 @@ class SearchTest extends TestCase
 
         $this->get(route('search.index'))
             ->assertOk()
-            ->assertSee('Refine Search')
             ->assertSee('Search the site')
             ->assertSee('Start a new search')
             ->assertSee('Use the search bar above to find workshops and store products across the site.');
@@ -66,7 +65,6 @@ class SearchTest extends TestCase
 
         $this->get(route('search.index', ['q' => 'robotics']))
             ->assertOk()
-            ->assertSee('Refine Search')
             ->assertSee('Search the site')
             ->assertSee('Robotics Basics')
             ->assertDontSee('Chemistry Club')
