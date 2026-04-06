@@ -39,7 +39,7 @@ $containerClasses = twMerge([($inline ? 'inline-flex' : 'flex'), ($info ? 'items
                 {{ $attributes->except('class') }} />
 
             <div>
-                <div class="{{ twMerge(['text-sm','pl-2','pt-1.5'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</div>
+                <div class="{{ twMerge(['text-sm','pl-2'], $small ? 'pl-1 text-xs' : '', $labelHidden ? 'sr-only' : '', $disabled ? 'text-gray-400 cursor-not-allowed' : '', $labelClass) }}">{{ $label ?? '' }}</div>
                 @if($info)
                     <div class="text-xs pl-2 text-gray-500">{{ $info }}</div>
                 @endif
