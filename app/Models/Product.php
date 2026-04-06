@@ -83,7 +83,7 @@ class Product extends Model
         'allow_backorder' => 'boolean',
         'backorder_shipping_estimate' => 'date',
         'inventory_quantity' => 'integer',
-        'shipping_units' => 'decimal:2',
+        'shipping_units' => 'decimal:3',
         'min_satchel_rank' => 'integer',
         'weight_grams' => 'integer',
         'box_only' => 'boolean',
@@ -254,7 +254,7 @@ class Product extends Model
             return $variant->effectiveShippingUnits();
         }
 
-        return round(max(0, (float) $this->shipping_units), 2);
+        return round(max(0, (float) $this->shipping_units), 3);
     }
 
     public function defaultVariantName(): string

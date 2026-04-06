@@ -235,7 +235,7 @@ class ShopProductController extends Controller
             'shipping_rate' => 0,
             'tax_rate' => 0.10,
             'inventory_quantity' => $isDigital ? null : ($validated['inventory_quantity'] ?? null),
-            'shipping_units' => $isDigital ? 0 : round((float) ($validated['shipping_units'] ?? 0), 2),
+            'shipping_units' => $isDigital ? 0 : round((float) ($validated['shipping_units'] ?? 0), 3),
             'min_satchel_rank' => $isDigital ? 1 : (int) ($validated['min_satchel_rank'] ?? $satchelRanks[0]),
             'weight_grams' => $isDigital ? null : ($validated['weight_grams'] ?? null),
             'box_only' => $isDigital ? false : $request->boolean('box_only'),

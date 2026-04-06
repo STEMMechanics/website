@@ -61,7 +61,7 @@ class StoreOrderItem extends Model
         'cancelled_available_quantity' => 'integer',
         'cancelled_delayed_quantity' => 'integer',
         'delayed_shipping_estimate' => 'date',
-        'unit_shipping_units' => 'decimal:2',
+        'unit_shipping_units' => 'decimal:3',
         'unit_min_satchel_rank' => 'integer',
         'unit_price' => 'decimal:2',
         'unit_shipping_rate' => 'decimal:2',

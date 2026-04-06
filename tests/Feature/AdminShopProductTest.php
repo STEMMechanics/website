@@ -66,6 +66,43 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_save_three_decimal_package_units_for_a_shop_product(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.product.create'))
+            ->assertOk()
+            ->assertSee('step="0.001"', false);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Precision Pack',
+                'slug' => 'precision-pack',
+                'sku' => 'PREC-001',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '9.95',
+                'inventory_quantity' => '4',
+                'shipping_units' => '1.234',
+                'min_satchel_rank' => '2',
+                'weight_grams' => '300',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $product = Product::query()->where('slug', 'precision-pack')->firstOrFail();
+
+        $this->assertSame('1.234', number_format((float) $product->shipping_units, 3, '.', ''));
+        $this->assertDatabaseHas('products', [
+            'slug' => 'precision-pack',
+            'shipping_units' => 1.234,
+        ]);
+    }
+
     public function test_featured_products_must_be_active(): void
     {
         $admin = User::factory()->create();

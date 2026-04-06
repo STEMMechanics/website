@@ -306,7 +306,7 @@ class StoreOrderService
                     'preorder_shipping_estimate' => $product->isPreorder($variant)
                         ? ($variant->preorder_shipping_estimate ?? $product->preorder_shipping_estimate)
                         : null,
-                    'unit_shipping_units' => round((float) ($product->shippingUnitsForVariant($variant) ?? ($storeContext['unit_shipping_units'] ?? 0)), 2),
+                    'unit_shipping_units' => round((float) ($product->shippingUnitsForVariant($variant) ?? ($storeContext['unit_shipping_units'] ?? 0)), 3),
                     'unit_min_satchel_rank' => $product->minSatchelRankForVariant($variant) ?? ($storeContext['unit_min_satchel_rank'] ?? null),
                     'unit_weight_grams' => $product->weightGramsForVariant($variant) ?? ($storeContext['unit_weight_grams'] ?? null),
                     'unit_price_inc_tax' => round($unitPriceExTax * (1 + $taxRate), 2),
@@ -425,7 +425,7 @@ class StoreOrderService
                 $orderItem->delayed_fulfilment_type = $payload['delayed_fulfilment_type'];
                 $orderItem->delayed_shipping_estimate = $payload['delayed_shipping_estimate'];
                 $orderItem->inventory_reserved_quantity = (int) $payload['reserved_quantity'];
-                $orderItem->unit_shipping_units = round((float) $payload['unit_shipping_units'], 2);
+                $orderItem->unit_shipping_units = round((float) $payload['unit_shipping_units'], 3);
                 $orderItem->unit_min_satchel_rank = $payload['unit_min_satchel_rank'];
                 $orderItem->unit_price = round((float) $payload['unit_price_inc_tax'], 2);
                 $orderItem->unit_shipping_rate = 0;
@@ -2716,7 +2716,7 @@ class StoreOrderService
             $orderItem->delayed_fulfilment_type = $line->delayed_fulfilment_type;
             $orderItem->delayed_shipping_estimate = $line->delayed_shipping_estimate;
             $orderItem->inventory_reserved_quantity = $reservedQuantity;
-            $orderItem->unit_shipping_units = round((float) $line->unit_shipping_units, 2);
+            $orderItem->unit_shipping_units = round((float) $line->unit_shipping_units, 3);
             $orderItem->unit_min_satchel_rank = $line->unit_min_satchel_rank;
             $orderItem->unit_price = round((float) $line->unit_price, 2);
             $orderItem->unit_shipping_rate = 0;
@@ -3667,7 +3667,7 @@ class StoreOrderService
                     'delayed_quantity' => (int) ($line->delayed_quantity ?? 0),
                     'delayed_fulfilment_type' => $line->delayed_fulfilment_type ?? null,
                     'delayed_shipping_estimate' => $line->delayed_shipping_estimate ?? null,
-                    'unit_shipping_units' => round((float) ($line->unit_shipping_units ?? 0), 2),
+                    'unit_shipping_units' => round((float) ($line->unit_shipping_units ?? 0), 3),
                     'unit_min_satchel_rank' => $line->unit_min_satchel_rank,
                     'unit_weight_grams' => $line->unit_weight_grams,
                     'tax_rate' => $taxRate,

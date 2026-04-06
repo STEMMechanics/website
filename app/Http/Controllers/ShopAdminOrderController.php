@@ -394,7 +394,7 @@ class ShopAdminOrderController extends Controller
                         'delayed_quantity' => (int) ($item->delayed_quantity ?? 0),
                         'delayed_fulfilment_type' => $item->delayed_fulfilment_type,
                         'delayed_shipping_estimate' => $item->delayed_shipping_estimate,
-                        'unit_shipping_units' => round((float) ($item->unit_shipping_units ?? 0), 2),
+                        'unit_shipping_units' => round((float) ($item->unit_shipping_units ?? 0), 3),
                         'unit_min_satchel_rank' => $item->unit_min_satchel_rank,
                         'unit_weight_grams' => $item->unit_weight_grams,
                         'tax_rate' => $taxRate,

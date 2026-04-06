@@ -38,7 +38,7 @@ class ProductVariant extends Model
         'price' => 'decimal:2',
         'compare_at_price' => 'decimal:2',
         'shipping_rate' => 'decimal:2',
-        'shipping_units' => 'decimal:2',
+        'shipping_units' => 'decimal:3',
         'inventory_quantity' => 'integer',
         'weight_grams' => 'integer',
         'is_preorder' => 'boolean',
@@ -110,7 +110,7 @@ class ProductVariant extends Model
     {
         $value = $this->product?->shipping_units;
 
-        return round(max(0, (float) $value), 2);
+        return round(max(0, (float) $value), 3);
     }
 
     public function displayName(): string

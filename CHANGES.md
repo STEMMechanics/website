@@ -6,6 +6,7 @@
 - Added x-day account support
 - Improved email template on mobile
 - Scheduled email status at times would be incorrect
+- Support 3 decimal places in product sizing
 
 ## 1.4.3
 

@@ -440,7 +440,7 @@ class StoreShippingService
     private function configuredPackageQuote(Collection $physicalLines, Collection $packages): array
     {
         $hasInvalidPackageItem = $physicalLines->contains(function ($line): bool {
-            $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+            $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
 
             return $shippingUnits <= 0;
         });
@@ -534,7 +534,7 @@ class StoreShippingService
     private function satchelQuote(Collection $physicalLines): array
     {
         $hasInvalidSatchelItem = $physicalLines->contains(function ($line): bool {
-            $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+            $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
             $boxOnly = (bool) ($line->box_only ?? false);
 
             return ! $boxOnly && $shippingUnits <= 0;
@@ -647,7 +647,7 @@ class StoreShippingService
                     return [];
                 }
 
-                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
                 $minSatchelRank = max(1, (int) ($line->unit_min_satchel_rank ?? $line->min_satchel_rank ?? 1));
                 $boxOnly = (bool) ($line->box_only ?? false);
 
@@ -755,11 +755,11 @@ class StoreShippingService
 
     private function appendUnitToParcel(array &$parcel, array $unit): void
     {
-        $parcel['used_capacity'] = round((float) ($parcel['used_capacity'] ?? 0) + (float) $unit['shipping_units'], 2);
+        $parcel['used_capacity'] = round((float) ($parcel['used_capacity'] ?? 0) + (float) $unit['shipping_units'], 3);
         $parcel['total_weight_grams'] = $this->newKnownWeight($parcel, $unit) ?? 0;
         $parcel['items'][] = [
             'title' => (string) $unit['display_title'],
-            'shipping_units' => round((float) $unit['shipping_units'], 2),
+            'shipping_units' => round((float) $unit['shipping_units'], 3),
             'weight_grams' => $unit['weight_grams'],
         ];
     }
@@ -786,7 +786,7 @@ class StoreShippingService
     {
         $satchelCapacity = (float) ($parcel['satchel']['capacity'] ?? 0);
 
-        return round($satchelCapacity - ((float) ($parcel['used_capacity'] ?? 0) + (float) $unit['shipping_units']), 2);
+        return round($satchelCapacity - ((float) ($parcel['used_capacity'] ?? 0) + (float) $unit['shipping_units']), 3);
     }
 
     private function newKnownWeight(array $parcel, array $unit): ?int
@@ -939,7 +939,7 @@ class StoreShippingService
     {
         return $lines
             ->filter(function ($line): bool {
-                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
 
                 return $shippingUnits <= 0;
             })
@@ -956,7 +956,7 @@ class StoreShippingService
     {
         return $lines
             ->filter(function ($line): bool {
-                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 2);
+                $shippingUnits = round(max(0, (float) ($line->unit_shipping_units ?? $line->shipping_units ?? 0)), 3);
                 $boxOnly = (bool) ($line->box_only ?? false);
 
                 return ! $boxOnly && $shippingUnits <= 0;
