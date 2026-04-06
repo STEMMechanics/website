@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Media;
 use App\Models\Product;
+use App\Models\UserGroup;
 use App\Models\SiteOption;
 use App\Models\User;
 use App\Support\ShopAvailability;
@@ -117,5 +118,27 @@ class ShopPublicAvailabilityTest extends TestCase
         $this->get(route('shop.index'))
             ->assertOk()
             ->assertSee('?md', false);
+    }
+
+    public function test_admins_see_an_inline_edit_link_and_consistent_title_row_height_on_product_cards(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $product = Product::factory()->create([
+            'title' => 'Short Title',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('shop.index'))
+            ->assertOk()
+            ->assertSee('min-h-16', false)
+            ->assertSee(route('admin.shop.product.edit', $product), false)
+            ->assertSee('aria-label="Edit Short Title"', false);
     }
 }

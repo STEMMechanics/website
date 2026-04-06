@@ -4,6 +4,7 @@
     $totalResults = $products->total();
     $firstResult = $products->firstItem() ?? 0;
     $lastResult = $products->lastItem() ?? 0;
+    $isAdmin = (bool) (auth()->user()?->isAdmin() ?? false);
     $sortOptions = [
         'relevance' => 'Relevance',
         'price_low' => 'Price low to high',
@@ -486,8 +487,20 @@
 
                                         <div class="shop-product-card-body pointer-events-none flex-1 flex flex-col">
                                             <div class="shop-product-card-header mb-3 flex items-start justify-between gap-3">
-                                                <div class="shop-product-card-title">
-                                                    <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
+                                                <div class="shop-product-card-title min-h-16 flex flex-col justify-between">
+                                                    <div class="flex items-start gap-2">
+                                                        <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
+                                                        @if($isAdmin)
+                                                            <a
+                                                                href="{{ route('admin.shop.product.edit', $product) }}"
+                                                                class="pointer-events-auto relative z-20 mt-1 inline-flex shrink-0 items-center text-gray-400 transition hover:text-primary-color"
+                                                                title="Edit product"
+                                                                aria-label="Edit {{ $product->title }}"
+                                                            >
+                                                                <i class="fa-solid fa-pen text-sm"></i>
+                                                            </a>
+                                                        @endif
+                                                    </div>
                                                     <div class="flex flex-wrap items-center gap-2 -ml-1">
                                                         @if($product->isDigital())
                                                             <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
