@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Media;
 use App\Models\Product;
 use App\Models\SiteOption;
+use App\Models\User;
 use App\Support\ShopAvailability;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -93,5 +95,27 @@ class ShopPublicAvailabilityTest extends TestCase
             ->assertSeeText('Free')
             ->assertSeeText('Instant download after checkout')
             ->assertDontSeeText('In stock');
+    }
+
+    public function test_public_store_product_cards_request_a_larger_image_variant(): void
+    {
+        $user = User::factory()->create();
+        $hero = Media::factory()->create([
+            'name' => 'product-card.jpg',
+            'title' => 'Product Card Hero',
+            'mime_type' => 'image/jpeg',
+            'user_id' => $user->id,
+        ]);
+
+        Product::factory()->create([
+            'title' => 'Display Kit',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'hero_media_name' => $hero->name,
+        ]);
+
+        $this->get(route('shop.index'))
+            ->assertOk()
+            ->assertSee('?md', false);
     }
 }

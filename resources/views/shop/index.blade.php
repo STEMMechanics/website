@@ -90,10 +90,6 @@
                 margin-bottom: 0.75rem !important;
             }
 
-            [data-shop-catalog] .shop-product-card-title {
-                margin-bottom: 0.5rem !important;
-            }
-
             [data-shop-catalog] .shop-product-card-description {
                 display: block !important;
                 margin-top: 0 !important;
@@ -217,6 +213,7 @@
             flex-direction: column;
             gap: 0.75rem;
             margin-bottom: 0.75rem;
+            min-height: auto !important;
         }
 
         @media (min-width: 640px) {
@@ -481,7 +478,7 @@
                                     <div class="shop-product-card-inner flex flex-col flex-1">
                                         <div class="shop-product-card-image-frame pointer-events-none block bg-gray-100">
                                             <img
-                                                src="{{ $product->primaryImageUrl() }}"
+                                                src="{{ $product->hero?->url ? $product->hero->url.'?md' : $product->primaryImageUrl() }}"
                                                 alt="{{ $product->title }}"
                                                 class="shop-product-card-image h-64 w-full object-cover"
                                             />
