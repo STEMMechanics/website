@@ -13,6 +13,7 @@
 - Added product subtitles
 - Improved site search
 - Expanded product categories
+- Dependency updates
 
 ## 1.4.3
 
