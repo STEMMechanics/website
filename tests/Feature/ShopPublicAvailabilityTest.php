@@ -137,7 +137,14 @@ class ShopPublicAvailabilityTest extends TestCase
         $this->actingAs($admin)
             ->get(route('shop.index'))
             ->assertOk()
-            ->assertSee('min-h-16', false)
+            ->assertSee('min-height: 4rem;', false)
+            ->assertSee(route('admin.shop.product.edit', $product), false)
+            ->assertSee('aria-label="Edit Short Title"', false);
+
+        $this->actingAs($admin)
+            ->get(route('shop.index', ['view' => 'list']))
+            ->assertOk()
+            ->assertDontSee('min-h-16', false)
             ->assertSee(route('admin.shop.product.edit', $product), false)
             ->assertSee('aria-label="Edit Short Title"', false);
     }
