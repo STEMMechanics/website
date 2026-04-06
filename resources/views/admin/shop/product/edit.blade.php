@@ -86,7 +86,7 @@
                 isFeatured: @js((bool) old('is_featured', $product->is_featured ?? false)),
                 boxOnly: @js((bool) old('box_only', $product->box_only ?? false)),
                 basePrice: @js(old('price', isset($product) ? number_format((float) $product->price, 2, '.', '') : '0.00')),
-                baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 2, '.', '') : '0.00')),
+                baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
                 baseVariantName: @js(old('base_variant_name', $product->base_variant_name ?? '')),
                 variants: @js($variantRows),
@@ -337,9 +337,9 @@
                             name="shipping_units"
                             label="Package Units"
                             type="number"
-                            step="0.01"
+                            step="0.001"
                             min="0"
-                            :value="isset($product) ? number_format((float) $product->shipping_units, 2, '.', '') : '0.00'"
+                            :value="isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000'"
                             info="The size of this item compared to capacity of the smallest package."
                             x-model="baseShippingUnits"
                             x-bind:disabled="boxOnly"
@@ -555,8 +555,8 @@
                 </div>
             </div>
 
-            <div class="mt-6 flex flex-wrap gap-3 flex-row-reverse justify-between">
-                <div class="space-x-4">
+            <div class="mt-6 flex flex-wrap gap-3 flex-col-reverse sm:flex-row-reverse justify-between">
+                <div class="flex flex-col sm:flex-row gap-3">
                     @isset($product)
                         <x-ui.button href="{{ route('shop.product.show', $product) }}" color="outline">View Product</x-ui.button>
                     @endisset
