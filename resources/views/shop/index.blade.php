@@ -486,7 +486,7 @@
                                         </div>
 
                                         <div class="shop-product-card-body pointer-events-none flex-1 flex flex-col">
-                                            <div class="shop-product-card-header mb-3 flex items-start justify-between gap-3">
+                                            <div class="shop-product-card-header flex items-start justify-between gap-3">
                                                 <div class="shop-product-card-title min-h-16 flex flex-col justify-between">
                                                     <div class="flex items-start gap-2">
                                                         <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
