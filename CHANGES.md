@@ -8,6 +8,7 @@
 - Scheduled email status at times would be incorrect
 - Support 3 decimal places in product sizing
 - Allow dynamic backorder dates
+- Product SKU now prefilled
 
 ## 1.4.3
 

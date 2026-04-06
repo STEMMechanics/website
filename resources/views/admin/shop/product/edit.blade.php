@@ -91,6 +91,7 @@
                 title: @js(old('title', $product->title ?? '')),
                 slug: @js(old('slug', $product->slug ?? '')),
                 baseSku: @js(old('sku', $product->sku ?? '')),
+                baseSkuTouched: @js(trim((string) old('sku', $product->sku ?? '')) !== ''),
                 slugTouched: @js(trim((string) old('slug', $product->slug ?? '')) !== ''),
                 allowBackorder: @js($productAllowsBackorder),
                 isFeatured: @js((bool) old('is_featured', $product->is_featured ?? false)),
@@ -135,9 +136,14 @@
                 },
                 handleTitleInput() {
                     this.syncSlugFromTitle();
+                    this.syncBaseSkuFromSlug();
                 },
                 handleSlugInput() {
                     this.slugTouched = String(this.slug || '').trim() !== '';
+                    this.syncBaseSkuFromSlug();
+                },
+                handleBaseSkuInput() {
+                    this.baseSkuTouched = String(this.baseSku || '').trim() !== '';
                 },
                 normalizeSkuPart(value) {
                     return String(value || '')
@@ -197,6 +203,46 @@
 
                     return uniqueSku;
                 },
+                ensureUniqueBaseSku(candidate) {
+                    const seed = this.slugify(candidate);
+                    if (seed === '') {
+                        return '';
+                    }
+
+                    const reserved = new Set();
+                    const currentBaseSku = this.slugify(this.baseSku || '');
+                    if (currentBaseSku !== '') {
+                        reserved.add(currentBaseSku);
+                    }
+
+                    this.variants.forEach((variant) => {
+                        const existing = this.slugify(variant?.sku || '');
+                        if (existing !== '') {
+                            reserved.add(existing);
+                        }
+                    });
+
+                    let uniqueSku = seed;
+                    let suffix = 2;
+                    while (reserved.has(uniqueSku)) {
+                        uniqueSku = `${seed}-${suffix}`;
+                        suffix += 1;
+                    }
+
+                    return uniqueSku;
+                },
+                syncBaseSkuFromSlug() {
+                    if (this.baseSkuTouched) {
+                        return;
+                    }
+
+                    const candidate = String(this.slug || this.title || '').trim();
+                    if (candidate === '') {
+                        return;
+                    }
+
+                    this.baseSku = this.ensureUniqueBaseSku(candidate);
+                },
                 syncVariantSku(index) {
                     const variant = this.variants[index];
                     if (!variant) {
@@ -233,6 +279,7 @@
                 },
                 init() {
                     this.syncSlugFromTitle();
+                    this.syncBaseSkuFromSlug();
                     this.$watch('productType', (value) => {
                         if (value === '{{ \App\Models\Product::PRODUCT_TYPE_DIGITAL }}') {
                             this.allowBackorder = false;
@@ -264,7 +311,7 @@
                         :suggestions="$existingCategories ?? []"
                         showSuggestionsOnFocus="true"
                     />
-                    <x-ui.input name="sku" label="Base SKU" :value="$product->sku ?? ''" x-model="baseSku" required info="Required. Used on orders and inventory records." />
+                    <x-ui.input name="sku" label="Base SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" required info="Required. Used on orders and inventory records." />
                     <x-ui.select
                         name="status"
                         label="Status"

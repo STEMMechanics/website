@@ -67,6 +67,68 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_auto_fill_the_base_sku_from_the_slug_when_it_is_blank(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Circuit Board Kit',
+                'slug' => '',
+                'sku' => '',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->assertDatabaseHas('products', [
+            'title' => 'Circuit Board Kit',
+            'slug' => 'circuit-board-kit',
+            'sku' => 'circuit-board-kit',
+        ]);
+    }
+
+    public function test_admin_can_make_the_auto_generated_base_sku_unique_when_the_slug_is_already_taken(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        Product::factory()->create([
+            'title' => 'Existing Collision Product',
+            'slug' => 'circuit-board-kit',
+            'sku' => 'circuit-board-kit',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Circuit Board Kit',
+                'slug' => '',
+                'sku' => '',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->assertDatabaseHas('products', [
+            'title' => 'Circuit Board Kit',
+            'slug' => 'circuit-board-kit-2',
+            'sku' => 'circuit-board-kit-2',
+        ]);
+    }
+
     public function test_admin_can_save_three_decimal_package_units_for_a_shop_product(): void
     {
         $admin = User::factory()->create();
@@ -868,7 +930,7 @@ class AdminShopProductTest extends TestCase
             ->assertSessionHasErrors(['variants.0.sku']);
     }
 
-    public function test_admin_cannot_save_a_product_without_a_sku(): void
+    public function test_admin_can_auto_fill_a_product_sku_when_it_is_blank(): void
     {
         $admin = User::factory()->create();
         UserGroup::query()->create([
@@ -880,12 +942,19 @@ class AdminShopProductTest extends TestCase
             ->post(route('admin.shop.product.store'), [
                 'title' => 'Missing SKU Product',
                 'slug' => 'missing-sku-product',
+                'sku' => '',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
                 'price' => '19.95',
                 'shipping_units' => '1.00',
                 'min_satchel_rank' => '1',
             ])
-            ->assertSessionHasErrors(['sku']);
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->assertDatabaseHas('products', [
+            'title' => 'Missing SKU Product',
+            'slug' => 'missing-sku-product',
+            'sku' => 'missing-sku-product',
+        ]);
     }
 }

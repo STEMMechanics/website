@@ -14,6 +14,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Illuminate\Support\Str;
 
 class ShopProductController extends Controller
 {
@@ -130,6 +131,13 @@ class ShopProductController extends Controller
         $satchelRanks = Product::satchelOptions()->pluck('rank')->map(fn ($rank) => (int) $rank)->values()->all();
         if ($satchelRanks === []) {
             $satchelRanks = [1];
+        }
+
+        $baseSku = trim((string) $request->input('sku', ''));
+        if ($baseSku === '') {
+            $request->merge([
+                'sku' => $this->uniqueProductSkuSeed($request, $product),
+            ]);
         }
 
         $validated = $request->validate([
@@ -300,6 +308,64 @@ class ShopProductController extends Controller
             ->orderBy('category')
             ->pluck('category')
             ->all();
+    }
+
+    private function uniqueProductSkuSeed(Request $request, Product $product): string
+    {
+        $seed = trim((string) $request->input('slug', ''));
+        if ($seed === '') {
+            $seed = trim((string) $request->input('title', ''));
+        }
+        if ($seed === '') {
+            $seed = 'product';
+        }
+
+        $candidate = Str::slug($seed);
+        if ($candidate === '') {
+            $candidate = 'product';
+        }
+
+        $candidate = strtolower($candidate);
+
+        $suffix = 2;
+        while ($this->productSkuIsTaken($candidate, $product)) {
+            $suffixText = '-'.$suffix;
+            $base = $candidate;
+            $maxBaseLength = max(1, 120 - strlen($suffixText));
+            if (strlen($base) > $maxBaseLength) {
+                $base = substr($base, 0, $maxBaseLength);
+                $base = rtrim($base, '-');
+                if ($base === '') {
+                    $base = 'product';
+                }
+            }
+
+            $candidate = $base.$suffixText;
+            $suffix += 1;
+        }
+
+        return $candidate;
+    }
+
+    private function productSkuIsTaken(string $sku, Product $product): bool
+    {
+        $skuKey = mb_strtolower(trim($sku));
+
+        if ($skuKey === '') {
+            return false;
+        }
+
+        $productSkuExists = Product::query()
+            ->when($product->exists, fn ($query) => $query->where('id', '!=', $product->id))
+            ->whereRaw('LOWER(sku) = ?', [$skuKey])
+            ->exists();
+        if ($productSkuExists) {
+            return true;
+        }
+
+        return ProductVariant::query()
+            ->whereRaw('LOWER(sku) = ?', [$skuKey])
+            ->exists();
     }
 
     private function backorderShippingEstimateType(?string $type, mixed $estimate, mixed $offsetDays): string
