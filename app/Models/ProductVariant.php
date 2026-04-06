@@ -27,6 +27,8 @@ class ProductVariant extends Model
         'preorder_shipping_estimate',
         'allow_backorder',
         'backorder_shipping_estimate',
+        'backorder_shipping_estimate_type',
+        'backorder_shipping_offset_days',
         'length_cm',
         'width_cm',
         'height_cm',
@@ -45,6 +47,7 @@ class ProductVariant extends Model
         'preorder_shipping_estimate' => 'date',
         'allow_backorder' => 'boolean',
         'backorder_shipping_estimate' => 'date',
+        'backorder_shipping_offset_days' => 'integer',
         'length_cm' => 'decimal:2',
         'width_cm' => 'decimal:2',
         'height_cm' => 'decimal:2',
@@ -187,16 +190,29 @@ class ProductVariant extends Model
 
     public function backorderShippingEstimateLabel(string $format = 'F jS'): ?string
     {
-        $estimate = $this->backorder_shipping_estimate;
-
-        if (! $estimate instanceof Carbon && $this->preorder_shipping_estimate instanceof Carbon) {
-            $estimate = $this->preorder_shipping_estimate;
-        }
+        $estimate = $this->backorderShippingEstimate();
 
         if (! $estimate instanceof Carbon) {
             return null;
         }
 
         return $estimate->format($format);
+    }
+
+    public function backorderShippingEstimate(): ?Carbon
+    {
+        if (($this->backorder_shipping_estimate_type === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC || ($this->backorder_shipping_estimate_type === null && $this->backorder_shipping_offset_days !== null)) && $this->backorder_shipping_offset_days !== null) {
+            return Carbon::today()->addDays(max(0, (int) $this->backorder_shipping_offset_days));
+        }
+
+        if ($this->backorder_shipping_estimate instanceof Carbon) {
+            return $this->backorder_shipping_estimate;
+        }
+
+        if ($this->preorder_shipping_estimate instanceof Carbon) {
+            return $this->preorder_shipping_estimate;
+        }
+
+        return null;
     }
 }

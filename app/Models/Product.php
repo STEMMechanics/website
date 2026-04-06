@@ -27,6 +27,10 @@ class Product extends Model
 
     public const PRODUCT_TYPE_PHYSICAL = 'physical';
 
+    public const BACKORDER_SHIPPING_ESTIMATE_STATIC = 'static';
+
+    public const BACKORDER_SHIPPING_ESTIMATE_DYNAMIC = 'dynamic';
+
     public const STATUSES = [
         self::STATUS_DRAFT,
         self::STATUS_ACTIVE,
@@ -49,6 +53,8 @@ class Product extends Model
         'preorder_shipping_estimate',
         'allow_backorder',
         'backorder_shipping_estimate',
+        'backorder_shipping_estimate_type',
+        'backorder_shipping_offset_days',
         'short_description',
         'description',
         'base_variant_name',
@@ -82,6 +88,7 @@ class Product extends Model
         'preorder_shipping_estimate' => 'date',
         'allow_backorder' => 'boolean',
         'backorder_shipping_estimate' => 'date',
+        'backorder_shipping_offset_days' => 'integer',
         'inventory_quantity' => 'integer',
         'shipping_units' => 'decimal:3',
         'min_satchel_rank' => 'integer',
@@ -441,17 +448,33 @@ class Product extends Model
         return $this->preorder_shipping_estimate->format($format);
     }
 
-    public function backorderShippingEstimateLabel(string $format = 'F jS', ?ProductVariant $variant = null): ?string
+    public function backorderShippingEstimate(?ProductVariant $variant = null): ?Carbon
     {
         if ($variant instanceof ProductVariant) {
-            return $variant->backorderShippingEstimateLabel($format);
+            return $variant->backorderShippingEstimate();
         }
 
-        $estimate = $this->backorder_shipping_estimate;
+        $mode = $this->backorder_shipping_estimate_type;
+        $offsetDays = $this->backorder_shipping_offset_days;
 
-        if (! $estimate instanceof Carbon && $this->preorder_shipping_estimate instanceof Carbon) {
-            $estimate = $this->preorder_shipping_estimate;
+        if (($mode === self::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC || ($mode === null && $offsetDays !== null)) && $offsetDays !== null) {
+            return Carbon::today()->addDays(max(0, (int) $offsetDays));
         }
+
+        if ($this->backorder_shipping_estimate instanceof Carbon) {
+            return $this->backorder_shipping_estimate;
+        }
+
+        if ($this->preorder_shipping_estimate instanceof Carbon) {
+            return $this->preorder_shipping_estimate;
+        }
+
+        return null;
+    }
+
+    public function backorderShippingEstimateLabel(string $format = 'F jS', ?ProductVariant $variant = null): ?string
+    {
+        $estimate = $this->backorderShippingEstimate($variant);
 
         if (! $estimate instanceof Carbon) {
             return null;

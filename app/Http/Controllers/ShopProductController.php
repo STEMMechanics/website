@@ -140,7 +140,12 @@ class ShopProductController extends Controller
             'status' => ['required', Rule::in(Product::STATUSES)],
             'product_type' => ['required', Rule::in(Product::PRODUCT_TYPES)],
             'allow_backorder' => ['nullable', 'boolean'],
+            'backorder_shipping_estimate_type' => ['nullable', Rule::in([
+                Product::BACKORDER_SHIPPING_ESTIMATE_STATIC,
+                Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC,
+            ])],
             'backorder_shipping_estimate' => ['nullable', 'date'],
+            'backorder_shipping_offset_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string'],
             'base_variant_name' => ['nullable', 'string', 'max:120'],
@@ -168,7 +173,12 @@ class ShopProductController extends Controller
             'variants.*.compare_at_price' => ['nullable', 'numeric', 'min:0'],
             'variants.*.inventory_quantity' => ['nullable', 'integer', 'min:0'],
             'variants.*.allow_backorder' => ['nullable', 'boolean'],
+            'variants.*.backorder_shipping_estimate_type' => ['nullable', Rule::in([
+                Product::BACKORDER_SHIPPING_ESTIMATE_STATIC,
+                Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC,
+            ])],
             'variants.*.backorder_shipping_estimate' => ['nullable', 'date'],
+            'variants.*.backorder_shipping_offset_days' => ['nullable', 'integer', 'min:1', 'max:3650'],
             'variants.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'variants.*.is_active' => ['nullable', 'boolean'],
         ], [
@@ -177,11 +187,26 @@ class ShopProductController extends Controller
 
         $isDigital = (string) $validated['product_type'] === Product::PRODUCT_TYPE_DIGITAL;
         $allowsBackorder = ! $isDigital && $request->boolean('allow_backorder');
+        $backorderShippingEstimateType = $this->backorderShippingEstimateType(
+            $validated['backorder_shipping_estimate_type'] ?? null,
+            $validated['backorder_shipping_estimate'] ?? null,
+            $validated['backorder_shipping_offset_days'] ?? null,
+        );
+        $backorderShippingEstimate = $validated['backorder_shipping_estimate'] ?? null;
+        $backorderShippingOffsetDays = $validated['backorder_shipping_offset_days'] ?? null;
 
-        if ($allowsBackorder && ($validated['backorder_shipping_estimate'] ?? null) === null) {
-            throw ValidationException::withMessages([
-                'backorder_shipping_estimate' => 'An estimated shipping date is required when backorders are allowed.',
-            ]);
+        if ($allowsBackorder) {
+            if ($backorderShippingEstimateType === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC) {
+                if ($backorderShippingOffsetDays === null) {
+                    throw ValidationException::withMessages([
+                        'backorder_shipping_offset_days' => 'A day offset is required when using a dynamic backorder estimate.',
+                    ]);
+                }
+            } elseif ($backorderShippingEstimate === null) {
+                throw ValidationException::withMessages([
+                    'backorder_shipping_estimate' => 'An estimated shipping date is required when backorders are allowed.',
+                ]);
+            }
         }
 
         $productSku = trim((string) ($validated['sku'] ?? ''));
@@ -223,7 +248,13 @@ class ShopProductController extends Controller
             'is_preorder' => false,
             'preorder_shipping_estimate' => null,
             'allow_backorder' => $allowsBackorder,
-            'backorder_shipping_estimate' => $allowsBackorder ? $validated['backorder_shipping_estimate'] : null,
+            'backorder_shipping_estimate_type' => $allowsBackorder ? $backorderShippingEstimateType : null,
+            'backorder_shipping_estimate' => $allowsBackorder && $backorderShippingEstimateType === Product::BACKORDER_SHIPPING_ESTIMATE_STATIC
+                ? $backorderShippingEstimate
+                : null,
+            'backorder_shipping_offset_days' => $allowsBackorder && $backorderShippingEstimateType === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC
+                ? (int) $backorderShippingOffsetDays
+                : null,
             'short_description' => trim((string) ($validated['short_description'] ?? '')) ?: null,
             'description' => trim((string) ($validated['description'] ?? '')) ?: null,
             'base_variant_name' => trim((string) ($validated['base_variant_name'] ?? '')) ?: null,
@@ -271,6 +302,27 @@ class ShopProductController extends Controller
             ->all();
     }
 
+    private function backorderShippingEstimateType(?string $type, mixed $estimate, mixed $offsetDays): string
+    {
+        $normalizedType = strtolower(trim((string) $type));
+        if (in_array($normalizedType, [
+            Product::BACKORDER_SHIPPING_ESTIMATE_STATIC,
+            Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC,
+        ], true)) {
+            return $normalizedType;
+        }
+
+        if ($offsetDays !== null && $offsetDays !== '') {
+            return Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC;
+        }
+
+        if ($estimate !== null && $estimate !== '') {
+            return Product::BACKORDER_SHIPPING_ESTIMATE_STATIC;
+        }
+
+        return Product::BACKORDER_SHIPPING_ESTIMATE_STATIC;
+    }
+
     private function normalizeVariants(array $rawVariants, Product $product): Collection
     {
         $variants = collect($rawVariants)
@@ -287,7 +339,13 @@ class ShopProductController extends Controller
                     'compare_at_price' => ($variant['compare_at_price'] ?? '') !== '' ? round((float) $variant['compare_at_price'], 2) : null,
                     'inventory_quantity' => ($variant['inventory_quantity'] ?? '') !== '' ? (int) $variant['inventory_quantity'] : null,
                     'allow_backorder' => filter_var($variant['allow_backorder'] ?? false, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
+                    'backorder_shipping_estimate_type' => $this->backorderShippingEstimateType(
+                        isset($variant['backorder_shipping_estimate_type']) ? (string) $variant['backorder_shipping_estimate_type'] : null,
+                        $variant['backorder_shipping_estimate'] ?? null,
+                        $variant['backorder_shipping_offset_days'] ?? null,
+                    ),
                     'backorder_shipping_estimate' => ($variant['backorder_shipping_estimate'] ?? '') !== '' ? (string) $variant['backorder_shipping_estimate'] : null,
+                    'backorder_shipping_offset_days' => ($variant['backorder_shipping_offset_days'] ?? '') !== '' ? (int) $variant['backorder_shipping_offset_days'] : null,
                     'sort_order' => (int) ($variant['sort_order'] ?? $index),
                     'is_active' => filter_var($variant['is_active'] ?? true, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE) ?? false,
                 ];
@@ -300,7 +358,8 @@ class ShopProductController extends Controller
                     || $variant['compare_at_price'] !== null
                     || $variant['inventory_quantity'] !== null
                     || $variant['allow_backorder']
-                    || $variant['backorder_shipping_estimate'] !== null;
+                    || $variant['backorder_shipping_estimate'] !== null
+                    || $variant['backorder_shipping_offset_days'] !== null;
             })
             ->values();
 
@@ -321,8 +380,14 @@ class ShopProductController extends Controller
                 $errors[$path.'.id'][] = 'Invalid variant selection.';
             }
 
-            if ($variant['allow_backorder'] && $variant['backorder_shipping_estimate'] === null) {
-                $errors[$path.'.backorder_shipping_estimate'][] = 'An estimated shipping date is required for backorder-enabled variants.';
+            if ($variant['allow_backorder']) {
+                if ($variant['backorder_shipping_estimate_type'] === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC) {
+                    if ($variant['backorder_shipping_offset_days'] === null) {
+                        $errors[$path.'.backorder_shipping_offset_days'][] = 'A day offset is required for dynamic backorder-enabled variants.';
+                    }
+                } elseif ($variant['backorder_shipping_estimate'] === null) {
+                    $errors[$path.'.backorder_shipping_estimate'][] = 'An estimated shipping date is required for backorder-enabled variants.';
+                }
             }
 
             if ($variant['sku'] !== '') {
@@ -383,8 +448,14 @@ class ShopProductController extends Controller
             $variant->is_preorder = false;
             $variant->preorder_shipping_estimate = null;
             $variant->allow_backorder = $isDigital ? false : (bool) $variantData['allow_backorder'];
-            $variant->backorder_shipping_estimate = ! $isDigital && $variantData['allow_backorder']
+            $variant->backorder_shipping_estimate_type = ! $isDigital && $variantData['allow_backorder']
+                ? $variantData['backorder_shipping_estimate_type']
+                : null;
+            $variant->backorder_shipping_estimate = ! $isDigital && $variantData['allow_backorder'] && $variantData['backorder_shipping_estimate_type'] === Product::BACKORDER_SHIPPING_ESTIMATE_STATIC
                 ? $variantData['backorder_shipping_estimate']
+                : null;
+            $variant->backorder_shipping_offset_days = ! $isDigital && $variantData['allow_backorder'] && $variantData['backorder_shipping_estimate_type'] === Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC
+                ? $variantData['backorder_shipping_offset_days']
                 : null;
             $variant->length_cm = null;
             $variant->width_cm = null;

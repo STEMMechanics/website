@@ -24,6 +24,8 @@ class ProductFactory extends Factory
             'preorder_shipping_estimate' => null,
             'allow_backorder' => false,
             'backorder_shipping_estimate' => null,
+            'backorder_shipping_estimate_type' => null,
+            'backorder_shipping_offset_days' => null,
             'short_description' => fake()->sentence(),
             'description' => fake()->paragraph(),
             'base_variant_name' => null,

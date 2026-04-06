@@ -23,6 +23,12 @@
     $productDescription = old('description', $product->description ?? '');
     $satchelOptions = \App\Models\Product::satchelOptions();
     $defaultSatchelRank = (int) ($satchelOptions->first()['rank'] ?? 1);
+    $productBackorderEstimateType = old('backorder_shipping_estimate_type', isset($product)
+        ? ($product->backorder_shipping_estimate_type ?? ($product->backorder_shipping_offset_days !== null ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC))
+        : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC);
+    $productBackorderOffsetDays = old('backorder_shipping_offset_days', isset($product)
+        ? ($product->backorder_shipping_offset_days !== null ? (string) $product->backorder_shipping_offset_days : '')
+        : '');
     $variantRows = old('variants');
     if ($variantRows === null) {
         $variantRows = isset($product)
@@ -36,9 +42,11 @@
                     'compare_at_price' => $variant->compare_at_price !== null ? number_format((float) $variant->compare_at_price, 2, '.', '') : '',
                     'inventory_quantity' => $variant->inventory_quantity,
                     'allow_backorder' => (bool) ($variant->allow_backorder || $variant->is_preorder),
+                    'backorder_shipping_estimate_type' => $variant->backorder_shipping_estimate_type ?? ($variant->backorder_shipping_offset_days !== null ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC),
                     'backorder_shipping_estimate' => $variant->backorder_shipping_estimate?->format('Y-m-d')
                         ?? $variant->preorder_shipping_estimate?->format('Y-m-d')
                         ?? '',
+                    'backorder_shipping_offset_days' => $variant->backorder_shipping_offset_days !== null ? (string) $variant->backorder_shipping_offset_days : '',
                     'sort_order' => $variant->sort_order,
                     'is_active' => (bool) $variant->is_active,
                     'awaiting_fulfilment' => (int) data_get($variantInventoryContextMap, (string) $variant->id.'.awaiting', 0),
@@ -55,7 +63,9 @@
                 return array_merge($variant, [
                     'description' => data_get($variant, 'description', ''),
                     'allow_backorder' => (bool) data_get($variant, 'allow_backorder', data_get($variant, 'is_preorder', false)),
+                    'backorder_shipping_estimate_type' => data_get($variant, 'backorder_shipping_estimate_type', data_get($variant, 'backorder_shipping_offset_days', '') !== '' ? \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC : \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC),
                     'backorder_shipping_estimate' => data_get($variant, 'backorder_shipping_estimate', data_get($variant, 'preorder_shipping_estimate', '')),
+                    'backorder_shipping_offset_days' => data_get($variant, 'backorder_shipping_offset_days', ''),
                     'awaiting_fulfilment' => (int) data_get($variant, 'awaiting_fulfilment', $context['awaiting']),
                     'reserved_quantity' => (int) data_get($variant, 'reserved_quantity', $context['reserved']),
                 ]);
@@ -89,6 +99,8 @@
                 baseShippingUnits: @js(old('shipping_units', isset($product) ? number_format((float) $product->shipping_units, 3, '.', '') : '0.000')),
                 baseMinSatchelRank: @js((string) old('min_satchel_rank', $product->min_satchel_rank ?? $defaultSatchelRank)),
                 baseVariantName: @js(old('base_variant_name', $product->base_variant_name ?? '')),
+                productBackorderEstimateType: @js($productBackorderEstimateType),
+                productBackorderOffsetDays: @js((string) $productBackorderOffsetDays),
                 variants: @js($variantRows),
                 variantInputClasses: 'disabled:bg-gray-100 bg-white block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
                 variantTextareaClasses: 'disabled:bg-gray-100 bg-white block min-h-[7rem] w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm transition focus:border-indigo-300 focus:outline-none focus:ring-0',
@@ -205,7 +217,9 @@
                         awaiting_fulfilment: 0,
                         reserved_quantity: 0,
                         allow_backorder: false,
+                        backorder_shipping_estimate_type: '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}',
                         backorder_shipping_estimate: '',
+                        backorder_shipping_offset_days: '',
                         sort_order: this.variants.length,
                         is_active: true,
                     });
@@ -306,12 +320,37 @@
                                     noWrapper
                             />
                             <div class="mt-4" x-show="allowBackorder" x-cloak>
-                                <x-ui.input
-                                        name="backorder_shipping_estimate"
-                                        type="date"
-                                        label="Estimated Backorder Shipping Date"
-                                        :value="$productBackorderEstimate"
-                                />
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <x-ui.select
+                                        name="backorder_shipping_estimate_type"
+                                        label="Backorder Estimate Type"
+                                        x-model="productBackorderEstimateType"
+                                    >
+                                        <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}">Specific date</option>
+                                        <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}">Days from today</option>
+                                    </x-ui.select>
+
+                                    <div x-show="productBackorderEstimateType === '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
+                                        <x-ui.input
+                                            name="backorder_shipping_offset_days"
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            label="Days from today"
+                                            :value="$productBackorderOffsetDays"
+                                            x-model="productBackorderOffsetDays"
+                                        />
+                                    </div>
+
+                                    <div x-show="productBackorderEstimateType !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
+                                        <x-ui.input
+                                            name="backorder_shipping_estimate"
+                                            type="date"
+                                            label="Estimated Backorder Shipping Date"
+                                            :value="$productBackorderEstimate"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         @if(isset($product) && (string) ($product->product_type ?? '') === \App\Models\Product::PRODUCT_TYPE_PHYSICAL)
@@ -497,8 +536,25 @@
                                         x-model="variant.allow_backorder"
                                     />
                                     <div class="mt-4" x-show="variant.allow_backorder" x-cloak>
-                                        <label class="mb-1 block pl-1 text-sm">Estimated Backorder Shipping Date</label>
-                                        <input type="date" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate">
+                                        <div class="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <label class="mb-1 block pl-1 text-sm">Backorder Estimate Type</label>
+                                                <select x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate_type]`" x-model="variant.backorder_shipping_estimate_type">
+                                                    <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_STATIC }}">Specific date</option>
+                                                    <option value="{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}">Days from today</option>
+                                                </select>
+                                            </div>
+
+                                            <div x-show="variant.backorder_shipping_estimate_type === '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
+                                                <label class="mb-1 block pl-1 text-sm">Days from today</label>
+                                                <input type="number" min="1" step="1" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_offset_days]`" x-model="variant.backorder_shipping_offset_days">
+                                            </div>
+
+                                            <div x-show="variant.backorder_shipping_estimate_type !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
+                                                <label class="mb-1 block pl-1 text-sm">Estimated Backorder Shipping Date</label>
+                                                <input type="date" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate">
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 

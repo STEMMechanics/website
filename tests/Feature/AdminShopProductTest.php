@@ -10,6 +10,7 @@ use App\Models\StoreOrderItem;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class AdminShopProductTest extends TestCase
@@ -178,6 +179,47 @@ class AdminShopProductTest extends TestCase
         $this->assertTrue((bool) $product->allow_backorder);
         $this->assertNull($product->preorder_shipping_estimate);
         $this->assertSame('2026-05-15', optional($product->backorder_shipping_estimate)->toDateString());
+    }
+
+    public function test_admin_can_save_dynamic_backorder_shipping_estimates_for_a_shop_product(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-04-06 09:00:00'));
+
+        try {
+            $this->actingAs($admin)
+                ->post(route('admin.shop.product.store'), [
+                    'title' => 'Dynamic Backorder Kit',
+                    'slug' => 'dynamic-backorder-kit',
+                    'sku' => 'DYN-BACKORDER',
+                    'status' => Product::STATUS_ACTIVE,
+                    'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                    'price' => '19.95',
+                    'inventory_quantity' => '0',
+                    'shipping_units' => '1.00',
+                    'min_satchel_rank' => '2',
+                    'weight_grams' => '400',
+                    'allow_backorder' => '1',
+                    'backorder_shipping_estimate_type' => Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC,
+                    'backorder_shipping_offset_days' => '7',
+                ])
+                ->assertRedirect(route('admin.shop.product.index'));
+
+            $product = Product::query()->where('slug', 'dynamic-backorder-kit')->firstOrFail();
+
+            $this->assertTrue((bool) $product->allow_backorder);
+            $this->assertSame(Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC, $product->backorder_shipping_estimate_type);
+            $this->assertSame(7, (int) $product->backorder_shipping_offset_days);
+            $this->assertNull($product->backorder_shipping_estimate);
+            $this->assertSame('2026-04-13', $product->backorderShippingEstimateLabel('Y-m-d'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_admin_can_create_digital_product_without_auto_generated_licence_tiers(): void
@@ -642,6 +684,61 @@ class AdminShopProductTest extends TestCase
         $this->assertFalse((bool) $variants[1]->is_preorder);
         $this->assertTrue((bool) $variants[1]->allow_backorder);
         $this->assertSame('2026-05-28', optional($variants[1]->backorder_shipping_estimate)->toDateString());
+    }
+
+    public function test_admin_can_save_variant_specific_dynamic_backorder_settings(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-04-06 09:00:00'));
+
+        try {
+            $product = Product::factory()->create([
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => 39.95,
+                'inventory_quantity' => 5,
+            ]);
+
+            $this->actingAs($admin)
+                ->put(route('admin.shop.product.update', $product), [
+                    'title' => $product->title,
+                    'slug' => $product->slug,
+                    'sku' => 'BACKORDER-KIT',
+                    'status' => Product::STATUS_ACTIVE,
+                    'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                    'price' => '39.95',
+                    'inventory_quantity' => '5',
+                    'shipping_units' => '1.00',
+                    'min_satchel_rank' => '2',
+                    'variants' => [
+                        [
+                            'name' => 'Backorder Blue',
+                            'inventory_quantity' => '0',
+                            'allow_backorder' => '1',
+                            'backorder_shipping_estimate_type' => Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC,
+                            'backorder_shipping_offset_days' => '7',
+                            'sort_order' => '0',
+                            'is_active' => '1',
+                        ],
+                    ],
+                ])
+                ->assertRedirect();
+
+            $variant = $product->fresh()->variants()->firstOrFail();
+
+            $this->assertTrue((bool) $variant->allow_backorder);
+            $this->assertSame(Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC, $variant->backorder_shipping_estimate_type);
+            $this->assertSame(7, (int) $variant->backorder_shipping_offset_days);
+            $this->assertNull($variant->backorder_shipping_estimate);
+            $this->assertSame('2026-04-13', $variant->backorderShippingEstimateLabel('Y-m-d'));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_physical_variants_use_base_pricing_and_packaging_even_if_override_values_are_posted(): void
