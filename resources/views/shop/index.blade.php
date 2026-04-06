@@ -12,7 +12,7 @@
         'title_asc' => 'Product name (A - Z)',
         'title_desc' => 'Product name (Z - A)',
     ];
-    $mobileSelectedCategoryLabel = $selectedCategory !== '' ? ucfirst($selectedCategory) : 'All Products';
+    $mobileSelectedCategoryLabel = $selectedCategoryRecord?->name ?? ($selectedCategory !== '' ? ucfirst($selectedCategory) : 'All Products');
     $clearCategoryUrl = route('shop.index', request()->except('page', 'category', 'view'));
     $clearSearchUrl = route('shop.index', request()->except('page', 'search', 'view'));
 @endphp
@@ -328,21 +328,22 @@
                                     href="{{ $clearCategoryUrl }}"
                                     data-shop-view-link
                                     data-shop-view-base="{{ $clearCategoryUrl }}"
-                                    class="flex items-center justify-between rounded px-3 py-2 text-sm font-medium transition {{ $selectedCategory === '' ? 'border-primary-color bg-primary-color text-white' : 'text-gray-700 hover:border-primary-color hover:text-primary-color' }}"
+                                    class="flex items-center justify-between rounded px-3 py-2 text-sm font-medium transition {{ $selectedCategorySlug === '' ? 'border-primary-color bg-primary-color text-white' : 'text-gray-700 hover:border-primary-color hover:text-primary-color' }}"
                                 >
                                     All Products
                                 </a>
                                 @foreach($categories as $category)
                                     @php
-                                        $categoryUrl = route('shop.index', array_merge(request()->except('page', 'category', 'view'), ['category' => $category]));
+                                        $categoryUrl = route('shop.index', array_merge(request()->except('page', 'category', 'view'), ['category' => $category->slug]));
                                     @endphp
                                     <a
                                         href="{{ $categoryUrl }}"
                                         data-shop-view-link
                                         data-shop-view-base="{{ $categoryUrl }}"
-                                        class="block rounded px-3 py-2 text-sm font-medium transition {{ $selectedCategory === $category ? 'border-primary-color bg-primary-color text-white' : 'text-gray-700 hover:border-primary-color hover:text-primary-color' }}"
+                                        class="flex items-center gap-2 rounded px-3 py-2 text-sm font-medium transition {{ $selectedCategorySlug === $category->slug ? 'border-primary-color bg-primary-color text-white' : 'text-gray-700 hover:border-primary-color hover:text-primary-color' }}"
                                     >
-                                        {{ ucfirst($category) }}
+                                        <i class="{{ $category->iconClass() }} text-xs"></i>
+                                        <span>{{ $category->name }}</span>
                                     </a>
                                 @endforeach
                             </div>
@@ -370,21 +371,22 @@
                                             href="{{ $clearCategoryUrl }}"
                                             data-shop-view-link
                                             data-shop-view-base="{{ $clearCategoryUrl }}"
-                                            class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategory === '' ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
+                                            class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategorySlug === '' ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
                                         >
                                             <span>All Products</span>
                                         </a>
                                         @foreach($categories as $category)
                                             @php
-                                                $categoryUrl = route('shop.index', array_merge(request()->except('page', 'category', 'view'), ['category' => $category]));
+                                                $categoryUrl = route('shop.index', array_merge(request()->except('page', 'category', 'view'), ['category' => $category->slug]));
                                             @endphp
                                             <a
                                                 href="{{ $categoryUrl }}"
                                                 data-shop-view-link
                                                 data-shop-view-base="{{ $categoryUrl }}"
-                                                class="block px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategory === $category ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
+                                                class="flex items-center gap-2 px-4 py-2 text-sm rounded transition hover:bg-sky-600 hover:text-white {{ $selectedCategorySlug === $category->slug ? 'border-primary-color bg-primary-color text-white' : 'border-gray-200 bg-gray-50 text-gray-700' }}"
                                             >
-                                                {{ ucfirst($category) }}
+                                                <i class="{{ $category->iconClass() }} text-xs"></i>
+                                                <span>{{ $category->name }}</span>
                                             </a>
                                         @endforeach
                                     </div>
@@ -396,8 +398,8 @@
                     <section class="flex-1">
                         <div class="flex flex-col sm:flex-row items-center -mt-4 mb-4">
                             <form method="GET" action="{{ route('shop.index') }}" class="w-full sm:w-64">
-                                @if($selectedCategory !== '')
-                                    <input type="hidden" name="category" value="{{ $selectedCategory }}">
+                                @if($selectedCategorySlug !== '')
+                                    <input type="hidden" name="category" value="{{ $selectedCategorySlug }}">
                                 @endif
                                 @if($searchValue !== '')
                                     <input type="hidden" name="search" value="{{ $searchValue }}">
@@ -503,12 +505,19 @@
                                                             </a>
                                                         @endif
                                                     </div>
-                                                    @if(trim((string) $product->subtitle) !== '')
-                                                        <div class="text-sm font-medium text-gray-500">{{ $product->subtitle }}</div>
-                                                    @endif
-                                                    <div class="flex flex-wrap items-center gap-2 -ml-1">
-                                                        @if($product->isDigital())
-                                                            <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
+                            @if(trim((string) $product->subtitle) !== '')
+                                <div class="text-sm font-medium text-gray-500">{{ $product->subtitle }}</div>
+                            @endif
+{{--                            @if($product->displayCategories()->isNotEmpty())--}}
+{{--                                <div class="mt-2 flex flex-wrap gap-2">--}}
+{{--                                    @foreach($product->displayCategories()->take(3) as $category)--}}
+{{--                                        <x-product-category-badge :label="$category->name" :icon-class="$category->iconClass()" />--}}
+{{--                                    @endforeach--}}
+{{--                                </div>--}}
+{{--                            @endif--}}
+                            <div class="flex flex-wrap items-center gap-2 -ml-1">
+                                @if($product->isDigital())
+                                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
                                                                 {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
                                                             </span>
                                                         @endif

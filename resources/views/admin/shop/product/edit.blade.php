@@ -20,6 +20,21 @@
     $downloadFilesValue = isset($product)
         ? $product->downloadMedia()->orderBy('name')->get()
         : collect();
+    $selectedCategoryIds = collect(old('category_ids', isset($product) ? $product->categories->pluck('id')->map(fn ($categoryId) => (string) $categoryId)->all() : []))
+        ->map(fn ($categoryId) => (string) $categoryId)
+        ->values()
+        ->all();
+    if ($selectedCategoryIds === [] && isset($product) && trim((string) $product->category) !== '' && ($categories ?? collect())->isNotEmpty()) {
+        $legacyCategoryName = trim((string) $product->category);
+        $legacyCategory = collect($categories)->first(function ($category) use ($legacyCategoryName): bool {
+            return mb_strtolower((string) $category->name) === mb_strtolower($legacyCategoryName)
+                || mb_strtolower((string) $category->slug) === mb_strtolower(\Illuminate\Support\Str::slug($legacyCategoryName));
+        });
+
+        if ($legacyCategory) {
+            $selectedCategoryIds = [(string) $legacyCategory->id];
+        }
+    }
     $productDescription = old('description', $product->description ?? '');
     $satchelOptions = \App\Models\Product::satchelOptions();
     $defaultSatchelRank = (int) ($satchelOptions->first()['rank'] ?? 1);
@@ -308,14 +323,45 @@
                     label="Subtitle"
                     :value="$product->subtitle ?? ''"
                 />
-                <div class="grid gap-4 md:grid-cols-4">
-                    <x-ui.input
-                        name="category"
-                        label="Category"
-                        :value="$product->category ?? ''"
-                        :suggestions="$existingCategories ?? []"
-                        showSuggestionsOnFocus="true"
-                    />
+                <div class="rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-900">Categories</h3>
+                            <p class="text-xs text-gray-500">Assign any number of managed categories to this product.</p>
+                        </div>
+                        <x-ui.button href="{{ route('admin.shop.category.index') }}" color="outline" class="shrink-0">Manage Categories</x-ui.button>
+                    </div>
+
+                    @if(($categories ?? collect())->isEmpty())
+                        <p class="mt-3 text-sm text-gray-600">Create product categories first, then come back and assign them here.</p>
+                    @else
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            @foreach($categories as $category)
+                                @php
+                                    $categoryId = (string) $category->id;
+                                    $isSelected = in_array($categoryId, $selectedCategoryIds, true);
+                                @endphp
+                                <label class="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 shadow-sm transition hover:border-primary-color hover:text-primary-color">
+                                    <input
+                                        type="checkbox"
+                                        name="category_ids[]"
+                                        value="{{ $category->id }}"
+                                        @checked($isSelected)
+                                        class="mt-1 rounded border-gray-300 text-primary-color focus:ring-primary-color"
+                                    >
+                                    <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600">
+                                        <i class="{{ $category->iconClass() }}"></i>
+                                    </span>
+                                    <span class="min-w-0">
+                                        <span class="block font-medium text-gray-900">{{ $category->name }}</span>
+                                        <span class="block text-xs text-gray-500">{{ $category->slug }}</span>
+                                    </span>
+                                </label>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+                <div class="grid gap-4 md:grid-cols-3">
                     <x-ui.input name="sku" label="Base SKU" :value="$product->sku ?? ''" x-model="baseSku" x-on:input="handleBaseSkuInput()" required info="Required. Used on orders and inventory records." />
                     <x-ui.select
                         name="status"

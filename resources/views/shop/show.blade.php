@@ -564,9 +564,13 @@
                                         {{ \Illuminate\Support\Str::ucfirst(\Illuminate\Support\Str::lower(\App\Models\Product::productTypeLabel((string) $product->product_type))) }}
                                     </span>
                                 @endif
-                                @if(trim((string) $product->category) !== '')
-                                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700">{{ \Illuminate\Support\Str::ucfirst((string) $product->category) }}</span>
-                                @endif
+                                @foreach($product->displayCategories() as $category)
+                                    <x-product-category-badge
+                                        :label="$category->name"
+                                        :icon-class="$category->iconClass()"
+                                        :href="route('shop.index', ['category' => $category->slug])"
+                                    />
+                                @endforeach
                                 @if(trim((string) $product->sku) !== '')
                                     <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">SKU {{ $product->sku }}</span>
                                 @endif

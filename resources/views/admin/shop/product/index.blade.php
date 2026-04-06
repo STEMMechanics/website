@@ -54,8 +54,12 @@
                                         <a href="{{ route('admin.shop.product.edit', $product) }}" class="font-semibold text-gray-900 hover:text-primary-color">
                                             {{ $product->title }}
                                         </a>
-                                        @if($product->category)
-                                            <div class="text-xs text-gray-500">{{ $product->category }}</div>
+                                        @if($product->displayCategories()->isNotEmpty())
+                                            <div class="mt-1 flex flex-wrap gap-1.5">
+                                                @foreach($product->displayCategories()->take(3) as $category)
+                                                    <x-product-category-badge :label="$category->name" :icon-class="$category->iconClass()" />
+                                                @endforeach
+                                            </div>
                                         @endif
                                         <div class="text-xs text-gray-500">{{ $product->slug }}</div>
                                     </div>

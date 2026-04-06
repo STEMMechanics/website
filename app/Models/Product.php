@@ -7,6 +7,7 @@ use App\Traits\HasFiles;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -123,6 +124,19 @@ class Product extends Model
     }
 
     /**
+     * @return BelongsToMany<ProductCategory, $this>
+     */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(ProductCategory::class, 'product_category_product')
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderBy('product_category_product.sort_order')
+            ->orderBy('product_categories.sort_order')
+            ->orderBy('product_categories.name');
+    }
+
+    /**
      * @return HasMany<ProductVariant, $this>
      */
     public function variants(): HasMany
@@ -156,6 +170,51 @@ class Product extends Model
     public function isDigital(): bool
     {
         return (string) $this->product_type === self::PRODUCT_TYPE_DIGITAL;
+    }
+
+    /**
+     * @return Collection<int, ProductCategory>
+     */
+    public function displayCategories(): Collection
+    {
+        $categories = $this->relationLoaded('categories')
+            ? $this->categories->values()
+            : $this->categories()->get()->values();
+
+        if ($categories->isNotEmpty()) {
+            return $categories;
+        }
+
+        $legacyCategory = trim((string) $this->category);
+        if ($legacyCategory === '') {
+            return collect();
+        }
+
+        $slug = Str::slug($legacyCategory);
+        if ($slug === '') {
+            $slug = 'category';
+        }
+
+        return collect([
+            new ProductCategory([
+                'name' => $legacyCategory,
+                'slug' => $slug,
+                'icon_class' => 'fa-solid fa-tag',
+            ]),
+        ]);
+    }
+
+    public function primaryCategory(): ?ProductCategory
+    {
+        return $this->displayCategories()->first();
+    }
+
+    /**
+     * @return Collection<int, string>
+     */
+    public function categoryNames(): Collection
+    {
+        return $this->displayCategories()->pluck('name');
     }
 
     public function isPhysical(): bool

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Media;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
@@ -25,6 +26,17 @@ class AdminShopProductTest extends TestCase
             'slug' => 'admin',
         ]);
 
+        $kits = ProductCategory::factory()->create([
+            'name' => 'Kits',
+            'slug' => 'kits',
+            'sort_order' => 10,
+        ]);
+        $hardware = ProductCategory::factory()->create([
+            'name' => 'Hardware',
+            'slug' => 'hardware',
+            'sort_order' => 20,
+        ]);
+
         $this->actingAs($admin)
             ->get(route('admin.shop.product.create'))
             ->assertOk()
@@ -34,7 +46,7 @@ class AdminShopProductTest extends TestCase
             ->post(route('admin.shop.product.store'), [
                 'title' => 'Laser Cut Catapult Kit',
                 'slug' => 'laser-cut-catapult-kit',
-                'category' => 'Kits',
+                'category_ids' => [$kits->id, $hardware->id],
                 'sku' => 'CAT-100',
                 'status' => Product::STATUS_ACTIVE,
                 'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
@@ -65,6 +77,50 @@ class AdminShopProductTest extends TestCase
             'is_featured' => 1,
             'tax_rate' => 0.1000,
         ]);
+
+        $product = Product::query()->where('slug', 'laser-cut-catapult-kit')->with('categories')->firstOrFail();
+        $this->assertSame(['Kits', 'Hardware'], $product->categories->pluck('name')->all());
+        $this->assertDatabaseHas('product_category_product', [
+            'product_id' => $product->id,
+            'product_category_id' => $kits->id,
+            'sort_order' => 0,
+        ]);
+        $this->assertDatabaseHas('product_category_product', [
+            'product_id' => $product->id,
+            'product_category_id' => $hardware->id,
+            'sort_order' => 1,
+        ]);
+    }
+
+    public function test_admin_can_still_save_a_legacy_category_string_during_the_transition(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Legacy Catapult Kit',
+                'slug' => 'legacy-catapult-kit',
+                'category' => 'Kits',
+                'sku' => 'LEG-100',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $product = Product::query()->where('slug', 'legacy-catapult-kit')->with('categories')->firstOrFail();
+
+        $this->assertSame('Kits', $product->category);
+        $this->assertSame(['Kits'], $product->categories->pluck('name')->all());
+        $this->assertDatabaseHas('product_categories', [
+            'name' => 'Kits',
+        ]);
     }
 
     public function test_admin_can_save_a_product_subtitle(): void
@@ -93,6 +149,118 @@ class AdminShopProductTest extends TestCase
             'slug' => 'bundle-pack',
             'subtitle' => '25 pack',
         ]);
+    }
+
+    public function test_admin_can_rename_a_product_category_across_assigned_products(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $category = ProductCategory::factory()->create([
+            'name' => 'Kits',
+            'slug' => 'kits',
+            'icon_class' => 'fa-solid fa-box',
+            'sort_order' => 10,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Renamable Product',
+                'slug' => 'renamable-product',
+                'category_ids' => [$category->id],
+                'sku' => 'REN-100',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.category.update', $category), [
+                'name' => 'Build Kits',
+                'slug' => 'kits',
+                'icon_class' => 'fa-solid fa-boxes-stacked',
+                'sort_order' => 10,
+            ])
+            ->assertRedirect();
+
+        $product = Product::query()->where('slug', 'renamable-product')->with('categories')->firstOrFail();
+
+        $this->assertSame(['Build Kits'], $product->categories->pluck('name')->all());
+        $this->assertDatabaseHas('product_categories', [
+            'id' => $category->id,
+            'name' => 'Build Kits',
+            'icon_class' => 'fa-solid fa-boxes-stacked',
+        ]);
+    }
+
+    public function test_admin_can_reorder_product_categories_from_the_index_page(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $first = ProductCategory::factory()->create([
+            'name' => 'Alpha',
+            'slug' => 'alpha',
+            'sort_order' => 10,
+        ]);
+        $middle = ProductCategory::factory()->create([
+            'name' => 'Beta',
+            'slug' => 'beta',
+            'sort_order' => 20,
+        ]);
+        $last = ProductCategory::factory()->create([
+            'name' => 'Gamma',
+            'slug' => 'gamma',
+            'sort_order' => 30,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.shop.category.index'))
+            ->assertOk()
+            ->assertSee('Move up', false)
+            ->assertSee('Move down', false);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.category.move-up', $middle))
+            ->assertRedirect();
+
+        $this->assertSame(['Beta', 'Alpha', 'Gamma'], ProductCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('name')
+            ->all());
+
+        $this->assertDatabaseHas('product_categories', [
+            'id' => $first->id,
+            'sort_order' => 20,
+        ]);
+        $this->assertDatabaseHas('product_categories', [
+            'id' => $middle->id,
+            'sort_order' => 10,
+        ]);
+        $this->assertDatabaseHas('product_categories', [
+            'id' => $last->id,
+            'sort_order' => 30,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.category.move-down', $middle))
+            ->assertRedirect();
+
+        $this->assertSame(['Alpha', 'Beta', 'Gamma'], ProductCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('name')
+            ->all());
     }
 
     public function test_admin_can_auto_fill_the_base_sku_from_the_slug_when_it_is_blank(): void

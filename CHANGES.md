@@ -12,6 +12,7 @@
 - No expense attachment notice fix
 - Added product subtitles
 - Improved site search
+- Expanded product categories
 
 ## 1.4.3
 

@@ -50,11 +50,12 @@
             : 0;
         $overdueInvoiceCount = $isAdmin ? \App\Models\Invoice::overdueCount() : 0;
         $adminNavSections = $isAdmin ? [
-            [
-                'title' => 'Store',
-                'items' => [
+                [
+                    'title' => 'Store',
+                    'items' => [
                     ['label' => 'Orders', 'route' => route('admin.shop.order.index'), 'icon' => 'fa-solid fa-box-open', 'active' => ['admin.shop.order.*']],
                     ['label' => 'Products', 'route' => route('admin.shop.product.index'), 'icon' => 'fa-solid fa-bag-shopping', 'active' => ['admin.shop.product.*']],
+                    ['label' => 'Categories', 'route' => route('admin.shop.category.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.category.*']],
                     ['label' => 'Vouchers', 'route' => route('admin.shop.coupon.index'), 'icon' => 'fa-solid fa-tags', 'active' => ['admin.shop.coupon.*']],
                     ['label' => 'Settings', 'route' => route('admin.shop.settings.edit'), 'icon' => 'fa-solid fa-boxes-stacked', 'active' => ['admin.shop.settings.*']],
                 ],

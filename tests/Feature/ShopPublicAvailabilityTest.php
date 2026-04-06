@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Media;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\StoreOrder;
 use App\Models\StoreOrderItem;
 use App\Models\UserGroup;
@@ -162,6 +163,35 @@ class ShopPublicAvailabilityTest extends TestCase
         $this->get(route('shop.product.show', $product))
             ->assertOk()
             ->assertSeeText('25 pack');
+    }
+
+    public function test_public_store_can_filter_products_by_category_slug(): void
+    {
+        $category = ProductCategory::factory()->create([
+            'name' => 'Kits',
+            'slug' => 'kits',
+            'sort_order' => 10,
+        ]);
+
+        $included = Product::factory()->create([
+            'title' => 'Included Product',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+        $excluded = Product::factory()->create([
+            'title' => 'Excluded Product',
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+        ]);
+
+        $included->categories()->attach($category->id, [
+            'sort_order' => 0,
+        ]);
+
+        $this->get(route('shop.index', ['category' => 'kits']))
+            ->assertOk()
+            ->assertSeeText('Included Product')
+            ->assertDontSeeText('Excluded Product');
     }
 
     public function test_public_store_marks_the_top_three_products_as_best_sellers_based_on_recent_sales(): void

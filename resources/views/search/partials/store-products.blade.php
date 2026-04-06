@@ -54,6 +54,13 @@
                             @if(trim((string) $product->subtitle) !== '')
                                 <div class="text-sm font-medium text-gray-500">{{ $product->subtitle }}</div>
                             @endif
+                            @if($product->displayCategories()->isNotEmpty())
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    @foreach($product->displayCategories()->take(3) as $category)
+                                        <x-product-category-badge :label="$category->name" :icon-class="$category->iconClass()" />
+                                    @endforeach
+                                </div>
+                            @endif
                             <div class="flex flex-wrap items-center gap-2 -ml-1">
                                 @if($product->isDigital())
                                     <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">

@@ -73,7 +73,7 @@ class SearchController extends Controller
     {
         $productQuery = Product::query()
             ->active()
-            ->with(['hero', 'variants' => fn ($query) => $query->where('is_active', true)]);
+            ->with(['hero', 'categories', 'variants' => fn ($query) => $query->where('is_active', true)]);
 
         if ($searchWords->isEmpty()) {
             return $productQuery
@@ -91,6 +91,9 @@ class SearchController extends Controller
                         ->orWhere('short_description', 'like', '%'.$word.'%')
                         ->orWhere('description', 'like', '%'.$word.'%')
                         ->orWhere('sku', 'like', '%'.$word.'%')
+                        ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
+                            ->where('name', 'like', '%'.$word.'%')
+                            ->orWhere('slug', 'like', '%'.$word.'%'))
                         ->orWhereHas('variants', function ($variantQuery) use ($word): void {
                             $variantQuery->where('is_active', true)->where(function ($variantSearch) use ($word): void {
                                 $variantSearch->where('name', 'like', '%'.$word.'%')

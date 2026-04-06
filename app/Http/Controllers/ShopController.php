@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrder;
 use App\Models\User;
@@ -57,6 +58,7 @@ class ShopController extends Controller
             ->active()
             ->with([
                 'hero',
+                'categories',
                 'variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name'),
             ]);
 
@@ -69,27 +71,52 @@ class ShopController extends Controller
                     ->orWhere('short_description', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%')
                     ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('slug', 'like', '%'.$search.'%'))
                     ->orWhereHas('variants', fn ($variantQuery) => $variantQuery->where('name', 'like', '%'.$search.'%')->orWhere('sku', 'like', '%'.$search.'%'));
             });
         }
 
         if ($request->filled('category')) {
-            $query->where('category', trim((string) $request->query('category')));
+            $categoryFilter = trim((string) $request->query('category'));
+            $resolvedCategory = ProductCategory::query()
+                ->whereRaw('LOWER(slug) = ?', [mb_strtolower($categoryFilter)])
+                ->orWhereRaw('LOWER(name) = ?', [mb_strtolower($categoryFilter)])
+                ->first();
+
+            $query->where(function ($builder) use ($categoryFilter, $resolvedCategory): void {
+                if ($resolvedCategory instanceof ProductCategory) {
+                    $builder->whereHas('categories', fn ($categoryQuery) => $categoryQuery->where('product_categories.id', $resolvedCategory->id));
+                } else {
+                    $builder->where('category', $categoryFilter);
+                }
+            });
         }
 
         $this->applyIndexSort($query, $selectedSort);
 
+        $categories = ProductCategory::query()
+            ->withCount(['products as active_products_count' => fn ($builder) => $builder->active()])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (ProductCategory $category) => (int) ($category->getAttribute('active_products_count') ?? 0) > 0)
+            ->values();
+
+        $selectedCategory = trim((string) $request->query('category'));
+        $selectedCategoryRecord = $categories->first(function (ProductCategory $category) use ($selectedCategory): bool {
+            return mb_strtolower($category->slug) === mb_strtolower($selectedCategory)
+                || mb_strtolower($category->name) === mb_strtolower($selectedCategory);
+        });
+
         return view('shop.index', [
             'products' => $query->paginate(12)->onEachSide(1),
             'bestSellerProductIds' => Product::bestSellerIds(),
-            'categories' => Product::query()
-                ->active()
-                ->whereNotNull('category')
-                ->where('category', '!=', '')
-                ->distinct()
-                ->orderBy('category')
-                ->pluck('category'),
-            'selectedCategory' => trim((string) $request->query('category')),
+            'categories' => $categories,
+            'selectedCategory' => $selectedCategory,
+            'selectedCategorySlug' => $selectedCategoryRecord instanceof ProductCategory ? $selectedCategoryRecord->slug : $selectedCategory,
+            'selectedCategoryRecord' => $selectedCategoryRecord,
             'selectedView' => $selectedView,
             'selectedSort' => $selectedSort,
             'cartPayload' => $cart->payload([
@@ -107,6 +134,7 @@ class ShopController extends Controller
             'product' => $product->load([
                 'hero',
                 'galleryMedia',
+                'categories',
                 'variants' => fn ($builder) => $builder->active()->orderBy('sort_order')->orderBy('name'),
             ]),
             'cartPayload' => $cart->payload([

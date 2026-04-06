@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\StoreOrderItem;
 use App\Services\StoreInventoryAllocatorService;
@@ -20,16 +21,19 @@ class ShopProductController extends Controller
 {
     public function index(Request $request): View
     {
-        $query = Product::query()->with(['hero', 'variants']);
+        $query = Product::query()->with(['hero', 'variants', 'categories']);
         $selectedFilter = $this->normalizeIndexFilter($request->query('filter'));
 
         if ($request->filled('search')) {
             $search = trim((string) $request->query('search'));
             $query->where(function ($builder) use ($search): void {
                 $builder->where('title', 'like', '%'.$search.'%')
-                    ->orWhere('category', 'like', '%'.$search.'%')
                     ->orWhere('slug', 'like', '%'.$search.'%')
                     ->orWhere('sku', 'like', '%'.$search.'%')
+                    ->orWhere('category', 'like', '%'.$search.'%')
+                    ->orWhereHas('categories', fn ($categoryQuery) => $categoryQuery
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('slug', 'like', '%'.$search.'%'))
                     ->orWhereHas('variants', fn ($variantQuery) => $variantQuery->where('name', 'like', '%'.$search.'%')->orWhere('sku', 'like', '%'.$search.'%'));
             });
         }
@@ -60,7 +64,7 @@ class ShopProductController extends Controller
     public function create(): View
     {
         return view('admin.shop.product.edit', [
-            'existingCategories' => $this->existingCategories(),
+            'categories' => $this->availableCategories(),
         ]);
     }
 
@@ -78,11 +82,11 @@ class ShopProductController extends Controller
 
     public function edit(Product $product): View
     {
-        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants']);
+        $product = $product->load(['hero', 'galleryMedia', 'downloadMedia', 'variants', 'categories']);
 
         return view('admin.shop.product.edit', [
             'product' => $product,
-            'existingCategories' => $this->existingCategories(),
+            'categories' => $this->availableCategories(),
             'inventoryContexts' => $this->inventoryContexts($product),
         ]);
     }
@@ -145,6 +149,8 @@ class ShopProductController extends Controller
             'subtitle' => ['nullable', 'string', 'max:160'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($product->id)],
             'category' => ['nullable', 'string', 'max:120'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['integer', 'exists:product_categories,id'],
             'sku' => ['required', 'string', 'max:120'],
             'status' => ['required', Rule::in(Product::STATUSES)],
             'product_type' => ['required', Rule::in(Product::PRODUCT_TYPES)],
@@ -246,12 +252,13 @@ class ShopProductController extends Controller
         }
 
         $normalizedVariants = $this->normalizeVariants($validated['variants'] ?? [], $product);
+        $selectedCategories = $this->resolveSelectedCategories($validated, (string) ($validated['category'] ?? ''));
         $isFeatured = (string) $validated['status'] === Product::STATUS_ACTIVE && $request->boolean('is_featured');
         $product->fill([
             'title' => trim((string) $validated['title']),
             'subtitle' => trim((string) ($validated['subtitle'] ?? '')) ?: null,
             'slug' => trim((string) ($validated['slug'] ?? '')) ?: null,
-            'category' => trim((string) ($validated['category'] ?? '')) ?: null,
+            'category' => $selectedCategories->first()?->name,
             'sku' => trim((string) ($validated['sku'] ?? '')) ?: null,
             'status' => (string) $validated['status'],
             'product_type' => (string) $validated['product_type'],
@@ -288,6 +295,14 @@ class ShopProductController extends Controller
             'low_stock_threshold' => $isDigital ? null : ($validated['low_stock_threshold'] ?? 5),
         ]);
         $product->save();
+        $product->categories()->sync(
+            $selectedCategories
+                ->values()
+                ->mapWithKeys(fn (ProductCategory $category, int $index) => [
+                    $category->id => ['sort_order' => $index],
+                ])
+                ->all()
+        );
         $product->updateFiles($request->input('gallery_files'), 'gallery');
         $product->updateFiles($isDigital ? $request->input('download_files') : null, 'downloads');
 
@@ -301,15 +316,46 @@ class ShopProductController extends Controller
         }
     }
 
-    private function existingCategories(): array
+    /**
+     * @return Collection<int, ProductCategory>
+     */
+    private function availableCategories(): Collection
     {
-        return Product::query()
-            ->whereNotNull('category')
-            ->where('category', '!=', '')
-            ->distinct()
-            ->orderBy('category')
-            ->pluck('category')
-            ->all();
+        return ProductCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * @param array<string, mixed> $validated
+     * @return Collection<int, ProductCategory>
+     */
+    private function resolveSelectedCategories(array $validated, string $legacyCategory): Collection
+    {
+        $categoryIds = collect($validated['category_ids'] ?? [])
+            ->map(fn ($categoryId) => (int) $categoryId)
+            ->filter(fn (int $categoryId) => $categoryId > 0)
+            ->unique()
+            ->values();
+
+        $categories = $categoryIds->isNotEmpty()
+            ? ProductCategory::query()
+                ->whereIn('id', $categoryIds->all())
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        $legacyCategory = trim($legacyCategory);
+        if ($categories->isEmpty() && $legacyCategory !== '') {
+            $resolvedCategory = ProductCategory::resolveFromLabel($legacyCategory);
+            if ($resolvedCategory instanceof ProductCategory) {
+                $categories = collect([$resolvedCategory]);
+            }
+        }
+
+        return $categories->values();
     }
 
     private function uniqueProductSkuSeed(Request $request, Product $product): string
