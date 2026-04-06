@@ -144,7 +144,7 @@
                 </div>
             </div>
 
-            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
                 <svg viewBox="0 0 1440 80" class="block w-full h-20" preserveAspectRatio="none">
                     <defs>
                         <pattern id="blocks-random-bottom" width="480" height="80" patternUnits="userSpaceOnUse">
@@ -175,7 +175,7 @@
 
                 <div class="order-1 min-h-48 overflow-hidden rounded-lg bg-no-repeat bg-center bg-cover sm:min-h-80 lg:order-2" style="background-image:url({{ asset('home-discord.webp') }})"></div>
             </div>
-            <div class="absolute bottom-0 left-0 w-full overflow-hidden leading-none">
+            <div class="absolute -bottom-1 left-0 w-full overflow-hidden leading-none">
                 <svg viewBox="0 0 1440 120" class="block w-full h-3" preserveAspectRatio="none">
                     <path
                             d="M0,32 C240,120 480,120 720,64 C960,8 1200,8 1440,96 L1440,120 L0,120 Z"
