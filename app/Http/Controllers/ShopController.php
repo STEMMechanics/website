@@ -64,6 +64,7 @@ class ShopController extends Controller
             $search = trim((string) $request->query('search'));
             $query->where(function ($builder) use ($search): void {
                 $builder->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('subtitle', 'like', '%'.$search.'%')
                     ->orWhere('category', 'like', '%'.$search.'%')
                     ->orWhere('short_description', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%')
@@ -80,6 +81,7 @@ class ShopController extends Controller
 
         return view('shop.index', [
             'products' => $query->paginate(12)->onEachSide(1),
+            'bestSellerProductIds' => Product::bestSellerIds(),
             'categories' => Product::query()
                 ->active()
                 ->whereNotNull('category')

@@ -10,6 +10,8 @@
 - Allow dynamic backorder dates
 - Product SKU now prefilled
 - No expense attachment notice fix
+- Added product subtitles
+- Improved site search
 
 ## 1.4.3
 

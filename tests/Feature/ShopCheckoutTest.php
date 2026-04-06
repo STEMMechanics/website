@@ -237,7 +237,9 @@ class ShopCheckoutTest extends TestCase
             ->assertOk()
             ->assertSeeText('Extended Kit')
             ->assertSeeText('Out of stock')
-            ->assertSeeText('Sold out');
+            ->assertSeeText('Sold out')
+            ->assertSee('fa-circle-xmark', false)
+            ->assertSee('text-red-700', false);
     }
 
     public function test_product_page_shows_variant_specific_backorder_dates(): void
@@ -274,9 +276,9 @@ class ShopCheckoutTest extends TestCase
         $this->get(route('shop.product.show', $product))
             ->assertOk()
             ->assertSeeText('Legacy Blue')
-            ->assertSeeText('Available to order. More expected May 15th, 2026')
+            ->assertSeeText('Available to order. More expected May 15th')
             ->assertSeeText('Backorder Red')
-            ->assertSeeText('Available to order. More expected May 20th, 2026')
+            ->assertSeeText('Available to order. More expected May 20th')
             ->assertDontSeeText('Pre-order');
     }
 
@@ -294,9 +296,28 @@ class ShopCheckoutTest extends TestCase
             ->assertOk()
             ->assertSeeText('Microbit Base')
             ->assertSeeText('$24.95')
-            ->assertSeeText('10 in stock')
+            ->assertSeeText('In stock')
             ->assertSeeText('Add to Cart')
             ->assertDontSee('id="product-quantity"', false);
+    }
+
+    public function test_product_page_hides_backorder_dates_when_stock_is_above_the_low_stock_threshold(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+            'title' => 'Robotics Pack',
+            'price' => 49.95,
+            'inventory_quantity' => 10,
+            'allow_backorder' => true,
+            'backorder_shipping_estimate' => '2026-04-13',
+        ]);
+
+        $this->get(route('shop.product.show', $product))
+            ->assertOk()
+            ->assertSeeText('In stock')
+            ->assertDontSeeText('More expected')
+            ->assertDontSeeText('Available to order.');
     }
 
     public function test_cart_payload_marks_physical_items_for_checkout_state(): void

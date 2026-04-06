@@ -303,6 +303,11 @@
                     <x-ui.input name="title" label="Title" :value="$product->title ?? ''" x-model="title" x-on:blur="handleTitleInput()" />
                     <x-ui.input name="slug" label="Slug" :value="$product->slug ?? ''" x-model="slug" x-on:input="handleSlugInput()" />
                 </div>
+                <x-ui.input
+                    name="subtitle"
+                    label="Subtitle"
+                    :value="$product->subtitle ?? ''"
+                />
                 <div class="grid gap-4 md:grid-cols-4">
                     <x-ui.input
                         name="category"
@@ -393,7 +398,7 @@
                                         <x-ui.input
                                             name="backorder_shipping_estimate"
                                             type="date"
-                                            label="Estimated Backorder Shipping Date"
+                                            label="Shipping Date"
                                             :value="$productBackorderEstimate"
                                         />
                                     </div>
@@ -598,7 +603,7 @@
                                             </div>
 
                                             <div x-show="variant.backorder_shipping_estimate_type !== '{{ \App\Models\Product::BACKORDER_SHIPPING_ESTIMATE_DYNAMIC }}'" x-cloak>
-                                                <label class="mb-1 block pl-1 text-sm">Estimated Backorder Shipping Date</label>
+                                                <label class="mb-1 block pl-1 text-sm">Shipping Date</label>
                                                 <input type="date" x-bind:class="variantInputClasses" :name="`variants[${index}][backorder_shipping_estimate]`" x-model="variant.backorder_shipping_estimate">
                                             </div>
                                         </div>

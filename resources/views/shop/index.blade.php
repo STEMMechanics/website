@@ -225,9 +225,14 @@
             }
         }
 
+        [data-shop-catalog][data-current-view="grid"] .shop-product-card-header {
+          min-height: 4rem;
+        }
+
         [data-shop-catalog][data-current-view="grid"] .shop-product-card-title {
-            min-height: 4rem;
-            margin-bottom: 0.5rem;
+            /*margin-bottom: 0.5rem;*/
+          /*font-size: clamp(0.1rem, 1.8vw, 1.25rem);*/
+          /*white-space: nowrap;*/
         }
 
         [data-shop-catalog][data-current-view="list"] .shop-product-card-description {
@@ -466,19 +471,15 @@
                                     $priceRangeAmountLabel = $priceIsFromRange
                                         ? \Illuminate\Support\Str::after($priceRangeLabel, 'From ')
                                         : $priceRangeLabel;
-                                    $backorderEstimate = $product->backorderShippingEstimateLabel();
-                                    $backorderNowInventory = null;
-                                    if (! $hasVariants) {
-                                        $backorderNowInventory = $product->availableInventory();
-                                    } elseif ($defaultVariant) {
-                                        $backorderNowInventory = $product->availableInventory($defaultVariant);
-                                    }
                                 @endphp
                                 <article class="shop-product-card flex flex-col group relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
                                     <a href="{{ route('shop.product.show', $product) }}" class="absolute inset-0 z-10" aria-label="View {{ $product->title }}"></a>
 
                                     <div class="shop-product-card-inner flex flex-col flex-1">
-                                        <div class="shop-product-card-image-frame pointer-events-none block bg-gray-100">
+                                        <div class="shop-product-card-image-frame pointer-events-none relative block bg-gray-100">
+                                            @if(in_array((int) $product->id, $bestSellerProductIds ?? [], true))
+                                                <x-best-seller-badge class="absolute left-3 top-3 z-20" />
+                                            @endif
                                             <img
                                                 src="{{ $product->hero?->url ? $product->hero->url.'?md' : $product->primaryImageUrl() }}"
                                                 alt="{{ $product->title }}"
@@ -489,12 +490,12 @@
                                         <div class="shop-product-card-body pointer-events-none flex-1 flex flex-col">
                                             <div class="shop-product-card-header flex items-start justify-between gap-3">
                                                 <div class="shop-product-card-title flex flex-col justify-between">
-                                                    <div class="flex items-start gap-2">
+                                                    <div class="flex items-center gap-2">
                                                         <h3 class="shop-product-card-title text-xl font-bold text-gray-900 transition group-hover:text-primary-color">{{ $product->title }}</h3>
                                                         @if($isAdmin)
                                                             <a
                                                                 href="{{ route('admin.shop.product.edit', $product) }}"
-                                                                class="pointer-events-auto relative z-20 mt-1 inline-flex shrink-0 items-center text-gray-400 transition hover:text-primary-color"
+                                                                class="pointer-events-auto relative z-20 inline-flex shrink-0 items-center text-gray-400 transition hover:text-primary-color"
                                                                 title="Edit product"
                                                                 aria-label="Edit {{ $product->title }}"
                                                             >
@@ -502,6 +503,9 @@
                                                             </a>
                                                         @endif
                                                     </div>
+                                                    @if(trim((string) $product->subtitle) !== '')
+                                                        <div class="text-sm font-medium text-gray-500">{{ $product->subtitle }}</div>
+                                                    @endif
                                                     <div class="flex flex-wrap items-center gap-2 -ml-1">
                                                         @if($product->isDigital())
                                                             <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -525,25 +529,15 @@
                                                 <p class="shop-product-card-description text-sm text-gray-600 flex-1 min-h-18">{{ $shortDescription }}</p>
                                             @endif
 
-                                            <div class="shop-product-card-stock text-xs text-gray-500">
+                                            <div class="shop-product-card-stock">
                                                 @if(!$inStock)
-                                                    <span class="font-semibold text-red-600">Out of stock</span>
+                                                    <x-stock-indicator tone="danger" :label="'Out of stock'" />
                                                 @elseif($product->isDigital())
-                                                    Instant download after checkout
+                                                    <x-stock-indicator tone="success" :label="'Instant download after checkout'" />
                                                 @elseif($hasVariants)
-                                                    {{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available
-                                                @elseif($product->allowsBackorder())
-                                                    @if($hasVariants && ! $defaultVariant)
-                                                        {{ $backorderEstimate ? 'Available now. More expected '.$backorderEstimate : 'Available now. More coming soon' }}
-                                                    @elseif($backorderNowInventory === null)
-                                                        {{ $backorderEstimate ? 'Available now. More expected '.$backorderEstimate : 'Available now. More coming soon' }}
-                                                    @elseif($backorderNowInventory > 0)
-                                                        {{ $backorderNowInventory }} available now. {{ $backorderEstimate ? 'More expected '.$backorderEstimate : 'More coming soon' }}
-                                                    @else
-                                                        {{ $backorderEstimate ? 'Available to order. More expected '.$backorderEstimate : 'Available to order. More coming soon' }}
-                                                    @endif
+                                                    <span class="text-xs font-medium text-gray-500">{{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available</span>
                                                 @else
-                                                    {{ $product->availableInventoryForPurchase() !== null ? $product->availableInventoryForPurchase().' in stock' : 'In stock' }}
+                                                    <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" />
                                                 @endif
                                             </div>
                                         </div>

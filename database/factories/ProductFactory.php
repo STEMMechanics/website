@@ -17,6 +17,7 @@ class ProductFactory extends Factory
         return [
             'slug' => Str::slug($title),
             'title' => Str::title($title),
+            'subtitle' => null,
             'sku' => 'SKU-'.fake()->unique()->numerify('####'),
             'status' => Product::STATUS_ACTIVE,
             'product_type' => Product::PRODUCT_TYPE_PHYSICAL,

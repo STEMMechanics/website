@@ -67,6 +67,34 @@ class AdminShopProductTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_save_a_product_subtitle(): void
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => (string) $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.shop.product.store'), [
+                'title' => 'Bundle Pack',
+                'subtitle' => '25 pack',
+                'slug' => 'bundle-pack',
+                'sku' => 'BUNDLE-25',
+                'status' => Product::STATUS_ACTIVE,
+                'product_type' => Product::PRODUCT_TYPE_PHYSICAL,
+                'price' => '24.95',
+                'shipping_units' => '1.00',
+                'min_satchel_rank' => '2',
+            ])
+            ->assertRedirect(route('admin.shop.product.index'));
+
+        $this->assertDatabaseHas('products', [
+            'slug' => 'bundle-pack',
+            'subtitle' => '25 pack',
+        ]);
+    }
+
     public function test_admin_can_auto_fill_the_base_sku_from_the_slug_when_it_is_blank(): void
     {
         $admin = User::factory()->create();

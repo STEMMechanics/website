@@ -142,6 +142,7 @@ class ShopProductController extends Controller
 
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
+            'subtitle' => ['nullable', 'string', 'max:160'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($product->id)],
             'category' => ['nullable', 'string', 'max:120'],
             'sku' => ['required', 'string', 'max:120'],
@@ -248,6 +249,7 @@ class ShopProductController extends Controller
         $isFeatured = (string) $validated['status'] === Product::STATUS_ACTIVE && $request->boolean('is_featured');
         $product->fill([
             'title' => trim((string) $validated['title']),
+            'subtitle' => trim((string) ($validated['subtitle'] ?? '')) ?: null,
             'slug' => trim((string) ($validated['slug'] ?? '')) ?: null,
             'category' => trim((string) ($validated['category'] ?? '')) ?: null,
             'sku' => trim((string) ($validated['sku'] ?? '')) ?: null,

@@ -1,34 +1,7 @@
 @php
     $variants = $product->purchasableVariants();
     $chooserHeading = $product->isDigital() ? 'Choose a licence' : 'Choose a variant';
-    $availabilityLabel = function ($variant = null) use ($product): string {
-        if ($product->isDigital()) {
-            return 'Instant download after checkout';
-        }
-
-        if ($product->allowsBackorder($variant)) {
-            $selectionBackorderEstimate = $product->backorderShippingEstimateLabel('F jS, Y', $variant);
-            $delayedLabel = $selectionBackorderEstimate ? 'More expected '.$selectionBackorderEstimate : 'More coming soon';
-            $actualInventory = $product->availableInventory($variant);
-
-            if ($actualInventory === null) {
-                return 'Available now. '.$delayedLabel;
-            }
-
-            if ($actualInventory > 0) {
-                return $actualInventory.' available now. '.$delayedLabel;
-            }
-
-            return 'Available to order. '.$delayedLabel;
-        }
-
-        $inventory = $product->availableInventoryForPurchase($variant);
-        if ($inventory === null) {
-            return $product->isSelectionPurchasable($variant) ? 'In stock' : 'Out of stock';
-        }
-
-        return $inventory > 0 ? $inventory.' in stock' : 'Out of stock';
-    };
+    $availabilityLabel = fn ($variant = null): string => $product->availabilityLabel('F jS', $variant);
     $baseOptionSku = trim((string) ($product->sku ?? ''));
     if ($baseOptionSku === '') {
         $baseOptionSku = strtoupper(\Illuminate\Support\Str::slug((string) ($product->slug ?: $product->title), '-'));
@@ -45,6 +18,7 @@
             'compare_at_price_label' => $product->compareAtPriceForVariant() !== null ? '$'.number_format((float) $product->compareAtPriceForVariant(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase(),
             'is_in_stock' => $product->isSelectionPurchasable(),
+            'availability_tone' => $product->availabilityTone(),
             'availability_label' => $availabilityLabel(),
         ],
     ])
@@ -59,6 +33,7 @@
             'compare_at_price_label' => $variant->effectiveCompareAtPrice() !== null ? '$'.number_format((float) $variant->effectiveCompareAtPrice(), 2) : null,
             'inventory_quantity' => $product->availableInventoryForPurchase($variant),
             'is_in_stock' => $product->isSelectionPurchasable($variant),
+            'availability_tone' => $product->availabilityTone($variant),
             'availability_label' => $availabilityLabel($variant),
         ]))
         ->values()
@@ -161,6 +136,9 @@
         },
         selectionButtonMeta() {
             return this.selectedOption?.availability_label || '';
+        },
+        selectionButtonTone() {
+            return this.selectedOption?.availability_tone || 'neutral';
         },
         selectionButtonSku() {
             return this.selectedOption?.sku || '';
@@ -346,7 +324,16 @@
                                             <span class="flex items-center gap-2 text-sm">
                                                 <span class="truncate font-semibold text-gray-900" x-text="selectionButtonLabel()">{{ $chooserHeading }}</span>
                                                 <span class="text-gray-400">-</span>
-                                                <span class="truncate text-xs font-medium text-sky-700" x-text="selectionButtonMeta()"></span>
+                                                <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                    'text-red-700': selectionButtonTone() === 'danger',
+                                                    'text-amber-700': selectionButtonTone() === 'warning',
+                                                    'text-emerald-700': selectionButtonTone() === 'success',
+                                                    'text-sky-700': selectionButtonTone() === 'neutral',
+                                                }">
+                                                    <i x-show="selectionButtonTone() === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                    <i x-show="selectionButtonTone() === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                    <span x-text="selectionButtonMeta()"></span>
+                                                </span>
                                             </span>
                                         </span>
                                         <span class="shrink-0 text-xs font-medium text-gray-400" x-show="selectionButtonSku()" x-cloak x-text="selectionButtonSku()"></span>
@@ -372,10 +359,19 @@
                                                         <span class="flex items-center gap-2 text-sm">
                                                             <span class="truncate font-semibold text-gray-900" x-text="option.name">{{ $option['name'] }}</span>
                                                             <span class="text-gray-400">-</span>
-                                                            <span class="truncate text-xs font-medium" :class="option.is_in_stock ? 'text-sky-700' : 'text-red-600'" x-text="option.availability_label">{{ $option['availability_label'] }}</span>
+                                                            <span class="inline-flex items-center gap-1.5 truncate text-xs font-medium" :class="{
+                                                                'text-red-700': option.availability_tone === 'danger',
+                                                                'text-amber-700': option.availability_tone === 'warning',
+                                                                'text-emerald-700': option.availability_tone === 'success',
+                                                                'text-sky-700': option.availability_tone === 'neutral',
+                                                            }">
+                                                                <i x-show="option.availability_tone === 'danger'" class="fa-solid fa-circle-xmark text-[0.75em]" x-cloak></i>
+                                                                <i x-show="option.availability_tone === 'warning'" class="fa-solid fa-triangle-exclamation text-[0.75em]" x-cloak></i>
+                                                                <span x-text="option.availability_label">{{ $option['availability_label'] }}</span>
+                                                            </span>
                                                         </span>
-                                                        @if(!empty($option['description']))
-                                                            <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
+                                                    @if(!empty($option['description']))
+                                                        <span class="mt-1 block text-xs leading-5 text-gray-500" x-show="option.description" x-cloak x-text="option.description">{{ $option['description'] }}</span>
                                                         @endif
                                                     </span>
                                                     <span class="shrink-0 text-right">

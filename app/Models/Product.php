@@ -45,6 +45,7 @@ class Product extends Model
     protected $fillable = [
         'slug',
         'title',
+        'subtitle',
         'category',
         'sku',
         'status',
@@ -433,6 +434,112 @@ class Product extends Model
         }
 
         return $this->isSelectionPurchasable();
+    }
+
+    public function availabilityLabel(string $format = 'F jS', ?ProductVariant $variant = null): string
+    {
+        if ($this->isDigital()) {
+            return 'Instant download after checkout';
+        }
+
+        $availableInventory = $this->availableInventory($variant);
+        $lowStockThreshold = $this->effectiveLowStockThreshold();
+
+        if ($this->allowsBackorder($variant)) {
+            $backorderEstimate = $this->backorderShippingEstimateLabel($format, $variant);
+            $delayedLabel = $backorderEstimate ? 'More expected '.$backorderEstimate : 'More coming soon';
+
+            if ($availableInventory === null || $availableInventory <= 0) {
+                return 'Available to order. '.$delayedLabel;
+            }
+
+            if ($lowStockThreshold !== null && $availableInventory <= $lowStockThreshold) {
+                return 'Low stock. '.$delayedLabel;
+            }
+
+            return 'In stock';
+        }
+
+        if ($availableInventory === null) {
+            return $this->isSelectionPurchasable($variant) ? 'In stock' : 'Out of stock';
+        }
+
+        if ($availableInventory <= 0) {
+            return 'Out of stock';
+        }
+
+        if ($lowStockThreshold !== null && $availableInventory <= $lowStockThreshold) {
+            return 'Low stock';
+        }
+
+        return 'In stock';
+    }
+
+    public function availabilityTone(?ProductVariant $variant = null): string
+    {
+        if ($this->isDigital()) {
+            return 'success';
+        }
+
+        $availableInventory = $this->availableInventory($variant);
+        $lowStockThreshold = $this->effectiveLowStockThreshold();
+
+        if ($this->allowsBackorder($variant)) {
+            if ($availableInventory === null || $availableInventory <= 0) {
+                return 'warning';
+            }
+
+            if ($lowStockThreshold !== null && $availableInventory <= $lowStockThreshold) {
+                return 'warning';
+            }
+
+            return 'success';
+        }
+
+        if ($availableInventory === null) {
+            return $this->isSelectionPurchasable($variant) ? 'success' : 'danger';
+        }
+
+        if ($availableInventory <= 0) {
+            return 'danger';
+        }
+
+        if ($lowStockThreshold !== null && $availableInventory <= $lowStockThreshold) {
+            return 'warning';
+        }
+
+        return 'success';
+    }
+
+    /**
+     * @return array<int>
+     */
+    public static function bestSellerIds(int $days = 28, int $limit = 3): array
+    {
+        $limit = max(0, $limit);
+        if ($limit === 0) {
+            return [];
+        }
+
+        $since = Carbon::now()->subDays(max(1, $days));
+
+        return StoreOrderItem::query()
+            ->join('store_orders', 'store_orders.id', '=', 'store_order_items.store_order_id')
+            ->join('products', 'products.id', '=', 'store_order_items.product_id')
+            ->whereNotNull('store_orders.paid_at')
+            ->where('store_orders.paid_at', '>=', $since)
+            ->where('store_orders.status', '!=', StoreOrder::STATUS_CANCELLED)
+            ->where('products.status', self::STATUS_ACTIVE)
+            ->groupBy('products.id', 'products.title')
+            ->selectRaw(
+                'products.id, products.title, SUM(CASE WHEN COALESCE(store_order_items.quantity, 0) - COALESCE(store_order_items.cancelled_available_quantity, 0) - COALESCE(store_order_items.cancelled_delayed_quantity, 0) > 0 THEN COALESCE(store_order_items.quantity, 0) - COALESCE(store_order_items.cancelled_available_quantity, 0) - COALESCE(store_order_items.cancelled_delayed_quantity, 0) ELSE 0 END) as sold_quantity'
+            )
+            ->orderByDesc('sold_quantity')
+            ->orderBy('products.title')
+            ->limit($limit)
+            ->pluck('products.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 
     public function preorderShippingEstimateLabel(string $format = 'F jS', ?ProductVariant $variant = null): ?string
