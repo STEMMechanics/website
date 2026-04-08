@@ -277,6 +277,33 @@ class StoreOrder extends Model
             ->contains(fn (StoreOrderItem $item) => $item->trackedQuantity() > 0);
     }
 
+    public function canCancel(): bool
+    {
+        return $this->cancellationBlockedReason() === null;
+    }
+
+    public function cancellationBlockedReason(): ?string
+    {
+        if ((string) $this->status === self::STATUS_CANCELLED) {
+            return 'This store order is already cancelled.';
+        }
+
+        if (in_array((string) $this->status, [
+            self::STATUS_PARTIALLY_SHIPPED,
+            self::STATUS_SHIPPED,
+            self::STATUS_COLLECTED,
+            self::STATUS_FULFILLED,
+        ], true)) {
+            return 'This store order has already shipped items and cannot be cancelled.';
+        }
+
+        if ($this->hasAnyDispatchedPhysicalQuantity()) {
+            return 'This store order has already shipped items and cannot be cancelled.';
+        }
+
+        return null;
+    }
+
     public function remainingPhysicalFulfillableQuantity(): int
     {
         if ($this->relationLoaded('items')) {

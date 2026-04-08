@@ -982,6 +982,17 @@ class TicketController extends Controller
                 ];
             }
 
+            if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+                return [
+                    'adjustment_note_number' => null,
+                    'originally_paid' => false,
+                    'expected_refund_cents' => 0,
+                    'refund_operation_ids' => [],
+                    'has_square_payment' => false,
+                    'invoice_already_cancelled' => true,
+                ];
+            }
+
             $originallyPaid = $invoice->settledAmount() >= ($invoice->dueAmount() - 0.0001);
 
             $invoiceLine = $this->resolveInvoiceLineForTicket($lockedTicket, $invoice);
@@ -1422,6 +1433,10 @@ class TicketController extends Controller
 
     private function syncInvoicePaidStateAfterTicketAdjustment(Invoice $invoice): void
     {
+        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+            return;
+        }
+
         $allocated = $invoice->settledAmount();
         $invoiceTotal = $invoice->dueAmount();
         $isPaid = $allocated >= ($invoiceTotal - 0.0001);
@@ -1531,12 +1546,15 @@ class TicketController extends Controller
         $purchaseWasPaid = (bool) ($summary['originally_paid'] ?? false);
         $invoiceTotal = (float) ($ticket->invoice->total_amount ?? 0);
         $isFreeBooking = (int) ($ticket->invoice_id ?? 0) <= 0 || $invoiceTotal <= 0.0001;
+        $invoiceAlreadyCancelled = (bool) ($summary['invoice_already_cancelled'] ?? false);
         $manualRefundRequired = (bool) ($summary['manual_refund_required'] ?? false);
         $refundPaymentIds = array_values(array_unique(array_filter(array_map('intval', (array) ($summary['refund_payment_ids'] ?? [])), fn (int $id) => $id > 0)));
         $attachments = $manualRefundRequired ? [] : $this->buildCancellationDocumentAttachmentsForTicket($ticket, $refundPaymentIds);
 
         $financialSummary = '';
-        if (! $isFreeBooking) {
+        if ($invoiceAlreadyCancelled) {
+            $financialSummary .= 'The linked invoice was already cancelled.';
+        } elseif (! $isFreeBooking) {
             if ($purchaseWasPaid) {
                 if ($manualRefundRequired) {
                     $financialSummary .= 'Credit will be applied to your account or a refund for the purchase will be processed manually.';

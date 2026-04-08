@@ -45,7 +45,7 @@ class InvoiceController extends Controller
     public function index(Request $request)
     {
         $query = Invoice::query()
-            ->with(['user', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments']);
+            ->with(['user', 'lines', 'allocations.customerPayment.refundOf', 'taxAdjustments', 'tickets', 'storeOrders.items.trackingEntries']);
 
         $status = trim((string) $request->query('status', ''));
         if ($status !== '' && in_array($status, Invoice::STATUSES, true)) {
@@ -141,10 +141,11 @@ class InvoiceController extends Controller
             'lines',
             'privateFinanceFiles',
             'taxAdjustments.lines',
+            'tickets',
             'allocations.customerPayment.user',
             'allocations.customerPayment.refundOf',
             'allocations.customerPayment.refunds.user',
-            'storeOrders',
+            'storeOrders.items.trackingEntries',
         );
 
         return view('admin.invoice.edit', [
@@ -272,11 +273,39 @@ class InvoiceController extends Controller
             return redirect()->route('admin.invoice.edit', $invoice);
         }
 
-        $invoice->status = Invoice::STATUS_CANCELLED;
-        if (! $invoice->issued_at) {
-            $invoice->issued_at = now();
+        try {
+            DB::transaction(function () use ($invoice): void {
+                $lockedInvoice = Invoice::query()
+                    ->with(['tickets', 'taxAdjustments', 'storeOrders'])
+                    ->whereKey($invoice->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $blockReason = $lockedInvoice->cancellationBlockedReason();
+                if ($blockReason !== null) {
+                    throw ValidationException::withMessages([
+                        'invoice' => $blockReason,
+                    ]);
+                }
+
+                $lockedInvoice->status = Invoice::STATUS_CANCELLED;
+                if (! $lockedInvoice->issued_at) {
+                    $lockedInvoice->issued_at = now();
+                }
+                $lockedInvoice->save();
+            });
+        } catch (ValidationException $e) {
+            $message = (string) collect($e->errors())->flatten()->first();
+            if ($message === '') {
+                $message = 'Unable to cancel invoice.';
+            }
+
+            session()->flash('message', $message);
+            session()->flash('message-title', 'Cancellation blocked');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.invoice.edit', $invoice);
         }
-        $invoice->save();
 
         session()->flash('message', 'Invoice has been cancelled');
         session()->flash('message-title', 'Invoice cancelled');

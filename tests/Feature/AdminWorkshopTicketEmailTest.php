@@ -15,6 +15,7 @@ use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\Ticket;
+use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
@@ -548,6 +549,53 @@ class AdminWorkshopTicketEmailTest extends TestCase
                 && str_contains($job->mailable->financialSummary, 'Any unpaid invoices related to this ticket will be cancelled.')
                 && str_contains($job->mailable->documentSummary, 'are attached to this email.')
                 && count($this->extractPrivateArrayProperty($job->mailable, 'attachmentsPayload')) > 0;
+        });
+    }
+
+    public function test_admin_single_ticket_cancel_does_not_create_tax_adjustment_for_cancelled_invoice(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create(['email' => 'cancelled-invoice@example.com']);
+        $workshop = $this->createTicketWorkshop();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'billing_name' => 'Cancelled Invoice',
+            'billing_email' => 'cancelled-invoice@example.com',
+            'status' => Invoice::STATUS_CANCELLED,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+        $ticket = Ticket::factory()->create([
+            'workshop_id' => $workshop->id,
+            'user_id' => $customer->id,
+            'status' => Ticket::STATUS_PAID,
+            'email' => 'cancelled-invoice@example.com',
+            'firstname' => 'Cancelled',
+            'surname' => 'Invoice',
+            'invoice_id' => $invoice->id,
+            'invoice_line_id' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.ticket.cancel', $ticket), [
+                'process_square_refund' => 0,
+                'reason' => 'The workshop has been cancelled.',
+            ])
+            ->assertRedirect();
+
+        $ticket->refresh();
+        $invoice->refresh();
+
+        $this->assertSame(Ticket::STATUS_CANCELLED, (int) $ticket->status);
+        $this->assertSame(Invoice::STATUS_CANCELLED, (string) $invoice->status);
+        $this->assertSame(0, TaxAdjustment::query()->count());
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'cancelled-invoice@example.com'
+                && $job->mailable instanceof TicketCancelledNotice;
         });
     }
 

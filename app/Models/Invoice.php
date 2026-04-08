@@ -212,12 +212,66 @@ class Invoice extends Model
             return 'This invoice cannot be cancelled from its current status.';
         }
 
+        $ticketBlockReason = $this->ticketCancellationBlockedReason();
+        if ($ticketBlockReason !== null) {
+            return $ticketBlockReason;
+        }
+
+        $storeOrderBlockReason = $this->storeOrderCancellationBlockedReason();
+        if ($storeOrderBlockReason !== null) {
+            return $storeOrderBlockReason;
+        }
+
+        $taxAdjustmentBlockReason = $this->taxAdjustmentCancellationBlockedReason();
+        if ($taxAdjustmentBlockReason !== null) {
+            return $taxAdjustmentBlockReason;
+        }
+
         $allocated = $this->relationLoaded('allocations')
             ? round((float) $this->allocations->sum('allocated_amount'), 2)
             : round((float) $this->allocations()->sum('allocated_amount'), 2);
 
         if ($allocated > 0.0001) {
             return 'Reverse/refund allocated payments before cancellation.';
+        }
+
+        return null;
+    }
+
+    public function ticketCancellationBlockedReason(): ?string
+    {
+        $hasTickets = $this->relationLoaded('tickets')
+            ? $this->tickets->isNotEmpty()
+            : $this->tickets()->exists();
+
+        if (! $hasTickets) {
+            return null;
+        }
+
+        return 'This invoice has linked tickets. Cancel the ticket instead; it creates the tax adjustment note and settles the invoice.';
+    }
+
+    public function storeOrderCancellationBlockedReason(): ?string
+    {
+        $hasStoreOrders = $this->relationLoaded('storeOrders')
+            ? $this->storeOrders->isNotEmpty()
+            : $this->storeOrders()->exists();
+
+        if ($hasStoreOrders) {
+            return 'This invoice has linked store orders. Cancel the store order instead of the invoice.';
+        }
+
+        return null;
+    }
+
+    public function taxAdjustmentCancellationBlockedReason(): ?string
+    {
+        $hasTaxAdjustments = $this->relationLoaded('taxAdjustments')
+            ? $this->taxAdjustments->isNotEmpty()
+            : $this->taxAdjustments()->exists();
+
+        if ($hasTaxAdjustments) {
+            return 'This invoice already has tax adjustment notes. Reverse the adjustment instead of cancelling the invoice.';
         }
 
         return null;

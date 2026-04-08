@@ -146,12 +146,15 @@
                             ><i class="fa-solid fa-trash"></i></button>
                             @else
                             @if($canCancelInvoice)
+                                @php
+                                    $invoiceCancelWarning = 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
+                                @endphp
                                 <button
                                     type="button"
                                     class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
                                     title="Cancel Invoice"
                                     x-data
-                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', 'This will cancel the invoice and keep it for audit records. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
+                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', @js($invoiceCancelWarning), '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
                                 ><i class="fa-solid fa-ban"></i></button>
                             @else
                                 <button

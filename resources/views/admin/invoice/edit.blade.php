@@ -885,7 +885,7 @@
                     $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
                     $invoiceConfirmMessage = $isDraftInvoice
                         ? 'This will permanently delete this draft invoice. Continue?'
-                        : 'This will cancel the invoice and keep it for audit records. Continue?';
+                        : 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
                     $invoiceConfirmButtonText = $isDraftInvoice ? 'Delete' : 'Cancel Invoice';
                     $invoiceCancelButtonText = $isDraftInvoice ? 'Cancel' : 'Keep Invoice';
                 @endphp
