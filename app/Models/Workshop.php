@@ -45,6 +45,8 @@ class Workshop extends Model
         'pick_list_template_id',
         'pick_list_participants',
         'pick_list_checked_item_ids',
+        'pick_list_custom_items',
+        'pick_list_is_customized',
         'pick_list_notes',
         'pick_list_canvas_data',
         'pick_list_canvas_thumbnail_path',
@@ -63,6 +65,8 @@ class Workshop extends Model
         'max_tickets' => 'integer',
         'pick_list_participants' => 'integer',
         'pick_list_checked_item_ids' => 'array',
+        'pick_list_custom_items' => 'array',
+        'pick_list_is_customized' => 'boolean',
         'classroom_sessions_json' => 'array',
     ];
 

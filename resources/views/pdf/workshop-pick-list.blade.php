@@ -105,7 +105,7 @@
             $notesHtml = $renderMarkdown((string) $workshop->pick_list_notes);
         @endphp
         <div class="notes-wrap">
-            <div class="section-title">Template Notes</div>
+            <div class="section-title">Pick List Notes</div>
             <div class="notes-body">{!! $notesHtml !== '' ? $notesHtml : e((string) $workshop->pick_list_notes) !!}</div>
         </div>
     @endif

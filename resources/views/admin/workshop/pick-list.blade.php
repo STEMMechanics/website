@@ -8,12 +8,19 @@
                     <div class="text-lg font-semibold mb-2">{{ $workshop->title }}</div>
                     <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Starts:</span> {{ $workshop->starts_at?->format('M j, Y g:i a') ?? '-' }}</div>
                     <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Location:</span> {{ $workshop->getLocationName() }}</div>
-                    <div class="text-sm text-gray-600"><span class="font-bold w-20 inline-block">Template:</span> {{ $workshop->pickListTemplate->name ?? '-' }}</div>
+                    <div class="text-sm text-gray-600">
+                        <span class="font-bold w-20 inline-block">Template:</span>
+                        @if($workshop->pick_list_is_customized)
+                            Custom{{ $workshop->pickListTemplate?->name ? ' (Originally '.$workshop->pickListTemplate?->name.')' : '' }}
+                        @else
+                            {{ $workshop->pickListTemplate?->name ?? 'Custom' }}
+                        @endif
+                    </div>
                 </div>
             </x-slot:left>
             <x-slot:right>
                 <x-ui.button class="mr-2" color="outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
-                @if($workshop->pick_list_template_id)
+                @if($workshop->pick_list_template_id || $workshop->pick_list_is_customized)
                     <x-ui.button color="outline" href="{{ route('admin.workshop.pick-list.pdf', $workshop) }}" target="_blank">View PDF</x-ui.button>
                 @endif
             </x-slot:right>
@@ -29,7 +36,9 @@
                 saveUrl: @js(route('admin.workshop.pick-list.save', $workshop)),
                 csrfToken: @js(csrf_token()),
                 templateItems: @js($templateItems ?? []),
-                allItemIds: @js(collect($templateItems ?? [])->pluck('id')->map(fn ($id) => (string) $id)->values()->all()),
+                customItems: @js($customItems ?? []),
+                itemSuggestions: @js($itemSuggestions ?? []),
+                isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 participantsInput: @js((string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants)),
                 notes: @js((string) old('pick_list_notes', $workshop->pick_list_notes ?? '')),
@@ -46,123 +55,228 @@
             <template x-for="id in checkedIds" :key="`checked-${id}`">
                 <input type="hidden" name="checked_item_ids[]" :value="id">
             </template>
+            <input
+                type="hidden"
+                x-bind:name="customItemsEnabled() ? 'pick_list_custom_items' : null"
+                x-bind:value="customItemsEnabled() ? JSON.stringify(normalizeCustomItems()) : ''"
+            >
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
-            @if(! $workshop->pickListTemplate)
-                <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
-                    Select a template to generate this workshop's pick list.
-                </div>
-            @else
-                <div class="ml-auto w-48">
-                    <x-ui.input label="Participants" inline type="number" min="1" max="5000" step="1" name="pick_list_participants" x-model="participantsInput" x-on:input="scheduleAutosave()" />
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-2">
-                    <template x-for="item in templateItems" :key="item.id">
-                        <label class="flex items-center gap-3 rounded-md border border-gray-200 p-3 select-none">
-                            <input
-                                type="checkbox"
-                                class="h-7 w-7 rounded border-gray-300"
-                                x-model="checkedIds"
-                                :value="String(item.id)"
-                                x-on:change="scheduleAutosave()"
-                            />
-                            <div>
-                                <div class="font-semibold" x-text="itemLabel(item)"></div>
-                                <div class="text-xs text-gray-500" x-text="typeNote(item)"></div>
-                            </div>
-                        </label>
-                    </template>
-                    <div class="text-sm text-gray-600" x-show="templateItems.length === 0">This template has no items.</div>
-                </div>
-                <div class="flex gap-2 mb-2">
-                    <button type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" x-on:click="clearAllChecks()">Clear Checks</button>
-                    <button type="button" class="rounded-md border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50" x-on:click="checkAllItems()">Check All</button>
-                </div>
-
-            @endif
-            <div class="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Workshop Notes</h2>
+                    <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
+                    <p class="mt-1 text-sm text-gray-600" x-show="!itemsEditMode && isCustomized">
+                        This workshop uses its own custom item list and no longer syncs with the template.
+                    </p>
+                    <p class="mt-1 text-sm text-gray-600" x-show="!itemsEditMode && !isCustomized && currentItems().length === 0">
+                        No template items are currently assigned. You can still build a custom pick list here.
+                    </p>
                 </div>
 
-                <div class="mt-4 rounded-2xl bg-white">
-                    <textarea
-                        id="pick_list_notes"
-                        name="pick_list_notes"
-                        rows="4"
-                        x-ref="pickListNotes"
-                        class="disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
-                        x-model="notes"
-                        x-on:input="resizeNotesField(); scheduleAutosave()"
-                    ></textarea>
+                <div class="flex flex-wrap gap-2">
+                    <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
+                    <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-on:click="stopItemEditing()">Close Editor</x-ui.button>
                 </div>
             </div>
 
-            <div class="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Sketch Pad</h2>
-                </div>
-
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
-                    <button type="button" x-bind:class="canvasToolButtonClass('erase')" x-on:click="setCanvasTool('erase')"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
-                    <button type="button" x-bind:class="canvasToolButtonClass('pan')" x-on:click="setCanvasTool('pan')"><i class="fa-solid fa-hand"></i><span>Pan</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()"><i class="fa-solid fa-rotate-left"></i><span>Undo</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()"><i class="fa-solid fa-rotate-right"></i><span>Redo</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()"><i class="fa-solid fa-magnifying-glass-plus"></i><span>Zoom In</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()"><i class="fa-solid fa-magnifying-glass-minus"></i><span>Zoom Out</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()"><i class="fa-solid fa-arrows-to-dot"></i><span>Reset View</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()"><i class="fa-solid fa-trash-can"></i><span>Clear</span></button>
-                    <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="manualCanvasSave()"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
-                </div>
-
-                <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
-                    <label class="block">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Colour</span>
-                        <input
-                            type="color"
-                            class="h-11 w-20 rounded-md border border-gray-300 bg-white p-1"
-                            x-model="canvasColor"
-                            x-on:input="setCanvasColor($event.target.value)"
-                        >
-                    </label>
-                    <label class="block grow lg:max-w-xs">
-                        <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Brush Size</span>
-                        <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
-                            <input
-                                type="range"
-                                min="1"
-                                max="48"
-                                step="1"
-                                class="w-full"
-                                x-model="canvasBrushSize"
-                                x-on:input="setCanvasBrushSize($event.target.value)"
-                            >
-                            <span class="w-12 shrink-0 text-right text-sm font-semibold text-gray-700" x-text="canvasBrushSize + 'px'"></span>
-                        </div>
-                    </label>
-                    <div class="text-sm text-gray-500 lg:ml-auto">
-                        Zoom <span class="font-semibold text-gray-700" x-text="canvasZoomPercent + '%'"></span>
+            <div class="mt-4" x-show="!itemsEditMode">
+                <template x-if="currentItems().length > 0">
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        <template x-for="item in currentItems()" :key="item.id">
+                            <label class="flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 select-none">
+                                <input
+                                    type="checkbox"
+                                    class="h-7 w-7 rounded border-gray-300"
+                                    x-model="checkedIds"
+                                    :value="String(item.id)"
+                                    x-on:change="scheduleAutosave()"
+                                />
+                                <div class="min-w-0">
+                                    <div class="font-semibold" x-text="itemLabel(item)"></div>
+                                    <div class="text-xs text-gray-500" x-text="typeNote(item)"></div>
+                                </div>
+                            </label>
+                        </template>
                     </div>
+                </template>
+                <template x-if="currentItems().length === 0">
+                    <div class="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
+                        No items yet. Click <span class="font-semibold">Edit Items</span> to add materials directly to this workshop.
+                    </div>
+                </template>
+            </div>
+
+            <div class="mt-4" x-show="itemsEditMode" x-cloak>
+                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                    Editing this list detaches it from the template. Future template changes will not sync here.
                 </div>
 
-                <div class="mt-4 rounded-2xl border border-gray-300 bg-white p-3 shadow-sm">
-                    <div class="mb-3 flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
-                        <div>Apple Pencil, touch, and mouse are supported. Use Pan mode to move around the canvas, and the zoom controls to change scale.</div>
-                        <div class="font-medium text-gray-600" x-show="canvasLoading">Loading canvas...</div>
-                    </div>
+                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                    <table class="min-w-full">
+                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            <tr>
+                                <th class="px-3 py-2">Item</th>
+                                <th class="px-3 py-2">Type</th>
+                                <th class="px-3 py-2">Quantity</th>
+                                <th class="px-3 py-2">Checked</th>
+                                <th class="px-3 py-2 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-if="customItems.length === 0">
+                                <tr>
+                                    <td colspan="5" class="px-3 py-4 text-sm text-gray-600">
+                                        No custom items yet. Add one to start building the pick list.
+                                    </td>
+                                </tr>
+                            </template>
+                            <template x-for="(item, index) in customItems" :key="item.id">
+                                <tr class="border-t border-gray-100 align-top">
+                                    <td class="px-3 py-3">
+                                        <x-ui.input
+                                            name="custom_item_name"
+                                            label="Item"
+                                            :noLabel="true"
+                                            class="mb-0"
+                                            fieldClasses="mt-0"
+                                            :suggestions="$itemSuggestions ?? []"
+                                            x-model="item.item_name"
+                                            x-on:input="item.item_name = $event.target.value; scheduleAutosave()"
+                                        />
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <x-ui.select
+                                            name="custom_item_type"
+                                            label="Type"
+                                            :noLabel="true"
+                                            class="mb-0"
+                                            x-model="item.quantity_type"
+                                            x-on:change="item.quantity_type = $event.target.value; scheduleAutosave()">
+                                            <option value="per_participant">Per Participant</option>
+                                            <option value="fixed">Fixed amount</option>
+                                        </x-ui.select>
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <x-ui.input
+                                            type="number"
+                                            name="custom_item_quantity"
+                                            label="Quantity"
+                                            :noLabel="true"
+                                            class="mb-0"
+                                            fieldClasses="mt-0"
+                                            min="1"
+                                            step="1"
+                                            x-model="item.quantity_value"
+                                            x-on:input="item.quantity_value = Number($event.target.value || 1); scheduleAutosave()"
+                                        />
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <input
+                                            type="checkbox"
+                                            class="mt-3 h-6 w-6 rounded border-gray-300"
+                                            x-model="checkedIds"
+                                            :value="String(item.id)"
+                                            x-on:change="scheduleAutosave()"
+                                        >
+                                    </td>
+                                    <td class="px-3 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveCustomItemUp(index)" :disabled="index === 0" title="Move up">
+                                                <i class="fa-solid fa-arrow-up"></i>
+                                            </button>
+                                            <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveCustomItemDown(index)" :disabled="index === customItems.length - 1" title="Move down">
+                                                <i class="fa-solid fa-arrow-down"></i>
+                                            </button>
+                                            <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeCustomItem(index)" title="Remove">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
 
-                    <div x-show="canvasError" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="canvasError"></div>
+                <div class="mt-4 flex flex-wrap justify-end">
+                    <x-ui.button type="button" color="outline" x-on:click="addCustomItem()">Add Item</x-ui.button>
+                </div>
+            </div>
 
-                    <div
-                        x-ref="pickListCanvasViewport"
-                        class="relative h-[72vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white"
-                        style="touch-action: none; overscroll-behavior: contain;"
+            <h2 class="mt-8 text-lg font-semibold text-gray-900">Workshop Notes</h2>
+
+            <div class="mt-2 rounded-2xl bg-white">
+                <textarea
+                    id="pick_list_notes"
+                    name="pick_list_notes"
+                    rows="4"
+                    x-ref="pickListNotes"
+                    class="disabled:bg-gray-100 bg-white block w-full resize-none overflow-hidden rounded-xl border border-gray-200 px-3 py-3 text-sm text-gray-900 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300 min-h-28"
+                    x-model="notes"
+                    x-on:input="resizeNotesField(); scheduleAutosave()"
+                ></textarea>
+            </div>
+
+            <h2 class="mt-8 text-lg font-semibold text-gray-900">Sketch Pad</h2>
+
+            <div class="mt-2 flex flex-wrap gap-2">
+                <button type="button" x-bind:class="canvasToolButtonClass('draw')" x-on:click="setCanvasTool('draw')"><i class="fa-solid fa-pen"></i><span>Draw</span></button>
+                <button type="button" x-bind:class="canvasToolButtonClass('erase')" x-on:click="setCanvasTool('erase')"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
+                <button type="button" x-bind:class="canvasToolButtonClass('pan')" x-on:click="setCanvasTool('pan')"><i class="fa-solid fa-hand"></i><span>Pan</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanUndo" x-on:click="undoCanvas()"><i class="fa-solid fa-rotate-left"></i><span>Undo</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-bind:disabled="!canvasCanRedo" x-on:click="redoCanvas()"><i class="fa-solid fa-rotate-right"></i><span>Redo</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasIn()"><i class="fa-solid fa-magnifying-glass-plus"></i><span>Zoom In</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="zoomCanvasOut()"><i class="fa-solid fa-magnifying-glass-minus"></i><span>Zoom Out</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="resetCanvasView()"><i class="fa-solid fa-arrows-to-dot"></i><span>Reset View</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="clearCanvasDrawing()"><i class="fa-solid fa-trash-can"></i><span>Clear</span></button>
+                <button type="button" x-bind:class="canvasActionButtonClass()" x-on:click="manualCanvasSave()"><i class="fa-solid fa-floppy-disk"></i><span>Save</span></button>
+            </div>
+
+            <div class="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end">
+                <label class="block">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Colour</span>
+                    <input
+                        type="color"
+                        class="h-11 w-20 rounded-md border border-gray-300 bg-white p-1"
+                        x-model="canvasColor"
+                        x-on:input="setCanvasColor($event.target.value)"
                     >
-                        <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
+                </label>
+                <label class="block grow lg:max-w-xs">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Brush Size</span>
+                    <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-3">
+                        <input
+                            type="range"
+                            min="1"
+                            max="48"
+                            step="1"
+                            class="w-full"
+                            x-model="canvasBrushSize"
+                            x-on:input="setCanvasBrushSize($event.target.value)"
+                        >
+                        <span class="w-12 shrink-0 text-right text-sm font-semibold text-gray-700" x-text="canvasBrushSize + 'px'"></span>
                     </div>
+                </label>
+                <div class="text-sm text-gray-500 lg:ml-auto">
+                    Zoom <span class="font-semibold text-gray-700" x-text="canvasZoomPercent + '%'"></span>
+                </div>
+            </div>
+
+            <div class="mt-4 rounded-2xl border border-gray-300 bg-white p-3 shadow-sm">
+                <div class="mb-3 flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
+                    <div>Apple Pencil, touch, and mouse are supported. Use Pan mode to move around the canvas, and the zoom controls to change scale.</div>
+                    <div class="font-medium text-gray-600" x-show="canvasLoading">Loading canvas...</div>
+                </div>
+
+                <div x-show="canvasError" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700" x-text="canvasError"></div>
+
+                <div
+                    x-ref="pickListCanvasViewport"
+                    class="relative h-[72vh] min-h-[480px] w-full overflow-hidden rounded-xl border border-dashed border-gray-300 bg-white"
+                    style="touch-action: none; overscroll-behavior: contain;"
+                >
+                    <canvas x-ref="pickListCanvas" class="absolute inset-0 block h-full w-full"></canvas>
                 </div>
             </div>
 

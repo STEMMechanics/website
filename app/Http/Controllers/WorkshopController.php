@@ -371,8 +371,9 @@ class WorkshopController extends Controller
         $existingTemplateId = $workshop->pick_list_template_id !== null ? (int) $workshop->pick_list_template_id : null;
         $newTemplateId = $workshopData['pick_list_template_id'] !== null ? (int) $workshopData['pick_list_template_id'] : null;
         $templateChanged = $existingTemplateId !== $newTemplateId;
+        $pickListIsCustomized = (bool) $workshop->pick_list_is_customized;
 
-        if ($templateChanged) {
+        if (! $pickListIsCustomized && $templateChanged) {
             if ($newTemplateId === null) {
                 $workshopData['pick_list_notes'] = null;
             } else {

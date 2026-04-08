@@ -776,7 +776,11 @@ const registerWorkshopPickListPage = () => {
         saveUrl: config.saveUrl || '',
         csrfToken: config.csrfToken || '',
         templateItems: Array.isArray(config.templateItems) ? config.templateItems : [],
-        allItemIds: Array.isArray(config.allItemIds) ? config.allItemIds : [],
+        customItems: Array.isArray(config.customItems) ? config.customItems : [],
+        itemSuggestions: Array.isArray(config.itemSuggestions) ? config.itemSuggestions : [],
+        isCustomized: Boolean(config.isCustomized),
+        itemsEditMode: false,
+        nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         participantsInput: String(config.participantsInput ?? ''),
         notes: String(config.notes ?? ''),
@@ -803,9 +807,20 @@ const registerWorkshopPickListPage = () => {
         canvasCanRedo: false,
         canvasZoomPercent: 100,
         init() {
+            this.customItems = this.cloneItems(this.customItems);
+            this.templateItems = this.cloneItems(this.templateItems);
+            this.itemSuggestions = this.itemSuggestions
+                .map((item) => String(item))
+                .map((item) => item.trim())
+                .filter((item) => item !== '');
+
+            const resolvedItemIds = this.currentItems()
+                .map((item) => String(item?.id ?? ''))
+                .filter((id) => id !== '');
             this.checkedIds = this.checkedIds
                 .map((id) => String(id))
-                .filter((id) => this.allItemIds.includes(id));
+                .filter((id) => resolvedItemIds.includes(id));
+            this.nextCustomItemId = this.computeNextCustomItemId(this.currentItems());
 
             this.relativeTimer = window.SM.startRelativeTimeTicker(() => {
                 this.refreshSavedRelative();
@@ -825,38 +840,129 @@ const registerWorkshopPickListPage = () => {
                 this.canvasController = null;
             }
         },
-        async initCanvas() {
-            if (this.canvasReady || this.canvasLoading) {
+        cloneItems(items) {
+            return Array.isArray(items)
+                ? items.map((item) => this.normalizeItem(item)).filter((item) => item !== null)
+                : [];
+        },
+        normalizeItem(item) {
+            if (!item || typeof item !== 'object') {
+                return null;
+            }
+
+            const id = Number.parseInt(String(item.id ?? 0), 10) || 0;
+            const itemName = String(item.item_name ?? '').trim();
+            const quantityType = String(item.quantity_type ?? 'per_participant');
+            const quantityValue = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
+            const sortOrder = Math.max(0, Number.parseInt(String(item.sort_order ?? 0), 10) || 0);
+
+            return {
+                id,
+                item_name: itemName,
+                quantity_type: ['fixed', 'per_participant'].includes(quantityType) ? quantityType : 'per_participant',
+                quantity_value: quantityValue,
+                sort_order: sortOrder,
+            };
+        },
+        computeNextCustomItemId(items) {
+            const maxId = Array.isArray(items)
+                ? items.reduce((result, item) => {
+                    const itemId = Number.parseInt(String(item?.id ?? 0), 10) || 0;
+                    return itemId > result ? itemId : result;
+                }, 0)
+                : 0;
+
+            return maxId + 1;
+        },
+        currentItems() {
+            if (this.itemsEditMode) {
+                return this.customItems;
+            }
+
+            return this.isCustomized ? this.customItems : this.templateItems;
+        },
+        customItemsEnabled() {
+            return this.itemsEditMode || this.isCustomized;
+        },
+        newCustomItem() {
+            const id = this.nextCustomItemId++;
+            return {
+                id,
+                item_name: '',
+                quantity_type: 'per_participant',
+                quantity_value: 1,
+                sort_order: this.customItems.length * 10,
+            };
+        },
+        startItemEditing() {
+            if (!this.itemsEditMode) {
+                this.customItems = this.cloneItems(this.isCustomized ? this.customItems : this.templateItems);
+                if (this.customItems.length === 0) {
+                    this.customItems = [this.newCustomItem()];
+                }
+                this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+                this.itemsEditMode = true;
+            }
+        },
+        stopItemEditing() {
+            this.itemsEditMode = false;
+            if (!this.isCustomized) {
+                this.customItems = [];
+            }
+        },
+        addCustomItem() {
+            if (!this.itemsEditMode) {
+                this.startItemEditing();
+            }
+
+            this.customItems.push(this.newCustomItem());
+        },
+        removeCustomItem(index) {
+            this.customItems.splice(index, 1);
+            this.checkedIds = this.checkedIds.filter((id) => this.customItems.some((item) => String(item.id) === String(id)));
+            this.scheduleAutosave();
+        },
+        moveCustomItemUp(index) {
+            if (index <= 0) {
                 return;
             }
 
-            this.canvasLoading = true;
-            this.canvasError = '';
-
-            try {
-                this.canvasController = await new PickListCanvasController({
-                    canvasElement: this.$refs.pickListCanvas,
-                    viewportElement: this.$refs.pickListCanvasViewport,
-                    initialData: this.pickListCanvasDataJson,
-                    initialColor: this.canvasColor,
-                    initialBrushSize: this.canvasBrushSize,
-                    onDirty: () => this.scheduleAutosave(),
-                    onStateChange: (state) => {
-                        this.canvasTool = state.tool;
-                        this.canvasColor = state.color;
-                        this.canvasBrushSize = state.brushSize;
-                        this.canvasCanUndo = state.canUndo;
-                        this.canvasCanRedo = state.canRedo;
-                        this.canvasZoomPercent = state.zoomPercent;
-                    },
-                }).init();
-
-                this.canvasReady = true;
-            } catch (error) {
-                this.canvasError = error?.message || 'Could not load the drawing canvas.';
-            } finally {
-                this.canvasLoading = false;
+            const previous = this.customItems[index - 1];
+            this.customItems[index - 1] = this.customItems[index];
+            this.customItems[index] = previous;
+            this.scheduleAutosave();
+        },
+        moveCustomItemDown(index) {
+            if (index >= this.customItems.length - 1) {
+                return;
             }
+
+            const next = this.customItems[index + 1];
+            this.customItems[index + 1] = this.customItems[index];
+            this.customItems[index] = next;
+            this.scheduleAutosave();
+        },
+        normalizeCustomItems() {
+            return this.customItems
+                .map((item, index) => {
+                    const normalized = this.normalizeItem(item);
+                    if (!normalized || normalized.item_name === '') {
+                        return null;
+                    }
+
+                    return {
+                        ...normalized,
+                        sort_order: (index + 1) * 10,
+                    };
+                })
+                .filter((item) => item !== null)
+                .map((item) => ({
+                    id: item.id,
+                    item_name: item.item_name,
+                    quantity_type: item.quantity_type,
+                    quantity_value: item.quantity_value,
+                    sort_order: item.sort_order,
+                }));
         },
         normalizeParticipants() {
             return window.SM.toBoundedInt(this.participantsInput, {
@@ -896,7 +1002,7 @@ const registerWorkshopPickListPage = () => {
             this.scheduleAutosave();
         },
         checkAllItems() {
-            this.checkedIds = this.allItemIds.slice();
+            this.checkedIds = this.currentItems().map((item) => String(item.id));
             this.scheduleAutosave();
         },
         resizeNotesField() {
@@ -982,6 +1088,7 @@ const registerWorkshopPickListPage = () => {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
                 checked_item_ids: this.checkedIds,
+                pick_list_custom_items: this.customItemsEnabled() ? this.normalizeCustomItems() : null,
                 pick_list_canvas_data: this.pickListCanvasDataJson || null,
                 pick_list_canvas_thumbnail_data: this.pickListCanvasThumbnailData || '',
             };
@@ -1002,6 +1109,13 @@ const registerWorkshopPickListPage = () => {
                 this.lastSavedAbsolute = data.saved_at_display ?? null;
                 if (Array.isArray(data.checked_item_ids)) {
                     this.checkedIds = data.checked_item_ids.map((id) => String(id));
+                }
+                if (Array.isArray(data.pick_list_custom_items)) {
+                    this.customItems = this.cloneItems(data.pick_list_custom_items);
+                    this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+                }
+                if (typeof data.pick_list_is_customized === 'boolean') {
+                    this.isCustomized = data.pick_list_is_customized;
                 }
                 this.pickListCanvasThumbnailUrl = normalizedString(data.pick_list_canvas_thumbnail_url);
                 this.refreshSavedRelative();

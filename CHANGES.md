@@ -14,6 +14,7 @@
 - Improved site search
 - Expanded product categories
 - Dependency updates
+- Added editable workshop pick lists
 
 ## 1.4.3
 
