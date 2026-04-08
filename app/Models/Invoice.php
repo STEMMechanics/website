@@ -197,6 +197,32 @@ class Invoice extends Model
         return $this->status === self::STATUS_DRAFT;
     }
 
+    public function canCancel(): bool
+    {
+        return $this->cancellationBlockedReason() === null;
+    }
+
+    public function cancellationBlockedReason(): ?string
+    {
+        if ((string) $this->status === self::STATUS_CANCELLED) {
+            return 'Invoice is already cancelled.';
+        }
+
+        if (! $this->canTransitionTo(self::STATUS_CANCELLED)) {
+            return 'This invoice cannot be cancelled from its current status.';
+        }
+
+        $allocated = $this->relationLoaded('allocations')
+            ? round((float) $this->allocations->sum('allocated_amount'), 2)
+            : round((float) $this->allocations()->sum('allocated_amount'), 2);
+
+        if ($allocated > 0.0001) {
+            return 'Reverse/refund allocated payments before cancellation.';
+        }
+
+        return null;
+    }
+
     public function canTransitionTo(string $nextStatus): bool
     {
         $current = (string) $this->status;
@@ -470,6 +496,24 @@ class Invoice extends Model
     public function outstandingAmount(?int $excludingCustomerPaymentId = null): float
     {
         return max(0, round($this->dueAmount() - $this->settledAmount($excludingCustomerPaymentId), 2));
+    }
+
+    public function displayOutstandingAmount(?int $excludingCustomerPaymentId = null): float
+    {
+        if ((string) $this->status === self::STATUS_CANCELLED) {
+            return 0.0;
+        }
+
+        return $this->outstandingAmount($excludingCustomerPaymentId);
+    }
+
+    public function displayDueAmount(): float
+    {
+        if ((string) $this->status === self::STATUS_CANCELLED) {
+            return 0.0;
+        }
+
+        return $this->dueAmount();
     }
 
     public function isTicketInvoice(): bool

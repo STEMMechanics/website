@@ -53,9 +53,11 @@
             ->sum('allocated_amount')), 2)
         : 0.0;
     $invoiceNetAllocatedAmount = round(max(0, $invoiceGrossAllocatedAmount - $invoiceRefundedAmount), 2);
-    $invoiceDueAmount = isset($invoice) ? (float) $invoice->dueAmount() : 0.0;
-    $invoiceRemainingAmount = round(max(0, $invoiceDueAmount - $invoiceNetAllocatedAmount), 2);
-    $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0
+    $invoiceDueAmount = isset($invoice) ? (float) $invoice->displayDueAmount() : 0.0;
+    $invoiceRemainingAmount = isset($invoice) && (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED
+        ? 0.0
+        : round(max(0, $invoiceDueAmount - $invoiceNetAllocatedAmount), 2);
+    $invoiceProgressPercent = isset($invoice) && $invoiceDueAmount > 0 && (string) $invoice->status !== \App\Models\Invoice::STATUS_CANCELLED
         ? max(0, min(100, round(($invoiceNetAllocatedAmount / $invoiceDueAmount) * 100, 1)))
         : 0.0;
     $invoicePaymentRows = isset($invoice)
@@ -876,17 +878,41 @@
             />
 
             <div class="flex justify-end mt-8 gap-4">
-                <x-ui.button
+                @php
+                    $isDraftInvoice = (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
+                    $cancelBlockReason = $isDraftInvoice ? null : $invoice->cancellationBlockedReason();
+                    $canCancelInvoice = $cancelBlockReason === null;
+                    $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
+                    $invoiceConfirmMessage = $isDraftInvoice
+                        ? 'This will permanently delete this draft invoice. Continue?'
+                        : 'This will cancel the invoice and keep it for audit records. Continue?';
+                    $invoiceConfirmButtonText = $isDraftInvoice ? 'Delete' : 'Cancel Invoice';
+                    $invoiceCancelButtonText = $isDraftInvoice ? 'Cancel' : 'Keep Invoice';
+                @endphp
+                @if($isDraftInvoice)
+                    <button
                         type="button"
-                        color="danger-outline"
+                        class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                        title="Delete Draft"
                         x-data
-                        x-on:click.prevent="SM.confirmDelete(
-                        '{{ csrf_token() }}',
-                        '{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'Delete draft invoice?' : 'Cancel invoice?' }}',
-                        '{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'This will permanently delete this draft invoice. Continue?' : 'This will cancel the invoice and keep it for audit records. Continue?' }}',
-                        '{{ route('admin.invoice.destroy', $invoice) }}'
-                )"
-                >{{ (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT ? 'Delete Draft' : 'Cancel Invoice' }}</x-ui.button>
+                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
+                    ><i class="fa-solid fa-trash"></i></button>
+                @elseif($canCancelInvoice)
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                        title="Cancel Invoice"
+                        x-data
+                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
+                    ><i class="fa-solid fa-ban"></i></button>
+                @else
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
+                        title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}"
+                        disabled
+                    ><i class="fa-solid fa-ban"></i></button>
+                @endif
                 @if(isset($invoice))
                 <x-ui.button
                     type="submit"

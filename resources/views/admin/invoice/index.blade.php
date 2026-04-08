@@ -62,11 +62,15 @@
                 $isOverdue = $invoice->isOverdue();
                 $dueDateClass = $isOverdue ? 'text-rose-700 font-semibold' : 'text-gray-600';
                 $settlementKind = $invoice->expectedSettlementKind();
+                $cancelBlockReason = $invoice->cancellationBlockedReason();
+                $canCancelInvoice = $cancelBlockReason === null;
                 $allocated = (float) $invoice->allocations
                 ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0)
                 ->filter(fn ($allocation) => (string) ($allocation->customerPayment->kind ?? \App\Models\Payment::KIND_PAYMENT) === $settlementKind)
                 ->sum('allocated_amount');
-                $balance = (float) $invoice->outstandingAmount();
+                $balance = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED
+                    ? 0.0
+                    : (float) $invoice->outstandingAmount();
                 $isCreditDocument = ((float) $invoice->total_amount) < 0;
                     @endphp
                     <tr>
@@ -133,17 +137,30 @@
                                         "><i class="fa-solid fa-link"></i></a>
                             @endif
                             @if((string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT)
-                            <a href="#"
-                                class="hover:text-red-600"
+                            <button
+                                type="button"
+                                class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
                                 title="Delete Draft"
                                 x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"><i class="fa-solid fa-trash"></i></a>
+                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete draft invoice?', 'This will permanently delete this draft invoice. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"
+                            ><i class="fa-solid fa-trash"></i></button>
                             @else
-                            <a href="#"
-                                class="hover:text-red-600"
-                                title="Cancel Invoice"
-                                x-data
-                                x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', 'This will cancel the invoice and keep it for audit records. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}')"><i class="fa-solid fa-ban"></i></a>
+                            @if($canCancelInvoice)
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                                    title="Cancel Invoice"
+                                    x-data
+                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', 'This will cancel the invoice and keep it for audit records. Continue?', '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
+                                ><i class="fa-solid fa-ban"></i></button>
+                            @else
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
+                                    title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}"
+                                    disabled
+                                ><i class="fa-solid fa-ban"></i></button>
+                            @endif
                             @endif
                         </div>
                     </td>

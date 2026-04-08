@@ -34,11 +34,12 @@
         $billToPersonName = trim((string) ($invoice->billing_name ?? ''));
         }
         $billingCountry = trim((string) ($customer?->billing_country ?? ''));
-        $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
-        $documentTitle = 'tax invoice';
-        $publicPayUrl = route('invoice.public.pay.show', $invoice);
-        $displayPublicPayUrl = preg_replace('#^https?://#', '', $publicPayUrl);
-        $renderLineNotes = function (string $rawNotes): string {
+    $showBillingCountry = $billingCountry !== '' && ! in_array(strtolower($billingCountry), ['australia', 'au'], true);
+    $documentTitle = 'tax invoice';
+    $isCancelled = (string) $invoice->status === \App\Models\Invoice::STATUS_CANCELLED;
+    $publicPayUrl = isset($publicPayUrl) && is_string($publicPayUrl) ? $publicPayUrl : null;
+    $displayPublicPayUrl = $publicPayUrl !== null ? preg_replace('#^https?://#', '', $publicPayUrl) : '';
+    $renderLineNotes = function (string $rawNotes): string {
         $lines = preg_split('/\r\n|\r|\n/', $rawNotes) ?: [];
         $html = [];
         $inList = false;
@@ -84,6 +85,9 @@
 
         @foreach($pages as $pageIndex => $pageItems)
         <div class="page">
+            @if($isCancelled)
+            <div class="watermark">CANCELLED</div>
+            @endif
             @if($pageIndex === 0)
             <table class="header">
                 <tr>
@@ -136,7 +140,7 @@
                             <tr>
                                 <td class="invoice-number">{{ $invoice->invoice_number }}</td>
                                 <td>{{ $issueDate }}</td>
-                                <td class="pay">$ {{ number_format((float) $invoice->total_amount, 2) }}</td>
+                                <td class="pay">{{ $isCancelled ? '$ 0.00' : '$ '.number_format((float) $invoice->total_amount, 2) }}</td>
                                 <td>{{ $dueDate }}</td>
                             </tr>
                         </table>
@@ -221,7 +225,7 @@
                     </tr>
                     <tr class="total-row">
                         <td class="label">TOTAL DUE</td>
-                        <td class="value">$ {{ number_format((float) $invoice->total_amount, 2) }}</td>
+                        <td class="value">{{ $isCancelled ? '$ 0.00' : '$ '.number_format((float) $invoice->total_amount, 2) }}</td>
                     </tr>
                 </table>
 

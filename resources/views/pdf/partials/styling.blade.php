@@ -21,6 +21,20 @@ td, th { padding: 0; margin: 0; }
 .page { position: relative; min-height: 1030px; }
 .page + .page { page-break-before: always; }
 
+.watermark {
+    position: absolute;
+    top: 44%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-26deg);
+    font-size: 88px;
+    font-weight: 700;
+    color: #d12b2b;
+    opacity: 0.12;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 0;
+}
+
 .header { margin-bottom: 18px; }
 .logo-wrap { width: 30%; text-align: left; vertical-align: top; }
 .logo { width: 180px; height: auto; margin-top: 4px; object-fit: contain; }

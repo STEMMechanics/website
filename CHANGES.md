@@ -16,6 +16,7 @@
 - Dependency updates
 - Added editable workshop pick lists
 - Ability to replaced manual EFTPOS replacements with late Square payments
+- Improved invoice cancellations
 
 ## 1.4.3
 

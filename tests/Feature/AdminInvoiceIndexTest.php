@@ -172,6 +172,65 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSeeText('$75.00');
     }
 
+    public function test_admin_invoice_index_does_not_count_cancelled_invoices_in_outstanding_total(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-ACTIVE-1001',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'total_amount' => 75.00,
+            'subtotal_amount' => 68.18,
+            'gst_amount' => 6.82,
+        ]);
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-CANCELLED-1002',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_CANCELLED,
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Still outstanding');
+        $response->assertSeeText('$75.00');
+        $response->assertDontSeeText('$195.00');
+        $response->assertSeeText('INV-CANCELLED-1002');
+        $response->assertSeeText('Balance: $0.00');
+    }
+
+    public function test_admin_invoice_index_disables_cancel_action_for_cancelled_invoices(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-CANCELLED-2001',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_CANCELLED,
+            'total_amount' => 120.00,
+            'subtotal_amount' => 109.09,
+            'gst_amount' => 10.91,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('INV-CANCELLED-2001');
+        $response->assertSee('title="Invoice is already cancelled."', false);
+        $response->assertSee('disabled', false);
+    }
+
     public function test_overdue_invoice_statuses_can_be_refreshed_and_badged_in_the_navbar(): void
     {
         $admin = $this->createAdminUser();

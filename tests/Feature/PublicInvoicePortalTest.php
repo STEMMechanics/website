@@ -113,6 +113,53 @@ class PublicInvoicePortalTest extends TestCase
             ->assertDontSeeText('Reference');
     }
 
+    public function test_account_invoice_page_hides_balance_and_payment_prompt_for_cancelled_invoice(): void
+    {
+        $user = User::factory()->create();
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'status' => Invoice::STATUS_CANCELLED,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('account.invoice.show', $invoice))
+            ->assertOk()
+            ->assertSeeText('Cancelled')
+            ->assertDontSeeText('Outstanding')
+            ->assertDontSeeText('Pay by Credit Card');
+    }
+
+    public function test_invoice_pdf_view_marks_cancelled_invoice_and_hides_pay_link(): void
+    {
+        $user = User::factory()->create();
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'status' => Invoice::STATUS_CANCELLED,
+            'total_amount' => 27.50,
+            'subtotal_amount' => 25.00,
+            'gst_amount' => 2.50,
+        ]);
+
+        $html = view('pdf.invoice', [
+            'invoice' => $invoice,
+            'itemPages' => [[]],
+            'adjustments' => collect(),
+            'publicPayUrl' => null,
+        ])->render();
+
+        $this->assertStringContainsString('hello.<br>this is your <span class="underline">tax invoice.</span>', $html);
+        $this->assertStringContainsString('<div class="watermark">CANCELLED</div>', $html);
+        $this->assertStringContainsString('<th class="pay">PLEASE PAY</th>', $html);
+        $this->assertStringContainsString('<td class="pay">$ 0.00</td>', $html);
+        $this->assertStringNotContainsString('cancelled invoice', strtolower($html));
+        $this->assertStringNotContainsString('Pay Online', $html);
+    }
+
     public function test_account_invoice_receipt_show_displays_credit_split_details(): void
     {
         $user = User::factory()->create([

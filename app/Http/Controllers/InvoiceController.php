@@ -97,7 +97,7 @@ class InvoiceController extends Controller
 
     private function outstandingAmountForIndexInvoice(Invoice $invoice): float
     {
-        return round((float) $invoice->outstandingAmount(), 2);
+        return round((float) $invoice->displayOutstandingAmount(), 2);
     }
 
     public function store(Request $request)
@@ -256,23 +256,16 @@ class InvoiceController extends Controller
         }
 
         if ($invoice->status === Invoice::STATUS_CANCELLED) {
-            session()->flash('message', 'Invoice is already cancelled.');
+            session()->flash('message', $invoice->cancellationBlockedReason() ?? 'Invoice is already cancelled.');
             session()->flash('message-title', 'No changes');
             session()->flash('message-type', 'warning');
 
             return redirect()->route('admin.invoice.index');
         }
 
-        $allocated = (float) $invoice->allocations()->sum('allocated_amount');
-        if ($allocated > 0.0001) {
-            session()->flash('message', 'Invoice has payments allocated. Reverse/refund payments before cancellation.');
-            session()->flash('message-title', 'Cancellation blocked');
-            session()->flash('message-type', 'danger');
-
-            return redirect()->route('admin.invoice.edit', $invoice);
-        }
-        if (! $invoice->canTransitionTo(Invoice::STATUS_CANCELLED)) {
-            session()->flash('message', 'This invoice cannot be cancelled from its current status.');
+        $cancelBlockReason = $invoice->cancellationBlockedReason();
+        if ($cancelBlockReason !== null) {
+            session()->flash('message', $cancelBlockReason);
             session()->flash('message-title', 'Cancellation blocked');
             session()->flash('message-type', 'danger');
 
@@ -496,8 +489,8 @@ class InvoiceController extends Controller
                 invoiceNumber: (string) $invoice->invoice_number,
                 orderNumber: $linkedStoreOrder instanceof StoreOrder ? (string) $linkedStoreOrder->order_number : null,
                 attachments: $attachments,
-                outstandingAmount: $invoice->outstandingAmount(),
-                payUrl: $invoice->outstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
+                outstandingAmount: $invoice->displayOutstandingAmount(),
+                payUrl: $invoice->displayOutstandingAmount() > 0.0001 ? route('invoice.public.pay.show', $invoice) : null,
                 initiatedByEmail: $initiatedByEmail,
                 initiatedByName: $initiatedByName,
             )))->onQueue('mail');
@@ -625,7 +618,7 @@ class InvoiceController extends Controller
             $emailMessage = $this->defaultInvoiceEmailMessage($invoice);
         }
         $invoiceDueDate = $invoice->due_date?->format('M j, Y');
-        $invoiceOutstanding = (float) $invoice->outstandingAmount();
+        $invoiceOutstanding = (float) $invoice->displayOutstandingAmount();
 
         $recipients = $this->resolveInvoiceEmailRecipients($request, $invoice);
         $ccRecipients = $this->resolveInvoiceEmailCcRecipients($request);
@@ -636,6 +629,10 @@ class InvoiceController extends Controller
 
         try {
             foreach ($recipients as $recipient) {
+                $invoicePayUrl = $invoice->displayOutstandingAmount() > 0.0001
+                    ? route('invoice.public.pay.show', $invoice)
+                    : null;
+
                 $mailable = new FinanceDocumentPdf(
                     documentType: 'invoice',
                     documentNumber: $invoice->invoice_number,
@@ -648,7 +645,7 @@ class InvoiceController extends Controller
                     documentDue: $invoiceDueDate,
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
-                    payUrl: route('invoice.public.pay.show', $invoice),
+                    payUrl: $invoicePayUrl,
                 );
                 $normalizedCcRecipients = [];
                 foreach ($ccRecipients as $ccEmail) {
@@ -744,6 +741,13 @@ class InvoiceController extends Controller
 
     public function paymentLink(Request $request, Invoice $invoice): JsonResponse
     {
+        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This invoice has been cancelled.',
+            ], 422);
+        }
+
         return response()->json([
             'success' => true,
             'url' => route('invoice.public.pay.show', $invoice),
@@ -778,7 +782,7 @@ class InvoiceController extends Controller
             ->sum('allocated_amount')), 2);
         $netAllocated = round(max(0, $grossAllocated - $refundedAllocated), 2);
         $allocated = $this->invoiceAllocatedTotal($invoice);
-        $outstanding = $invoice->outstandingAmount();
+        $outstanding = $invoice->displayOutstandingAmount();
         $adjustmentTotal = (float) $invoice->issuedAdjustmentTotalAmount();
         $adjustmentGstTotal = $invoice->relationLoaded('taxAdjustments')
             ? round((float) $invoice->taxAdjustments->sum('gst_amount'), 2)
@@ -881,6 +885,12 @@ class InvoiceController extends Controller
         try {
             DB::transaction(function () use ($request, $invoice, $locationId, $squareApi, &$createdPaymentId): void {
                 $lockedInvoice = Invoice::query()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+                if ((string) $lockedInvoice->status === Invoice::STATUS_CANCELLED) {
+                    throw ValidationException::withMessages([
+                        'source_id' => 'This invoice has been cancelled.',
+                    ]);
+                }
+
                 $outstandingAmount = $lockedInvoice->outstandingAmount();
 
                 if ($outstandingAmount <= 0) {
@@ -1151,7 +1161,11 @@ class InvoiceController extends Controller
         $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
         $total = money((float) ($invoice->total_amount ?? 0));
         $due = $invoice->due_date?->format('M j, Y') ?? 'the due date on file';
-        $outstanding = (float) $invoice->outstandingAmount();
+        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+            return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. This invoice has been cancelled and no amount is owing.\n\nPlease don't hesitate to reach out if you have any questions.";
+        }
+
+        $outstanding = (float) $invoice->displayOutstandingAmount();
         $isPaidInFull = $outstanding <= 0.0001;
 
         if ($invoice->isTicketInvoice()) {
@@ -1486,7 +1500,11 @@ class InvoiceController extends Controller
 
     private function paymentReceiptStatusSummary(Invoice $invoice): string
     {
-        $outstanding = $invoice->outstandingAmount();
+        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+            return 'This invoice has been cancelled.';
+        }
+
+        $outstanding = $invoice->displayOutstandingAmount();
 
         if ($outstanding <= 0.0001) {
             return 'This invoice is now paid in full.';
@@ -1982,6 +2000,9 @@ class InvoiceController extends Controller
             'adjustments' => $includeAdjustments
                 ? $invoice->taxAdjustments()->orderBy('issue_date')->orderBy('id')->get()
                 : collect(),
+            'publicPayUrl' => (string) $invoice->status !== Invoice::STATUS_CANCELLED && $invoice->displayOutstandingAmount() > 0.0001
+                ? route('invoice.public.pay.show', $invoice)
+                : null,
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);

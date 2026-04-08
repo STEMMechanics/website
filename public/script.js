@@ -517,7 +517,7 @@ let SM = {
         }
     },
 
-    confirmDelete: (token, title, content, urlOrForm, confirmButtonText = 'Delete') => {
+    confirmDelete: (token, title, content, urlOrForm, confirmButtonText = 'Delete', cancelButtonText = 'Cancel') => {
         Swal.fire({
             position: 'top',
             icon: 'warning',
@@ -527,7 +527,7 @@ let SM = {
             showCancelButton: true,
             confirmButtonText: confirmButtonText,
             confirmButtonColor: '#b91c1c',
-            cancelButtonText: 'Cancel',
+            cancelButtonText: cancelButtonText,
             reverseButtons: true
         }).then((result) => {
             if (result.isConfirmed) {
