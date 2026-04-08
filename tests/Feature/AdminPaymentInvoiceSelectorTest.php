@@ -325,7 +325,6 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertOk();
         $response->assertSee('Review matches', false);
         $response->assertSee('fa-right-left', false);
-        $response->assertSee('Payment #', false);
     }
 
     public function test_payment_index_shows_a_replacement_trigger_for_matching_square_rows_too(): void

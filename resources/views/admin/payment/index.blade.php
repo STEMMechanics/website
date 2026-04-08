@@ -4,6 +4,17 @@
             replacementDialogOpen: false,
             replacementDialogData: null,
             replacementDialogSelectedCandidateId: null,
+            openReplacementDialogFromEncoded(dialogEncoded) {
+                if (!dialogEncoded) {
+                    return;
+                }
+
+                try {
+                    this.openReplacementDialog(JSON.parse(decodeURIComponent(dialogEncoded)));
+                } catch (error) {
+                    console.error('Unable to open payment replacement dialog.', error);
+                }
+            },
             openReplacementDialog(dialogData = null) {
                 const nextData = dialogData || null;
                 if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
@@ -154,7 +165,8 @@
                                     type="button"
                                     class="hover:text-amber-600"
                                     title="Review matches"
-                                    x-on:click.prevent="openReplacementDialog(@js($replacementDialogData))"
+                                    data-dialog="{{ rawurlencode(json_encode($replacementDialogData, JSON_UNESCAPED_UNICODE)) }}"
+                                    x-on:click.prevent="openReplacementDialogFromEncoded($el.dataset.dialog)"
                                 >
                                     <i class="fa-solid fa-right-left"></i>
                                 </button>

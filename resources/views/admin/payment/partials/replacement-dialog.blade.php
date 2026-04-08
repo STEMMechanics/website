@@ -2,7 +2,7 @@
     <div
         x-show="replacementDialogOpen"
         x-cloak
-        class="fixed inset-0 z-280 flex items-end justify-center bg-slate-950/60 p-4 sm:items-center"
+        class="fixed inset-0 z-280 flex items-end justify-center bg-black/50 p-4 sm:items-center"
         role="dialog"
         aria-modal="true"
         aria-labelledby="payment-replacement-dialog-title"
@@ -64,12 +64,12 @@
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-sky-200 bg-sky-50/60 p-4">
+                    <section class="rounded-2xl border p-4" style="border-color: rgb(165 243 252 / 1); background-color: rgb(236 254 255 / 0.6);">
                         <div class="flex items-center justify-between gap-3">
-                            <h3 class="text-sm font-semibold uppercase tracking-wide text-sky-800">Selected match</h3>
-                            <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-sky-700 ring-1 ring-sky-200" x-text="selectedReplacementCandidate()?.label || '-'"></span>
+                            <h3 class="text-sm font-semibold uppercase tracking-wide" style="color: rgb(21 94 117);">Selected match</h3>
+                            <span class="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold ring-1" style="color: rgb(14 116 144); border-color: rgb(165 243 252 / 1); box-shadow: inset 0 0 0 1px rgb(165 243 252 / 1);" x-text="selectedReplacementCandidate()?.label || '-'"></span>
                         </div>
-                        <div class="mt-4 divide-y divide-sky-100 overflow-hidden rounded-xl border border-sky-200 bg-white">
+                        <div class="mt-4 divide-y overflow-hidden rounded-xl border bg-white" style="border-color: rgb(165 243 252 / 1);">
                             <template x-for="row in [
                                 ['Date / Time', selectedReplacementCandidate()?.date],
                                 ['Customer', selectedReplacementCandidate()?.customer],

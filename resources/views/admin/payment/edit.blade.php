@@ -97,174 +97,187 @@
     <x-mast backRoute="admin.payment.index" backTitle="Payments">{{ isset($customerPayment) ? 'Edit' : 'Record' }} Payment</x-mast>
 
     <x-container class="mt-4">
+        <div
+            x-data="{
+            selectedPaymentMethod: @js(old('payment_method', $customerPayment->payment_method ?? '')),
+            bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
+            bankTransferCleared: @js(old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)),
+            allocations: (() => {
+                try {
+                    const parsed = JSON.parse(@js($savedAllocations));
+                    if (!Array.isArray(parsed)) {
+                        return [];
+                    }
+                    return parsed.map((item) => {
+                        const amount = parseFloat(item?.allocated_amount || 0);
+                        return {
+                            invoice_id: parseInt(item?.invoice_id || 0),
+                            allocated_amount: Number.isFinite(amount) ? amount.toFixed(2) : '0.00',
+                        };
+                    });
+                } catch (e) {
+                    return [];
+                }
+            })(),
+            serializeAllocations() {
+                const cleaned = this.allocations
+                    .map((item) => ({
+                        invoice_id: parseInt(item.invoice_id || 0),
+                        allocated_amount: parseFloat(item.allocated_amount || 0)
+                    }))
+                    .filter((item) => item.invoice_id > 0 && item.allocated_amount > 0);
+
+                this.$refs.allocationsJson.value = JSON.stringify(cleaned);
+            },
+            addAllocation() {
+                this.allocations.push({ invoice_id: '', allocated_amount: '0.00' });
+            },
+            addAllAllocations() {
+                const customerId = String(this.selectedCustomerId || '').trim();
+                let remainingFunds = this.paymentTotal();
+                const generated = [];
+
+                for (const option of (this.invoiceOptions || [])) {
+                    if (customerId !== '' && String(option?.user_id || '').trim() !== customerId) {
+                        continue;
+                    }
+
+                    const invoiceId = parseInt(option?.id || 0);
+                    if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+                        continue;
+                    }
+
+                    const invoiceRemaining = parseFloat(this.invoiceRemainingById[String(invoiceId)] || option?.remaining_amount || 0);
+                    if (!(invoiceRemaining > 0.0001)) {
+                        continue;
+                    }
+
+                    if (!(remainingFunds > 0.0001)) {
+                        break;
+                    }
+
+                    const allocatedAmount = Math.max(0, Math.min(invoiceRemaining, remainingFunds));
+                    const normalizedAmount = this.normalizeMoney(allocatedAmount);
+                    if (!(parseFloat(normalizedAmount) > 0.0001)) {
+                        continue;
+                    }
+
+                    generated.push({
+                        invoice_id: invoiceId,
+                        allocated_amount: normalizedAmount,
+                    });
+                    remainingFunds = Math.max(0, parseFloat((remainingFunds - parseFloat(normalizedAmount)).toFixed(2)));
+                }
+
+                this.allocations = generated;
+                this.serializeAllocations();
+            },
+            removeAllocation(index) {
+                this.allocations.splice(index, 1);
+                this.serializeAllocations();
+            },
+            normalizeMoney(value) {
+                const parsed = parseFloat(value || 0);
+                return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
+            },
+            formatMoney(value) {
+                const parsed = parseFloat(value || 0);
+                return '$' + (Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00');
+            },
+            normalizeAllocation(index) {
+                this.allocations[index].allocated_amount = this.normalizeMoney(this.allocations[index]?.allocated_amount);
+                this.serializeAllocations();
+            },
+            paymentTotal() {
+                const raw = this.$refs.totalAmountInput?.value ?? '0';
+                const value = parseFloat(String(raw).replace(',', '.'));
+                return Number.isFinite(value) ? value : 0;
+            },
+            availablePaymentAmount(excludingIndex = null) {
+                const total = this.paymentTotal();
+                let allocated = 0;
+                this.allocations.forEach((item, idx) => {
+                    if (excludingIndex !== null && idx === excludingIndex) {
+                        return;
+                    }
+                    allocated += parseFloat(item?.allocated_amount || 0);
+                });
+                return Math.max(0, total - allocated);
+            },
+            autoFillAllocation(index) {
+                const invoiceId = parseInt(this.allocations[index]?.invoice_id || 0);
+                if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
+                    this.allocations[index].allocated_amount = '0.00';
+                    this.serializeAllocations();
+                    return;
+                }
+                const invoiceRemaining = parseFloat(this.invoiceRemainingById[String(invoiceId)] || 0);
+                const paymentRemaining = this.availablePaymentAmount(index);
+                const suggested = Math.max(0, Math.min(invoiceRemaining, paymentRemaining));
+                this.allocations[index].allocated_amount = this.normalizeMoney(suggested);
+                this.serializeAllocations();
+            },
+            invoiceEditUrl(invoiceId) {
+                const key = String(parseInt(invoiceId || 0));
+                return this.invoiceViewUrls[key] || '';
+            },
+            selectedCustomerId: @js($selectedCustomerId),
+            invoiceOptions: @js($invoiceOptions ?? []),
+            existingInvoiceOptionsById: @js($existingInvoiceOptionsById ?? []),
+            selectedInvoiceOption(invoiceId) {
+                const key = String(parseInt(invoiceId || 0));
+                return this.invoiceOptions.find((invoice) => String(invoice.id) === key)
+                    || this.existingInvoiceOptionsById[key]
+                    || null;
+            },
+            invoiceViewUrls: @js($invoiceViewUrls),
+            invoiceRemainingById: @js($invoiceRemainingLookup),
+            replacementDialogOpen: false,
+            replacementDialogData: @js($replacementDialogData),
+            replacementDialogSelectedCandidateId: null,
+            openReplacementDialogFromEncoded(dialogEncoded) {
+                if (!dialogEncoded) {
+                    return;
+                }
+
+                try {
+                    this.openReplacementDialog(JSON.parse(decodeURIComponent(dialogEncoded)));
+                } catch (error) {
+                    console.error('Unable to open payment replacement dialog.', error);
+                }
+            },
+            openReplacementDialog(dialogData = null) {
+                const nextData = dialogData || this.replacementDialogData || null;
+                if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
+                    return;
+                }
+
+                this.replacementDialogData = nextData;
+                this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
+                this.replacementDialogOpen = true;
+            },
+            closeReplacementDialog() {
+                this.replacementDialogOpen = false;
+            },
+            selectedReplacementCandidate() {
+                if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
+                    return null;
+                }
+
+                const selectedId = String(this.replacementDialogSelectedCandidateId || '');
+                return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
+                    || this.replacementDialogData.candidates[0]
+                    || null;
+            },
+            }"
+            x-on:admin-linked-user-changed.window="selectedCustomerId = $event.detail?.userId || ''"
+            x-on:payment-add-all.window="addAllAllocations()"
+        >
         <form
             id="payment-edit-form"
             method="POST"
             action="{{ route('admin.payment.' . (isset($customerPayment) ? 'update' : 'store'), $customerPayment ?? []) }}"
-              x-data="{
-                selectedPaymentMethod: @js(old('payment_method', $customerPayment->payment_method ?? '')),
-                bankTransferMethod: @js(\App\Models\Payment::PAYMENT_METHOD_BANK_TRANSFER),
-                bankTransferCleared: @js(old('bank_transfer_cleared', isset($customerPayment) ? $customerPayment->cleared_at !== null : false)),
-                allocations: (() => {
-                    try {
-                        const parsed = JSON.parse(@js($savedAllocations));
-                        if (!Array.isArray(parsed)) {
-                            return [];
-                        }
-                        return parsed.map((item) => {
-                            const amount = parseFloat(item?.allocated_amount || 0);
-                            return {
-                                invoice_id: parseInt(item?.invoice_id || 0),
-                                allocated_amount: Number.isFinite(amount) ? amount.toFixed(2) : '0.00',
-                            };
-                        });
-                    } catch (e) {
-                        return [];
-                    }
-                })(),
-                serializeAllocations() {
-                    const cleaned = this.allocations
-                        .map((item) => ({
-                            invoice_id: parseInt(item.invoice_id || 0),
-                            allocated_amount: parseFloat(item.allocated_amount || 0)
-                        }))
-                        .filter((item) => item.invoice_id > 0 && item.allocated_amount > 0);
-
-                    this.$refs.allocationsJson.value = JSON.stringify(cleaned);
-                },
-                addAllocation() {
-                    this.allocations.push({ invoice_id: '', allocated_amount: '0.00' });
-                },
-                addAllAllocations() {
-                    const customerId = String(this.selectedCustomerId || '').trim();
-                    let remainingFunds = this.paymentTotal();
-                    const generated = [];
-
-                    for (const option of (this.invoiceOptions || [])) {
-                        if (customerId !== '' && String(option?.user_id || '').trim() !== customerId) {
-                            continue;
-                        }
-
-                        const invoiceId = parseInt(option?.id || 0);
-                        if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
-                            continue;
-                        }
-
-                        const invoiceRemaining = parseFloat(this.invoiceRemainingById[String(invoiceId)] || option?.remaining_amount || 0);
-                        if (!(invoiceRemaining > 0.0001)) {
-                            continue;
-                        }
-
-                        if (!(remainingFunds > 0.0001)) {
-                            break;
-                        }
-
-                        const allocatedAmount = Math.max(0, Math.min(invoiceRemaining, remainingFunds));
-                        const normalizedAmount = this.normalizeMoney(allocatedAmount);
-                        if (!(parseFloat(normalizedAmount) > 0.0001)) {
-                            continue;
-                        }
-
-                        generated.push({
-                            invoice_id: invoiceId,
-                            allocated_amount: normalizedAmount,
-                        });
-                        remainingFunds = Math.max(0, parseFloat((remainingFunds - parseFloat(normalizedAmount)).toFixed(2)));
-                    }
-
-                    this.allocations = generated;
-                    this.serializeAllocations();
-                },
-                removeAllocation(index) {
-                    this.allocations.splice(index, 1);
-                    this.serializeAllocations();
-                },
-                normalizeMoney(value) {
-                    const parsed = parseFloat(value || 0);
-                    return Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00';
-                },
-                formatMoney(value) {
-                    const parsed = parseFloat(value || 0);
-                    return '$' + (Number.isFinite(parsed) ? parsed.toFixed(2) : '0.00');
-                },
-                normalizeAllocation(index) {
-                    this.allocations[index].allocated_amount = this.normalizeMoney(this.allocations[index]?.allocated_amount);
-                    this.serializeAllocations();
-                },
-                paymentTotal() {
-                    const raw = this.$refs.totalAmountInput?.value ?? '0';
-                    const value = parseFloat(String(raw).replace(',', '.'));
-                    return Number.isFinite(value) ? value : 0;
-                },
-                availablePaymentAmount(excludingIndex = null) {
-                    const total = this.paymentTotal();
-                    let allocated = 0;
-                    this.allocations.forEach((item, idx) => {
-                        if (excludingIndex !== null && idx === excludingIndex) {
-                            return;
-                        }
-                        allocated += parseFloat(item?.allocated_amount || 0);
-                    });
-                    return Math.max(0, total - allocated);
-                },
-                autoFillAllocation(index) {
-                    const invoiceId = parseInt(this.allocations[index]?.invoice_id || 0);
-                    if (!Number.isFinite(invoiceId) || invoiceId <= 0) {
-                        this.allocations[index].allocated_amount = '0.00';
-                        this.serializeAllocations();
-                        return;
-                    }
-                    const invoiceRemaining = parseFloat(this.invoiceRemainingById[String(invoiceId)] || 0);
-                    const paymentRemaining = this.availablePaymentAmount(index);
-                    const suggested = Math.max(0, Math.min(invoiceRemaining, paymentRemaining));
-                    this.allocations[index].allocated_amount = this.normalizeMoney(suggested);
-                    this.serializeAllocations();
-                },
-                invoiceEditUrl(invoiceId) {
-                    const key = String(parseInt(invoiceId || 0));
-                    return this.invoiceViewUrls[key] || '';
-                },
-                selectedCustomerId: @js($selectedCustomerId),
-                invoiceOptions: @js($invoiceOptions ?? []),
-                existingInvoiceOptionsById: @js($existingInvoiceOptionsById ?? []),
-                selectedInvoiceOption(invoiceId) {
-                    const key = String(parseInt(invoiceId || 0));
-                    return this.invoiceOptions.find((invoice) => String(invoice.id) === key)
-                        || this.existingInvoiceOptionsById[key]
-                        || null;
-                },
-                invoiceViewUrls: @js($invoiceViewUrls),
-                invoiceRemainingById: @js($invoiceRemainingLookup),
-                replacementDialogOpen: false,
-                replacementDialogData: @js($replacementDialogData),
-                replacementDialogSelectedCandidateId: null,
-                openReplacementDialog(dialogData = null) {
-                    const nextData = dialogData || this.replacementDialogData || null;
-                    if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
-                        return;
-                    }
-
-                    this.replacementDialogData = nextData;
-                    this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
-                    this.replacementDialogOpen = true;
-                },
-                closeReplacementDialog() {
-                    this.replacementDialogOpen = false;
-                },
-                selectedReplacementCandidate() {
-                    if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
-                        return null;
-                    }
-
-                    const selectedId = String(this.replacementDialogSelectedCandidateId || '');
-                    return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
-                        || this.replacementDialogData.candidates[0]
-                        || null;
-                },
-              }"
-              x-on:admin-linked-user-changed.window="selectedCustomerId = $event.detail?.userId || ''"
-              x-on:payment-add-all.window="addAllAllocations()"
-              x-on:submit.prevent="serializeAllocations(); $el.submit()">
+            x-on:submit.prevent="serializeAllocations(); $el.submit()">
             @isset($customerPayment)
                 @method('PUT')
             @endisset
@@ -295,7 +308,7 @@
                         <button
                             type="button"
                             class="inline-flex items-center justify-center rounded-md bg-gray-800 px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-800"
-                            x-on:click.prevent="openReplacementDialog(@js($replacementDialogData))"
+                            x-on:click.prevent="openReplacementDialog()"
                         >
                             Review matches
                         </button>
@@ -868,6 +881,6 @@
             </div>
             @include('admin.payment.partials.replacement-dialog')
         @endif
-
+        </div>
     </x-container>
 </x-layout>
