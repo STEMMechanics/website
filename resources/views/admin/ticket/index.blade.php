@@ -1,7 +1,10 @@
 <x-layout>
     <x-mast>Tickets</x-mast>
 
-    <x-container x-data="{}" x-init="SM.initTicketCancelModal(@js(old('reason', 'The following ticket has been cancelled.')))">
+    <x-container
+        x-data="{}"
+        data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
+        x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
         <form method="GET" action="{{ route('admin.ticket.index') }}">
             <x-ui.toolbar>
                 <x-slot:left>

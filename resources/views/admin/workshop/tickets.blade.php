@@ -39,7 +39,8 @@
                 },
                 bulkEmailOpen: @js($bulkEmailModalOpen),
             }"
-            x-init="SM.initTicketCancelModal(@js(old('reason', 'The following ticket has been cancelled.')))">
+            data-cancel-reason="{{ old('reason', 'The following ticket has been cancelled.') }}"
+            x-init="SM.initTicketCancelModal($el.dataset.cancelReason)">
         <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
             <div class="text-lg font-semibold">{{ $workshop->title }}</div>
             <div class="flex gap-1 flex-col sm:flex-row sm:gap-6">
