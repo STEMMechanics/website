@@ -1,4 +1,34 @@
 <x-layout>
+    <div
+        x-data="{
+            replacementDialogOpen: false,
+            replacementDialogData: null,
+            replacementDialogSelectedCandidateId: null,
+            openReplacementDialog(dialogData = null) {
+                const nextData = dialogData || null;
+                if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
+                    return;
+                }
+
+                this.replacementDialogData = nextData;
+                this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
+                this.replacementDialogOpen = true;
+            },
+            closeReplacementDialog() {
+                this.replacementDialogOpen = false;
+            },
+            selectedReplacementCandidate() {
+                if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
+                    return null;
+                }
+
+                const selectedId = String(this.replacementDialogSelectedCandidateId || '');
+                return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
+                    || this.replacementDialogData.candidates[0]
+                    || null;
+            },
+        }"
+    >
     <x-mast>Payments</x-mast>
 
     <x-container>
@@ -58,6 +88,7 @@
                 ->map(fn ($allocation) => $allocation->invoice)
                 ->unique('id')
                 ->values();
+                $replacementDialogData = $paymentReplacementDialogDataById[(string) $customerPayment->id] ?? null;
                 $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
                 @endphp
@@ -118,6 +149,16 @@
                     <td>
                         <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
                             <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                            @if(! empty($replacementDialogData['candidates'] ?? []))
+                                <button
+                                    type="button"
+                                    class="hover:text-amber-600"
+                                    title="Review matches"
+                                    x-on:click.prevent="openReplacementDialog(@js($replacementDialogData))"
+                                >
+                                    <i class="fa-solid fa-right-left"></i>
+                                </button>
+                            @endif
                             <a href="{{ $receiptViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
                             <a href="{{ $receiptDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
                         </div>
@@ -162,4 +203,6 @@
         {{ $customerPayments->appends(request()->query())->links() }}
         @endif
     </x-container>
+    @include('admin.payment.partials.replacement-dialog')
+    </div>
 </x-layout>

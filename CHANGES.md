@@ -15,6 +15,7 @@
 - Expanded product categories
 - Dependency updates
 - Added editable workshop pick lists
+- Ability to replaced manual EFTPOS replacements with late Square payments
 
 ## 1.4.3
 

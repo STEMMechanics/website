@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
 use App\Mail\PaymentReceiptPdf;
+use App\Models\InvoicePaymentAllocation;
 use App\Models\SquareRefundOperation;
+use App\Models\SquareWebhookEvent;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\Ticket;
@@ -14,6 +16,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +25,8 @@ use RuntimeException;
 
 class PaymentController extends Controller
 {
+    private const EFTPOS_MERGE_WINDOW_DAYS = 3;
+
     public function accountIndex(Request $request)
     {
         $this->authorize('viewAny', Payment::class);
@@ -132,9 +137,32 @@ class PaymentController extends Controller
         }
 
         $payments = $query->orderBy('received_on', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+        $paymentReplacementDialogDataById = $payments->getCollection()
+            ->mapWithKeys(function (Payment $payment): array {
+                $matchingPayments = $this->matchingEftposPaymentsForReplacement($payment)
+                    ->map(fn (Payment $matchingPayment): array => $this->paymentReplacementDisplayData($matchingPayment))
+                    ->values()
+                    ->all();
+                $sourceLabel = $this->isSquareManagedPayment($payment)
+                    ? 'Square EFTPOS'
+                    : 'manual EFTPOS';
+                $counterpartyLabel = $this->isSquareManagedPayment($payment)
+                    ? 'manual EFTPOS'
+                    : 'Square EFTPOS';
+
+                return [(string) $payment->id => [
+                    'headline' => 'Override '.$sourceLabel.' payment?',
+                    'description' => 'Compare this '.$sourceLabel.' entry with the matching '.$counterpartyLabel.' transaction before replacing it.',
+                    'action' => route('admin.payment.square.replace', $payment),
+                    'source' => $this->paymentReplacementDisplayData($payment),
+                    'candidates' => $matchingPayments,
+                ]];
+            })
+            ->all();
 
         return view('admin.payment.index', [
             'customerPayments' => $payments,
+            'paymentReplacementDialogDataById' => $paymentReplacementDialogDataById,
         ]);
     }
 
@@ -495,6 +523,10 @@ class PaymentController extends Controller
             'refunds.allocations.invoice',
             'refunds.user'
         );
+        $replacementDialogData = $this->paymentReplacementDialogData(
+            $customerPayment,
+            $this->matchingEftposPaymentsForReplacement($customerPayment)
+        );
         $existingInvoiceOptionsById = collect($this->paymentInvoiceOptions(
             $customerPayment->allocations
                 ->map(fn ($allocation) => $allocation->invoice)
@@ -511,6 +543,7 @@ class PaymentController extends Controller
             'invoiceOptions' => $invoiceOptions,
             'existingInvoiceOptionsById' => $existingInvoiceOptionsById,
             'invoiceRemainingById' => $invoiceRemainingById,
+            'replacementDialogData' => $replacementDialogData,
             'paymentMethods' => Payment::PAYMENT_METHODS,
             'initialAllocations' => [],
             'prefillUserId' => '',
@@ -571,6 +604,190 @@ class PaymentController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    public function replaceWithSquarePayment(Request $request, Payment $payment): RedirectResponse
+    {
+        if ($payment->isRefund()) {
+            session()->flash('message', 'Refund payments cannot be replaced.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ((string) ($payment->payment_method ?? '') !== Payment::PAYMENT_METHOD_EFTPOS) {
+            session()->flash('message', 'Only EFTPOS payments can be replaced with a matching Square transaction.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $validated = $request->validate([
+            'matched_payment_id' => ['required', 'integer', 'exists:payments,id'],
+            'email_receipt' => ['nullable', 'boolean'],
+        ]);
+
+        $matchedPayment = Payment::query()
+            ->with([
+                'user',
+                'allocations.invoice',
+                'allocations.taxAdjustment',
+            ])
+            ->withCount(['allocations', 'refunds'])
+            ->findOrFail((int) $validated['matched_payment_id']);
+
+        if ((int) $matchedPayment->id === (int) $payment->id) {
+            session()->flash('message', 'You must choose a different payment to replace this one.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ((string) ($matchedPayment->payment_method ?? '') !== Payment::PAYMENT_METHOD_EFTPOS) {
+            session()->flash('message', 'The selected payment is not an EFTPOS transaction.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ((float) round((float) $payment->total_amount, 2) !== (float) round((float) $matchedPayment->total_amount, 2)) {
+            session()->flash('message', 'The selected payment amount does not match.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $sourceReceivedOn = $payment->received_on;
+        $targetReceivedOn = $matchedPayment->received_on;
+        if (! $sourceReceivedOn instanceof Carbon || ! $targetReceivedOn instanceof Carbon) {
+            session()->flash('message', 'Both payments need a recorded date/time before they can be matched.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ($sourceReceivedOn->diffInDays($targetReceivedOn) > self::EFTPOS_MERGE_WINDOW_DAYS) {
+            session()->flash('message', 'The selected payment is outside the allowed matching window.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        $sourceIsSquareManaged = $this->isSquareManagedPayment($payment);
+        $targetIsSquareManaged = $this->isSquareManagedPayment($matchedPayment);
+        if ($sourceIsSquareManaged === $targetIsSquareManaged) {
+            session()->flash('message', 'A replacement requires one manual EFTPOS payment and one Square EFTPOS payment.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ((int) ($matchedPayment->refunds_count ?? 0) > 0 || $matchedPayment->refunds()->exists()) {
+            session()->flash('message', 'The selected payment already has refunds and cannot be used as a replacement.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        if ($payment->refunds()->exists()) {
+            session()->flash('message', 'This payment has refunds linked to it and cannot be replaced safely.');
+            session()->flash('message-title', 'Replacement blocked');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->back();
+        }
+
+        DB::transaction(function () use ($payment, $matchedPayment): void {
+            $sourcePayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+            $targetPayment = Payment::query()->lockForUpdate()->findOrFail($matchedPayment->id);
+
+            $sourceIsSquareManaged = $this->isSquareManagedPayment($sourcePayment);
+            $targetIsSquareManaged = $this->isSquareManagedPayment($targetPayment);
+            if ($sourceIsSquareManaged === $targetIsSquareManaged) {
+                throw new RuntimeException('Replacement requires one manual EFTPOS payment and one Square EFTPOS payment.');
+            }
+
+            $keepPayment = $sourceIsSquareManaged ? $sourcePayment : $targetPayment;
+            $deletePayment = $sourceIsSquareManaged ? $targetPayment : $sourcePayment;
+
+            if ($deletePayment->user_id && ! $keepPayment->user_id) {
+                $keepPayment->user_id = $deletePayment->user_id;
+            }
+
+            if ($keepPayment->created_by === null && $deletePayment->created_by !== null) {
+                $keepPayment->created_by = $deletePayment->created_by;
+            }
+
+            if (trim((string) ($keepPayment->reference ?? '')) === '' && trim((string) ($deletePayment->reference ?? '')) !== '') {
+                $keepPayment->reference = $deletePayment->reference;
+            }
+
+            $deleteNotes = trim((string) ($deletePayment->notes ?? ''));
+            $keepNotes = trim((string) ($keepPayment->notes ?? ''));
+            if ($deleteNotes !== '') {
+                if ($keepNotes === '') {
+                    $keepPayment->notes = $deleteNotes;
+                } elseif ($keepNotes !== $deleteNotes) {
+                    $keepPayment->notes = $keepNotes."\n\nMerged from payment #".$deletePayment->id.":\n".$deleteNotes;
+                }
+            }
+
+            if ($keepPayment->cleared_at === null && $deletePayment->cleared_at !== null) {
+                $keepPayment->cleared_at = $deletePayment->cleared_at;
+            }
+
+            $keepPayment->save();
+
+            InvoicePaymentAllocation::query()
+                ->where('payment_id', $deletePayment->id)
+                ->update(['payment_id' => $keepPayment->id]);
+
+            SquareWebhookEvent::query()
+                ->where('payment_id', $deletePayment->id)
+                ->update(['payment_id' => $keepPayment->id]);
+
+            $deletePayment->delete();
+        });
+
+        $shouldEmailReceipt = $request->boolean('email_receipt', false);
+        $receiptWasEmailed = false;
+        if ($shouldEmailReceipt) {
+            $keepPaymentId = $sourceIsSquareManaged ? $payment->id : $matchedPayment->id;
+            $keepPayment = Payment::query()
+                ->with(['user', 'allocations.invoice', 'allocations.taxAdjustment'])
+                ->findOrFail($keepPaymentId);
+            $receiptWasEmailed = $this->sendPaymentReceiptEmail($keepPayment);
+        }
+
+        if ($shouldEmailReceipt && ! $receiptWasEmailed) {
+            $keepPaymentId = $sourceIsSquareManaged ? $payment->id : $matchedPayment->id;
+            $deletePaymentId = $sourceIsSquareManaged ? $matchedPayment->id : $payment->id;
+            session()->flash('message', 'Payment #'.$deletePaymentId.' was replaced with payment #'.$keepPaymentId.'. The updated receipt was not emailed because the payment is still pending clearance or has no allocations yet.');
+            session()->flash('message-title', 'Payment replaced');
+            session()->flash('message-type', 'warning');
+
+            return redirect()->route('admin.payment.edit', $keepPaymentId);
+        }
+
+        $keepPaymentId = $sourceIsSquareManaged ? $payment->id : $matchedPayment->id;
+        $deletePaymentId = $sourceIsSquareManaged ? $matchedPayment->id : $payment->id;
+        session()->flash(
+            'message',
+            'Payment #'.$deletePaymentId.' was replaced with payment #'.$keepPaymentId.'.'.($receiptWasEmailed ? ' The updated receipt was emailed to the customer.' : '')
+        );
+        session()->flash('message-title', 'Payment replaced');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.payment.edit', $keepPaymentId);
     }
 
     public function destroy(Payment $payment)
@@ -1381,6 +1598,78 @@ class PaymentController extends Controller
         }
 
         return strtolower(trim((string) ($payment->gateway_provider ?? ''))) === 'square';
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, Payment>
+     */
+    private function matchingEftposPaymentsForReplacement(Payment $payment): Collection
+    {
+        if (
+            $payment->isRefund()
+            || (string) ($payment->payment_method ?? '') !== Payment::PAYMENT_METHOD_EFTPOS
+            || ! $payment->received_on instanceof Carbon
+        ) {
+            return collect();
+        }
+
+        $amount = round((float) $payment->total_amount, 2);
+        $start = $payment->received_on->copy()->subDays(self::EFTPOS_MERGE_WINDOW_DAYS)->startOfDay();
+        $end = $payment->received_on->copy()->addDays(self::EFTPOS_MERGE_WINDOW_DAYS)->endOfDay();
+
+        return Payment::query()
+            ->whereNull('refund_of_payment_id')
+            ->where('kind', Payment::KIND_PAYMENT)
+            ->where('payment_method', Payment::PAYMENT_METHOD_EFTPOS)
+            ->where('id', '!=', $payment->id)
+            ->whereBetween('received_on', [$start, $end])
+            ->whereBetween('total_amount', [$amount - 0.005, $amount + 0.005])
+            ->with(['user'])
+            ->withCount(['refunds'])
+            ->orderByDesc('received_on')
+            ->get()
+            ->filter(fn (Payment $candidate): bool => (int) ($candidate->refunds_count ?? 0) === 0
+                && $this->isSquareManagedPayment($candidate) !== $this->isSquareManagedPayment($payment))
+            ->values();
+    }
+
+    private function paymentReplacementDialogData(Payment $sourcePayment, iterable $candidatePayments): array
+    {
+        $sourceLabel = $this->isSquareManagedPayment($sourcePayment)
+            ? 'Square EFTPOS'
+            : 'manual EFTPOS';
+        $counterpartyLabel = $this->isSquareManagedPayment($sourcePayment)
+            ? 'manual EFTPOS'
+            : 'Square EFTPOS';
+
+        return [
+            'headline' => 'Override '.$sourceLabel.' payment?',
+            'description' => 'Compare this '.$sourceLabel.' entry with the matching '.$counterpartyLabel.' transaction before replacing it.',
+            'action' => route('admin.payment.square.replace', $sourcePayment),
+            'source' => $this->paymentReplacementDisplayData($sourcePayment),
+            'candidates' => collect($candidatePayments)
+                ->map(fn (Payment $payment): array => $this->paymentReplacementDisplayData($payment))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function paymentReplacementDisplayData(Payment $payment): array
+    {
+        $customerName = trim((string) ($payment->user?->getName() ?? ''));
+        $reference = trim((string) ($payment->reference ?? ''));
+        $notes = trim((string) ($payment->notes ?? ''));
+
+        return [
+            'id' => (int) $payment->id,
+            'label' => 'Payment #'.((int) $payment->id),
+            'date' => $payment->received_on?->format('M j, Y g:i a') ?? '-',
+            'customer' => $customerName !== '' ? $customerName : 'No customer linked',
+            'method' => Payment::paymentMethodLabel((string) ($payment->payment_method ?? '')),
+            'amount' => money((float) $payment->total_amount),
+            'reference' => $reference !== '' ? $reference : '-',
+            'notes' => $notes !== '' ? $notes : '-',
+        ];
     }
 
     private function isCreditGrantPayment(Payment $payment): bool

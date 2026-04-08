@@ -84,6 +84,13 @@
         return [(string) $key => round((float) $value, 2)];
     })->all();
     $selectedCustomerId = (string) old('user_id', $customerPayment->user_id ?? ($prefillUserId ?? ''));
+    $replacementDialogData = $replacementDialogData ?? [
+        'headline' => 'Override EFTPOS payment?',
+        'description' => 'Compare this payment with the matching EFTPOS transaction before replacing it.',
+        'action' => '',
+        'source' => null,
+        'candidates' => [],
+    ];
 @endphp
 
 <x-layout>
@@ -228,6 +235,32 @@
                 },
                 invoiceViewUrls: @js($invoiceViewUrls),
                 invoiceRemainingById: @js($invoiceRemainingLookup),
+                replacementDialogOpen: false,
+                replacementDialogData: @js($replacementDialogData),
+                replacementDialogSelectedCandidateId: null,
+                openReplacementDialog(dialogData = null) {
+                    const nextData = dialogData || this.replacementDialogData || null;
+                    if (!nextData || !Array.isArray(nextData.candidates) || nextData.candidates.length === 0) {
+                        return;
+                    }
+
+                    this.replacementDialogData = nextData;
+                    this.replacementDialogSelectedCandidateId = String(nextData.candidates[0]?.id || '');
+                    this.replacementDialogOpen = true;
+                },
+                closeReplacementDialog() {
+                    this.replacementDialogOpen = false;
+                },
+                selectedReplacementCandidate() {
+                    if (!this.replacementDialogData || !Array.isArray(this.replacementDialogData.candidates)) {
+                        return null;
+                    }
+
+                    const selectedId = String(this.replacementDialogSelectedCandidateId || '');
+                    return this.replacementDialogData.candidates.find((candidate) => String(candidate?.id || '') === selectedId)
+                        || this.replacementDialogData.candidates[0]
+                        || null;
+                },
               }"
               x-on:admin-linked-user-changed.window="selectedCustomerId = $event.detail?.userId || ''"
               x-on:payment-add-all.window="addAllAllocations()"
@@ -243,6 +276,30 @@
                     @if($customerPayment->refund_of_payment_id)
                         <span class="ml-2 text-gray-600">(Refund of payment #{{ $customerPayment->refund_of_payment_id }})</span>
                     @endif
+                </div>
+            @endif
+
+            @if(! empty($replacementDialogData['candidates'] ?? []))
+                <div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4">
+                    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div>
+                            <div class="text-xs font-semibold uppercase tracking-wide text-amber-700">{{ $replacementDialogData['headline'] ?? 'Override EFTPOS payment?' }}</div>
+                            <h3 class="mt-1 text-lg font-semibold text-amber-950">Possible match found</h3>
+                            <p class="mt-2 text-sm text-amber-900">
+                                {{ $replacementDialogData['description'] ?? 'Compare this payment with the matching EFTPOS transaction before replacing it.' }}
+                            </p>
+                            <p class="mt-2 text-sm text-amber-900">
+                                {{ count($replacementDialogData['candidates'] ?? []) }} matching payment{{ count($replacementDialogData['candidates'] ?? []) === 1 ? '' : 's' }} found.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center rounded-md bg-gray-800 px-8 py-1.5 text-sm font-semibold leading-6 text-white shadow-sm transition hover:bg-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gray-800"
+                            x-on:click.prevent="openReplacementDialog(@js($replacementDialogData))"
+                        >
+                            Review matches
+                        </button>
+                    </div>
                 </div>
             @endif
 
@@ -809,6 +866,7 @@
 
                 <x-ui.button type="submit" form="payment-edit-form" class="w-full sm:w-auto">Save</x-ui.button>
             </div>
+            @include('admin.payment.partials.replacement-dialog')
         @endif
 
     </x-container>

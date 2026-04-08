@@ -195,6 +195,406 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertSee('Invoice #INV-500001', false);
     }
 
+    public function test_payment_edit_page_shows_matching_square_eftpos_payments_for_replacement(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Morgan',
+            'surname' => 'Reid',
+            'email' => 'morgan.reid@example.com',
+        ]);
+
+        $sourcePayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDays(1),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Recorded at front desk',
+        ]);
+
+        $matchingSquarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-match-64',
+            'square_order_id' => 'sq-order-64',
+            'square_receipt_url' => 'https://example.com/receipt/64',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.edit', $sourcePayment));
+
+        $response->assertOk();
+        $response->assertSee('Override manual EFTPOS payment?', false);
+        $response->assertSee('Possible match found', false);
+        $response->assertSee('Review matches', false);
+        $response->assertSee('Compare payments', false);
+        $response->assertSee('Current payment', false);
+        $response->assertSee('Selected match', false);
+        $response->assertSee('Payment #'.$matchingSquarePayment->id, false);
+        $response->assertSee('Amount', false);
+    }
+
+    public function test_square_payment_edit_page_shows_matching_manual_eftpos_payments_for_replacement_too(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Alex',
+            'surname' => 'Stone',
+            'email' => 'alex.stone@example.com',
+        ]);
+
+        $matchingManualPayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 92.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Recorded in the workshop',
+        ]);
+
+        $squarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 92.00,
+            'gst_amount' => 0.00,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-edit-92',
+            'square_order_id' => 'sq-order-edit-92',
+            'square_receipt_url' => 'https://example.com/receipt/edit-92',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.edit', $squarePayment));
+
+        $response->assertOk();
+        $response->assertSee('Override Square EFTPOS payment?', false);
+        $response->assertSee('Possible match found', false);
+        $response->assertSee('Review matches', false);
+        $response->assertSee('Compare payments', false);
+        $response->assertSee('Payment #'.$matchingManualPayment->id, false);
+    }
+
+    public function test_payment_index_shows_a_replacement_trigger_for_matching_square_payments(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Nina',
+            'surname' => 'Bell',
+            'email' => 'nina.bell@example.com',
+        ]);
+
+        $sourcePayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 88.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Recorded at desk',
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 88.00,
+            'gst_amount' => 0.00,
+            'reference' => null,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-list-88',
+            'square_order_id' => 'sq-order-list-88',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.index'));
+
+        $response->assertOk();
+        $response->assertSee('Review matches', false);
+        $response->assertSee('fa-right-left', false);
+        $response->assertSee('Payment #', false);
+    }
+
+    public function test_payment_index_shows_a_replacement_trigger_for_matching_square_rows_too(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Riley',
+            'surname' => 'Hart',
+            'email' => 'riley.hart@example.com',
+        ]);
+
+        Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 88.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Recorded at desk',
+        ]);
+
+        $squarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 88.00,
+            'gst_amount' => 0.00,
+            'reference' => null,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-list-square-88',
+            'square_order_id' => 'sq-order-list-square-88',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.index'));
+
+        $response->assertOk();
+        $response->assertSee('Review matches', false);
+        $response->assertSee('fa-right-left', false);
+        $this->assertSame(2, substr_count($response->getContent(), 'title="Review matches"'));
+    }
+
+    public function test_square_payment_replacement_moves_allocations_to_the_matching_square_record(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Case',
+            'surname' => 'Worker',
+            'email' => 'case.worker@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-600001',
+            'user_id' => $customer->id,
+            'billing_name' => 'Case Worker',
+            'billing_email' => 'case.worker@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 64.00,
+            'subtotal_amount' => 58.18,
+            'gst_amount' => 5.82,
+        ]);
+
+        $sourcePayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Taken at workshop checkout',
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $sourcePayment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 64.00,
+        ]);
+
+        $matchingSquarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'reference' => null,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-replace-64',
+            'square_order_id' => 'sq-order-replace-64',
+            'square_receipt_url' => 'https://example.com/receipt/replace-64',
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.square.replace', $sourcePayment), [
+            'matched_payment_id' => $matchingSquarePayment->id,
+        ]);
+
+        $response->assertRedirect(route('admin.payment.edit', $matchingSquarePayment));
+        $response->assertSessionHas('message-title', 'Payment replaced');
+
+        $this->assertDatabaseMissing('payments', [
+            'id' => $sourcePayment->id,
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $matchingSquarePayment->id,
+            'user_id' => $customer->id,
+            'reference' => 'Manual EFTPOS',
+        ]);
+
+        $this->assertDatabaseHas('invoice_payment_allocations', [
+            'payment_id' => $matchingSquarePayment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 64.00,
+        ]);
+    }
+
+    public function test_square_payment_replacement_can_resend_the_updated_receipt_to_the_customer(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Case',
+            'surname' => 'Worker',
+            'email' => 'case.worker@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-600002',
+            'user_id' => $customer->id,
+            'billing_name' => 'Case Worker',
+            'billing_email' => 'case.worker@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 64.00,
+            'subtotal_amount' => 58.18,
+            'gst_amount' => 5.82,
+        ]);
+
+        $sourcePayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subDay(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Taken at workshop checkout',
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $sourcePayment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 64.00,
+        ]);
+
+        $matchingSquarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 64.00,
+            'gst_amount' => 0.00,
+            'reference' => null,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-replace-email-64',
+            'square_order_id' => 'sq-order-replace-email-64',
+            'square_receipt_url' => 'https://example.com/receipt/replace-email-64',
+        ]);
+
+        Queue::fake();
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.square.replace', $sourcePayment), [
+            'matched_payment_id' => $matchingSquarePayment->id,
+            'email_receipt' => 1,
+        ]);
+
+        $response->assertRedirect(route('admin.payment.edit', $matchingSquarePayment));
+        $response->assertSessionHas('message-type', 'success');
+        $response->assertSessionHas('message', function (string $message): bool {
+            return str_contains($message, 'updated receipt was emailed to the customer');
+        });
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) use ($customer): bool {
+            return $job->to === $customer->email;
+        });
+    }
+
+    public function test_square_payment_replacement_keeps_the_square_payment_and_removes_the_manual_payment(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Jordan',
+            'surname' => 'Carter',
+            'email' => 'jordan.carter@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-600003',
+            'user_id' => $customer->id,
+            'billing_name' => 'Jordan Carter',
+            'billing_email' => 'jordan.carter@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 72.00,
+            'subtotal_amount' => 65.45,
+            'gst_amount' => 6.55,
+        ]);
+
+        $manualPayment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subMinutes(30),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 72.00,
+            'gst_amount' => 0.00,
+            'reference' => 'Manual EFTPOS',
+            'notes' => 'Entered at front desk',
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $manualPayment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 72.00,
+        ]);
+
+        $squarePayment = Payment::factory()->create([
+            'user_id' => null,
+            'created_by' => null,
+            'received_on' => now(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'total_amount' => 72.00,
+            'gst_amount' => 0.00,
+            'gateway_provider' => 'square',
+            'gateway_status' => 'COMPLETED',
+            'square_payment_id' => 'sq-keep-72',
+            'square_order_id' => 'sq-order-keep-72',
+            'square_receipt_url' => 'https://example.com/receipt/keep-72',
+        ]);
+
+        Queue::fake();
+
+        $response = $this->actingAs($admin)->post(route('admin.payment.square.replace', $squarePayment), [
+            'matched_payment_id' => $manualPayment->id,
+        ]);
+
+        $response->assertRedirect(route('admin.payment.edit', $squarePayment));
+        $response->assertSessionHas('message-title', 'Payment replaced');
+        Queue::assertNotPushed(SendEmail::class);
+
+        $this->assertDatabaseMissing('payments', [
+            'id' => $manualPayment->id,
+        ]);
+
+        $this->assertDatabaseHas('payments', [
+            'id' => $squarePayment->id,
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'gateway_provider' => 'square',
+        ]);
+
+        $this->assertDatabaseHas('invoice_payment_allocations', [
+            'payment_id' => $squarePayment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 72.00,
+        ]);
+    }
+
     public function test_payment_edit_page_shows_bank_transfer_clearance_and_receipt_controls(): void
     {
         $admin = $this->createAdminUser();

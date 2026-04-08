@@ -464,6 +464,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/payments/{payment}/receipt', [PaymentController::class, 'receiptPdf'])->name('admin.payment.receipt');
     Route::put('/admin/payments/{payment}', [PaymentController::class, 'update'])->name('admin.payment.update');
     Route::delete('/admin/payments/{payment}', [PaymentController::class, 'destroy'])->name('admin.payment.destroy');
+    Route::post('/admin/payments/{payment}/square/replace', [PaymentController::class, 'replaceWithSquarePayment'])->name('admin.payment.square.replace');
     Route::post('/admin/payments/{payment}/square/charge', [PaymentController::class, 'chargeWithSquare'])->name('admin.payment.square.charge');
     Route::post('/admin/payments/{payment}/square/refund', [PaymentController::class, 'refundWithSquare'])->name('admin.payment.square.refund');
     Route::post('/admin/payments/{payment}/refund/manual', [PaymentController::class, 'refundManual'])->name('admin.payment.refund.manual');
