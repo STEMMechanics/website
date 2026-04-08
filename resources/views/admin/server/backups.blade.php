@@ -87,6 +87,27 @@
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+                <h3 class="text-lg font-bold">File Backups</h3>
+                <div class="flex items-center gap-3">
+                    <form method="POST" action="{{ route('admin.server.files.backup-now') }}" data-sm-confirm="Create a full local file snapshot now?" data-sm-confirm-button="Backup Now">
+                        @csrf
+                        <x-ui.button type="submit" color="dark">Full Backup Now</x-ui.button>
+                    </form>
+                </div>
+            </div>
+
+            @if(is_array(session('file_backup_notice')))
+                @php($fileNotice = session('file_backup_notice'))
+                <div class="mb-3 rounded-md border px-3 py-2 text-sm {{ ($fileNotice['type'] ?? '') === 'success' ? 'border-green-200 bg-green-50 text-green-800' : 'border-red-200 bg-red-50 text-red-800' }}">
+                    {{ (string) ($fileNotice['text'] ?? '') }}
+                </div>
+            @endif
+
+            <p class="text-xs text-gray-600 mb-3">Monthly full backups are scheduled via <code>files:backup --full</code> and nightly incrementals via <code>files:backup --incremental --window=24h</code>. When <code>--keep</code> is omitted, retention uses <code>backup.files.full.keep</code> (currently {{ number_format((int) $fileBackupFullKeepCount) }} runs) and <code>backup.files.incremental.keep</code> (currently {{ number_format((int) $fileBackupIncrementalKeepCount) }} runs). File backups are written to <code>/storage/backups/files</code> for offsite sync and restore.</p>
+        </div>
+
+        <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <h3 class="text-lg font-bold mb-3">Bulk File Download</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="rounded-lg border border-gray-200 bg-white p-3 flex justify-between">

@@ -173,6 +173,16 @@ Schedule::command('database:backup')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('files:backup --incremental --window=24h')
+    ->dailyAt('01:15')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
+
+Schedule::command('files:backup --full')
+    ->monthlyOn(1, '02:15')
+    ->timezone((string) config('app.timezone', 'UTC'))
+    ->withoutOverlapping();
+
 Schedule::command('store:orders:send-update-digests')
     ->dailyAt('20:00')
     ->timezone((string) config('app.timezone', 'UTC'))

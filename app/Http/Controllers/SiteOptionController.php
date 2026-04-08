@@ -192,7 +192,12 @@ class SiteOptionController extends Controller
             $rules['value'] = ['required', 'integer', 'min:1', 'max:240'];
         }
 
-        if ($optionName === 'backup.database.keep') {
+        if (in_array($optionName, [
+            'backup.database.keep',
+            'backup.files.keep',
+            'backup.files.full.keep',
+            'backup.files.incremental.keep',
+        ], true)) {
             $rules['value'] = ['required', 'integer', 'min:1', 'max:10000'];
         }
 

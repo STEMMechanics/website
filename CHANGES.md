@@ -18,6 +18,7 @@
 - Ability to replaced manual EFTPOS replacements with late Square payments
 - Improved invoice cancellations
 - Bug fixes
+- Improved file snapshots
 
 ## 1.4.3
 

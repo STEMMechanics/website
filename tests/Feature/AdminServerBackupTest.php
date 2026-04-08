@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Services\DatabaseBackupService;
+use App\Services\FileBackupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery\MockInterface;
 use Tests\TestCase;
@@ -31,6 +32,62 @@ class AdminServerBackupTest extends TestCase
 
         $this->artisan('database:backup')
             ->expectsOutput('Database backup created: /tmp/test-backup.sql.gz')
+            ->assertSuccessful();
+    }
+
+    public function test_file_backup_command_uses_resolved_keep_count_when_keep_is_omitted(): void
+    {
+        $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createFullBackup')
+                ->once()
+                ->with(null)
+                ->andReturn([
+                    'mode' => 'full',
+                    'run_path' => 'backups/files/20260409_011500_abcd12',
+                    'files' => [
+                        'mode' => 'full',
+                        'uploaded_files' => 12,
+                        'deleted_files' => 0,
+                    ],
+                    'pruned' => 1,
+                ]);
+        });
+
+        $this->artisan('files:backup')
+            ->expectsOutput('File backup created: backups/files/20260409_011500_abcd12')
+            ->expectsOutput('Mode: Full')
+            ->expectsOutput('Files uploaded: 12')
+            ->expectsOutput('Files deleted in manifest: 0')
+            ->expectsOutput('Pruned old snapshots: 1')
+            ->assertSuccessful();
+    }
+
+    public function test_file_backup_command_supports_incremental_mode_and_custom_window(): void
+    {
+        $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('createIncrementalBackup')
+                ->once()
+                ->with('3d', '8')
+                ->andReturn([
+                    'mode' => 'incremental',
+                    'window_hours' => 72,
+                    'run_path' => 'backups/files/incremental/20260409_011500_72h',
+                    'files' => [
+                        'mode' => 'incremental',
+                        'uploaded_files' => 4,
+                        'deleted_files' => 1,
+                    ],
+                    'pruned' => 0,
+                ]);
+        });
+
+        $this->artisan('files:backup --incremental --window=3d --keep=8')
+            ->expectsOutput('File backup created: backups/files/incremental/20260409_011500_72h')
+            ->expectsOutput('Mode: Incremental')
+            ->expectsOutput('Window: 72 hours')
+            ->expectsOutput('Files uploaded: 4')
+            ->expectsOutput('Files deleted in manifest: 1')
+            ->expectsOutput('Pruned old snapshots: 0')
             ->assertSuccessful();
     }
 
@@ -79,8 +136,13 @@ class AdminServerBackupTest extends TestCase
             ->get(route('admin.server.backups'))
             ->assertOk()
             ->assertSee('database:backup')
-            ->assertSee('backup:remote')
             ->assertSee('backup.database.keep')
+            ->assertSee('files:backup')
+            ->assertSee('files:backup --full')
+            ->assertSee('files:backup --incremental --window=24h')
+            ->assertSee('backup.files.full.keep')
+            ->assertSee('backup.files.incremental.keep')
+            ->assertSee('Full Backup Now')
             ->assertSee('fa-rotate-left', false)
             ->assertSee('Bulk File Download');
     }

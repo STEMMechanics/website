@@ -10,6 +10,7 @@ use App\Models\Payment;
 use App\Models\SentEmail;
 use App\Models\SquareIgnoredPayment;
 use App\Models\SquareWebhookEvent;
+use App\Services\FileBackupService;
 use App\Services\DatabaseBackupService;
 use App\Services\SquareWebhookSyncService;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -32,7 +33,8 @@ class ServerController extends Controller
     private const ORPHAN_SCAN_REPORT_FILE = 'server/orphaned-files-report.json';
 
     public function __construct(
-        private readonly DatabaseBackupService $databaseBackupService
+        private readonly DatabaseBackupService $databaseBackupService,
+        private readonly FileBackupService $fileBackupService
     ) {}
 
     public function admin_index(): View
@@ -59,6 +61,27 @@ class ServerController extends Controller
     public function admin_backups(): View
     {
         return view('admin.server.backups', $this->backupViewData(request()));
+    }
+
+    public function admin_file_backup_now(Request $request): RedirectResponse
+    {
+        try {
+            $summary = $this->fileBackupService->createFullBackup();
+        } catch (\Throwable $e) {
+            session()->flash('file_backup_notice', [
+                'type' => 'danger',
+                'text' => 'Backup failed: '.$e->getMessage(),
+            ]);
+
+            return redirect()->route('admin.server.backups');
+        }
+
+        session()->flash('file_backup_notice', [
+            'type' => 'success',
+            'text' => 'File snapshot created: '.(string) ($summary['run_path'] ?? 'unknown'),
+        ]);
+
+        return redirect()->route('admin.server.backups');
     }
 
     public function admin_database_export(Request $request)
@@ -1662,6 +1685,8 @@ class ServerController extends Controller
     {
         return [
             'databaseBackupKeepCount' => $this->databaseBackupService->resolvedKeepCount(),
+            'fileBackupFullKeepCount' => $this->fileBackupService->resolvedKeepCount(FileBackupService::MODE_FULL),
+            'fileBackupIncrementalKeepCount' => $this->fileBackupService->resolvedKeepCount(FileBackupService::MODE_INCREMENTAL),
             'databaseBackups' => $this->paginateBackups($request),
             'mediaStats' => $this->directoryStats('media', '/'),
             'financeStats' => $this->directoryStats('local', 'finance'),

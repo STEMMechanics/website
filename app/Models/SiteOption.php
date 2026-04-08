@@ -25,6 +25,21 @@ class SiteOption extends Model
                 'description' => 'Number of database backup files to retain when database:backup runs without an explicit --keep value.',
                 'input_type' => 'number',
             ],
+            'backup.files.full.keep' => [
+                'value' => '12',
+                'description' => 'Number of full file backup runs to retain when files:backup --full runs without an explicit --keep value.',
+                'input_type' => 'number',
+            ],
+            'backup.files.incremental.keep' => [
+                'value' => '35',
+                'description' => 'Number of incremental file backup runs to retain when files:backup --incremental runs without an explicit --keep value.',
+                'input_type' => 'number',
+            ],
+            'backup.files.keep' => [
+                'value' => '35',
+                'description' => 'Legacy fallback retention used if the full or incremental file backup keep counts are not set.',
+                'input_type' => 'number',
+            ],
             'backup.remote.disk' => [
                 'value' => '',
                 'description' => 'Laravel filesystem disk used for offsite backups, for example an SFTP or S3 disk configured in config/filesystems.php.',
