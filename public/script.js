@@ -517,6 +517,67 @@ let SM = {
         }
     },
 
+    initTicketCancelModal: (reasonDefault = 'The following ticket has been cancelled.') => {
+        if (!window.Alpine?.store) {
+            return;
+        }
+
+        const store = Alpine.store('ticketCancelModal');
+        if (!store) {
+            return;
+        }
+
+        const normalizedReason = String(reasonDefault || '').trim() || 'The following ticket has been cancelled.';
+        store.reasonDefault = normalizedReason;
+        store.reason = normalizedReason;
+        store.emailCustomer = true;
+        store.showSquareRefund = false;
+        store.processSquareRefund = false;
+        store.open = false;
+    },
+
+    openTicketCancelModal: (action, label, message, submitLabel = 'Cancel Ticket', showSquareRefund = false, processSquareRefund = false) => {
+        if (!window.Alpine?.store) {
+            return;
+        }
+
+        const store = Alpine.store('ticketCancelModal');
+        if (!store) {
+            return;
+        }
+
+        store.formAction = action;
+        store.ticketLabel = label;
+        store.confirmationMessage = message;
+        store.submitLabel = submitLabel;
+        store.showSquareRefund = Boolean(showSquareRefund);
+        store.processSquareRefund = Boolean(processSquareRefund);
+        store.emailCustomer = true;
+        store.reason = store.reasonDefault || 'The following ticket has been cancelled.';
+        store.open = true;
+    },
+
+    closeTicketCancelModal: () => {
+        if (!window.Alpine?.store) {
+            return;
+        }
+
+        const store = Alpine.store('ticketCancelModal');
+        if (!store) {
+            return;
+        }
+
+        store.open = false;
+        store.formAction = '';
+        store.ticketLabel = '';
+        store.confirmationMessage = '';
+        store.submitLabel = 'Cancel Ticket';
+        store.processSquareRefund = false;
+        store.showSquareRefund = false;
+        store.emailCustomer = true;
+        store.reason = store.reasonDefault || 'The following ticket has been cancelled.';
+    },
+
     confirmDelete: (token, title, content, urlOrForm, confirmButtonText = 'Delete', cancelButtonText = 'Cancel') => {
         Swal.fire({
             position: 'top',
@@ -1579,6 +1640,21 @@ let SM = {
 };
 
 window.SM = SM;
+
+document.addEventListener('alpine:init', () => {
+    Alpine.store('ticketCancelModal', {
+        open: false,
+        formAction: '',
+        ticketLabel: '',
+        confirmationMessage: '',
+        submitLabel: 'Cancel Ticket',
+        processSquareRefund: false,
+        showSquareRefund: false,
+        emailCustomer: true,
+        reasonDefault: 'The following ticket has been cancelled.',
+        reason: 'The following ticket has been cancelled.',
+    });
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     SM.updateShippingAddress();
