@@ -630,6 +630,8 @@
                                     </div>
                                 @endif
                             </div>
+                        @else
+                            <div class="text-sm text-gray-500">No transaction details available.</div>
                         @endif
                     </div>
 

@@ -241,6 +241,30 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertSeeText('Workshop "Newtons Cradle" ticket purchase');
     }
 
+    public function test_payment_edit_page_shows_empty_state_when_transaction_details_are_unavailable(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Sam',
+            'surname' => 'Parker',
+            'email' => 'sam.parker@example.com',
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
+            'total_amount' => 55.00,
+            'gst_amount' => 0.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.edit', $payment));
+
+        $response->assertOk();
+        $response->assertSee('Transaction Details', false);
+        $response->assertSee('No transaction details available.', false);
+    }
+
     public function test_pending_bank_transfer_remains_unpaid_until_it_is_cleared_and_can_email_receipt_on_update(): void
     {
         $admin = $this->createAdminUser();
