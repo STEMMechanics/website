@@ -154,6 +154,47 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertSee('Paid in full', false);
     }
 
+    public function test_payment_index_links_allocated_invoice_numbers_to_invoice_edit_pages(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Link',
+            'surname' => 'Tester',
+            'email' => 'link.tester@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-500001',
+            'user_id' => $customer->id,
+            'billing_name' => 'Link Tester',
+            'billing_email' => 'link.tester@example.com',
+            'status' => Invoice::STATUS_ISSUED,
+            'total_amount' => 100.00,
+            'subtotal_amount' => 90.91,
+            'gst_amount' => 9.09,
+        ]);
+
+        $payment = Payment::factory()->create([
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'payment_method' => Payment::PAYMENT_METHOD_CASH,
+            'total_amount' => 100.00,
+            'gst_amount' => 0.00,
+        ]);
+
+        InvoicePaymentAllocation::factory()->create([
+            'payment_id' => $payment->id,
+            'invoice_id' => $invoice->id,
+            'allocated_amount' => 100.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.payment.index'));
+
+        $response->assertOk();
+        $response->assertSee(route('admin.invoice.edit', $invoice), false);
+        $response->assertSee('Invoice #INV-500001', false);
+    }
+
     public function test_payment_edit_page_shows_bank_transfer_clearance_and_receipt_controls(): void
     {
         $admin = $this->createAdminUser();

@@ -53,10 +53,10 @@
                 $statusClass = $customerPayment->isRefund()
                     ? 'border-slate-200 bg-slate-50 text-slate-700'
                     : $customerPayment->clearanceStatusClass();
-                $allocatedInvoiceNumbers = $customerPayment->allocations
+                $allocatedInvoices = $customerPayment->allocations
                 ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
-                ->map(fn ($allocation) => (string) $allocation->invoice->invoice_number)
-                ->unique()
+                ->map(fn ($allocation) => $allocation->invoice)
+                ->unique('id')
                 ->values();
                 $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
                 $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
@@ -76,7 +76,18 @@
                             Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
-                            {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
+                            @if($allocatedInvoices->isNotEmpty())
+                                @foreach($allocatedInvoices as $index => $invoice)
+                                    @if($index > 0)
+                                        <span>, </span>
+                                    @endif
+                                    <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
+                                        Invoice #{{ $invoice->invoice_number }}
+                                    </a>
+                                @endforeach
+                            @else
+                                -
+                            @endif
                         </div>
                     </td>
                     <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
@@ -89,7 +100,18 @@
                     <td class="hidden lg:table-cell">
                         {{ money((float) $allocated) }}
                         <div class="text-xs text-gray-600">
-                            {{ $allocatedInvoiceNumbers->isNotEmpty() ? 'Invoice #'.$allocatedInvoiceNumbers->implode(', Invoice #') : '-' }}
+                            @if($allocatedInvoices->isNotEmpty())
+                                @foreach($allocatedInvoices as $index => $invoice)
+                                    @if($index > 0)
+                                        <span>, </span>
+                                    @endif
+                                    <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
+                                        Invoice #{{ $invoice->invoice_number }}
+                                    </a>
+                                @endforeach
+                            @else
+                                -
+                            @endif
                         </div>
                     </td>
                     <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
