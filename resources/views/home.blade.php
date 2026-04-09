@@ -4,12 +4,46 @@
     description="Hands-on STEM workshops in Cairns and across Queensland, including coding, robotics, creative tech, and community programs."
     :canonical="route('index')"
 >
-    <section id="banner" class="bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.7),rgba(0,0,0,.2)),url({{asset('home-hero.webp')}})">
-        <x-container class="py-32 relative">
-            <h2 class="text-3xl text-white font-bold mb-4">Join the fun!</h2>
-            <p class="text-white max-w-2xl mb-3">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
-            <p class="text-white max-w-2xl">Our fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills and tools they need to solve any problem that comes their way.</p>
-            <p class="absolute bottom-3 right-5 bg-black bg-opacity-75 text-white text-xs px-3 py-1 rounded">Steady Hand Game in Ravenshoe</p>
+    <style>
+        @keyframes home-hero-blob {
+            0%, 100% {
+                border-radius: 40% 60% 28% 72% / 66% 30% 70% 34%;
+            }
+            33% {
+                border-radius: 55% 45% 36% 64% / 48% 38% 62% 52%;
+            }
+            66% {
+                border-radius: 34% 66% 42% 58% / 58% 44% 56% 42%;
+            }
+        }
+
+        .home-hero-blob-bg {
+            animation: home-hero-blob 18s ease-in-out infinite;
+            will-change: border-radius;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .home-hero-blob-bg {
+                animation: none;
+            }
+        }
+    </style>
+    <section id="banner" class="relative isolate overflow-hidden bg-center bg-no-repeat bg-cover" style="background-image:linear-gradient(to right, rgba(0,0,0,.72),rgba(0,0,0,.18)),url({{asset('home-hero.webp')}})">
+        <x-container class="py-24 sm:py-28 lg:py-32 relative">
+            <div class="absolute right-4 bottom-4 rounded-full bg-black/65 px-3 py-1 text-xs text-white shadow-lg">Steady Hand Game in Ravenshoe</div>
+            <div class="relative max-w-4xl">
+                <div class="absolute -left-4 top-4 -z-10 h-72 w-[20rem] rounded-[52%_48%_58%_42%/43%_55%_45%_57%] bg-amber-300/16 blur-3xl sm:-left-10 sm:h-120 sm:w-120"></div>
+                <div class="relative inline-block w-full max-w-3xl min-h-88 sm:min-h-96 lg:min-h-104">
+                    <div class="absolute -top-10 -left-20 -bottom-15 md:bottom-0 right-0 rounded-[40%_60%_28%_72%/66%_30%_70%_34%] bg-[#00a6f4bf] shadow-2xl ring-1 ring-black/10 home-hero-blob-bg"></div>
+
+                    <div class="relative px-7 py-8 sm:px-10 sm:py-10">
+                        <p class="mb-3 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-white ring-1 ring-white/20">Join the fun</p>
+                        <h2 class="max-w-2xl text-3xl font-bold text-white sm:text-4xl">Workshops that feel playful, practical, and a little unexpected.</h2>
+                        <p class="mt-4 max-w-2xl text-white/90">To keep up with our ever-changing world, it's important to encourage and support a new generation of curious minds who love science, engineering, art, and leadership.</p>
+                        <p class="mt-3 max-w-2xl text-white/90">Our fun and exciting workshops can unlock countless opportunities for new ideas and improvements, giving kids the skills they need to solve any problem that comes their way.</p>
+                    </div>
+                </div>
+            </div>
         </x-container>
     </section>
     <section id="events" class="bg-gray-50">

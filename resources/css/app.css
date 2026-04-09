@@ -53,6 +53,148 @@ input[type=number] {
     @apply block text-sm font-medium;
 }
 
+/* Wavy marker-style strike for wrapped words or phrases. */
+.sm-marker-strike-wrap {
+    line-height: 0.92;
+    vertical-align: baseline;
+}
+
+.sm-marker-strike__top {
+    font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", "Apple Chancery", cursive;
+    font-size: 1.1em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #DE3333;
+    white-space: nowrap;
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    transform: translateX(-50%) rotate(-4deg) translateY(0.0em);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12);
+    pointer-events: none;
+}
+
+.sm-marker-strike {
+    position: relative;
+    display: inline-block;
+    isolation: isolate;
+    padding: 0 0.05em;
+}
+
+.sm-marker-strike::before {
+    content: attr(data-text);
+    position: relative;
+    z-index: 1;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    white-space: pre;
+}
+
+.sm-marker-strike::after {
+    content: '';
+    position: absolute;
+    left: -0.08em;
+    right: -0.08em;
+    top: 50%;
+    height: 0.42em;
+    transform: translateY(-50%) rotate(-1deg);
+    border-radius: 9999px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 24' preserveAspectRatio='none'%3E%3Cpath d='M0 12 C10 7 14 17 24 12 S38 7 48 12 S62 17 72 12 S86 7 96 12' fill='none' stroke='rgb(220 38 38 / 0.94)' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 2.4em 100%;
+    background-repeat: repeat-x;
+    background-position: center;
+    box-shadow: 0 0 0.2em rgba(239, 68, 68, 0.12);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    z-index: 2;
+}
+
+.sm-marker-strike--thick::after {
+    top: 49%;
+    height: 0.5em;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 24' preserveAspectRatio='none'%3E%3Cpath d='M0 12 C10 6 14 18 24 12 S38 6 48 12 S62 18 72 12 S86 6 96 12' fill='none' stroke='rgb(220 38 38 / 0.96)' stroke-width='8.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 2.2em 100%;
+    box-shadow: 0 0 0.22em rgba(239, 68, 68, 0.14);
+}
+
+/* Teacher-style insert marker with handwritten notes and an arrow. */
+.sm-insert-here {
+    color: #DE3333;
+    line-height: 0.95;
+    position: relative;
+}
+
+.sm-insert-here__note {
+    font-family: "Bradley Hand", "Segoe Print", "Comic Sans MS", "Apple Chancery", cursive;
+    font-size: 1em;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%) rotate(-5deg) translateY(-65%);
+    top: 0;
+    text-shadow: 0 1px 0 rgba(0,0,0, 0.2);
+}
+
+.sm-insert-here__arrow {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    border-left: 0.125em solid #DE3333;
+    border-top: 0.125em solid #DE3333;
+    border-radius: 30%;
+    width: 0.4em;
+    height: 40%;
+    transform: translateX(0%) rotate(45deg) translateY(110%);
+}
+
+/* Yellow highlighter stroke with a slightly irregular hand-drawn feel. */
+.sm-highlighter {
+    position: relative;
+    display: inline-block;
+    isolation: isolate;
+    padding: 0 0.12em;
+    line-height: inherit;
+    white-space: nowrap;
+    z-index: 0;
+}
+
+.sm-highlighter::before,
+.sm-highlighter::after {
+    content: '';
+    position: absolute;
+    left: -0.08em;
+    right: -0.08em;
+    pointer-events: none;
+    border-radius: 9999px;
+    mix-blend-mode: multiply;
+}
+
+.sm-highlighter::before {
+    top: 50%;
+    height: 1.34em;
+    transform: translateY(-50%) rotate(-0.45deg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 34' preserveAspectRatio='none'%3E%3Cpath d='M2 17 C35 14 55 19 90 17 S145 14 178 16' fill='none' stroke='rgb(253 224 71 / 0.7)' stroke-width='24' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 0.22em rgba(250, 204, 21, 0.2);
+    z-index: -2;
+}
+
+.sm-highlighter::after {
+    top: 50%;
+    height: 1.18em;
+    transform: translateY(-50%) rotate(0.2deg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 30' preserveAspectRatio='none'%3E%3Cpath d='M2 15 C36 13 55 17 90 15 S144 13 178 14' fill='none' stroke='rgb(253 224 71 / 0.98)' stroke-width='18' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 0.2em rgba(250, 204, 21, 0.16);
+    z-index: -1;
+}
+
+
 html, body {
     @apply bg-gray-100;
     min-height: 100vh;
