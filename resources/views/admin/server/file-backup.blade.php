@@ -872,9 +872,7 @@
                     return;
                 }
 
-                if (window.confirm(message)) {
-                    submitWithAction(backupRestoreAction);
-                }
+                submitWithAction(backupRestoreAction);
             });
         }
 
