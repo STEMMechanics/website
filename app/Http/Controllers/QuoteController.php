@@ -19,6 +19,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 use Throwable;
 
@@ -424,6 +425,43 @@ class QuoteController extends Controller
         return redirect()->route('admin.invoice.edit', $invoice);
     }
 
+    public function duplicate(Quote $quote): RedirectResponse
+    {
+        $duplicate = DB::transaction(function () use ($quote): Quote {
+            $sourceLineItems = is_array($quote->line_items) ? array_values($quote->line_items) : [];
+            $sourceContextPayload = $this->duplicateQuoteContextPayload($quote->context_payload);
+            $privateFinanceFileIds = $quote->privateFinanceFiles()->pluck('finance_files.id')->all();
+            $privateMediaNames = $quote->files('private')->pluck('name')->filter()->values()->all();
+
+            /** @var Quote $duplicate */
+            $duplicate = $quote->replicate(['quote_number', 'status']);
+            $duplicate->quote_number = $this->documentNumbers->nextQuoteNumber();
+            $duplicate->status = Quote::STATUS_DRAFT;
+            $duplicate->context_payload = $sourceContextPayload;
+            $duplicate->line_items = $sourceLineItems;
+            $duplicate->subtotal_amount = $this->calculateSubtotal($sourceLineItems);
+            $duplicate->gst_amount = $this->calculateGst($sourceLineItems);
+            $duplicate->total_amount = round((float) $duplicate->subtotal_amount + (float) $duplicate->gst_amount, 2);
+            $duplicate->save();
+
+            if ($privateFinanceFileIds !== []) {
+                $duplicate->syncPrivateFinanceFiles($privateFinanceFileIds);
+            }
+
+            if ($privateMediaNames !== []) {
+                $duplicate->updateFiles($privateMediaNames, 'private');
+            }
+
+            return $duplicate->fresh();
+        });
+
+        session()->flash('message', 'Quote duplicated as a draft copy');
+        session()->flash('message-title', 'Quote duplicated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('admin.quote.edit', $duplicate);
+    }
+
     private function validateRequest(Request $request, ?Quote $quote = null): array
     {
         return $request->validate([
@@ -452,6 +490,18 @@ class QuoteController extends Controller
         $validated['private_notes'] = trim((string) $request->input('private_notes', '')) ?: null;
 
         return $validated;
+    }
+
+    /**
+     * @param  mixed  $contextPayload
+     * @return array<string, mixed>
+     */
+    private function duplicateQuoteContextPayload(mixed $contextPayload): array
+    {
+        $payload = is_array($contextPayload) ? $contextPayload : [];
+        unset($payload['response']);
+
+        return $payload;
     }
 
     /**

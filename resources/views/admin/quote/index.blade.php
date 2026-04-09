@@ -42,6 +42,12 @@
                             <td>
                                 <div class="flex justify-center gap-3 whitespace-nowrap">
                                     <a href="{{ route('admin.quote.edit', $quote) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                    <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
+                                        @csrf
+                                        <button type="submit" class="hover:text-primary-color" title="Duplicate Quote">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </button>
+                                    </form>
                                     <a href="{{ route('admin.quote.pdf', $quote) }}" class="hover:text-primary-color" target="_blank" title="Open PDF"><i class="fa-regular fa-file-pdf"></i></a>
                                     <form method="POST" action="{{ route('admin.quote.email', $quote) }}">
                                         @csrf

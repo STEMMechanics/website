@@ -90,6 +90,10 @@
                         </div>
                     </div>
                 </form>
+                <form method="POST" action="{{ route('admin.quote.duplicate', $quote) }}">
+                    @csrf
+                    <x-ui.button type="submit" color="outline">Duplicate Quote</x-ui.button>
+                </form>
                 <form method="POST" action="{{ route('admin.quote.create-invoice', $quote) }}">
                     @csrf
                     <x-ui.button type="submit">{{ isset($quote) && $quote->hasStoreProductLines() ? 'Create Order & Invoice' : 'Create Invoice From Quote' }}</x-ui.button>

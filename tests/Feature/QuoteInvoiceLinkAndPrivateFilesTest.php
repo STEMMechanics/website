@@ -212,6 +212,89 @@ class QuoteInvoiceLinkAndPrivateFilesTest extends TestCase
         $response->assertSessionHasNoErrors();
     }
 
+    public function test_admin_can_duplicate_quote_as_a_new_draft_copy(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $quote = Quote::factory()->create([
+            'user_id' => $owner->id,
+            'status' => Quote::STATUS_ACCEPTED,
+            'quote_date' => now()->toDateString(),
+            'title' => 'Original Quote',
+            'description' => 'Original description',
+            'notes' => 'Original notes',
+            'private_notes' => 'Internal copy notes',
+            'line_items' => [
+                [
+                    'description' => 'Service',
+                    'notes' => 'Includes setup',
+                    'quantity' => 2,
+                    'unit_price' => 75,
+                    'line_total' => 150,
+                    'gst_applicable' => true,
+                ],
+            ],
+            'subtotal_amount' => 150,
+            'gst_amount' => 15,
+            'total_amount' => 165,
+            'context_payload' => [
+                'customer' => [
+                    'billing_name' => 'Original Customer',
+                    'billing_email' => 'customer@example.com',
+                ],
+                'acceptance' => [
+                    'creates_order' => true,
+                    'emails_invoice' => false,
+                ],
+                'response' => [
+                    'accepted_at' => now()->subDay()->toDateTimeString(),
+                ],
+            ],
+        ]);
+        /** @var Quote $quote */
+        $media = Media::query()->create([
+            'name' => 'quote-duplicate-private.txt',
+            'title' => 'Quote Duplicate File',
+            'hash' => str_repeat('d', 64),
+            'mime_type' => 'text/plain',
+            'size' => 24,
+            'user_id' => $owner->id,
+        ]);
+        $quote->updateFiles($media->name, 'private');
+
+        $response = $this->actingAs($admin)->post(route('admin.quote.duplicate', $quote));
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $freshQuote = Quote::query()->latest('id')->first();
+        $this->assertInstanceOf(Quote::class, $freshQuote);
+        $this->assertNotSame((int) $quote->id, (int) $freshQuote->id);
+        $this->assertNotSame((string) $quote->quote_number, (string) $freshQuote->quote_number);
+        $this->assertSame(Quote::STATUS_DRAFT, (string) $freshQuote->status);
+        $this->assertSame((string) $quote->user_id, (string) $freshQuote->user_id);
+        $this->assertSame((string) $quote->title, (string) $freshQuote->title);
+        $this->assertSame((string) $quote->description, (string) $freshQuote->description);
+        $this->assertSame((string) $quote->notes, (string) $freshQuote->notes);
+        $this->assertSame((string) $quote->private_notes, (string) $freshQuote->private_notes);
+        $this->assertSame($quote->line_items, $freshQuote->line_items);
+        $this->assertSame((float) $quote->subtotal_amount, (float) $freshQuote->subtotal_amount);
+        $this->assertSame((float) $quote->gst_amount, (float) $freshQuote->gst_amount);
+        $this->assertSame((float) $quote->total_amount, (float) $freshQuote->total_amount);
+        $this->assertSame('Original Customer', data_get($freshQuote->context_payload, 'customer.billing_name'));
+        $this->assertSame(true, data_get($freshQuote->context_payload, 'acceptance.creates_order'));
+        $this->assertNull(data_get($freshQuote->context_payload, 'response'));
+        $this->assertNull($freshQuote->accepted_at);
+        $this->assertNull($freshQuote->cancelled_at);
+        $this->assertDatabaseHas('mediables', [
+            'media_name' => $media->name,
+            'mediable_id' => (string) $freshQuote->id,
+            'mediable_type' => Quote::class,
+            'collection' => 'private',
+        ]);
+        $response->assertRedirect(route('admin.quote.edit', $freshQuote));
+    }
+
     public function test_quote_update_with_save_and_email_reopens_email_dialog_for_open_quotes(): void
     {
         $admin = $this->createAdminUser();
