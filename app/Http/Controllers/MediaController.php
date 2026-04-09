@@ -8,6 +8,7 @@ use App\Helpers;
 use App\Jobs\Media\GenerateVariants;
 use App\Models\Media;
 use App\Models\User;
+use App\Services\MediaUsageService;
 use Illuminate\Bus\Batch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -55,6 +56,7 @@ class MediaController extends Controller
         return view('admin.media.index', [
             'media' => $media,
             'filteredOwner' => $filteredOwner,
+            'unusedOnly' => $request->boolean('unused_only'),
             'missingVariantRegeneration' => $this->missingVariantRegenerationPayload(),
         ]);
 
@@ -100,6 +102,13 @@ class MediaController extends Controller
             $filterUserId = trim((string) $request->query('user_id', ''));
             if ($filterUserId !== '') {
                 $query->where('user_id', $filterUserId);
+            }
+        }
+
+        if ($isAdmin && $request->boolean('unused_only')) {
+            $usedMediaNames = app(MediaUsageService::class)->usedMediaNames();
+            if ($usedMediaNames !== []) {
+                $query->whereNotIn('name', $usedMediaNames);
             }
         }
 

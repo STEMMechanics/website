@@ -19,6 +19,7 @@
 - Improved invoice cancellations
 - Bug fixes
 - Improved file snapshots
+- Ability to locate unused media
 
 ## 1.4.3
 

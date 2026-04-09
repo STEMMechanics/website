@@ -2,16 +2,32 @@
     <x-mast>Media</x-mast>
 
     <x-container>
+        @php
+            $mediaQuery = request()->except(['page', 'unused_only']);
+            $unusedMediaRoute = route('admin.media.index', array_merge($mediaQuery, ['unused_only' => 1]));
+            $allMediaRoute = route('admin.media.index', $mediaQuery);
+        @endphp
         @if(isset($filteredOwner) && $filteredOwner)
             <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
                 Showing media for <strong>{{ $filteredOwner->username ?: $filteredOwner->email ?: $filteredOwner->getName() }}</strong>.
                 <a href="{{ route('admin.media.index') }}" class="ml-2 text-primary-color hover:underline">Clear filter</a>
             </div>
         @endif
+        @if($unusedOnly)
+            <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Showing media with no detected site references.
+                <a href="{{ $allMediaRoute }}" class="ml-2 text-primary-color hover:underline">Show all media</a>
+            </div>
+        @endif
         <x-ui.toolbar>
             <x-slot:left>
                 <x-ui.button href="{{ route('admin.media.create') }}">Create</x-ui.button>
                 <x-ui.button type="button" color="outline" class="ml-2" id="regenerate-missing-variants-button" x-data x-on:click.prevent="confirmRegenerateMissingVariants()">Regenerate Missing Variants</x-ui.button>
+                @if($unusedOnly)
+                    <x-ui.button href="{{ $allMediaRoute }}" color="outline" class="ml-2">Show All</x-ui.button>
+                @else
+                    <x-ui.button href="{{ $unusedMediaRoute }}" color="outline" class="ml-2">Unused Only</x-ui.button>
+                @endif
             </x-slot:left>
             <x-slot:right>
                 <x-ui.search name="search" label="Search" />
