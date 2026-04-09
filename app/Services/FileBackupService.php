@@ -68,6 +68,7 @@ class FileBackupService
         $sourceSummaries = [];
 
         foreach ($currentManifest['sources'] as $sourceKey => $sourceManifest) {
+            /** @var array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}> $sourceFiles */
             $sourceFiles = $selectedFiles[$sourceKey]['files'] ?? [];
             $deletedPaths = $deletedPathsBySource[$sourceKey] ?? [];
             $sourceSummaries[$sourceKey] = [
@@ -336,7 +337,7 @@ class FileBackupService
 
     /**
      * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>}>} $currentManifest
-     * @return array<string, array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>>
+     * @return array<string, array{files: array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>}>
      */
     private function selectAllFiles(array $currentManifest): array
     {
@@ -353,7 +354,7 @@ class FileBackupService
 
     /**
      * @param array{sources: array<string, array{files: array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>}>} $currentManifest
-     * @return array<string, array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>>
+     * @return array<string, array{files: array<string, array{size: int, last_modified: int, source_disk: string, source_path: string}>}>
      */
     private function selectRecentFiles(array $currentManifest, int $windowHours): array
     {
@@ -437,38 +438,6 @@ class FileBackupService
         if (! Storage::disk('local')->put($path, $encoded)) {
             throw new RuntimeException('Could not write file backup metadata: '.$path);
         }
-    }
-
-    private function parseWindowHours(int|string|null $window = null): int
-    {
-        if ($window === null || trim((string) $window) === '') {
-            return self::DEFAULT_INCREMENTAL_WINDOW_HOURS;
-        }
-
-        $value = strtolower(trim((string) $window));
-        $value = preg_replace('/\s+/', ' ', $value) ?? $value;
-
-        if (in_array($value, ['a week', '1 week', 'week', 'weekly'], true)) {
-            return 168;
-        }
-
-        if (in_array($value, ['a day', '1 day', 'day', 'daily'], true)) {
-            return 24;
-        }
-
-        if (preg_match('/^(\d+)\s*(h|hr|hrs|hour|hours)?$/', $value, $matches)) {
-            return max(1, (int) $matches[1]);
-        }
-
-        if (preg_match('/^(\d+)\s*(d|day|days)$/', $value, $matches)) {
-            return max(1, (int) $matches[1]) * 24;
-        }
-
-        if (preg_match('/^(\d+)\s*(w|week|weeks)$/', $value, $matches)) {
-            return max(1, (int) $matches[1]) * 168;
-        }
-
-        throw new RuntimeException('Incremental file backup window must be an hour, day, or week value such as 24h, 3d, or 1w.');
     }
 
     private function normalizeMode(string $mode): string
