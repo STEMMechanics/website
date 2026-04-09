@@ -49,7 +49,22 @@ class InvoiceController extends Controller
 
         $status = trim((string) $request->query('status', ''));
         if ($status !== '' && in_array($status, Invoice::STATUSES, true)) {
-            $query->where('status', $status);
+            if ($status === Invoice::STATUS_OVERDUE) {
+                $query->where(function ($builder): void {
+                    $builder->where('status', Invoice::STATUS_OVERDUE)
+                        ->orWhere(function ($overdueQuery): void {
+                            $overdueQuery->where('total_amount', '>', 0)
+                                ->whereDate('due_date', '<', today())
+                                ->whereIn('status', [
+                                    Invoice::STATUS_ISSUED,
+                                    Invoice::STATUS_SENT,
+                                    Invoice::STATUS_OVERDUE,
+                                ]);
+                        });
+                });
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         if ($request->filled('search')) {

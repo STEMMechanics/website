@@ -126,6 +126,16 @@ class AdminInvoiceIndexTest extends TestCase
             'subtotal_amount' => 109.09,
             'gst_amount' => 10.91,
         ]);
+        Invoice::factory()->create([
+            'invoice_number' => 'INV-COMPUTED-OVERDUE-1003',
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->subDays(21)->toDateString(),
+            'due_date' => now()->subDays(1)->toDateString(),
+            'total_amount' => 95.00,
+            'subtotal_amount' => 86.36,
+            'gst_amount' => 8.64,
+        ]);
 
         $response = $this->actingAs($admin)->get(route('admin.invoice.index', [
             'status' => Invoice::STATUS_OVERDUE,
@@ -133,6 +143,7 @@ class AdminInvoiceIndexTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeText('INV-OVERDUE-1002');
+        $response->assertSeeText('INV-COMPUTED-OVERDUE-1003');
         $response->assertDontSeeText('INV-DRAFT-1001');
     }
 
