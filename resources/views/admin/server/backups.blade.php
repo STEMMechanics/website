@@ -40,7 +40,7 @@
                 <p class="text-sm text-gray-600">No backup files found yet.</p>
             @else
                 <div class="overflow-auto border border-gray-200 rounded-lg">
-                    <table class="w-full text-sm">
+                    <table class="sm-backup-table w-full text-sm">
                         <thead class="bg-gray-50">
                         <tr>
                             <th class="text-left px-3 py-2">File</th>
@@ -52,10 +52,10 @@
                         <tbody>
                         @foreach($databaseBackups as $backup)
                             <tr class="border-t border-gray-100">
-                                <td class="px-3 py-2 font-mono text-xs break-all">{{ $backup['filename'] }}</td>
-                                <td class="px-3 py-2">{{ $backup['modified_at'] }}</td>
-                                <td class="px-3 py-2">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
-                                <td class="px-3 py-2">
+                                <td class="px-3 py-2 font-mono text-xs break-all" data-label="File">{{ $backup['filename'] }}</td>
+                                <td class="px-3 py-2" data-label="Modified">{{ $backup['modified_at'] }}</td>
+                                <td class="px-3 py-2" data-label="Size">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
+                                <td class="px-3 py-2" data-label="Action">
                                     <div class="flex flex-wrap items-center gap-3">
                                         <form method="POST" action="{{ route('admin.server.database.restore', ['filename' => $backup['filename']]) }}" data-sm-confirm="Rollback the live database to this backup? This will overwrite current data. Make sure you have a current backup first." data-sm-confirm-button="Rollback Database">
                                             @csrf
@@ -110,7 +110,7 @@
                 <p class="text-sm text-gray-600">No file backups found yet.</p>
             @else
                 <div class="overflow-auto border border-gray-200 rounded-lg">
-                    <table class="w-full text-sm">
+                    <table class="sm-backup-table w-full text-sm">
                         <thead class="bg-gray-50">
                         <tr>
                             <th class="text-left px-3 py-2">Run</th>
@@ -125,12 +125,12 @@
                         <tbody>
                         @foreach($fileBackups as $backup)
                             <tr class="border-t border-gray-100">
-                                <td class="px-3 py-2 font-mono text-xs break-all">
+                                <td class="px-3 py-2 font-mono text-xs break-all" data-label="Run">
                                     <a class="text-primary-color hover:underline" href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}">
                                         {{ $backup['filename'] }}
                                     </a>
                                 </td>
-                                <td class="px-3 py-2 text-center">
+                                <td class="px-3 py-2 text-center" data-label="Mode">
                                     <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ (string) $backup['mode'] === \App\Services\FileBackupService::MODE_INCREMENTAL ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-sky-200 bg-sky-50 text-sky-800' }}">
                                         {{ ucfirst((string) $backup['mode']) }}
                                     </span>
@@ -138,13 +138,13 @@
                                         <div class="mt-1 text-xs text-gray-500">{{ number_format((int) $backup['window_hours']) }}h window</div>
                                     @endif
                                 </td>
-                                <td class="px-3 py-2">
+                                <td class="px-3 py-2" data-label="Created">
                                     {{ trim((string) ($backup['created_at'] ?? $backup['modified_at'] ?? '')) !== '' ? \Carbon\Carbon::parse((string) ($backup['created_at'] ?? $backup['modified_at']))->format('Y-m-d H:i:s') : '-' }}
                                 </td>
-                                <td class="px-3 py-2 text-center">{{ number_format((int) $backup['uploaded_files']) }}</td>
-                                <td class="px-3 py-2 text-center">{{ number_format((int) $backup['deleted_files']) }}</td>
-                                <td class="px-3 py-2">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
-                                <td class="px-3 py-2">
+                                <td class="px-3 py-2 text-center" data-label="Files">{{ number_format((int) $backup['uploaded_files']) }}</td>
+                                <td class="px-3 py-2 text-center" data-label="Deleted">{{ number_format((int) $backup['deleted_files']) }}</td>
+                                <td class="px-3 py-2" data-label="Size">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
+                                <td class="px-3 py-2" data-label="Action">
                                     <a href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="View files">
                                         <i class="fa-solid fa-folder-open"></i>
                                     </a>

@@ -82,7 +82,7 @@
             </div>
 
             <div class="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                <table class="w-full table-fixed text-sm">
+                <table class="sm-backup-table w-full table-fixed text-sm">
                     <thead class="bg-gray-50">
                     <tr>
                         <th class="w-10 px-3 py-2"></th>
@@ -132,7 +132,7 @@
                             data-file-backup-row-search="{{ $searchText }}"
                             data-file-backup-group-id="{{ (string) ($entry['group_id'] ?? '') }}"
                         >
-                            <td class="px-3 py-2 align-top">
+                            <td class="px-3 py-2 align-top" data-label="Select">
                                 <input
                                     type="checkbox"
                                     value="{{ $entryKey }}"
@@ -147,21 +147,21 @@
                                     data-file-backup-modified="{{ (int) ($entry['last_modified'] ?? 0) }}"
                                 >
                             </td>
-                            <td class="px-3 py-2 align-top">
+                            <td class="px-3 py-2 align-top" data-label="Name">
                                 <div class="flex min-w-0 items-start gap-2">
                                     <i class="fa-solid {{ $entryType === 'folder' ? 'fa-folder text-amber-600' : ($isMediaGroup ? 'fa-photo-film text-slate-500' : 'fa-file text-slate-500') }} mt-0.5"></i>
                                     <div class="min-w-0">
                                         @if($entryType === 'folder')
-                                            <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="block max-w-full truncate font-medium text-primary-color hover:underline" title="{{ $entry['path'] }}">
+                                            <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="block max-w-full whitespace-normal break-words font-medium text-primary-color hover:underline md:truncate" title="{{ $entry['path'] }}">
                                                 {{ $entry['name'] }}
                                             </a>
-                                            <div class="mt-1 max-w-full truncate text-xs text-gray-500" title="{{ $entry['path'] }}">
+                                            <div class="mt-1 max-w-full whitespace-normal break-words text-xs text-gray-500 md:truncate" title="{{ $entry['path'] }}">
                                                 {{ $entry['path'] }}
                                             </div>
                                         @else
                                             <button
                                                 type="button"
-                                                class="block max-w-full truncate font-medium text-left text-primary-color hover:underline"
+                                                class="block max-w-full whitespace-normal break-words font-medium text-left text-primary-color hover:underline md:truncate"
                                                 data-file-backup-toggle
                                                 data-file-backup-toggle-key="{{ $entryKey }}"
                                                 title="{{ $entryKey }}"
@@ -169,14 +169,14 @@
                                                 {{ $entry['name'] }}
                                             </button>
                                             @if($isMediaGroup)
-                                                <div class="mt-1 max-w-full truncate text-xs font-medium {{ $stateTone === 'danger' ? 'text-rose-700' : ($stateTone === 'warning' ? 'text-amber-700' : 'text-gray-500') }}" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs font-medium {{ $stateTone === 'danger' ? 'text-rose-700' : ($stateTone === 'warning' ? 'text-amber-700' : 'text-gray-500') }} md:truncate" title="{{ $entryKey }}">
                                                     {{ $stateLabel !== '' ? $stateLabel : '' }}
                                                 </div>
-                                                <div class="mt-1 max-w-full truncate text-xs text-gray-500" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs text-gray-500 md:truncate" title="{{ $entryKey }}">
                                                     {{ $entry['group_summary'] ?? '' }}
                                                 </div>
                                             @elseif(is_array($entry['current_state'] ?? null) && ($entry['current_state']['state'] ?? '') !== 'same')
-                                                <div class="mt-1 max-w-full truncate text-xs font-medium {{ ($entry['current_state']['tone'] ?? '') === 'danger' ? 'text-rose-700' : 'text-amber-700' }}" title="{{ $entryKey }}">
+                                                <div class="mt-1 max-w-full whitespace-normal break-words text-xs font-medium {{ ($entry['current_state']['tone'] ?? '') === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $entryKey }}">
                                                     {{ (string) ($entry['current_state']['label'] ?? '') }}
                                                 </div>
                                             @endif
@@ -184,17 +184,17 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-3 py-2 text-right whitespace-nowrap">
+                            <td class="px-3 py-2 text-right whitespace-nowrap" data-label="Size">
                                 {{ \App\Helpers::bytesToString((int) ($entry['size'] ?? 0)) }}
                             </td>
-                            <td class="px-3 py-2 whitespace-nowrap">
+                            <td class="px-3 py-2 whitespace-nowrap" data-label="Modified">
                                 @if(($entry['last_modified'] ?? 0) > 0)
                                     {{ \Carbon\Carbon::createFromTimestamp((int) $entry['last_modified'])->format('Y-m-d H:i:s') }}
                                 @else
                                     -
                                 @endif
                             </td>
-                            <td class="px-3 py-2 text-center">
+                            <td class="px-3 py-2 text-center" data-label="Action">
                                 <div class="flex items-center justify-center gap-3">
                                     @if($entryType === 'folder')
                                         <a href="{{ route('admin.server.files.show', ['mode' => $backupMode, 'filename' => $backup['filename'], 'path' => $entry['path']]) }}" class="hover:text-primary-color" title="Open folder">
@@ -250,9 +250,9 @@
                                                         >
                                                         <span class="mt-0.5 text-slate-500"><i class="fa-solid fa-file"></i></span>
                                                         <span class="min-w-0">
-                                                            <span class="block max-w-full truncate font-medium text-gray-900" title="{{ $childKey }}">{{ $child['name'] }}</span>
+                                                            <span class="block max-w-full whitespace-normal break-words font-medium text-gray-900 md:truncate" title="{{ $childKey }}">{{ $child['name'] }}</span>
                                                             @if($childState !== 'same' && $childStateLabel !== '')
-                                                                <span class="mt-1 block max-w-full truncate text-xs font-medium {{ $childStateTone === 'danger' ? 'text-rose-700' : 'text-amber-700' }}" title="{{ $childKey }}">
+                                                                <span class="mt-1 block max-w-full whitespace-normal break-words text-xs font-medium {{ $childStateTone === 'danger' ? 'text-rose-700' : 'text-amber-700' }} md:truncate" title="{{ $childKey }}">
                                                                     {{ $childStateLabel }}
                                                                 </span>
                                                             @endif
@@ -288,15 +288,15 @@
             </div>
 
             @if(collect($deletedEntries ?? [])->isNotEmpty())
-                <div class="mt-6">
-                    <h3 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Deleted in this incremental run</h3>
-                    <div class="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                        <table class="w-full text-sm">
+            <div class="mt-6">
+                <h3 class="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">Deleted in this incremental run</h3>
+                <div class="overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <table class="sm-backup-table w-full text-sm">
                             <tbody>
                             @foreach($deletedEntries as $entry)
                                 <tr class="border-t border-gray-100">
-                                    <td class="px-3 py-2 font-mono text-xs break-all">{{ $entry['path'] }}</td>
-                                    <td class="px-3 py-2 text-right">
+                                    <td class="px-3 py-2 font-mono text-xs break-all" data-label="Path">{{ $entry['path'] }}</td>
+                                    <td class="px-3 py-2 text-right" data-label="State">
                                         <span class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">Deleted</span>
                                     </td>
                                 </tr>

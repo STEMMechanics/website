@@ -1353,6 +1353,102 @@ table tr.highlight-row {
         font-size: 0.8125rem;
         line-height: 1.2rem;
     }
+
+    .sm-backup-table thead {
+        display: none;
+    }
+
+    .sm-backup-table,
+    .sm-backup-table tbody,
+    .sm-backup-table tr {
+        display: block;
+        width: 100%;
+    }
+
+    .sm-backup-table tr {
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+        border: 1px solid rgb(229 231 235);
+        border-radius: 0.875rem;
+        background: rgb(255 255 255);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .sm-backup-table td {
+        display: grid;
+        grid-template-columns: minmax(5.5rem, 7rem) minmax(0, 1fr);
+        align-items: start;
+        gap: 0.75rem;
+        width: 100%;
+        border: 0;
+        border-top: 1px solid rgb(229 231 235);
+        padding: 0.75rem 0.875rem;
+        background: transparent;
+    }
+
+    .sm-backup-table tr td:first-child {
+        border-top: 0;
+    }
+
+    .sm-backup-table td::before {
+        content: attr(data-label);
+        font-size: 0.625rem;
+        line-height: 1rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgb(107 114 128);
+        white-space: nowrap;
+    }
+
+    .sm-backup-table td[data-label=""]::before,
+    .sm-backup-table td:not([data-label])::before {
+        content: none;
+    }
+
+    .sm-backup-table td[data-label="Action"] {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+    }
+
+    .sm-backup-table td[data-label="Action"]::before {
+        flex-shrink: 0;
+    }
+
+    .sm-backup-table td[data-label="Select"] {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .sm-backup-table td[data-label="Select"]::before {
+        flex-shrink: 0;
+    }
+
+    .sm-backup-table td[data-label="Select"] input[type="checkbox"] {
+        margin-top: 0.125rem;
+    }
+
+    .sm-backup-table td .truncate,
+    .sm-backup-table td .md\:truncate {
+        overflow: visible;
+        text-overflow: clip;
+        white-space: normal;
+    }
+
+    .sm-backup-table td .font-mono {
+        word-break: break-word;
+    }
+
+    .sm-backup-table td[colspan] {
+        display: block;
+        padding: 0.875rem;
+    }
+
+    .sm-backup-table td[colspan]::before {
+        content: none;
+    }
 }
 
 .sm-media-picker-container {
