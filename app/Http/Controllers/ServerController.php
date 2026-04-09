@@ -84,6 +84,94 @@ class ServerController extends Controller
         return redirect()->route('admin.server.backups');
     }
 
+    public function admin_file_backup_show(Request $request, string $mode, string $filename): View
+    {
+        $pathPrefix = trim((string) $request->query('path', ''), '/');
+
+        return view('admin.server.file-backup', $this->fileBackupViewData($mode, $filename, $pathPrefix));
+    }
+
+    public function admin_file_backup_restore(Request $request, string $mode, string $filename): RedirectResponse
+    {
+        $validated = $request->validate([
+            'selected_items' => ['required', 'array', 'min:1'],
+            'selected_items.*' => ['required', 'string'],
+            'path' => ['nullable', 'string'],
+        ]);
+
+        try {
+            $summary = $this->fileBackupService->restoreBackupItems(
+                $mode,
+                $filename,
+                (array) $validated['selected_items']
+            );
+        } catch (\Throwable $e) {
+            session()->flash('message', 'File restore failed: '.$e->getMessage());
+            session()->flash('message-title', 'Restore failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.files.show', [
+                'mode' => $mode,
+                'filename' => $filename,
+            ] + ($request->filled('path') ? ['path' => $request->input('path')] : []));
+        }
+
+        session()->flash('message', 'Restored '.number_format((int) $summary['restored_files']).' file(s).');
+        session()->flash('message-title', 'Restore complete');
+        session()->flash('message-type', 'warning');
+
+        return redirect()->route('admin.server.files.show', [
+            'mode' => $mode,
+            'filename' => $filename,
+        ] + ($request->filled('path') ? ['path' => $request->input('path')] : []));
+    }
+
+    public function admin_file_backup_download_selected(Request $request, string $mode, string $filename): SymfonyResponse
+    {
+        $validated = $request->validate([
+            'selected_items' => ['required', 'array', 'min:1'],
+            'selected_items.*' => ['required', 'string'],
+            'path' => ['nullable', 'string'],
+        ]);
+
+        try {
+            $summary = $this->fileBackupService->downloadBackupItems(
+                $mode,
+                $filename,
+                (array) $validated['selected_items']
+            );
+        } catch (\Throwable $e) {
+            session()->flash('message', 'File download failed: '.$e->getMessage());
+            session()->flash('message-title', 'Download failed');
+            session()->flash('message-type', 'danger');
+
+            return redirect()->route('admin.server.files.show', [
+                'mode' => $mode,
+                'filename' => $filename,
+            ] + ($request->filled('path') ? ['path' => $request->input('path')] : []));
+        }
+
+        return response()->download($summary['zip_path'], $summary['zip_name'])
+            ->deleteFileAfterSend(true);
+    }
+
+    public function admin_file_backup_download(Request $request, string $mode, string $filename): SymfonyResponse
+    {
+        $pathPrefix = trim((string) $request->query('path', ''), '/');
+        if ($pathPrefix === '') {
+            abort(404);
+        }
+
+        $safeFilename = basename($filename);
+        $filePath = trim($this->fileBackupService->backupPath($mode, $safeFilename), '/').'/files/'.$pathPrefix;
+        $absolutePath = Storage::disk('local')->path($filePath);
+        if (! is_file($absolutePath)) {
+            abort(404);
+        }
+
+        return response()->download($absolutePath, basename($pathPrefix));
+    }
+
     public function admin_database_export(Request $request)
     {
         try {
@@ -1688,8 +1776,23 @@ class ServerController extends Controller
             'fileBackupFullKeepCount' => $this->fileBackupService->resolvedKeepCount(FileBackupService::MODE_FULL),
             'fileBackupIncrementalKeepCount' => $this->fileBackupService->resolvedKeepCount(FileBackupService::MODE_INCREMENTAL),
             'databaseBackups' => $this->paginateBackups($request),
+            'fileBackups' => collect($this->fileBackupService->listBackups()),
             'mediaStats' => $this->directoryStats('media', '/'),
             'financeStats' => $this->directoryStats('local', 'finance'),
+        ];
+    }
+
+    private function fileBackupViewData(string $mode, string $filename, string $pathPrefix = ''): array
+    {
+        $inspection = $this->fileBackupService->inspectBackupRun($mode, $filename, $pathPrefix);
+
+        return [
+            'backup' => $inspection['backup'],
+            'runPath' => $inspection['run_path'],
+            'pathPrefix' => $inspection['path_prefix'],
+            'entries' => $inspection['entries'],
+            'deletedEntries' => $inspection['deleted_entries'],
+            'breadcrumbs' => $inspection['breadcrumbs'],
         ];
     }
 

@@ -385,6 +385,10 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/server/deploy/log', [ServerController::class, 'admin_deploy_log'])->name('admin.server.deploy.log');
     Route::post('/admin/server/database/backup-now', [ServerController::class, 'admin_database_backup_now'])->name('admin.server.database.backup-now');
     Route::post('/admin/server/files/backup-now', [ServerController::class, 'admin_file_backup_now'])->name('admin.server.files.backup-now');
+    Route::get('/admin/server/file-backups/{mode}/{filename}', [ServerController::class, 'admin_file_backup_show'])->name('admin.server.files.show');
+    Route::post('/admin/server/file-backups/{mode}/{filename}/restore', [ServerController::class, 'admin_file_backup_restore'])->name('admin.server.files.restore');
+    Route::post('/admin/server/file-backups/{mode}/{filename}/download', [ServerController::class, 'admin_file_backup_download_selected'])->name('admin.server.files.download-selected');
+    Route::get('/admin/server/file-backups/{mode}/{filename}/download', [ServerController::class, 'admin_file_backup_download'])->name('admin.server.files.download');
     Route::post('/admin/server/database/export', [ServerController::class, 'admin_database_export'])->name('admin.server.database.export');
     Route::post('/admin/server/database/import', [ServerController::class, 'admin_database_import'])->name('admin.server.database.import');
     Route::post('/admin/server/database/restore/{filename}', [ServerController::class, 'admin_database_restore'])->name('admin.server.database.restore');

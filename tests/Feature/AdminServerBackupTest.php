@@ -128,6 +128,39 @@ class AdminServerBackupTest extends TestCase
                         'filename' => 'website_20260321_140000.sql.gz',
                         'size' => 2048,
                         'modified_at' => '2026-03-21 14:00:00',
+                ],
+            ]);
+        });
+
+        $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('resolvedKeepCount')
+                ->once()
+                ->with('full')
+                ->andReturn(12);
+            $mock->shouldReceive('resolvedKeepCount')
+                ->once()
+                ->with('incremental')
+                ->andReturn(35);
+            $mock->shouldReceive('listBackups')
+                ->once()
+                ->andReturn([
+                    [
+                        'filename' => '20260409_011500_full',
+                        'mode' => 'full',
+                        'created_at' => '2026-04-09T01:15:00+10:00',
+                        'uploaded_files' => 12,
+                        'deleted_files' => 0,
+                        'size' => 2048,
+                        'window_hours' => null,
+                    ],
+                    [
+                        'filename' => '20260408_011500_incremental_24h',
+                        'mode' => 'incremental',
+                        'created_at' => '2026-04-08T01:15:00+10:00',
+                        'uploaded_files' => 3,
+                        'deleted_files' => 1,
+                        'size' => 512,
+                        'window_hours' => 24,
                     ],
                 ]);
         });
@@ -143,8 +176,126 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('backup.files.full.keep')
             ->assertSee('backup.files.incremental.keep')
             ->assertSee('Full Backup Now')
+            ->assertSee('20260409_011500_full')
+            ->assertSee('20260408_011500_incremental_24h')
+            ->assertSee('Incremental')
             ->assertSee('fa-rotate-left', false)
             ->assertSee('Bulk File Download');
+    }
+
+    public function test_admin_can_view_and_restore_from_a_file_backup_run(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $this->mock(FileBackupService::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('inspectBackupRun')
+                ->once()
+                ->with('full', '20260409_011500_full', 'media')
+                ->andReturn([
+                    'backup' => [
+                        'filename' => '20260409_011500_full',
+                        'mode' => 'full',
+                        'created_at' => '2026-04-09T01:15:00+10:00',
+                        'uploaded_files' => 2,
+                        'deleted_files' => 0,
+                        'size' => 2048,
+                    ],
+                    'run_path' => 'backups/files/full/20260409_011500_full',
+                    'path_prefix' => 'media',
+                    'breadcrumbs' => [
+                        ['label' => 'media', 'path' => 'media'],
+                    ],
+                    'entries' => [
+                        [
+                            'type' => 'file',
+                            'path' => 'media/banner.png',
+                            'name' => 'banner.png',
+                            'source_label' => 'Media files',
+                            'size' => 1024,
+                            'last_modified' => now()->timestamp,
+                            'status' => 'snapshot',
+                            'current_state' => [
+                                'state' => 'same',
+                                'label' => 'Matches current site',
+                                'tone' => 'neutral',
+                            ],
+                        ],
+                    ],
+                    'deleted_entries' => [],
+                ]);
+
+            $mock->shouldReceive('restoreBackupItems')
+                ->once()
+                ->with('full', '20260409_011500_full', ['media/banner.png'])
+                ->andReturn([
+                    'restored_files' => 1,
+                    'restored_paths' => ['media/banner.png'],
+                    'skipped_paths' => [],
+                ]);
+        });
+
+        $this->actingAs($admin)
+            ->get(route('admin.server.files.show', [
+                'mode' => 'full',
+                'filename' => '20260409_011500_full',
+                'path' => 'media',
+            ]))
+            ->assertOk()
+            ->assertSee('Restore Selected')
+            ->assertSee('banner.png')
+            ->assertSee('Clear all');
+
+        $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('admin.server.files.restore', [
+                'mode' => 'full',
+                'filename' => '20260409_011500_full',
+                'path' => 'media',
+            ]), [
+                'selected_items' => ['media/banner.png'],
+                'path' => 'media',
+            ], ['X-CSRF-TOKEN' => 'test-token'])
+            ->assertRedirect(route('admin.server.files.show', [
+                'mode' => 'full',
+                'filename' => '20260409_011500_full',
+                'path' => 'media',
+            ]))
+            ->assertSessionHas('message', 'Restored 1 file(s).')
+            ->assertSessionHas('message-title', 'Restore complete')
+            ->assertSessionHas('message-type', 'warning');
+    }
+
+    public function test_admin_can_download_selected_items_from_a_file_backup_run(): void
+    {
+        $admin = $this->createAdminUser();
+        $zipPath = tempnam(sys_get_temp_dir(), 'file-backup-test-');
+        $this->assertIsString($zipPath);
+        file_put_contents($zipPath, 'fake zip data');
+
+        $this->mock(FileBackupService::class, function (MockInterface $mock) use ($zipPath): void {
+            $mock->shouldReceive('downloadBackupItems')
+                ->once()
+                ->with('full', '20260409_011500_full', ['media/banner.png'])
+                ->andReturn([
+                    'zip_path' => $zipPath,
+                    'zip_name' => 'file-backup-20260409_011500_full.zip',
+                    'included_files' => 1,
+                    'skipped_paths' => [],
+                ]);
+        });
+
+        $response = $this->actingAs($admin)
+            ->withSession(['_token' => 'test-token'])
+            ->post(route('admin.server.files.download-selected', [
+                'mode' => 'full',
+                'filename' => '20260409_011500_full',
+            ]), [
+                'selected_items' => ['media/banner.png'],
+                'path' => 'media',
+            ], ['X-CSRF-TOKEN' => 'test-token']);
+
+        $response->assertOk();
+        $response->assertDownload('file-backup-20260409_011500_full.zip');
     }
 
     public function test_admin_can_restore_database_from_a_saved_backup_file(): void

@@ -105,6 +105,56 @@
             @endif
 
             <p class="text-xs text-gray-600 mb-3">Monthly full backups are scheduled via <code>files:backup --full</code> and nightly incrementals via <code>files:backup --incremental --window=24h</code>. When <code>--keep</code> is omitted, retention uses <code>backup.files.full.keep</code> (currently {{ number_format((int) $fileBackupFullKeepCount) }} runs) and <code>backup.files.incremental.keep</code> (currently {{ number_format((int) $fileBackupIncrementalKeepCount) }} runs). File backups are written to <code>/storage/backups/files</code> for offsite sync and restore.</p>
+
+            @if($fileBackups->isEmpty())
+                <p class="text-sm text-gray-600">No file backups found yet.</p>
+            @else
+                <div class="overflow-auto border border-gray-200 rounded-lg">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left px-3 py-2">Run</th>
+                            <th class="text-center px-3 py-2">Mode</th>
+                            <th class="text-left px-3 py-2">Created</th>
+                            <th class="text-center px-3 py-2">Files</th>
+                            <th class="text-center px-3 py-2">Deleted</th>
+                            <th class="text-left px-3 py-2">Size</th>
+                            <th class="text-left px-3 py-2">Action</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        @foreach($fileBackups as $backup)
+                            <tr class="border-t border-gray-100">
+                                <td class="px-3 py-2 font-mono text-xs break-all">
+                                    <a class="text-primary-color hover:underline" href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}">
+                                        {{ $backup['filename'] }}
+                                    </a>
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ (string) $backup['mode'] === \App\Services\FileBackupService::MODE_INCREMENTAL ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-sky-200 bg-sky-50 text-sky-800' }}">
+                                        {{ ucfirst((string) $backup['mode']) }}
+                                    </span>
+                                    @if(! empty($backup['window_hours']))
+                                        <div class="mt-1 text-xs text-gray-500">{{ number_format((int) $backup['window_hours']) }}h window</div>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2">
+                                    {{ trim((string) ($backup['created_at'] ?? $backup['modified_at'] ?? '')) !== '' ? \Carbon\Carbon::parse((string) ($backup['created_at'] ?? $backup['modified_at']))->format('Y-m-d H:i:s') : '-' }}
+                                </td>
+                                <td class="px-3 py-2 text-center">{{ number_format((int) $backup['uploaded_files']) }}</td>
+                                <td class="px-3 py-2 text-center">{{ number_format((int) $backup['deleted_files']) }}</td>
+                                <td class="px-3 py-2">{{ \App\Helpers::bytesToString((int) $backup['size']) }}</td>
+                                <td class="px-3 py-2">
+                                    <a href="{{ route('admin.server.files.show', ['mode' => $backup['mode'], 'filename' => $backup['filename']]) }}" class="hover:text-primary-color" title="View files">
+                                        <i class="fa-solid fa-folder-open"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
         </div>
 
         <div class="my-4 bg-white border border-gray-200 rounded-lg shadow-sm p-4">
