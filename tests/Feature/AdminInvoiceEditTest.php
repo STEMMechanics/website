@@ -230,6 +230,17 @@ class AdminInvoiceEditTest extends TestCase
         $this->assertSame(Invoice::STATUS_ISSUED, (string) $invoice->fresh()->status);
     }
 
+    public function test_admin_invoice_create_renders_without_an_existing_invoice(): void
+    {
+        $admin = $this->createAdminUser();
+
+        $this->actingAs($admin)
+            ->get(route('admin.invoice.create'))
+            ->assertOk()
+            ->assertSeeText('Create Invoice')
+            ->assertSeeText('Invoice Number');
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

@@ -103,6 +103,7 @@ class InvoiceController extends Controller
     public function create()
     {
         return view('admin.invoice.edit', [
+            'invoice' => null,
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'nextInvoiceNumber' => $this->documentNumbers->previewInvoiceNumber(),
