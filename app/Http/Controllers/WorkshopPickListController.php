@@ -26,7 +26,7 @@ class WorkshopPickListController extends Controller
         $resolvedItems = $this->resolvedPickListItems($workshop);
         $pickListNotes = trim((string) ($workshop->pick_list_notes ?? ''));
         if ($pickListNotes === '') {
-            $pickListNotes = trim((string) ($workshop->pickListTemplate?->description ?? ''));
+            $pickListNotes = trim((string) ($workshop->pickListTemplate->description ?? ''));
         }
         $resolvedItemIds = $resolvedItems->pluck('id')
             ->map(fn ($id) => (int) $id)
