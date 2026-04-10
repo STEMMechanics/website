@@ -90,9 +90,7 @@
 >
     <x-mast>{{ $workshop->title }}</x-mast>
     <x-container>
-        <div class="mb-8 w-screen -mx-4">
-            <x-ui.image-hero :image="$workshop->hero?->url" />
-        </div>
+        <x-ui.image-hero :image="$workshop->hero?->url" />
         <div class="flex sm:gap-16 gap-4 flex-col sm:flex-row">
             <div class="flex flex-col flex-1">
                 <h1 class="text-3xl font-bold mb-6">{!! $workshop->title !!}</h1>
