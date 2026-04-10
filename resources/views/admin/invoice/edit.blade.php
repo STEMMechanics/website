@@ -20,10 +20,10 @@
         ];
     })->values();
     $userLookupMap = $userLookupOptions->mapWithKeys(fn ($item) => [$item['label'] => $item['id']])->all();
-    $selectedUserId = (string) old('user_id', $invoice->user_id ?? '');
+    $selectedUserId = (string) old('user_id', isset($invoice) ? ($invoice->user_id ?? '') : '');
     $selectedUser = $userLookupOptions->first(fn ($item) => $item['id'] === $selectedUserId);
     $selectedUserLabel = is_array($selectedUser) ? ($selectedUser['label'] ?? '') : '';
-    $selectedQuoteId = (string) old('quote_id', $invoice->quote_id ?? '');
+    $selectedQuoteId = (string) old('quote_id', isset($invoice) ? ($invoice->quote_id ?? '') : '');
     if ($savedLineItems === null) {
         $savedLineItems = json_encode($lineItemsSeed ?? []);
     }
@@ -320,7 +320,7 @@
             action="{{ route('admin.invoice.' . (isset($invoice) ? 'update' : 'store'), $invoice ?? []) }}"
             x-data="{
                 isLocked: @js($isLocked),
-                invoiceStatus: @js((string) old('status', $invoice->status ?? \App\Models\Invoice::STATUS_DRAFT)),
+                invoiceStatus: @js((string) old('status', isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)),
                 issueNow: @js((bool) old('issue_now', false)),
                 canSaveAndEmail() {
                     return this.invoiceStatus !== @js(\App\Models\Invoice::STATUS_DRAFT) || this.issueNow;
@@ -619,7 +619,7 @@
                     <x-ui.input
                         label="Invoice Number"
                         name="invoice_number"
-                        value="{{ old('invoice_number', $invoice->invoice_number ?? ($nextInvoiceNumber ?? '')) }}"
+                        value="{{ old('invoice_number', isset($invoice) ? ($invoice->invoice_number ?? '') : ($nextInvoiceNumber ?? '')) }}"
                         :disabled="$isLocked"
                     />
                 </div>
@@ -627,7 +627,7 @@
             </div>
 
             <div class="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
-                <div><strong>Status:</strong> {{ \App\Models\Invoice::statusLabel((string) ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT)) }}</div>
+                <div><strong>Status:</strong> {{ \App\Models\Invoice::statusLabel((string) (isset($invoice) ? ($invoice->status ?? \App\Models\Invoice::STATUS_DRAFT) : \App\Models\Invoice::STATUS_DRAFT)) }}</div>
                 @if(! $isLocked)
                     <div class="mt-2">
                         <x-ui.checkbox
@@ -643,8 +643,8 @@
                 @endif
             </div>
 
-            <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', $invoice->purchase_order_number ?? '') }}" />
-            @if(($invoice->storeOrders ?? collect())->isNotEmpty())
+            <x-ui.input label="Purchase Order Number" name="purchase_order_number" value="{{ old('purchase_order_number', isset($invoice) ? ($invoice->purchase_order_number ?? '') : '') }}" />
+            @if(isset($invoice) && ($invoice->storeOrders ?? collect())->isNotEmpty())
                 <div class="mb-4 rounded-lg border border-gray-300 p-4">
                     <div class="flex items-center justify-between">
                         <label class="block text-sm pl-1">Linked Orders</label>
@@ -833,7 +833,7 @@
                         label="Subtotal (Ex GST, Auto)"
                         name="subtotal_amount_display"
                         x-bind:value="subtotalAmountFormatted()"
-                        value="{{ old('subtotal_amount_display', $invoice->subtotal_amount ?? '0.00') }}"
+                        value="{{ old('subtotal_amount_display', isset($invoice) ? ($invoice->subtotal_amount ?? '0.00') : '0.00') }}"
                         readonly="true"
                     />
                 </div>
@@ -843,7 +843,7 @@
                         label="GST Amount (Auto)"
                         name="gst_amount_display"
                         x-bind:value="gstAmountFormatted()"
-                        value="{{ old('gst_amount_display', $invoice->gst_amount ?? '0.00') }}"
+                        value="{{ old('gst_amount_display', isset($invoice) ? ($invoice->gst_amount ?? '0.00') : '0.00') }}"
                         readonly="true"
                     />
                 </div>
@@ -856,7 +856,7 @@
                         label="Total Amount (Auto, incl GST)"
                         name="total_amount_display"
                         x-bind:value="totalAmountFormatted()"
-                        value="{{ old('total_amount_display', $invoice->total_amount ?? '0.00') }}"
+                        value="{{ old('total_amount_display', isset($invoice) ? ($invoice->total_amount ?? '0.00') : '0.00') }}"
                         readonly="true"
                     />
                 </div>
@@ -865,7 +865,7 @@
 
             </fieldset>
 
-            <x-ui.input type="textarea" label="Private Notes" name="notes" value="{{ old('notes', $invoice->notes ?? '') }}" />
+            <x-ui.input type="textarea" label="Private Notes" name="notes" value="{{ old('notes', isset($invoice) ? ($invoice->notes ?? '') : '') }}" />
             <x-admin.finance-file-manager
                 label="Private Files"
                 info="Admin-only files attached to this invoice."
@@ -877,10 +877,11 @@
                 :files="$privateFinanceFiles"
             />
 
+            @isset($invoice)
             <div class="flex justify-end mt-8 gap-4">
                 @php
-                    $isDraftInvoice = (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
-                    $cancelBlockReason = $isDraftInvoice ? null : $invoice->cancellationBlockedReason();
+                    $isDraftInvoice = isset($invoice) && (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
+                    $cancelBlockReason = isset($invoice) && ! $isDraftInvoice ? $invoice->cancellationBlockedReason() : null;
                     $canCancelInvoice = $cancelBlockReason === null;
                     $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
                     $invoiceConfirmMessage = $isDraftInvoice
@@ -926,6 +927,7 @@
                 @endif
                 <x-ui.button type="submit">Save</x-ui.button>
             </div>
+            @endisset
 
         </form>
     </x-container>
