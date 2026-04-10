@@ -31,7 +31,7 @@
     $fileClearId = 'file-clear-'.$fileUiUid;
     $maxUploadSize = \App\Helpers::bytesToString(\App\Helpers::getMaxUploadSize());
     $maxUploadBytes = (int) \App\Helpers::getMaxUploadSize();
-    $placeholderText = $placeholder !== '' ? $placeholder : 'Drop a file here or click to browse';
+    $placeholderText = $placeholder !== '' ? $placeholder : 'Drop a file here, paste a document, or click to browse';
 @endphp
 
 @if(!$noWrapper)
@@ -41,7 +41,10 @@
         <label for="{{ $inputId }}" class="block text-sm pl-1">{{ $label }}</label>
     @endif
 
-    <div class="{{ twMerge(['relative mt-1'], $fieldClasses, ($noWrapper ? $attributes->get('class') : '')) }}">
+    <div
+        class="{{ twMerge(['relative mt-1'], $fieldClasses, ($noWrapper ? $attributes->get('class') : '')) }}"
+        data-sm-file-upload
+    >
         <input
             type="file"
             name="{{ $name }}"
@@ -89,6 +92,55 @@
     </div>
 
     <script>
+        window.SMFileUploadPaste = window.SMFileUploadPaste || {
+            listenerAttached: false,
+        };
+
+        if (!window.SMFileUploadPaste.listenerAttached) {
+            window.SMFileUploadPaste.listenerAttached = true;
+
+            // File clipboard pastes should go to the first uploader on the page.
+            document.addEventListener('paste', (event) => {
+                const clipboardFiles = event.clipboardData && event.clipboardData.files
+                    ? Array.from(event.clipboardData.files)
+                    : [];
+
+                if (clipboardFiles.length === 0) {
+                    return;
+                }
+
+                const target = document.querySelector('[data-sm-file-upload]');
+                if (!target) {
+                    return;
+                }
+
+                const input = target.querySelector('input[type="file"]');
+                if (!input || input.disabled || input.readOnly) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+
+                if (input.files && input.files.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return;
+                }
+
+                const file = clipboardFiles[0];
+                if (!file) {
+                    return;
+                }
+
+                const transfer = new DataTransfer();
+                transfer.items.add(file);
+                input.files = transfer.files;
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                event.preventDefault();
+                event.stopPropagation();
+            }, true);
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById(@js($inputId));
             const dropzone = document.getElementById(@js($dropzoneId));

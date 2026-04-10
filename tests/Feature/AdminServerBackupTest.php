@@ -176,6 +176,8 @@ class AdminServerBackupTest extends TestCase
             ->assertSee('backup.files.full.keep')
             ->assertSee('backup.files.incremental.keep')
             ->assertSee('Full Backup Now')
+            ->assertSee('data-sm-file-upload', false)
+            ->assertSeeText('paste a document')
             ->assertSee('20260409_011500_full')
             ->assertSee('20260408_011500_incremental_24h')
             ->assertSee('Incremental')
