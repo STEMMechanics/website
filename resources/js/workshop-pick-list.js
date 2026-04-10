@@ -780,6 +780,7 @@ const registerWorkshopPickListPage = () => {
         itemSuggestions: Array.isArray(config.itemSuggestions) ? config.itemSuggestions : [],
         isCustomized: Boolean(config.isCustomized),
         itemsEditMode: false,
+        customItemsDirty: false,
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         participantsInput: String(config.participantsInput ?? ''),
@@ -845,6 +846,9 @@ const registerWorkshopPickListPage = () => {
                 ? items.map((item) => this.normalizeItem(item)).filter((item) => item !== null)
                 : [];
         },
+        isBlankCustomItem(item) {
+            return String(item?.item_name ?? '').trim() === '';
+        },
         normalizeItem(item) {
             if (!item || typeof item !== 'object') {
                 return null;
@@ -882,7 +886,35 @@ const registerWorkshopPickListPage = () => {
             return this.isCustomized ? this.customItems : this.templateItems;
         },
         customItemsEnabled() {
-            return this.itemsEditMode || this.isCustomized;
+            return this.isCustomized || this.customItemsDirty;
+        },
+        hasTrailingBlankCustomItem() {
+            if (this.customItems.length === 0) {
+                return false;
+            }
+
+            const lastItem = this.customItems[this.customItems.length - 1];
+            return this.isBlankCustomItem(lastItem);
+        },
+        ensureTrailingBlankCustomItem() {
+            const nonBlankItems = this.customItems.filter((item) => !this.isBlankCustomItem(item));
+            this.customItems = [...nonBlankItems, this.newCustomItem()];
+            this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+        },
+        handleCustomItemChange(index) {
+            this.customItemsDirty = true;
+            const lastIndex = this.customItems.length - 1;
+
+            if (index !== lastIndex || this.isBlankCustomItem(this.customItems[lastIndex])) {
+                this.scheduleAutosave();
+                return;
+            }
+
+            if (!this.hasTrailingBlankCustomItem()) {
+                this.customItems.push(this.newCustomItem());
+            }
+
+            this.scheduleAutosave();
         },
         newCustomItem() {
             const id = this.nextCustomItemId++;
@@ -897,11 +929,12 @@ const registerWorkshopPickListPage = () => {
         startItemEditing() {
             if (!this.itemsEditMode) {
                 this.customItems = this.cloneItems(this.isCustomized ? this.customItems : this.templateItems);
+                this.ensureTrailingBlankCustomItem();
                 if (this.customItems.length === 0) {
                     this.customItems = [this.newCustomItem()];
                 }
-                this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
                 this.itemsEditMode = true;
+                this.customItemsDirty = false;
             }
         },
         stopItemEditing() {
@@ -909,6 +942,7 @@ const registerWorkshopPickListPage = () => {
             if (!this.isCustomized) {
                 this.customItems = [];
             }
+            this.customItemsDirty = false;
         },
         addCustomItem() {
             if (!this.itemsEditMode) {
@@ -916,10 +950,14 @@ const registerWorkshopPickListPage = () => {
             }
 
             this.customItems.push(this.newCustomItem());
+            this.customItemsDirty = true;
+            this.scheduleAutosave();
         },
         removeCustomItem(index) {
             this.customItems.splice(index, 1);
             this.checkedIds = this.checkedIds.filter((id) => this.customItems.some((item) => String(item.id) === String(id)));
+            this.customItemsDirty = true;
+            this.ensureTrailingBlankCustomItem();
             this.scheduleAutosave();
         },
         moveCustomItemUp(index) {
@@ -930,6 +968,7 @@ const registerWorkshopPickListPage = () => {
             const previous = this.customItems[index - 1];
             this.customItems[index - 1] = this.customItems[index];
             this.customItems[index] = previous;
+            this.customItemsDirty = true;
             this.scheduleAutosave();
         },
         moveCustomItemDown(index) {
@@ -940,6 +979,7 @@ const registerWorkshopPickListPage = () => {
             const next = this.customItems[index + 1];
             this.customItems[index + 1] = this.customItems[index];
             this.customItems[index] = next;
+            this.customItemsDirty = true;
             this.scheduleAutosave();
         },
         normalizeCustomItems() {
@@ -1084,11 +1124,14 @@ const registerWorkshopPickListPage = () => {
             this.pickListCanvasThumbnailUrl = exported.hasContent ? normalizedString(exported.thumbnailDataUrl) : '';
         },
         buildSavePayload() {
+            const normalizedCustomItems = this.normalizeCustomItems();
+            const shouldPersistCustomItems = this.isCustomized || this.customItemsDirty;
+
             return {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
                 checked_item_ids: this.checkedIds,
-                pick_list_custom_items: this.customItemsEnabled() ? this.normalizeCustomItems() : null,
+                pick_list_custom_items: shouldPersistCustomItems ? normalizedCustomItems : null,
                 pick_list_canvas_data: this.pickListCanvasDataJson || null,
                 pick_list_canvas_thumbnail_data: this.pickListCanvasThumbnailData || '',
             };
@@ -1110,13 +1153,15 @@ const registerWorkshopPickListPage = () => {
                 if (Array.isArray(data.checked_item_ids)) {
                     this.checkedIds = data.checked_item_ids.map((id) => String(id));
                 }
-                if (Array.isArray(data.pick_list_custom_items)) {
-                    this.customItems = this.cloneItems(data.pick_list_custom_items);
-                    this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
-                }
                 if (typeof data.pick_list_is_customized === 'boolean') {
                     this.isCustomized = data.pick_list_is_customized;
                 }
+                const shouldSyncCustomItems = !this.itemsEditMode || this.customItemsDirty || this.isCustomized;
+                if (shouldSyncCustomItems && Array.isArray(data.pick_list_custom_items)) {
+                    this.customItems = this.cloneItems(data.pick_list_custom_items);
+                    this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+                }
+                this.customItemsDirty = false;
                 this.pickListCanvasThumbnailUrl = normalizedString(data.pick_list_canvas_thumbnail_url);
                 this.refreshSavedRelative();
 

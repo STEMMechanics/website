@@ -24,6 +24,10 @@ class WorkshopPickListController extends Controller
 
         $participants = $this->resolvedParticipants($workshop);
         $resolvedItems = $this->resolvedPickListItems($workshop);
+        $pickListNotes = trim((string) ($workshop->pick_list_notes ?? ''));
+        if ($pickListNotes === '') {
+            $pickListNotes = trim((string) ($workshop->pickListTemplate?->description ?? ''));
+        }
         $resolvedItemIds = $resolvedItems->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)
@@ -58,6 +62,7 @@ class WorkshopPickListController extends Controller
             'itemSuggestions' => $this->itemSuggestions($resolvedItems),
             'calculatedItems' => $this->buildCalculatedItems($resolvedItems, $participants),
             'lastSavedAt' => $workshop->updated_at,
+            'pickListNotes' => $pickListNotes,
         ]);
     }
 

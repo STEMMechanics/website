@@ -74,6 +74,41 @@ class WorkshopPickListAutosaveTest extends TestCase
         $this->assertSame([$allowedItem->id], array_map('intval', $freshWorkshop->pick_list_checked_item_ids ?? []));
     }
 
+    public function test_pick_list_notes_only_save_keeps_the_template_link_and_shows_template_notes_when_blank(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+
+        $template = PickListTemplate::query()->create([
+            'name' => 'Robotics Kit',
+            'description' => 'Template notes',
+        ]);
+
+        $workshop->forceFill([
+            'pick_list_template_id' => $template->id,
+            'pick_list_notes' => null,
+        ])->save();
+
+        $viewResponse = $this->actingAs($admin)
+            ->get(route('admin.workshop.pick-list', $workshop));
+
+        $viewResponse->assertOk();
+        $this->assertSame('Template notes', (string) $viewResponse->viewData('pickListNotes'));
+
+        $saveResponse = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.pick-list.save', $workshop), [
+                'pick_list_notes' => 'Workshop-specific notes',
+            ]);
+
+        $saveResponse->assertOk();
+        $saveResponse->assertJsonPath('pick_list_is_customized', false);
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertSame($template->id, (int) $freshWorkshop->pick_list_template_id);
+        $this->assertSame('Workshop-specific notes', (string) $freshWorkshop->pick_list_notes);
+        $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
+    }
+
     public function test_pick_list_autosave_persists_editable_canvas_json_and_thumbnail_and_clears_them(): void
     {
         Storage::fake('public');

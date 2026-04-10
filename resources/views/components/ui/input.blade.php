@@ -209,7 +209,7 @@
                     {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete']) }}
                 />
                 <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
-                <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
+                <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                     <ul class="max-h-60 overflow-auto py-1">
                         <template x-for="(item, index) in filtered" :key="item + '-' + index">
                             <li
@@ -380,7 +380,7 @@
                         @disabled($disabled)
                         {{ $attributes->except(['x-model', 'autocomplete']) }}
                     />
-                    <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
+                <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
                             <template x-for="(item, index) in filtered" :key="item + '-' + index">
                                 <li
@@ -550,7 +550,7 @@
                         @disabled($disabled)
                         {{ $attributes->except(['x-model', 'autocomplete']) }}
                     />
-                    <div x-show="open" x-cloak class="absolute z-40 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
+                    <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
                             <template x-for="(item, index) in filtered" :key="item + '-' + index">
                                 <li

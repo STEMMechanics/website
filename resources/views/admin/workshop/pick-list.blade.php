@@ -41,7 +41,7 @@
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
                 participantsInput: @js((string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants)),
-                notes: @js((string) old('pick_list_notes', $workshop->pick_list_notes ?? '')),
+                notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
                 defaultParticipants: @js((int) $participants),
                 pickListCanvasDataJson: @js((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')),
                 pickListCanvasThumbnailUrl: @js((string) ($pickListCanvasThumbnailUrl ?? '')),
@@ -112,7 +112,7 @@
                     Editing this list detaches it from the template. Future template changes will not sync here.
                 </div>
 
-                <div class="mt-4 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                <div class="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white">
                     <table class="min-w-full">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                             <tr>
@@ -142,7 +142,7 @@
                                             fieldClasses="mt-0"
                                             :suggestions="$itemSuggestions ?? []"
                                             x-model="item.item_name"
-                                            x-on:input="item.item_name = $event.target.value; scheduleAutosave()"
+                                            x-on:input="item.item_name = $event.target.value; handleCustomItemChange(index)"
                                         />
                                     </td>
                                     <td class="px-3 py-3">
@@ -152,7 +152,7 @@
                                             :noLabel="true"
                                             class="mb-0"
                                             x-model="item.quantity_type"
-                                            x-on:change="item.quantity_type = $event.target.value; scheduleAutosave()">
+                                            x-on:change="item.quantity_type = $event.target.value; handleCustomItemChange(index)">
                                             <option value="per_participant">Per Participant</option>
                                             <option value="fixed">Fixed amount</option>
                                         </x-ui.select>
@@ -168,7 +168,7 @@
                                             min="1"
                                             step="1"
                                             x-model="item.quantity_value"
-                                            x-on:input="item.quantity_value = Number($event.target.value || 1); scheduleAutosave()"
+                                            x-on:input="item.quantity_value = Number($event.target.value || 1); handleCustomItemChange(index)"
                                         />
                                     </td>
                                     <td class="px-3 py-3">

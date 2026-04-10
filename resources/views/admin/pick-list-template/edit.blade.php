@@ -113,7 +113,7 @@
                 <x-ui.input type="textarea" label="Template Notes" name="description" value="{{ old('description', $template->description ?? '') }}" rows="2" class="mb-0" />
             </div>
 
-            <div class="rounded-lg border border-gray-200 p-4 mb-6">
+            <div class="rounded-lg border border-gray-200 p-4 mb-6 overflow-x-auto overflow-y-visible">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="text-lg font-semibold">Items</h2>
                 </div>
