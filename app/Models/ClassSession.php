@@ -247,6 +247,15 @@ class ClassSession extends Model
         };
     }
 
+    public function adminListStatusTone(): string
+    {
+        return match ($this->adminListStatus()) {
+            'pending' => 'warning',
+            'ended' => 'slate',
+            default => 'success',
+        };
+    }
+
     public function adminListScheduleLabel(): string
     {
         $startsAt = $this->starts_at?->format('j M Y g:i a');

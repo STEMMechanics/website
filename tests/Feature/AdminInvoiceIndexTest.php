@@ -270,7 +270,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
         $response->assertOk();
         $response->assertSeeText('Overdue');
-        $response->assertSee('border-rose-300 bg-rose-100 text-rose-900', false);
+        $response->assertSee('border-rose-200 bg-rose-50 text-rose-800', false);
 
         $this->artisan('invoices:mark-overdue')
             ->expectsOutput('Marked 1 invoice as overdue.')

@@ -36,9 +36,9 @@
                                 <div class="min-w-0">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <h3 class="text-base font-semibold text-gray-900">{{ $client->name }}</h3>
-                                        <span class="inline-flex rounded-full bg-white px-2.5 py-0.5 text-xxs font-semibold uppercase tracking-wide text-gray-700">
+                                        <x-ui.badge color="gray" size="xxs" uppercase="true">
                                             {{ (int) $connectedApp['token_count'] }} token{{ (int) $connectedApp['token_count'] === 1 ? '' : 's' }}
-                                        </span>
+                                        </x-ui.badge>
                                     </div>
 
                                     <div class="mt-2 grid gap-1 text-sm text-gray-600">
@@ -54,9 +54,9 @@
 
                                     <div class="mt-3 flex flex-wrap gap-2">
                                         @forelse($connectedApp['scopes'] as $scope)
-                                            <span class="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-700">{{ $scope }}</span>
+                                            <x-ui.badge color="gray">{{ $scope }}</x-ui.badge>
                                         @empty
-                                            <span class="inline-flex rounded-full bg-white px-3 py-1 text-xs font-semibold text-gray-500">No scopes recorded</span>
+                                            <x-ui.badge color="gray">No scopes recorded</x-ui.badge>
                                         @endforelse
                                     </div>
                                 </div>

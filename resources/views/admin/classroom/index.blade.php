@@ -26,12 +26,6 @@
                     @foreach($classSessions as $classSession)
                         @php
                             $studentCount = (int) ($classSession->student_count ?? 0);
-                            $status = $classSession->adminListStatus();
-                            $statusClasses = [
-                                'active' => 'bg-emerald-100 text-emerald-800',
-                                'pending' => 'bg-amber-100 text-amber-800',
-                                'ended' => 'bg-slate-100 text-slate-700',
-                            ][$status] ?? 'bg-gray-100 text-gray-700';
                             $deleteWarning = $studentCount > 0
                                 ? 'This course has '.$studentCount.' Enrolled student'.($studentCount === 1 ? '' : 's').'. Deleting it will remove their access immediately. Any linked forum category will not be deleted automatically, and refunds for paid students must be handled separately.'
                                 : 'Are you sure you want to delete this course? This cannot be undone.';
@@ -41,9 +35,7 @@
                                 <div class="font-semibold text-gray-900">{{ $classSession->title }}</div>
                             </td>
                             <td class="text-center">
-                                <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold uppercase tracking-wide {{ $statusClasses }}">
-                                    {{ $classSession->adminListStatusLabel() }}
-                                </span>
+                                <x-ui.badge :color="$classSession->adminListStatusTone()" size="xxs" uppercase="true">{{ $classSession->adminListStatusLabel() }}</x-ui.badge>
                             </td>
                             <td class="hidden lg:table-cell text-center">
                                 <div class="text-sm font-semibold text-gray-900">{{ $studentCount }}</div>

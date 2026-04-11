@@ -5,11 +5,11 @@
     </section>
 @else
     <div class="space-y-4 lg:hidden">
-        @foreach($messages as $message)
+                @foreach($messages as $message)
             <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm {{ (string) request('highlight') === (string) $message->id ? 'ring-2 ring-amber-300' : '' }}">
                 <div class="flex flex-wrap items-center gap-3">
-                    <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $message->message_type }}</span>
-                    <span class="text-sm font-semibold {{ $message->passed ? 'text-green-700' : 'text-amber-700' }}">{{ $message->passed ? 'Passed' : 'Blocked' }}</span>
+                    <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
+                    <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xxs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
                     <span class="text-xs text-gray-500">#{{ $message->id }}</span>
                 </div>
 
@@ -75,11 +75,11 @@
                             @endif
                         </td>
                         <td class="whitespace-nowrap">
-                            <div class="text-sm font-semibold uppercase tracking-wide text-gray-900">{{ $message->message_type }}</div>
+                            <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $message->message_type }}</x-ui.badge>
                             <div class="text-xs text-gray-500">{{ $message->server_name }}</div>
                         </td>
                         <td>
-                            <div class="font-semibold {{ $message->passed ? 'text-green-700' : 'text-amber-700' }}">{{ $message->passed ? 'Passed' : 'Blocked' }}</div>
+                            <x-ui.badge :color="$message->passed ? 'success' : 'warning'" size="xxs">{{ $message->passed ? 'Passed' : 'Blocked' }}</x-ui.badge>
                             @if(! $message->passed)
                                 <div class="mt-1 text-xs text-gray-600">{{ $message->failureSummary() }}</div>
                             @endif

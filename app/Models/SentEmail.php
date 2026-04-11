@@ -48,4 +48,15 @@ class SentEmail extends Model
             }
         });
     }
+
+    public static function statusBadgeToneFor(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_QUEUED, self::STATUS_SCHEDULED => 'warning',
+            self::STATUS_SENT => 'success',
+            self::STATUS_SKIPPED => 'gray',
+            self::STATUS_FAILED => 'danger',
+            default => 'gray',
+        };
+    }
 }

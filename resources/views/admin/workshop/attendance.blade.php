@@ -694,7 +694,7 @@
                                                 x-model="ticketAttendance[{{ (int) $ticket->id }}]"
                                                 x-on:change="toggleTicketAttendance({{ (int) $ticket->id }}, $event.target.checked)" />
                                         @else
-                                            <span class="inline-flex rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">Cancelled</span>
+                                            <x-ui.badge color="danger" size="sm">Cancelled</x-ui.badge>
                                         @endif
                                     </div>
                                     <div class="mt-4 grid gap-3 sm:grid-cols-2">
@@ -726,7 +726,7 @@
                                             @if($canRecordPayment)
                                                 <x-ui.button type="button" color="outline" class="w-full sm:w-auto" x-on:click="openPaymentModalForInvoice({{ (int) $ticket->invoice_id }})">Record Payment</x-ui.button>
                                             @elseif($invoiceMeta)
-                                                <span class="inline-flex rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">Paid</span>
+                                                <x-ui.badge color="success" size="sm">Paid</x-ui.badge>
                                             @endif
                                             @if($canCancelTicket)
                                                 <x-ui.button
@@ -816,7 +816,7 @@
                                                     @if($groupCanRecordPayment)
                                                         <x-ui.button type="button" color="outline" class="px-3! py-1.5! text-xs" x-on:click="openPaymentModalForInvoice({{ $groupInvoiceId }})">Record</x-ui.button>
                                                     @elseif($groupInvoiceMeta)
-                                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-800">Paid</span>
+                                                        <x-ui.badge color="success">Paid</x-ui.badge>
                                                     @else
                                                         <span class="text-gray-400">-</span>
                                                     @endif
@@ -967,10 +967,10 @@
                                     <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Invoices in Selection</div>
                                     <div class="mt-2 flex flex-wrap gap-2">
                                         <template x-for="invoice in selectedInvoiceSummary()" :key="`invoice-summary-${invoice.id}`">
-                                            <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700">
+                                            <x-ui.badge color="gray" size="xs">
                                                 <span x-text="invoice.number"></span>
                                                 <span class="ml-1 text-gray-500" x-text="'($' + Number(invoice.outstanding || 0).toFixed(2) + ')'"></span>
-                                            </span>
+                                            </x-ui.badge>
                                         </template>
                                     </div>
                                 </div>

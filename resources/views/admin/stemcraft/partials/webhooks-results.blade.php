@@ -30,11 +30,11 @@
                 $nextRetryAt = $log->nextRetryAt();
                 $errorSummary = $log->errorSummary();
                 $troubleshootingHint = $log->troubleshootingHint();
-                $statusClass = match ($log->status) {
-                    'delivered', 'received' => 'text-green-700',
-                    'failed', 'rejected' => 'text-red-700',
-                    'duplicate', 'ignored' => 'text-amber-700',
-                    default => 'text-gray-700',
+                $statusTone = match ($log->status) {
+                    'delivered', 'received' => 'success',
+                    'failed', 'rejected' => 'danger',
+                    'duplicate', 'ignored' => 'warning',
+                    default => 'gray',
                 };
                 $payloadPretty = is_array($log->payload)
                     ? json_encode($log->payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
@@ -47,8 +47,8 @@
                 data-webhook-row-key="{{ $log->id }}"
             >
                 <div class="flex flex-wrap items-center gap-3">
-                    <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $log->direction }}</span>
-                    <span class="text-sm font-semibold {{ $statusClass }}">{{ $log->status }}</span>
+                    <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $log->direction }}</x-ui.badge>
+                    <x-ui.badge :color="$statusTone" size="xxs">{{ $log->status }}</x-ui.badge>
                     <span class="text-xs text-gray-500">#{{ $log->id }}</span>
                 </div>
                 <div class="mt-3 text-sm font-semibold text-gray-900">{{ $log->event ?: 'Unknown event' }}</div>
@@ -232,7 +232,7 @@
                             @endif
                         </td>
                         <td class="whitespace-nowrap!">
-                            <div class="font-semibold {{ $statusClass }}">{{ $log->status }}</div>
+                            <x-ui.badge :color="$statusTone" size="xxs">{{ $log->status }}</x-ui.badge>
                             @if($log->response_status)
                                 <div class="text-xs text-gray-500">HTTP {{ $log->response_status }}</div>
                             @endif

@@ -15,12 +15,12 @@
         $quoteStatusLabel = $quoteStatusKey === \App\Models\Quote::STATUS_EXPIRED
             ? 'Expired'
             : $quote->statusLabel();
-        $quoteStatusClasses = match ($quoteStatusKey) {
-            \App\Models\Quote::STATUS_OPEN => 'border-amber-200 bg-amber-50 text-amber-800',
-            \App\Models\Quote::STATUS_ACCEPTED => 'border-emerald-200 bg-emerald-50 text-emerald-800',
-            \App\Models\Quote::STATUS_CANCELLED => 'border-rose-200 bg-rose-50 text-rose-800',
-            \App\Models\Quote::STATUS_EXPIRED => 'border-slate-200 bg-slate-50 text-slate-700',
-            default => 'border-gray-200 bg-gray-50 text-gray-700',
+        $quoteStatusTone = match ($quoteStatusKey) {
+            \App\Models\Quote::STATUS_OPEN => 'warning',
+            \App\Models\Quote::STATUS_ACCEPTED => 'success',
+            \App\Models\Quote::STATUS_CANCELLED => 'danger',
+            \App\Models\Quote::STATUS_EXPIRED => 'slate',
+            default => 'gray',
         };
         $showSidebarContent = (auth()->check() && auth()->id() === $quote->user_id)
             || trim((string) ($quote->notes ?? '')) !== '';
@@ -32,9 +32,9 @@
                     <div class="flex align-top justify-between w-full border-b pb-3 border-gray-200">
                             <div class="flex flex-wrap gap-12">
                                 <div class="text-center">
-                                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</div>
-                                    <div class="mt-1 inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold {{ $quoteStatusClasses }}">
-                                        {{ $quoteStatusLabel }}
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Status</div>
+                                    <div class="mt-1">
+                                        <x-ui.badge :color="$quoteStatusTone" size="sm">{{ $quoteStatusLabel }}</x-ui.badge>
                                     </div>
                                 </div>
                             <div class="text-center">

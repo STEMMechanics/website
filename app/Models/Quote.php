@@ -361,6 +361,23 @@ class Quote extends Model
         };
     }
 
+    public static function statusBadgeToneFor(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_DRAFT => 'gray',
+            self::STATUS_OPEN => 'warning',
+            self::STATUS_ACCEPTED => 'success',
+            self::STATUS_CANCELLED => 'danger',
+            self::STATUS_EXPIRED => 'slate',
+            default => 'gray',
+        };
+    }
+
+    public function statusBadgeTone(): string
+    {
+        return self::statusBadgeToneFor((string) $this->status);
+    }
+
     public function getRouteKeyName(): string
     {
         return 'quote_number';

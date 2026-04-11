@@ -91,9 +91,9 @@
                 $statusLabel = $customerPayment->isRefund()
                     ? 'Refund'
                     : $customerPayment->clearanceStatusLabel();
-                $statusClass = $customerPayment->isRefund()
-                    ? 'border-slate-200 bg-slate-50 text-slate-700'
-                    : $customerPayment->clearanceStatusClass();
+                $statusTone = $customerPayment->isRefund()
+                    ? 'slate'
+                    : $customerPayment->clearanceStatusTone();
                 $allocatedInvoices = $customerPayment->allocations
                 ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
                 ->map(fn ($allocation) => $allocation->invoice)
@@ -111,8 +111,8 @@
                         <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
                         <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
                         <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
-                        <div class="mt-1 md:hidden inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap {{ $statusClass }}">
-                            {{ $statusLabel }}
+                        <div class="mt-1 md:hidden">
+                            <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
                         </div>
                         <div class="text-xs text-gray-600 lg:hidden mt-1">
                             Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
@@ -135,9 +135,7 @@
                     <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
                     <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
                     <td class="hidden md:table-cell text-center">
-                        <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ $statusClass }}">
-                            {{ $statusLabel }}
-                        </span>
+                        <x-ui.badge :color="$statusTone">{{ $statusLabel }}</x-ui.badge>
                     </td>
                     <td class="hidden lg:table-cell">
                         {{ money((float) $allocated) }}
@@ -193,9 +191,7 @@
                     <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
                     <td class="text-center hidden md:table-cell">Refund</td>
                     <td class="hidden md:table-cell">
-                        <span class="inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap border-slate-200 bg-slate-50 text-slate-700">
-                            Refund
-                        </span>
+                        <x-ui.badge color="slate">Refund</x-ui.badge>
                     </td>
                     <td class="hidden lg:table-cell">-</td>
                     <td class="hidden lg:table-cell">-</td>

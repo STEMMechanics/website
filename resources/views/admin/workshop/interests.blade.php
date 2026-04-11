@@ -22,10 +22,10 @@
                     <h2 class="text-lg font-bold text-gray-900">Interest Registrations</h2>
                     <p class="mt-1 text-sm text-gray-600">Includes direct registrations and child-account registrations with parent fallback details.</p>
                 </div>
-                <span class="inline-flex items-center rounded-full border border-orange-200 bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                <x-ui.badge color="warning">
                     {{ number_format((int) ($workshop->interests_count ?? $interestRegistrations->count())) }}
                     {{ \Illuminate\Support\Str::plural('registration', (int) ($workshop->interests_count ?? $interestRegistrations->count())) }}
-                </span>
+                </x-ui.badge>
             </div>
 
             @if($interestRegistrations->isEmpty())
@@ -75,7 +75,7 @@
                                         <div class="mt-1 text-xs text-gray-500">{{ $resolvedPhone !== '' ? $resolvedPhone : '-' }}</div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700">{{ $accountLabel }}</span>
+                                        <x-ui.badge color="gray" size="xxs">{{ $accountLabel }}</x-ui.badge>
                                         @if($linkedUser !== null)
                                             <div class="mt-2 text-xs text-gray-500">{{ $linkedUser->getName() }}</div>
                                         @endif

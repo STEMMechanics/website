@@ -147,13 +147,13 @@
 
             <section class="space-y-4">
                 <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Login clients</h2>
-                            <p class="mt-1 text-sm text-gray-600">These are the OAuth clients that can sign users in from external platforms.</p>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Login clients</h2>
+                                <p class="mt-1 text-sm text-gray-600">These are the OAuth clients that can sign users in from external platforms.</p>
+                            </div>
+                        <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $clients->count() }} total</x-ui.badge>
                         </div>
-                        <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $clients->count() }} total</div>
-                    </div>
                 </div>
 
                 @forelse($clients as $client)
@@ -162,12 +162,8 @@
                             <div class="min-w-0">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <h3 class="text-lg font-semibold text-gray-900">{{ $client->name }}</h3>
-                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xxs font-semibold uppercase tracking-wide {{ $client->revoked ? 'bg-gray-200 text-gray-700' : 'bg-emerald-100 text-emerald-800' }}">
-                                        {{ $client->revoked ? 'Revoked' : 'Active' }}
-                                    </span>
-                                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xxs font-semibold uppercase tracking-wide {{ $client->confidential() ? 'bg-sky-100 text-sky-800' : 'bg-amber-100 text-amber-800' }}">
-                                        {{ $client->confidential() ? 'Confidential' : 'Public' }}
-                                    </span>
+                                    <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xxs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
+                                    <x-ui.badge :color="$client->confidential() ? 'sky' : 'warning'" size="xxs" uppercase="true">{{ $client->confidential() ? 'Confidential' : 'Public' }}</x-ui.badge>
                                 </div>
                                 <div class="mt-2 grid gap-1 text-sm text-gray-600">
                                     <div class="break-all"><span class="font-semibold text-gray-900">Client ID:</span> {{ $client->id }}</div>
@@ -233,13 +229,13 @@
                 @endforelse
 
                 <div class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <h2 class="text-lg font-semibold text-gray-900">Internal Passport clients</h2>
-                            <p class="mt-1 text-sm text-gray-600">These are Passport-managed clients such as personal access clients. They are not external login platforms.</p>
+                        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-900">Internal Passport clients</h2>
+                                <p class="mt-1 text-sm text-gray-600">These are Passport-managed clients such as personal access clients. They are not external login platforms.</p>
+                            </div>
+                        <x-ui.badge color="gray" size="xxs" uppercase="true">{{ $internalClients->count() }} total</x-ui.badge>
                         </div>
-                        <div class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-500">{{ $internalClients->count() }} total</div>
-                    </div>
 
                     <div class="mt-5 space-y-4">
                         @forelse($internalClients as $client)
@@ -248,12 +244,8 @@
                                     <div class="min-w-0">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <h3 class="text-lg font-semibold text-gray-900">{{ $client->name }}</h3>
-                                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xxs font-semibold uppercase tracking-wide {{ $client->revoked ? 'bg-gray-200 text-gray-700' : 'bg-emerald-100 text-emerald-800' }}">
-                                                {{ $client->revoked ? 'Revoked' : 'Active' }}
-                                            </span>
-                                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xxs font-semibold uppercase tracking-wide bg-slate-100 text-slate-800">
-                                                Internal
-                                            </span>
+                                            <x-ui.badge :color="$client->revoked ? 'gray' : 'success'" size="xxs" uppercase="true">{{ $client->revoked ? 'Revoked' : 'Active' }}</x-ui.badge>
+                                            <x-ui.badge color="slate" size="xxs" uppercase="true">Internal</x-ui.badge>
                                         </div>
                                         <div class="mt-2 grid gap-1 text-sm text-gray-600">
                                             <div class="break-all"><span class="font-semibold text-gray-900">Client ID:</span> {{ $client->id }}</div>

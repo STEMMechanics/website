@@ -236,6 +236,11 @@ class Payment extends Model
             : 'border-emerald-200 bg-emerald-50 text-emerald-800';
     }
 
+    public function clearanceStatusTone(): string
+    {
+        return $this->isPendingBankTransfer() ? 'warning' : 'success';
+    }
+
     public function receiptCanBeEmailed(): bool
     {
         return ! $this->isPendingBankTransfer();

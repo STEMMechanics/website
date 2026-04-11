@@ -92,7 +92,7 @@
                         @elseif($hasVariants)
                             <span class="text-xs font-medium text-gray-500">{{ $variantCount }} option{{ $variantCount === 1 ? '' : 's' }} available</span>
                         @else
-                            <x-stock-indicator :tone="$product->availabilityTone()" :label="$product->availabilityLabel()" />
+                            <x-stock-indicator :color="$product->availabilityTone()" :label="$product->availabilityLabel()" />
                         @endif
                     </div>
                 </div>

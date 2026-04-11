@@ -12,9 +12,12 @@
             <h2 class="text-lg font-semibold text-gray-900">Login Authentication</h2>
             <p class="mt-1 text-sm text-gray-600">Manage how sign-in verification works for your account.</p>
         </div>
-        <div class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide" :class="$store.tfa.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'">
-            <span x-text="$store.tfa.enabled ? 'Authenticator enabled' : '{{ $supportsEmailVerification ? 'Email only' : 'Authenticator not linked' }}'"></span>
-        </div>
+        <x-ui.badge color="success" uppercase="true" size="xxs" x-cloak x-show="$store.tfa.enabled">
+            <span x-text="'Authenticator enabled'"></span>
+        </x-ui.badge>
+        <x-ui.badge color="gray" uppercase="true" size="xxs" x-cloak x-show="!$store.tfa.enabled">
+            <span x-text="'{{ $supportsEmailVerification ? 'Email only' : 'Authenticator not linked' }}'"></span>
+        </x-ui.badge>
     </div>
 
     <div class="mt-6 grid gap-4 {{ $supportsEmailVerification ? 'xl:grid-cols-3' : 'xl:grid-cols-2' }}">
@@ -27,7 +30,7 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h3 class="text-sm font-semibold text-gray-900">Email verification</h3>
-                            <span class="rounded-full bg-green-100 px-2 py-0.5 text-xxs font-semibold text-green-800">Enabled</span>
+                            <x-ui.badge color="success" size="xxs" uppercase="true">Enabled</x-ui.badge>
                         </div>
                         <p class="mt-2 text-sm text-gray-600">Security links are always sent to your account email when required.</p>
                     </div>
@@ -46,9 +49,9 @@
                 <div class="min-w-0 flex-1">
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-sm font-semibold text-gray-900">Password login</h3>
-                        <span class="rounded-full px-2 py-0.5 text-xxs font-semibold {{ $passwordConfigured ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700' }}">
+                        <x-ui.badge :color="$passwordConfigured ? 'success' : 'gray'" size="xxs" uppercase="true">
                             {{ $passwordConfigured ? 'Enabled' : 'Not set' }}
-                        </span>
+                        </x-ui.badge>
                     </div>
                     <p class="mt-2 text-sm text-gray-600">
                         {{ $passwordConfigured ? 'A password has been set for this account.' : 'No password has been set for this account.' }}

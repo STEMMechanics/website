@@ -297,7 +297,7 @@
                                 <tr class="border-t border-gray-100">
                                     <td class="px-3 py-2 font-mono text-xs break-all" data-label="Path">{{ $entry['path'] }}</td>
                                     <td class="px-3 py-2 text-right" data-label="State">
-                                        <span class="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700">Deleted</span>
+                                        <x-ui.badge color="danger">Deleted</x-ui.badge>
                                     </td>
                                 </tr>
                             @endforeach

@@ -322,6 +322,19 @@ class Invoice extends Model
         };
     }
 
+    public function statusBadgeTone(): string
+    {
+        return match ((string) $this->status) {
+            self::STATUS_DRAFT => 'gray',
+            self::STATUS_ISSUED => 'sky',
+            self::STATUS_SENT => 'warning',
+            self::STATUS_PAID => 'success',
+            self::STATUS_OVERDUE => 'danger',
+            self::STATUS_CANCELLED => 'slate',
+            default => 'gray',
+        };
+    }
+
     public function contentsSummary(int $maxItems = 3): string
     {
         if (! $this->relationLoaded('lines')) {
@@ -376,6 +389,13 @@ class Invoice extends Model
         return $this->isOverdue()
             ? 'border-rose-300 bg-rose-100 text-rose-900 ring-rose-200'
             : $this->statusBadgeClass();
+    }
+
+    public function displayStatusTone(): string
+    {
+        return $this->isOverdue()
+            ? 'danger'
+            : $this->statusBadgeTone();
     }
 
     public function syncPaidState(): bool

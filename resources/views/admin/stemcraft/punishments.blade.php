@@ -83,7 +83,7 @@
                                 <div>
                                     <div class="flex flex-wrap items-center gap-3">
                                         <div class="font-semibold text-gray-900">{{ $penalty->username }}</div>
-                                        <span class="inline-flex rounded-full bg-white/70 px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $penalty->type }}</span>
+                                        <x-ui.badge :color="$penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'danger' : 'warning'" size="xxs" uppercase="true">{{ $penalty->type }}</x-ui.badge>
                                     </div>
                                     <div class="mt-1 text-xs text-gray-600">UUID: <span class="font-mono">{{ $penalty->uuid ?: 'Pending resolution' }}</span></div>
                                     @if($penalty->reason)
@@ -124,7 +124,7 @@
                                 <div>
                                     <div class="flex flex-wrap items-center gap-3">
                                         <div class="font-semibold text-gray-900">{{ $entry->username }}</div>
-                                        <span class="inline-flex rounded-full bg-white px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">Legacy ban</span>
+                                        <x-ui.badge color="danger" size="xxs" uppercase="true">Legacy ban</x-ui.badge>
                                     </div>
                                     <div class="mt-1 text-xs text-gray-600">UUID: <span class="font-mono">{{ $entry->uuid ?: 'Pending resolution' }}</span></div>
                                     @if($entry->reason)

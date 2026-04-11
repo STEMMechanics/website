@@ -124,7 +124,7 @@
                             <div class="mt-1 text-sm text-gray-700">{{ $attendeeName }}</div>
                             <div class="text-xs text-gray-500 break-all">{{ $ticket->email ?: '-' }}</div>
                         </div>
-                        <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">{{ $statusText }}</span>
+                        <x-ui.badge color="gray">{{ $statusText }}</x-ui.badge>
                     </div>
 
                     <div class="mt-4 grid gap-3 sm:grid-cols-2">

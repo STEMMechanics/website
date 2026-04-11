@@ -95,7 +95,7 @@
                             @if($groupSlugs !== [])
                                 <div class="flex flex-wrap gap-1 mt-1">
                                     @foreach($groupSlugs as $groupSlug)
-                                        <span class="inline-flex items-center rounded-full border border-gray-300 bg-gray-100 px-2 py-0.5 text-xxs font-semibold text-gray-700">{{ $groupSlug }}</span>
+                                        <x-ui.badge color="gray" size="xxs">{{ $groupSlug }}</x-ui.badge>
                                     @endforeach
                                 </div>
                             @endif

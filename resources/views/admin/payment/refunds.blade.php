@@ -53,12 +53,12 @@
                             \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'Manual',
                             default => ucfirst(str_replace(' required', '', str_replace('_', ' ', $statusKey))),
                         };
-                        $statusBadgeClass = match ($statusKey) {
-                            \App\Models\SquareRefundOperation::STATUS_PENDING => 'bg-sky-100 text-sky-800',
-                            \App\Models\SquareRefundOperation::STATUS_COMPLETED => 'bg-emerald-100 text-emerald-800',
-                            \App\Models\SquareRefundOperation::STATUS_FAILED => 'bg-rose-100 text-rose-800',
-                            \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'bg-amber-100 text-amber-800',
-                            default => 'bg-gray-100 text-gray-800',
+                        $statusTone = match ($statusKey) {
+                            \App\Models\SquareRefundOperation::STATUS_PENDING => 'sky',
+                            \App\Models\SquareRefundOperation::STATUS_COMPLETED => 'success',
+                            \App\Models\SquareRefundOperation::STATUS_FAILED => 'danger',
+                            \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'warning',
+                            default => 'gray',
                         };
                         $needsManualAction = in_array($statusKey, [
                             \App\Models\SquareRefundOperation::STATUS_FAILED,
@@ -101,7 +101,7 @@
                                 <div class="whitespace-nowrap font-semibold">{{ $displayNumber }}</div>
                                 <div class="text-xs text-gray-500">{{ $manualRefund->created_at?->format('M j, Y g:i a') ?? '-' }}</div>
                             </div>
-                            <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
+                            <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
                         </div>
 
                         <div class="mt-4 space-y-3">
@@ -272,12 +272,12 @@
                             \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'Manual',
                             default => ucfirst(str_replace(' required', '', str_replace('_', ' ', $statusKey))),
                         };
-                        $statusBadgeClass = match ($statusKey) {
-                            \App\Models\SquareRefundOperation::STATUS_PENDING => 'bg-sky-100 text-sky-800',
-                            \App\Models\SquareRefundOperation::STATUS_COMPLETED => 'bg-emerald-100 text-emerald-800',
-                            \App\Models\SquareRefundOperation::STATUS_FAILED => 'bg-rose-100 text-rose-800',
-                            \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'bg-amber-100 text-amber-800',
-                            default => 'bg-gray-100 text-gray-800',
+                        $statusTone = match ($statusKey) {
+                            \App\Models\SquareRefundOperation::STATUS_PENDING => 'sky',
+                            \App\Models\SquareRefundOperation::STATUS_COMPLETED => 'success',
+                            \App\Models\SquareRefundOperation::STATUS_FAILED => 'danger',
+                            \App\Models\SquareRefundOperation::STATUS_MANUAL_REQUIRED => 'warning',
+                            default => 'gray',
                         };
                         $needsManualAction = in_array($statusKey, [
                             \App\Models\SquareRefundOperation::STATUS_FAILED,
@@ -370,7 +370,7 @@
                                 @endif
                                 </td>
                                 <td class="align-top text-center">
-                                    <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold whitespace-nowrap {{ $statusBadgeClass }}">{{ $statusLabel }}</span>
+                                    <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
                                 </td>
                                 <td class="align-top">
                                     <div class="flex justify-center gap-3 whitespace-nowrap">

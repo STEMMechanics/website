@@ -131,9 +131,9 @@
                                     </a>
                                 </td>
                                 <td class="px-3 py-2 text-center" data-label="Mode">
-                                    <span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap {{ (string) $backup['mode'] === \App\Services\FileBackupService::MODE_INCREMENTAL ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-sky-200 bg-sky-50 text-sky-800' }}">
+                                    <x-ui.badge :color="(string) $backup['mode'] === \App\Services\FileBackupService::MODE_INCREMENTAL ? 'warning' : 'sky'">
                                         {{ ucfirst((string) $backup['mode']) }}
-                                    </span>
+                                    </x-ui.badge>
                                     @if(! empty($backup['window_hours']))
                                         <div class="mt-1 text-xs text-gray-500">{{ number_format((int) $backup['window_hours']) }}h window</div>
                                     @endif

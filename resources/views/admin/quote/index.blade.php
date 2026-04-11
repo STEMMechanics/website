@@ -32,11 +32,15 @@
                                     <div class="text-xs text-gray-600 mt-1">{{ $quote->title }}</div>
                                 @endif
                                 <div class="md:hidden text-xs text-gray-600 mt-1">{{ $quote->user?->getName() ?? '-' }}</div>
-                                <div class="md:hidden text-xs text-gray-600">{{ $quote->statusLabel() }}</div>
+                                <div class="md:hidden mt-1">
+                                    <x-ui.badge :color="$quote->statusBadgeTone()" size="xxs">{{ $quote->statusLabel() }}</x-ui.badge>
+                                </div>
                                 <div class="md:hidden text-xs text-gray-600">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</div>
                             </td>
                             <td class="hidden md:table-cell text-center">{{ $quote->user?->getName() ?? '-' }}</td>
-                            <td class="hidden md:table-cell text-center">{{ $quote->statusLabel() }}</td>
+                            <td class="hidden md:table-cell text-center">
+                                <x-ui.badge :color="$quote->statusBadgeTone()">{{ $quote->statusLabel() }}</x-ui.badge>
+                            </td>
                             <td class="hidden md:table-cell text-center">{{ $quote->quote_date?->format('M j, Y') ?? '-' }}</td>
                             <td class="text-right">${{ number_format((float) $quote->total_amount, 2) }}</td>
                             <td>
