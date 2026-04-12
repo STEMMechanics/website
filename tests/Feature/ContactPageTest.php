@@ -120,6 +120,7 @@ class ContactPageTest extends TestCase
     public function test_contact_submission_rejects_submissions_that_are_too_fast(): void
     {
         Queue::fake();
+        $this->travelTo(now()->startOfSecond());
         $guardToken = $this->contactFormGuardToken();
 
         $response = $this->post(route('contact.send'), [
