@@ -109,6 +109,78 @@ class WorkshopPickListAutosaveTest extends TestCase
         $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
     }
 
+    public function test_pick_list_button_is_available_without_a_template_selected(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.index'))
+            ->assertOk()
+            ->assertSee(route('admin.workshop.pick-list', $workshop), false);
+
+        $this->actingAs($admin)
+            ->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee(route('admin.workshop.pick-list', $workshop), false);
+    }
+
+    public function test_non_ticketed_pick_list_shows_participant_count_and_persists_manual_items_without_a_template(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop(registration: 'none');
+
+        $viewResponse = $this->actingAs($admin)
+            ->get(route('admin.workshop.pick-list', $workshop));
+
+        $viewResponse->assertOk();
+        $viewResponse->assertSeeText('Participant count');
+        $viewResponse->assertSeeText('Used to calculate quantities for items marked as per participant.');
+
+        $saveResponse = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.pick-list.save', $workshop), [
+                'pick_list_participants' => 6,
+                'pick_list_notes' => 'Manual materials list',
+                'pick_list_custom_items' => [
+                    [
+                        'id' => 1,
+                        'item_name' => 'Workshop pack',
+                        'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
+                        'quantity_value' => 2,
+                    ],
+                    [
+                        'id' => 2,
+                        'item_name' => 'Extension lead',
+                        'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+                        'quantity_value' => 3,
+                    ],
+                ],
+                'checked_item_ids' => [1],
+            ]);
+
+        $saveResponse->assertOk();
+        $saveResponse->assertJsonPath('pick_list_participants', 6);
+        $saveResponse->assertJsonPath('pick_list_is_customized', true);
+        $saveResponse->assertJsonPath('pick_list_custom_items.0.item_name', 'Workshop pack');
+        $saveResponse->assertJsonPath('pick_list_custom_items.0.quantity_type', PickListTemplateItem::TYPE_PER_PARTICIPANT);
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertNull($freshWorkshop->pick_list_template_id);
+        $this->assertSame(6, (int) $freshWorkshop->pick_list_participants);
+        $this->assertTrue((bool) $freshWorkshop->pick_list_is_customized);
+        $this->assertSame('Workshop pack', (string) ($freshWorkshop->pick_list_custom_items[0]['item_name'] ?? ''));
+
+        $pickListResponse = $this->actingAs($admin)
+            ->get(route('admin.workshop.pick-list', $workshop));
+
+        $pickListResponse->assertOk();
+        $this->assertSame(6, (int) $pickListResponse->viewData('participants'));
+
+        $calculatedItems = collect($pickListResponse->viewData('calculatedItems') ?? []);
+        $this->assertSame(12, (int) ($calculatedItems->first()['quantity'] ?? 0));
+        $this->assertSame('(2 per participant)', (string) ($calculatedItems->first()['type_note'] ?? ''));
+    }
+
     public function test_pick_list_autosave_persists_editable_canvas_json_and_thumbnail_and_clears_them(): void
     {
         Storage::fake('public');
@@ -220,7 +292,7 @@ class WorkshopPickListAutosaveTest extends TestCase
         return $admin;
     }
 
-    private function createWorkshop(): Workshop
+    private function createWorkshop(string $registration = 'tickets'): Workshop
     {
         $owner = User::factory()->create();
         $location = Location::factory()->create();
@@ -243,7 +315,7 @@ class WorkshopPickListAutosaveTest extends TestCase
             'publish_at' => now()->subDay(),
             'closes_at' => now()->addDays(2),
             'status' => 'open',
-            'registration' => 'tickets',
+            'registration' => $registration,
             'location_id' => $location->id,
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,

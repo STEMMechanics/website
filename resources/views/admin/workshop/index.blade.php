@@ -54,11 +54,7 @@
                                     </a>
                                 @endif
                                 <a href="{{ route('admin.workshop.attendance', $workshop) }}" class="hover:text-primary-color" title="Attendance"><i class="fa-solid fa-user-check"></i></a>
-                                @if($workshop->pick_list_template_id)
-                                    <a href="{{ route('admin.workshop.pick-list', $workshop) }}" class="hover:text-primary-color" title="Pick List"><i class="fa-solid fa-list-check"></i></a>
-                                @else
-                                    <span class="text-gray-300" title="No pick list template assigned"><i class="fa-solid fa-list-check"></i></span>
-                                @endif
+                                <a href="{{ route('admin.workshop.pick-list', $workshop) }}" class="hover:text-primary-color" title="Pick List"><i class="fa-solid fa-list-check"></i></a>
                                 @if((bool) $workshop->is_hidden)
                                     <a href="#" class="hover:text-primary-color" title="Copy workshop link" x-data x-on:click.prevent="SM.copyToClipboard(@js(route('workshop.show', $workshop)))"><i class="fa-solid fa-link"></i></a>
                                 @endif

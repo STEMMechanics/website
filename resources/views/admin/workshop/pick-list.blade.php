@@ -63,20 +63,34 @@
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
 
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
-                    <p class="mt-1 text-sm text-gray-600" x-show="!itemsEditMode && isCustomized">
-                        This workshop uses its own custom item list and no longer syncs with the template.
-                    </p>
-                    <p class="mt-1 text-sm text-gray-600" x-show="!itemsEditMode && !isCustomized && currentItems().length === 0">
-                        No template items are currently assigned. You can still build a custom pick list here.
-                    </p>
-                </div>
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
 
-                <div class="flex flex-wrap gap-2">
-                    <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
-                    <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-on:click="stopItemEditing()">Close Editor</x-ui.button>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div class="flex gap-2 items-center">
+                        <span>Participants: </span>
+                        @if($workshop->registration !== 'tickets')
+                            <x-ui.input
+                                    noLabel="true"
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    name="pick_list_participants"
+                                    class="mb-0 w-12"
+                                    fieldClasses="mt-0 text-center"
+                                    x-model="participantsInput"
+                                    x-on:input="scheduleAutosave()"
+                                    x-on:change="scheduleAutosave()"
+                            />
+                        @else
+                            <span class="font-semibold">{{ $activeTicketCount }}</span>
+                        @endif
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
+                        <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-on:click="stopItemEditing()">Close Editor</x-ui.button>
+                    </div>
                 </div>
             </div>
 

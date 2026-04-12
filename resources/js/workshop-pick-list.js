@@ -846,6 +846,20 @@ const registerWorkshopPickListPage = () => {
                 ? items.map((item) => this.normalizeItem(item)).filter((item) => item !== null)
                 : [];
         },
+        previousItemForNewRow(items) {
+            if (!Array.isArray(items) || items.length === 0) {
+                return null;
+            }
+
+            for (let index = items.length - 1; index >= 0; index -= 1) {
+                const item = items[index];
+                if (!this.isBlankCustomItem(item)) {
+                    return item;
+                }
+            }
+
+            return null;
+        },
         isBlankCustomItem(item) {
             return String(item?.item_name ?? '').trim() === '';
         },
@@ -898,7 +912,8 @@ const registerWorkshopPickListPage = () => {
         },
         ensureTrailingBlankCustomItem() {
             const nonBlankItems = this.customItems.filter((item) => !this.isBlankCustomItem(item));
-            this.customItems = [...nonBlankItems, this.newCustomItem()];
+            const previousItem = nonBlankItems.length > 0 ? nonBlankItems[nonBlankItems.length - 1] : null;
+            this.customItems = [...nonBlankItems, this.newCustomItem(previousItem)];
             this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
         },
         handleCustomItemChange(index) {
@@ -911,18 +926,21 @@ const registerWorkshopPickListPage = () => {
             }
 
             if (!this.hasTrailingBlankCustomItem()) {
-                this.customItems.push(this.newCustomItem());
+                this.customItems.push(this.newCustomItem(this.customItems[lastIndex]));
             }
 
             this.scheduleAutosave();
         },
-        newCustomItem() {
+        newCustomItem(previousItem = null) {
             const id = this.nextCustomItemId++;
+            const previousType = String(previousItem?.quantity_type ?? '');
+            const previousValue = Number.parseInt(String(previousItem?.quantity_value ?? 1), 10) || 1;
+
             return {
                 id,
                 item_name: '',
-                quantity_type: 'per_participant',
-                quantity_value: 1,
+                quantity_type: ['fixed', 'per_participant'].includes(previousType) ? previousType : 'per_participant',
+                quantity_value: Math.max(1, previousValue),
                 sort_order: this.customItems.length * 10,
             };
         },
@@ -949,7 +967,7 @@ const registerWorkshopPickListPage = () => {
                 this.startItemEditing();
             }
 
-            this.customItems.push(this.newCustomItem());
+            this.customItems.push(this.newCustomItem(this.previousItemForNewRow(this.customItems)));
             this.customItemsDirty = true;
             this.scheduleAutosave();
         },

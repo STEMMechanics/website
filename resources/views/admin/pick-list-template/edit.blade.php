@@ -22,12 +22,15 @@
         <form method="POST" action="{{ route('admin.pick-list-template.'.($editing ? 'update' : 'store'), $template ?? []) }}" x-data="{
             items: @js($seedItems),
             submitting: false,
-            newBlankItem() {
+            seededBlankItem(previousItem = null) {
+                const previousType = String(previousItem?.quantity_type ?? '');
+                const previousValue = Number.parseInt(String(previousItem?.quantity_value ?? 1), 10) || 1;
+
                 return {
                     id: null,
                     item_name: '',
-                    quantity_type: 'per_participant',
-                    quantity_value: 1,
+                    quantity_type: ['per_participant', 'fixed'].includes(previousType) ? previousType : 'per_participant',
+                    quantity_value: Math.max(1, previousValue),
                     sort_order: 0,
                 };
             },
@@ -44,13 +47,14 @@
             },
             ensureSingleTrailingBlank() {
                 const nonBlank = this.items.filter((item) => !this.isBlankItem(item));
-                this.items = [...nonBlank, this.newBlankItem()];
+                const previousItem = nonBlank.length > 0 ? nonBlank[nonBlank.length - 1] : null;
+                this.items = [...nonBlank, this.seededBlankItem(previousItem)];
                 this.normalizeSort();
             },
             handleRowChange(index) {
                 const isLastRow = index === (this.items.length - 1);
                 if (isLastRow && !this.isBlankItem(this.items[index])) {
-                    this.items.push(this.newBlankItem());
+                    this.items.push(this.seededBlankItem(this.items[index]));
                     this.normalizeSort();
                     return;
                 }
