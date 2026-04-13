@@ -66,6 +66,22 @@
             </section>
 
             <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <h2 class="text-xl font-semibold text-gray-900">Exception words</h2>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Use this list for false positives that Blasp should ignore, such as harmless words or phrases that look suspicious out of context.</p>
+
+                <div class="mt-6 rounded-2xl bg-gray-50 p-4">
+                    <x-ui.input
+                        type="textarea"
+                        label="Exception words"
+                        name="exception_words"
+                        rows="8"
+                        value="{{ $settings['exception_words'] }}"
+                        info="One word or phrase per line. These are merged with Blasp's built-in false positives before the profanity check runs."
+                    />
+                </div>
+            </section>
+
+            <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                 <h2 class="text-xl font-semibold text-gray-900">Pattern rules</h2>
                 <p class="mt-2 text-sm leading-6 text-gray-600">Use these rules to catch things like shouting, repeated characters, or repeated words before a post goes live.</p>
 

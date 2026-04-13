@@ -168,6 +168,10 @@ class SiteOption extends Model
                 'value' => '',
                 'description' => 'One regex pattern per line, applied after the profanity package. Patterns are wrapped as case-insensitive Unicode regexes.',
             ],
+            'moderation.content-filter.exception-words' => [
+                'value' => '',
+                'description' => 'One word or phrase per line that should be treated as a false positive by Blasp and allowed through the profanity filter.',
+            ],
             'moderation.content-filter.profanity-mask-character' => [
                 'value' => '*',
                 'description' => 'Single character used when profane Minecraft messages can be masked instead of fully hidden.',

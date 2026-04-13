@@ -25,6 +25,7 @@ class ForumModerationController extends Controller
     private const OPTION_DEFAULTS = [
         'moderation.content-filter.enabled' => '1',
         'moderation.content-filter.custom-patterns' => '',
+        'moderation.content-filter.exception-words' => '',
         'moderation.content-filter.profanity-mask-character' => '*',
         'moderation.content-filter.blocked-message-placeholder' => '[Message blocked by moderation filter]',
         'moderation.content-filter.block-all-caps' => '1',
@@ -42,6 +43,7 @@ class ForumModerationController extends Controller
             'settings' => [
                 'enabled' => $this->optionValue('moderation.content-filter.enabled', '1') === '1',
                 'custom_patterns' => $this->optionValue('moderation.content-filter.custom-patterns'),
+                'exception_words' => $this->optionValue('moderation.content-filter.exception-words'),
                 'profanity_mask_character' => $this->optionValue('moderation.content-filter.profanity-mask-character', '*'),
                 'blocked_message_placeholder' => $this->optionValue('moderation.content-filter.blocked-message-placeholder', '[Message blocked by moderation filter]'),
                 'block_all_caps' => $this->optionValue('moderation.content-filter.block-all-caps', '1') === '1',
@@ -64,6 +66,7 @@ class ForumModerationController extends Controller
 
         $this->storeOption('moderation.content-filter.enabled', (string) $validated['enabled']);
         $this->storeOption('moderation.content-filter.custom-patterns', trim((string) ($validated['custom_patterns'] ?? '')));
+        $this->storeOption('moderation.content-filter.exception-words', trim((string) ($validated['exception_words'] ?? '')));
         $this->storeOption('moderation.content-filter.profanity-mask-character', $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')));
         $this->storeOption('moderation.content-filter.blocked-message-placeholder', trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]');
         $this->storeOption('moderation.content-filter.block-all-caps', (string) $validated['block_all_caps']);
@@ -120,6 +123,7 @@ class ForumModerationController extends Controller
         return $request->validate(array_merge([
             'enabled' => ['required', 'in:0,1'],
             'custom_patterns' => ['nullable', 'string'],
+            'exception_words' => ['nullable', 'string'],
             'profanity_mask_character' => ['required', 'string', 'max:10'],
             'blocked_message_placeholder' => ['required', 'string', 'max:255'],
             'block_all_caps' => ['required', 'in:0,1'],
@@ -139,6 +143,7 @@ class ForumModerationController extends Controller
         return [
             'moderation.content-filter.enabled' => (string) $validated['enabled'],
             'moderation.content-filter.custom-patterns' => trim((string) ($validated['custom_patterns'] ?? '')),
+            'moderation.content-filter.exception-words' => trim((string) ($validated['exception_words'] ?? '')),
             'moderation.content-filter.profanity-mask-character' => $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')),
             'moderation.content-filter.blocked-message-placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]',
             'moderation.content-filter.block-all-caps' => (string) $validated['block_all_caps'],

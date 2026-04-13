@@ -4,11 +4,17 @@ namespace App\Support;
 
 use App\Contracts\ContentFilter;
 use App\Models\SiteOption;
+use Blaspsoft\Blasp\Config\ConfigurationLoader;
 use Blaspsoft\Blasp\Facades\Blasp;
 use Illuminate\Support\Facades\Schema;
 
 class SiteOptionContentFilter implements ContentFilter
 {
+    /**
+     * @var array<string, array<int, string>>
+     */
+    private array $defaultFalsePositivesCache = [];
+
     public function inspect(string $content, string $context = 'default'): ContentFilterResult
     {
         return $this->inspectWithSettings($content, $context);
@@ -28,7 +34,7 @@ class SiteOptionContentFilter implements ContentFilter
             return ContentFilterResult::allow();
         }
 
-        if ($this->containsProfanity($plainText)) {
+        if ($this->containsProfanity($plainText, $settings)) {
             return ContentFilterResult::block(
                 'profanity',
                 'Your post includes language that is not allowed in this discussion space. Please revise it and try again.'
@@ -76,9 +82,18 @@ class SiteOptionContentFilter implements ContentFilter
         return $this->optionBoolean('moderation.content-filter.enabled', true, $settings);
     }
 
-    private function containsProfanity(string $plainText): bool
+    /**
+     * @param  array<string, scalar|null>  $settings
+     */
+    private function containsProfanity(string $plainText, array $settings = []): bool
     {
-        return Blasp::check($plainText)->hasProfanity();
+        $falsePositives = $this->falsePositives($settings);
+
+        if ($falsePositives === []) {
+            return Blasp::check($plainText)->hasProfanity();
+        }
+
+        return Blasp::configure(null, $falsePositives)->check($plainText)->hasProfanity();
     }
 
     /**
@@ -152,6 +167,63 @@ class SiteOptionContentFilter implements ContentFilter
         }
 
         return (string) (SiteOption::value($name, (string) $fallback) ?? $fallback);
+    }
+
+    /**
+     * @param  array<string, scalar|null>  $settings
+     * @return array<int, string>
+     */
+    private function falsePositives(array $settings = []): array
+    {
+        $customFalsePositives = $this->normalizedList(
+            $this->optionValue('moderation.content-filter.exception-words', '', $settings)
+        );
+
+        if ($customFalsePositives === []) {
+            return [];
+        }
+
+        $language = (string) config('blasp.default_language', 'english');
+        $defaultFalsePositives = $this->defaultFalsePositives($language);
+
+        return array_values(array_unique(array_merge($defaultFalsePositives, $customFalsePositives)));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function defaultFalsePositives(string $language): array
+    {
+        if (array_key_exists($language, $this->defaultFalsePositivesCache)) {
+            return $this->defaultFalsePositivesCache[$language];
+        }
+
+        try {
+            $config = (new ConfigurationLoader())->load(null, null, $language);
+            $falsePositives = $config->getFalsePositives();
+        } catch (\Throwable) {
+            $falsePositives = config('blasp.false_positives', []);
+        }
+
+        $this->defaultFalsePositivesCache[$language] = $this->normalizedList($falsePositives);
+
+        return $this->defaultFalsePositivesCache[$language];
+    }
+
+    /**
+     * @param  array<int, string>|string  $values
+     * @return array<int, string>
+     */
+    private function normalizedList(array|string $values): array
+    {
+        if (is_string($values)) {
+            $values = preg_split('/\r\n|\r|\n/', $values) ?: [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($value) => trim((string) $value),
+            $values
+        ), static fn (string $value) => $value !== '')));
     }
 
     private function optionBoolean(string $name, bool $default = false, array $settings = []): bool

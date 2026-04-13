@@ -125,6 +125,30 @@ class ForumContentFilterTest extends TestCase
         $this->assertDatabaseCount('forum_posts', 1);
     }
 
+    public function test_forum_topic_creation_honours_custom_exception_words(): void
+    {
+        $user = User::factory()->create();
+        $category = ForumCategory::query()->create([
+            'name' => 'General Discussion',
+            'slug' => 'general-discussion',
+        ]);
+
+        SiteOption::query()->create([
+            'name' => 'moderation.content-filter.exception-words',
+            'value' => "fuck\n",
+        ]);
+
+        $response = $this->actingAs($user)->post(route('forum.topic.store', $category->slug), [
+            'title' => 'Need help',
+            'body' => '<p>This contains fuck but should be allowed because it is on the exception list.</p>',
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('forum_topics', 1);
+        $this->assertDatabaseCount('forum_posts', 1);
+    }
+
     public function test_custom_regex_pattern_blocks_exact_term_without_matching_substrings(): void
     {
         $user = User::factory()->create();
