@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\MinecraftPlayerStatsSyncService;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Schema;
 
 class SyncMinecraftPlayerStatsCommand extends Command
@@ -73,6 +74,10 @@ class SyncMinecraftPlayerStatsCommand extends Command
             if ($result['timestamp']) {
                 $this->line('Response timestamp: '.$result['timestamp']);
             }
+
+            return self::SUCCESS;
+        } catch (ConnectionException $exception) {
+            $this->warn('Minecraft player stats sync hit a transient transport failure: '.$exception->getMessage());
 
             return self::SUCCESS;
         } catch (\Throwable $exception) {

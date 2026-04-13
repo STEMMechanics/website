@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\MinecraftPlayerStat;
+use App\Models\MinecraftWebhookLog;
 use App\Models\SiteOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Client\Request;
 use Tests\TestCase;
@@ -124,5 +126,35 @@ class SyncMinecraftPlayerStatsCommandTest extends TestCase
         $this->assertSame(72000, data_get($storedStats->get('play_time'), 'value'));
         $this->assertSame(145230, data_get($storedStats->get('distance_walked_cm'), 'value'));
         $this->assertSame('2026-03-04 19:50', $playerStat->captured_at?->format('Y-m-d H:i'));
+    }
+
+    public function test_sync_command_soft_fails_when_the_webhook_transport_times_out(): void
+    {
+        config(['app.timezone' => 'Australia/Brisbane']);
+
+        SiteOption::query()->create([
+            'name' => 'minecraft.server-webhook-url',
+            'value' => 'https://example.test/webhooks/stemcraft/server',
+        ]);
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        Http::fake(function (Request $request): never {
+            throw new ConnectionException('Operation timed out after 15002 milliseconds with 43440 out of 70675 bytes received');
+        });
+
+        $this->artisan('minecraft:player-stats:sync')
+            ->expectsOutputToContain('Minecraft player stats sync hit a transient transport failure:')
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('minecraft_webhook_logs', [
+            'direction' => 'outbound',
+            'event' => 'server.player-stats.request',
+            'status' => 'failed',
+        ]);
+
+        $this->assertSame(1, MinecraftWebhookLog::query()->count());
     }
 }
