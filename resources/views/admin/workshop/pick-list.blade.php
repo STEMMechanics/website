@@ -67,25 +67,29 @@
                 <h2 class="text-lg font-semibold text-gray-900">Items / Materials</h2>
 
                 <div class="flex flex-col sm:flex-row gap-3">
-                    <div class="flex gap-2 items-center">
-                        <span>Participants: </span>
-                        @if($workshop->registration !== 'tickets')
+                    @if($workshop->registration !== 'tickets')
+                        <div class="flex flex-col gap-1">
+                            <span class="text-sm font-medium text-gray-700">Participant count</span>
                             <x-ui.input
                                     noLabel="true"
                                     type="number"
                                     min="1"
                                     step="1"
                                     name="pick_list_participants"
-                                    class="mb-0 w-12"
+                                    class="mb-0 w-24"
                                     fieldClasses="mt-0 text-center"
                                     x-model="participantsInput"
                                     x-on:input="scheduleAutosave()"
                                     x-on:change="scheduleAutosave()"
                             />
-                        @else
+                            <span class="text-xs text-gray-500">Used to calculate quantities for items marked as per participant.</span>
+                        </div>
+                    @else
+                        <div class="flex gap-2 items-center">
+                            <span>Participants: </span>
                             <span class="font-semibold">{{ $activeTicketCount }}</span>
-                        @endif
-                    </div>
+                        </div>
+                    @endif
 
                     <div class="flex flex-col sm:flex-row gap-2">
                         <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
