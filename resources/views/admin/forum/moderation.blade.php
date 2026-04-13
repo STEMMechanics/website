@@ -76,7 +76,7 @@
                         name="exception_words"
                         rows="8"
                         value="{{ $settings['exception_words'] }}"
-                        info="One word or phrase per line. These are merged with Blasp's built-in false positives before the profanity check runs."
+                        info="One exact word or phrase per line. Matching ignores spaces and punctuation, so `snot` also covers `s not` and `s.not`. HTML-escaped apostrophes are normalized automatically."
                     />
                 </div>
             </section>

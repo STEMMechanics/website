@@ -66,7 +66,7 @@ class ForumModerationController extends Controller
 
         $this->storeOption('moderation.content-filter.enabled', (string) $validated['enabled']);
         $this->storeOption('moderation.content-filter.custom-patterns', trim((string) ($validated['custom_patterns'] ?? '')));
-        $this->storeOption('moderation.content-filter.exception-words', trim((string) ($validated['exception_words'] ?? '')));
+        $this->storeOption('moderation.content-filter.exception-words', $this->normalizedExceptionWords((string) ($validated['exception_words'] ?? '')));
         $this->storeOption('moderation.content-filter.profanity-mask-character', $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')));
         $this->storeOption('moderation.content-filter.blocked-message-placeholder', trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]');
         $this->storeOption('moderation.content-filter.block-all-caps', (string) $validated['block_all_caps']);
@@ -143,7 +143,7 @@ class ForumModerationController extends Controller
         return [
             'moderation.content-filter.enabled' => (string) $validated['enabled'],
             'moderation.content-filter.custom-patterns' => trim((string) ($validated['custom_patterns'] ?? '')),
-            'moderation.content-filter.exception-words' => trim((string) ($validated['exception_words'] ?? '')),
+            'moderation.content-filter.exception-words' => $this->normalizedExceptionWords((string) ($validated['exception_words'] ?? '')),
             'moderation.content-filter.profanity-mask-character' => $this->normalizedMaskCharacter((string) ($validated['profanity_mask_character'] ?? '*')),
             'moderation.content-filter.blocked-message-placeholder' => trim((string) ($validated['blocked_message_placeholder'] ?? '')) ?: '[Message blocked by moderation filter]',
             'moderation.content-filter.block-all-caps' => (string) $validated['block_all_caps'],
@@ -184,6 +184,17 @@ class ForumModerationController extends Controller
         $trimmed = trim($value);
 
         return mb_substr($trimmed !== '' ? $trimmed : '*', 0, 1);
+    }
+
+    private function normalizedExceptionWords(string $value): string
+    {
+        $lines = preg_split('/\r\n|\r|\n/', $value) ?: [];
+
+        return collect($lines)
+            ->map(fn ($line) => trim(html_entity_decode((string) $line, ENT_QUOTES | ENT_HTML5, 'UTF-8')))
+            ->filter()
+            ->values()
+            ->implode(PHP_EOL);
     }
 
     /**
