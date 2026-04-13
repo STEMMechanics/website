@@ -74,6 +74,42 @@ class DeliverMinecraftWebhookTest extends TestCase
         $this->assertIsString($payload['occurred_at'] ?? null);
     }
 
+    public function test_delivery_job_maps_legacy_penalty_lifted_event_to_supported_updated_event(): void
+    {
+        SiteOption::query()->create([
+            'name' => 'minecraft.server-webhook-url',
+            'value' => 'https://example.test/stemcraft/webhook',
+        ]);
+        SiteOption::query()->create([
+            'name' => 'minecraft.webhook-secret',
+            'value' => 'shared-secret',
+        ]);
+
+        Http::fake();
+
+        $job = new DeliverMinecraftWebhook('player.penalty.lifted', [
+            'uuid' => '123e4567-e89b-12d3-a456-426614174000',
+            'type' => 'ban',
+            'occurred_at' => now()->toIso8601String(),
+        ], 'abcdabcd-abcd-abcd-abcd-abcdabcdabcd');
+
+        $job->handle();
+
+        Http::assertSent(function ($request): bool {
+            $decoded = json_decode($request->body(), true);
+
+            return is_array($decoded)
+                && ($decoded['event'] ?? null) === 'player.penalty.updated';
+        });
+
+        $this->assertDatabaseHas('minecraft_webhook_logs', [
+            'direction' => 'outbound',
+            'event' => 'player.penalty.updated',
+            'delivery_id' => 'abcdabcd-abcd-abcd-abcd-abcdabcdabcd',
+            'status' => 'delivered',
+        ]);
+    }
+
     public function test_delivery_job_marks_missing_configuration_as_pending_for_retry(): void
     {
         $this->expectException(RuntimeException::class);

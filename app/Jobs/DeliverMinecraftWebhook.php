@@ -52,15 +52,16 @@ class DeliverMinecraftWebhook implements ShouldQueue
         $log = $this->resolveLog();
         $url = trim((string) SiteOption::value('minecraft.server-webhook-url', SiteOption::defaultValue('minecraft.server-webhook-url')));
         $secret = trim((string) SiteOption::value('minecraft.webhook-secret', SiteOption::defaultValue('minecraft.webhook-secret')));
+        $event = MinecraftSyncService::normalizeOutboundEventName($this->event);
         $deliveryId = $this->resolveDeliveryIdForAttempt();
         $payload = MinecraftSyncService::ensureOccurredAt($this->payload);
-        $body = json_encode(array_merge(['event' => $this->event], $payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $body = json_encode(array_merge(['event' => $event], $payload), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $timestamp = (string) time();
 
         if ($log) {
             $log->direction = MinecraftWebhookLog::DIRECTION_OUTBOUND;
             $log->status = MinecraftWebhookLog::STATUS_PENDING;
-            $log->event = $this->event;
+            $log->event = $event;
             $log->delivery_id = $deliveryId;
             $log->method = 'POST';
             $log->target_url = $url !== '' ? $url : null;

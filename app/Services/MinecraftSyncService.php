@@ -255,11 +255,20 @@ class MinecraftSyncService
         $this->queueDelivery($event, $payload);
     }
 
+    public static function normalizeOutboundEventName(string $event): string
+    {
+        return match (trim($event)) {
+            'player.penalty.lifted' => 'player.penalty.updated',
+            default => trim($event),
+        };
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */
     private function queueDelivery(string $event, array $payload, ?int $retriedFromId = null): ?MinecraftWebhookLog
     {
+        $event = self::normalizeOutboundEventName($event);
         $payload = self::ensureOccurredAt($payload);
         $url = trim((string) SiteOption::value('minecraft.server-webhook-url', SiteOption::defaultValue('minecraft.server-webhook-url')));
         $deliveryId = (string) Str::uuid();
