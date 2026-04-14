@@ -19,6 +19,34 @@
                 <a href="{{ $allMediaRoute }}" class="ml-2 text-primary-color hover:underline">Show all media</a>
             </div>
         @endif
+        <div class="mb-4 rounded-xl border border-dashed border-gray-300 bg-white p-5" id="admin-media-bulk-upload">
+            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div class="text-base font-semibold text-gray-900">Quick upload</div>
+                    <div class="text-sm text-gray-600">Drop multiple files here to create media items with default titles and your admin account as the owner.</div>
+                </div>
+                <label for="admin-media-bulk-upload-input" class="inline-flex cursor-pointer items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100">
+                    Browse files
+                </label>
+            </div>
+            <label
+                for="admin-media-bulk-upload-input"
+                id="admin-media-bulk-upload-dropzone"
+                class="mt-4 block cursor-pointer rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-5 py-8 text-center text-sm text-gray-500 transition"
+            >
+                Drop files here or click Browse files
+            </label>
+            <input id="admin-media-bulk-upload-input" type="file" multiple class="hidden" />
+            <div id="admin-media-bulk-upload-status" class="mt-3 hidden rounded border px-3 py-2 text-sm">
+                <div class="mb-2 flex items-center justify-between gap-3">
+                    <div class="font-medium" id="admin-media-bulk-upload-status-text"></div>
+                    <div class="text-xs text-gray-500" id="admin-media-bulk-upload-status-percent"></div>
+                </div>
+                <div class="h-2 w-full overflow-hidden rounded bg-gray-200">
+                    <div id="admin-media-bulk-upload-status-bar" class="h-2 rounded bg-primary-color transition-all duration-200" style="width:0%"></div>
+                </div>
+            </div>
+        </div>
         <x-ui.toolbar>
             <x-slot:left>
                 <x-ui.button href="{{ route('admin.media.create') }}">Create</x-ui.button>
@@ -164,6 +192,163 @@
             elements.errorsList.appendChild(li);
         });
     }
+
+    function adminMediaBulkUploadElements() {
+        return {
+            container: document.getElementById('admin-media-bulk-upload'),
+            dropzone: document.getElementById('admin-media-bulk-upload-dropzone'),
+            input: document.getElementById('admin-media-bulk-upload-input'),
+            status: document.getElementById('admin-media-bulk-upload-status'),
+            statusText: document.getElementById('admin-media-bulk-upload-status-text'),
+            statusPercent: document.getElementById('admin-media-bulk-upload-status-percent'),
+            statusBar: document.getElementById('admin-media-bulk-upload-status-bar'),
+        };
+    }
+
+    function setAdminMediaBulkUploadStatus(message, tone = 'neutral', progress = null) {
+        const elements = adminMediaBulkUploadElements();
+        if (!elements.status) {
+            return;
+        }
+
+        if (!message) {
+            elements.status.classList.add('hidden');
+            if (elements.statusText) {
+                elements.statusText.textContent = '';
+            }
+            if (elements.statusPercent) {
+                elements.statusPercent.textContent = '';
+            }
+            if (elements.statusBar) {
+                elements.statusBar.style.width = '0%';
+            }
+            elements.status.className = 'mt-3 hidden rounded border px-3 py-2 text-sm';
+            return;
+        }
+
+        elements.status.classList.remove('hidden');
+        if (elements.statusText) {
+            elements.statusText.textContent = message;
+        }
+        if (elements.statusPercent) {
+            const percent = Number.isFinite(Number(progress)) ? Math.max(0, Math.min(100, Number(progress))) : null;
+            elements.statusPercent.textContent = percent === null ? '' : `${Math.round(percent)}%`;
+        }
+        if (elements.statusBar) {
+            const percent = Number.isFinite(Number(progress)) ? Math.max(0, Math.min(100, Number(progress))) : 0;
+            elements.statusBar.style.width = `${percent}%`;
+        }
+        elements.status.className = 'mt-3 rounded border px-3 py-2 text-sm';
+
+        if (tone === 'error') {
+            elements.status.classList.add('border-red-200', 'bg-red-50', 'text-red-800');
+        } else if (tone === 'success') {
+            elements.status.classList.add('border-emerald-200', 'bg-emerald-50', 'text-emerald-800');
+        } else {
+            elements.status.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-700');
+        }
+    }
+
+    function uploadAdminMediaFiles(fileList) {
+        const files = Array.from(fileList || []);
+        const elements = adminMediaBulkUploadElements();
+
+        if (files.length === 0) {
+            return;
+        }
+
+        if (!window.SM || typeof window.SM.upload !== 'function') {
+            setAdminMediaBulkUploadStatus('Upload is not available in this browser.', 'error');
+            return;
+        }
+
+        if (elements.input) {
+            elements.input.disabled = true;
+        }
+
+        setAdminMediaBulkUploadStatus(files.length > 1
+            ? `Preparing ${files.length} uploads...`
+            : `Preparing ${files[0].name}...`);
+
+        SM.upload(files, (response) => {
+            if (!response || response.success !== true) {
+                if (elements.input) {
+                    elements.input.disabled = false;
+                }
+                return;
+            }
+
+            setAdminMediaBulkUploadStatus(
+                files.length > 1
+                    ? `${files.length} files uploaded successfully. Refreshing...`
+                    : `${files[0].name} uploaded successfully. Refreshing...`,
+                'success',
+                100
+            );
+
+            window.setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        }, files.map(() => ''), {
+            showModal: false,
+            successDelayMs: 0,
+            onProgress: ({ file, index, count, percent }) => {
+                setAdminMediaBulkUploadStatus(
+                    count > 1
+                        ? `Uploading ${index + 1} of ${count}: ${file.name} (${Math.round(percent)}%)`
+                        : `Uploading ${file.name} (${Math.round(percent)}%)`,
+                    'neutral',
+                    percent
+                );
+            },
+            onError: (message) => {
+                if (elements.input) {
+                    elements.input.disabled = false;
+                }
+                setAdminMediaBulkUploadStatus(message || 'An error occurred while uploading the file(s).', 'error');
+            },
+        });
+
+        if (elements.input) {
+            elements.input.value = '';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const elements = adminMediaBulkUploadElements();
+        if (!elements.dropzone || !elements.input) {
+            return;
+        }
+
+        const preventDefaults = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        };
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach((eventName) => {
+            elements.dropzone.addEventListener(eventName, preventDefaults);
+        });
+
+        ['dragenter', 'dragover'].forEach((eventName) => {
+            elements.dropzone.addEventListener(eventName, () => {
+                elements.dropzone.classList.add('border-primary-color', 'ring-2', 'ring-primary-color');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach((eventName) => {
+            elements.dropzone.addEventListener(eventName, () => {
+                elements.dropzone.classList.remove('border-primary-color', 'ring-2', 'ring-primary-color');
+            });
+        });
+
+        elements.dropzone.addEventListener('drop', (event) => {
+            uploadAdminMediaFiles(event.dataTransfer?.files || []);
+        });
+
+        elements.input.addEventListener('change', (event) => {
+            uploadAdminMediaFiles(event.target?.files || []);
+        });
+    });
 
     function updateRegenerateMissingVariantsUI(status) {
         const elements = regenerateMissingVariantsElements();
