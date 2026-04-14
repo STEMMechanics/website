@@ -252,6 +252,7 @@
     function uploadAdminMediaFiles(fileList) {
         const files = Array.from(fileList || []);
         const elements = adminMediaBulkUploadElements();
+        const totalBytes = files.reduce((sum, file) => sum + Number(file?.size || 0), 0);
 
         if (files.length === 0) {
             return;
@@ -265,6 +266,14 @@
         if (elements.input) {
             elements.input.disabled = true;
         }
+
+        const titles = files.map((file) => {
+            if (window.SM && typeof window.SM.toTitleCase === 'function') {
+                return window.SM.toTitleCase(file.name);
+            }
+
+            return String(file.name || '');
+        });
 
         setAdminMediaBulkUploadStatus(files.length > 1
             ? `Preparing ${files.length} uploads...`
@@ -289,16 +298,23 @@
             window.setTimeout(() => {
                 window.location.reload();
             }, 500);
-        }, files.map(() => ''), {
+        }, titles, {
             showModal: false,
             successDelayMs: 0,
             onProgress: ({ file, index, count, percent }) => {
+                const completedBytes = files
+                    .slice(0, index)
+                    .reduce((sum, previousFile) => sum + Number(previousFile?.size || 0), 0);
+                const currentLoaded = Math.max(0, Math.min(Number(file?.size || 0), Number(percent || 0) / 100 * Number(file?.size || 0)));
+                const overallTotal = totalBytes > 0 ? totalBytes : 1;
+                const overallProgress = Math.max(0, Math.min(100, ((completedBytes + currentLoaded) / overallTotal) * 100));
+
                 setAdminMediaBulkUploadStatus(
                     count > 1
                         ? `Uploading ${index + 1} of ${count}: ${file.name} (${Math.round(percent)}%)`
                         : `Uploading ${file.name} (${Math.round(percent)}%)`,
                     'neutral',
-                    percent
+                    overallProgress
                 );
             },
             onError: (message) => {

@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Media;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdminMediaUploadTest extends TestCase
@@ -35,6 +38,28 @@ class AdminMediaUploadTest extends TestCase
             ->assertSee('file_dropzone', false)
             ->assertSee('file_state_progress_bar', false)
             ->assertSeeText('Select File');
+    }
+
+    public function test_admin_media_store_creates_a_record_when_title_is_present(): void
+    {
+        Storage::fake('media');
+
+        $admin = $this->makeAdminUser();
+        $file = UploadedFile::fake()->image('bulk-upload-example.png', 120, 80);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.media.store'), [
+                'title' => 'Bulk Upload Example',
+                'file' => $file,
+            ])
+            ->assertOk()
+            ->assertJsonPath('name', 'bulk-upload-example.png');
+
+        $this->assertDatabaseHas('media', [
+            'title' => 'Bulk Upload Example',
+            'name' => 'bulk-upload-example.png',
+            'user_id' => $admin->id,
+        ]);
     }
 
     private function makeAdminUser(): User
