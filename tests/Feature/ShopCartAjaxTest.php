@@ -488,4 +488,46 @@ class ShopCartAjaxTest extends TestCase
             ->assertJsonPath('cart.summary.coupon_code', null)
             ->assertJsonPath('cart.summary.discount', 0);
     }
+
+    public function test_product_checkout_rejects_ticket_only_vouchers(): void
+    {
+        $product = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 25.00,
+        ]);
+        $otherProduct = Product::factory()->create([
+            'status' => Product::STATUS_ACTIVE,
+            'product_type' => Product::PRODUCT_TYPE_DIGITAL,
+            'price' => 35.00,
+        ]);
+
+        $coupon = Coupon::factory()->create([
+            'code' => 'TICKETONLY',
+            'amount' => 10.00,
+            'applies_to_products' => true,
+            'applies_to_workshops' => true,
+        ]);
+        $coupon->restrictedProducts()->attach($otherProduct);
+
+        $headers = [
+            'Accept' => 'application/json',
+            'X-Requested-With' => 'XMLHttpRequest',
+        ];
+
+        $this->withHeaders($headers)->post(route('shop.cart.add', $product), [
+            'quantity' => 1,
+        ])->assertOk();
+
+        $response = $this->withHeaders($headers)->post(route('shop.cart.coupon.apply'), [
+            'coupon_code' => 'TICKETONLY',
+            'shipping_country' => 'Australia',
+            'return_to' => route('shop.cart.show'),
+        ]);
+
+        $response
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'That voucher cannot be used for these products.')
+            ->assertJsonValidationErrors('coupon_code');
+    }
 }

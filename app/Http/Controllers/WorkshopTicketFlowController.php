@@ -582,7 +582,7 @@ class WorkshopTicketFlowController extends Controller
         $subtotal = round($ticketPriceAmount * count($holdIds), 2);
         $creditUser = $this->checkoutCreditUser($session);
         $billingEmail = trim((string) data_get($session, 'purchaser.email', ''));
-        $evaluation = $this->evaluateTicketVoucher($voucherCode, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
+        $evaluation = $this->evaluateTicketVoucher($workshop, $voucherCode, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
 
         if (($evaluation['error'] ?? null) !== null) {
             throw ValidationException::withMessages([
@@ -727,6 +727,7 @@ class WorkshopTicketFlowController extends Controller
         $voucherCode = $this->ticketVoucherCode($session);
         $billingEmail = trim((string) data_get($session, 'purchaser.email', ''));
         $voucherEvaluation = $this->evaluateTicketVoucher(
+            $workshop,
             $voucherCode !== '' ? $voucherCode : null,
             $subtotal,
             $creditUser,
@@ -741,7 +742,7 @@ class WorkshopTicketFlowController extends Controller
             session()->flash('message-type', 'warning');
 
             $voucherCode = '';
-            $voucherEvaluation = $this->evaluateTicketVoucher(null, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
+            $voucherEvaluation = $this->evaluateTicketVoucher($workshop, null, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
             $voucherError = null;
         }
 
@@ -775,12 +776,23 @@ class WorkshopTicketFlowController extends Controller
     }
 
     private function evaluateTicketVoucher(
+        Workshop $workshop,
         ?string $voucherCode,
         float $subtotal,
         ?User $user = null,
         ?string $billingEmail = null
     ): array {
-        $evaluation = $this->coupons->evaluate($voucherCode, $subtotal, 0, $user, $billingEmail);
+        $evaluation = $this->coupons->evaluate(
+            $voucherCode,
+            $subtotal,
+            0,
+            $user,
+            $billingEmail,
+            Coupon::CHECKOUT_CONTEXT_WORKSHOPS,
+            [
+                'workshop_id' => (string) $workshop->id,
+            ]
+        );
 
         if (($evaluation['error'] ?? null) !== null) {
             return $evaluation;

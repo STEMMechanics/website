@@ -2571,6 +2571,10 @@ class StoreOrderService
             (float) ($shippingQuote['amount'] ?? 0),
             $user,
             $customer['billing_email'],
+            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
+            [
+                'product_ids' => $preparedLines->pluck('product_id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            ],
         );
 
         if (($couponEvaluation['error'] ?? null) !== null) {

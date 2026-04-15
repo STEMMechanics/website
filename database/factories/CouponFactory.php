@@ -20,6 +20,8 @@ class CouponFactory extends Factory
             'minimum_order_amount' => null,
             'usage_limit' => null,
             'usage_limit_per_user' => null,
+            'applies_to_products' => true,
+            'applies_to_workshops' => true,
             'starts_at' => null,
             'ends_at' => null,
         ];

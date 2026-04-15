@@ -23,6 +23,8 @@
 - Ability to view and restore from file backups
 - Handle duplicate square events gracefully
 - Voucher support for tickets
+- Voucher editor improvements
+- Added additional voucher restrictions
 
 ## 1.4.3
 

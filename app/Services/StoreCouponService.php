@@ -12,7 +12,9 @@ class StoreCouponService
         float $subtotal,
         float $shipping,
         ?User $user = null,
-        ?string $billingEmail = null
+        ?string $billingEmail = null,
+        string $checkoutContext = Coupon::CHECKOUT_CONTEXT_PRODUCTS,
+        array $checkoutContextData = []
     ): array {
         $normalizedCode = Coupon::normalizeCode($couponCode);
         if ($normalizedCode === '') {
@@ -39,7 +41,7 @@ class StoreCouponService
             ];
         }
 
-        $error = $coupon->ineligibilityReason($subtotal, $user, $billingEmail);
+        $error = $coupon->ineligibilityReason($subtotal, $user, $billingEmail, $checkoutContext, $checkoutContextData);
         if ($error !== null) {
             return [
                 'coupon' => $coupon,

@@ -19,6 +19,8 @@
                     <th>Code</th>
                     <th class="hidden lg:table-cell">Status</th>
                     <th class="hidden md:table-cell">Type</th>
+                    <th class="hidden xl:table-cell">Products</th>
+                    <th class="hidden xl:table-cell">Workshops</th>
                     <th>Amount</th>
                     <th class="hidden md:table-cell">Used</th>
                     <th>Action</th>
@@ -34,6 +36,24 @@
                             </td>
                             <td class="hidden lg:table-cell">{{ \App\Models\Coupon::statusLabel((string) $coupon->status) }}</td>
                             <td class="hidden md:table-cell">{{ \App\Models\Coupon::discountTypeLabel((string) $coupon->discount_type) }}</td>
+                            <td class="hidden xl:table-cell">
+                                @if(! $coupon->applies_to_products)
+                                    Off
+                                @elseif((int) ($coupon->restricted_products_count ?? 0) > 0)
+                                    Selected ({{ (int) $coupon->restricted_products_count }})
+                                @else
+                                    All
+                                @endif
+                            </td>
+                            <td class="hidden xl:table-cell">
+                                @if(! $coupon->applies_to_workshops)
+                                    Off
+                                @elseif((int) ($coupon->restricted_workshops_count ?? 0) > 0)
+                                    Selected ({{ (int) $coupon->restricted_workshops_count }})
+                                @else
+                                    All
+                                @endif
+                            </td>
                             <td>
                                 @if((string) $coupon->discount_type === \App\Models\Coupon::DISCOUNT_TYPE_PERCENTAGE)
                                     {{ number_format((float) $coupon->amount, 2) }}%

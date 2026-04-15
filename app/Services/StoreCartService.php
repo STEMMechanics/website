@@ -338,6 +338,10 @@ class StoreCartService
             $shippingAmount,
             $options['user'] ?? null,
             $options['billing_email'] ?? null,
+            Coupon::CHECKOUT_CONTEXT_PRODUCTS,
+            [
+                'product_ids' => $lines->pluck('product.id')->map(fn ($id) => (int) $id)->unique()->values()->all(),
+            ],
         );
         $normalizedRequestedCouponCode = Coupon::normalizeCode($requestedCouponCode);
         $normalizedStoredCouponCode = Coupon::normalizeCode($this->couponCode());

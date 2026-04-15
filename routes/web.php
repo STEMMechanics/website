@@ -523,6 +523,8 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/store/coupons', [ShopCouponController::class, 'index'])->name('admin.shop.coupon.index');
     Route::get('/admin/store/coupons/create', [ShopCouponController::class, 'create'])->name('admin.shop.coupon.create');
     Route::post('/admin/store/coupons', [ShopCouponController::class, 'store'])->name('admin.shop.coupon.store');
+    Route::get('/admin/store/coupons/product-options', [ShopCouponController::class, 'productOptions'])->name('admin.shop.coupon.product-options');
+    Route::get('/admin/store/coupons/workshop-options', [ShopCouponController::class, 'workshopOptions'])->name('admin.shop.coupon.workshop-options');
     Route::get('/admin/store/coupons/{coupon}', [ShopCouponController::class, 'edit'])->name('admin.shop.coupon.edit');
     Route::put('/admin/store/coupons/{coupon}', [ShopCouponController::class, 'update'])->name('admin.shop.coupon.update');
     Route::delete('/admin/store/coupons/{coupon}', [ShopCouponController::class, 'destroy'])->name('admin.shop.coupon.destroy');

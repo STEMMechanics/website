@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -20,6 +21,10 @@ class Coupon extends Model
     public const DISCOUNT_TYPE_PERCENTAGE = 'percentage';
 
     public const DISCOUNT_TYPE_FREE_SHIPPING = 'free_shipping';
+
+    public const CHECKOUT_CONTEXT_PRODUCTS = 'products';
+
+    public const CHECKOUT_CONTEXT_WORKSHOPS = 'workshops';
 
     public const STATUSES = [
         self::STATUS_ACTIVE,
@@ -41,6 +46,8 @@ class Coupon extends Model
         'minimum_order_amount',
         'usage_limit',
         'usage_limit_per_user',
+        'applies_to_products',
+        'applies_to_workshops',
         'starts_at',
         'ends_at',
     ];
@@ -50,6 +57,8 @@ class Coupon extends Model
         'minimum_order_amount' => 'decimal:2',
         'usage_limit' => 'integer',
         'usage_limit_per_user' => 'integer',
+        'applies_to_products' => 'boolean',
+        'applies_to_workshops' => 'boolean',
         'starts_at' => 'datetime',
         'ends_at' => 'datetime',
     ];
@@ -60,6 +69,27 @@ class Coupon extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(StoreOrder::class);
+    }
+
+    /**
+     * @return BelongsToMany<Product, $this>
+     */
+    public function restrictedProducts(): BelongsToMany
+    {
+        return $this->belongsToMany(Product::class, 'coupon_product_restrictions')
+            ->withTimestamps()
+            ->orderBy('products.title');
+    }
+
+    /**
+     * @return BelongsToMany<Workshop, $this>
+     */
+    public function restrictedWorkshops(): BelongsToMany
+    {
+        return $this->belongsToMany(Workshop::class, 'coupon_workshop_restrictions')
+            ->withTimestamps()
+            ->orderBy('workshops.starts_at')
+            ->orderBy('workshops.title');
     }
 
     public function scopeActive($query)
@@ -91,6 +121,98 @@ class Coupon extends Model
         };
     }
 
+    public function appliesToProducts(): bool
+    {
+        return (bool) $this->applies_to_products;
+    }
+
+    public function appliesToWorkshops(): bool
+    {
+        return (bool) $this->applies_to_workshops;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    public function restrictedProductIds(): array
+    {
+        return ($this->relationLoaded('restrictedProducts') ? $this->restrictedProducts : $this->restrictedProducts()->get())
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function restrictedWorkshopIds(): array
+    {
+        return ($this->relationLoaded('restrictedWorkshops') ? $this->restrictedWorkshops : $this->restrictedWorkshops()->get())
+            ->pluck('id')
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn (string $id) => $id !== '')
+            ->values()
+            ->all();
+    }
+
+    public function appliesToCheckoutContext(string $context, array $contextData = []): bool
+    {
+        if ($context === self::CHECKOUT_CONTEXT_PRODUCTS) {
+            if (! $this->appliesToProducts()) {
+                return false;
+            }
+
+            $restrictedProductIds = $this->restrictedProductIds();
+            if ($restrictedProductIds === []) {
+                return true;
+            }
+
+            $productIds = collect($contextData['product_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            return $productIds !== [] && array_diff($productIds, $restrictedProductIds) === [];
+        }
+
+        if ($context === self::CHECKOUT_CONTEXT_WORKSHOPS) {
+            if (! $this->appliesToWorkshops()) {
+                return false;
+            }
+
+            $restrictedWorkshopIds = $this->restrictedWorkshopIds();
+            if ($restrictedWorkshopIds === []) {
+                return true;
+            }
+
+            $workshopId = trim((string) ($contextData['workshop_id'] ?? ''));
+
+            return $workshopId !== '' && in_array($workshopId, $restrictedWorkshopIds, true);
+        }
+
+        return true;
+    }
+
+    public function appliesToCheckoutContextMessage(string $context, array $contextData = []): string
+    {
+        if ($context === self::CHECKOUT_CONTEXT_PRODUCTS) {
+            return $this->appliesToProducts()
+                ? 'That voucher cannot be used for these products.'
+                : 'That voucher cannot be used for products.';
+        }
+
+        if ($context === self::CHECKOUT_CONTEXT_WORKSHOPS) {
+            return $this->appliesToWorkshops()
+                ? 'That voucher cannot be used for this workshop.'
+                : 'That voucher cannot be used for workshop tickets.';
+        }
+
+        return 'That voucher cannot be used for this checkout.';
+    }
+
     public function isAvailableNow(?Carbon $now = null): bool
     {
         $now ??= now();
@@ -119,29 +241,24 @@ class Coupon extends Model
         };
     }
 
-    public function isEligibleForOrder(float $subtotal, ?User $user = null, ?string $billingEmail = null): bool
+    public function isEligibleForOrder(
+        float $subtotal,
+        ?User $user = null,
+        ?string $billingEmail = null,
+        string $checkoutContext = self::CHECKOUT_CONTEXT_PRODUCTS,
+        array $checkoutContextData = []
+    ): bool
     {
-        if (! $this->isAvailableNow()) {
-            return false;
-        }
-
-        $minimum = $this->minimum_order_amount;
-        if ($minimum !== null && $subtotal + 0.0001 < (float) $minimum) {
-            return false;
-        }
-
-        if ($this->usage_limit !== null && $this->redeemedCount() >= (int) $this->usage_limit) {
-            return false;
-        }
-
-        if ($this->usage_limit_per_user !== null && $this->redeemedCountFor($user, $billingEmail) >= (int) $this->usage_limit_per_user) {
-            return false;
-        }
-
-        return true;
+        return $this->ineligibilityReason($subtotal, $user, $billingEmail, $checkoutContext, $checkoutContextData) === null;
     }
 
-    public function ineligibilityReason(float $subtotal, ?User $user = null, ?string $billingEmail = null): ?string
+    public function ineligibilityReason(
+        float $subtotal,
+        ?User $user = null,
+        ?string $billingEmail = null,
+        string $checkoutContext = self::CHECKOUT_CONTEXT_PRODUCTS,
+        array $checkoutContextData = []
+    ): ?string
     {
         if ((string) $this->status !== self::STATUS_ACTIVE) {
             return 'That voucher is not active.';
@@ -149,6 +266,10 @@ class Coupon extends Model
 
         if (! $this->isAvailableNow()) {
             return 'That voucher is not available right now.';
+        }
+
+        if (! $this->appliesToCheckoutContext($checkoutContext, $checkoutContextData)) {
+            return $this->appliesToCheckoutContextMessage($checkoutContext, $checkoutContextData);
         }
 
         $minimum = $this->minimum_order_amount;

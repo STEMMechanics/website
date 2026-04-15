@@ -208,6 +208,32 @@ class WorkshopTicketEmailFlowTest extends TestCase
             'amount' => 5.00,
         ]);
 
+        Coupon::factory()->create([
+            'code' => 'PRODUCTONLY',
+            'description' => 'Product voucher',
+            'status' => Coupon::STATUS_ACTIVE,
+            'discount_type' => Coupon::DISCOUNT_TYPE_FIXED_AMOUNT,
+            'amount' => 5.00,
+            'applies_to_products' => true,
+            'applies_to_workshops' => false,
+        ]);
+
+        $restrictedWorkshop = $this->createTicketedWorkshop([
+            'price' => '15.00',
+            'title' => 'Restricted Ticket Workshop',
+        ]);
+
+        $workshopOnlyCoupon = Coupon::factory()->create([
+            'code' => 'WORKSHOPONLY',
+            'description' => 'Workshop voucher',
+            'status' => Coupon::STATUS_ACTIVE,
+            'discount_type' => Coupon::DISCOUNT_TYPE_FIXED_AMOUNT,
+            'amount' => 5.00,
+            'applies_to_products' => false,
+            'applies_to_workshops' => true,
+        ]);
+        $workshopOnlyCoupon->restrictedWorkshops()->attach($restrictedWorkshop);
+
         $workshop = $this->createTicketedWorkshop([
             'price' => '15.00',
         ]);
@@ -227,6 +253,22 @@ class WorkshopTicketEmailFlowTest extends TestCase
         ]);
         $invalidVoucherResponse
             ->assertStatus(422)
+            ->assertJsonValidationErrors('voucher_code');
+
+        $productOnlyVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
+            'voucher_code' => 'PRODUCTONLY',
+        ]);
+        $productOnlyVoucherResponse
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'That voucher cannot be used for workshop tickets.')
+            ->assertJsonValidationErrors('voucher_code');
+
+        $restrictedWorkshopVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
+            'voucher_code' => 'WORKSHOPONLY',
+        ]);
+        $restrictedWorkshopVoucherResponse
+            ->assertStatus(422)
+            ->assertJsonPath('message', 'That voucher cannot be used for this workshop.')
             ->assertJsonValidationErrors('voucher_code');
 
         $validVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
