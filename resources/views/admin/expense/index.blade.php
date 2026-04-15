@@ -7,7 +7,28 @@
                 <x-ui.button href="{{ route('admin.expense.create') }}">Record</x-ui.button>
             </x-slot:left>
             <x-slot:right>
-                <x-ui.search name="search" label="Search" />
+                <form method="GET" action="{{ url()->current() }}" class="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <x-ui.checkbox
+                        name="no_attachment"
+                        value="1"
+                        label="No attachment"
+                        :checked="request()->boolean('no_attachment')"
+                        :noWrapper="true"
+                        :inline="true"
+                        onchange="this.form.submit()"
+                    />
+                    <div class="flex">
+                        <input
+                            class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
+                            autocomplete="off"
+                            type="text"
+                            name="search"
+                            placeholder="Search"
+                            value="{{ request('search', '') }}"
+                        />
+                        <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
+                    </div>
+                </form>
             </x-slot:right>
         </x-ui.toolbar>
 

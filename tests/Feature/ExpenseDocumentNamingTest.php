@@ -132,6 +132,43 @@ class ExpenseDocumentNamingTest extends TestCase
         $response->assertDontSeeText('No attached invoice');
     }
 
+    public function test_expense_index_can_filter_to_expenses_without_attachments(): void
+    {
+        $admin = $this->createAdminUser();
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'No Attachment Supplier',
+            'description' => 'Missing receipt',
+            'invoice_id' => 'INV-0001',
+            'paid_on' => '2026-03-01',
+            'total_amount' => 25.00,
+            'gst_amount' => 2.27,
+            'receipt_document_path' => null,
+            'receipt_document_name' => null,
+        ]);
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'With Attachment Supplier',
+            'description' => 'Has receipt',
+            'invoice_id' => 'INV-0002',
+            'paid_on' => '2026-03-02',
+            'total_amount' => 75.00,
+            'gst_amount' => 6.82,
+            'receipt_document_path' => 'finance/expenses/sample.pdf',
+            'receipt_document_name' => 'sample.pdf',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index', [
+            'no_attachment' => 1,
+        ]));
+
+        $response->assertOk();
+        $response->assertSeeText('No Attachment Supplier');
+        $response->assertDontSeeText('With Attachment Supplier');
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

@@ -25,6 +25,13 @@ class ExpenseController extends Controller
             });
         }
 
+        if ($request->boolean('no_attachment')) {
+            $query->where(function ($builder): void {
+                $builder->whereNull('receipt_document_path')
+                    ->orWhere('receipt_document_path', '');
+            });
+        }
+
         $expenses = $query->orderBy('paid_on', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
 
         return view('admin.expense.index', [
