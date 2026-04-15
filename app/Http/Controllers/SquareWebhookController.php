@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\SquareWebhookEvent;
 use App\Services\SquareApiService;
 use App\Services\SquareWebhookSyncService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -58,18 +59,18 @@ class SquareWebhookController extends Controller
             return response()->json(['ok' => false, 'message' => 'Missing event_id'], 422);
         }
 
-        $alreadyProcessed = SquareWebhookEvent::query()->where('event_id', $eventId)->exists();
-        if ($alreadyProcessed) {
+        try {
+            $event = SquareWebhookEvent::query()->create([
+                'event_id' => $eventId,
+                'event_type' => $eventType,
+                'payment_id' => null,
+                'payload' => $payload,
+                'processed_at' => now(),
+            ]);
+        } catch (UniqueConstraintViolationException) {
             return response()->json(['ok' => true, 'duplicate' => true]);
         }
 
-        $event = SquareWebhookEvent::query()->create([
-            'event_id' => $eventId,
-            'event_type' => $eventType,
-            'payment_id' => null,
-            'payload' => $payload,
-            'processed_at' => now(),
-        ]);
         $syncService->syncPayload($payload, $event);
 
         return response()->json(['ok' => true]);

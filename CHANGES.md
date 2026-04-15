@@ -21,6 +21,7 @@
 - Improved file snapshots
 - Ability to locate unused media
 - Ability to view and restore from file backups
+- Handle duplicate square events gracefully
 
 ## 1.4.3
 
