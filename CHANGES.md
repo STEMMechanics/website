@@ -22,6 +22,7 @@
 - Ability to locate unused media
 - Ability to view and restore from file backups
 - Handle duplicate square events gracefully
+- Voucher support for tickets
 
 ## 1.4.3
 

@@ -4,6 +4,29 @@
     $accountTermsDays = (int) ($accountTermsDays ?? 0);
     $canUseAccountTerms = (bool) ($canUseAccountTerms ?? ($accountTermsDays > 0));
     $accountTermsLabel = trim((string) ($accountTermsLabel ?? ($accountTermsDays > 0 ? $accountTermsDays.' days' : 'Current')));
+    $voucherCode = trim((string) ($voucherCode ?? ''));
+    $voucherDiscountAmount = round((float) ($voucherDiscountAmount ?? 0), 2);
+    $voucherButtonLabel = trim((string) ($voucherButtonLabel ?? ($voucherCode !== '' ? 'Change voucher' : 'Add voucher')));
+    $ticketSubtotal = round((float) $ticketPriceAmount * (int) ($holdCount ?? 0), 2);
+    $ticketTotal = round(max(0, $ticketSubtotal - $voucherDiscountAmount), 2);
+    $hasAmountDue = $ticketTotal > 0.0001;
+    $isClassroomAccess = (bool) ($isClassroomAccess ?? $workshop->usesClassroomRegistration());
+    $summaryRows = [
+        ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')],
+    ];
+    if ($voucherDiscountAmount > 0.0001) {
+        $summaryRows[] = ['type' => 'spacer'];
+        $summaryRows[] = [
+            'label' => 'Discount',
+            'value' => '$-'.number_format($voucherDiscountAmount, 2).($voucherCode !== '' ? ' ('.$voucherCode.')' : ''),
+        ];
+    } else {
+        $summaryRows[] = ['type' => 'spacer'];
+    }
+    $summaryRows[] = [
+        'label' => 'Total Cost',
+        'value' => $ticketTotal > 0 ? '$'.number_format($ticketTotal, 2) : 'Free',
+    ];
 @endphp
 
 <x-layout>
@@ -21,21 +44,26 @@
                     accountCreditAvailable: @js($accountCreditAvailable),
                     accountTermsDays: @js($accountTermsDays),
                     canUseAccountTerms: @js($canUseAccountTerms),
-                    totalAmount: @js($totalAmount),
+                    totalAmount: @js($ticketTotal),
                     useAccountCredit: @js((bool) old('apply_account_credit', $applyAccountCreditDefault)),
                     isClassroomAccess: @js($isClassroomAccess),
-                    paymentMethod: @js($totalAmount > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
+                    paymentMethod: @js($ticketTotal > 0 ? old('payment_method', $canUseAccountTerms ? 'account_terms' : 'pay_at_door') : 'pay_at_door'),
+                    voucherCode: @js($voucherCode),
+                    voucherDraft: @js(old('voucher_code', $voucherCode)),
+                    voucherError: @js($errors->first('voucher_code') ?: ''),
+                    voucherDialogOpen: @js($errors->has('voucher_code')),
                 })"
-            x-init="startHoldTimer()">
+            x-init="startHoldTimer(); if (voucherDialogOpen) { $nextTick(() => { $refs.voucherInput?.focus() }) }">
             <div class="flex-1">
                 <h2 class="text-2xl font-bold mb-3">{{ $isClassroomAccess ? 'Course Payment' : 'Payment' }}</h2>
 
                 @include('workshop.tickets.partials.summary', [
-                'workshop' => $workshop,
-                'rows' => [
-                ['label' => $isClassroomAccess ? 'Course' : 'Tickets', 'value' => $holdCount.' @ '.($ticketPriceAmount > 0 ? '$'.number_format($ticketPriceAmount, 2).' per '.($isClassroomAccess ? 'access' : 'ticket') : 'Free')],
-                ['label' => 'Total Cost', 'value' => $totalAmount > 0 ? '$'.number_format($totalAmount, 2) : 'Free'],
-                ],
+                    'workshop' => $workshop,
+                    'rows' => $summaryRows,
+                    'totalActionLabel' => $voucherButtonLabel,
+                    'totalActionAttributes' => [
+                        'x-on:click' => 'openVoucherDialog()',
+                    ],
                 ])
 
                 <form id="ticket-payment-form" method="POST" action="{{ route('workshop.ticket.flow.payment.process', $workshop) }}"
@@ -62,14 +90,17 @@
                                         Available credit:
                                         <strong>${{ number_format($accountCreditAvailable, 2) }}</strong>
                                     </div>
-                                    <div x-show="useAccountCredit && remainingAfterCredit() > 0.0001" x-cloak class="mt-1">
+                                    <div x-show="useAccountCredit && totalAmount > 0.0001 && remainingAfterCredit() > 0.0001" x-cloak class="mt-1">
                                         Remaining after credit:
                                         <strong x-text="formatMoney(remainingAfterCredit())"></strong>.
                                     </div>
-                                    <div x-show="useAccountCredit && remainingAfterCredit() <= 0.0001" x-cloak class="mt-1">
+                                    <div x-show="useAccountCredit && totalAmount > 0.0001 && remainingAfterCredit() <= 0.0001" x-cloak class="mt-1">
                                         This purchase will be covered in full by account credit.
                                     </div>
-                                    <div x-show="!useAccountCredit" x-cloak class="mt-1">
+                                    <div x-show="useAccountCredit && totalAmount <= 0.0001" x-cloak class="mt-1">
+                                        This purchase does not require payment.
+                                    </div>
+                                    <div x-show="!useAccountCredit && totalAmount > 0.0001" x-cloak class="mt-1">
                                         Account credit will not be applied to this purchase.
                                     </div>
                                 </div>
@@ -126,7 +157,7 @@
                         </div>
                         <div class="relative">
                             <div x-ref="squareCardContainer"
-                                class="min-h-[88px] transition"
+                                class="min-h-22 transition"
                                 x-bind:class="{ 'pointer-events-none opacity-60': isSubmitting || isCardLoading }"></div>
                             <div x-show="isCardLoading" x-cloak class="absolute inset-0 flex items-center justify-center bg-white/80">
                                 <img src="{{ asset('loading.gif') }}" alt="Loading card form" width="56" height="56" />
@@ -169,6 +200,54 @@
                         <x-ui.button color="outline" class="w-full" href="{{ route('workshop.show', $workshop) }}">Back</x-ui.button>
                     </div>
                 </form>
+
+                <template x-teleport="body">
+                    <div
+                        x-show="voucherDialogOpen"
+                        x-cloak
+                        class="fixed inset-0 z-280 flex items-end justify-center bg-slate-950/55 p-4 sm:items-start sm:pt-[12vh]"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="ticket-voucher-dialog-title"
+                        @click.self="closeVoucherDialog()"
+                        @keydown.escape.window="if (voucherDialogOpen) closeVoucherDialog()"
+                    >
+                        <div class="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-visible rounded-3xl bg-white shadow-2xl">
+                            <div class="px-6 py-5">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <h3 id="ticket-voucher-dialog-title" class="text-xl font-bold text-gray-900">Enter a voucher code</h3>
+                                    </div>
+                                    <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closeVoucherDialog()" aria-label="Close voucher dialog">
+                                        <i class="fa-solid fa-xmark text-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4 px-6 pb-5">
+                                <form method="POST" action="{{ route('workshop.ticket.flow.voucher', $workshop) }}" @submit.prevent="applyVoucherCode($event)">
+                                    @csrf
+                                    <x-ui.input
+                                        name="voucher_code"
+                                        no-label="true"
+                                        class="mb-0"
+                                        x-ref="voucherInput"
+                                        x-model="voucherDraft"
+                                        x-bind:disabled="voucherBusy"
+                                        x-bind:class="voucherError ? 'border-red-600! ring-red-600! focus:border-red-600! focus:ring-red-600!' : ''"
+                                    />
+
+                                    <div x-show="voucherError" x-cloak class="mt-2 ml-2 text-xs text-red-600" x-text="voucherError"></div>
+
+                                    <div class="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                                        <x-ui.button type="button" color="outline" x-bind:disabled="voucherBusy" x-on:click="closeVoucherDialog()">Cancel</x-ui.button>
+                                        <x-ui.button type="submit" x-bind:disabled="voucherBusy || (voucherDraft.trim() === '' && voucherCode === '')">Apply Voucher</x-ui.button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
             <div class="hidden md:block w-64 -m-5 ml-0 rounded-tr-lg rounded-br-lg bg-cover bg-center text-right" style="background-image:url('{{ $workshop->hero?->url }}')">
             </div>
@@ -207,6 +286,70 @@
             canUseAccountTerms: Boolean(config.canUseAccountTerms),
             totalAmount: Number(config.totalAmount || 0),
             useAccountCredit: Boolean(config.useAccountCredit),
+            voucherCode: String(config.voucherCode || '').trim(),
+            voucherDraft: String(config.voucherDraft || '').trim(),
+            voucherError: String(config.voucherError || ''),
+            voucherDialogOpen: Boolean(config.voucherDialogOpen),
+            voucherBusy: false,
+
+            openVoucherDialog() {
+                this.voucherError = '';
+                this.voucherDraft = this.voucherCode !== '' ? this.voucherCode : this.voucherDraft;
+                this.voucherDialogOpen = true;
+                this.$nextTick(() => {
+                    this.$refs?.voucherInput?.focus?.();
+                });
+            },
+
+            closeVoucherDialog() {
+                if (this.voucherBusy) {
+                    return;
+                }
+
+                this.voucherError = '';
+                this.voucherDialogOpen = false;
+            },
+
+            async applyVoucherCode(event) {
+                if (this.voucherBusy) {
+                    return;
+                }
+
+                const form = event?.target instanceof HTMLFormElement
+                    ? event.target
+                    : event?.target?.closest?.('form');
+                if (!(form instanceof HTMLFormElement)) {
+                    return;
+                }
+
+                this.voucherBusy = true;
+                this.voucherError = '';
+
+                const data = new FormData(form);
+                data.set('voucher_code', this.voucherDraft.trim());
+
+                try {
+                    const response = await window.axios.post(form.action, data);
+                    if (response?.data?.redirect_url) {
+                        window.location.assign(response.data.redirect_url);
+                        return;
+                    }
+
+                    window.location.reload();
+                } catch (error) {
+                    const redirectUrl = error?.response?.data?.redirect_url;
+                    if (redirectUrl) {
+                        window.location.assign(redirectUrl);
+                        return;
+                    }
+
+                    this.voucherError = error?.response?.data?.message
+                        || error?.response?.data?.errors?.voucher_code?.[0]
+                        || 'Unable to update the voucher right now.';
+                } finally {
+                    this.voucherBusy = false;
+                }
+            },
 
             canUseCreditCard() {
                 return this.remainingAfterCredit() > 0.0001 && this.squareEnabled && this.squareApplicationId !== '' && this.squareLocationId !== '';
@@ -232,6 +375,10 @@
             },
 
             submitButtonLabel() {
+                if (this.totalAmount <= 0.0001) {
+                    return this.isClassroomAccess ? 'Enrol Now' : 'Complete Order';
+                }
+
                 if (this.paymentMethod === 'account_terms') {
                     return this.isClassroomAccess ? 'Enrol on Account' : 'Place on Account';
                 }

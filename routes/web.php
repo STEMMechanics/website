@@ -70,6 +70,7 @@ Route::get('workshops/{workshop}/tickets', [WorkshopTicketFlowController::class,
 Route::get('workshops/{workshop}/tickets/login', [WorkshopTicketFlowController::class, 'loginRedirect'])->name('workshop.ticket.flow.login');
 Route::post('workshops/{workshop}/tickets/start', [WorkshopTicketFlowController::class, 'begin'])->name('workshop.ticket.flow.begin');
 Route::get('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'payment'])->name('workshop.ticket.flow.payment');
+Route::post('workshops/{workshop}/tickets/voucher', [WorkshopTicketFlowController::class, 'updateVoucher'])->name('workshop.ticket.flow.voucher');
 Route::post('workshops/{workshop}/tickets/payment', [WorkshopTicketFlowController::class, 'processPayment'])->name('workshop.ticket.flow.payment.process');
 Route::get('workshops/{workshop}/tickets/details', [WorkshopTicketFlowController::class, 'details'])->name('workshop.ticket.flow.details');
 Route::get('workshops/{workshop}/tickets/details/keepalive', [WorkshopTicketFlowController::class, 'detailsKeepAlive'])->name('workshop.ticket.flow.details.keepalive');

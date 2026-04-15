@@ -6,7 +6,9 @@ use App\Jobs\SendEmail;
 use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Mail\TicketAttendeeUpdate;
 use App\Mail\TicketOrderConfirmation;
+use App\Models\Coupon;
 use App\Models\Invoice;
+use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
 use App\Models\Location;
 use App\Models\Media;
@@ -155,6 +157,126 @@ class WorkshopTicketEmailFlowTest extends TestCase
                 && $mailable->purchaserName === 'Jamie Example'
                 && $this->mailableSubject($mailable) === "You're in! Your workshop ticket for Ticket Email Workshop";
         });
+    }
+
+    public function test_ticket_checkout_can_apply_a_voucher_and_persists_the_discount_in_the_invoice(): void
+    {
+        Queue::fake();
+
+        config()->set('services.square.enabled', true);
+        config()->set('services.square.location_id', 'L123');
+        config()->set('services.square.application_id', 'A123');
+
+        $squareApi = Mockery::mock(SquareApiService::class);
+        $squareApi->shouldReceive('isEnabled')->andReturn(true);
+        /** @phpstan-ignore-next-line */
+        $squareApi->shouldReceive('createPayment')->once()->with(Mockery::on(function (array $payload): bool {
+            $idempotencyKey = (string) data_get($payload, 'idempotency_key', '');
+
+            return (int) data_get($payload, 'amount_money.amount') === 1000
+                && str_contains($idempotencyKey, '-amt-1000')
+                && strlen($idempotencyKey) <= 45;
+        }))->andReturn([
+            'payment' => [
+                'id' => 'sq-payment-2',
+                'status' => 'COMPLETED',
+                'reference_id' => 'payment:2',
+                'order_id' => 'sq-order-2',
+                'location_id' => 'L123',
+                'receipt_url' => 'https://squareup.example/receipt',
+                'amount_money' => ['amount' => 1000],
+                'card_details' => [
+                    'status' => 'CAPTURED',
+                    'card' => [
+                        'card_brand' => 'VISA',
+                        'last_4' => '1111',
+                    ],
+                ],
+                'created_at' => now()->toIso8601String(),
+                'updated_at' => now()->toIso8601String(),
+            ],
+        ]);
+        /** @phpstan-ignore-next-line */
+        $squareApi->shouldReceive('userFacingPaymentErrorMessage')->andReturnUsing(fn (string $message) => $message);
+        $this->app->instance(SquareApiService::class, $squareApi);
+
+        Coupon::factory()->create([
+            'code' => 'SAVE5',
+            'description' => 'Ticket voucher',
+            'status' => Coupon::STATUS_ACTIVE,
+            'discount_type' => Coupon::DISCOUNT_TYPE_FIXED_AMOUNT,
+            'amount' => 5.00,
+        ]);
+
+        $workshop = $this->createTicketedWorkshop([
+            'price' => '15.00',
+        ]);
+
+        $this->travelTo(now()->startOfMinute());
+
+        $this->post(route('workshop.ticket.flow.begin', $workshop), [
+            'quantity' => 1,
+            'firstname' => 'Jamie',
+            'surname' => 'Example',
+            'email' => 'buyer@example.com',
+            'phone' => '0400123456',
+        ])->assertRedirect(route('workshop.ticket.flow.payment', $workshop));
+
+        $invalidVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
+            'voucher_code' => 'NOPE',
+        ]);
+        $invalidVoucherResponse
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('voucher_code');
+
+        $validVoucherResponse = $this->postJson(route('workshop.ticket.flow.voucher', $workshop), [
+            'voucher_code' => 'SAVE5',
+        ]);
+        $validVoucherResponse
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('summary.voucher_code', 'SAVE5')
+            ->assertJsonPath('summary.voucher_discount_amount', 5);
+
+        $this->get(route('workshop.ticket.flow.payment', $workshop))
+            ->assertOk()
+            ->assertSee('$-5.00 (SAVE5)', false)
+            ->assertSee('Change voucher', false);
+
+        $this->post(route('workshop.ticket.flow.payment.process', $workshop), [
+            'payment_method' => 'credit_card',
+            'source_id' => 'cnon:card-nonce-ok',
+        ])->assertRedirect(route('workshop.ticket.flow.details', $workshop));
+
+        $ticket = Ticket::query()
+            ->where('workshop_id', $workshop->id)
+            ->sole();
+
+        $this->post(route('workshop.ticket.flow.details.save', $workshop), [
+            'tickets' => [
+                [
+                    'id' => $ticket->id,
+                    'firstname' => 'Ticket',
+                    'surname' => 'Holder',
+                    'email' => 'holder@example.com',
+                    'phone' => '0400123456',
+                ],
+            ],
+        ])->assertRedirect(route('workshop.ticket.flow.complete', $workshop));
+
+        $invoice = Invoice::query()->sole();
+        $discountLine = InvoiceLine::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('kind', 'discount')
+            ->sole();
+        $cardPayment = Payment::query()
+            ->where('payment_method', Payment::PAYMENT_METHOD_CREDIT_CARD)
+            ->sole();
+
+        $this->assertSame(10.00, (float) $invoice->total_amount);
+        $this->assertSame('Voucher SAVE5', (string) $discountLine->description);
+        $this->assertSame(-5.00, (float) $discountLine->line_total_inc_tax);
+        $this->assertSame(10.00, (float) $cardPayment->total_amount);
     }
 
     public function test_account_terms_ticket_checkout_uses_the_users_terms_for_the_invoice_due_date(): void

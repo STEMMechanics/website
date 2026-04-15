@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\SendWorkshopTicketOrderEmail;
 use App\Jobs\SendEmail;
 use App\Mail\UserRegister;
+use App\Models\Coupon;
 use App\Models\Payment;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
@@ -17,6 +18,7 @@ use App\Models\WorkshopTicketEmail;
 use App\Providers\QRCodeProvider;
 use App\Services\DocumentNumberService;
 use App\Services\AccountCreditService;
+use App\Services\StoreCouponService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopRegistrationGroupService;
 use App\Services\WorkshopTicketOrderEmailService;
@@ -44,7 +46,8 @@ class WorkshopTicketFlowController extends Controller
     public function __construct(
         private readonly DocumentNumberService $documentNumbers,
         private readonly WorkshopRegistrationGroupService $workshopRegistrationGroups,
-        private readonly AccountCreditService $accountCredit
+        private readonly AccountCreditService $accountCredit,
+        private readonly StoreCouponService $coupons
     )
     {
     }
@@ -163,6 +166,7 @@ class WorkshopTicketFlowController extends Controller
             'expires_at' => now()->addMinutes($ticketService->holdWindowMinutes())->toIso8601String(),
             'purchaser' => $purchaser,
             'purchaser_user_id' => $purchaserUserId,
+            'voucher_code' => null,
             'invoice_id' => null,
             'email_delivery_id' => null,
             'payment_method' => null,
@@ -207,32 +211,23 @@ class WorkshopTicketFlowController extends Controller
             ->orderBy('id')
             ->get();
         $tickets->each(fn (Ticket $ticket) => $ticket->ensureReferenceCode());
-        $creditUser = $this->checkoutCreditUser($session);
-        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($creditUser);
-        $accountTermsDays = $this->checkoutAccountTermsDays();
-        $accountCreditLoginHint = $accountCreditAvailable <= 0.0001 && $this->purchaserEmailHasCredit($session);
-        $applyAccountCreditDefault = $accountCreditAvailable > 0.0001;
-        $accountCreditDebugRows = $this->accountCreditDebugRows($creditUser);
-        $creditDebug = [
-            'source' => $creditUser instanceof User
-                ? ($this->checkoutAccountUser() instanceof User ? 'auth' : 'session')
-                : ($accountCreditLoginHint ? 'email-login-hint' : 'none'),
-            'auth_user_id' => $this->checkoutAccountUser()?->id,
-            'auth_user_email' => $this->checkoutAccountUser()?->email,
-            'session_purchaser_user_id' => $session['purchaser_user_id'] ?? null,
-            'session_purchaser_email' => data_get($session, 'purchaser.email'),
-            'resolved_user_id' => $creditUser?->id,
-            'resolved_user_email' => $creditUser?->email,
-            'available_credit' => $accountCreditAvailable,
-            'candidate_rows' => $accountCreditDebugRows,
-        ];
+        $checkoutTotals = $this->resolveTicketCheckoutTotals($workshop, $ticketService, $session, true);
+        $session = $checkoutTotals['session'];
+        $accountCreditAvailable = $checkoutTotals['account_credit_available'];
+        $accountTermsDays = $checkoutTotals['account_terms_days'];
+        $accountCreditLoginHint = $checkoutTotals['account_credit_login_hint'];
+        $applyAccountCreditDefault = $checkoutTotals['apply_account_credit_default'];
+        $creditDebug = $checkoutTotals['credit_debug'];
 
         return view('workshop.tickets.payment', [
             'workshop' => $workshop,
             'session' => $session,
-            'holdCount' => count($session['hold_ids'] ?? []),
-            'ticketPriceAmount' => $ticketService->ticketPriceAmount($workshop),
-            'totalAmount' => round($ticketService->ticketPriceAmount($workshop) * count($session['hold_ids'] ?? []), 2),
+            'holdCount' => $checkoutTotals['hold_count'],
+            'ticketPriceAmount' => $checkoutTotals['ticket_price_amount'],
+            'totalAmount' => $checkoutTotals['total_amount'],
+            'voucherCode' => $checkoutTotals['voucher_code'],
+            'voucherDiscountAmount' => $checkoutTotals['voucher_discount_amount'],
+            'voucherButtonLabel' => $checkoutTotals['voucher_code'] !== '' ? 'Change voucher' : 'Add voucher',
             'accountCreditAvailable' => $accountCreditAvailable,
             'accountTermsDays' => $accountTermsDays,
             'canUseAccountTerms' => $accountTermsDays > 0,
@@ -285,11 +280,24 @@ class WorkshopTicketFlowController extends Controller
             'apply_account_credit' => ['nullable', 'boolean'],
         ]);
 
-        $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
-        $ticketPriceAmount = $ticketService->ticketPriceAmount($workshop);
-        $amount = round($ticketPriceAmount * count($holdIds), 2);
-        $creditUser = $this->checkoutCreditUser($session);
-        $accountCreditAvailable = $this->accountCredit->availableCreditForUser($creditUser);
+        $checkoutTotals = $this->resolveTicketCheckoutTotals($workshop, $ticketService, $session, false);
+        if (($checkoutTotals['voucher_error'] ?? null) !== null) {
+            throw ValidationException::withMessages([
+                'voucher_code' => (string) $checkoutTotals['voucher_error'],
+            ]);
+        }
+
+        $holdIds = $checkoutTotals['hold_ids'];
+        $ticketPriceAmount = $checkoutTotals['ticket_price_amount'];
+        $amount = $checkoutTotals['total_amount'];
+        $creditUser = $checkoutTotals['credit_user'];
+        $accountCreditAvailable = $checkoutTotals['account_credit_available'];
+        if ($amount <= 0.0001) {
+            $session = $checkoutTotals['session'];
+
+            return $this->completeFreeCheckout($workshop, $session, $ticketService);
+        }
+
         $applyAccountCredit = $request->boolean('apply_account_credit');
         $amountDueAfterCredit = $applyAccountCredit
             ? max(0, round($amount - $accountCreditAvailable, 2))
@@ -312,7 +320,7 @@ class WorkshopTicketFlowController extends Controller
             ]);
         }
 
-        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays) {
+        $result = DB::transaction(function () use ($workshop, $ticketService, $holdIds, $paymentMethod, $amount, $ticketPriceAmount, $validated, $squareApi, $session, $accountCreditAvailable, $applyAccountCredit, $creditUser, $accountTermsDays, $checkoutTotals) {
             $holds = Ticket::query()
                 ->where('workshop_id', $workshop->id)
                 ->whereIn('id', $holdIds)
@@ -341,7 +349,9 @@ class WorkshopTicketFlowController extends Controller
                     $ticketPriceAmount,
                     $session['purchaser'] ?? [],
                     $purchaserUserId !== '' ? $purchaserUserId : null,
-                    $paymentMethod === 'account_terms' ? $accountTermsDays : null
+                    $paymentMethod === 'account_terms' ? $accountTermsDays : null,
+                    $checkoutTotals['voucher_code'] !== '' ? $checkoutTotals['voucher_code'] : null,
+                    (float) ($checkoutTotals['voucher_discount_amount'] ?? 0)
                 );
                 $creditApplied = $creditUser instanceof User && $applyAccountCredit && $accountCreditAvailable > 0.0001
                     ? $this->accountCredit->applyCreditToInvoice($invoice, $creditUser, (float) $invoice->outstandingAmount())
@@ -532,6 +542,64 @@ class WorkshopTicketFlowController extends Controller
         return redirect()->route('workshop.ticket.flow.details', $workshop);
     }
 
+    public function updateVoucher(
+        Request $request,
+        Workshop $workshop,
+        WorkshopTicketService $ticketService
+    ): JsonResponse|RedirectResponse {
+        $this->ensureWorkshopPubliclyVisible($workshop);
+
+        $session = $this->getFlowSession($workshop);
+        if (! $session) {
+            return $this->voucherSessionExpiredResponse($request, $workshop);
+        }
+
+        if ($this->holdsExpired($workshop, $session['hold_ids'] ?? [], $ticketService)) {
+            $this->clearFlowSession($workshop);
+
+            return $this->voucherSessionExpiredResponse($request, $workshop, $workshop->usesClassroomRegistration()
+                ? 'Your classroom access hold expired. Please start again.'
+                : 'Your ticket hold expired. Please start again.');
+        }
+
+        $validated = $request->validate([
+            'voucher_code' => ['nullable', 'string', 'max:60'],
+        ]);
+
+        $voucherCode = trim((string) ($validated['voucher_code'] ?? ''));
+        if ($voucherCode === '') {
+            $session['voucher_code'] = null;
+            $this->putFlowSession($workshop, $session);
+
+            return $this->voucherResponse($request, $workshop, 'Voucher removed.', [
+                'voucher_code' => null,
+                'voucher_discount_amount' => 0.0,
+            ]);
+        }
+
+        $ticketPriceAmount = $ticketService->ticketPriceAmount($workshop);
+        $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $subtotal = round($ticketPriceAmount * count($holdIds), 2);
+        $creditUser = $this->checkoutCreditUser($session);
+        $billingEmail = trim((string) data_get($session, 'purchaser.email', ''));
+        $evaluation = $this->evaluateTicketVoucher($voucherCode, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
+
+        if (($evaluation['error'] ?? null) !== null) {
+            throw ValidationException::withMessages([
+                'voucher_code' => (string) $evaluation['error'],
+            ]);
+        }
+
+        $resolvedVoucherCode = trim((string) ($evaluation['coupon_code'] ?? ''));
+        $session['voucher_code'] = $resolvedVoucherCode !== '' ? $resolvedVoucherCode : strtoupper($voucherCode);
+        $this->putFlowSession($workshop, $session);
+
+        return $this->voucherResponse($request, $workshop, 'Voucher applied successfully.', [
+            'voucher_code' => $session['voucher_code'],
+            'voucher_discount_amount' => round(min($subtotal, (float) ($evaluation['discount_amount'] ?? 0)), 2),
+        ]);
+    }
+
     private function completeFreeCheckout(
         Workshop $workshop,
         array $session,
@@ -606,6 +674,174 @@ class WorkshopTicketFlowController extends Controller
             ->delay(now()->addMinutes(30));
 
         return redirect()->route('workshop.ticket.flow.details', $workshop);
+    }
+
+    /**
+     * @return array{
+     *     session: array,
+     *     hold_ids: array<int, int>,
+     *     hold_count: int,
+     *     ticket_price_amount: float,
+     *     subtotal_amount: float,
+     *     voucher_code: string,
+     *     voucher_discount_amount: float,
+     *     voucher_error: ?string,
+     *     total_amount: float,
+     *     credit_user: ?User,
+     *     account_credit_available: float,
+     *     account_credit_login_hint: bool,
+     *     account_terms_days: int,
+     *     apply_account_credit_default: bool,
+     *     credit_debug: array<string, mixed>
+     * }
+     */
+    private function resolveTicketCheckoutTotals(
+        Workshop $workshop,
+        WorkshopTicketService $ticketService,
+        array $session,
+        bool $clearInvalidVoucher = false
+    ): array {
+        $holdIds = collect($session['hold_ids'] ?? [])->map(fn ($id) => (int) $id)->filter()->values()->all();
+        $ticketPriceAmount = round($ticketService->ticketPriceAmount($workshop), 2);
+        $subtotal = round($ticketPriceAmount * count($holdIds), 2);
+        $creditUser = $this->checkoutCreditUser($session);
+        $accountCreditAvailable = round($this->accountCredit->availableCreditForUser($creditUser), 2);
+        $accountTermsDays = $this->checkoutAccountTermsDays();
+        $accountCreditLoginHint = $accountCreditAvailable <= 0.0001 && $this->purchaserEmailHasCredit($session);
+        $applyAccountCreditDefault = $accountCreditAvailable > 0.0001;
+        $accountCreditDebugRows = $this->accountCreditDebugRows($creditUser);
+        $creditDebug = [
+            'source' => $creditUser instanceof User
+                ? ($this->checkoutAccountUser() instanceof User ? 'auth' : 'session')
+                : ($accountCreditLoginHint ? 'email-login-hint' : 'none'),
+            'auth_user_id' => $this->checkoutAccountUser()?->id,
+            'auth_user_email' => $this->checkoutAccountUser()?->email,
+            'session_purchaser_user_id' => $session['purchaser_user_id'] ?? null,
+            'session_purchaser_email' => data_get($session, 'purchaser.email'),
+            'resolved_user_id' => $creditUser?->id,
+            'resolved_user_email' => $creditUser?->email,
+            'available_credit' => $accountCreditAvailable,
+            'candidate_rows' => $accountCreditDebugRows,
+        ];
+
+        $voucherCode = $this->ticketVoucherCode($session);
+        $billingEmail = trim((string) data_get($session, 'purchaser.email', ''));
+        $voucherEvaluation = $this->evaluateTicketVoucher(
+            $voucherCode !== '' ? $voucherCode : null,
+            $subtotal,
+            $creditUser,
+            $billingEmail !== '' ? $billingEmail : null
+        );
+        $voucherError = $voucherEvaluation['error'] ?? null;
+        if ($clearInvalidVoucher && $voucherError !== null && $voucherCode !== '') {
+            $session['voucher_code'] = null;
+            $this->putFlowSession($workshop, $session);
+            session()->flash('message', (string) $voucherError);
+            session()->flash('message-title', 'Voucher removed');
+            session()->flash('message-type', 'warning');
+
+            $voucherCode = '';
+            $voucherEvaluation = $this->evaluateTicketVoucher(null, $subtotal, $creditUser, $billingEmail !== '' ? $billingEmail : null);
+            $voucherError = null;
+        }
+
+        $voucherDiscountAmount = round(min($subtotal, (float) ($voucherEvaluation['discount_amount'] ?? 0)), 2);
+        $totalAmount = round(max(0, $subtotal - $voucherDiscountAmount), 2);
+
+        return [
+            'session' => $session,
+            'hold_ids' => $holdIds,
+            'hold_count' => count($holdIds),
+            'ticket_price_amount' => $ticketPriceAmount,
+            'subtotal_amount' => $subtotal,
+            'voucher_code' => $voucherError !== null ? trim((string) $voucherCode) : trim((string) ($voucherEvaluation['coupon_code'] ?? $voucherCode)),
+            'voucher_discount_amount' => $voucherDiscountAmount,
+            'voucher_error' => $voucherError,
+            'total_amount' => $totalAmount,
+            'credit_user' => $creditUser,
+            'account_credit_available' => $accountCreditAvailable,
+            'account_credit_login_hint' => $accountCreditLoginHint,
+            'account_terms_days' => $accountTermsDays,
+            'apply_account_credit_default' => $applyAccountCreditDefault,
+            'credit_debug' => $creditDebug,
+        ];
+    }
+
+    private function ticketVoucherCode(array $session): string
+    {
+        $voucherCode = trim((string) ($session['voucher_code'] ?? ''));
+
+        return $voucherCode !== '' ? strtoupper($voucherCode) : '';
+    }
+
+    private function evaluateTicketVoucher(
+        ?string $voucherCode,
+        float $subtotal,
+        ?User $user = null,
+        ?string $billingEmail = null
+    ): array {
+        $evaluation = $this->coupons->evaluate($voucherCode, $subtotal, 0, $user, $billingEmail);
+
+        if (($evaluation['error'] ?? null) !== null) {
+            return $evaluation;
+        }
+
+        if ((string) ($evaluation['discount_type'] ?? '') === Coupon::DISCOUNT_TYPE_FREE_SHIPPING) {
+            return [
+                'coupon' => $evaluation['coupon'] ?? null,
+                'coupon_code' => null,
+                'discount_type' => Coupon::DISCOUNT_TYPE_FREE_SHIPPING,
+                'discount_amount' => 0.0,
+                'error' => 'That voucher cannot be used for ticket checkout.',
+            ];
+        }
+
+        return $evaluation;
+    }
+
+    private function voucherResponse(
+        Request $request,
+        Workshop $workshop,
+        string $message,
+        array $summary = []
+    ): JsonResponse|RedirectResponse {
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'summary' => $summary,
+            ]);
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Voucher updated');
+        session()->flash('message-type', 'success');
+
+        return redirect()->route('workshop.ticket.flow.payment', $workshop);
+    }
+
+    private function voucherSessionExpiredResponse(
+        Request $request,
+        Workshop $workshop,
+        ?string $message = null
+    ): JsonResponse|RedirectResponse {
+        $message ??= $workshop->usesClassroomRegistration()
+            ? 'Your classroom access hold expired. Please start again.'
+            : 'Your ticket hold expired. Please start again.';
+
+        if ($request->expectsJson() || $request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => false,
+                'message' => $message,
+                'redirect_url' => route('workshop.ticket.flow.start', $workshop),
+            ], 410);
+        }
+
+        session()->flash('message', $message);
+        session()->flash('message-title', 'Hold expired');
+        session()->flash('message-type', 'warning');
+
+        return redirect()->route('workshop.ticket.flow.start', $workshop);
     }
 
     public function details(Workshop $workshop): View|RedirectResponse
@@ -927,13 +1163,17 @@ class WorkshopTicketFlowController extends Controller
         float $ticketPriceAmount,
         array $purchaser,
         ?string $purchaserUserId = null,
-        ?int $termDays = null
+        ?int $termDays = null,
+        ?string $voucherCode = null,
+        float $voucherAmount = 0.0
     ): Invoice
     {
         $tickets = collect($holds)->values();
         $quantity = max(1, $tickets->count());
         $ticketPriceAmount = round($ticketPriceAmount, 2);
-        $totalAmount = round($ticketPriceAmount * $quantity, 2);
+        $subtotalAmount = round($ticketPriceAmount * $quantity, 2);
+        $voucherAmount = round(min($subtotalAmount, max(0, $voucherAmount)), 2);
+        $totalAmount = round(max(0, $subtotalAmount - $voucherAmount), 2);
 
         $invoice = new Invoice();
         $effectiveStartsAt = $workshop->effectiveStartsAt();
@@ -999,6 +1239,38 @@ class WorkshopTicketFlowController extends Controller
             $subtotal += $lineTotalEx;
             $gst += $taxAmount;
             $lines->push($line);
+        }
+
+        if ($voucherAmount > 0.0001) {
+            $voucherExTax = round($voucherAmount / 1.1, 2);
+            $voucherTax = round($voucherAmount - $voucherExTax, 2);
+
+            $discountLine = new InvoiceLine();
+            $discountLine->invoice_id = $invoice->id;
+            $discountLine->line_number = $lines->count() + 1;
+            $discountLine->kind = 'discount';
+            $discountLine->description = 'Voucher'.(trim((string) $voucherCode) !== '' ? ' '.trim((string) $voucherCode) : '');
+            $discountLine->notes = trim(implode("\n", [
+                'Applied to workshop ticket checkout for: '.$workshop->title,
+            ]));
+            $discountLine->details_json = [
+                'voucher_code' => trim((string) $voucherCode) !== '' ? trim((string) $voucherCode) : null,
+                'workshop_id' => $workshop->id,
+                'workshop_title' => $workshop->title,
+            ];
+            $discountLine->quantity = 1;
+            $discountLine->unit_price_ex_tax = -1 * $voucherExTax;
+            $discountLine->tax_rate = 0.10;
+            $discountLine->line_total_ex_tax = -1 * $voucherExTax;
+            $discountLine->tax_amount = -1 * $voucherTax;
+            $discountLine->line_total_inc_tax = -1 * $voucherAmount;
+            $discountLine->source_type = null;
+            $discountLine->source_id = null;
+            $discountLine->save();
+
+            $subtotal = round($subtotal - $voucherExTax, 2);
+            $gst = round($gst - $voucherTax, 2);
+            $lines->push($discountLine);
         }
 
         $invoice->subtotal_amount = round($subtotal, 2);
