@@ -904,9 +904,10 @@ let SM = {
         // Replace underscores and hyphens with spaces
         str = str.replace(/[_-]+/g, " ");
 
-        // Capitalize the first letter of each word and make the rest lowercase
-        str = str.replace(/\b\w+\b/g, (txt) => {
-            return txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase();
+        // Capitalize the first letter of each word and make the rest lowercase.
+        // Apostrophes stay inside the word so names like "don't" become "Don't".
+        str = str.toLowerCase().replace(/(^|[^A-Za-z0-9'’])([A-Za-z])/g, (match, prefix, letter) => {
+            return prefix + letter.toUpperCase();
         });
 
         // Replace "cdn" with "CDN"
