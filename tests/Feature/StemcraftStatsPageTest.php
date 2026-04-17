@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\MinecraftPlayerStat;
+use App\Models\MinecraftEventLog;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -95,6 +96,47 @@ class StemcraftStatsPageTest extends TestCase
         $response->assertSeeText('Bucket Fills');
         $response->assertSeeText('6');
         $response->assertSeeText('Quests Completed');
+        $response->assertDontSeeText('Previous usernames');
+    }
+
+    public function test_public_stats_page_shows_previous_usernames_when_the_player_has_changed_names(): void
+    {
+        MinecraftPlayerStat::query()->create([
+            'uuid' => '77777777-7777-7777-7777-777777777777',
+            'platform' => 'java',
+            'username' => 'CurrentName',
+            'period' => 'all',
+            'captured_at' => now()->subHours(2),
+            'fetched_at' => now()->subHour(),
+            'stats' => [[
+                'key' => 'play_time',
+                'title' => 'Play Time',
+                'description' => 'Total play time recorded by the server in ticks.',
+                'value' => 72000,
+                'updated_at' => now()->subHours(2)->toIso8601String(),
+            ]],
+        ]);
+
+        MinecraftEventLog::query()->create([
+            'event' => 'player.username.changed',
+            'occurred_at' => now()->subDays(2),
+            'platform' => 'java',
+            'uuid' => '77777777-7777-7777-7777-777777777777',
+            'username' => 'CurrentName',
+            'server_name' => 'survival',
+            'message' => 'Username changed from OldName to CurrentName.',
+            'payload' => [
+                'old_username' => 'OldName',
+                'new_username' => 'CurrentName',
+            ],
+        ]);
+
+        $response = $this->get(route('stemcraft.leaderboards', ['player' => '77777777-7777-7777-7777-777777777777']));
+
+        $response->assertOk();
+        $response->assertSeeText('Previous usernames');
+        $response->assertSeeText('OldName');
+        $response->assertSeeText('Changed to CurrentName');
     }
 
     public function test_public_stats_page_can_switch_to_a_cached_period(): void

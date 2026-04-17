@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\MinecraftPenalty;
+use App\Models\MinecraftAccount;
+use App\Models\MinecraftEventLog;
 use App\Models\MinecraftPlayerStat;
 use App\Models\SiteOption;
 use App\Services\MinecraftWebhookBridgeService;
@@ -11,6 +13,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -66,6 +69,9 @@ class StemcraftController extends Controller
             ->take(30)
             ->values();
         $selectedPlayerStat = $this->findPlayerStat($playerStats, $playerLookup);
+        $selectedPlayerUsernameHistory = $selectedPlayerStat instanceof MinecraftPlayerStat
+            ? $this->buildUsernameChangeHistory($selectedPlayerStat)
+            : [];
 
         $lastSyncedAtAnyPeriod = MinecraftPlayerStat::query()
             ->whereNotNull('fetched_at')
@@ -82,6 +88,7 @@ class StemcraftController extends Controller
             'matchingPlayers' => $matchingPlayers,
             'playerSuggestions' => $playerSuggestions,
             'selectedPlayerStat' => $selectedPlayerStat,
+            'selectedPlayerUsernameHistory' => $selectedPlayerUsernameHistory,
             'trackedPlayerCount' => $playerStats->count(),
             'lastSyncedAt' => $playerStats
                 ->filter(fn (MinecraftPlayerStat $playerStat): bool => $playerStat->fetched_at !== null)
@@ -297,6 +304,56 @@ class StemcraftController extends Controller
             return str_contains(Str::lower(trim((string) $playerStat->username)), Str::lower($lookup))
                 || str_contains(Str::lower(trim((string) $playerStat->uuid)), Str::lower($lookup));
         });
+    }
+
+    /**
+     * @return list<array{
+     *     old_username: string,
+     *     new_username: string,
+     *     occurred_at: string
+     * }>
+     */
+    private function buildUsernameChangeHistory(MinecraftPlayerStat $playerStat): array
+    {
+        if (! Schema::hasTable('minecraft_event_logs')) {
+            return [];
+        }
+
+        $uuid = trim(strtolower((string) $playerStat->uuid));
+        if ($uuid === '') {
+            return [];
+        }
+
+        $query = MinecraftEventLog::query()
+            ->where('event', 'player.username.changed')
+            ->where(function ($builder) use ($uuid, $playerStat): void {
+                $builder->where('uuid', $uuid);
+
+                if ($playerStat->account instanceof MinecraftAccount) {
+                    $builder->orWhere('minecraft_account_id', $playerStat->account->id);
+                }
+            })
+            ->orderByDesc('occurred_at');
+
+        $history = [];
+
+        foreach ($query->get() as $event) {
+            $payload = is_array($event->payload) ? $event->payload : [];
+            $oldUsername = trim((string) ($payload['old_username'] ?? ''));
+            $newUsername = trim((string) ($payload['new_username'] ?? $event->username ?? ''));
+
+            if ($oldUsername === '' || $newUsername === '') {
+                continue;
+            }
+
+            $history[] = [
+                'old_username' => $oldUsername,
+                'new_username' => $newUsername,
+                'occurred_at' => $event->occurred_at?->format('j M Y g:i a') ?? 'Unknown date',
+            ];
+        }
+
+        return $history;
     }
 
     /**

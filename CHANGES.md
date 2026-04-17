@@ -26,6 +26,7 @@
 - Voucher editor improvements
 - Added additional voucher restrictions
 - Added groups claim for OpenID
+- Minecraft player info now shows previous names
 
 ## 1.4.3
 

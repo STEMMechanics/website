@@ -100,6 +100,23 @@
                         </div>
                     @endif
 
+                    @if(($selectedPlayerUsernameHistory ?? []) !== [])
+                        <section class="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                            <div class="flex flex-col gap-1">
+                                <h3 class="text-lg font-semibold text-gray-900">Previous usernames</h3>
+                                <p class="text-sm leading-6 text-gray-600">Username changes recorded for this player.</p>
+                            </div>
+
+                            <div class="mt-4 space-y-3">
+                                @foreach($selectedPlayerUsernameHistory as $change)
+                                    <div class="rounded-2xl bg-gray-100 px-4 py-3">
+                                        <div class="text-sm font-semibold text-gray-900">{{ $change['old_username'] }}</div>
+                                        <div class="mt-1 text-xs text-gray-500">Changed to {{ $change['new_username'] }} on {{ $change['occurred_at'] }}</div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
                 </div>
             @else
                 @php
