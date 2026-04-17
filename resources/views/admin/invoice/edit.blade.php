@@ -683,19 +683,20 @@
                             if (!url) { return; }
                             window.open(url, '_blank', 'noopener,noreferrer');
                         "
-                    >
+                        >
                         Open linked quote
                     </button>
                 </div>
-                <select
-                    id="quote_id"
+                <x-ui.select
                     name="quote_id"
-                    onchange="
+                    label="Linked Quote"
+                    noLabel="true"
+                    innerClass="mt-1"
+                    x-on:change="
                         const button = document.getElementById('open-linked-quote-button');
                         if (!button) { return; }
                         button.disabled = this.value === '';
                     "
-                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('quote_id') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
                 >
                     <option value="">None</option>
                     @foreach(($quotes ?? collect()) as $quoteOption)
@@ -707,7 +708,7 @@
                             {{ $quoteOption->quote_number }} - {{ trim((string) ($quoteOption->user?->getName() ?? $quoteOption->user?->email ?? 'No user')) }}
                         </option>
                     @endforeach
-                </select>
+                </x-ui.select>
                 <div class="text-xs text-gray-500 ml-2 mt-1">Can only link quotes for the same user.</div>
                 @if($errors->has('quote_id'))
                     <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('quote_id') }}</div>
@@ -775,12 +776,20 @@
                 <template x-for="(item, index) in lineItems" :key="index">
                     <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-6 items-start">
                         <div class="col-span-2">
-                            <label class="block text-sm pl-1">Type</label>
-                            <select class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300" x-model="item.kind" x-on:change="serializeLineItems()">
+                            <label class="block text-sm pl-1" :for="`line_item_kind_${index}`">Type</label>
+                            <x-ui.select
+                                name="line_item_kind"
+                                noLabel="true"
+                                class="mb-0"
+                                innerClass="mt-1"
+                                x-bind:id="`line_item_kind_${index}`"
+                                x-model="item.kind"
+                                x-on:change="serializeLineItems()"
+                            >
                                 <option value="generic">Generic</option>
-                                <option value="ticket">Ticket</option>
                                 <option value="product">Product</option>
-                            </select>
+                                <option value="ticket">Ticket</option>
+                            </x-ui.select>
                         </div>
                         <div class="col-span-3">
                             <label class="block text-sm pl-1">Description</label>
@@ -877,57 +886,59 @@
                 :files="$privateFinanceFiles"
             />
 
-            @isset($invoice)
-            <div class="flex justify-end mt-8 gap-4">
-                @php
-                    $isDraftInvoice = isset($invoice) && (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
-                    $cancelBlockReason = isset($invoice) && ! $isDraftInvoice ? $invoice->cancellationBlockedReason() : null;
-                    $canCancelInvoice = $cancelBlockReason === null;
-                    $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
-                    $invoiceConfirmMessage = $isDraftInvoice
-                        ? 'This will permanently delete this draft invoice. Continue?'
-                        : 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
-                    $invoiceConfirmButtonText = $isDraftInvoice ? 'Delete' : 'Cancel Invoice';
-                    $invoiceCancelButtonText = $isDraftInvoice ? 'Cancel' : 'Keep Invoice';
-                @endphp
-                @if($isDraftInvoice)
-                    <button
-                        type="button"
-                        class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
-                        title="Delete Draft"
-                        x-data
-                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
-                    ><i class="fa-solid fa-trash"></i></button>
-                @elseif($canCancelInvoice)
-                    <button
-                        type="button"
-                        class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
-                        title="Cancel Invoice"
-                        x-data
-                        x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
-                    ><i class="fa-solid fa-ban"></i></button>
-                @else
-                    <button
-                        type="button"
-                        class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
-                        title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}"
-                        disabled
-                    ><i class="fa-solid fa-ban"></i></button>
-                @endif
-                @if(isset($invoice))
-                <x-ui.button
-                    type="submit"
-                    color="primary-outline"
-                    name="save_and_email"
-                    value="1"
-                    x-bind:disabled="!canSaveAndEmail()"
-                >
-                    Save and Email
-                </x-ui.button>
-                @endif
-                <x-ui.button type="submit">Save</x-ui.button>
-            </div>
-            @endisset
+            @if(isset($invoice))
+                <div class="flex justify-end mt-8 gap-4">
+                    @php
+                        $isDraftInvoice = (string) $invoice->status === \App\Models\Invoice::STATUS_DRAFT;
+                        $cancelBlockReason = ! $isDraftInvoice ? $invoice->cancellationBlockedReason() : null;
+                        $canCancelInvoice = $cancelBlockReason === null;
+                        $invoiceConfirmTitle = $isDraftInvoice ? 'Delete draft invoice?' : 'Cancel invoice?';
+                        $invoiceConfirmMessage = $isDraftInvoice
+                            ? 'This will permanently delete this draft invoice. Continue?'
+                            : 'Invoice cancellation is exceptional and should only be used when the invoice was issued in error.<br><br>For workshop no-shows, cancel the ticket instead so the tax adjustment note is created.<br>For store orders, cancel the linked order and handle any refund through the order flow.<br><br>Continue only if this invoice has no payments or downstream records.';
+                        $invoiceConfirmButtonText = $isDraftInvoice ? 'Delete' : 'Cancel Invoice';
+                        $invoiceCancelButtonText = $isDraftInvoice ? 'Cancel' : 'Keep Invoice';
+                    @endphp
+                    @if($isDraftInvoice)
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                            title="Delete Draft"
+                            x-data
+                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
+                        ><i class="fa-solid fa-trash"></i></button>
+                    @elseif($canCancelInvoice)
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
+                            title="Cancel Invoice"
+                            x-data
+                            x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', @js($invoiceConfirmTitle), @js($invoiceConfirmMessage), '{{ route('admin.invoice.destroy', $invoice) }}', @js($invoiceConfirmButtonText), @js($invoiceCancelButtonText))"
+                        ><i class="fa-solid fa-ban"></i></button>
+                    @else
+                        <button
+                            type="button"
+                            class="inline-flex items-center justify-center text-gray-300 transition disabled:cursor-not-allowed disabled:pointer-events-none"
+                            title="{{ $cancelBlockReason ?? 'Cannot cancel invoice' }}"
+                            disabled
+                        ><i class="fa-solid fa-ban"></i></button>
+                    @endif
+                    <x-ui.button
+                        type="submit"
+                        color="primary-outline"
+                        name="save_and_email"
+                        value="1"
+                        x-bind:disabled="!canSaveAndEmail()"
+                    >
+                        Save and Email
+                    </x-ui.button>
+                    <x-ui.button type="submit">Save</x-ui.button>
+                </div>
+            @else
+                <div class="flex justify-end mt-8">
+                    <x-ui.button type="submit">Save</x-ui.button>
+                </div>
+            @endif
 
         </form>
     </x-container>

@@ -238,7 +238,9 @@ class AdminInvoiceEditTest extends TestCase
             ->get(route('admin.invoice.create'))
             ->assertOk()
             ->assertSeeText('Create Invoice')
-            ->assertSeeText('Invoice Number');
+            ->assertSeeText('Invoice Number')
+            ->assertSeeText('Linked Quote')
+            ->assertSeeText('Line Items');
     }
 
     private function createAdminUser(): User
