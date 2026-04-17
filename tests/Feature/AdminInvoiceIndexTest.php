@@ -86,6 +86,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSee('openInvoiceEmailModal', false);
         $response->assertSeeText('Recipient Email');
         $response->assertSeeText('Subject');
+        $response->assertSeeText('purchase order number');
         $response->assertSeeText('View and Pay Invoice button');
         $response->assertSee('data-bwignore="true"', false);
         $response->assertSeeText('Send Invoice Email');

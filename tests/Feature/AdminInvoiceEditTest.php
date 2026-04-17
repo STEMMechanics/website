@@ -268,6 +268,7 @@ class AdminInvoiceEditTest extends TestCase
             ->assertOk()
             ->assertSeeText('Subject')
             ->assertSeeText('CC Email')
+            ->assertSeeText('purchase order number')
             ->assertSeeText('View and Pay Invoice button')
             ->assertSee('data-bwignore="true"', false);
     }

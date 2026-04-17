@@ -713,6 +713,7 @@ class InvoiceController extends Controller
                     documentTotal: (float) $invoice->total_amount,
                     documentOutstanding: $invoiceOutstanding,
                     documentDue: $invoiceDueDate,
+                    purchaseOrderNumber: (string) ($invoice->purchase_order_number ?? ''),
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
                     payUrl: $invoicePayUrl,

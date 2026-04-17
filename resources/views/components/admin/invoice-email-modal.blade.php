@@ -157,6 +157,7 @@
                             <li><code>@{{total}}</code> - invoice total</li>
                             <li><code>@{{outstanding}}</code> - outstanding amount</li>
                             <li><code>@{{due}}</code> - due date</li>
+                            <li><code>@{{po}}</code> - purchase order number</li>
                         </ul>
                     </div>
                     <div>
@@ -167,6 +168,7 @@
                             <li><code>@{{total}}</code> - invoice total</li>
                             <li><code>@{{outstanding}}</code> - outstanding amount</li>
                             <li><code>@{{due}}</code> - due date</li>
+                            <li><code>@{{po}}</code> - purchase order number</li>
                             <li><code>@{{pay}}</code> - View and Pay Invoice button</li>
                         </ul>
                     </div>

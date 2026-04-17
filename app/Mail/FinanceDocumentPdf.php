@@ -27,6 +27,8 @@ class FinanceDocumentPdf extends Mailable
 
     public ?string $documentDue;
 
+    public ?string $purchaseOrderNumber;
+
     public ?string $resolvedFullMessage;
 
     public ?string $initiatedByEmail;
@@ -56,6 +58,7 @@ class FinanceDocumentPdf extends Mailable
         ?float $documentTotal = null,
         ?float $documentOutstanding = null,
         ?string $documentDue = null,
+        ?string $purchaseOrderNumber = null,
         ?string $initiatedByEmail = null,
         ?string $initiatedByName = null,
         ?string $payUrl = null,
@@ -75,6 +78,7 @@ class FinanceDocumentPdf extends Mailable
         $this->documentTotal = $documentTotal;
         $this->documentOutstanding = $documentOutstanding;
         $this->documentDue = $documentDue !== null ? trim($documentDue) : null;
+        $this->purchaseOrderNumber = $purchaseOrderNumber !== null ? trim($purchaseOrderNumber) : null;
         $this->initiatedByEmail = $initiatedByEmail !== null ? trim($initiatedByEmail) : null;
         $this->initiatedByName = $initiatedByName !== null ? trim($initiatedByName) : null;
         $this->payUrl = $payUrl !== null ? trim($payUrl) : null;
@@ -122,6 +126,7 @@ class FinanceDocumentPdf extends Mailable
         $totalFormatted = $this->documentTotal !== null ? '$'.number_format($this->documentTotal, 2) : '';
         $outstandingFormatted = $this->documentOutstanding !== null ? '$'.number_format($this->documentOutstanding, 2) : '';
         $dueFormatted = trim((string) ($this->documentDue ?? ''));
+        $purchaseOrder = trim((string) ($this->purchaseOrderNumber ?? ''));
 
         $resolved = strtr($template, [
             '{{name}}' => $recipientFirstName,
@@ -129,6 +134,8 @@ class FinanceDocumentPdf extends Mailable
             '{{total}}' => $totalFormatted,
             '{{outstanding}}' => $outstandingFormatted,
             '{{due}}' => $dueFormatted,
+            '{{po}}' => $purchaseOrder,
+            '{{purchase_order_number}}' => $purchaseOrder,
             '{{pay}}' => '',
             '{{action}}' => '',
         ]);
@@ -152,6 +159,7 @@ class FinanceDocumentPdf extends Mailable
         $totalFormatted = $this->documentTotal !== null ? '$'.number_format($this->documentTotal, 2) : '';
         $outstandingFormatted = $this->documentOutstanding !== null ? '$'.number_format($this->documentOutstanding, 2) : '';
         $dueFormatted = trim((string) ($this->documentDue ?? ''));
+        $purchaseOrder = trim((string) ($this->purchaseOrderNumber ?? ''));
 
         return strtr($template, [
             '{{name}}' => $recipientFirstName,
@@ -159,9 +167,13 @@ class FinanceDocumentPdf extends Mailable
             '{{total}}' => $totalFormatted,
             '{{outstanding}}' => $outstandingFormatted,
             '{{due}}' => $dueFormatted,
+            '{{po}}' => $purchaseOrder,
+            '{{purchase_order_number}}' => $purchaseOrder,
             '{{$total}}' => $totalFormatted,
             '{{$outstanding}}' => $outstandingFormatted,
             '{{$due}}' => $dueFormatted,
+            '{{$po}}' => $purchaseOrder,
+            '{{$purchase_order_number}}' => $purchaseOrder,
         ]);
     }
 }
