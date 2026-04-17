@@ -25,6 +25,7 @@
 - Voucher support for tickets
 - Voucher editor improvements
 - Added additional voucher restrictions
+- Added groups claim for OpenID
 
 ## 1.4.3
 
