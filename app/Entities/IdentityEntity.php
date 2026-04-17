@@ -24,7 +24,7 @@ class IdentityEntity implements IdentityEntityInterface
 
     /**
      * @param  string[]  $scopes
-     * @return array<string, string|int|bool>
+     * @return array<string, string|int|bool|array<int, string>>
      */
     public function getClaims(array $scopes = []): array
     {
@@ -39,6 +39,7 @@ class IdentityEntity implements IdentityEntityInterface
             'nickname' => $username !== '' ? $username : null,
             'preferred_username' => $username !== '' ? $username : null,
             'profile' => route('account.show'),
+            'groups' => $this->user->groupSlugs(),
             'picture' => is_string($avatarUrl) && $avatarUrl !== '' ? url($avatarUrl) : null,
             'updated_at' => $this->user->updated_at?->timestamp,
             'email' => trim((string) $this->user->email),

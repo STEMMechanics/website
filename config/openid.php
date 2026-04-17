@@ -6,12 +6,16 @@ return [
             'openid' => 'Enable OpenID Connect',
             'profile' => 'Information about your profile',
             'email' => 'Information about your email address',
+            'groups' => 'Information about your group memberships',
             'phone' => 'Information about your phone numbers',
             'address' => 'Information about your address',
         ],
     ],
 
     'custom_claim_sets' => [
+        'groups' => [
+            'groups',
+        ],
     ],
 
     'repositories' => [

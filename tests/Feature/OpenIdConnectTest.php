@@ -22,6 +22,7 @@ class OpenIdConnectTest extends TestCase
         $this->assertContains('openid', $response->json('scopes_supported'));
         $this->assertContains('profile', $response->json('scopes_supported'));
         $this->assertContains('email', $response->json('scopes_supported'));
+        $this->assertContains('groups', $response->json('scopes_supported'));
     }
 
     public function test_jwks_endpoint_returns_a_public_key_set(): void
@@ -57,6 +58,23 @@ class OpenIdConnectTest extends TestCase
         $this->assertTrue($response->json('email_verified'));
     }
 
+    public function test_userinfo_endpoint_returns_groups_claim_for_requested_groups_scope(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        $user->groups()->create(['slug' => 'minecraft']);
+        $user->groups()->create(['slug' => 'admin']);
+
+        Passport::actingAs($user, ['openid', 'groups']);
+
+        $response = $this->getJson(route('openid.userinfo'))->assertOk();
+
+        $this->assertSame((string) $user->id, $response->json('sub'));
+        $this->assertSame(['admin', 'minecraft'], $response->json('groups'));
+    }
+
     public function test_userinfo_endpoint_omits_profile_claims_when_profile_scope_is_missing(): void
     {
         $user = User::factory()->create([
@@ -65,6 +83,8 @@ class OpenIdConnectTest extends TestCase
             'email' => 'jane@example.com',
             'email_verified_at' => now(),
         ]);
+
+        $user->groups()->create(['slug' => 'minecraft']);
 
         Passport::actingAs($user, ['openid', 'email']);
 
@@ -77,6 +97,7 @@ class OpenIdConnectTest extends TestCase
         $this->assertArrayNotHasKey('nickname', $response->json());
         $this->assertArrayNotHasKey('preferred_username', $response->json());
         $this->assertArrayNotHasKey('profile', $response->json());
+        $this->assertArrayNotHasKey('groups', $response->json());
     }
 
     public function test_userinfo_endpoint_requires_a_valid_access_token(): void
