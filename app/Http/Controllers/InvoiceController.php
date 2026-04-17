@@ -92,11 +92,17 @@ class InvoiceController extends Controller
         }), 2);
 
         $invoices = $query->orderBy('issue_date', 'desc')->orderBy('created_at', 'desc')->paginate(20)->onEachSide(1);
+        $invoiceEmailDefaults = $invoices->getCollection()
+            ->mapWithKeys(function (Invoice $invoice): array {
+                return [(string) $invoice->id => $this->invoiceEmailPayload($invoice)];
+            })
+            ->all();
 
         return view('admin.invoice.index', [
             'invoices' => $invoices,
             'summaryOutstandingAmount' => $summaryOutstandingAmount,
             'summaryOverdueAmount' => $summaryOverdueAmount,
+            'invoiceEmailDefaults' => $invoiceEmailDefaults,
         ]);
     }
 
@@ -169,6 +175,7 @@ class InvoiceController extends Controller
             'users' => User::query()->orderBy('firstname')->orderBy('surname')->get(),
             'quotes' => Quote::query()->with('user')->orderByDesc('quote_date')->orderByDesc('created_at')->get(),
             'lineItemsSeed' => $this->invoiceLineItemsForPayload($invoice),
+            'invoiceEmailDefaultPayload' => $this->invoiceEmailPayload($invoice),
         ]);
     }
 
@@ -662,11 +669,29 @@ class InvoiceController extends Controller
         if ($emailMessage === '') {
             $emailMessage = $this->defaultInvoiceEmailMessage($invoice);
         }
+        $subjectLine = trim((string) $request->input('subject_line', ''));
+        if ($subjectLine === '') {
+            $subjectLine = $this->defaultInvoiceEmailSubject($invoice);
+        }
         $invoiceDueDate = $invoice->due_date?->format('M j, Y');
         $invoiceOutstanding = (float) $invoice->displayOutstandingAmount();
 
-        $recipients = $this->resolveInvoiceEmailRecipients($request, $invoice);
-        $ccRecipients = $this->resolveInvoiceEmailCcRecipients($request);
+        try {
+            $recipients = $this->resolveInvoiceEmailRecipients($request, $invoice);
+            $ccRecipients = $this->resolveInvoiceEmailCcRecipients($request);
+        } catch (ValidationException $e) {
+            session()->flash('invoice-email-open', true);
+            session()->flash('invoice-email-action', route('admin.invoice.email', $invoice));
+            session()->flash('invoice-email-invoice-number', (string) ($invoice->invoice_number ?? ''));
+            session()->flash('invoice-email-recipient-emails', (string) $request->input('recipient_emails', ''));
+            session()->flash('invoice-email-subject-line', $subjectLine);
+            session()->flash('invoice-email-cc-emails', (string) $request->input('cc_emails', ''));
+            session()->flash('invoice-email-message', $emailMessage);
+
+            return redirect()->back()
+                ->withInput()
+                ->withErrors($e->errors());
+        }
 
         $pdfBinary = $this->buildInvoicePdf($invoice)->output();
 
@@ -691,6 +716,7 @@ class InvoiceController extends Controller
                     initiatedByEmail: $initiatedByEmail,
                     initiatedByName: $initiatedByName,
                     payUrl: $invoicePayUrl,
+                    subjectLine: $subjectLine,
                 );
                 $normalizedCcRecipients = [];
                 foreach ($ccRecipients as $ccEmail) {
@@ -711,6 +737,13 @@ class InvoiceController extends Controller
             session()->flash('message', 'Invoice email failed: '.$e->getMessage());
             session()->flash('message-title', 'Email failed');
             session()->flash('message-type', 'danger');
+            session()->flash('invoice-email-open', true);
+            session()->flash('invoice-email-action', route('admin.invoice.email', $invoice));
+            session()->flash('invoice-email-invoice-number', (string) ($invoice->invoice_number ?? ''));
+            session()->flash('invoice-email-recipient-emails', (string) $request->input('recipient_emails', ''));
+            session()->flash('invoice-email-subject-line', $subjectLine);
+            session()->flash('invoice-email-cc-emails', (string) $request->input('cc_emails', ''));
+            session()->flash('invoice-email-message', $emailMessage);
 
             return redirect()->back();
         }
@@ -1226,6 +1259,28 @@ class InvoiceController extends Controller
         }
 
         return "Hi {$name},\n\nAttached is invoice **{$invoiceNumber}** for the workshop program. The total cost is {$total} and is due on {$due}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
+    }
+
+    private function defaultInvoiceEmailSubject(Invoice $invoice): string
+    {
+        $invoiceNumber = trim((string) ($invoice->invoice_number ?? ''));
+
+        return 'Your Invoice '.($invoiceNumber !== '' ? $invoiceNumber : 'TBD').' from STEMMechanics';
+    }
+
+    /**
+     * @return array{action:string, invoice_number:string, recipient_emails:string, subject_line:string, cc_emails:string, email_message:string}
+     */
+    private function invoiceEmailPayload(Invoice $invoice): array
+    {
+        return [
+            'action' => route('admin.invoice.email', $invoice),
+            'invoice_number' => (string) ($invoice->invoice_number ?? ''),
+            'recipient_emails' => $this->resolveInvoiceContactEmail($invoice),
+            'subject_line' => $this->defaultInvoiceEmailSubject($invoice),
+            'cc_emails' => '',
+            'email_message' => $this->defaultInvoiceEmailMessage($invoice),
+        ];
     }
 
     /**

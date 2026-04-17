@@ -1,7 +1,37 @@
 <x-layout>
     <x-mast>Invoices</x-mast>
 
-    <x-container>
+    <x-container
+        class="mt-4"
+        x-data="{
+            invoiceEmailModalOpen: {{ session('invoice-email-open', false) ? 'true' : 'false' }},
+            invoiceEmailAction: {{ json_encode((string) session('invoice-email-action', '')) }},
+            invoiceEmailInvoiceNumber: {{ json_encode((string) session('invoice-email-invoice-number', '')) }},
+            invoiceEmailRecipientEmails: {{ json_encode((string) old('recipient_emails', session('invoice-email-recipient-emails', ''))) }},
+            invoiceEmailSubjectLine: {{ json_encode((string) old('subject_line', session('invoice-email-subject-line', ''))) }},
+            invoiceEmailCcEmails: {{ json_encode((string) old('cc_emails', session('invoice-email-cc-emails', ''))) }},
+            invoiceEmailMessage: {{ json_encode((string) old('email_message', session('invoice-email-message', ''))) }},
+            invoiceEmailSubjectOpen: false,
+            invoiceEmailCcOpen: false,
+            invoiceEmailHelpOpen: false,
+            openInvoiceEmailModal(payload) {
+                this.invoiceEmailAction = payload?.action || '';
+                this.invoiceEmailInvoiceNumber = payload?.invoice_number || '';
+                this.invoiceEmailRecipientEmails = payload?.recipient_emails || '';
+                this.invoiceEmailSubjectLine = payload?.subject_line || '';
+                this.invoiceEmailCcEmails = payload?.cc_emails || '';
+                this.invoiceEmailMessage = payload?.email_message || '';
+                this.invoiceEmailModalOpen = true;
+                this.invoiceEmailHelpOpen = false;
+                this.invoiceEmailSubjectOpen = false;
+                this.invoiceEmailCcOpen = false;
+            },
+            closeInvoiceEmailModal() {
+                this.invoiceEmailModalOpen = false;
+                this.invoiceEmailHelpOpen = false;
+            },
+        }"
+    >
         <x-ui.toolbar break="md">
             <x-slot:left class="flex-0">
                 <x-ui.button href="{{ route('admin.invoice.create') }}" class="w-full md:w-auto">Create</x-ui.button>
@@ -107,10 +137,16 @@
                             <a href="{{ route('admin.invoice.edit', $invoice) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
                             @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                             <a href="{{ route('admin.invoice.pdf', $invoice) }}" class="hover:text-primary-color" title="Download PDF"><i class="fa-regular fa-file-pdf"></i></a>
-                            <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}">
-                                @csrf
-                                <button type="submit" class="hover:text-primary-color" title="Email Invoice PDF"><i class="fa-regular fa-envelope"></i></button>
-                            </form>
+                            @php
+                                $invoiceEmailPayload = $invoiceEmailDefaults[(string) $invoice->id] ?? [];
+                            @endphp
+                            <button
+                                type="button"
+                                class="hover:text-primary-color"
+                                title="Email Invoice PDF"
+                                x-data
+                                x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailPayload) }})"
+                            ><i class="fa-regular fa-envelope"></i></button>
                             <a href="#"
                                 class="hover:text-primary-color"
                                 title="Copy Payment Link"
@@ -154,7 +190,7 @@
                                     class="inline-flex items-center justify-center text-gray-500 transition hover:text-red-600 disabled:cursor-not-allowed disabled:text-gray-300 disabled:pointer-events-none"
                                     title="Cancel Invoice"
                                     x-data
-                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', @js($invoiceCancelWarning), '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
+                                    x-on:click.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Cancel invoice?', {{ json_encode($invoiceCancelWarning) }}, '{{ route('admin.invoice.destroy', $invoice) }}', 'Cancel Invoice', 'Keep Invoice')"
                                 ><i class="fa-solid fa-ban"></i></button>
                             @else
                                 <button
@@ -205,5 +241,7 @@
 
         {{ $invoices->appends(request()->query())->links() }}
         @endif
+
+        <x-admin.invoice-email-modal />
     </x-container>
 </x-layout>

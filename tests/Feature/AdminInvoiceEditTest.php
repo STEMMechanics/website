@@ -243,6 +243,35 @@ class AdminInvoiceEditTest extends TestCase
             ->assertSeeText('Line Items');
     }
 
+    public function test_admin_invoice_edit_renders_the_invoice_email_modal_fields(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Parker',
+            'surname' => 'Lee',
+            'email' => 'parker.lee@example.com',
+        ]);
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'billing_email' => 'parker.lee@example.com',
+            'status' => Invoice::STATUS_SENT,
+            'issue_date' => now()->subDays(3)->toDateString(),
+            'due_date' => now()->addDays(11)->toDateString(),
+            'total_amount' => 132.00,
+            'subtotal_amount' => 120.00,
+            'gst_amount' => 12.00,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.invoice.edit', $invoice))
+            ->assertOk()
+            ->assertSeeText('Subject')
+            ->assertSeeText('CC Email')
+            ->assertSeeText('View and Pay Invoice button')
+            ->assertSee('data-bwignore="true"', false);
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

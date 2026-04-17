@@ -39,6 +39,8 @@ class FinanceDocumentPdf extends Mailable
 
     public ?string $actionLabel;
 
+    public ?string $subjectLine;
+
     private string $pdfContentBase64;
 
     private string $pdfFilename;
@@ -59,6 +61,7 @@ class FinanceDocumentPdf extends Mailable
         ?string $payUrl = null,
         ?string $actionUrl = null,
         ?string $actionLabel = null,
+        ?string $subjectLine = null,
     ) {
         $this->documentType = $documentType;
         $this->documentNumber = $documentNumber;
@@ -77,6 +80,7 @@ class FinanceDocumentPdf extends Mailable
         $this->payUrl = $payUrl !== null ? trim($payUrl) : null;
         $this->actionUrl = $actionUrl !== null ? trim($actionUrl) : null;
         $this->actionLabel = $actionLabel !== null ? trim($actionLabel) : null;
+        $this->subjectLine = $subjectLine !== null ? trim($subjectLine) : null;
         $this->resolvedFullMessage = $this->resolveFullMessage();
     }
 
@@ -85,7 +89,7 @@ class FinanceDocumentPdf extends Mailable
         $adminBcc = trim((string) config('mail.admin_bcc', 'admin@stemmechanics.com.au'));
 
         $mail = $this
-            ->subject('Your '.ucfirst($this->documentType).' '.$this->documentNumber.' from STEMMechanics')
+            ->subject($this->resolveSubjectLine())
             ->markdown('emails.finance-document');
 
         $pdfBinary = base64_decode($this->pdfContentBase64, true);
@@ -100,6 +104,36 @@ class FinanceDocumentPdf extends Mailable
         }
 
         return $mail;
+    }
+
+    private function resolveSubjectLine(): string
+    {
+        $template = trim((string) ($this->subjectLine ?? ''));
+        if ($template === '') {
+            return 'Your '.ucfirst($this->documentType).' '.$this->documentNumber.' from STEMMechanics';
+        }
+
+        $recipientName = trim((string) $this->recipientName);
+        $recipientFirstName = trim((string) strtok($recipientName, ' '));
+        if ($recipientFirstName === '') {
+            $recipientFirstName = $recipientName;
+        }
+
+        $totalFormatted = $this->documentTotal !== null ? '$'.number_format($this->documentTotal, 2) : '';
+        $outstandingFormatted = $this->documentOutstanding !== null ? '$'.number_format($this->documentOutstanding, 2) : '';
+        $dueFormatted = trim((string) ($this->documentDue ?? ''));
+
+        $resolved = strtr($template, [
+            '{{name}}' => $recipientFirstName,
+            '{{id}}' => (string) $this->documentNumber,
+            '{{total}}' => $totalFormatted,
+            '{{outstanding}}' => $outstandingFormatted,
+            '{{due}}' => $dueFormatted,
+            '{{pay}}' => '',
+            '{{action}}' => '',
+        ]);
+
+        return trim((string) preg_replace('/\s+/', ' ', $resolved));
     }
 
     private function resolveFullMessage(): ?string

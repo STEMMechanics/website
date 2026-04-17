@@ -96,75 +96,56 @@
         $defaultInvoiceEmailMessage = "Hi {$invoiceEmailName},\n\nAttached is invoice **{$invoiceNumberForEmail}** for your workshop program and materials. The total cost is {$invoiceTotalDisplay} and is due on {$invoiceDueDisplay}.\n\nPlease don't hesitate to reach out if you have any questions.\n\n{{pay}}";
     }
     $privateFinanceFiles = isset($invoice) ? $invoice->privateFinanceFiles : collect();
+    $invoiceEmailDefaultPayload = $invoiceEmailDefaultPayload ?? [
+        'action' => '',
+        'invoice_number' => '',
+        'recipient_emails' => '',
+        'subject_line' => '',
+        'cc_emails' => '',
+        'email_message' => '',
+    ];
 @endphp
 
 <x-layout>
     <x-mast backRoute="admin.invoice.index" backTitle="Invoices">{{ isset($invoice) ? 'Edit' : 'Create' }} Invoice</x-mast>
 
-    <x-container class="mt-4">
+<x-container
+    class="mt-4"
+    x-data="{
+        invoiceEmailModalOpen: {{ session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('subject_line') || $errors->has('cc_emails') || $errors->has('email_message') ? 'true' : 'false' }},
+        invoiceEmailAction: {{ json_encode((string) ($invoiceEmailDefaultPayload['action'] ?? '')) }},
+        invoiceEmailInvoiceNumber: {{ json_encode((string) ($invoiceEmailDefaultPayload['invoice_number'] ?? ($invoice->invoice_number ?? ''))) }},
+        invoiceEmailRecipientEmails: {{ json_encode((string) old('recipient_emails', session('invoice-email-recipient-emails', $invoiceEmailDefaultPayload['recipient_emails'] ?? ''))) }},
+        invoiceEmailSubjectLine: {{ json_encode((string) old('subject_line', session('invoice-email-subject-line', $invoiceEmailDefaultPayload['subject_line'] ?? ''))) }},
+        invoiceEmailCcEmails: {{ json_encode((string) old('cc_emails', session('invoice-email-cc-emails', ''))) }},
+        invoiceEmailMessage: {{ json_encode((string) old('email_message', session('invoice-email-message', $invoiceEmailDefaultPayload['email_message'] ?? ''))) }},
+        invoiceEmailSubjectOpen: false,
+        invoiceEmailCcOpen: false,
+        invoiceEmailHelpOpen: false,
+        openInvoiceEmailModal(payload) {
+            this.invoiceEmailAction = payload?.action || this.invoiceEmailAction || '';
+            this.invoiceEmailInvoiceNumber = payload?.invoice_number || this.invoiceEmailInvoiceNumber || '';
+            this.invoiceEmailRecipientEmails = payload?.recipient_emails || this.invoiceEmailRecipientEmails || '';
+            this.invoiceEmailSubjectLine = payload?.subject_line || this.invoiceEmailSubjectLine || '';
+            this.invoiceEmailCcEmails = payload?.cc_emails || '';
+            this.invoiceEmailMessage = payload?.email_message || this.invoiceEmailMessage || '';
+            this.invoiceEmailModalOpen = true;
+            this.invoiceEmailHelpOpen = false;
+            this.invoiceEmailSubjectOpen = false;
+            this.invoiceEmailCcOpen = false;
+        },
+        closeInvoiceEmailModal() {
+            this.invoiceEmailModalOpen = false;
+            this.invoiceEmailHelpOpen = false;
+        },
+    }"
+>
         @isset($invoice)
             <div class="flex justify-end mb-4 gap-2">
                 @if((string) $invoice->status !== \App\Models\Invoice::STATUS_DRAFT)
                     <x-ui.button type="button" x-data x-on:click.prevent="window.open('{{ route('admin.invoice.pdf', $invoice) }}', '_blank', 'noopener,noreferrer')">Open PDF</x-ui.button>
-                    <form method="POST" action="{{ route('admin.invoice.email', $invoice) }}" x-data="{ open: @js(session()->has('invoice-email-open') || $errors->has('recipient_emails') || $errors->has('cc_emails') || $errors->has('email_message')), emailMessage: @js((string) old('email_message', $defaultInvoiceEmailMessage)), recipientEmails: @js((string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? '')))), ccEmails: @js((string) old('cc_emails', '')) }">
-                        @csrf
-                        <x-ui.button type="submit" x-on:click.prevent="open = true">Email Invoice</x-ui.button>
-
-                        <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" x-on:keydown.escape.window="open = false">
-                            <div class="w-full max-w-2xl rounded-lg bg-white p-4 shadow-lg">
-                                <div class="mb-3 flex items-center justify-between">
-                                    <h3 class="text-lg font-semibold">Email Invoice</h3>
-                                    <button type="button" class="text-gray-600 hover:text-black" x-on:click.prevent="open = false">
-                                        <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                </div>
-                                <label class="block text-sm pl-1" for="invoice-recipient-emails">Recipient Email</label>
-                                <input
-                                    id="invoice-recipient-emails"
-                                    name="recipient_emails"
-                                    type="text"
-                                    value="{{ (string) old('recipient_emails', trim((string) ($invoice->billing_email ?: $invoice->user?->email ?? ''))) }}"
-                                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('recipient_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                                    x-model="recipientEmails"
-                                    placeholder="name@example.com, another@example.com"
-                                />
-                                <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to email multiple recipients.</div>
-                                @if($errors->has('recipient_emails'))
-                                    <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('recipient_emails') }}</div>
-                                @endif
-
-                                <label class="block text-sm pl-1 mt-4" for="invoice-cc-emails">CC Email</label>
-                                <input
-                                    id="invoice-cc-emails"
-                                    name="cc_emails"
-                                    type="text"
-                                    value="{{ (string) old('cc_emails', '') }}"
-                                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border {{ $errors->has('cc_emails') ? 'border-red-600 ring-red-600 focus:border-red-600 focus:ring-red-600' : 'border-gray-300 focus:border-indigo-300 focus:ring-indigo-300' }}"
-                                    x-model="ccEmails"
-                                    placeholder="cc@example.com, team@example.com"
-                                />
-                                <div class="text-xs text-gray-500 ml-2 mt-1">Use commas or semicolons to add multiple CC recipients.</div>
-                                @if($errors->has('cc_emails'))
-                                    <div class="text-xs text-red-600 ml-2 mt-2">{{ $errors->first('cc_emails') }}</div>
-                                @endif
-
-                                <label class="block text-sm pl-1 mt-4" for="invoice-email-message">Message</label>
-                                <textarea
-                                    id="invoice-email-message"
-                                    name="email_message"
-                                    rows="8"
-                                    class="disabled:bg-gray-100 bg-white block mt-1 px-2.5 pt-2.5 pb-2.5 w-full text-sm text-gray-900 rounded-lg border border-gray-300 focus:outline-none focus:ring-0 focus:border-indigo-300 focus:ring-indigo-300"
-                                    x-model="emailMessage"
-                                    placeholder="Compose the full email body. Supports placeholders like @{{name}} and @{{id}}."
-                                >{{ (string) old('email_message', $defaultInvoiceEmailMessage) }}</textarea>
-                                <div class="text-xs text-gray-500 ml-2 mt-1">Placeholders: @{{name}}, @{{id}}, @{{total}}, @{{outstanding}}, @{{due}}, @{{pay}}</div>
-                                <div class="mt-4 flex justify-end gap-2">
-                                    <x-ui.button type="button" color="secondary" x-on:click.prevent="open = false">Cancel</x-ui.button>
-                                    <x-ui.button type="button" x-on:click.prevent="$el.closest('form').submit();">Send Invoice Email</x-ui.button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+                    <x-ui.button type="button" x-on:click.prevent="openInvoiceEmailModal({{ json_encode($invoiceEmailDefaultPayload) }})">Email Invoice</x-ui.button>
+                    <x-admin.invoice-email-modal />
                     <x-ui.button
                         type="button"
                         color="secondary"

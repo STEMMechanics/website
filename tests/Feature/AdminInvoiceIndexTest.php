@@ -59,6 +59,38 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSee('hidden md:table-cell text-center', false);
     }
 
+    public function test_admin_invoice_index_uses_the_email_modal_for_invoice_email_actions(): void
+    {
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create([
+            'firstname' => 'Invoice',
+            'surname' => 'Owner',
+            'email' => 'owner@example.com',
+        ]);
+
+        Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'billing_name' => 'Invoice Owner',
+            'billing_email' => 'owner@example.com',
+            'status' => Invoice::STATUS_SENT,
+            'issue_date' => now()->subDays(2)->toDateString(),
+            'due_date' => now()->addDays(5)->toDateString(),
+            'total_amount' => 132.00,
+            'subtotal_amount' => 120.00,
+            'gst_amount' => 12.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.invoice.index'));
+
+        $response->assertOk();
+        $response->assertSee('openInvoiceEmailModal', false);
+        $response->assertSeeText('Recipient Email');
+        $response->assertSeeText('Subject');
+        $response->assertSeeText('View and Pay Invoice button');
+        $response->assertSee('data-bwignore="true"', false);
+        $response->assertSeeText('Send Invoice Email');
+    }
+
     public function test_admin_invoice_index_groups_ticket_summaries_by_workshop(): void
     {
         $admin = $this->createAdminUser();

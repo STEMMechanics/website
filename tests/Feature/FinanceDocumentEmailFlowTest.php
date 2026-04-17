@@ -125,6 +125,44 @@ class FinanceDocumentEmailFlowTest extends TestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_invoice_email_uses_placeholder_tokens_in_the_subject_line(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create([
+            'firstname' => 'Parker',
+            'surname' => 'Lee',
+            'email' => 'parker.lee@example.com',
+        ]);
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-9001',
+            'user_id' => $owner->id,
+            'billing_email' => 'billing@example.com',
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'kind' => 'generic',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->post(route('admin.invoice.email', $invoice), [
+                'recipient_emails' => 'billing@example.com',
+                'subject_line' => 'Invoice {{id}} for {{name}}',
+                'email_message' => 'Custom invoice message',
+            ]);
+
+        $response->assertRedirect(route('admin.invoice.edit', $invoice));
+        $response->assertSessionHasNoErrors();
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) {
+            return $job->mailable instanceof FinanceDocumentPdf
+                && $job->mailable->build()->subject === 'Invoice INV-9001 for Parker';
+        });
+    }
+
     public function test_invoice_save_and_email_reopens_email_modal_after_finalizing(): void
     {
         $admin = $this->createAdminUser();
