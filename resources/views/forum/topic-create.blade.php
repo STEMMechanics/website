@@ -1,9 +1,14 @@
+@php
+    $topicSort = trim((string) request()->query('topicSort', ''));
+    $topicSortQuery = $topicSort !== '' ? ['topicSort' => $topicSort] : [];
+@endphp
+
 <x-layout>
-    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}">Create Thread</x-mast>
+    <x-mast backRoute="forum.category.show" :backRouteParams="array_merge(['categorySlug' => $category->slug], $topicSortQuery)" backTitle="{{ $category->name }}">Create Thread</x-mast>
 
     <x-container class="py-8">
         <div class="rounded-lg border border-gray-200 bg-white p-6">
-            <form method="POST" action="{{ route('forum.topic.store', $category->slug) }}" enctype="multipart/form-data" class="space-y-5">
+            <form method="POST" action="{{ route('forum.topic.store', array_merge(['categorySlug' => $category->slug], $topicSortQuery)) }}" enctype="multipart/form-data" class="space-y-5">
                 @csrf
 
                 <x-ui.input

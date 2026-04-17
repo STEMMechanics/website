@@ -244,6 +244,9 @@
                 @endif
                 @if(auth()->user()?->isAdmin())
                     <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.edit', $workshop) }}">Edit Workshop</x-ui.button>
+                    @if($workshop->usesClassroomRegistration() && $workshop->classSession)
+                        <x-ui.button class="mb-4" color="primary-outline" href="{{ route('class.show', $workshop->classSession) }}">View Course</x-ui.button>
+                    @endif
                     @if($workshop->registration === 'interest' || (int) ($interestCount ?? 0) > 0)
                         <x-ui.button class="mb-4" color="primary-outline" href="{{ route('admin.workshop.interests', $workshop) }}">View Interests</x-ui.button>
                     @endif

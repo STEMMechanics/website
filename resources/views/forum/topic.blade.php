@@ -20,6 +20,8 @@
 
     $reactionBaseButtonClasses = 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition';
     $reactionIdleClasses = 'border-gray-200 bg-white text-gray-700 hover:border-primary-color hover:text-primary-color';
+    $topicSort = trim((string) request()->query('topicSort', ''));
+    $topicSortQuery = $topicSort !== '' ? ['topicSort' => $topicSort] : [];
 
     $modalEditPostId = trim((string) old('edit_post_id', ''));
     $modalMode = old('modal_mode', $modalEditPostId !== '' ? 'edit' : 'reply');
@@ -30,8 +32,8 @@
     $modalSubmitLabel = $modalMode === 'edit' ? 'Save Changes' : 'Post Reply';
     $modalMethod = $modalMode === 'edit' ? 'PUT' : 'POST';
     $modalAction = $modalMode === 'edit' && $editingPost
-        ? route('forum.post.update', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $editingPost->id, 'sort' => $replySort])
-        : route('forum.post.store', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]);
+        ? route('forum.post.update', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $editingPost->id, 'sort' => $replySort], $topicSortQuery))
+        : route('forum.post.store', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort], $topicSortQuery));
     $modalReplyPostId = trim((string) old('reply_to_post_id', ''));
     $replyModalOpen = $errors->has('body') || $errors->has('attachments') || $errors->has('attachments.*');
     $reportModalOpen = $errors->has('reason');
@@ -54,8 +56,8 @@
         'initialReplyPostId' => $modalReplyPostId,
         'reactionBaseButtonClasses' => $reactionBaseButtonClasses,
         'reactionIdleClasses' => $reactionIdleClasses,
-        'snapshotUrl' => route('forum.topic.snapshot', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]),
-        'defaultReplyAction' => route('forum.post.store', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]),
+        'snapshotUrl' => route('forum.topic.snapshot', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort], $topicSortQuery)),
+        'defaultReplyAction' => route('forum.post.store', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort], $topicSortQuery)),
         'defaultReplyMethod' => 'POST',
         'reportModalOpen' => $reportModalOpen,
         'initialReportAction' => $reportAction,
@@ -83,7 +85,7 @@
 </script>
 
 <x-layout>
-    <x-mast backRoute="forum.category.show" :backRouteParams="[$category->slug]" backTitle="{{ $category->name }}" :tabs="$tabs">{!! $topic->formattedTitle(false) !!}</x-mast>
+    <x-mast backRoute="forum.category.show" :backRouteParams="array_filter(['categorySlug' => $category->slug, 'topicSort' => $topicSort !== '' ? $topicSort : null], fn ($value) => $value !== null && $value !== '')" backTitle="{{ $category->name }}" :tabs="$tabs">{!! $topic->formattedTitle(false) !!}</x-mast>
 
     <x-container class="py-8" id="forum-topic-page">
         <div id="forum-topic-meta">
@@ -146,7 +148,7 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <form method="POST" action="{{ route('forum.topic.title.update', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]) }}" class="space-y-5 px-6 py-5">
+                <form method="POST" action="{{ route('forum.topic.title.update', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort], $topicSortQuery)) }}" class="space-y-5 px-6 py-5">
                     @csrf
                     @method('PUT')
                     <x-ui.input
@@ -178,7 +180,7 @@
                         <i class="fa-solid fa-xmark"></i>
                     </button>
                 </div>
-                <form method="POST" action="{{ $modalAction }}" enctype="multipart/form-data" class="min-h-0 flex-1 overflow-y-auto" data-default-action="{{ route('forum.post.store', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort]) }}" data-default-method="POST">
+                <form method="POST" action="{{ $modalAction }}" enctype="multipart/form-data" class="min-h-0 flex-1 overflow-y-auto" data-default-action="{{ route('forum.post.store', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'sort' => $replySort], $topicSortQuery)) }}" data-default-method="POST">
                     @csrf
                     <input type="hidden" name="_method" id="forum-reply-modal-method" value="{{ $modalMethod === 'PUT' ? 'PUT' : '' }}">
                     <input type="hidden" name="modal_mode" id="forum-reply-modal-mode" value="{{ $modalMode }}">

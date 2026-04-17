@@ -1079,7 +1079,7 @@ body.image-resize-active {
 
 .forum-category-card {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     gap: 1rem;
     border: 1px solid rgb(229 231 235);
     border-radius: 0.75rem;
@@ -1108,12 +1108,17 @@ body.image-resize-active {
 
 .forum-category-card__chevron {
     color: rgb(156 163 175);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: center;
     flex: 0 0 auto;
 }
 
 .forum-category-card--custom .forum-category-card__icon {
     --forum-category-card-color: #475569;
     background: var(--forum-category-card-color, #475569);
+    color: white;
 }
 
 .forum-category-card--amber .forum-category-card__icon { background: linear-gradient(135deg, #f59e0b, #fbbf24); }

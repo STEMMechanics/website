@@ -4,6 +4,7 @@
         \App\Models\ForumPostReaction::TYPE_LIKE => ['label' => 'Like', 'icon' => 'fa-solid fa-thumbs-up', 'activeClasses' => 'bg-green-100 text-green-700 border-green-200'],
         \App\Models\ForumPostReaction::TYPE_DISLIKE => ['label' => 'Dislike', 'icon' => 'fa-solid fa-thumbs-down', 'activeClasses' => 'bg-amber-100 text-amber-700 border-amber-200'],
     ];
+    $topicSortQuery = !empty($topicSort ?? '') ? ['topicSort' => $topicSort] : [];
     $reactionBaseButtonClasses = 'inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition';
     $reactionIdleClasses = 'border-gray-200 bg-white text-gray-700 hover:border-primary-color hover:text-primary-color';
     $author = $post->user;
@@ -95,7 +96,7 @@
                         <button
                             type="button"
                             data-forum-reaction-button
-                            data-url="{{ route('forum.post.reaction', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
+                            data-url="{{ route('forum.post.reaction', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort], $topicSortQuery)) }}"
                             data-post-id="{{ $post->id }}"
                             data-type="{{ $type }}"
                             data-active-classes="{{ $meta['activeClasses'] }}"
@@ -116,7 +117,7 @@
                             class="text-sm text-gray-600 hover:text-primary-color"
                             data-forum-report-button
                             data-report-post-id="{{ $post->id }}"
-                            data-report-action="{{ route('forum.post.report', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
+                            data-report-action="{{ route('forum.post.report', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort], $topicSortQuery)) }}"
                             data-report-author="{{ $displayName }}"
                     ><i class="fa-regular fa-flag"></i></button>
                 @endif
@@ -127,14 +128,14 @@
                             data-forum-edit-button
                             data-edit-title="{{ $isFirstPost ? 'Edit Thread Post' : 'Edit Reply' }}"
                             data-edit-body="{{ $post->body }}"
-                            data-edit-action="{{ route('forum.post.update', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}"
+                            data-edit-action="{{ route('forum.post.update', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort], $topicSortQuery)) }}"
                             data-edit-method="PUT"
                             data-edit-post-id="{{ $post->id }}"
                             data-submit-label="Save Changes"
                     ><i class="fa-solid fa-pen-to-square"></i></button>
                 @endif
                 @if($canDeletePost && ! $isFirstPost && ! $isDeletedPost)
-                    <form method="POST" action="{{ route('forum.post.destroy', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort]) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this reply?', $el)">
+                    <form method="POST" action="{{ route('forum.post.destroy', array_merge(['categorySlug' => $category->slug, 'topicSlug' => $topic->slug, 'forumPost' => $post->id, 'sort' => $replySort], $topicSortQuery)) }}" x-data x-on:submit.prevent="SM.confirmDelete('{{ csrf_token() }}', 'Delete post?', 'Are you sure you want to delete this reply?', $el)">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="text-sm text-red-600 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>

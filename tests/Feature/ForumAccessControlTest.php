@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\ForumCategory;
 use App\Models\ForumPost;
 use App\Models\ForumTopic;
+use App\Models\ClassSession;
 use App\Models\User;
 use App\Models\UserGroup;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -205,6 +207,41 @@ class ForumAccessControlTest extends TestCase
         ]), [
             'reason' => 'Guest report attempt',
         ])->assertRedirect(route('login'));
+    }
+
+    public function test_ended_course_discussions_become_read_only_for_users(): void
+    {
+        $author = User::factory()->create();
+        $member = User::factory()->create();
+        $category = $this->createCategory('Course Forum', 'course-forum', null, null);
+
+        ClassSession::query()->create([
+            'title' => 'Course Forum',
+            'slug' => 'course-forum',
+            'room_name' => 'course-forum',
+            'forum_category_id' => $category->id,
+            'starts_at' => Carbon::now()->subWeeks(2),
+            'ends_at' => Carbon::now()->subDay(),
+        ]);
+
+        [$topic] = $this->createTopicWithFirstPost($category, $author, 'Archived discussion');
+
+        $this->actingAs($member)->get(route('forum.category.show', $category->slug))->assertOk();
+        $this->actingAs($member)
+            ->post(route('forum.topic.store', $category->slug), [
+                'title' => 'Attempted new thread',
+                'body' => 'This should not be allowed after the course ends.',
+            ])
+            ->assertForbidden();
+
+        $this->actingAs($member)
+            ->post(route('forum.post.store', [
+                'categorySlug' => $category->slug,
+                'topicSlug' => $topic->slug,
+            ]), [
+                'body' => 'Attempted reply',
+            ])
+            ->assertForbidden();
     }
 
     private function createCategory(string $name, string $slug, ?string $readGroupSlug, ?string $writeGroupSlug): ForumCategory

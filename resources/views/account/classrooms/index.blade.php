@@ -20,7 +20,7 @@
                             @foreach($currentSessions as $entry)
                                 @php($classSession = $entry['classSession'])
                                 @php($heroImageUrl = $classSession->hero?->url)
-                                <article class="overflow-hidden rounded-3xl border border-emerald-200 bg-emerald-50 shadow-sm">
+                                <article class="overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50 shadow-sm">
                                     <div class="{{ $heroImageUrl ? 'grid gap-0 lg:grid-cols-[16rem_minmax(0,1fr)]' : '' }}">
                                         @if($heroImageUrl)
                                             <div class="relative min-h-48 bg-emerald-100">
@@ -67,7 +67,7 @@
                             @foreach($upcomingSessions as $entry)
                                 @php($classSession = $entry['classSession'])
                                 @php($heroImageUrl = $classSession->hero?->url)
-                                <article class="overflow-hidden rounded-3xl border border-sky-200 bg-sky-50 shadow-sm">
+                                <article class="overflow-hidden rounded-lg border border-sky-200 bg-sky-50 shadow-sm">
                                     <div class="{{ $heroImageUrl ? 'grid gap-0 lg:grid-cols-[16rem_minmax(0,1fr)]' : '' }}">
                                         @if($heroImageUrl)
                                             <div class="relative min-h-48 bg-sky-100">
@@ -111,7 +111,7 @@
                             @foreach($pastSessions as $entry)
                                 @php($classSession = $entry['classSession'])
                                 @php($heroImageUrl = $classSession->hero?->url)
-                                <article class="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-sm">
+                                <article class="overflow-hidden rounded-lg border border-slate-200 bg-gradient-to-br from-slate-50 to-white shadow-sm">
                                     <div class="{{ $heroImageUrl ? 'grid gap-0 lg:grid-cols-[16rem_minmax(0,1fr)]' : '' }}">
                                         @if($heroImageUrl)
                                             <div class="relative min-h-48 bg-slate-100">
@@ -119,7 +119,7 @@
                                             </div>
                                         @endif
                                         <div class="p-5">
-                                            <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                            <div class="flex flex-col gap-4 lg:flex-row lg:justify-between h-full">
                                                 <div class="min-w-0">
                                                     <div class="flex flex-wrap items-center gap-3">
                                                         <h3 class="text-xl font-semibold text-gray-900">{{ $classSession->title }}</h3>
@@ -137,8 +137,8 @@
                                                         @endif
                                                     </div>
                                                 </div>
-                                                <div class="flex shrink-0 flex-wrap gap-2">
-                                                    <x-ui.button href="{{ $entry['openUrl'] }}" color="secondary">Open anyway</x-ui.button>
+                                                <div class="flex shrink-0 flex-wrap gap-2 items-end">
+                                                    <x-ui.button href="{{ $entry['openUrl'] }}" color="secondary">Open</x-ui.button>
                                                 </div>
                                             </div>
                                         </div>

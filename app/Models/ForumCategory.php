@@ -14,6 +14,8 @@ class ForumCategory extends Model
 {
     use HasFactory, UUID;
 
+    /** @property-read ClassSession|null $classSession */
+
     public const LOGGED_IN_GROUP_SLUG = 'user';
 
     protected $fillable = [
@@ -84,6 +86,11 @@ class ForumCategory extends Model
         }
 
         if (! $this->canRead($user)) {
+            return false;
+        }
+
+        $classSession = $this->classSession;
+        if ($classSession instanceof ClassSession && $classSession->hasEnded()) {
             return false;
         }
 

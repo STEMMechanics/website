@@ -8,6 +8,7 @@ use App\Jobs\SendEmail;
 use App\Mail\ChildForumActivityNotification;
 use App\Mail\ForumPostReport;
 use App\Models\ForumCategory;
+use App\Models\ClassSession;
 use App\Models\ForumPost;
 use App\Models\ForumPostAttachment;
 use App\Models\ForumPostReaction;
@@ -56,6 +57,7 @@ class ForumController extends Controller
         $category->loadMissing('classSession');
         abort_if($category->isDivider(), 404);
         $user = $request->user();
+        $topicSort = $this->normalizedTopicSort($request->query('topicSort'), $category);
 
         if ($response = $this->forumReadAccessWebResponse($request, $category->canRead($user), 'discussion category')) {
             return $response;
@@ -69,11 +71,12 @@ class ForumController extends Controller
             'viewCount' => $viewCount,
             'latestActivityAt' => $latestActivityAt,
             'latestActivityAuthorName' => $latestActivityAuthorName,
-        ] = $this->buildForumCategoryData($category, $user);
+        ] = $this->buildForumCategoryData($category, $user, $topicSort);
 
         return view('forum.category', [
             'category' => $category,
             'topics' => $topics,
+            'topicSort' => $topicSort,
             'canWrite' => $this->canCreateTopic($user, $category),
             'unreadTopicIds' => $unreadTopicIds,
             'threadCount' => $threadCount,
@@ -100,6 +103,8 @@ class ForumController extends Controller
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
         abort_unless($this->canCreateTopic($request->user(), $category), 403);
+        $topicSort = trim((string) $request->query('topicSort', ''));
+        $topicSortQuery = $topicSort !== '' ? ['topicSort' => $topicSort] : [];
 
         $validated = $request->validate(array_merge([
             'title' => ['required', 'string', 'max:200'],
@@ -180,7 +185,7 @@ class ForumController extends Controller
             session()->flash('message-title', 'Approval required');
             session()->flash('message-type', 'info');
 
-            return redirect()->route('forum.category.show', $category->slug);
+            return redirect()->route('forum.category.show', array_merge(['categorySlug' => $category->slug], $topicSortQuery));
         }
 
         $this->ensureTopicNotificationsEnabledForPoster($topic, $author);
@@ -201,7 +206,7 @@ class ForumController extends Controller
         return redirect()->to(route('forum.topic.show', [
             'categorySlug' => $category->slug,
             'topicSlug' => $topic->slug,
-        ]).'#post-'.$post->id);
+        ] + $topicSortQuery).'#post-'.$post->id);
     }
 
     public function showTopic(Request $request, string $categorySlug, string $topicSlug): View|RedirectResponse
@@ -577,6 +582,7 @@ class ForumController extends Controller
         $category = $this->findCategoryOrFail($categorySlug);
         abort_if($category->isDivider(), 404);
         $user = $request->user();
+        $topicSort = $this->normalizedTopicSort($request->query('topicSort'), $category);
 
         if ($response = $this->forumReadAccessJsonResponse($request, $category->canRead($user), 'discussion category')) {
             return $response;
@@ -590,7 +596,7 @@ class ForumController extends Controller
             'viewCount' => $viewCount,
             'latestActivityAt' => $latestActivityAt,
             'latestActivityAuthorName' => $latestActivityAuthorName,
-        ] = $this->buildForumCategoryData($category, $user);
+        ] = $this->buildForumCategoryData($category, $user, $topicSort);
 
         return response()->json([
             'threadsHtml' => $topics->isEmpty()
@@ -599,6 +605,7 @@ class ForumController extends Controller
                     'topics' => $topics,
                     'category' => $category,
                     'unreadTopicLookup' => array_flip($unreadTopicIds),
+                    'topicSort' => $topicSort,
                 ])->render(),
             'paginationHtml' => $topics->appends($request->query())->links()->toHtml(),
             'emptyText' => $topics->isEmpty()
@@ -857,6 +864,14 @@ class ForumController extends Controller
     private function normalizedReplySort(mixed $value): string
     {
         return strtolower(trim((string) $value)) === 'latest' ? 'latest' : 'oldest';
+    }
+
+    private function normalizedTopicSort(mixed $value, ForumCategory $category): string
+    {
+        $default = $category->classSession ? 'oldest' : 'latest';
+        $normalized = strtolower(trim((string) $value));
+
+        return in_array($normalized, ['latest', 'oldest'], true) ? $normalized : $default;
     }
 
     private function replyPrefillBody(ForumTopic $topic, Request $request): string
@@ -1258,6 +1273,14 @@ class ForumController extends Controller
         $unreadCategoryCounts = $user ? ForumTopic::unreadCountMapForUser($user) : [];
         $courseCategories = $categories
             ->filter(fn (ForumCategory $category) => $category->classSession !== null)
+            ->sortByDesc(function (ForumCategory $category): int {
+                $classSession = $category->classSession;
+                if (! $classSession instanceof ClassSession || $classSession->starts_at === null) {
+                    return 0;
+                }
+
+                return (int) $classSession->starts_at->timestamp;
+            })
             ->values();
         $regularCategories = $categories
             ->reject(fn (ForumCategory $category) => $category->classSession !== null)
@@ -1270,16 +1293,27 @@ class ForumController extends Controller
         ];
     }
 
-    private function buildForumCategoryData(ForumCategory $category, $user): array
+    private function buildForumCategoryData(ForumCategory $category, $user, string $topicSort): array
     {
-        $topics = ForumTopic::query()
+        $topicsQuery = ForumTopic::query()
             ->with(['user.avatarMedia', 'lastPostUser.avatarMedia'])
             ->withCount('posts')
             ->where('forum_category_id', $category->id)
-            ->where('is_approved', true)
-            ->orderByDesc('is_pinned')
-            ->orderByDesc('last_post_at')
-            ->orderByDesc('created_at')
+            ->where('is_approved', true);
+
+        if ($topicSort === 'oldest') {
+            $topicsQuery
+                ->orderBy('created_at')
+                ->orderBy('id');
+        } else {
+            $topicsQuery
+                ->orderByDesc('is_pinned')
+                ->orderByDesc('last_post_at')
+                ->orderByDesc('created_at')
+                ->orderByDesc('id');
+        }
+
+        $topics = $topicsQuery
             ->paginate(20)
             ->onEachSide(1);
 
@@ -1308,6 +1342,7 @@ class ForumController extends Controller
 
         return [
             'topics' => $topics,
+            'topicSort' => $topicSort,
             'unreadTopicIds' => $unreadTopicIds,
             'threadCount' => $threadCount,
             'commentCount' => $commentCount,

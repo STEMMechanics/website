@@ -59,16 +59,19 @@ class WorkshopClassroomRegistrationTest extends TestCase
         $this->assertSame('classroom', (string) $workshop->registration);
         $this->assertNotNull($workshop->classSession);
         $this->assertSame((string) $workshop->classSession->slug, (string) $workshop->ticket_group_slug);
+        $this->assertSame($heroName, (string) $workshop->classSession->hero_media_name);
         $this->assertDatabaseHas('class_sessions', [
             'id' => $workshop->class_session_id,
             'access_group_slug' => (string) $workshop->classSession->slug,
+            'hero_media_name' => $heroName,
         ]);
 
         $this->actingAs($admin)
             ->get(route('workshop.show', $workshop))
             ->assertOk()
             ->assertSeeText('Enrol Now')
-            ->assertDontSee(route('class.show', $workshop->classSession), false);
+            ->assertSeeText('View Course')
+            ->assertSee(route('class.show', $workshop->classSession), false);
     }
 
     public function test_workshop_create_validation_keeps_the_selected_hero_image(): void

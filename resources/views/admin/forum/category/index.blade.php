@@ -1,8 +1,34 @@
 @php
-    $seedCategories = old('categories');
+    $deletedCategoryIds = old('deleted_category_ids', []);
+    if (! is_array($deletedCategoryIds)) {
+        $deletedCategoryIds = [];
+    }
+    $deletedCategoryIds = collect($deletedCategoryIds)
+        ->map(fn ($id): string => (string) $id)
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
 
+    $seedCategories = old('categories');
     if (! is_array($seedCategories)) {
-        $seedCategories = $categories->map(fn ($category) => [
+        $seedCategories = $categories
+            ->reject(fn ($category) => in_array((string) $category->id, $deletedCategoryIds, true) || $category->classSession !== null)
+            ->map(fn ($category) => [
+                'id' => (string) $category->id,
+                'name' => (string) $category->name,
+                'slug' => (string) $category->slug,
+                'description' => (string) ($category->description ?? ''),
+                'icon_class' => (string) ($category->icon_class ?? ''),
+                'color_hex' => (string) ($category->color_hex ?? ''),
+                'read_group_slug' => (string) ($category->read_group_slug ?? ''),
+                'write_group_slug' => (string) ($category->write_group_slug ?? ''),
+                'is_divider' => $category->isDivider(),
+                'topics_count' => (int) ($category->topics_count ?? 0),
+                'posts_count' => (int) ($category->posts_count ?? 0),
+            ])->values()->all();
+    } else {
+        $seedCategories = collect($seedCategories)->map(fn ($category) => [
             'id' => (string) $category->id,
             'name' => (string) $category->name,
             'slug' => (string) $category->slug,
@@ -15,26 +41,35 @@
             'topics_count' => (int) ($category->topics_count ?? 0),
             'posts_count' => (int) ($category->posts_count ?? 0),
         ])->values()->all();
-    } else {
-        $seedCategories = collect($seedCategories)->map(fn ($category) => [
-            'id' => (string) ($category['id'] ?? ''),
-            'name' => (string) ($category['name'] ?? ''),
-            'slug' => (string) ($category['slug'] ?? ''),
-            'description' => (string) ($category['description'] ?? ''),
-            'icon_class' => (string) ($category['icon_class'] ?? ''),
-            'color_hex' => (string) ($category['color_hex'] ?? ''),
-            'read_group_slug' => (string) ($category['read_group_slug'] ?? ''),
-            'write_group_slug' => (string) ($category['write_group_slug'] ?? ''),
-            'is_divider' => filter_var($category['is_divider'] ?? false, FILTER_VALIDATE_BOOLEAN),
-            'topics_count' => 0,
-            'posts_count' => 0,
-        ])->values()->all();
     }
 
-    $deletedCategoryIds = old('deleted_category_ids', []);
-    if (! is_array($deletedCategoryIds)) {
-        $deletedCategoryIds = [];
-    }
+    $seedCourseCategories = $categories
+        ->filter(fn ($category) => $category->classSession !== null && ! in_array((string) $category->id, $deletedCategoryIds, true))
+        ->map(function ($category): array {
+            $startedAt = $category->classSession?->starts_at;
+            $endedAt = $category->classSession?->ends_at;
+            $courseDateLabel = '';
+
+            if ($startedAt) {
+                $courseDateLabel = $endedAt && ! $startedAt->isSameDay($endedAt)
+                    ? $startedAt->format('j M Y').' - '.$endedAt->format('j M Y')
+                    : $startedAt->format('j M Y');
+            }
+
+            return [
+                'id' => (string) $category->id,
+                'name' => (string) $category->name,
+                'slug' => (string) $category->slug,
+                'course_title' => (string) ($category->classSession?->title ?? ''),
+                'course_date_label' => $courseDateLabel,
+                'course_sort_at' => $startedAt?->timestamp ?? 0,
+                'topics_count' => (int) ($category->topics_count ?? 0),
+                'posts_count' => (int) ($category->posts_count ?? 0),
+            ];
+        })
+        ->sortByDesc(fn (array $category): int => (int) ($category['course_sort_at'] ?? 0))
+        ->values()
+        ->all();
 
     $forumCategoryColorOptions = [
         '#F59E0B', '#FBBF24', '#F97316', '#FB7185', '#EF4444', '#DC2626',
@@ -90,6 +125,7 @@
             action="{{ route('admin.forum.category.save') }}"
             x-data="{
                 categories: @js($seedCategories),
+                courseCategories: @js($seedCourseCategories),
                 deletedIds: @js(array_values(array_map('strval', $deletedCategoryIds))),
                 groupSuggestions: @js($groupSuggestions),
                 colorOptions: @js($forumCategoryColorOptions),
@@ -188,6 +224,31 @@
                     this.categories.splice(index, 1);
                     this.ensureSingleTrailingBlank();
                 },
+                async removeCourseCategory(index) {
+                    const category = this.courseCategories[index];
+                    if (category?.id) {
+                        const usage = `${category.topics_count || 0} topics and ${category.posts_count || 0} posts`;
+                        if (!window.SM || typeof window.SM.confirm !== 'function') {
+                            return;
+                        }
+
+                        const result = await window.SM.confirm(
+                            'Delete course discussion?',
+                            `This will also remove ${usage}.`,
+                            'Delete'
+                        );
+
+                        if (!result?.isConfirmed) {
+                            return;
+                        }
+                    }
+
+                    if (category?.id) {
+                        this.deletedIds.push(category.id);
+                    }
+
+                    this.courseCategories.splice(index, 1);
+                },
                 moveUp(index) {
                     if (index <= 0 || this.isBlankCategory(this.categories[index])) {
                         return;
@@ -239,32 +300,39 @@
         >
             @csrf
 
-            <div class="rounded-lg border border-gray-200 p-4">
-                <div class="mb-4 flex items-start justify-between gap-4">
-                    <div>
-                        <h2 class="text-lg font-semibold">Categories</h2>
-                        <p class="text-sm text-gray-600">Blank read access is public. Blank write access allows any logged-in user. Use <span class="font-mono">user</span> to require login for read/write without requiring a specific group. New category slugs are generated from the title on first save and do not change later. Divider rows are stored with dash-only slugs and appear as separators on the discussion index.</p>
-                    </div>
-                    <x-ui.button type="button" color="outline" x-on:click="addDivider()">Add Divider</x-ui.button>
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div class="mb-5">
+                    <p class="text-sm font-semibold uppercase tracking-[0.22em] text-gray-400">Discussion Categories</p>
+                    <h2 class="mt-2 text-2xl font-semibold tracking-tight text-gray-900">Categories</h2>
+                    <p class="mt-2 max-w-3xl text-sm leading-6 text-gray-600">Normal categories can be reordered. Dividers group the public list. Course-linked categories are shown separately below, sorted by course date newest first, and can only be deleted here.</p>
                 </div>
 
                 <template x-for="deletedId in deletedIds" :key="`deleted-${deletedId}`">
                     <input type="hidden" name="deleted_category_ids[]" :value="deletedId">
                 </template>
 
-                <div class="overflow-x-auto">
-                    <table class="min-w-full border border-gray-200 rounded-md">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="p-2 text-left border-b">Category</th>
-                                <th class="p-2 text-left border-b hidden lg:table-cell">Description</th>
-                                <th class="p-2 text-left border-b hidden md:table-cell">Access</th>
-                                <th class="p-2 text-left border-b hidden xl:table-cell">Usage</th>
-                                <th class="p-2 text-left border-b">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="(category, index) in categories" :key="category.id || `new-${index}`">
+                <div class="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-4 flex items-center justify-between gap-4">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-900">Normal categories</h3>
+                            <p class="mt-1 text-sm text-gray-600">These can be reordered and edited.</p>
+                        </div>
+                        <x-ui.button type="button" color="outline" x-on:click="addDivider()">Add Divider</x-ui.button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full rounded-md border border-gray-200 bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="border-b p-2 text-left">Category</th>
+                                    <th class="hidden border-b p-2 text-left lg:table-cell">Description</th>
+                                    <th class="hidden border-b p-2 text-left md:table-cell">Access</th>
+                                    <th class="hidden border-b p-2 text-left xl:table-cell">Usage</th>
+                                    <th class="border-b p-2 text-left">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(category, index) in categories" :key="category.id || `new-${index}`">
                                 <tr class="border-b last:border-b-0">
                                     <td class="p-2 align-top min-w-[20rem]">
                                         <input type="hidden" :name="!isBlankCategory(category) && category.id ? `categories[${index}][id]` : null" :value="category.id">
@@ -323,14 +391,14 @@
                                                     x-on:click="openAppearance(index)"
                                                 >
                                                     <span
-                                                        class="inline-flex h-9 w-9 items-center justify-center rounded-full text-white"
-                                                        :style="`background:${category.color_hex || '#475569'}`"
+                                                        class="inline-flex h-9 w-9 items-center justify-center rounded-full"
+                                                        :style="`background-color:${category.color_hex || '#475569'}`"
                                                     >
                                                         <template x-if="String(category.icon_class || '').includes('forum-icon-stemcraft')">
                                                             <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-4 w-4 object-contain" />
                                                         </template>
                                                         <template x-if="!String(category.icon_class || '').includes('forum-icon-stemcraft')">
-                                                            <i :class="category.icon_class || 'fa-solid fa-comments'"></i>
+                                                            <i :class="category.icon_class || 'fa-solid fa-comments'" class="text-white"></i>
                                                         </template>
                                                     </span>
                                                     <span class="text-left">
@@ -431,7 +499,7 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="p-2 align-top hidden xl:table-cell whitespace-nowrap text-sm text-gray-600">
+                                    <td class="hidden whitespace-nowrap p-2 align-top text-sm text-gray-600 xl:table-cell">
                                         <template x-if="category.is_divider">
                                             <div>-</div>
                                         </template>
@@ -456,9 +524,48 @@
                                         </div>
                                     </td>
                                 </tr>
-                            </template>
-                        </tbody>
-                    </table>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold text-gray-900">Course categories</h3>
+                        <p class="mt-1 text-sm text-gray-600">These are linked to courses, sorted by course date newest first, and are read-only except for delete.</p>
+                    </div>
+
+                    <div class="grid gap-4 xl:grid-cols-2">
+                        <template x-for="(courseCategory, index) in courseCategories" :key="courseCategory.id || `course-${index}`">
+                            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <div class="inline-flex rounded-full bg-sky-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-sky-700">Course</div>
+                                        <h3 class="mt-3 truncate text-lg font-semibold text-gray-900" x-text="courseCategory.name"></h3>
+                                        <p class="mt-1 text-sm text-gray-600" x-text="courseCategory.course_title || 'Linked course'"></p>
+                                    </div>
+                                    <button type="button" class="text-red-600 hover:text-red-700" x-on:click="removeCourseCategory(index)" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 text-sm text-gray-600 sm:grid-cols-2">
+                                    <div>
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">Course date</div>
+                                        <div class="mt-1 font-medium text-gray-900" x-text="courseCategory.course_date_label || 'No date set'"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-400">Usage</div>
+                                        <div class="mt-1 font-medium text-gray-900" x-text="`${courseCategory.topics_count || 0} topics · ${courseCategory.posts_count || 0} posts`"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="courseCategories.length === 0" x-cloak class="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-sm text-gray-500 xl:col-span-2">
+                            No course-linked categories.
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -482,12 +589,12 @@
                     <div class="grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 py-6 lg:grid-cols-[18rem_minmax(0,1fr)]">
                         <div class="space-y-4">
                             <div class="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-2xl text-white" :style="`background:${appearanceEditor.color_hex || '#475569'}`">
+                                <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full text-2xl" :style="`background-color:${appearanceEditor.color_hex || '#475569'}`">
                                     <template x-if="String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
                                         <img src="{{ asset('stemcraft-short-logo.webp') }}" alt="" class="h-8 w-8 object-contain" />
                                     </template>
                                     <template x-if="!String(appearanceEditor.icon_class || '').includes('forum-icon-stemcraft')">
-                                        <i :class="appearanceEditor.icon_class || 'fa-solid fa-comments'"></i>
+                                        <i :class="appearanceEditor.icon_class || 'fa-solid fa-comments'" class="text-white"></i>
                                     </template>
                                 </div>
                                 <div class="mt-4 text-center text-sm font-medium text-gray-700">Live preview</div>

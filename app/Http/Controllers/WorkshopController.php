@@ -2455,6 +2455,9 @@ class WorkshopController extends Controller
             $classSession->title = (string) $workshop->title;
             $classSessionSummary = $workshop->newsletterSummary(220);
             $classSession->summary = $classSessionSummary !== '' ? $classSessionSummary : null;
+            $classSession->hero_media_name = trim((string) ($workshop->hero_media_name ?? '')) !== ''
+                ? (string) $workshop->hero_media_name
+                : null;
             $classSession->instructions_html = null;
             $classSession->live_chat_enabled = true;
             $classSession->starts_at = $workshop->starts_at;

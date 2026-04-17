@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
@@ -54,6 +55,16 @@ class AppServiceProvider extends ServiceProvider
         app(PassportKeyManager::class)->ensureKeysExist();
         Passport::tokensCan(config('openid.passport.tokens_can'));
         Passport::authorizationView('auth.oauth.authorize');
+
+        if ($this->app->environment('local')) {
+            Vite::useHotFile(storage_path('framework/vite.hot'));
+        } else {
+            // Non-local environments must never fall back into Vite hot mode, even
+            // if a stale hot file was left behind by a previous deploy.
+            Vite::useHotFile(storage_path('framework/vite.disabled'));
+            File::delete(public_path('hot'));
+            File::delete(storage_path('framework/vite.hot'));
+        }
 
         RateLimiter::for('login', function (Request $request): array {
             $email = strtolower(trim((string) $request->input('email', '')));

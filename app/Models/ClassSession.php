@@ -227,7 +227,7 @@ class ClassSession extends Model
 
     public function adminListStatus(): string
     {
-        if ($this->ends_at !== null && $this->ends_at->isPast()) {
+        if ($this->hasEnded()) {
             return 'ended';
         }
 
@@ -271,6 +271,11 @@ class ClassSession extends Model
     public function canJoin(?User $user): bool
     {
         return $this->roleForUser($user) !== null;
+    }
+
+    public function hasEnded(): bool
+    {
+        return $this->ends_at !== null && $this->ends_at->isPast();
     }
 
     public function canManage(?User $user): bool

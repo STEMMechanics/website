@@ -3,8 +3,8 @@ $workshopContent = isset($workshop) ? $workshop->content : '';
 $workshopSummary = old('summary', isset($workshop) ? (string) ($workshop->getRawOriginal('summary') ?? '') : '');
 $workshopStatusForForm = old('status', $workshop->status ?? 'draft');
 $selectedClassSessionId = old('class_session_id', $workshop->class_session_id ?? '');
-$workshopStartValue = \App\Helpers::timestampNoSeconds($workshop->starts_at ?? '');
-$workshopEndValue = \App\Helpers::timestampNoSeconds($workshop->ends_at ?? '');
+$workshopStartValue = old('starts_at', \App\Helpers::timestampNoSeconds($workshop->starts_at ?? ''));
+$workshopEndValue = old('ends_at', \App\Helpers::timestampNoSeconds($workshop->ends_at ?? ''));
 $managedClassSessions = collect(($classSessions ?? collect())->all())
     ->map(function ($classSession): array {
         $schedule = $classSession->broadcastSchedule();
@@ -62,6 +62,8 @@ $savedTickets = isset($workshop)
             classSessions: @js($managedClassSessions),
             managedStartFallback: @js($workshopStartValue),
             managedEndFallback: @js($workshopEndValue),
+            manualStartsAt: @js($workshopStartValue),
+            manualEndsAt: @js($workshopEndValue),
             originalStartsAt: @js(isset($workshop) ? $workshopStartValue : ''),
             originalEndsAt: @js(isset($workshop) ? $workshopEndValue : ''),
             originalLocationId: @js(isset($workshop) ? trim((string) ($workshop->location_id ?? '')) : ''),
@@ -502,10 +504,12 @@ $savedTickets = isset($workshop)
                             value="{{ $workshopStartValue }}"
                             onchange="updatedStartsAt()"
                             x-ref="startsAt"
+                            x-on:input="manualStartsAt = $event.target.value"
+                            x-on:change="manualStartsAt = $event.target.value"
                             x-bind:disabled="isCourseManaged()"
-                            x-bind:value="isCourseManaged() ? courseManagedStartValue() : '{{ $workshopStartValue }}'"
+                            x-bind:value="isCourseManaged() ? courseManagedStartValue() : manualStartsAt"
                         />
-                        <input type="hidden" name="starts_at" x-bind:disabled="!isCourseManaged()" x-bind:value="courseManagedStartValue()">
+                        <input type="hidden" name="starts_at" x-bind:disabled="!isCourseManaged()" x-bind:value="isCourseManaged() ? courseManagedStartValue() : manualStartsAt">
                     </div>
                     <div class="flex-1">
                         <x-ui.input
@@ -514,10 +518,12 @@ $savedTickets = isset($workshop)
                             name="ends_at"
                             value="{{ $workshopEndValue }}"
                             x-ref="endsAt"
+                            x-on:input="manualEndsAt = $event.target.value"
+                            x-on:change="manualEndsAt = $event.target.value"
                             x-bind:disabled="isCourseManaged()"
-                            x-bind:value="isCourseManaged() ? courseManagedEndValue() : '{{ $workshopEndValue }}'"
+                            x-bind:value="isCourseManaged() ? courseManagedEndValue() : manualEndsAt"
                         />
-                        <input type="hidden" name="ends_at" x-bind:disabled="!isCourseManaged()" x-bind:value="courseManagedEndValue()">
+                        <input type="hidden" name="ends_at" x-bind:disabled="!isCourseManaged()" x-bind:value="isCourseManaged() ? courseManagedEndValue() : manualEndsAt">
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">

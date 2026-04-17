@@ -13,6 +13,7 @@ class ForumCategoryController extends Controller
     public function index(): View
     {
         $categories = ForumCategory::query()
+            ->with('classSession')
             ->withCount(['topics', 'posts'])
             ->orderBy('sort_order')
             ->orderBy('name')

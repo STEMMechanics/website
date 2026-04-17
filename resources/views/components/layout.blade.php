@@ -106,7 +106,9 @@
     <script src="/script.js?v={{ @filemtime(public_path('script.js')) ?: time() }}"></script>
 
     @livewireStyles
-    @viteReactRefresh
+    @if(app()->environment('local') && \Illuminate\Support\Facades\Vite::isRunningHot())
+        @viteReactRefresh
+    @endif
     @stack('head')
     @vite('resources/js/app.js')
     @vite('resources/css/app.css')

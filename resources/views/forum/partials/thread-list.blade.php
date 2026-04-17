@@ -6,7 +6,11 @@
         $avatarUrl = $author?->avatarImageUrl();
         $isDeletedAuthor = $authorName === 'deleted';
         $lastPostAuthorName = $topic->lastPostUser?->forumDisplayName() ?: 'deleted';
-        $threadUrl = route('forum.topic.show', ['categorySlug' => $category->slug, 'topicSlug' => $topic->slug]);
+        $threadUrl = route('forum.topic.show', array_filter([
+            'categorySlug' => $category->slug,
+            'topicSlug' => $topic->slug,
+            'topicSort' => $topicSort ?? null,
+        ], fn ($value) => $value !== null && $value !== ''));
     @endphp
     <a href="{{ $threadUrl }}" class="forum-thread-card group block text-inherit no-underline hover:no-underline">
         <div

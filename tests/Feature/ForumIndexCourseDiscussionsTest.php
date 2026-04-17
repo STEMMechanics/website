@@ -37,6 +37,8 @@ class ForumIndexCourseDiscussionsTest extends TestCase
             'slug' => 'course-one',
             'room_name' => 'course-one',
             'forum_category_id' => $courseCategory->id,
+            'starts_at' => '2026-04-16 09:00:00',
+            'ends_at' => '2026-05-14 10:00:00',
         ]);
 
         $this->createUnreadForumTopic($generalCategory, $author, $viewer, 'General thread');
@@ -48,6 +50,7 @@ class ForumIndexCourseDiscussionsTest extends TestCase
         $response->assertOk();
         $response->assertSeeText('Categories');
         $response->assertSeeText('Course discussions');
+        $response->assertSeeText('16 Apr 2026 - 14 May 2026');
         $response->assertSeeInOrder(['Categories', 'General chat', 'Course discussions', 'Course one'], false);
         $response->assertSee('data-unread-count="2"', false);
     }

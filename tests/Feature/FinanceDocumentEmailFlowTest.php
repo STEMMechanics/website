@@ -163,6 +163,54 @@ class FinanceDocumentEmailFlowTest extends TestCase
         });
     }
 
+    public function test_invoice_email_uses_purchase_order_placeholder_tokens_in_subject_and_message(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create([
+            'firstname' => 'Parker',
+            'surname' => 'Lee',
+            'email' => 'parker.lee@example.com',
+        ]);
+        /** @var Invoice $invoice */
+        $invoice = Invoice::factory()->create([
+            'invoice_number' => 'INV-9002',
+            'purchase_order_number' => 'PO-7788',
+            'user_id' => $owner->id,
+            'billing_email' => 'billing@example.com',
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'kind' => 'generic',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.invoice.edit', $invoice))
+            ->post(route('admin.invoice.email', $invoice), [
+                'recipient_emails' => 'billing@example.com',
+                'subject_line' => 'Invoice {{id}} PO {{po}}',
+                'email_message' => 'PO: {{po}}',
+            ]);
+
+        $response->assertRedirect(route('admin.invoice.edit', $invoice));
+        $response->assertSessionHasNoErrors();
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job) {
+            if (! $job->mailable instanceof FinanceDocumentPdf) {
+                return false;
+            }
+
+            /** @var FinanceDocumentPdf $mailable */
+            $mailable = $job->mailable;
+
+            $this->assertSame('Invoice INV-9002 PO PO-7788', $mailable->build()->subject);
+            $this->assertStringContainsString('PO: PO-7788', (string) $mailable->resolvedFullMessage);
+
+            return true;
+        });
+    }
+
     public function test_invoice_save_and_email_reopens_email_modal_after_finalizing(): void
     {
         $admin = $this->createAdminUser();

@@ -68,21 +68,20 @@
 
                 <div class="flex flex-col sm:flex-row gap-3">
                     @if($workshop->registration !== 'tickets')
-                        <div class="flex flex-col gap-1">
-                            <span class="text-sm font-medium text-gray-700">Participant count</span>
+                        <div class="flex gap-3 items-center">
+                            <span class="text-sm font-medium text-gray-700">Participants</span>
                             <x-ui.input
                                     noLabel="true"
                                     type="number"
                                     min="1"
                                     step="1"
                                     name="pick_list_participants"
-                                    class="mb-0 w-24"
+                                    class="mb-0 w-12"
                                     fieldClasses="mt-0 text-center"
                                     x-model="participantsInput"
                                     x-on:input="scheduleAutosave()"
                                     x-on:change="scheduleAutosave()"
                             />
-                            <span class="text-xs text-gray-500">Used to calculate quantities for items marked as per participant.</span>
                         </div>
                     @else
                         <div class="flex gap-2 items-center">

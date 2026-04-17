@@ -45,6 +45,9 @@ class ClassroomForumBadgeTest extends TestCase
         $response = $this->actingAs($viewer)->get(route('class.show', $classSession));
 
         $response->assertOk();
+        $response->assertSee('classroom-root', false);
+        $response->assertDontSee('@vite/client', false);
+        $response->assertDontSee('@react-refresh', false);
         $response->assertSee('aria-label="2 unread discussions"', false);
     }
 

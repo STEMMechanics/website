@@ -40,7 +40,7 @@
 @endphp
 
 <x-layout>
-    <x-mast backRoute="admin.course.index" backTitle="Courses">{{ $isEditing ? 'Edit ' . $classSession->title : 'Create' }} Course</x-mast>
+    <x-mast>{{ $isEditing ? 'Edit ' . $classSession->title : 'Create' }} Course</x-mast>
 
     <x-container>
         <form
@@ -73,10 +73,12 @@
                             <option value="{{ $forumCategory->id }}" @selected((string) $forumCategoryChoice === (string) $forumCategory->id)>{{ $forumCategory->name }}</option>
                         @endforeach
                     </x-ui.select>
-                    <div class="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 md:col-span-2" x-show="forumCategoryChoice === 'create'" x-cloak>
-                        <x-ui.input name="forum_category_name" label="New forum category name" :value="$forumCategoryName" info="This creates a linked forum category for course participants." />
+                    <div x-show="forumCategoryChoice === 'create'" x-cloak>
+                        <x-ui.input name="forum_category_name" label="New forum category name" :value="$forumCategoryName" />
                     </div>
-                    <x-ui.checkbox class="pt-7" name="live_chat_enabled" label="Enable live chat" value="1" :checked="(bool) $liveChatEnabled" />
+                    <div x-show="forumCategoryChoice !== 'create'" x-cloak>
+
+                    </div>
                     <x-ui.input type="datetime-local" name="starts_at" label="Starts at" :value="$startsAtValue" x-model="startsAtValue" x-on:change="autofillDerivedFields()" />
                     <x-ui.input type="datetime-local" name="ends_at" label="Ends at" :value="$endsAtValue" />
                     <div class="md:col-span-2">
@@ -91,6 +93,16 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <h3 class="text-sm font-semibold uppercase tracking-wide text-gray-500">Live stream schedule</h3>
+                                <div class="mt-3">
+                                    <x-ui.checkbox
+                                        noWrapper="true"
+                                        name="live_chat_enabled"
+                                        label="Enable live chat"
+                                        value="1"
+                                        :checked="(bool) $liveChatEnabled"
+                                        info="Allow students to chat during the scheduled live stream sessions."
+                                    />
+                                </div>
                             </div>
                             <x-ui.button type="button" color="primary-outline" x-on:click="addSession()">Add session</x-ui.button>
                         </div>
@@ -226,7 +238,6 @@
 
             <div class="flex flex-wrap justify-between gap-3">
                 <div class="flex flex-wrap gap-3">
-                    <x-ui.button href="{{ route('admin.course.index') }}" color="secondary">Back</x-ui.button>
                     @if($isEditing)
                         <x-ui.button href="{{ route('admin.course.duplicate', $classSession) }}" color="primary-outline">Duplicate</x-ui.button>
                     @endif
