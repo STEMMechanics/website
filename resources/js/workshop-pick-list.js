@@ -985,10 +985,14 @@ const registerWorkshopPickListPage = () => {
                 }
             }
 
-            this.itemsEditMode = false;
-            if (!this.isCustomized) {
+            if (this.isCustomized) {
+                this.customItems = this.normalizeCustomItems();
+                this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+            } else {
                 this.customItems = [];
             }
+
+            this.itemsEditMode = false;
             this.customItemsDirty = false;
         },
         addCustomItem() {
@@ -1211,6 +1215,9 @@ const registerWorkshopPickListPage = () => {
                 const shouldSyncCustomItems = !this.itemsEditMode || this.customItemsDirty || this.isCustomized;
                 if (shouldSyncCustomItems && Array.isArray(data.pick_list_custom_items)) {
                     this.customItems = this.cloneItems(data.pick_list_custom_items);
+                    if (this.itemsEditMode) {
+                        this.ensureTrailingBlankCustomItem();
+                    }
                     this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
                 }
                 this.customItemsDirty = false;
