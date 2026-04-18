@@ -29,6 +29,7 @@
         ->all();
     $hasSuggestions = $type === 'text' && !filter_var($readonly, FILTER_VALIDATE_BOOLEAN) && ! $disabled && count($suggestions) > 0;
     $xModelBinding = trim((string) ($attributes->get('x-model') ?? ''));
+    $suggestionInputHandler = trim((string) ($attributes->get('x-on:input') ?? ''));
     $isFileInput = $type === 'file';
     $inputId = (string) ($attributes->get('id') ?? $name);
     $autocomplete = (string) ($attributes->get('autocomplete') ?? 'off');
@@ -199,14 +200,14 @@
                     name="{{ $name }}"
                     x-model="rawValue"
                     x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                    x-on:input="hasTyped = true; refresh()"
+                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
                     x-on:keydown.arrow-down.prevent="move(1)"
                     x-on:keydown.arrow-up.prevent="move(-1)"
                     x-on:keydown.enter.prevent="applySelection()"
                     x-on:keydown.escape.prevent="open = false"
                     x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
                     @disabled($disabled)
-                    {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete']) }}
+                    {{ $attributes->except(['class', 'id', 'x-model', 'autocomplete', 'x-on:input']) }}
                 />
                 <label for="{{ $name }}" class="absolute text-sm text-gray-500 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] bg-white px-2 peer-focus:px-2 peer-focus:text-blue-600 peer-placeholder-shown:scale-100 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:top-1/2 peer-focus:top-2 peer-focus:scale-75 peer-focus:-translate-y-4 rtl:peer-focus:translate-x-1/4 rtl:peer-focus:left-auto start-1">{{ $label }}</label>
                 <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
@@ -412,19 +413,19 @@
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
                         autocomplete="{{ $autocomplete }}"
                         placeholder="{{ $label }}"
-                        type="{{ $type }}"
-                        name="{{ $name }}"
-                        x-model="rawValue"
-                        x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                        x-on:input="hasTyped = true; refresh()"
-                        x-on:keydown.arrow-down.prevent="move(1)"
-                        x-on:keydown.arrow-up.prevent="move(-1)"
-                        x-on:keydown.enter.prevent="applySelection()"
-                        x-on:keydown.escape.prevent="open = false"
-                        x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
-                        @disabled($disabled)
-                        {{ $attributes->except(['x-model', 'autocomplete']) }}
-                    />
+                    type="{{ $type }}"
+                    name="{{ $name }}"
+                    x-model="rawValue"
+                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
+                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
+                    x-on:keydown.arrow-down.prevent="move(1)"
+                    x-on:keydown.arrow-up.prevent="move(-1)"
+                    x-on:keydown.enter.prevent="applySelection()"
+                    x-on:keydown.escape.prevent="open = false"
+                    x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
+                    @disabled($disabled)
+                    {{ $attributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
+                />
                     <template x-teleport="body">
                         <div
                             x-show="open"
@@ -590,19 +591,19 @@
                         class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}"
                         autocomplete="{{ $autocomplete }}"
                         placeholder=" "
-                        type="{{ $type }}"
-                        name="{{ $name }}"
-                        x-model="rawValue"
-                        x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
-                        x-on:input="hasTyped = true; refresh()"
-                        x-on:keydown.arrow-down.prevent="move(1)"
-                        x-on:keydown.arrow-up.prevent="move(-1)"
-                        x-on:keydown.enter.prevent="applySelection()"
-                        x-on:keydown.escape.prevent="open = false"
-                        x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
-                        @disabled($disabled)
-                        {{ $attributes->except(['x-model', 'autocomplete']) }}
-                    />
+                    type="{{ $type }}"
+                    name="{{ $name }}"
+                    x-model="rawValue"
+                    x-on:focus="if (@js($showSuggestionsOnFocus)) { hasTyped = true; refresh(); } else { open = false; }"
+                    x-on:input="{{ $suggestionInputHandler !== '' ? 'hasTyped = true; refresh(); '.$suggestionInputHandler : 'hasTyped = true; refresh()' }}"
+                    x-on:keydown.arrow-down.prevent="move(1)"
+                    x-on:keydown.arrow-up.prevent="move(-1)"
+                    x-on:keydown.enter.prevent="applySelection()"
+                    x-on:keydown.escape.prevent="open = false"
+                    x-on:blur="formatMoney(); setTimeout(() => { open = false }, 120)"
+                    @disabled($disabled)
+                    {{ $attributes->except(['x-model', 'autocomplete', 'x-on:input']) }}
+                />
                     <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
                         <ul class="max-h-60 overflow-auto py-1">
                             <template x-for="(item, index) in filtered" :key="item + '-' + index">

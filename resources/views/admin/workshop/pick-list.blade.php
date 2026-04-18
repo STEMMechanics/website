@@ -97,28 +97,6 @@
                 </div>
             </div>
 
-            <div
-                class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
-                x-cloak
-                x-show="isCustomized"
-            >
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div class="font-semibold">Custom pick list</div>
-                        <div class="mt-1">
-                            @if($workshop->pickListTemplate?->name)
-                                Originally {{ $workshop->pickListTemplate?->name }}
-                            @else
-                                No template selected.
-                            @endif
-                        </div>
-                        <div class="mt-2 text-xs text-amber-800">
-                            Use the workshop edit page to restore the template pick list.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <div class="mt-4" x-show="!itemsEditMode">
                 <template x-if="currentItems().length > 0">
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -146,14 +124,7 @@
                 </template>
             </div>
 
-                <div class="mt-4" x-show="itemsEditMode" x-cloak>
-                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                        Editing this list detaches it from the template. Future template changes will not sync here.
-                    </div>
-                    <div class="mt-2 text-xs text-gray-500">
-                        Type in the last row to add the next blank row automatically.
-                    </div>
-
+            <div class="mt-4" x-show="itemsEditMode" x-cloak>
                 <div class="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white">
                     <table class="min-w-full">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
