@@ -11,7 +11,7 @@
         <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             <div class="max-w-3xl">
                 <h2 class="text-xl font-semibold text-gray-900">Apply punishment</h2>
-                <p class="mt-2 text-sm leading-6 text-gray-600">Use this page for bans, mutes, and other moderation actions. Active bans and mutes can also be lifted from here.</p>
+                <p class="mt-2 text-sm leading-6 text-gray-600">Use this page for bans, mutes, warnings, and other moderation actions. Active bans and mutes can also be lifted from here.</p>
             </div>
 
             <form method="POST" action="{{ route('admin.stemcraft.punishments.store') }}" class="mt-6">
@@ -52,7 +52,7 @@
                     />
                     <x-ui.select name="type" label="Type">
                         @foreach(\App\Models\MinecraftPenalty::TYPES as $type)
-                            <option value="{{ $type }}" {{ old('type', \App\Models\MinecraftPenalty::TYPE_BAN) === $type ? 'selected' : '' }}>{{ strtoupper($type) }}</option>
+                            <option value="{{ $type }}" {{ old('type', \App\Models\MinecraftPenalty::TYPE_BAN) === $type ? 'selected' : '' }}>{{ \App\Models\MinecraftPenalty::typeLabel($type) }}</option>
                         @endforeach
                     </x-ui.select>
                     <x-ui.input
@@ -64,7 +64,7 @@
                     />
                     <x-ui.input name="reason" label="Reason" value="{{ old('reason') }}" />
                 </div>
-                <div class="mt-4 text-xs text-gray-500">If the player already has a STEMCraft account record, the punishment will be linked to it automatically. Leave the end date blank for a permanent ban or mute. Active bans and mutes can be lifted below.</div>
+                <div class="mt-4 text-xs text-gray-500">If the player already has a STEMCraft account record, the punishment will be linked to it automatically. Leave the end date blank for a permanent ban, mute, or warning. Active bans and mutes can be lifted below.</div>
                 <div class="mt-5 flex justify-end">
                     <x-ui.button type="submit" color="danger">Apply punishment</x-ui.button>
                 </div>
@@ -83,7 +83,7 @@
                                 <div>
                                     <div class="flex flex-wrap items-center gap-3">
                                         <div class="font-semibold text-gray-900">{{ $penalty->username }}</div>
-                                        <x-ui.badge :color="$penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'danger' : 'warning'" size="xxs" uppercase="true">{{ $penalty->type }}</x-ui.badge>
+                                        <x-ui.badge :color="$penalty->type === \App\Models\MinecraftPenalty::TYPE_BAN ? 'danger' : 'warning'" size="xxs" uppercase="true">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</x-ui.badge>
                                     </div>
                                     <div class="mt-1 text-xs text-gray-600">UUID: <span class="font-mono">{{ $penalty->uuid ?: 'Pending resolution' }}</span></div>
                                     @if($penalty->reason)
@@ -110,7 +110,7 @@
                                         @method('DELETE')
                                         <x-ui.input name="lift_reason" label="Lift reason" value="" />
                                         <div class="flex justify-end">
-                                            <x-ui.button type="submit" color="danger-outline">Lift {{ $penalty->type }}</x-ui.button>
+                                            <x-ui.button type="submit" color="danger-outline">Lift {{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</x-ui.button>
                                         </div>
                                     </form>
                                 </div>
@@ -175,6 +175,8 @@
                                 if ($penalty->lifted_at) {
                                     $statusLabel = 'Lifted';
                                 } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_KICK) {
+                                    $statusLabel = 'Recorded';
+                                } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_WARN) {
                                     $statusLabel = 'Recorded';
                                 } elseif ($penalty->isActiveRestriction()) {
                                     $statusLabel = 'Active';

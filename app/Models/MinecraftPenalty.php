@@ -15,11 +15,13 @@ class MinecraftPenalty extends Model
     public const TYPE_BAN = 'ban';
     public const TYPE_KICK = 'kick';
     public const TYPE_MUTE = 'mute';
+    public const TYPE_WARN = 'warn';
 
     public const TYPES = [
         self::TYPE_BAN,
         self::TYPE_KICK,
         self::TYPE_MUTE,
+        self::TYPE_WARN,
     ];
 
     protected $fillable = [
@@ -65,6 +67,17 @@ class MinecraftPenalty extends Model
     public function liftedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lifted_by_user_id');
+    }
+
+    public static function typeLabel(string $type): string
+    {
+        return match ($type) {
+            self::TYPE_BAN => 'Ban',
+            self::TYPE_KICK => 'Kick',
+            self::TYPE_MUTE => 'Mute',
+            self::TYPE_WARN => 'Warning',
+            default => ucfirst($type),
+        };
     }
 
     public function isActiveRestriction(): bool

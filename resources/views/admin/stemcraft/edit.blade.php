@@ -107,16 +107,16 @@
                     @if($recentPenalties->isEmpty())
                         <p class="text-sm text-gray-500">No penalties recorded.</p>
                     @else
-                        <div class="space-y-3">
-                            @foreach($recentPenalties as $penalty)
-                                <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                                    <div class="flex flex-wrap items-center gap-3">
-                                        <span class="font-semibold uppercase">{{ $penalty->type }}</span>
-                                        <span class="text-sm text-gray-600">{{ $penalty->started_at?->format('j M Y g:i a') ?? '-' }}</span>
-                                        @if($penalty->is_permanent)
-                                            <span class="text-sm text-red-700">Permanent</span>
-                                        @elseif($penalty->ends_at)
-                                            <span class="text-sm text-gray-600">Until {{ $penalty->ends_at->format('j M Y g:i a') }}</span>
+                                <div class="space-y-3">
+                                    @foreach($recentPenalties as $penalty)
+                                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                            <div class="flex flex-wrap items-center gap-3">
+                                        <span class="font-semibold uppercase">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</span>
+                                                <span class="text-sm text-gray-600">{{ $penalty->started_at?->format('j M Y g:i a') ?? '-' }}</span>
+                                                @if($penalty->is_permanent)
+                                                    <span class="text-sm text-red-700">Permanent</span>
+                                                @elseif($penalty->ends_at)
+                                                    <span class="text-sm text-gray-600">Until {{ $penalty->ends_at->format('j M Y g:i a') }}</span>
                                         @endif
                                         @if($penalty->lifted_at)
                                             <span class="text-sm text-green-700">Lifted {{ $penalty->lifted_at->format('j M Y g:i a') }}</span>

@@ -107,6 +107,38 @@ class AdminStemcraftPunishmentTest extends TestCase
         $this->assertNull($penalty->duration_seconds);
     }
 
+    public function test_admin_can_apply_a_warning_without_an_end_date(): void
+    {
+        $admin = User::factory()->create([
+            'firstname' => 'Admin',
+            'surname' => 'User',
+        ]);
+        $admin->groups()->create(['slug' => 'admin']);
+
+        MinecraftAccount::query()->create([
+            'platform' => 'java',
+            'uuid' => '123e4567-e89b-12d3-a456-426614174002',
+            'username' => 'PlayerThree',
+            'is_whitelisted' => true,
+        ]);
+
+        $response = $this->actingAs($admin)->post(route('admin.stemcraft.punishments.store'), [
+            'username' => 'PlayerThree',
+            'type' => MinecraftPenalty::TYPE_WARN,
+            'reason' => 'Please keep it civil',
+            'ends_at' => '',
+        ]);
+
+        $response->assertRedirect(route('admin.stemcraft.punishments.index'));
+        $response->assertSessionHasNoErrors();
+
+        $penalty = MinecraftPenalty::query()->latest('id')->firstOrFail();
+        $this->assertSame(MinecraftPenalty::TYPE_WARN, $penalty->type);
+        $this->assertFalse($penalty->is_permanent);
+        $this->assertNull($penalty->ends_at);
+        $this->assertNull($penalty->duration_seconds);
+    }
+
     public function test_punishments_page_uses_lift_label_in_confirmation_helper(): void
     {
         $admin = User::factory()->create([

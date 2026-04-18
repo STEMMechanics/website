@@ -637,22 +637,6 @@ class MinecraftWebhookController extends Controller
         $validated = $request->validate([
             'starting_from' => ['nullable', 'date'],
             'penalties' => ['present', 'array'],
-            'penalties.*' => ['array'],
-            'penalties.*.uuid' => ['required', 'string', 'max:64'],
-            'penalties.*.username' => ['required', 'string', 'max:80'],
-            'penalties.*.type' => ['required', Rule::in(MinecraftPenalty::TYPES)],
-            'penalties.*.reason' => ['nullable', 'string'],
-            'penalties.*.duration_seconds' => ['nullable', 'integer', 'min:1'],
-            'penalties.*.started_at' => ['required', 'date'],
-            'penalties.*.is_permanent' => ['nullable', 'boolean'],
-            'penalties.*.by_uuid' => ['nullable', 'string', 'max:64'],
-            'penalties.*.by_username' => ['nullable', 'string', 'max:80'],
-            'penalties.*.lifted_at' => ['nullable', 'date'],
-            'penalties.*.lifted_by_uuid' => ['nullable', 'string', 'max:64'],
-            'penalties.*.lifted_by_username' => ['nullable', 'string', 'max:80'],
-            'penalties.*.lift_reason' => ['nullable', 'string'],
-            'penalties.*.deleted_at' => ['nullable', 'date'],
-            'penalties.*.updated_at' => ['required', 'date'],
         ]);
 
         $startingFrom = isset($validated['starting_from'])
@@ -665,16 +649,25 @@ class MinecraftWebhookController extends Controller
 
         foreach ($incomingRows as $row) {
             if (! is_array($row)) {
+                $ignored++;
+
                 continue;
             }
 
-            $startedAt = $this->parseOccurredAt($row['started_at'] ?? null);
+            $normalizedRow = $this->normalizePenaltySyncRow($row);
+            if ($normalizedRow === null) {
+                $ignored++;
+
+                continue;
+            }
+
+            $startedAt = $normalizedRow['started_at'];
             if ($startingFrom instanceof Carbon && $startedAt->lt($startingFrom)) {
                 continue;
             }
 
-            $uuid = strtolower((string) $row['uuid']);
-            $incomingUpdatedAt = $this->parseOccurredAt($row['updated_at'] ?? null);
+            $uuid = $normalizedRow['uuid'];
+            $incomingUpdatedAt = $normalizedRow['updated_at'];
             $penalty = $this->findPenaltyByKey($uuid, $startedAt, includeDeleted: true);
 
             if ($penalty?->updated_at instanceof Carbon && $penalty->updated_at->isAfter($incomingUpdatedAt)) {
@@ -685,7 +678,7 @@ class MinecraftWebhookController extends Controller
 
             $isNew = ! $penalty?->exists;
             $penalty ??= new MinecraftPenalty();
-            $this->applyPenaltySyncRecord($penalty, $row, $uuid, $startedAt);
+            $this->applyPenaltySyncRecord($penalty, $normalizedRow, $uuid, $startedAt);
             $this->savePenaltyWithUpdatedAt($penalty, $incomingUpdatedAt);
 
             if ($isNew) {
@@ -904,6 +897,11 @@ class MinecraftWebhookController extends Controller
         $deletedAt = isset($payload['deleted_at']) ? $this->parseOccurredAt($payload['deleted_at']) : null;
         $liftedAt = isset($payload['lifted_at']) ? $this->parseOccurredAt($payload['lifted_at']) : null;
 
+        if ($type === MinecraftPenalty::TYPE_WARN || $type === MinecraftPenalty::TYPE_KICK) {
+            $durationSeconds = null;
+            $isPermanent = false;
+        }
+
         $penalty->minecraft_account_id = $account?->id;
         $penalty->uuid = $uuid;
         $penalty->username = trim((string) ($payload['username'] ?? ''));
@@ -925,6 +923,137 @@ class MinecraftWebhookController extends Controller
             MinecraftPenalty::TYPE_KICK => $startedAt,
             default => $isPermanent || $durationSeconds === null ? null : $startedAt->copy()->addSeconds($durationSeconds),
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{
+     *     uuid: string,
+     *     username: string,
+     *     type: string,
+     *     reason: string,
+     *     duration_seconds: int|null,
+     *     started_at: Carbon,
+     *     is_permanent: bool,
+     *     by_uuid: string|null,
+     *     by_username: string|null,
+     *     lifted_at: string|null,
+     *     lifted_by_uuid: string|null,
+     *     lifted_by_username: string|null,
+     *     lift_reason: string|null,
+     *     deleted_at: string|null,
+     *     updated_at: Carbon
+     * }|null
+     */
+    private function normalizePenaltySyncRow(array $payload): ?array
+    {
+        $uuid = strtolower(trim((string) ($payload['uuid'] ?? '')));
+        $username = trim((string) ($payload['username'] ?? ''));
+        $type = $this->normalizePenaltySyncType((string) ($payload['type'] ?? ''));
+        $startedAt = $this->parseNullableOccurredAt($payload['started_at'] ?? null);
+        $updatedAt = $this->parseNullableOccurredAt($payload['updated_at'] ?? null);
+
+        if ($uuid === '' || $username === '' || $type === null || ! $startedAt instanceof Carbon || ! $updatedAt instanceof Carbon) {
+            return null;
+        }
+
+        $durationSeconds = $this->normalizePositiveInteger($payload['duration_seconds'] ?? null);
+        $isPermanent = $this->normalizeWebhookBoolean($payload['is_permanent'] ?? false);
+        $deletedAt = isset($payload['deleted_at']) ? $this->normalizeDateTimeString($payload['deleted_at']) : null;
+        $liftedAt = isset($payload['lifted_at']) ? $this->normalizeDateTimeString($payload['lifted_at']) : null;
+
+        if ($type === MinecraftPenalty::TYPE_WARN || $type === MinecraftPenalty::TYPE_KICK) {
+            $durationSeconds = null;
+            $isPermanent = false;
+        }
+
+        return [
+            'uuid' => $uuid,
+            'username' => $username,
+            'type' => $type,
+            'reason' => trim((string) ($payload['reason'] ?? '')),
+            'duration_seconds' => $durationSeconds,
+            'started_at' => $startedAt,
+            'is_permanent' => $isPermanent,
+            'by_uuid' => trim((string) ($payload['by_uuid'] ?? '')) ?: null,
+            'by_username' => trim((string) ($payload['by_username'] ?? '')) ?: null,
+            'lifted_at' => $liftedAt,
+            'lifted_by_uuid' => trim((string) ($payload['lifted_by_uuid'] ?? '')) ?: null,
+            'lifted_by_username' => trim((string) ($payload['lifted_by_username'] ?? '')) ?: null,
+            'lift_reason' => trim((string) ($payload['lift_reason'] ?? '')) ?: null,
+            'deleted_at' => $deletedAt,
+            'updated_at' => $updatedAt,
+        ];
+    }
+
+    private function normalizePenaltySyncType(string $type): ?string
+    {
+        $type = strtolower(trim($type));
+        if ($type === '') {
+            return null;
+        }
+
+        if (in_array($type, MinecraftPenalty::TYPES, true)) {
+            return $type;
+        }
+
+        $compact = preg_replace('/[^a-z]+/', '', $type) ?: '';
+        if ($compact === '') {
+            return null;
+        }
+
+        if (str_contains($compact, 'mute')) {
+            return MinecraftPenalty::TYPE_MUTE;
+        }
+
+        if (str_contains($compact, 'warn')) {
+            return MinecraftPenalty::TYPE_WARN;
+        }
+
+        if (str_contains($compact, 'kick')) {
+            return MinecraftPenalty::TYPE_KICK;
+        }
+
+        if (str_contains($compact, 'ban')) {
+            return MinecraftPenalty::TYPE_BAN;
+        }
+
+        return null;
+    }
+
+    private function normalizePositiveInteger(mixed $value): ?int
+    {
+        if (is_int($value) || is_float($value) || (is_string($value) && trim($value) !== '' && is_numeric($value))) {
+            $integer = (int) $value;
+            return $integer >= 1 ? $integer : null;
+        }
+
+        return null;
+    }
+
+    private function normalizeWebhookBoolean(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value)) {
+            return $value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            return in_array($normalized, ['1', 'true', 'yes', 'on'], true);
+        }
+
+        return false;
+    }
+
+    private function normalizeDateTimeString(mixed $value): ?string
+    {
+        $parsed = $this->parseNullableOccurredAt($value);
+
+        return $parsed?->setTimezone((string) config('app.timezone'))->toIso8601String();
     }
 
     private function savePenaltyWithUpdatedAt(MinecraftPenalty $penalty, Carbon $updatedAt): void
@@ -1040,7 +1169,11 @@ class MinecraftWebhookController extends Controller
             return null;
         }
 
-        return Carbon::parse($value)->setTimezone((string) config('app.timezone'));
+        try {
+            return Carbon::parse($value)->setTimezone((string) config('app.timezone'));
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function eventIdIsFresh(string $event, string $eventId): bool

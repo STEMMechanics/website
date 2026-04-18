@@ -297,6 +297,81 @@ class MinecraftWebhookStateSyncTest extends TestCase
         $this->assertTrue($returned->contains(fn (array $penalty): bool => ($penalty['deleted_at'] ?? null) !== null));
     }
 
+    public function test_server_sync_penalties_accepts_warnings_and_kicks_without_failing_the_batch(): void
+    {
+        SiteOption::query()->updateOrCreate(
+            ['name' => 'minecraft.webhook-secret'],
+            ['value' => 'shared-secret']
+        );
+
+        $uuid = '99999999-8888-7777-6666-555555555555';
+        $startedAt = Carbon::parse('2026-03-05T10:00:00Z')->setTimezone((string) config('app.timezone'));
+        $kickStartedAt = Carbon::parse('2026-03-05T10:10:00Z')->setTimezone((string) config('app.timezone'));
+
+        $payload = [
+            'event' => 'server.sync.penalties',
+            'penalties' => [
+                [
+                    'uuid' => $uuid,
+                    'username' => 'PlayerOne',
+                    'type' => 'warn',
+                    'reason' => 'Warning issued by the server',
+                    'started_at' => $startedAt->toIso8601String(),
+                    'is_permanent' => true,
+                    'updated_at' => '2026-03-05T11:00:00Z',
+                ],
+                [
+                    'uuid' => $uuid,
+                    'username' => 'PlayerOne',
+                    'type' => 'kick',
+                    'reason' => 'Quick removal',
+                    'duration_seconds' => 0,
+                    'started_at' => $kickStartedAt->toIso8601String(),
+                    'is_permanent' => true,
+                    'updated_at' => '2026-03-05T11:05:00Z',
+                ],
+                [
+                    'username' => 'BrokenRow',
+                    'type' => 'ban',
+                    'reason' => 'Should be ignored',
+                    'started_at' => 'not-a-date',
+                    'updated_at' => '2026-03-05T11:10:00Z',
+                ],
+            ],
+        ];
+
+        $response = $this->postSignedWebhook(route('webhook.stemcraft.server'), $payload, 'aaaaaaaa-bbbb-cccc-dddd-ffffffffffff');
+        $response->assertOk()->assertJson([
+            'ok' => true,
+            'sync' => [
+                'mode' => 'replace',
+                'counts' => [
+                    'penalties_received' => 3,
+                    'penalties_added' => 2,
+                    'penalties_updated' => 0,
+                    'penalties_ignored' => 1,
+                ],
+            ],
+        ]);
+
+        $this->assertDatabaseHas('minecraft_penalties', [
+            'uuid' => $uuid,
+            'type' => MinecraftPenalty::TYPE_WARN,
+            'reason' => 'Warning issued by the server',
+            'is_permanent' => false,
+        ]);
+        $this->assertDatabaseMissing('minecraft_penalties', [
+            'uuid' => $uuid,
+            'reason' => 'Should be ignored',
+        ]);
+        $this->assertDatabaseHas('minecraft_penalties', [
+            'uuid' => $uuid,
+            'type' => MinecraftPenalty::TYPE_KICK,
+            'reason' => 'Quick removal',
+            'duration_seconds' => null,
+        ]);
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      */

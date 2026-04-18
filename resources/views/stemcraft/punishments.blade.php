@@ -27,7 +27,7 @@
                         <x-ui.select name="type" label="Type">
                             <option value="">All Types</option>
                             @foreach(\App\Models\MinecraftPenalty::TYPES as $type)
-                                <option value="{{ $type }}" {{ $selectedType === $type ? 'selected' : '' }}>{{ strtoupper($type) }}</option>
+                                <option value="{{ $type }}" {{ $selectedType === $type ? 'selected' : '' }}>{{ \App\Models\MinecraftPenalty::typeLabel($type) }}</option>
                             @endforeach
                         </x-ui.select>
                         <x-ui.select name="status" label="Status">
@@ -61,6 +61,8 @@
                             $status = 'Active';
                         } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_KICK) {
                             $status = 'Recorded';
+                        } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_WARN) {
+                            $status = 'Recorded';
                         }
                     @endphp
                     <section class="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -72,7 +74,7 @@
                                     @endif
                                 </div>
                             </h3>
-                            <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ $penalty->type }}</span>
+                            <span class="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-gray-700">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</span>
                         </div>
                         @if($penalty->reason)
                             <div class="mt-4 text-sm text-gray-700">{{ $penalty->reason }}</div>
@@ -113,16 +115,18 @@
                             @php
                                 $platform = strtolower(trim((string) ($penalty->account?->platform ?? '')));
                                 $status = 'Expired';
-                                if ($penalty->lifted_at) {
-                                    $status = 'Lifted';
-                                } elseif ($penalty->is_permanent) {
-                                    $status = 'Permanent';
-                                } elseif ($penalty->ends_at && $penalty->ends_at->isFuture()) {
-                                    $status = 'Active';
-                                } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_KICK) {
-                                    $status = 'Recorded';
-                                }
-                            @endphp
+                        if ($penalty->lifted_at) {
+                            $status = 'Lifted';
+                        } elseif ($penalty->is_permanent) {
+                            $status = 'Permanent';
+                        } elseif ($penalty->ends_at && $penalty->ends_at->isFuture()) {
+                            $status = 'Active';
+                        } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_KICK) {
+                            $status = 'Recorded';
+                        } elseif ($penalty->type === \App\Models\MinecraftPenalty::TYPE_WARN) {
+                            $status = 'Recorded';
+                        }
+                    @endphp
                             <tr>
                                 <td>
                                     <div class="font-semibold">
@@ -132,7 +136,7 @@
                                         @endif
                                     </div>
                                 </td>
-                                <td class="uppercase">{{ $penalty->type }}</td>
+                                <td class="uppercase">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</td>
                                 <td>
                                     <div>{{ $penalty->reason ?: '-' }}</div>
                                     @if($penalty->by_username)

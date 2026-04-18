@@ -53,6 +53,41 @@ class AccountStemcraftPageTest extends TestCase
         $response->assertDontSeeText('Permanent');
     }
 
+    public function test_warning_penalties_are_shown_in_account_history(): void
+    {
+        $user = User::factory()->create([
+            'firstname' => 'Minecraft',
+            'surname' => 'Member',
+        ]);
+        $user->groups()->create(['slug' => 'minecraft']);
+
+        $account = MinecraftAccount::query()->create([
+            'user_id' => $user->id,
+            'platform' => 'java',
+            'uuid' => '123e4567-e89b-12d3-a456-426614174001',
+            'username' => 'PlayerTwo',
+            'is_whitelisted' => true,
+        ]);
+
+        MinecraftPenalty::query()->create([
+            'minecraft_account_id' => $account->id,
+            'uuid' => '123e4567-e89b-12d3-a456-426614174001',
+            'username' => 'PlayerTwo',
+            'type' => MinecraftPenalty::TYPE_WARN,
+            'reason' => 'Warning issued for behaviour',
+            'started_at' => now()->subDay(),
+            'is_permanent' => false,
+            'by_username' => '<server>',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('account.stemcraft.index'));
+
+        $response->assertOk();
+        $response->assertSeeText('Warning');
+        $response->assertSeeText('Recorded');
+        $response->assertDontSeeText('Permanent');
+    }
+
     public function test_cached_player_stats_are_shown_on_the_account_page(): void
     {
         $user = User::factory()->create();

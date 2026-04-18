@@ -104,6 +104,20 @@ class StemcraftPunishmentsPageTest extends TestCase
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
+            [
+                'minecraft_account_id' => null,
+                'external_id' => 'stemcraft-test-3',
+                'uuid' => 'uuid-three',
+                'username' => 'PlayerThree',
+                'type' => 'warn',
+                'reason' => 'Final warning',
+                'started_at' => now()->subHours(3),
+                'ends_at' => null,
+                'is_permanent' => false,
+                'by_username' => 'ModeratorC',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         $response = $this->get('/stemcraft/punishments?search=PlayerOne&type=ban');
@@ -113,5 +127,11 @@ class StemcraftPunishmentsPageTest extends TestCase
         $response->assertDontSee('PlayerTwo');
         $response->assertSee('Griefing');
         $response->assertSee('(bedrock)');
+
+        $warningResponse = $this->get('/stemcraft/punishments?search=PlayerThree&type=warn');
+        $warningResponse->assertOk();
+        $warningResponse->assertSee('PlayerThree');
+        $warningResponse->assertSeeText('Warning');
+        $warningResponse->assertSeeText('Recorded');
     }
 }

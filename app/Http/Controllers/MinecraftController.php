@@ -517,7 +517,9 @@ class MinecraftController extends Controller
         }
         $uuid = trim((string) ($account !== null ? $account->uuid : ''));
         $startedAt = now();
-        $isPermanent = $type !== MinecraftPenalty::TYPE_KICK && empty($validated['ends_at']);
+        $isPermanent = $type !== MinecraftPenalty::TYPE_KICK
+            && $type !== MinecraftPenalty::TYPE_WARN
+            && empty($validated['ends_at']);
         $endsAt = $type === MinecraftPenalty::TYPE_KICK
             ? $startedAt
             : (! empty($validated['ends_at']) ? \Illuminate\Support\Carbon::parse((string) $validated['ends_at']) : null);
@@ -533,8 +535,8 @@ class MinecraftController extends Controller
             'reason' => trim((string) ($validated['reason'] ?? '')) ?: null,
             'duration_seconds' => $durationSeconds,
             'started_at' => $startedAt,
-            'ends_at' => $endsAt,
-            'is_permanent' => $type === MinecraftPenalty::TYPE_KICK ? false : $isPermanent,
+            'ends_at' => $type === MinecraftPenalty::TYPE_WARN ? null : $endsAt,
+            'is_permanent' => $type === MinecraftPenalty::TYPE_KICK ? false : ($type === MinecraftPenalty::TYPE_WARN ? false : $isPermanent),
             'by_uuid' => null,
             'by_user_id' => (string) $user->id,
             'by_username' => $user->getName(),

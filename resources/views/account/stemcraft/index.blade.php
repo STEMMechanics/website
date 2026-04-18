@@ -212,7 +212,7 @@
 
                                         <details class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                                             <summary class="cursor-pointer text-sm font-semibold text-gray-900">Penalties</summary>
-                                            <p class="mt-1 text-sm text-gray-600">Recent bans, mutes, or other moderation records linked to this account.</p>
+                                            <p class="mt-1 text-sm text-gray-600">Recent bans, mutes, warnings, or other moderation records linked to this account.</p>
 
                                             @if($account->penalties->isEmpty() && $account->blacklistEntries->isEmpty())
                                                 <p class="mt-4 text-sm text-gray-500">No penalties recorded.</p>
@@ -237,10 +237,10 @@
                                                                     $historyStatusClass = 'text-gray-600';
                                                                 }
                                                             }
-                                                        @endphp
+                                                            @endphp
                                                             <div class="rounded-2xl border border-gray-200 bg-slate-50 px-4 py-3">
                                                             <div class="flex flex-wrap items-center gap-3">
-                                                                <span class="text-sm font-semibold uppercase tracking-wide text-gray-900">{{ $penalty->type }}</span>
+                                                                <span class="text-sm font-semibold uppercase tracking-wide text-gray-900">{{ \App\Models\MinecraftPenalty::typeLabel((string) $penalty->type) }}</span>
                                                                 <span class="text-sm text-gray-600">{{ $penalty->started_at?->format('j M Y g:i a') ?? '-' }}</span>
                                                                 <span class="text-sm {{ $historyStatusClass }}">{{ $historyStatus }}</span>
                                                             </div>
