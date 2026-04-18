@@ -92,7 +92,7 @@
 
                     <div class="flex flex-col sm:flex-row gap-2">
                         <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
-                        <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-on:click="stopItemEditing()">Close Editor</x-ui.button>
+                        <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-bind:disabled="saving" x-on:click="stopItemEditing()">Save &amp; Close Editor</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -112,14 +112,10 @@
                                 No template selected.
                             @endif
                         </div>
+                        <div class="mt-2 text-xs text-amber-800">
+                            Use the workshop edit page to restore the template pick list.
+                        </div>
                     </div>
-                    <x-ui.button
-                        type="button"
-                        color="outline"
-                        x-on:click="resetToTemplate()"
-                    >
-                        {{ $workshop->pickListTemplate?->name ? 'Restore template pick list' : 'Clear custom list' }}
-                    </x-ui.button>
                 </div>
             </div>
 
@@ -150,10 +146,13 @@
                 </template>
             </div>
 
-            <div class="mt-4" x-show="itemsEditMode" x-cloak>
-                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                    Editing this list detaches it from the template. Future template changes will not sync here.
-                </div>
+                <div class="mt-4" x-show="itemsEditMode" x-cloak>
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                        Editing this list detaches it from the template. Future template changes will not sync here.
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500">
+                        Type in the last row to add the next blank row automatically.
+                    </div>
 
                 <div class="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white">
                     <table class="min-w-full">
@@ -240,10 +239,6 @@
                             </template>
                         </tbody>
                     </table>
-                </div>
-
-                <div class="mt-4 flex flex-wrap justify-end">
-                    <x-ui.button type="button" color="outline" x-on:click="addCustomItem()">Add Item</x-ui.button>
                 </div>
             </div>
 

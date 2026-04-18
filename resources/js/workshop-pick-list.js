@@ -968,7 +968,23 @@ const registerWorkshopPickListPage = () => {
                 this.customItemsDirty = false;
             }
         },
-        stopItemEditing() {
+        async stopItemEditing() {
+            if (!this.itemsEditMode) {
+                return;
+            }
+
+            const hasPendingChanges = this.customItemsDirty || this.resetCustomization;
+            if (hasPendingChanges) {
+                this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
+                await this.autosave({
+                    showFailure: true,
+                });
+
+                if (this.saveError !== '') {
+                    return;
+                }
+            }
+
             this.itemsEditMode = false;
             if (!this.isCustomized) {
                 this.customItems = [];
@@ -1157,16 +1173,20 @@ const registerWorkshopPickListPage = () => {
         buildSavePayload() {
             const normalizedCustomItems = this.normalizeCustomItems();
             const shouldPersistCustomItems = (this.isCustomized || this.customItemsDirty) && ! this.resetCustomization;
-
-            return {
+            const payload = {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
                 checked_item_ids: this.checkedIds,
-                pick_list_custom_items: shouldPersistCustomItems ? normalizedCustomItems : null,
                 reset_pick_list_customization: this.resetCustomization ? 1 : 0,
                 pick_list_canvas_data: this.pickListCanvasDataJson || null,
                 pick_list_canvas_thumbnail_data: this.pickListCanvasThumbnailData || '',
             };
+
+            if (shouldPersistCustomItems) {
+                payload.pick_list_custom_items = normalizedCustomItems;
+            }
+
+            return payload;
         },
         async autosave(options = {}) {
             if (this.submitting || this.saving) {

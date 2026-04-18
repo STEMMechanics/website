@@ -86,7 +86,7 @@ class WorkshopPickListController extends Controller
 
         $existingCustomized = (bool) $workshop->pick_list_is_customized;
         $resetCustomization = $request->boolean('reset_pick_list_customization');
-        $customItemsProvided = $request->exists('pick_list_custom_items');
+        $customItemsProvided = $request->exists('pick_list_custom_items') && $request->input('pick_list_custom_items') !== null;
         $notes = array_key_exists('pick_list_notes', $validated)
             ? trim((string) $validated['pick_list_notes'])
             : (string) $workshop->pick_list_notes;

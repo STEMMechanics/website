@@ -245,18 +245,23 @@
                         filtered: [],
                         open: false,
                         selectedIndex: -1,
+                        dropdownStyle: '',
+                        dropdownListMaxHeight: 240,
+                        dropdownOpenUp: false,
                         refresh() {
                             if (this.suppressRefresh) {
                                 this.suppressRefresh = false;
                                 this.filtered = [];
                                 this.selectedIndex = -1;
                                 this.open = false;
+                                this.dropdownStyle = '';
                                 return;
                             }
                             if (!this.hasTyped) {
                                 this.filtered = [];
                                 this.selectedIndex = -1;
                                 this.open = false;
+                                this.dropdownStyle = '';
                                 return;
                             }
                             const needle = (this.rawValue || '').toLowerCase().trim();
@@ -265,17 +270,28 @@
                                     this.filtered = this.options.slice(0, 8);
                                     this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
                                     this.open = this.filtered.length > 0;
+                                    if (this.open) {
+                                        this.$nextTick(() => this.updateDropdownPosition());
+                                    } else {
+                                        this.dropdownStyle = '';
+                                    }
                                     return;
                                 }
                                 this.filtered = [];
                                 this.selectedIndex = -1;
                                 this.open = false;
+                                this.dropdownStyle = '';
                                 return;
                             }
                             const items = this.options.filter((option) => option.toLowerCase().includes(needle));
                             this.filtered = items.slice(0, 8);
                             this.selectedIndex = this.filtered.length > 0 ? 0 : -1;
                             this.open = this.filtered.length > 0;
+                            if (this.open) {
+                                this.$nextTick(() => this.updateDropdownPosition());
+                            } else {
+                                this.dropdownStyle = '';
+                            }
                         },
                         move(step) {
                             if (!this.open) {
@@ -293,6 +309,7 @@
                             this.rawValue = value;
                             this.open = false;
                             this.selectedIndex = -1;
+                            this.dropdownStyle = '';
                             this.$nextTick(() => {
                                 if (!this.$refs.inputEl) {
                                     return;
@@ -300,6 +317,31 @@
                                 this.$refs.inputEl.dispatchEvent(new Event('input', { bubbles: true }));
                                 this.$refs.inputEl.dispatchEvent(new Event('change', { bubbles: true }));
                             });
+                        },
+                        updateDropdownPosition() {
+                            if (!this.open || !this.$refs.inputEl || typeof window === 'undefined') {
+                                this.dropdownStyle = '';
+                                return;
+                            }
+
+                            const rect = this.$refs.inputEl.getBoundingClientRect();
+                            const viewportPadding = 8;
+                            const gap = 4;
+                            const preferredMaxHeight = 240;
+                            const spaceBelow = window.innerHeight - rect.bottom - viewportPadding - gap;
+                            const spaceAbove = rect.top - viewportPadding - gap;
+                            const availableHeight = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow
+                                ? spaceAbove
+                                : spaceBelow;
+
+                            this.dropdownOpenUp = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
+                            this.dropdownListMaxHeight = Math.max(40, Math.min(preferredMaxHeight, Math.floor(availableHeight)));
+
+                            const left = Math.max(viewportPadding, Math.min(rect.left, window.innerWidth - rect.width - viewportPadding));
+
+                            this.dropdownStyle = this.dropdownOpenUp
+                                ? `position: fixed; left: ${left}px; width: ${rect.width}px; bottom: ${Math.max(viewportPadding, window.innerHeight - rect.top + gap)}px;`
+                                : `position: fixed; left: ${left}px; width: ${rect.width}px; top: ${rect.bottom + gap}px;`;
                         },
                         applySelection() {
                             if (!this.open) {
@@ -330,6 +372,7 @@
                     }"
                     x-init="
                         refresh();
+                        $watch('open', value => { if (value) { $nextTick(() => updateDropdownPosition()); } else { dropdownStyle = ''; } });
                         @if($xModelBinding !== '')
                             let __modelValue = '';
                             try {
@@ -361,6 +404,8 @@
                     "
                     @endif
                     x-on:click.away="open = false"
+                    x-on:scroll.window="if (open) { updateDropdownPosition(); }"
+                    x-on:resize.window="if (open) { updateDropdownPosition(); }"
                 >
                     <input
                         x-ref="inputEl"
@@ -380,19 +425,27 @@
                         @disabled($disabled)
                         {{ $attributes->except(['x-model', 'autocomplete']) }}
                     />
-                <div x-show="open" x-cloak class="absolute z-50 mt-1 w-full rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden">
-                        <ul class="max-h-60 overflow-auto py-1">
-                            <template x-for="(item, index) in filtered" :key="item + '-' + index">
-                                <li
-                                    class="cursor-pointer px-3 py-2 text-sm"
-                                    :class="index === selectedIndex ? 'bg-indigo-50 text-indigo-700' : 'text-gray-800 hover:bg-gray-100'"
-                                    x-on:mouseenter="selectedIndex = index"
-                                    x-on:mousedown.prevent="choose(item)"
-                                    x-text="item"
-                                ></li>
-                            </template>
-                        </ul>
-                    </div>
+                    <template x-teleport="body">
+                        <div
+                            x-show="open"
+                            x-cloak
+                            x-on:mousedown.stop
+                            class="z-50 rounded-lg border border-gray-300 bg-white shadow-lg overflow-hidden"
+                            :style="dropdownStyle"
+                        >
+                            <ul class="overflow-auto py-1" :style="`max-height: ${dropdownListMaxHeight}px`">
+                                <template x-for="(item, index) in filtered" :key="item + '-' + index">
+                                    <li
+                                        class="cursor-pointer px-3 py-2 text-sm"
+                                        :class="index === selectedIndex ? 'bg-indigo-50 text-indigo-700' : 'text-gray-800 hover:bg-gray-100'"
+                                        x-on:mouseenter="selectedIndex = index"
+                                        x-on:mousedown.prevent="choose(item)"
+                                        x-text="item"
+                                    ></li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
                 </div>
             @else
                 <input class="{{ twMerge(['pt-2.5'], $classes, $fieldClasses) }}" autocomplete="{{ $autocomplete }}" placeholder="{{ $label }}" value="{{ $value }}" type="{{ $type }}" name="{{ $name }}" @if($moneyFormat) onblur="{{ $moneyFormatOnBlur }}" @endif {{ $readonly ? 'readonly' : '' }} @disabled($disabled) {{ $attributes->except(['autocomplete']) }} />

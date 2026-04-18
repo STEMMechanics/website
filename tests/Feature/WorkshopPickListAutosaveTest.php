@@ -109,6 +109,45 @@ class WorkshopPickListAutosaveTest extends TestCase
         $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
     }
 
+    public function test_pick_list_autosave_for_template_items_does_not_turn_the_workshop_custom(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop();
+
+        $template = PickListTemplate::query()->create([
+            'name' => 'Minecraft (Laptops Only)',
+            'description' => 'Template notes',
+        ]);
+
+        $item = PickListTemplateItem::query()->create([
+            'pick_list_template_id' => $template->id,
+            'item_name' => 'Laptop charger',
+            'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+            'quantity_value' => 1,
+            'sort_order' => 10,
+        ]);
+
+        $workshop->forceFill([
+            'pick_list_template_id' => $template->id,
+            'pick_list_is_customized' => false,
+            'pick_list_custom_items' => null,
+        ])->save();
+
+        $response = $this->actingAs($admin)
+            ->postJson(route('admin.workshop.pick-list.save', $workshop), [
+                'checked_item_ids' => [$item->id],
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('pick_list_is_customized', false);
+        $response->assertJsonMissingPath('pick_list_custom_items.0');
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
+        $this->assertNull($freshWorkshop->pick_list_custom_items);
+        $this->assertSame([$item->id], array_map('intval', $freshWorkshop->pick_list_checked_item_ids ?? []));
+    }
+
     public function test_pick_list_reset_can_restore_the_selected_template_and_clear_custom_items(): void
     {
         $admin = $this->createAdminUser();
