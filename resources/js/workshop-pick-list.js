@@ -782,6 +782,7 @@ const registerWorkshopPickListPage = () => {
         itemsEditMode: false,
         customItemsDirty: false,
         resetCustomization: false,
+        editSnapshot: null,
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         participantsInput: String(config.participantsInput ?? ''),
@@ -913,6 +914,8 @@ const registerWorkshopPickListPage = () => {
             this.itemsEditMode = false;
             this.customItems = [];
             this.customItemsDirty = false;
+            this.editSnapshot = null;
+            this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
             this.scheduleAutosave();
         },
         hasTrailingBlankCustomItem() {
@@ -944,6 +947,15 @@ const registerWorkshopPickListPage = () => {
 
             this.scheduleAutosave();
         },
+        normalizeCustomItemQuantity(index) {
+            const item = this.customItems[index];
+            if (!item) {
+                return;
+            }
+
+            item.quantity_value = Math.max(1, Number.parseInt(String(item.quantity_value ?? 1), 10) || 1);
+            this.customItemsDirty = true;
+        },
         newCustomItem(previousItem = null) {
             const id = this.nextCustomItemId++;
             const previousType = String(previousItem?.quantity_type ?? '');
@@ -959,6 +971,13 @@ const registerWorkshopPickListPage = () => {
         },
         startItemEditing() {
             if (!this.itemsEditMode) {
+                this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
+                this.editSnapshot = {
+                    isCustomized: this.isCustomized,
+                    customItems: this.cloneItems(this.customItems),
+                    checkedIds: [...this.checkedIds],
+                    nextCustomItemId: this.nextCustomItemId,
+                };
                 this.customItems = this.cloneItems(this.isCustomized ? this.customItems : this.templateItems);
                 this.ensureTrailingBlankCustomItem();
                 if (this.customItems.length === 0) {
@@ -974,10 +993,11 @@ const registerWorkshopPickListPage = () => {
             }
 
             const hasPendingChanges = this.customItemsDirty || this.resetCustomization;
+            this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
             if (hasPendingChanges) {
-                this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
                 await this.autosave({
                     showFailure: true,
+                    includeItemDraftItems: true,
                 });
 
                 if (this.saveError !== '') {
@@ -994,6 +1014,36 @@ const registerWorkshopPickListPage = () => {
 
             this.itemsEditMode = false;
             this.customItemsDirty = false;
+            this.editSnapshot = null;
+        },
+        cancelItemEditing() {
+            if (!this.itemsEditMode) {
+                return;
+            }
+
+            this.autosaveTimer = window.SM.clearTimer(this.autosaveTimer);
+
+            if (this.editSnapshot) {
+                this.isCustomized = this.editSnapshot.isCustomized;
+                this.customItems = this.cloneItems(this.editSnapshot.customItems);
+                this.checkedIds = [...this.editSnapshot.checkedIds];
+                this.nextCustomItemId = this.editSnapshot.nextCustomItemId;
+            } else if (this.isCustomized) {
+                this.customItems = this.cloneItems(this.customItems);
+                this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
+            } else {
+                this.customItems = [];
+                this.nextCustomItemId = this.computeNextCustomItemId(this.templateItems);
+            }
+
+            if (!this.isCustomized) {
+                this.customItems = [];
+            }
+
+            this.customItemsDirty = false;
+            this.resetCustomization = false;
+            this.itemsEditMode = false;
+            this.saveError = '';
         },
         addCustomItem() {
             if (!this.itemsEditMode) {
@@ -1156,7 +1206,7 @@ const registerWorkshopPickListPage = () => {
             this.canvasController?.redo();
         },
         scheduleAutosave() {
-            if (this.submitting) {
+            if (this.submitting || this.itemsEditMode) {
                 return;
             }
 
@@ -1174,9 +1224,11 @@ const registerWorkshopPickListPage = () => {
             this.pickListCanvasThumbnailData = exported.thumbnailDataUrl || '';
             this.pickListCanvasThumbnailUrl = exported.hasContent ? normalizedString(exported.thumbnailDataUrl) : '';
         },
-        buildSavePayload() {
+        buildSavePayload(options = {}) {
             const normalizedCustomItems = this.normalizeCustomItems();
-            const shouldPersistCustomItems = (this.isCustomized || this.customItemsDirty) && ! this.resetCustomization;
+            const shouldPersistCustomItems = (this.isCustomized || this.customItemsDirty)
+                && !this.resetCustomization
+                && (options.includeItemDraftItems === true || !this.itemsEditMode);
             const payload = {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
@@ -1203,7 +1255,9 @@ const registerWorkshopPickListPage = () => {
             try {
                 await this.syncCanvasStateForSave();
 
-                const data = await window.SM.autosaveJson(this.saveUrl, this.csrfToken, this.buildSavePayload());
+                const data = await window.SM.autosaveJson(this.saveUrl, this.csrfToken, this.buildSavePayload({
+                    includeItemDraftItems: options.includeItemDraftItems === true,
+                }));
                 this.lastSavedAtIso = data.saved_at_iso ?? null;
                 this.lastSavedAbsolute = data.saved_at_display ?? null;
                 if (Array.isArray(data.checked_item_ids)) {
@@ -1256,6 +1310,11 @@ const registerWorkshopPickListPage = () => {
         },
         async submitForm(event) {
             if (!(event?.target instanceof HTMLFormElement)) {
+                return;
+            }
+
+            if (this.itemsEditMode) {
+                this.saveError = 'Close the item editor before saving the workshop.';
                 return;
             }
 

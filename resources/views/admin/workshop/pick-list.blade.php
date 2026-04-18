@@ -57,8 +57,8 @@
             </template>
             <input
                 type="hidden"
-                x-bind:name="customItemsEnabled() ? 'pick_list_custom_items' : null"
-                x-bind:value="customItemsEnabled() ? JSON.stringify(normalizeCustomItems()) : ''"
+                x-bind:name="customItemsEnabled() && !itemsEditMode ? 'pick_list_custom_items' : null"
+                x-bind:value="customItemsEnabled() && !itemsEditMode ? JSON.stringify(normalizeCustomItems()) : ''"
             >
             <input type="hidden" name="pick_list_canvas_data" :value="pickListCanvasDataJson || ''">
             <input type="hidden" name="pick_list_canvas_thumbnail_data" :value="pickListCanvasThumbnailData || ''">
@@ -92,7 +92,6 @@
 
                     <div class="flex flex-col sm:flex-row gap-2">
                         <x-ui.button type="button" color="outline" x-show="!itemsEditMode" x-on:click="startItemEditing()">Edit Items</x-ui.button>
-                        <x-ui.button type="button" color="secondary" x-show="itemsEditMode" x-bind:disabled="saving" x-on:click="stopItemEditing()">Save &amp; Close Editor</x-ui.button>
                     </div>
                 </div>
             </div>
@@ -181,7 +180,8 @@
                                             min="1"
                                             step="1"
                                             x-model="item.quantity_value"
-                                            x-on:input="item.quantity_value = Number($event.target.value || 1); handleCustomItemChange(index)"
+                                            x-on:input="item.quantity_value = $event.target.value; handleCustomItemChange(index)"
+                                            x-on:blur="normalizeCustomItemQuantity(index); handleCustomItemChange(index)"
                                         />
                                     </td>
                                     <td class="px-3 py-3">
@@ -210,6 +210,11 @@
                             </template>
                         </tbody>
                     </table>
+                </div>
+
+                <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <x-ui.button type="button" color="outline" x-on:click="cancelItemEditing()" x-bind:disabled="saving">Cancel</x-ui.button>
+                    <x-ui.button type="button" color="secondary" x-bind:disabled="saving" x-on:click="stopItemEditing()">Save &amp; Close Editor</x-ui.button>
                 </div>
             </div>
 
@@ -295,7 +300,7 @@
                 </div>
                 <div class="text-xs text-gray-500" x-show="saving">Autosaving...</div>
                 <div class="text-xs text-red-600" x-show="saveError" x-text="saveError"></div>
-                <x-ui.button type="submit" x-bind:disabled="submitting">
+                <x-ui.button type="submit" x-bind:disabled="submitting || itemsEditMode">
                     <span x-show="!submitting">Save</span>
                     <span x-show="submitting" class="inline-flex items-center gap-2">
                         <i class="fa-solid fa-circle-notch animate-spin"></i>
