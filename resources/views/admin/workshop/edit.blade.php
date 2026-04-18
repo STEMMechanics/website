@@ -44,6 +44,12 @@ $savedTickets = isset($workshop)
 )
 : '[]';
 }
+
+$pickListTemplateFieldValue = old('pick_list_template_id', $workshop->pick_list_template_id ?? '');
+$pickListTemplateMode = old('pick_list_template_id') !== null
+    ? $pickListTemplateFieldValue
+    : ((isset($workshop) && $workshop->pick_list_is_customized) ? 'custom' : $pickListTemplateFieldValue);
+$hasCustomPickList = isset($workshop) && (bool) $workshop->pick_list_is_customized;
 @endphp
 <x-layout>
     <x-mast backRoute="admin.workshop.index" backTitle="Workshops">{{ isset($workshop) ? 'Edit' : 'Create' }} Workshop</x-mast>
@@ -71,6 +77,28 @@ $savedTickets = isset($workshop)
             notifyTicketHolders: @js((bool) old('notify_ticket_holders', false)),
             ticketChangeEmailNotes: @js((string) old('ticket_change_email_notes', '')),
             workshopCancelReason: @js((string) old('workshop_cancel_reason', '')),
+            hasCustomPickList: @js($hasCustomPickList),
+            originalPickListTemplateId: @js((string) ($workshop->pick_list_template_id ?? '')),
+            pickListTemplateMode: @js((string) $pickListTemplateMode),
+            pickListTemplateId: @js((string) $pickListTemplateFieldValue),
+            pickListTemplateReset: false,
+            updatePickListTemplateSelection(value) {
+                const nextValue = String(value ?? '');
+                const wasCustom = this.pickListTemplateMode === 'custom';
+
+                if (nextValue === 'custom') {
+                    this.pickListTemplateMode = 'custom';
+                    if (String(this.pickListTemplateId || '') === '' && String(this.originalPickListTemplateId || '') !== '') {
+                        this.pickListTemplateId = this.originalPickListTemplateId;
+                    }
+                    this.pickListTemplateReset = false;
+                    return;
+                }
+
+                this.pickListTemplateMode = nextValue;
+                this.pickListTemplateId = nextValue;
+                this.pickListTemplateReset = wasCustom && this.hasCustomPickList;
+            },
             locations: @js(\App\Models\Location::orderByRaw(" name='Online' DESC, name ASC")->get()->map(fn ($location) => [
             'id' => (string) $location->id,
             'name' => (string) $location->name,
@@ -422,6 +450,8 @@ $savedTickets = isset($workshop)
                 <input type="hidden" name="notify_ticket_holders" :value="notifyTicketHolders ? '1' : '0'">
                 <input type="hidden" name="ticket_change_email_notes" :value="ticketChangeEmailNotes">
                 <input type="hidden" name="workshop_cancel_reason" :value="workshopCancelReason">
+                <input type="hidden" name="pick_list_template_id" :value="pickListTemplateId || ''">
+                <input type="hidden" name="reset_pick_list_customization" :value="pickListTemplateReset ? '1' : '0'">
                 <div class="mb-4">
                     <x-ui.input label="Title" name="title" value="{!! isset($workshop) ? $workshop->title : '' !!}" />
                 </div>
@@ -683,13 +713,22 @@ $savedTickets = isset($workshop)
                 </div>
                 <div class="flex flex-col sm:flex-row sm:gap-8">
                     <div class="flex-1">
-                        <x-ui.select label="Pick List Template" name="pick_list_template_id">
+                        <x-ui.select
+                            label="Pick List Template"
+                            name="pick_list_template_mode"
+                            x-model="pickListTemplateMode"
+                            x-on:change="updatePickListTemplateSelection($event.target.value)"
+                        >
                             <x-slot name="labelRight">
                                 <a href="{{ route('admin.pick-list-template.index') }}" class="text-primary-color cursor-pointer hover:underline" target="_blank">Manage templates</a>
                             </x-slot>
-                            <option value="">No template</option>
+                            @if($hasCustomPickList)
+                                <option value="custom" @selected((string) $pickListTemplateMode === 'custom')>Custom</option>
+                                <option value="" disabled>──────────</option>
+                            @endif
+                            <option value="" @selected((string) $pickListTemplateMode === '')>No template</option>
                             @foreach(($pickListTemplates ?? collect()) as $pickListTemplate)
-                                <option value="{{ $pickListTemplate->id }}" {{ (string) old('pick_list_template_id', $workshop->pick_list_template_id ?? '') === (string) $pickListTemplate->id ? 'selected' : '' }}>{{ $pickListTemplate->name }}</option>
+                                <option value="{{ $pickListTemplate->id }}" @selected((string) $pickListTemplateMode !== 'custom' && (string) $pickListTemplateFieldValue === (string) $pickListTemplate->id)>{{ $pickListTemplate->name }}</option>
                             @endforeach
                         </x-ui.select>
                         @if(isset($workshop) && $workshop->pick_list_template_id)
@@ -697,28 +736,7 @@ $savedTickets = isset($workshop)
                                 <a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
                             </div>
                         @endif
-                        @if(isset($workshop) && $workshop->pick_list_is_customized)
-                            <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                                <div class="font-semibold">Custom pick list</div>
-                                <div class="mt-1">
-                                    @if($workshop->pickListTemplate?->name)
-                                        Originally {{ $workshop->pickListTemplate?->name }}
-                                    @else
-                                        No template selected.
-                                    @endif
-                                </div>
-                                <div class="mt-3">
-                                    <x-ui.button
-                                        type="submit"
-                                        color="outline"
-                                        name="reset_pick_list_customization"
-                                        value="1"
-                                    >
-                                        {{ $workshop->pickListTemplate?->name ? 'Restore template pick list' : 'Clear custom list' }}
-                                    </x-ui.button>
-                                </div>
-                            </div>
-                        @elseif(isset($workshop) && $workshop->pick_list_template_id)
+                        @if(isset($workshop) && $workshop->pick_list_template_id && ! $workshop->pick_list_is_customized)
                             <div class="mt-2 text-xs text-gray-500">
                                 Active pick list follows the selected template until it is customised.
                             </div>
