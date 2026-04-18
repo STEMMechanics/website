@@ -349,7 +349,7 @@ class StemcraftController extends Controller
             $history[] = [
                 'old_username' => $oldUsername,
                 'new_username' => $newUsername,
-                'occurred_at' => $event->occurred_at?->format('j M Y g:i a') ?? 'Unknown date',
+                'occurred_at' => $event->occurred_at->format('j M Y g:i a'),
             ];
         }
 
