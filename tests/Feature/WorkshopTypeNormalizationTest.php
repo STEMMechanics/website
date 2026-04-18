@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Location;
 use App\Models\Media;
+use App\Models\PickListTemplate;
+use App\Models\PickListTemplateItem;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -89,6 +91,55 @@ class WorkshopTypeNormalizationTest extends TestCase
         $response->assertOk();
         $response->assertSee('Summary');
         $response->assertSee('Existing workshop summary', false);
+    }
+
+    public function test_admin_workshop_edit_can_reset_a_custom_pick_list_back_to_the_template(): void
+    {
+        $admin = $this->createAdminUser();
+        $owner = User::factory()->create();
+        $location = Location::factory()->create();
+        $heroName = $this->createHeroMedia($owner);
+        $template = PickListTemplate::query()->create([
+            'name' => 'Minecraft (Laptops Only)',
+            'description' => 'Template notes',
+        ]);
+        $templateItem = PickListTemplateItem::query()->create([
+            'pick_list_template_id' => $template->id,
+            'item_name' => 'Laptop charger',
+            'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+            'quantity_value' => 1,
+            'sort_order' => 10,
+        ]);
+
+        $workshop = $this->createWorkshop($owner, $location, $heroName, 'none');
+        $workshop->forceFill([
+            'pick_list_template_id' => $template->id,
+            'pick_list_is_customized' => true,
+            'pick_list_custom_items' => [[
+                'id' => $templateItem->id,
+                'item_name' => 'Laptop charger',
+                'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+                'quantity_value' => 1,
+                'sort_order' => 10,
+            ]],
+            'pick_list_notes' => 'Workshop notes',
+        ])->save();
+
+        $response = $this->actingAs($admin)
+            ->put(route('admin.workshop.update', $workshop), $this->workshopUpdatePayload($workshop, $location, $heroName, [
+                'pick_list_template_id' => $template->id,
+                'pick_list_notes' => '',
+                'reset_pick_list_customization' => 1,
+            ]));
+
+        $response->assertRedirect(route('admin.workshop.index'));
+        $response->assertSessionHasNoErrors();
+
+        $freshWorkshop = $workshop->fresh();
+        $this->assertFalse((bool) $freshWorkshop->pick_list_is_customized);
+        $this->assertNull($freshWorkshop->pick_list_custom_items);
+        $this->assertSame($template->id, (int) $freshWorkshop->pick_list_template_id);
+        $this->assertSame('Template notes', (string) $freshWorkshop->pick_list_notes);
     }
 
     public function test_changing_registration_away_from_tickets_is_blocked_when_active_tickets_exist(): void

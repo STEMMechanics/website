@@ -781,6 +781,7 @@ const registerWorkshopPickListPage = () => {
         isCustomized: Boolean(config.isCustomized),
         itemsEditMode: false,
         customItemsDirty: false,
+        resetCustomization: false,
         nextCustomItemId: 1,
         checkedIds: Array.isArray(config.checkedItemIds) ? config.checkedItemIds : [],
         participantsInput: String(config.participantsInput ?? ''),
@@ -901,6 +902,18 @@ const registerWorkshopPickListPage = () => {
         },
         customItemsEnabled() {
             return this.isCustomized || this.customItemsDirty;
+        },
+        resetToTemplate() {
+            if (!this.isCustomized) {
+                return;
+            }
+
+            this.resetCustomization = true;
+            this.isCustomized = false;
+            this.itemsEditMode = false;
+            this.customItems = [];
+            this.customItemsDirty = false;
+            this.scheduleAutosave();
         },
         hasTrailingBlankCustomItem() {
             if (this.customItems.length === 0) {
@@ -1143,13 +1156,14 @@ const registerWorkshopPickListPage = () => {
         },
         buildSavePayload() {
             const normalizedCustomItems = this.normalizeCustomItems();
-            const shouldPersistCustomItems = this.isCustomized || this.customItemsDirty;
+            const shouldPersistCustomItems = (this.isCustomized || this.customItemsDirty) && ! this.resetCustomization;
 
             return {
                 pick_list_participants: this.normalizeParticipants(),
                 pick_list_notes: this.notes,
                 checked_item_ids: this.checkedIds,
                 pick_list_custom_items: shouldPersistCustomItems ? normalizedCustomItems : null,
+                reset_pick_list_customization: this.resetCustomization ? 1 : 0,
                 pick_list_canvas_data: this.pickListCanvasDataJson || null,
                 pick_list_canvas_thumbnail_data: this.pickListCanvasThumbnailData || '',
             };
@@ -1180,6 +1194,7 @@ const registerWorkshopPickListPage = () => {
                     this.nextCustomItemId = this.computeNextCustomItemId(this.customItems);
                 }
                 this.customItemsDirty = false;
+                this.resetCustomization = false;
                 this.pickListCanvasThumbnailUrl = normalizedString(data.pick_list_canvas_thumbnail_url);
                 this.refreshSavedRelative();
 

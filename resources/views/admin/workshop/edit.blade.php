@@ -697,6 +697,32 @@ $savedTickets = isset($workshop)
                                 <a class="text-primary-color hover:underline" target="_blank" href="{{ route('admin.pick-list-template.edit', $workshop->pick_list_template_id) }}">Open selected template</a>
                             </div>
                         @endif
+                        @if(isset($workshop) && $workshop->pick_list_is_customized)
+                            <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                                <div class="font-semibold">Custom pick list</div>
+                                <div class="mt-1">
+                                    @if($workshop->pickListTemplate?->name)
+                                        Originally {{ $workshop->pickListTemplate?->name }}
+                                    @else
+                                        No template selected.
+                                    @endif
+                                </div>
+                                <div class="mt-3">
+                                    <x-ui.button
+                                        type="submit"
+                                        color="outline"
+                                        name="reset_pick_list_customization"
+                                        value="1"
+                                    >
+                                        {{ $workshop->pickListTemplate?->name ? 'Restore template pick list' : 'Clear custom list' }}
+                                    </x-ui.button>
+                                </div>
+                            </div>
+                        @elseif(isset($workshop) && $workshop->pick_list_template_id)
+                            <div class="mt-2 text-xs text-gray-500">
+                                Active pick list follows the selected template until it is customised.
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div class="mb-4">

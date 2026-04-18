@@ -264,7 +264,7 @@ class WorkshopController extends Controller
     public function admin_edit(Workshop $workshop)
     {
         $workshop->loadCount('interests');
-        $workshop->loadMissing('classSession.forumCategory');
+        $workshop->loadMissing('classSession.forumCategory', 'pickListTemplate');
 
         return view('admin.workshop.edit', [
             'workshop' => $workshop,
@@ -317,6 +317,7 @@ class WorkshopController extends Controller
             'ticket_group_slug' => 'nullable|string|max:80',
             'pick_list_template_id' => 'nullable|exists:pick_list_templates,id',
             'pick_list_notes' => 'nullable|string',
+            'reset_pick_list_customization' => 'nullable|boolean',
             'tickets_json' => 'nullable|string',
             'private_files' => 'nullable|string',
             'notify_ticket_holders' => 'nullable|boolean',
@@ -339,6 +340,7 @@ class WorkshopController extends Controller
         $shouldNotifyTicketHolders = $request->boolean('notify_ticket_holders');
         $ticketChangeEmailNotes = trim((string) $request->input('ticket_change_email_notes', ''));
         $workshopCancelReason = trim((string) $request->input('workshop_cancel_reason', ''));
+        $resetPickListCustomization = $request->boolean('reset_pick_list_customization');
         unset($workshopData['notify_ticket_holders'], $workshopData['ticket_change_email_notes']);
         $this->normalizeWorkshopTypeData($workshopData);
         $workshopData['is_private'] = $request->boolean('is_private');
@@ -370,8 +372,13 @@ class WorkshopController extends Controller
         }
         $existingTemplateId = $workshop->pick_list_template_id !== null ? (int) $workshop->pick_list_template_id : null;
         $newTemplateId = $workshopData['pick_list_template_id'] !== null ? (int) $workshopData['pick_list_template_id'] : null;
-        $templateChanged = $existingTemplateId !== $newTemplateId;
-        $pickListIsCustomized = (bool) $workshop->pick_list_is_customized;
+        $templateChanged = $resetPickListCustomization || $existingTemplateId !== $newTemplateId;
+        $pickListIsCustomized = $resetPickListCustomization ? false : (bool) $workshop->pick_list_is_customized;
+
+        if ($resetPickListCustomization) {
+            $workshopData['pick_list_is_customized'] = false;
+            $workshopData['pick_list_custom_items'] = null;
+        }
 
         if (! $pickListIsCustomized && $templateChanged) {
             if ($newTemplateId === null) {

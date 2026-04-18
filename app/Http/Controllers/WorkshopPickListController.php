@@ -73,6 +73,7 @@ class WorkshopPickListController extends Controller
             'pick_list_participants' => ['nullable', 'integer', 'min:1', 'max:5000'],
             'pick_list_notes' => ['nullable', 'string'],
             'pick_list_custom_items' => ['sometimes', 'nullable'],
+            'reset_pick_list_customization' => ['nullable', 'boolean'],
             'checked_item_ids' => ['nullable', 'array'],
             'checked_item_ids.*' => ['integer'],
             'pick_list_canvas_data' => ['nullable'],
@@ -84,19 +85,23 @@ class WorkshopPickListController extends Controller
             : ($workshop->pick_list_template_id !== null ? (int) $workshop->pick_list_template_id : null);
 
         $existingCustomized = (bool) $workshop->pick_list_is_customized;
+        $resetCustomization = $request->boolean('reset_pick_list_customization');
         $customItemsProvided = $request->exists('pick_list_custom_items');
         $notes = array_key_exists('pick_list_notes', $validated)
             ? trim((string) $validated['pick_list_notes'])
             : (string) $workshop->pick_list_notes;
 
-        if (! $existingCustomized && ! $customItemsProvided && $templateId !== null && $notes === '') {
+        if (($resetCustomization || (! $existingCustomized && ! $customItemsProvided)) && $templateId !== null && $notes === '') {
             $templateNotes = (string) (PickListTemplate::query()
                 ->where('id', $templateId)
                 ->value('description') ?? '');
             $notes = trim($templateNotes);
         }
 
-        if ($customItemsProvided) {
+        if ($resetCustomization) {
+            $workshop->pick_list_custom_items = null;
+            $workshop->pick_list_is_customized = false;
+        } elseif ($customItemsProvided) {
             $customItems = $this->normalizePickListItems($request->input('pick_list_custom_items'));
             $workshop->pick_list_custom_items = $customItems;
             $workshop->pick_list_is_customized = true;

@@ -97,6 +97,32 @@
                 </div>
             </div>
 
+            <div
+                class="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+                x-cloak
+                x-show="isCustomized"
+            >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <div class="font-semibold">Custom pick list</div>
+                        <div class="mt-1">
+                            @if($workshop->pickListTemplate?->name)
+                                Originally {{ $workshop->pickListTemplate?->name }}
+                            @else
+                                No template selected.
+                            @endif
+                        </div>
+                    </div>
+                    <x-ui.button
+                        type="button"
+                        color="outline"
+                        x-on:click="resetToTemplate()"
+                    >
+                        {{ $workshop->pickListTemplate?->name ? 'Restore template pick list' : 'Clear custom list' }}
+                    </x-ui.button>
+                </div>
+            </div>
+
             <div class="mt-4" x-show="!itemsEditMode">
                 <template x-if="currentItems().length > 0">
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
