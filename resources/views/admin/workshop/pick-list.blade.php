@@ -28,6 +28,12 @@
     </x-container>
 
     <x-container>
+        @php
+            $pickListParticipantsInput = $workshop->registration === 'tickets'
+                ? (string) $participants
+                : (string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants);
+        @endphp
+
         <form
             method="POST"
             action="{{ route('admin.workshop.pick-list.save', $workshop) }}"
@@ -40,7 +46,7 @@
                 itemSuggestions: @js($itemSuggestions ?? []),
                 isCustomized: @js((bool) $isCustomized),
                 checkedItemIds: @js(collect($checkedItemIds ?? [])->map(fn ($id) => (string) $id)->values()->all()),
-                participantsInput: @js((string) old('pick_list_participants', $workshop->pick_list_participants ?? $participants)),
+                participantsInput: @js($pickListParticipantsInput),
                 notes: @js((string) old('pick_list_notes', $pickListNotes ?? '')),
                 defaultParticipants: @js((int) $participants),
                 pickListCanvasDataJson: @js((string) old('pick_list_canvas_data', $pickListCanvasDataJson ?? '')),
@@ -125,8 +131,8 @@
 
             <div class="mt-4" x-show="itemsEditMode" x-cloak>
                 <div class="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-gray-200 bg-white">
-                    <table class="min-w-full">
-                        <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <table class="min-w-full border-collapse">
+                        <thead class="hidden bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 md:table-header-group">
                             <tr>
                                 <th class="px-3 py-2">Item</th>
                                 <th class="px-3 py-2">Type</th>
@@ -135,17 +141,18 @@
                                 <th class="px-3 py-2 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="block md:table-row-group">
                             <template x-if="customItems.length === 0">
-                                <tr>
+                                <tr class="block border border-dashed border-gray-200 bg-gray-50 md:table-row md:border-0 md:bg-transparent">
                                     <td colspan="5" class="px-3 py-4 text-sm text-gray-600">
                                         No custom items yet. Add one to start building the pick list.
                                     </td>
                                 </tr>
                             </template>
                             <template x-for="(item, index) in customItems" :key="item.id">
-                                <tr class="border-t border-gray-100 align-top">
-                                    <td class="px-3 py-3">
+                                <tr class="mb-3 block rounded-xl border border-gray-200 bg-white shadow-sm md:mb-0 md:table-row md:rounded-none md:border-0 md:bg-transparent md:shadow-none align-top">
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Item</div>
                                         <x-ui.input
                                             name="custom_item_name"
                                             label="Item"
@@ -157,7 +164,8 @@
                                             x-on:input="item.item_name = $event.target.value; handleCustomItemChange(index)"
                                         />
                                     </td>
-                                    <td class="px-3 py-3">
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Type</div>
                                         <x-ui.select
                                             name="custom_item_type"
                                             label="Type"
@@ -169,7 +177,8 @@
                                             <option value="fixed">Fixed amount</option>
                                         </x-ui.select>
                                     </td>
-                                    <td class="px-3 py-3">
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Quantity</div>
                                         <x-ui.input
                                             type="number"
                                             name="custom_item_quantity"
@@ -184,17 +193,22 @@
                                             x-on:blur="normalizeCustomItemQuantity(index); handleCustomItemChange(index)"
                                         />
                                     </td>
-                                    <td class="px-3 py-3">
-                                        <input
-                                            type="checkbox"
-                                            class="mt-3 h-6 w-6 rounded border-gray-300"
-                                            x-model="checkedIds"
-                                            :value="String(item.id)"
-                                            x-on:change="scheduleAutosave()"
-                                        >
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Checked</div>
+                                        <label class="flex items-center gap-3">
+                                            <input
+                                                type="checkbox"
+                                                class="h-6 w-6 rounded border-gray-300"
+                                                x-model="checkedIds"
+                                                :value="String(item.id)"
+                                                x-on:change="scheduleAutosave()"
+                                            >
+                                            <span class="text-sm text-gray-700">Include on list</span>
+                                        </label>
                                     </td>
-                                    <td class="px-3 py-3">
-                                        <div class="flex items-center justify-end gap-3">
+                                    <td class="block border-t border-gray-100 px-3 py-3 first:border-t-0 md:table-cell md:border-t md:px-3 md:py-3">
+                                        <div class="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 md:hidden">Actions</div>
+                                        <div class="flex flex-wrap items-center gap-3 md:justify-end">
                                             <button type="button" class="text-gray-700 hover:text-primary-color disabled:text-gray-300" x-on:click="moveCustomItemUp(index)" :disabled="index === 0" title="Move up">
                                                 <i class="fa-solid fa-arrow-up"></i>
                                             </button>

@@ -6,6 +6,7 @@ use App\Models\Location;
 use App\Models\Media;
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
+use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
@@ -114,6 +115,45 @@ class WorkshopPickListCustomizationTest extends TestCase
 
         $visibleItems = collect($pickListResponse->viewData('templateItems') ?? []);
         $this->assertSame('Custom cable pack', (string) ($visibleItems[0]['item_name'] ?? ''));
+    }
+
+    public function test_ticketed_workshops_use_active_ticket_count_even_if_a_participant_override_exists(): void
+    {
+        $admin = $this->createAdminUser();
+        $template = PickListTemplate::query()->create([
+            'name' => 'Workshop Pack',
+        ]);
+
+        PickListTemplateItem::query()->create([
+            'pick_list_template_id' => $template->id,
+            'item_name' => 'Microbit',
+            'quantity_type' => PickListTemplateItem::TYPE_PER_PARTICIPANT,
+            'quantity_value' => 1,
+            'sort_order' => 10,
+        ]);
+
+        $workshop = $this->createWorkshop();
+        $workshop->forceFill([
+            'pick_list_template_id' => $template->id,
+            'pick_list_participants' => 9,
+        ])->save();
+
+        for ($index = 0; $index < 10; $index++) {
+            Ticket::factory()->create([
+                'workshop_id' => $workshop->id,
+                'user_id' => $admin->id,
+                'status' => Ticket::STATUS_PAID,
+            ]);
+        }
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop.pick-list', $workshop));
+
+        $response->assertOk();
+        $this->assertSame(10, (int) $response->viewData('participants'));
+
+        $calculatedItems = collect($response->viewData('calculatedItems') ?? []);
+        $this->assertSame(10, (int) ($calculatedItems[0]['quantity'] ?? 0));
     }
 
     private function createAdminUser(): User

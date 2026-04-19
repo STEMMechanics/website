@@ -208,6 +208,15 @@ class WorkshopPickListController extends Controller
 
     private function resolvedParticipants(Workshop $workshop): int
     {
+        if ($workshop->registration === 'tickets') {
+            $fromTickets = $this->activeTicketCount($workshop);
+            if ($fromTickets > 0) {
+                return $fromTickets;
+            }
+
+            return 1;
+        }
+
         $configured = (int) ($workshop->pick_list_participants ?? 0);
         if ($configured > 0) {
             return $configured;
