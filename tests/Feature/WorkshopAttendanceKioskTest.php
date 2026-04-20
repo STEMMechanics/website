@@ -741,6 +741,96 @@ class WorkshopAttendanceKioskTest extends TestCase
             ->assertDontSee('EFTPOS-HIDE-ME');
     }
 
+    public function test_ticketed_attendance_can_refresh_relevant_unallocated_eftpos_transactions_for_selected_tickets(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        $otherCustomer = User::factory()->create();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-1007B',
+            'user_id' => $customer->id,
+            'billing_name' => 'Refresh EFTPOS Family',
+            'billing_email' => 'refresh@example.com',
+            'billing_phone' => '0400111666',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 13.64,
+            'gst_amount' => 1.36,
+            'total_amount' => 15.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Refresh',
+            'surname' => 'Student',
+            'email' => 'refresh@example.com',
+            'phone' => '0400111666',
+            'attended_at' => null,
+        ]);
+
+        Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $customer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subMinute(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-REFRESH-ME',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => null,
+        ]);
+
+        Payment::query()->create([
+            'kind' => Payment::KIND_PAYMENT,
+            'user_id' => $otherCustomer->id,
+            'created_by' => $admin->id,
+            'received_on' => now()->subMinute(),
+            'payment_method' => Payment::PAYMENT_METHOD_EFTPOS,
+            'reference' => 'EFTPOS-HIDE-REFRESH',
+            'total_amount' => 15.00,
+            'gst_amount' => 0,
+            'notes' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->getJson(route('admin.workshop.attendance.eftpos-payments', [
+                'workshop' => $workshop,
+                'ticket_ids' => [$ticket->id],
+            ]))
+            ->assertOk()
+            ->assertJsonCount(1, 'availableEftposPayments')
+            ->assertJsonPath('availableEftposPayments.0.reference', 'EFTPOS-REFRESH-ME')
+            ->assertJsonPath('selectedTicketIds.0', $ticket->id)
+            ->assertJsonStructure([
+                'availableEftposPayments' => [
+                    [
+                        'id',
+                        'user_id',
+                        'customer_name',
+                        'received_on',
+                        'received_on_display',
+                        'reference',
+                        'notes',
+                        'available_amount',
+                        'square_payment_id',
+                        'square_receipt_url',
+                        'payment_edit_url',
+                    ],
+                ],
+                'selectedTicketIds',
+                'attendanceInvoiceMeta',
+                'refreshedAtDisplay',
+            ]);
+    }
+
     public function test_admin_can_link_existing_unallocated_eftpos_payment_from_attendance(): void
     {
         $admin = $this->createAdminUser();

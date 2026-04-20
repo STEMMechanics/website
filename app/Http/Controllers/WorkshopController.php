@@ -983,38 +983,8 @@ class WorkshopController extends Controller
                     ->get();
             }
 
-            $invoiceIds = $activeTickets->pluck('invoice_id')
-                ->map(fn ($id): int => (int) $id)
-                ->filter(fn (int $id): bool => $id > 0)
-                ->unique()
-                ->values()
-                ->all();
-
-            if ($invoiceIds !== []) {
-                $invoices = Invoice::query()
-                    ->with(['allocations.customerPayment', 'taxAdjustments'])
-                    ->whereIn('id', $invoiceIds)
-                    ->get();
-                $relevantInvoiceUserIds = [];
-
-                foreach ($invoices as $invoice) {
-                    $outstanding = round((float) $invoice->outstandingAmount(), 2);
-
-                    $attendanceInvoiceMeta[(int) $invoice->id] = [
-                        'id' => (int) $invoice->id,
-                        'number' => (string) $invoice->invoice_number,
-                        'status' => (string) $invoice->status,
-                        'outstanding' => $outstanding,
-                    ];
-
-                    $invoiceUserId = trim((string) ($invoice->user_id ?? ''));
-                    if ($invoiceUserId !== '') {
-                        $relevantInvoiceUserIds[] = $invoiceUserId;
-                    }
-                }
-
-                $availableEftposPayments = $this->buildAttendanceEftposPaymentOptions($relevantInvoiceUserIds);
-            }
+            [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($activeTickets);
+            $availableEftposPayments = $this->buildAttendanceEftposPaymentOptions($relevantInvoiceUserIds);
 
             $fallbackTicketPrice = 0.0;
             $rawWorkshopPrice = trim((string) ($workshop->price ?? ''));
@@ -1068,6 +1038,55 @@ class WorkshopController extends Controller
             'dropIns' => $dropIns,
             'isKiosk' => $isKiosk,
         ]);
+    }
+
+    public function admin_attendance_eftpos_payments(Request $request, Workshop $workshop): JsonResponse
+    {
+        if (! in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
+            return response()->json([
+                'message' => 'This workshop does not use managed tickets.',
+            ], 422)->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        }
+
+        $validated = $request->validate([
+            'ticket_ids' => ['nullable', 'array'],
+            'ticket_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $selectedTicketIds = collect($validated['ticket_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($selectedTicketIds === []) {
+            return response()->json([
+                'availableEftposPayments' => [],
+                'selectedTicketIds' => [],
+                'refreshedAtDisplay' => now()->format('M j, Y g:i a'),
+            ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+        }
+
+        $tickets = Ticket::query()
+            ->with(['invoice'])
+            ->where('workshop_id', $workshop->id)
+            ->whereIn('status', Ticket::activePurchasedStatuses())
+            ->whereIn('id', $selectedTicketIds)
+            ->get();
+
+        [$attendanceInvoiceMeta, $relevantInvoiceUserIds] = $this->buildAttendanceInvoiceContext($tickets);
+        $availableEftposPayments = $this->buildAttendanceEftposPaymentOptions($relevantInvoiceUserIds);
+
+        return response()->json([
+            'availableEftposPayments' => $availableEftposPayments,
+            'selectedTicketIds' => $tickets->pluck('id')
+                ->map(fn ($id): int => (int) $id)
+                ->values()
+                ->all(),
+            'attendanceInvoiceMeta' => $attendanceInvoiceMeta,
+            'refreshedAtDisplay' => now()->format('M j, Y g:i a'),
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function admin_attendance_csv(Workshop $workshop)
@@ -1819,6 +1838,49 @@ class WorkshopController extends Controller
         }
 
         return $rows;
+    }
+
+    /**
+     * @return array{0: array<int, array{id:int, number:string, status:string, outstanding:float}>, 1: array<int, string>}
+     */
+    private function buildAttendanceInvoiceContext(Collection $tickets): array
+    {
+        $attendanceInvoiceMeta = [];
+        $relevantInvoiceUserIds = [];
+
+        $invoiceIds = $tickets->pluck('invoice_id')
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($invoiceIds === []) {
+            return [$attendanceInvoiceMeta, $relevantInvoiceUserIds];
+        }
+
+        $invoices = Invoice::query()
+            ->with(['allocations.customerPayment', 'taxAdjustments'])
+            ->whereIn('id', $invoiceIds)
+            ->get();
+
+        foreach ($invoices as $invoice) {
+            $outstanding = round((float) $invoice->outstandingAmount(), 2);
+
+            $attendanceInvoiceMeta[(int) $invoice->id] = [
+                'id' => (int) $invoice->id,
+                'number' => (string) $invoice->invoice_number,
+                'status' => (string) $invoice->status,
+                'outstanding' => $outstanding,
+            ];
+
+            $invoiceUserId = trim((string) ($invoice->user_id ?? ''));
+            if ($invoiceUserId !== '') {
+                $relevantInvoiceUserIds[] = $invoiceUserId;
+            }
+        }
+
+        return [$attendanceInvoiceMeta, array_values(array_unique($relevantInvoiceUserIds))];
     }
 
     private function syncTicketInvoicesFromAllocations(array $invoiceIds): void

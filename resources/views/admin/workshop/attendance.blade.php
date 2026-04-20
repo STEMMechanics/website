@@ -140,6 +140,10 @@
                     lastAttendanceSavedAtDisplay: null,
                     paymentMethodOptions: @js($paymentMethodOptions),
                     availableEftposPayments: @js($availableEftposPayments),
+                    eftposPaymentsRefreshUrl: @js(route('admin.workshop.attendance.eftpos-payments', $workshop)),
+                    eftposPaymentsLoading: false,
+                    eftposPaymentsError: '',
+                    eftposPaymentsLastRefreshedAt: null,
                     selectedPaymentTicketIds: @js($oldPaymentTicketIds),
                     selectedExistingPaymentIds: @js($oldExistingPaymentIds),
                     paymentAttendanceByTicketId: {},
@@ -189,6 +193,48 @@
                         }
 
                         this.paymentLines[index].amount = this.normalizeMoney(this.paymentLines[index].amount);
+                    },
+                    buildEftposPaymentsRefreshUrl() {
+                        const url = new URL(this.eftposPaymentsRefreshUrl, window.location.origin);
+                        this.selectedPaymentTicketIds.forEach((ticketId) => {
+                            const normalizedTicketId = this.normalizeTicketId(ticketId);
+                            if (normalizedTicketId !== null) {
+                                url.searchParams.append('ticket_ids[]', String(normalizedTicketId));
+                            }
+                        });
+
+                        return url;
+                    },
+                    async refreshAvailableEftposPayments() {
+                        if (this.eftposPaymentsLoading) {
+                            return;
+                        }
+
+                        this.eftposPaymentsLoading = true;
+                        this.eftposPaymentsError = '';
+
+                        try {
+                            const response = await fetch(this.buildEftposPaymentsRefreshUrl().toString(), {
+                                cache: 'no-store',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                },
+                            });
+                            const payload = await response.json().catch(() => ({}));
+                            if (!response.ok) {
+                                throw new Error(String(payload?.message || 'Could not refresh EFTPOS transactions.'));
+                            }
+
+                            this.availableEftposPayments = Array.isArray(payload?.availableEftposPayments)
+                                ? payload.availableEftposPayments
+                                : [];
+                            this.eftposPaymentsLastRefreshedAt = String(payload?.refreshedAtDisplay || '').trim() || null;
+                        } catch (error) {
+                            this.eftposPaymentsError = error?.message || 'Could not refresh EFTPOS transactions.';
+                        } finally {
+                            this.eftposPaymentsLoading = false;
+                        }
                     },
                     normalizeUserId(value) {
                         const normalized = String(value ?? '').trim();
@@ -604,6 +650,7 @@
                         this.emailReceiptChecked = false;
 
                         this.paymentModalOpen = true;
+                        void this.refreshAvailableEftposPayments();
                     },
                     openPaymentModalForInvoice(invoiceId) {
                         const normalizedInvoiceId = this.normalizeTicketId(invoiceId);
@@ -626,6 +673,9 @@
                         emailReceiptChecked = {{ old('email_receipt') ? 'true' : 'false' }};
                     } else {
                         resetPaymentLines();
+                    }
+                    if (paymentModalOpen) {
+                        void refreshAvailableEftposPayments();
                     }
                 "
                 x-on:keydown.escape.window="
@@ -1001,13 +1051,30 @@
                                 <div class="mt-5">
                                     <div class="flex items-center justify-between gap-3">
                                         <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">Available Unlinked EFTPOS Transactions</div>
-                                        <div class="text-xs text-gray-500" x-text="selectedExistingPayments().length > 0 ? (selectedExistingPayments().length + ' selected') : 'Optional'"></div>
+                                        <div class="flex items-center gap-3">
+                                            <div class="text-xs text-gray-500" x-text="selectedExistingPayments().length > 0 ? (selectedExistingPayments().length + ' selected') : 'Optional'"></div>
+                                            <button
+                                                type="button"
+                                                class="text-xs font-semibold text-primary-color hover:underline disabled:cursor-not-allowed disabled:text-gray-400"
+                                                x-bind:disabled="eftposPaymentsLoading"
+                                                x-on:click="refreshAvailableEftposPayments()"
+                                            >
+                                                <span x-show="!eftposPaymentsLoading">Refresh</span>
+                                                <span x-show="eftposPaymentsLoading" class="inline-flex items-center gap-1">
+                                                    <i class="fa-solid fa-circle-notch animate-spin"></i>
+                                                    <span>Refreshing</span>
+                                                </span>
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="mt-2 rounded-2xl border border-gray-200 bg-white">
-                                        <template x-if="visibleExistingEftposPayments().length === 0">
+                                        <template x-if="eftposPaymentsLoading">
+                                            <div class="px-4 py-3 text-sm text-gray-500">Refreshing EFTPOS transactions...</div>
+                                        </template>
+                                        <template x-if="!eftposPaymentsLoading && visibleExistingEftposPayments().length === 0">
                                             <div class="px-4 py-3 text-sm text-gray-500">No unallocated EFTPOS transactions are available for this ticket selection.</div>
                                         </template>
-                                        <div class="max-h-72 space-y-2 overflow-y-auto p-3" x-show="visibleExistingEftposPayments().length > 0">
+                                        <div class="max-h-72 space-y-2 overflow-y-auto p-3" x-show="!eftposPaymentsLoading && visibleExistingEftposPayments().length > 0">
                                             <template x-for="payment in visibleExistingEftposPayments()" :key="`existing-eftpos-${payment.id}`">
                                                 <label class="flex items-start justify-between gap-4 rounded-xl border border-gray-200 px-3 py-3 transition hover:border-gray-300 hover:bg-gray-50">
                                                     <span class="inline-flex items-start gap-3">
@@ -1042,6 +1109,8 @@
                                             </template>
                                         </div>
                                     </div>
+                                    <div class="mt-2 text-xs text-red-600" x-show="eftposPaymentsError" x-text="eftposPaymentsError"></div>
+                                    <div class="mt-1 text-xs text-gray-500" x-show="eftposPaymentsLastRefreshedAt" x-text="'Last refreshed ' + eftposPaymentsLastRefreshedAt"></div>
                                 </div>
 
                                 <div class="mt-5 space-y-3">

@@ -427,6 +427,7 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::get('/admin/workshops/{workshop}/tickets/pdf', [WorkshopController::class, 'admin_tickets_pdf'])->name('admin.workshop.tickets.pdf');
     Route::post('/admin/workshops/{workshop}/tickets/email', [WorkshopController::class, 'admin_tickets_email'])->name('admin.workshop.tickets.email');
     Route::get('/admin/workshops/{workshop}/attendance', [WorkshopController::class, 'admin_attendance'])->name('admin.workshop.attendance');
+    Route::get('/admin/workshops/{workshop}/attendance/eftpos-payments', [WorkshopController::class, 'admin_attendance_eftpos_payments'])->name('admin.workshop.attendance.eftpos-payments');
     Route::get('/admin/workshops/{workshop}/attendance/csv', [WorkshopController::class, 'admin_attendance_csv'])->name('admin.workshop.attendance.csv');
     Route::get('/admin/workshops/{workshop}/attendance/pdf', [WorkshopController::class, 'admin_attendance_pdf'])->name('admin.workshop.attendance.pdf');
     Route::post('/admin/workshops/{workshop}/attendance/tickets', [WorkshopController::class, 'admin_attendance_tickets'])->name('admin.workshop.attendance.tickets');
