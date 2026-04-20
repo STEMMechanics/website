@@ -144,6 +144,7 @@
                     eftposPaymentsLoading: false,
                     eftposPaymentsError: '',
                     eftposPaymentsLastRefreshedAt: null,
+                    compPaymentMethod: 'comp',
                     selectedPaymentTicketIds: @js($oldPaymentTicketIds),
                     selectedExistingPaymentIds: @js($oldExistingPaymentIds),
                     paymentAttendanceByTicketId: {},
@@ -193,6 +194,16 @@
                         }
 
                         this.paymentLines[index].amount = this.normalizeMoney(this.paymentLines[index].amount);
+                    },
+                    waivedPaymentLineAmount() {
+                        return Math.max(0, this.selectedOutstandingTotal() - this.selectedExistingPaymentsTotal());
+                    },
+                    applyWaivedPaymentLineAmount(index) {
+                        if (!Array.isArray(this.paymentLines) || !this.paymentLines[index]) {
+                            return;
+                        }
+
+                        this.paymentLines[index].amount = this.waivedPaymentLineAmount().toFixed(2);
                     },
                     buildEftposPaymentsRefreshUrl() {
                         const url = new URL(this.eftposPaymentsRefreshUrl, window.location.origin);
@@ -361,6 +372,7 @@
                         }
 
                         this.paymentLines = source.map((line) => this.newPaymentLine(line));
+                        this.syncWaivedPaymentLineAmounts();
                     },
                     addPaymentLine() {
                         this.paymentLines.push(this.newPaymentLine());
@@ -575,11 +587,27 @@
                         }
 
                         this.selectedExistingPaymentIds = Array.from(new Set(nextIds));
+                        this.syncWaivedPaymentLineAmounts();
                     },
                     paymentLinesTotal() {
                         return this.paymentLines.reduce((sum, line) => {
                             return sum + this.toNumber(line.amount);
                         }, 0);
+                    },
+                    hasCompPaymentLine() {
+                        return Array.isArray(this.paymentLines)
+                            && this.paymentLines.some((line) => String(line.method || '') === this.compPaymentMethod);
+                    },
+                    syncWaivedPaymentLineAmounts() {
+                        if (!Array.isArray(this.paymentLines)) {
+                            return;
+                        }
+
+                        this.paymentLines.forEach((line) => {
+                            if (String(line.method || '') === this.compPaymentMethod) {
+                                line.amount = this.waivedPaymentLineAmount().toFixed(2);
+                            }
+                        });
                     },
                     paymentSourcesTotal() {
                         return this.selectedExistingPaymentsTotal() + this.paymentLinesTotal();
@@ -617,6 +645,7 @@
                         });
 
                         this.paymentAttendanceByTicketId = nextState;
+                        this.syncWaivedPaymentLineAmounts();
                     },
                     togglePaymentAttendance(ticketId, attended) {
                         const normalizedId = this.normalizeTicketId(ticketId);
@@ -624,6 +653,7 @@
                             return;
                         }
                         this.paymentAttendanceByTicketId[String(normalizedId)] = Boolean(attended);
+                        this.syncWaivedPaymentLineAmounts();
                     },
                     remainingBalance() {
                         return Math.max(0, this.selectedOutstandingTotal() - this.paymentSourcesTotal());
@@ -973,15 +1003,22 @@
                             <div class="flex items-start justify-between gap-4">
                                 <div>
                                     <h3 class="text-xl font-semibold text-gray-900">Record Ticket Payment</h3>
-                                    <p class="mt-1 text-sm text-gray-600">Create one or more payment entries and allocate them to the selected tickets' invoice balance.</p>
-                                </div>
-                                <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="paymentModalOpen = false">
-                                    <i class="fa-solid fa-xmark text-lg"></i>
-                                </button>
-                            </div>
+                            <p class="mt-1 text-sm text-gray-600">Create one or more payment entries and allocate them to the selected tickets' invoice balance.</p>
+                        </div>
+                        <button type="button" class="text-gray-500 hover:text-gray-700" x-on:click="paymentModalOpen = false">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
 
-                            <form method="POST" action="{{ route('admin.workshop.attendance.payments', $workshop) }}" class="mt-5">
-                                @csrf
+                    @if($hasPaymentErrors)
+                        <div class="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                            <div class="font-semibold">Could not save ticket payment</div>
+                            <div class="mt-1">{{ $errors->first('ticket_ids') ?: $errors->first('attended_ticket_ids') ?: $errors->first('existing_payment_ids') ?: $errors->first('payments') ?: $errors->first('payments.*.amount') ?: $errors->first('payments.*.method') }}</div>
+                        </div>
+                    @endif
+
+                    <form method="POST" action="{{ route('admin.workshop.attendance.payments', $workshop) }}" class="mt-5">
+                        @csrf
 
                                 <template x-for="ticketId in selectedPaymentTicketIds" :key="`payment-ticket-${ticketId}`">
                                     <input type="hidden" name="ticket_ids[]" x-bind:value="ticketId">
@@ -1119,15 +1156,22 @@
                                             <div class="grid gap-3 lg:grid-cols-12">
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Method</label>
-                                                    <select class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.method" x-bind:name="`payments[${index}][method]`">
+                                                    <x-ui.select
+                                                        label="Method"
+                                                        name=""
+                                                        noLabel="true"
+                                                        class="mb-0"
+                                                        x-model="line.method"
+                                                        x-bind:name="`payments[${index}][method]`"
+                                                        x-on:change="if (line.method === compPaymentMethod) { applyWaivedPaymentLineAmount(index); }">
                                                         <template x-for="option in paymentMethodOptions" :key="option.value">
                                                             <option x-bind:value="option.value" x-text="option.label"></option>
                                                         </template>
-                                                    </select>
+                                                    </x-ui.select>
                                                 </div>
                                                 <div class="lg:col-span-2">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Amount</label>
-                                                    <input type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-on:blur="normalizePaymentLineAmount(index)">
+                                                    <input type="text" inputmode="decimal" class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-300 focus:outline-none focus:ring-0" x-model="line.amount" x-bind:name="`payments[${index}][amount]`" x-bind:readonly="line.method === compPaymentMethod" x-on:blur="normalizePaymentLineAmount(index)">
                                                 </div>
                                                 <div class="lg:col-span-3">
                                                     <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Received</label>
@@ -1151,7 +1195,7 @@
 
                                 <div class="mt-4">
                                     <x-ui.button type="button" color="outline" x-on:click="addPaymentLine()">Add Split Payment Line</x-ui.button>
-                                    <div class="mt-2 text-xs text-gray-500" x-text="'Remaining to record now: $' + remainingBalance().toFixed(2)"></div>
+                                    <div class="mt-2 text-xs text-gray-500" x-show="!hasCompPaymentLine()" x-text="'Remaining to record now: $' + remainingBalance().toFixed(2)"></div>
                                 </div>
 
                                 <label class="mt-5 flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3">

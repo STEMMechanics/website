@@ -3,13 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendEmail;
+use App\Mail\FinanceDocumentPdf;
 use App\Mail\PaymentReceiptPdf;
 use App\Mail\WorkshopInterestAdminNotification;
 use App\Mail\WorkshopTicketBroadcast;
 use App\Models\Invoice;
 use App\Models\ClassSession;
 use App\Models\Payment;
+use App\Models\InvoiceLine;
 use App\Models\PickListTemplate;
+use App\Models\TaxAdjustment;
 use App\Models\Ticket;
 use App\Models\User;
 use App\Models\UserGroup;
@@ -17,6 +20,7 @@ use App\Models\Workshop;
 use App\Models\WorkshopAttendance;
 use App\Models\WorkshopInterest;
 use App\Services\AdminWorkshopTicketService;
+use App\Services\DocumentNumberService;
 use App\Services\ManualWorkshopTicketEmailService;
 use App\Services\SquareApiService;
 use App\Services\WorkshopTicketService;
@@ -35,6 +39,8 @@ use Throwable;
 
 class WorkshopController extends Controller
 {
+    private const ATTENDANCE_PAYMENT_METHOD_COMP = 'comp';
+
     /**
      * Display a listing of the resource.
      */
@@ -940,6 +946,7 @@ class WorkshopController extends Controller
         $availableEftposPayments = [];
         $paymentMethodLabels = collect(Payment::PAYMENT_METHODS)
             ->mapWithKeys(fn (string $method): array => [$method => Payment::paymentMethodLabel($method)])
+            ->put(self::ATTENDANCE_PAYMENT_METHOD_COMP, 'Waived')
             ->all();
         $ticketPaymentRows = [];
         if (in_array((string) $workshop->registration, ['tickets', 'classroom'], true)) {
@@ -1274,8 +1281,8 @@ class WorkshopController extends Controller
             'existing_payment_ids' => ['nullable', 'array'],
             'existing_payment_ids.*' => ['integer', 'min:1'],
             'payments' => ['nullable', 'array'],
-            'payments.*.method' => ['required', Rule::in(Payment::PAYMENT_METHODS)],
-            'payments.*.amount' => ['required', 'numeric', 'min:0.01'],
+            'payments.*.method' => ['required', Rule::in(array_merge(Payment::PAYMENT_METHODS, [self::ATTENDANCE_PAYMENT_METHOD_COMP]))],
+            'payments.*.amount' => ['required', 'numeric', 'min:0'],
             'payments.*.received_on' => ['nullable', 'date'],
             'payments.*.reference' => ['nullable', 'string', 'max:255'],
             'payments.*.notes' => ['nullable', 'string'],
@@ -1369,7 +1376,14 @@ class WorkshopController extends Controller
             ->all();
         $resolvedUserId = count($invoiceUserIds) === 1 ? $invoiceUserIds[0] : null;
 
-        $paymentLines = collect($validated['payments'] ?? [])
+        $selectedExistingPaymentIds = collect($validated['existing_payment_ids'] ?? [])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $paymentRows = collect($validated['payments'] ?? [])
             ->filter(fn ($line): bool => is_array($line))
             ->map(function (array $line): array {
                 return [
@@ -1380,195 +1394,323 @@ class WorkshopController extends Controller
                     'notes' => trim((string) ($line['notes'] ?? '')),
                 ];
             })
+            ->values();
+        $compPaymentLines = $paymentRows
+            ->filter(fn (array $line): bool => $line['method'] === self::ATTENDANCE_PAYMENT_METHOD_COMP)
+            ->values();
+        $recordedPaymentLines = $paymentRows
+            ->filter(fn (array $line): bool => $line['method'] !== self::ATTENDANCE_PAYMENT_METHOD_COMP)
             ->filter(fn (array $line): bool => $line['amount'] > 0.0001)
             ->values();
-        $selectedExistingPaymentIds = collect($validated['existing_payment_ids'] ?? [])
-            ->map(fn ($id): int => (int) $id)
-            ->filter(fn (int $id): bool => $id > 0)
-            ->unique()
-            ->values()
-            ->all();
-        if ($paymentLines->isEmpty() && $selectedExistingPaymentIds === []) {
+
+        if ($compPaymentLines->isNotEmpty()) {
+            if ($selectedExistingPaymentIds !== [] || $recordedPaymentLines->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'payments' => 'Waived cannot be combined with recorded payments or linked EFTPOS transactions.',
+                ]);
+            }
+        }
+
+        if ($compPaymentLines->isEmpty() && $recordedPaymentLines->isEmpty() && $selectedExistingPaymentIds === []) {
             throw ValidationException::withMessages([
-                'payments' => 'Select an existing EFTPOS transaction or add at least one payment amount.',
+                'payments' => $paymentRows->isNotEmpty()
+                    ? 'Enter a payment amount greater than $0.00, or choose Waived.'
+                    : 'Select an existing EFTPOS transaction or add at least one payment amount.',
             ]);
         }
 
         $totalOutstanding = round((float) collect($outstandingByInvoiceId)->sum(), 2);
-        $totalPaymentAmount = round((float) $paymentLines->sum('amount'), 2);
-        if ($selectedExistingPaymentIds !== []) {
-            $existingPayments = Payment::query()
-                ->whereIn('id', $selectedExistingPaymentIds)
-                ->get()
-                ->keyBy(fn (Payment $payment): int => (int) $payment->id);
-            $existingAvailableAmount = 0.0;
-
-            foreach ($selectedExistingPaymentIds as $paymentId) {
-                $existingPayment = $existingPayments->get($paymentId);
-                if (! $existingPayment instanceof Payment) {
-                    throw ValidationException::withMessages([
-                        'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
-                    ]);
-                }
-
-                $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
-                if ($eligibilityError !== null) {
-                    throw ValidationException::withMessages([
-                        'existing_payment_ids' => $eligibilityError,
-                    ]);
-                }
-
-                $existingAvailableAmount += $this->attendancePaymentUnallocatedAmount($existingPayment);
-            }
-
-            $remainingAfterExisting = max(0, round($totalOutstanding - min($totalOutstanding, $existingAvailableAmount), 2));
-        } else {
-            $remainingAfterExisting = $totalOutstanding;
-        }
-
-        if ($totalPaymentAmount > ($remainingAfterExisting + 0.0001)) {
-            throw ValidationException::withMessages([
-                'payments' => 'Payment total cannot exceed remaining outstanding total of $'.number_format($remainingAfterExisting, 2).' after linked EFTPOS transactions.',
-            ]);
-        }
-
+        $totalPaymentAmount = round((float) $recordedPaymentLines->sum('amount'), 2);
+        $compReason = 'Waived at workshop attendance';
         $syncAttendance = $request->boolean('sync_attendance', false);
         $markAttended = $request->boolean('mark_attended', false);
         $emailReceipt = $request->boolean('email_receipt', false);
         $now = now();
         $syncInvoiceIds = array_keys($outstandingByInvoiceId);
         $receiptEmailPayloads = [];
+        $waiverEmailPayloads = [];
+        $compAppliedTotal = 0.0;
+        $compInvoiceIds = [];
+        $usingCompPayment = $compPaymentLines->isNotEmpty();
+        $remainingAfterExisting = $totalOutstanding;
 
-        DB::transaction(function () use (
-            $selectedExistingPaymentIds,
-            $paymentLines,
-            $outstandingByInvoiceId,
-            $resolvedUserId,
-            $syncInvoiceIds,
-            $selectedTicketIds,
-            $attendedTicketIds,
-            $syncAttendance,
-            $markAttended,
-            $now,
-            &$receiptEmailPayloads
-        ): void {
-            $remainingByInvoice = $outstandingByInvoiceId;
+        if ($usingCompPayment) {
+            $compInvoiceIds = $tickets->pluck('invoice_id')
+                ->map(fn ($id): int => (int) $id)
+                ->filter(fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
 
-            foreach ($selectedExistingPaymentIds as $paymentId) {
-                $existingPayment = Payment::query()->lockForUpdate()->find($paymentId);
-                if (! $existingPayment instanceof Payment) {
-                    throw ValidationException::withMessages([
-                        'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
-                    ]);
-                }
+            DB::transaction(function () use (
+                $tickets,
+                $selectedTicketIds,
+                $attendedTicketIds,
+                $syncAttendance,
+                $markAttended,
+                $now,
+                $compReason,
+                &$compAppliedTotal,
+                &$waiverEmailPayloads
+            ): void {
+                $selectedTicketsByInvoice = $tickets->groupBy(fn (Ticket $ticket): string => (string) ((int) ($ticket->invoice_id ?? 0)));
 
-                $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
-                if ($eligibilityError !== null) {
-                    throw ValidationException::withMessages([
-                        'existing_payment_ids' => $eligibilityError,
-                    ]);
-                }
+                foreach ($selectedTicketsByInvoice as $invoiceIdString => $invoiceTickets) {
+                    $invoiceId = (int) $invoiceIdString;
+                    if ($invoiceId <= 0) {
+                        continue;
+                    }
 
-                $availableAmount = $this->attendancePaymentUnallocatedAmount($existingPayment);
-                if ($availableAmount <= 0.0001) {
-                    continue;
-                }
+                    $invoice = Invoice::query()
+                        ->with(['lines', 'taxAdjustments'])
+                        ->whereKey($invoiceId)
+                        ->lockForUpdate()
+                        ->first();
+                    if (! $invoice instanceof Invoice) {
+                        continue;
+                    }
 
-                if ($resolvedUserId !== null && trim((string) ($existingPayment->user_id ?? '')) === '') {
-                    $existingPayment->user_id = $resolvedUserId;
-                    $existingPayment->save();
-                }
+                    if ((float) $invoice->settledAmount() > 0.0001) {
+                        throw ValidationException::withMessages([
+                            'payments' => 'Waived can only be used before a payment has been recorded on the invoice.',
+                        ]);
+                    }
 
-                $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($existingPayment, $remainingByInvoice, $availableAmount);
-                if ($allocationSummary['allocated_total'] > 0.0001) {
-                    $receiptEmailPayloads[] = [
-                        'payment_id' => (int) $existingPayment->id,
-                        'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
-                            (float) ($allocationSummary['outstanding_before_total'] ?? 0),
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
-                        'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
-                            (float) $allocationSummary['allocated_total'],
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
-                        'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
-                            (float) ($allocationSummary['outstanding_after_total'] ?? 0),
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
+                    $remainingOutstanding = round((float) $invoice->outstandingAmount(), 2);
+                    $creditLines = [];
+                    $selectedCreditTotal = 0.0;
+
+                    foreach ($invoiceTickets as $ticket) {
+                        $invoiceLine = $this->resolveAttendanceInvoiceLineForTicket($ticket, $invoice);
+                        $creditLine = $this->buildAttendanceCompCreditLineForTicket($ticket, $invoice, $invoiceLine);
+                        $selectedCreditTotal = round($selectedCreditTotal + (float) $creditLine['line_total_inc_tax'], 2);
+                        $creditLines[] = $creditLine;
+                    }
+
+                    if ($creditLines === []) {
+                        continue;
+                    }
+
+                    if ($selectedCreditTotal > ($remainingOutstanding + 0.0001)) {
+                        throw ValidationException::withMessages([
+                            'payments' => 'Waived exceeds the remaining outstanding total for invoice #'.($invoice->invoice_number ?: $invoice->id).'.',
+                        ]);
+                    }
+
+                    $taxAdjustment = $this->createAttendanceCompTaxAdjustmentNote($invoice, $creditLines, $compReason, app(DocumentNumberService::class));
+                    $waiverEmailPayloads[] = [
+                        'invoice_id' => (int) $invoice->id,
+                        'tax_adjustment_id' => (int) $taxAdjustment->id,
                     ];
-                }
-            }
-
-            foreach ($paymentLines as $line) {
-                $lineAmount = round((float) $line['amount'], 2);
-                if ($lineAmount <= 0.0001) {
-                    continue;
-                }
-
-                $remainingOutstandingTotal = round((float) collect($remainingByInvoice)->sum(), 2);
-                if ($lineAmount > ($remainingOutstandingTotal + 0.0001)) {
-                    throw ValidationException::withMessages([
-                        'payments' => 'Outstanding balance changed while saving. Refresh and try again.',
-                    ]);
-                }
-
-                $payment = new Payment();
-                $payment->kind = Payment::KIND_PAYMENT;
-                $payment->user_id = $resolvedUserId;
-                $payment->created_by = auth()->id();
-                $payment->received_on = $line['received_on'] !== '' ? Carbon::parse($line['received_on']) : $now;
-                $payment->payment_method = $line['method'];
-                $payment->reference = $line['reference'] !== '' ? $line['reference'] : null;
-                $payment->total_amount = $lineAmount;
-                $payment->gst_amount = 0;
-                $payment->notes = $line['notes'] !== '' ? $line['notes'] : null;
-                $payment->save();
-
-                $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($payment, $remainingByInvoice, $lineAmount);
-                if ($allocationSummary['allocated_total'] > 0.0001) {
-                    $receiptEmailPayloads[] = [
-                        'payment_id' => (int) $payment->id,
-                        'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
-                            (float) ($allocationSummary['outstanding_before_total'] ?? 0),
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
-                        'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
-                            (float) $allocationSummary['allocated_total'],
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
-                        'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
-                            (float) ($allocationSummary['outstanding_after_total'] ?? 0),
-                            count($allocationSummary['invoice_ids'] ?? [])
-                        ),
-                    ];
-                }
-            }
-
-            $this->syncTicketInvoicesFromAllocations($syncInvoiceIds);
-
-            if ($syncAttendance) {
-                if ($attendedTicketIds !== []) {
+                    $compAppliedTotal = round($compAppliedTotal + $selectedCreditTotal, 2);
                     Ticket::query()
-                        ->whereIn('id', $attendedTicketIds)
+                        ->whereIn('id', $invoiceTickets->pluck('id')->all())
+                        ->update(['status' => Ticket::STATUS_DONE]);
+
+                    $invoice->syncPaidState();
+                    $invoice->refresh();
+                    if ((string) $invoice->status === Invoice::STATUS_PAID) {
+                        Ticket::query()
+                            ->where('invoice_id', $invoice->id)
+                            ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])
+                            ->update(['status' => Ticket::STATUS_DONE]);
+                    }
+                }
+
+                if ($syncAttendance) {
+                    if ($attendedTicketIds !== []) {
+                        Ticket::query()
+                            ->whereIn('id', $attendedTicketIds)
+                            ->update(['attended_at' => $now]);
+                    }
+
+                    $toClearAttendance = array_values(array_diff($selectedTicketIds, $attendedTicketIds));
+                    if ($toClearAttendance !== []) {
+                        Ticket::query()
+                            ->whereIn('id', $toClearAttendance)
+                            ->update(['attended_at' => null]);
+                    }
+
+                    return;
+                }
+
+                if ($markAttended && $selectedTicketIds !== []) {
+                    Ticket::query()
+                        ->whereIn('id', $selectedTicketIds)
                         ->update(['attended_at' => $now]);
                 }
+            });
+        } else {
+            $remainingByInvoice = $outstandingByInvoiceId;
+            $remainingAfterExisting = $totalOutstanding;
 
-                $toClearAttendance = array_values(array_diff($selectedTicketIds, $attendedTicketIds));
-                if ($toClearAttendance !== []) {
-                    Ticket::query()
-                        ->whereIn('id', $toClearAttendance)
-                        ->update(['attended_at' => null]);
+            if ($selectedExistingPaymentIds !== []) {
+                $existingPayments = Payment::query()
+                    ->whereIn('id', $selectedExistingPaymentIds)
+                    ->get()
+                    ->keyBy(fn (Payment $payment): int => (int) $payment->id);
+                $existingAvailableAmount = 0.0;
+
+                foreach ($selectedExistingPaymentIds as $paymentId) {
+                    $existingPayment = $existingPayments->get($paymentId);
+                    if (! $existingPayment instanceof Payment) {
+                        throw ValidationException::withMessages([
+                            'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
+                        ]);
+                    }
+
+                    $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
+                    if ($eligibilityError !== null) {
+                        throw ValidationException::withMessages([
+                            'existing_payment_ids' => $eligibilityError,
+                        ]);
+                    }
+
+                    $existingAvailableAmount += $this->attendancePaymentUnallocatedAmount($existingPayment);
                 }
 
-                return;
+                $remainingAfterExisting = max(0, round($totalOutstanding - min($totalOutstanding, $existingAvailableAmount), 2));
+            } else {
+                $remainingAfterExisting = $totalOutstanding;
             }
 
-            if ($markAttended && $selectedTicketIds !== []) {
-                Ticket::query()
-                    ->whereIn('id', $selectedTicketIds)
-                    ->update(['attended_at' => $now]);
+            if ($totalPaymentAmount > ($remainingAfterExisting + 0.0001)) {
+                throw ValidationException::withMessages([
+                    'payments' => 'Payment total cannot exceed remaining outstanding total of $'.number_format($remainingAfterExisting, 2).' after linked EFTPOS transactions.',
+                ]);
             }
-        });
+
+            DB::transaction(function () use (
+                $selectedExistingPaymentIds,
+                $recordedPaymentLines,
+                $outstandingByInvoiceId,
+                $resolvedUserId,
+                $syncInvoiceIds,
+                $selectedTicketIds,
+                $attendedTicketIds,
+                $syncAttendance,
+                $markAttended,
+                $now,
+                &$receiptEmailPayloads
+            ): void {
+                $remainingByInvoice = $outstandingByInvoiceId;
+
+                foreach ($selectedExistingPaymentIds as $paymentId) {
+                    $existingPayment = Payment::query()->lockForUpdate()->find($paymentId);
+                    if (! $existingPayment instanceof Payment) {
+                        throw ValidationException::withMessages([
+                            'existing_payment_ids' => 'One or more selected EFTPOS transactions could not be found.',
+                        ]);
+                    }
+
+                    $eligibilityError = $this->attendanceExistingPaymentEligibilityError($existingPayment, $resolvedUserId);
+                    if ($eligibilityError !== null) {
+                        throw ValidationException::withMessages([
+                            'existing_payment_ids' => $eligibilityError,
+                        ]);
+                    }
+
+                    $availableAmount = $this->attendancePaymentUnallocatedAmount($existingPayment);
+                    if ($availableAmount <= 0.0001) {
+                        continue;
+                    }
+
+                    if ($resolvedUserId !== null && trim((string) ($existingPayment->user_id ?? '')) === '') {
+                        $existingPayment->user_id = $resolvedUserId;
+                        $existingPayment->save();
+                    }
+
+                    $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($existingPayment, $remainingByInvoice, $availableAmount);
+                    if ($allocationSummary['allocated_total'] > 0.0001) {
+                        $receiptEmailPayloads[] = [
+                            'payment_id' => (int) $existingPayment->id,
+                            'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
+                                (float) ($allocationSummary['outstanding_before_total'] ?? 0),
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                            'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
+                                (float) $allocationSummary['allocated_total'],
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                            'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
+                                (float) ($allocationSummary['outstanding_after_total'] ?? 0),
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                        ];
+                    }
+                }
+
+                foreach ($recordedPaymentLines as $line) {
+                    $lineAmount = round((float) $line['amount'], 2);
+                    if ($lineAmount <= 0.0001) {
+                        continue;
+                    }
+
+                    $remainingOutstandingTotal = round((float) collect($remainingByInvoice)->sum(), 2);
+                    if ($lineAmount > ($remainingOutstandingTotal + 0.0001)) {
+                        throw ValidationException::withMessages([
+                            'payments' => 'Outstanding balance changed while saving. Refresh and try again.',
+                        ]);
+                    }
+
+                    $payment = new Payment();
+                    $payment->kind = Payment::KIND_PAYMENT;
+                    $payment->user_id = $resolvedUserId;
+                    $payment->created_by = auth()->id();
+                    $payment->received_on = $line['received_on'] !== '' ? Carbon::parse($line['received_on']) : $now;
+                    $payment->payment_method = $line['method'];
+                    $payment->reference = $line['reference'] !== '' ? $line['reference'] : null;
+                    $payment->total_amount = $lineAmount;
+                    $payment->gst_amount = 0;
+                    $payment->notes = $line['notes'] !== '' ? $line['notes'] : null;
+                    $payment->save();
+
+                    $allocationSummary = $this->allocateAttendancePaymentAcrossInvoices($payment, $remainingByInvoice, $lineAmount);
+                    if ($allocationSummary['allocated_total'] > 0.0001) {
+                        $receiptEmailPayloads[] = [
+                            'payment_id' => (int) $payment->id,
+                            'outstanding_before_summary' => $this->formatAttendanceReceiptMoneySummary(
+                                (float) ($allocationSummary['outstanding_before_total'] ?? 0),
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                            'applied_amount_summary' => $this->formatAttendanceReceiptMoneySummary(
+                                (float) $allocationSummary['allocated_total'],
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                            'status_summary' => $this->formatAttendanceReceiptOutstandingSummary(
+                                (float) ($allocationSummary['outstanding_after_total'] ?? 0),
+                                count($allocationSummary['invoice_ids'] ?? [])
+                            ),
+                        ];
+                    }
+                }
+
+                $this->syncTicketInvoicesFromAllocations($syncInvoiceIds);
+
+                if ($syncAttendance) {
+                    if ($attendedTicketIds !== []) {
+                        Ticket::query()
+                            ->whereIn('id', $attendedTicketIds)
+                            ->update(['attended_at' => $now]);
+                    }
+
+                    $toClearAttendance = array_values(array_diff($selectedTicketIds, $attendedTicketIds));
+                    if ($toClearAttendance !== []) {
+                        Ticket::query()
+                            ->whereIn('id', $toClearAttendance)
+                            ->update(['attended_at' => null]);
+                    }
+
+                    return;
+                }
+
+                if ($markAttended && $selectedTicketIds !== []) {
+                    Ticket::query()
+                        ->whereIn('id', $selectedTicketIds)
+                        ->update(['attended_at' => $now]);
+                }
+            });
+        }
 
         $receiptEmailPayloads = collect($receiptEmailPayloads)
             ->filter(fn (array $payload): bool => $payload['payment_id'] > 0)
@@ -1590,16 +1732,39 @@ class WorkshopController extends Controller
                     $skippedReceiptEmails++;
                 }
             }
+
+            foreach (collect($waiverEmailPayloads)
+                ->filter(fn (array $payload): bool => (int) ($payload['tax_adjustment_id'] ?? 0) > 0)
+                ->unique('tax_adjustment_id')
+                ->values()
+                ->all() as $waiverPayload) {
+                $invoice = Invoice::query()->with('user')->find((int) $waiverPayload['invoice_id']);
+                $taxAdjustment = TaxAdjustment::query()->with('lines', 'invoice.user')->find((int) $waiverPayload['tax_adjustment_id']);
+                if (! $invoice instanceof Invoice || ! $taxAdjustment instanceof TaxAdjustment) {
+                    continue;
+                }
+
+                if ($this->sendAttendanceWaiverEmail($invoice, $taxAdjustment)) {
+                    $queuedReceiptEmails++;
+                } else {
+                    $skippedReceiptEmails++;
+                }
+            }
         }
 
         $messageParts = [];
         if ($selectedExistingPaymentIds !== []) {
             $messageParts[] = 'linked '.count($selectedExistingPaymentIds).' existing EFTPOS transaction'.(count($selectedExistingPaymentIds) === 1 ? '' : 's');
         }
-        if ($paymentLines->isNotEmpty()) {
-            $messageParts[] = 'recorded '.$paymentLines->count().' new payment'.($paymentLines->count() === 1 ? '' : 's');
+        if ($recordedPaymentLines->isNotEmpty()) {
+            $messageParts[] = 'recorded '.$recordedPaymentLines->count().' new payment'.($recordedPaymentLines->count() === 1 ? '' : 's');
         }
-        $appliedTotal = round(min($totalOutstanding, max(0, ($totalOutstanding - $remainingAfterExisting) + $totalPaymentAmount)), 2);
+        if ($compPaymentLines->isNotEmpty()) {
+            $messageParts[] = 'waived '.count($compInvoiceIds ?: $syncInvoiceIds).' invoice'.((count($compInvoiceIds ?: $syncInvoiceIds) === 1) ? '' : 's');
+        }
+        $appliedTotal = $usingCompPayment
+            ? round($compAppliedTotal, 2)
+            : round(min($totalOutstanding, max(0, ($totalOutstanding - $remainingAfterExisting) + $totalPaymentAmount)), 2);
 
         session()->flash(
             'message',
@@ -1986,6 +2151,115 @@ class WorkshopController extends Controller
             ->all();
     }
 
+    private function resolveAttendanceInvoiceLineForTicket(Ticket $ticket, Invoice $invoice): ?InvoiceLine
+    {
+        if ($ticket->invoice_line_id) {
+            $line = $invoice->lines->firstWhere('id', (int) $ticket->invoice_line_id);
+            if ($line instanceof InvoiceLine) {
+                return $line;
+            }
+        }
+
+        $ticketLine = $invoice->lines->first(fn (InvoiceLine $line) => (string) $line->kind === 'ticket' && (float) $line->quantity > 0.0001);
+        if ($ticketLine instanceof InvoiceLine) {
+            return $ticketLine;
+        }
+
+        return null;
+    }
+
+    private function buildAttendanceCompCreditLineForTicket(Ticket $ticket, Invoice $invoice, ?InvoiceLine $invoiceLine): array
+    {
+        $ticketCount = max(1, Ticket::query()->where('invoice_id', $invoice->id)->count());
+        $quantityBase = $invoiceLine ? max(1, (int) round(abs((float) $invoiceLine->quantity))) : $ticketCount;
+        $lineTotalEx = $invoiceLine ? (float) $invoiceLine->line_total_ex_tax : round(((float) $invoice->subtotal_amount) / max(1, $ticketCount), 2);
+        $lineTotalInc = $invoiceLine ? (float) $invoiceLine->line_total_inc_tax : round(((float) $invoice->total_amount) / max(1, $ticketCount), 2);
+        $taxRate = $invoiceLine ? (float) $invoiceLine->tax_rate : 0.10;
+        $description = ($invoiceLine?->description) ?: (($ticket->workshop->title ?? 'Workshop').' - Ticket waived');
+
+        $unitEx = round($lineTotalEx / max(1, $quantityBase), 2);
+        $lineEx = round($unitEx, 2);
+        $taxAmount = round($lineEx * $taxRate, 2);
+        $lineInc = round($lineEx + $taxAmount, 2);
+
+        return [
+            'invoice_line_id' => $invoiceLine?->id,
+            'line_number' => 1,
+            'description' => $description,
+            'notes' => 'Waived at attendance for ticket '.($ticket->reference_code ?: $ticket->id),
+            'quantity' => 1,
+            'unit_price_ex_tax' => $lineEx,
+            'tax_rate' => $taxRate,
+            'line_total_ex_tax' => $lineEx,
+            'tax_amount' => $taxAmount,
+            'line_total_inc_tax' => $lineInc,
+        ];
+    }
+
+    private function createAttendanceCompTaxAdjustmentNote(
+        Invoice $invoice,
+        array $creditLines,
+        string $reason,
+        DocumentNumberService $documentNumbers
+    ): TaxAdjustment {
+        $subtotal = round((float) collect($creditLines)->sum('line_total_ex_tax'), 2);
+        $gst = round((float) collect($creditLines)->sum('tax_amount'), 2);
+        $total = round((float) collect($creditLines)->sum('line_total_inc_tax'), 2);
+
+        $adjustment = new TaxAdjustment();
+        $adjustment->invoice_id = $invoice->id;
+        $adjustment->adjustment_number = $documentNumbers->nextTaxAdjustmentNumber();
+        $adjustment->issue_date = now()->startOfDay();
+        $adjustment->subtotal_amount = -1 * abs($subtotal);
+        $adjustment->gst_amount = -1 * abs($gst);
+        $adjustment->total_amount = -1 * abs($total);
+        $adjustment->notes = trim(implode("\n", array_filter([
+            'Waived at attendance for invoice '.$invoice->invoice_number,
+            $reason,
+        ])));
+        $adjustment->save();
+
+        foreach (array_values($creditLines) as $index => $line) {
+            $adjustment->lines()->create([
+                'invoice_line_id' => $line['invoice_line_id'] ?? null,
+                'line_number' => $index + 1,
+                'description' => (string) ($line['description'] ?? ''),
+                'notes' => (string) ($line['notes'] ?? ''),
+                'quantity' => abs((float) ($line['quantity'] ?? 1)),
+                'unit_price_ex_tax' => abs((float) ($line['unit_price_ex_tax'] ?? 0)),
+                'tax_rate' => (float) ($line['tax_rate'] ?? 0),
+                'line_total_ex_tax' => abs((float) ($line['line_total_ex_tax'] ?? 0)),
+                'tax_amount' => abs((float) ($line['tax_amount'] ?? 0)),
+                'line_total_inc_tax' => abs((float) ($line['line_total_inc_tax'] ?? 0)),
+            ]);
+        }
+
+        return $adjustment;
+    }
+
+    private function syncInvoicePaidStateAfterAttendanceAdjustment(Invoice $invoice): void
+    {
+        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
+            return;
+        }
+
+        $invoice->syncPaidState();
+        $freshInvoice = $invoice->fresh();
+        if ($freshInvoice instanceof Invoice && (string) $freshInvoice->status === Invoice::STATUS_PAID) {
+            Ticket::query()
+                ->where('invoice_id', $invoice->id)
+                ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])
+                ->update(['status' => Ticket::STATUS_DONE]);
+
+            return;
+        }
+
+        if ((string) $invoice->status === Invoice::STATUS_PAID) {
+            $invoice->status = Invoice::STATUS_ISSUED;
+            $invoice->save();
+        }
+    }
+
     private function attendanceExistingPaymentEligibilityError(Payment $payment, ?string $resolvedUserId = null): ?string
     {
         if ($payment->refund_of_payment_id !== null || $payment->isRefund()) {
@@ -2093,6 +2367,55 @@ class WorkshopController extends Controller
             appliedAmountSummary: (string) ($emailSnapshot['applied_amount_summary'] ?? $this->attendancePaymentReceiptAppliedAmountSummary($payment)),
             creditSummary: $this->attendancePaymentReceiptCreditSummary($payment),
         )))->onQueue('mail');
+
+        return true;
+    }
+
+    private function sendAttendanceWaiverEmail(Invoice $invoice, TaxAdjustment $taxAdjustment): bool
+    {
+        $invoice->loadMissing('user');
+        $taxAdjustment->loadMissing('lines', 'invoice.user');
+
+        $recipientEmail = strtolower(trim((string) ($invoice->billing_email ?: ($invoice->user?->email ?? ''))));
+        if ($recipientEmail === '') {
+            return false;
+        }
+
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return false;
+        }
+
+        $pdfBinary = DomPdf::loadView('pdf.tax-adjustment', [
+            'invoice' => $invoice,
+            'adjustment' => $taxAdjustment,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ])->output([
+            'compress' => 1,
+        ]);
+
+        [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
+        $recipientName = trim((string) ($invoice->billing_name ?: ($invoice->user?->getName() ?? '')));
+        $mailable = new FinanceDocumentPdf(
+            documentType: 'tax adjustment note',
+            documentNumber: (string) $taxAdjustment->adjustment_number,
+            recipientName: $recipientName !== '' ? $recipientName : $recipientEmail,
+            pdfContent: $pdfBinary,
+            pdfFilename: 'tax-adjustment-'.$taxAdjustment->adjustment_number.'.pdf',
+            initiatedByEmail: $initiatedByEmail,
+            initiatedByName: $initiatedByName,
+        );
+        if ($initiatedByEmail !== null && strcasecmp($initiatedByEmail, $recipientEmail) !== 0) {
+            $mailable->cc($initiatedByEmail);
+        }
+
+        try {
+            dispatch(new SendEmail($recipientEmail, $mailable))->onQueue('mail');
+        } catch (Throwable $e) {
+            report($e);
+
+            return false;
+        }
 
         return true;
     }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\SendEmail;
+use App\Mail\FinanceDocumentPdf;
 use App\Mail\PaymentReceiptPdf;
 use App\Mail\TicketCancelledNotice;
 use App\Models\Invoice;
@@ -829,6 +830,141 @@ class WorkshopAttendanceKioskTest extends TestCase
                 'attendanceInvoiceMeta',
                 'refreshedAtDisplay',
             ]);
+    }
+
+    public function test_admin_can_comp_ticket_from_attendance_without_recording_a_payment(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+        Queue::fake();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-COMP-1',
+            'user_id' => $customer->id,
+            'billing_name' => 'Comped Family',
+            'billing_email' => 'comped@example.com',
+            'billing_phone' => '0400111999',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 18.18,
+            'gst_amount' => 1.82,
+            'total_amount' => 20.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Free',
+            'surname' => 'Entry',
+            'email' => 'comped@example.com',
+            'phone' => '0400111999',
+            'attended_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.workshop.attendance', $workshop))
+            ->assertOk()
+            ->assertSee('Waived', false);
+
+        $response = $this->actingAs($admin)->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => [$ticket->id],
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => [$ticket->id],
+            'email_receipt' => 1,
+            'payments' => [
+                [
+                    'method' => 'comp',
+                    'amount' => '20.00',
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => '',
+                    'notes' => 'Complimentary entry',
+                ],
+            ],
+        ]);
+
+        $response->assertRedirect(route('admin.workshop.attendance', $workshop));
+        $response->assertSessionHasNoErrors();
+
+        $invoice->refresh();
+        $ticket->refresh();
+
+        $this->assertSame(Invoice::STATUS_PAID, (string) $invoice->status);
+        $this->assertSame(0.00, round((float) $invoice->outstandingAmount(), 2));
+        $this->assertSame(Ticket::STATUS_DONE, (int) $ticket->status);
+        $this->assertNotNull($ticket->attended_at);
+        $this->assertSame(1, TaxAdjustment::query()->count());
+        $this->assertSame(0, Payment::query()->where('kind', Payment::KIND_PAYMENT)->count());
+
+        Queue::assertPushed(SendEmail::class, 1);
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            return $job->to === 'comped@example.com'
+                && $job->mailable instanceof FinanceDocumentPdf
+                && $job->mailable->documentType === 'tax adjustment note';
+        });
+    }
+
+    public function test_admin_sees_a_validation_error_when_cash_payment_amount_is_zero_from_attendance(): void
+    {
+        $admin = $this->createAdminUser();
+        $workshop = $this->createWorkshop('tickets');
+        $customer = User::factory()->create();
+
+        $invoice = Invoice::query()->create([
+            'invoice_number' => 'INV-ATTEND-CASH-0',
+            'user_id' => $customer->id,
+            'billing_name' => 'Cash Family',
+            'billing_email' => 'cash@example.com',
+            'billing_phone' => '0400111000',
+            'status' => Invoice::STATUS_ISSUED,
+            'issue_date' => now()->toDateString(),
+            'issued_at' => now(),
+            'due_date' => now()->addDays(7)->toDateString(),
+            'subtotal_amount' => 18.18,
+            'gst_amount' => 1.82,
+            'total_amount' => 20.00,
+            'notes' => null,
+        ]);
+
+        $ticket = Ticket::query()->create([
+            'status' => Ticket::STATUS_PENDING_DOOR,
+            'user_id' => $customer->id,
+            'workshop_id' => $workshop->id,
+            'invoice_id' => $invoice->id,
+            'firstname' => 'Cash',
+            'surname' => 'Entry',
+            'email' => 'cash@example.com',
+            'phone' => '0400111000',
+            'attended_at' => null,
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.workshop.attendance', $workshop))
+            ->followingRedirects()
+            ->post(route('admin.workshop.attendance.payments', $workshop), [
+            'ticket_ids' => [$ticket->id],
+            'sync_attendance' => 1,
+            'attended_ticket_ids' => [$ticket->id],
+            'payments' => [
+                [
+                    'method' => Payment::PAYMENT_METHOD_CASH,
+                    'amount' => '0.00',
+                    'received_on' => now()->format('Y-m-d H:i:s'),
+                    'reference' => '',
+                    'notes' => '',
+                ],
+            ],
+        ]);
+
+        $response->assertOk();
+        $response->assertSee('Could not save ticket payment', false);
+        $response->assertSee('Enter a payment amount greater than $0.00, or choose Waived.', false);
+        $this->assertSame(0, Payment::query()->where('kind', Payment::KIND_PAYMENT)->count());
     }
 
     public function test_admin_can_link_existing_unallocated_eftpos_payment_from_attendance(): void
