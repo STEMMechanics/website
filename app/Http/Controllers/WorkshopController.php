@@ -1734,7 +1734,7 @@ class WorkshopController extends Controller
             }
 
             foreach (collect($waiverEmailPayloads)
-                ->filter(fn (array $payload): bool => (int) ($payload['tax_adjustment_id'] ?? 0) > 0)
+                ->filter(fn (array $payload): bool => (int) $payload['tax_adjustment_id'] > 0)
                 ->unique('tax_adjustment_id')
                 ->values()
                 ->all() as $waiverPayload) {
@@ -2237,29 +2237,6 @@ class WorkshopController extends Controller
         return $adjustment;
     }
 
-    private function syncInvoicePaidStateAfterAttendanceAdjustment(Invoice $invoice): void
-    {
-        if ((string) $invoice->status === Invoice::STATUS_CANCELLED) {
-            return;
-        }
-
-        $invoice->syncPaidState();
-        $freshInvoice = $invoice->fresh();
-        if ($freshInvoice instanceof Invoice && (string) $freshInvoice->status === Invoice::STATUS_PAID) {
-            Ticket::query()
-                ->where('invoice_id', $invoice->id)
-                ->whereIn('status', [Ticket::STATUS_PENDING_DOOR, Ticket::STATUS_PENDING_XFER, Ticket::STATUS_ACCOUNT])
-                ->update(['status' => Ticket::STATUS_DONE]);
-
-            return;
-        }
-
-        if ((string) $invoice->status === Invoice::STATUS_PAID) {
-            $invoice->status = Invoice::STATUS_ISSUED;
-            $invoice->save();
-        }
-    }
-
     private function attendanceExistingPaymentEligibilityError(Payment $payment, ?string $resolvedUserId = null): ?string
     {
         if ($payment->refund_of_payment_id !== null || $payment->isRefund()) {
@@ -2376,7 +2353,7 @@ class WorkshopController extends Controller
         $invoice->loadMissing('user');
         $taxAdjustment->loadMissing('lines', 'invoice.user');
 
-        $recipientEmail = strtolower(trim((string) ($invoice->billing_email ?: ($invoice->user?->email ?? ''))));
+        $recipientEmail = strtolower(trim((string) ($invoice->billing_email ?: ($invoice->user instanceof User ? $invoice->user->email : ''))));
         if ($recipientEmail === '') {
             return false;
         }
