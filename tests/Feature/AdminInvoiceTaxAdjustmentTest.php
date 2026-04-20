@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendEmail;
+use App\Mail\FinanceDocumentPdf;
 use App\Models\Invoice;
 use App\Models\InvoiceLine;
 use App\Models\InvoicePaymentAllocation;
@@ -10,6 +12,8 @@ use App\Models\TaxAdjustment;
 use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use ReflectionClass;
 use Tests\TestCase;
 
 class AdminInvoiceTaxAdjustmentTest extends TestCase
@@ -163,6 +167,65 @@ class AdminInvoiceTaxAdjustmentTest extends TestCase
 
         $this->assertSame(Invoice::STATUS_PAID, (string) $freshInvoice?->status);
         $this->assertSame(0.00, round((float) $freshInvoice?->outstandingAmount(), 2));
+    }
+
+    public function test_admin_tax_adjustment_email_includes_the_original_invoice_pdf(): void
+    {
+        Queue::fake();
+
+        $admin = $this->createAdminUser();
+        $customer = User::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $customer->id,
+            'status' => Invoice::STATUS_ISSUED,
+            'billing_email' => 'customer@example.com',
+            'subtotal_amount' => 20.00,
+            'gst_amount' => 2.00,
+            'total_amount' => 22.00,
+        ]);
+        InvoiceLine::factory()->create([
+            'invoice_id' => $invoice->id,
+            'line_number' => 1,
+            'description' => 'Workshop booking',
+            'quantity' => 1.00,
+            'unit_price_ex_tax' => 20.00,
+            'tax_rate' => 0.10,
+            'line_total_ex_tax' => 20.00,
+            'tax_amount' => 2.00,
+            'line_total_inc_tax' => 22.00,
+        ]);
+        $adjustment = TaxAdjustment::query()->create([
+            'invoice_id' => $invoice->id,
+            'adjustment_number' => 'TA-EMAIL-1',
+            'issue_date' => now()->toDateString(),
+            'subtotal_amount' => -20.00,
+            'gst_amount' => -2.00,
+            'total_amount' => -22.00,
+            'notes' => 'Waived at attendance',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->from(route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]))
+            ->post(route('admin.tax_adjustment.email', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]));
+
+        $response->assertRedirect(route('admin.tax_adjustment.edit', ['invoice' => $invoice, 'taxAdjustment' => $adjustment]));
+        Queue::assertPushed(SendEmail::class, 1);
+
+        Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
+            if (! $job->mailable instanceof FinanceDocumentPdf) {
+                return false;
+            }
+
+            $reflection = new ReflectionClass($job->mailable);
+            $property = $reflection->getProperty('extraAttachmentsPayload');
+            $property->setAccessible(true);
+            $attachments = $property->getValue($job->mailable);
+
+            $this->assertCount(1, $attachments);
+            $this->assertStringStartsWith('invoice-', $attachments[0]['filename']);
+
+            return true;
+        });
     }
 
     private function createAdminUser(): User

@@ -903,9 +903,17 @@ class WorkshopAttendanceKioskTest extends TestCase
 
         Queue::assertPushed(SendEmail::class, 1);
         Queue::assertPushed(SendEmail::class, function (SendEmail $job): bool {
-            return $job->to === 'comped@example.com'
-                && $job->mailable instanceof FinanceDocumentPdf
-                && $job->mailable->documentType === 'tax adjustment note';
+            if ($job->to !== 'comped@example.com' || ! ($job->mailable instanceof FinanceDocumentPdf) || $job->mailable->documentType !== 'tax adjustment note') {
+                return false;
+            }
+
+            $reflection = new \ReflectionClass($job->mailable);
+            $property = $reflection->getProperty('extraAttachmentsPayload');
+            $property->setAccessible(true);
+            $attachments = $property->getValue($job->mailable);
+
+            return count($attachments) === 1
+                && str_starts_with((string) ($attachments[0]['filename'] ?? ''), 'invoice-');
         });
     }
 

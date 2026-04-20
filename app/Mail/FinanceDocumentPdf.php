@@ -47,6 +47,11 @@ class FinanceDocumentPdf extends Mailable
 
     private string $pdfFilename;
 
+    /**
+     * @var array<int, array{filename:string,content_base64:string,mime:string}>
+     */
+    private array $extraAttachmentsPayload;
+
     public function __construct(
         string $documentType,
         string $documentNumber,
@@ -65,6 +70,7 @@ class FinanceDocumentPdf extends Mailable
         ?string $actionUrl = null,
         ?string $actionLabel = null,
         ?string $subjectLine = null,
+        array $extraAttachments = [],
     ) {
         $this->documentType = $documentType;
         $this->documentNumber = $documentNumber;
@@ -86,6 +92,19 @@ class FinanceDocumentPdf extends Mailable
         $this->actionLabel = $actionLabel !== null ? trim($actionLabel) : null;
         $this->subjectLine = $subjectLine !== null ? trim($subjectLine) : null;
         $this->resolvedFullMessage = $this->resolveFullMessage();
+        $this->extraAttachmentsPayload = collect($extraAttachments)
+            ->map(function ($attachment): array {
+                $content = (string) ($attachment['content'] ?? '');
+
+                return [
+                    'filename' => trim((string) ($attachment['filename'] ?? '')),
+                    'mime' => trim((string) ($attachment['mime'] ?? 'application/pdf')) ?: 'application/pdf',
+                    'content_base64' => $content !== '' ? base64_encode($content) : '',
+                ];
+            })
+            ->filter(fn (array $attachment): bool => $attachment['filename'] !== '' && $attachment['content_base64'] !== '')
+            ->values()
+            ->all();
     }
 
     public function build(): static
@@ -100,6 +119,17 @@ class FinanceDocumentPdf extends Mailable
         if ($pdfBinary !== false && $pdfBinary !== '') {
             $mail->attachData($pdfBinary, $this->pdfFilename, [
                 'mime' => 'application/pdf',
+            ]);
+        }
+
+        foreach ($this->extraAttachmentsPayload as $attachment) {
+            $content = base64_decode((string) $attachment['content_base64'], true);
+            if ($content === false || $content === '') {
+                continue;
+            }
+
+            $mail->attachData($content, (string) $attachment['filename'], [
+                'mime' => (string) ($attachment['mime'] ?? 'application/pdf'),
             ]);
         }
 

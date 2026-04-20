@@ -238,6 +238,7 @@ class TaxAdjustmentController extends Controller
         ])->output([
             'compress' => 1,
         ]);
+        $invoicePdfBinary = $this->buildInvoicePdfBinary($invoice);
 
         [$initiatedByEmail, $initiatedByName] = $this->getMailInitiatorIdentity();
         $mailable = new FinanceDocumentPdf(
@@ -248,6 +249,13 @@ class TaxAdjustmentController extends Controller
             pdfFilename: 'tax-adjustment-'.$taxAdjustment->adjustment_number.'.pdf',
             initiatedByEmail: $initiatedByEmail,
             initiatedByName: $initiatedByName,
+            extraAttachments: $invoicePdfBinary !== null ? [
+                [
+                    'filename' => 'invoice-'.($invoice->invoice_number ?: $invoice->id).'.pdf',
+                    'content' => $invoicePdfBinary,
+                    'mime' => 'application/pdf',
+                ],
+            ] : [],
         );
         if ($initiatedByEmail !== null && strcasecmp($initiatedByEmail, $recipient) !== 0) {
             $mailable->cc($initiatedByEmail);
@@ -270,6 +278,40 @@ class TaxAdjustmentController extends Controller
         session()->flash('message-type', 'success');
 
         return redirect()->back();
+    }
+
+    private function buildInvoicePdfBinary(Invoice $invoice): ?string
+    {
+        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+            return null;
+        }
+
+        $invoice->loadMissing('user', 'lines');
+        $itemPages = [$invoice->lines->map(function ($line): array {
+            return [
+                'description' => (string) $line->description,
+                'notes' => (string) ($line->notes ?? ''),
+                'quantity' => (float) $line->quantity,
+                'unit_price_ex_tax' => (float) $line->unit_price_ex_tax,
+                'line_total_ex_tax' => (float) $line->line_total_ex_tax,
+                'tax_rate' => (float) $line->tax_rate,
+                'tax_amount' => (float) $line->tax_amount,
+                'line_total_inc_tax' => (float) $line->line_total_inc_tax,
+            ];
+        })->values()->all()];
+
+        if ($itemPages[0] === []) {
+            $itemPages = [[]];
+        }
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.invoice', [
+            'invoice' => $invoice,
+            'itemPages' => $itemPages,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ])->output([
+            'compress' => 1,
+        ]);
     }
 
     public function update(Request $request, Invoice $invoice, TaxAdjustment $taxAdjustment): RedirectResponse
