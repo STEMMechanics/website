@@ -127,7 +127,6 @@
 
         @if($isTicketedWorkshop)
             <div
-                class="rounded-lg border border-gray-200 p-4 mb-6"
                 x-data="{
                     tickets: @js($ticketPaymentRows),
                     ticketAttendanceSaveUrl: @js(route('admin.workshop.attendance.tickets', $workshop)),
@@ -713,31 +712,36 @@
                     if (cancelModalOpen) { closeCancelModal(); }
                 "
             >
-                <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
-                    <form method="GET" action="{{ route('admin.workshop.attendance', $workshop) }}" class="mb-4 w-full lg:max-w-2xl">
-                        <x-ui.checkbox
-                            name="show_cancelled"
-                            value="1"
-                            label="Show cancelled tickets"
-                            :checked="$showCancelledTickets"
-                            :noWrapper="true"
-                            :inline="true"
-                            onchange="this.form.submit()"
-                        />
-                        <div class="mt-2 flex relative">
-                            <input
-                                class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 bg-transparent rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
-                                autocomplete="off"
-                                placeholder="Find Ticket or Person"
-                                type="text"
-                                name="search"
-                                value="{{ $ticketSearch }}"
+                <x-ui.toolbar class="mt-0 gap-0 sm:gap-0 sm:flex-col md:flex-row">
+                    <x-slot:left>
+                        <h2 class="text-lg font-semibold mb-3">Ticketed Attendance</h2>
+                    </x-slot:left>
+                    <x-slot:right>
+                        <form method="GET" action="{{ route('admin.workshop.attendance', $workshop) }}" class="flex flex-col flex-1 gap-3 justify-between items-start sm:items-center sm:flex-row">
+                            <x-ui.checkbox
+                                name="show_cancelled"
+                                value="1"
+                                label="Show cancelled"
+                                label-class="whitespace-nowrap"
+                                :checked="$showCancelledTickets"
+                                :noWrapper="true"
+                                :inline="true"
+                                onchange="this.form.submit()"
                             />
-                            <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
-                        </div>
-                    </form>
-                </div>
+                            <div class="flex relative w-full">
+                                <input
+                                    class="bg-white grow px-2.5 py-2.5 text-sm text-gray-900 rounded-l-lg border border-gray-300 appearance-none focus:outline-none focus:ring-0 focus:border-indigo-300"
+                                    autocomplete="off"
+                                    placeholder="Find Ticket or Person"
+                                    type="text"
+                                    name="search"
+                                    value="{{ $ticketSearch }}"
+                                />
+                                <x-ui.button type="submit" class="rounded-l-none px-6"><i class="fa-solid fa-magnifying-glass"></i></x-ui.button>
+                            </div>
+                        </form>
+                    </x-slot:right>
+                </x-ui.toolbar>
                 @if($attendanceTickets->isEmpty())
                     <p class="text-sm text-gray-600">No tickets found{{ $ticketSearch !== '' ? ' for this search.' : '.' }}</p>
                 @else
