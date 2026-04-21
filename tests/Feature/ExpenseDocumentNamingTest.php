@@ -106,6 +106,7 @@ class ExpenseDocumentNamingTest extends TestCase
 
         $response->assertOk();
         $response->assertSeeText('No attached invoice');
+        $response->assertSee('space-y-4 md:hidden', false);
     }
 
     public function test_expense_index_hides_missing_attached_invoice_warning_when_a_receipt_is_attached(): void

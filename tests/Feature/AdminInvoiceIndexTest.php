@@ -57,6 +57,7 @@ class AdminInvoiceIndexTest extends TestCase
         $response->assertSeeText('Due '.now()->subDays(2)->format('M j, Y'));
         $response->assertSee('border-emerald-200 bg-emerald-50 text-emerald-800', false);
         $response->assertSee('hidden md:table-cell text-center', false);
+        $response->assertSee('space-y-4 md:hidden', false);
     }
 
     public function test_admin_invoice_index_uses_the_email_modal_for_invoice_email_actions(): void

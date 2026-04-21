@@ -366,7 +366,8 @@ class AdminPaymentInvoiceSelectorTest extends TestCase
         $response->assertOk();
         $response->assertSee('Review matches', false);
         $response->assertSee('fa-right-left', false);
-        $this->assertSame(2, substr_count($response->getContent(), 'title="Review matches"'));
+        $response->assertSee('space-y-4 md:hidden', false);
+        $this->assertSame(4, substr_count($response->getContent(), 'title="Review matches"'));
     }
 
     public function test_square_payment_replacement_moves_allocations_to_the_matching_square_record(): void

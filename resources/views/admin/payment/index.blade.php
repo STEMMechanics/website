@@ -70,143 +70,257 @@
         @if($customerPayments->isEmpty())
         <x-none-found item="payments" search="{{ request()->get('search') }}" />
         @else
-            <x-ui.table>
-                <x-slot:header>
-                    <th>ID</th>
-                    <th>Details</th>
-                    <th>Amount <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
-                    <th class="hidden md:table-cell">Type</th>
-                    <th class="hidden md:table-cell">Status</th>
-                    <th class="hidden lg:table-cell">Allocated</th>
-                    <th class="hidden lg:table-cell">Unallocated</th>
-                    <th class="text-center">Actions</th>
-                </x-slot:header>
-                <x-slot:body>
+            <div class="space-y-4 md:hidden">
                 @foreach ($customerPayments as $customerPayment)
-                @php
-                $allocated = (float) ($customerPayment->allocated_amount_sum ?? 0);
-                $unallocatedBeforeRefund = max(0, round(((float) $customerPayment->total_amount) - $allocated, 2));
-                $unallocated = max(0, round($unallocatedBeforeRefund - (float) $customerPayment->refunds->sum('total_amount'), 2));
-                $typeLabel = \App\Models\Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? ''));
-                $statusLabel = $customerPayment->isRefund()
-                    ? 'Refund'
-                    : $customerPayment->clearanceStatusLabel();
-                $statusTone = $customerPayment->isRefund()
-                    ? 'slate'
-                    : $customerPayment->clearanceStatusTone();
-                $allocatedInvoices = $customerPayment->allocations
-                ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
-                ->map(fn ($allocation) => $allocation->invoice)
-                ->unique('id')
-                ->values();
-                $replacementDialogData = $paymentReplacementDialogDataById[(string) $customerPayment->id] ?? null;
-                $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
-                $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
-                @endphp
-                <tr class="{{ $customerPayment->isPendingBankTransfer() ? 'bg-amber-50/80' : '' }}">
-                    <td class="text-center!">
-                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">{{ $customerPayment->id }}</a>
-                    </td>
-                    <td class="">
-                        <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                        <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
-                        <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
-                        <div class="mt-1 md:hidden">
-                            <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                    @php
+                        $allocated = (float) ($customerPayment->allocated_amount_sum ?? 0);
+                        $unallocatedBeforeRefund = max(0, round(((float) $customerPayment->total_amount) - $allocated, 2));
+                        $unallocated = max(0, round($unallocatedBeforeRefund - (float) $customerPayment->refunds->sum('total_amount'), 2));
+                        $typeLabel = \App\Models\Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? ''));
+                        $statusLabel = $customerPayment->isRefund()
+                            ? 'Refund'
+                            : $customerPayment->clearanceStatusLabel();
+                        $statusTone = $customerPayment->isRefund()
+                            ? 'slate'
+                            : $customerPayment->clearanceStatusTone();
+                        $allocatedInvoices = $customerPayment->allocations
+                            ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
+                            ->map(fn ($allocation) => $allocation->invoice)
+                            ->unique('id')
+                            ->values();
+                        $replacementDialogData = $paymentReplacementDialogDataById[(string) $customerPayment->id] ?? null;
+                        $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
+                        $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
+                    @endphp
+                    <article class="{{ $customerPayment->isPendingBankTransfer() ? 'border-amber-200 bg-amber-50/80' : 'border-gray-200 bg-white' }} rounded-2xl border p-4 shadow-sm">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="min-w-0">
+                                <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">#{{ $customerPayment->id }}</a>
+                                <div class="mt-1 text-xs text-gray-600">{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="font-semibold text-gray-950">{{ money((float) $customerPayment->total_amount) }}</div>
+                                <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                            </div>
                         </div>
-                        <div class="text-xs text-gray-600 lg:hidden mt-1">
-                            Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
+
+                        <div class="mt-3 space-y-2 text-xs">
+                            <div class="text-gray-600">{{ $typeLabel }}</div>
+                            <div class="text-gray-600">
+                                @if($allocatedInvoices->isNotEmpty())
+                                    {{ $allocatedInvoices->map(fn ($invoice) => 'Invoice #'.$invoice->invoice_number)->implode(', ') }}
+                                @else
+                                    -
+                                @endif
+                            </div>
+                            <div class="text-gray-600">Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}</div>
                         </div>
-                        <div class="text-xs text-gray-600 mt-1">
-                            @if($allocatedInvoices->isNotEmpty())
-                                @foreach($allocatedInvoices as $index => $invoice)
-                                    @if($index > 0)
-                                        <span>, </span>
-                                    @endif
-                                    <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
-                                        Invoice #{{ $invoice->invoice_number }}
-                                    </a>
-                                @endforeach
-                            @else
-                                -
-                            @endif
-                        </div>
-                    </td>
-                    <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
-                    <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
-                    <td class="hidden md:table-cell text-center">
-                        <x-ui.badge :color="$statusTone">{{ $statusLabel }}</x-ui.badge>
-                    </td>
-                    <td class="hidden lg:table-cell">
-                        {{ money((float) $allocated) }}
-                        <div class="text-xs text-gray-600">
-                            @if($allocatedInvoices->isNotEmpty())
-                                @foreach($allocatedInvoices as $index => $invoice)
-                                    @if($index > 0)
-                                        <span>, </span>
-                                    @endif
-                                    <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
-                                        Invoice #{{ $invoice->invoice_number }}
-                                    </a>
-                                @endforeach
-                            @else
-                                -
-                            @endif
-                        </div>
-                    </td>
-                    <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
-                    <td>
-                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
-                            <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+
+                        <div class="mt-4 flex flex-wrap items-center gap-2">
+                            <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Edit payment">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                                <span class="sr-only">Edit payment</span>
+                            </a>
                             @if(! empty($replacementDialogData['candidates'] ?? []))
                                 <button
                                     type="button"
-                                    class="hover:text-amber-600"
+                                    class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-amber-50 hover:text-amber-700"
                                     title="Review matches"
                                     data-dialog="{{ rawurlencode(json_encode($replacementDialogData, JSON_UNESCAPED_UNICODE)) }}"
                                     x-on:click.prevent="openReplacementDialogFromEncoded($el.dataset.dialog)"
                                 >
                                     <i class="fa-solid fa-right-left"></i>
+                                    <span class="sr-only">Review matches</span>
                                 </button>
                             @endif
-                            <a href="{{ $receiptViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
-                            <a href="{{ $receiptDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
+                            <a href="{{ $receiptViewUrl }}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="View receipt">
+                                <i class="fa-regular fa-file-lines"></i>
+                                <span class="sr-only">View receipt</span>
+                            </a>
+                            <a href="{{ $receiptDownloadUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Download receipt">
+                                <i class="fa-solid fa-download"></i>
+                                <span class="sr-only">Download receipt</span>
+                            </a>
                         </div>
-                    </td>
-                </tr>
-                @foreach($customerPayment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0) as $refund)
-                @php
-                $refundViewUrl = route('admin.payment.receipt', $refund);
-                $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
-                @endphp
-                <tr class="bg-gray-50">
-                    <td class="text-center!">
-                        <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $refund->id }}</a>
-                    </td>
-                    <td>
-                        <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
-                        <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
-                        <div class="text-xs text-gray-600 md:hidden">Refund</div>
-                    </td>
-                    <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
-                    <td class="text-center hidden md:table-cell">Refund</td>
-                    <td class="hidden md:table-cell">
-                        <x-ui.badge color="slate">Refund</x-ui.badge>
-                    </td>
-                    <td class="hidden lg:table-cell">-</td>
-                    <td class="hidden lg:table-cell">-</td>
-                    <td class="w-28">
-                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
-                            <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
-                            <a href="{{ $refundViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
-                            <a href="{{ $refundDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
-                        </div>
-                    </td>
-                </tr>
+                    </article>
+
+                    @foreach($customerPayment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0) as $refund)
+                        @php
+                            $refundViewUrl = route('admin.payment.receipt', $refund);
+                            $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
+                        @endphp
+                        <article class="ml-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+                            <div class="flex items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">↳ #{{ $refund->id }}</a>
+                                    <div class="mt-1 text-xs text-gray-600">{{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold text-gray-950">{{ money(-((float) $refund->total_amount)) }}</div>
+                                    <x-ui.badge color="slate" size="xxs">Refund</x-ui.badge>
+                                </div>
+                            </div>
+                            <div class="mt-3 text-xs text-gray-600">Refund</div>
+                            <div class="mt-4 flex flex-wrap items-center gap-2">
+                                <a href="{{ route('admin.payment.edit', $refund) }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Edit refund">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                    <span class="sr-only">Edit refund</span>
+                                </a>
+                                <a href="{{ $refundViewUrl }}" target="_blank" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="View receipt">
+                                    <i class="fa-regular fa-file-lines"></i>
+                                    <span class="sr-only">View receipt</span>
+                                </a>
+                                <a href="{{ $refundDownloadUrl }}" class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="Download receipt">
+                                    <i class="fa-solid fa-download"></i>
+                                    <span class="sr-only">Download receipt</span>
+                                </a>
+                            </div>
+                        </article>
+                    @endforeach
                 @endforeach
-                @endforeach
-            </x-slot:body>
-        </x-ui.table>
+            </div>
+
+            <div class="hidden md:block">
+                <x-ui.table>
+                    <x-slot:header>
+                        <th>ID</th>
+                        <th>Details</th>
+                        <th>Amount <span class="font-normal text-xs whitespace-nowrap">(incl GST)</span></th>
+                        <th class="hidden md:table-cell">Type</th>
+                        <th class="hidden md:table-cell">Status</th>
+                        <th class="hidden lg:table-cell">Allocated</th>
+                        <th class="hidden lg:table-cell">Unallocated</th>
+                        <th class="text-center">Actions</th>
+                    </x-slot:header>
+                    <x-slot:body>
+                        @foreach ($customerPayments as $customerPayment)
+                            @php
+                                $allocated = (float) ($customerPayment->allocated_amount_sum ?? 0);
+                                $unallocatedBeforeRefund = max(0, round(((float) $customerPayment->total_amount) - $allocated, 2));
+                                $unallocated = max(0, round($unallocatedBeforeRefund - (float) $customerPayment->refunds->sum('total_amount'), 2));
+                                $typeLabel = \App\Models\Payment::paymentMethodLabel((string) ($customerPayment->payment_method ?? ''));
+                                $statusLabel = $customerPayment->isRefund()
+                                    ? 'Refund'
+                                    : $customerPayment->clearanceStatusLabel();
+                                $statusTone = $customerPayment->isRefund()
+                                    ? 'slate'
+                                    : $customerPayment->clearanceStatusTone();
+                                $allocatedInvoices = $customerPayment->allocations
+                                    ->filter(fn ($allocation) => ((float) $allocation->allocated_amount) > 0 && $allocation->invoice)
+                                    ->map(fn ($allocation) => $allocation->invoice)
+                                    ->unique('id')
+                                    ->values();
+                                $replacementDialogData = $paymentReplacementDialogDataById[(string) $customerPayment->id] ?? null;
+                                $receiptViewUrl = route('admin.payment.receipt', $customerPayment);
+                                $receiptDownloadUrl = route('admin.payment.receipt', ['payment' => $customerPayment, 'download' => 1]);
+                            @endphp
+                            <tr class="{{ $customerPayment->isPendingBankTransfer() ? 'bg-amber-50/80' : '' }}">
+                                <td class="text-center!">
+                                    <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="font-semibold text-gray-900 hover:text-primary-color whitespace-nowrap">{{ $customerPayment->id }}</a>
+                                </td>
+                                <td class="">
+                                    <div>{{ $customerPayment->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600">{{ $customerPayment->user?->getName() ?? '-' }}</div>
+                                    <div class="text-xs text-gray-600 md:hidden">{{ $typeLabel }}</div>
+                                    <div class="mt-1 md:hidden">
+                                        <x-ui.badge :color="$statusTone" size="xxs">{{ $statusLabel }}</x-ui.badge>
+                                    </div>
+                                    <div class="text-xs text-gray-600 lg:hidden mt-1">
+                                        Alloc: {{ money((float) $allocated) }} · Unalloc: {{ money($unallocated) }}
+                                    </div>
+                                    <div class="text-xs text-gray-600 mt-1">
+                                        @if($allocatedInvoices->isNotEmpty())
+                                            @foreach($allocatedInvoices as $index => $invoice)
+                                                @if($index > 0)
+                                                    <span>, </span>
+                                                @endif
+                                                <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
+                                                    Invoice #{{ $invoice->invoice_number }}
+                                                </a>
+                                            @endforeach
+                                        @else
+                                            -
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="text-center">{{ money((float) $customerPayment->total_amount) }}</td>
+                                <td class="text-center hidden md:table-cell">{{ $typeLabel }}</td>
+                                <td class="hidden md:table-cell text-center">
+                                    <x-ui.badge :color="$statusTone">{{ $statusLabel }}</x-ui.badge>
+                                </td>
+                                <td class="hidden lg:table-cell">
+                                    {{ money((float) $allocated) }}
+                                    <div class="text-xs text-gray-600">
+                                        @if($allocatedInvoices->isNotEmpty())
+                                            @foreach($allocatedInvoices as $index => $invoice)
+                                                @if($index > 0)
+                                                    <span>, </span>
+                                                @endif
+                                                <a href="{{ route('admin.invoice.edit', $invoice) }}" class="text-primary-color hover:underline">
+                                                    Invoice #{{ $invoice->invoice_number }}
+                                                </a>
+                                            @endforeach
+                                        @else
+                                            -
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="hidden lg:table-cell">{{ money($unallocated) }}</td>
+                                <td>
+                                    <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
+                                        <a href="{{ route('admin.payment.edit', $customerPayment) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                        @if(! empty($replacementDialogData['candidates'] ?? []))
+                                            <button
+                                                type="button"
+                                                class="hover:text-amber-600"
+                                                title="Review matches"
+                                                data-dialog="{{ rawurlencode(json_encode($replacementDialogData, JSON_UNESCAPED_UNICODE)) }}"
+                                                x-on:click.prevent="openReplacementDialogFromEncoded($el.dataset.dialog)"
+                                            >
+                                                <i class="fa-solid fa-right-left"></i>
+                                            </button>
+                                        @endif
+                                        <a href="{{ $receiptViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
+                                        <a href="{{ $receiptDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
+                                    </div>
+                                </td>
+                            </tr>
+                            @foreach($customerPayment->refunds->sortByDesc(fn ($refund) => optional($refund->received_on)->timestamp ?? optional($refund->created_at)->timestamp ?? 0) as $refund)
+                                @php
+                                    $refundViewUrl = route('admin.payment.receipt', $refund);
+                                    $refundDownloadUrl = route('admin.payment.receipt', ['payment' => $refund, 'download' => 1]);
+                                @endphp
+                                <tr class="bg-gray-50">
+                                    <td class="text-center!">
+                                        <a href="{{ route('admin.payment.edit', $refund) }}" class="font-semibold text-gray-900 hover:text-primary-color">{{ $refund->id }}</a>
+                                    </td>
+                                    <td>
+                                        <div>↳ {{ $refund->received_on?->format('M j, Y g:i a') ?? '-' }}</div>
+                                        <div class="text-xs text-gray-600">{{ $refund->user?->getName() ?? '-' }}</div>
+                                        <div class="text-xs text-gray-600 md:hidden">Refund</div>
+                                    </td>
+                                    <td class="text-center">{{ money(-((float) $refund->total_amount)) }}</td>
+                                    <td class="text-center hidden md:table-cell">Refund</td>
+                                    <td class="hidden md:table-cell">
+                                        <x-ui.badge color="slate">Refund</x-ui.badge>
+                                    </td>
+                                    <td class="hidden lg:table-cell">-</td>
+                                    <td class="hidden lg:table-cell">-</td>
+                                    <td class="w-28">
+                                        <div class="flex justify-center gap-2 sm:gap-3 whitespace-nowrap text-sm">
+                                            <a href="{{ route('admin.payment.edit', $refund) }}" class="hover:text-primary-color"><i class="fa-solid fa-pen-to-square"></i></a>
+                                            <a href="{{ $refundViewUrl }}" target="_blank" class="hover:text-primary-color" title="View receipt"><i class="fa-regular fa-file-lines"></i></a>
+                                            <a href="{{ $refundDownloadUrl }}" class="hover:text-primary-color" title="Download receipt"><i class="fa-solid fa-download"></i></a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endforeach
+                    </x-slot:body>
+                </x-ui.table>
+            </div>
 
         {{ $customerPayments->appends(request()->query())->links() }}
         @endif
