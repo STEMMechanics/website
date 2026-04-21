@@ -275,6 +275,25 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertDontSee('Parental supervision may be required for children 8 years of age and under.');
     }
 
+    public function test_ticketed_workshops_include_event_offers_even_when_the_price_is_written_as_free(): void
+    {
+        $workshop = $this->createWorkshop(
+            title: 'Free Green Screen Workshop',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            registration: 'tickets',
+            price: 'Free'
+        );
+
+        $this->get(route('workshop.show', $workshop))
+            ->assertOk()
+            ->assertSee('"offers"', false)
+            ->assertSee('"priceCurrency":"AUD"', false)
+            ->assertSee('"price":"0.00"', false)
+            ->assertSee(route('workshop.ticket.flow.start', $workshop), false);
+    }
+
     private function createWorkshop(
         string $title,
         string $status,
@@ -284,7 +303,9 @@ class WorkshopVisibilityRulesTest extends TestCase
         ?string $ages = '8+',
         ?string $summary = null,
         ?string $content = null,
-        bool $isOnline = false
+        bool $isOnline = false,
+        string $registration = 'none',
+        ?string $price = 'Free'
     ): Workshop
     {
         $owner = User::factory()->create();
@@ -310,9 +331,10 @@ class WorkshopVisibilityRulesTest extends TestCase
             'publish_at' => $publishAt,
             'closes_at' => now()->addDays(9),
             'status' => $status,
+            'price' => $price,
             'is_private' => $isPrivate,
             'is_hidden' => $isHidden,
-            'registration' => 'none',
+            'registration' => $registration,
             'location_id' => $location?->id,
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,

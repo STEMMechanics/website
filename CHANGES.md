@@ -28,6 +28,7 @@
 - Added groups claim for OpenID
 - Minecraft player info now shows previous names
 - Show warnings on the STEMCraft punishments page
+- Include offers in workshop event schema
 
 ## 1.4.3
 

@@ -57,17 +57,25 @@
         $eventJsonLd['image'] = [$heroImageUrl];
     }
 
-    $rawPrice = trim((string) ($workshop->price ?? ''));
+    $registrationType = (string) ($workshop->registration ?? '');
     $hasBookableOffer = ! $workshop->isPrivate()
-        && in_array((string) ($workshop->registration ?? ''), ['tickets', 'classroom', 'link'], true);
-    if ($hasBookableOffer && ($rawPrice === '' || is_numeric($rawPrice))) {
-        $offerUrl = $workshop->registration === 'link' && trim((string) ($workshop->registration_data ?? '')) !== ''
-            ? trim((string) $workshop->registration_data)
-            : route('workshop.show', $workshop);
+        && in_array($registrationType, ['tickets', 'classroom', 'link', 'email', 'message'], true);
+    if ($hasBookableOffer) {
+        $offerUrl = match ($registrationType) {
+            'tickets', 'classroom' => route('workshop.ticket.flow.start', $workshop),
+            'link' => filter_var(trim((string) ($workshop->registration_data ?? '')), FILTER_VALIDATE_URL)
+                ? trim((string) $workshop->registration_data)
+                : route('workshop.show', $workshop),
+            'email' => filter_var(trim((string) ($workshop->registration_data ?? '')), FILTER_VALIDATE_EMAIL)
+                ? 'mailto:'.trim((string) $workshop->registration_data)
+                : route('workshop.show', $workshop),
+            default => route('workshop.show', $workshop),
+        };
+
         $eventJsonLd['offers'] = [
             '@type' => 'Offer',
             'priceCurrency' => 'AUD',
-            'price' => number_format((float) ($rawPrice === '' ? 0 : $rawPrice), 2, '.', ''),
+            'price' => number_format(max(0, (float) ($ticketPriceAmount ?? 0)), 2, '.', ''),
             'availability' => $workshop->status === 'full'
                 ? 'https://schema.org/SoldOut'
                 : 'https://schema.org/InStock',
