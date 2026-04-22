@@ -103,14 +103,15 @@ class RememberedDeviceManager
             })
             ->first();
 
-        if (! $token || ! $token->user || $token->user->isAnonymized()) {
+        $user = $token?->user;
+        if (! $token || ! $user instanceof User || $user->isAnonymized()) {
             $this->forgetCurrentDevice($request, null);
             return null;
         }
 
-        $this->rememberUserOnCurrentDevice($request, $token->user);
+        $this->rememberUserOnCurrentDevice($request, $user);
 
-        return $token->user;
+        return $user;
     }
 
     public function listRememberedDevices(User $user, Request $request): Collection

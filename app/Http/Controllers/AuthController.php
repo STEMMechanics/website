@@ -257,7 +257,7 @@ class AuthController extends Controller
 
         if ($token) {
             $user = $token->user;
-            if ($user) {
+            if ($user instanceof User) {
                 $token->delete();
 
                 return $this->loginByUser($user, $token->data);
@@ -374,7 +374,7 @@ class AuthController extends Controller
 
             if ($token) {
                 $user = $token->user;
-                if ($user) {
+                if ($user instanceof User) {
                     $user->email_verified_at = now();
                     $user->save();
 
@@ -457,9 +457,17 @@ class AuthController extends Controller
             ->where('expires_at', '>', now())
             ->first();
 
-        if ($token && $token->user) {
+        if ($token) {
+            $user = $token->user;
+            if (! $user instanceof User) {
+                session()->flash('message', 'That token has expired or is invalid');
+                session()->flash('message-title', 'Email update failed');
+                session()->flash('message-type', 'danger');
+
+                return redirect()->route('index');
+            }
+
             if ($token->data && isset($token->data['email'])) {
-                $user = $token->user;
                 $user->email = $token->data['email'];
                 $user->email_verified_at = now();
                 $user->save();

@@ -2,11 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
+use Laravel\Passport\Token as PassportToken;
 
-class Token extends Model
+class Token extends PassportToken
 {
     /**
      * The attributes that are mass assignable.
@@ -19,6 +18,13 @@ class Token extends Model
         'data',
         'expires_at',
     ];
+
+    /**
+     * The database table used by the model.
+     *
+     * @var string
+     */
+    protected $table = 'tokens';
 
     /**
      * The attributes that should be cast.
@@ -36,20 +42,6 @@ class Token extends Model
      * @var bool
      */
     public $timestamps = false;
-
-    /**
-     * The primary key for the model is incrementing.
-     *
-     * @var bool $incrementing
-     */
-    public $incrementing = false;
-
-    /**
-     * The primary key type for the model.
-     *
-     * @var string
-     */
-    public $keyType = 'string';
 
     /**
      * The "booted" method of the model.
@@ -77,16 +69,4 @@ class Token extends Model
         });
     }
 
-    /**
-     * Get the user that the token belongs to.
-     *
-     * @return BelongsTo
-     */
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
-    }
 }

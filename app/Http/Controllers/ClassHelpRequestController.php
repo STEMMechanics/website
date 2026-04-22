@@ -8,7 +8,6 @@ use App\Models\ClassSession;
 use App\Models\User;
 use App\Services\Classroom\ClassroomStateService;
 use App\Services\LiveKit\LiveKitParticipantService;
-use App\Services\LiveKit\LiveKitTokenService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,7 +17,6 @@ class ClassHelpRequestController extends Controller
 {
     public function __construct(
         private readonly ClassroomStateService $stateService,
-        private readonly LiveKitTokenService $tokenService,
         private readonly LiveKitParticipantService $participantService
     ) {}
 
@@ -243,15 +241,6 @@ class ClassHelpRequestController extends Controller
         }
 
         abort(403);
-
-        $teacher = $user;
-        $this->resolveHelpRequest($classSession, $helpRequest, $teacher, false);
-
-        return response()->json([
-            'message' => 'Broadcast request cancelled.',
-            'helpRequest' => $this->stateService->serializeHelpRequest($helpRequest->fresh(['user', 'approvedBy', 'requestedBy'])),
-            'state' => $this->stateService->stateFor($teacher, $classSession),
-        ]);
     }
 
     private function resolveHelpRequest(ClassSession $classSession, ClassHelpRequest $helpRequest, ?\App\Models\User $actor, bool $replacedByAnother): void

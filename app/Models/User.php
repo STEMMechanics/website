@@ -450,6 +450,9 @@ class User extends Authenticatable implements MustVerifyEmail, OAuthenticatable
         return $this->belongsTo(self::class, 'parent_user_id');
     }
 
+    /**
+     * @return HasMany<User, $this>
+     */
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_user_id')->orderBy('created_at');

@@ -61,16 +61,18 @@ class ConnectedAppController extends Controller
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, array{
+     * @return list<array{
      *     client: \Laravel\Passport\Client,
      *     scopes: list<string>,
      *     last_authorized_at: ?string,
      *     token_count: int
      * }>
      */
-    private function buildConnectedApps(User $user): Collection
+    private function buildConnectedApps(User $user): array
     {
-        return PassportToken::query()
+        $connectedApps = [];
+
+        foreach (PassportToken::query()
             ->with('client')
             ->where('user_id', (string) $user->id)
             ->where('revoked', false)
@@ -83,28 +85,45 @@ class ConnectedAppController extends Controller
                 ->whereJsonContains('grant_types', 'authorization_code'))
             ->orderByDesc('created_at')
             ->get()
-            ->groupBy('client_id')
-            ->map(function (Collection $tokens): ?array {
-                $client = $tokens->first()?->client;
+            ->groupBy('client_id') as $tokens) {
+            $client = $tokens->first()?->client;
 
-                if (! $client instanceof PassportClient) {
-                    return null;
+            if (! $client instanceof PassportClient) {
+                continue;
+            }
+
+            $scopes = [];
+
+            foreach ($tokens as $token) {
+                foreach (is_array($token->scopes) ? $token->scopes : [] as $scope) {
+                    $scope = trim((string) $scope);
+
+                    if ($scope === '') {
+                        continue;
+                    }
+
+                    $scope = strval($scope);
+
+                    if (! in_array($scope, $scopes, true)) {
+                        $scopes[] = $scope;
+                    }
                 }
+            }
 
-                return [
-                    'client' => $client,
-                    'scopes' => $tokens
-                        ->flatMap(fn (PassportToken $token): array => is_array($token->scopes) ? $token->scopes : [])
-                        ->filter()
-                        ->unique()
-                        ->values()
-                        ->all(),
-                    'last_authorized_at' => optional($tokens->first()?->created_at)->toDateTimeString(),
-                    'token_count' => $tokens->count(),
-                ];
-            })
-            ->filter()
-            ->values();
+            $firstToken = $tokens->first();
+            $lastAuthorizedAt = $firstToken?->created_at !== null
+                ? (string) $firstToken->created_at
+                : null;
+
+            $connectedApps[] = [
+                'client' => $client,
+                'scopes' => $scopes,
+                'last_authorized_at' => $lastAuthorizedAt,
+                'token_count' => $tokens->count(),
+            ];
+        }
+
+        return $connectedApps;
     }
 
     private function revokeClientTokens(User $user, PassportClient $client): int
