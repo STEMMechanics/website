@@ -7,7 +7,8 @@ use Symfony\Component\Process\Process;
 
 class TestCommand extends Command
 {
-    protected $signature = 'test';
+    protected $signature = 'test
+        {--without-tty : Disable TTY output for the child PHPUnit process}';
 
     protected $description = 'Run the application tests';
 
@@ -37,17 +38,25 @@ class TestCommand extends Command
             $phpunit,
         ], $forwardedArgs);
 
+        return $this->runPhpUnit($command, $withoutTty);
+    }
+
+    /**
+     * @param array<int, string> $command
+     */
+    protected function runPhpUnit(array $command, bool $withoutTty): int
+    {
         $process = new Process($command, base_path());
+        $process->setTimeout(null);
+        $process->setIdleTimeout(null);
 
         if (! $withoutTty && Process::isTtySupported()) {
             $process->setTty(true);
         }
 
-        $exitCode = $process->run(function (string $type, string $output): void {
+        return $process->run(function (string $type, string $output): void {
             $this->output->write($output);
         });
-
-        return $exitCode;
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 use Laravel\Passport\Token as PassportToken;
 
@@ -42,6 +43,19 @@ class Token extends PassportToken
      * @var bool
      */
     public $timestamps = false;
+
+    /**
+     * Get the user that owns the token.
+     *
+     * @return BelongsTo<\Illuminate\Foundation\Auth\User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        /** @var class-string<\Illuminate\Foundation\Auth\User> $userModel */
+        $userModel = User::class;
+
+        return $this->belongsTo($userModel, 'user_id');
+    }
 
     /**
      * The "booted" method of the model.
