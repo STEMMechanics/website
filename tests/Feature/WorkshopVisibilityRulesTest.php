@@ -6,6 +6,7 @@ use App\Mail\UpcomingWorkshops;
 use App\Models\Location;
 use App\Models\Media;
 use App\Models\User;
+use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -294,6 +295,32 @@ class WorkshopVisibilityRulesTest extends TestCase
             ->assertSee(route('workshop.ticket.flow.start', $workshop), false);
     }
 
+    public function test_admin_workshop_index_shows_copy_public_page_link_for_non_draft_workshops(): void
+    {
+        $admin = $this->createAdminUser();
+        $publicWorkshop = $this->createWorkshop(
+            title: 'Public Robotics Session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+        $draftWorkshop = $this->createWorkshop(
+            title: 'Draft Robotics Session',
+            status: 'draft',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+
+        $response = $this->actingAs($admin)
+            ->get(route('admin.workshop.index'));
+
+        $response->assertOk()
+            ->assertSeeText($publicWorkshop->title)
+            ->assertSeeText($draftWorkshop->title);
+
+        $this->assertSame(1, substr_count($response->getContent(), 'title="Copy public page link"'));
+    }
+
     private function createWorkshop(
         string $title,
         string $status,
@@ -339,5 +366,16 @@ class WorkshopVisibilityRulesTest extends TestCase
             'user_id' => $owner->id,
             'hero_media_name' => $heroName,
         ]);
+    }
+
+    private function createAdminUser(): User
+    {
+        $admin = User::factory()->create();
+        UserGroup::query()->create([
+            'user_id' => $admin->id,
+            'slug' => 'admin',
+        ]);
+
+        return $admin;
     }
 }
