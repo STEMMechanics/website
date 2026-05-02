@@ -49,6 +49,7 @@ use App\Http\Controllers\StemcraftController;
 use App\Http\Controllers\StoreOrderController;
 use App\Http\Controllers\SubscribeController;
 use App\Http\Controllers\TaxAdjustmentController;
+use App\Http\Controllers\CairnsMinecraftController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkshopController;
@@ -113,6 +114,7 @@ Route::get('/stemcraft/rules', [StemcraftController::class, 'rules'])->name('ste
 Route::get('/stemcraft/faqs', [StemcraftController::class, 'faqs'])->name('stemcraft.faqs');
 Route::get('/stemcraft/leaderboards', [StemcraftController::class, 'stats'])->name('stemcraft.leaderboards');
 Route::get('/stemcraft/punishments', [StemcraftController::class, 'punishments'])->name('stemcraft.punishments');
+Route::get('/cairns-minecraft', [CairnsMinecraftController::class, 'index'])->name('cairns.minecraft');
 Route::match(['GET', 'POST'], 'unsubscribe/discussions/{email}', [SubscribeController::class, 'destroyDiscussionNotifications'])->name('unsubscribe.discussions');
 Route::match(['GET', 'POST'], 'unsubscribe/{email}', [SubscribeController::class, 'destroy'])->name('unsubscribe');
 Route::get('/tickets', [TicketController::class, 'showRequest'])->name('tickets.request');

@@ -29,6 +29,7 @@
 - Minecraft player info now shows previous names
 - Show warnings on the STEMCraft punishments page
 - Include offers in workshop event schema
+- Added Cairns Minecraft page and links
 
 ## 1.4.3
 
