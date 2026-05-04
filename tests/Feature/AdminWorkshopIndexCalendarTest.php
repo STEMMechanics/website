@@ -39,6 +39,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
 
         $this->createWorkshop('Workshop this month', $monthStart);
         $this->createWorkshop('Workshop next month', $nextMonthStart);
+        $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
+        $draftWorkshop->update(['status' => 'draft']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.index', [
             'view' => 'month',
@@ -74,6 +76,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $monthStart = now()->startOfMonth()->addDays(10);
 
         $this->createWorkshop('Workshop this month', $monthStart);
+        $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
+        $draftWorkshop->update(['status' => 'draft']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.month.pdf', [
             'month' => $monthStart->format('Y-m'),
@@ -87,11 +91,13 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertNotFalse($tempFile);
 
         file_put_contents($tempFile, $content);
-        $pdfInfo = shell_exec('pdfinfo '.escapeshellarg($tempFile).' 2>/dev/null');
+        $pdfInfo = $this->runPdfInfo($tempFile);
+        $pdfText = $this->extractPdfText($tempFile);
         @unlink($tempFile);
 
         $this->assertIsString($pdfInfo);
         $this->assertMatchesRegularExpression('/^Pages:\s+1$/m', $pdfInfo);
+        $this->assertStringNotContainsString('Draft workshop', $pdfText);
     }
 
     public function test_admin_workshop_month_pick_lists_pdf_route_streams_a_multipage_pdf(): void
@@ -102,6 +108,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
 
         $this->createWorkshopWithPickList('Pick list workshop one', $monthStart, $template, 4);
         $this->createWorkshopWithPickList('Pick list workshop two', $monthStart->copy()->addDays(1), $template, 6);
+        $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(2));
+        $draftWorkshop->update(['status' => 'draft']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.month.pick-lists.pdf', [
             'month' => $monthStart->format('Y-m'),
@@ -115,13 +123,15 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertNotFalse($tempFile);
 
         file_put_contents($tempFile, $content);
-        $pdfInfo = shell_exec('pdfinfo '.escapeshellarg($tempFile).' 2>/dev/null');
+        $pdfInfo = $this->runPdfInfo($tempFile);
+        $pdfText = $this->extractPdfText($tempFile);
         @unlink($tempFile);
 
         $this->assertIsString($pdfInfo);
         $this->assertMatchesRegularExpression('/^Pages:\s+\d+$/m', $pdfInfo);
         preg_match('/^Pages:\s+(\d+)$/m', $pdfInfo, $matches);
         $this->assertGreaterThanOrEqual(2, (int) ($matches[1] ?? 0));
+        $this->assertStringNotContainsString('Draft workshop', $pdfText);
     }
 
     public function test_admin_workshop_month_materials_pdf_route_streams_a_summary_pdf(): void
@@ -133,6 +143,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->createWorkshopWithPickList('Pick list workshop one', $monthStart, $template, 4);
         $this->createWorkshopWithPickList('Pick list workshop two', $monthStart->copy()->addDays(1), $template, 6);
         $this->createWorkshopWithPickList('Pick list workshop three', $monthStart->copy()->addDays(2), $template, 2);
+        $draftWorkshop = $this->createWorkshop('Draft workshop', $monthStart->copy()->addDays(3));
+        $draftWorkshop->update(['status' => 'draft']);
 
         $response = $this->actingAs($admin)->get(route('admin.workshop.month.materials.pdf', [
             'month' => $monthStart->format('Y-m'),
@@ -146,8 +158,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertNotFalse($tempFile);
 
         file_put_contents($tempFile, $content);
-        $pdfInfo = shell_exec('pdfinfo '.escapeshellarg($tempFile).' 2>/dev/null');
-        $pdfText = shell_exec('pdftotext '.escapeshellarg($tempFile).' - 2>/dev/null');
+        $pdfInfo = $this->runPdfInfo($tempFile);
+        $pdfText = $this->extractPdfText($tempFile);
         @unlink($tempFile);
 
         $this->assertIsString($pdfInfo);
@@ -161,6 +173,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertMatchesRegularExpression('/Pick list workshop three/i', $pdfText);
         $this->assertMatchesRegularExpression('/Battery pack/i', $pdfText);
         $this->assertMatchesRegularExpression('/Toolkit/i', $pdfText);
+        $this->assertStringNotContainsString('Draft workshop', $pdfText);
     }
 
     private function createAdminUser(): User
@@ -243,5 +256,46 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         ]);
 
         return $workshop->refresh();
+    }
+
+    private function runPdfInfo(string $tempFile): string
+    {
+        $binary = $this->resolveBinary('pdfinfo');
+        $output = shell_exec(escapeshellcmd($binary).' '.escapeshellarg($tempFile).' 2>/dev/null');
+
+        $this->assertIsString($output);
+
+        return $output;
+    }
+
+    private function extractPdfText(string $tempFile): string
+    {
+        $binary = $this->resolveBinary('pdftotext');
+        $output = shell_exec(escapeshellcmd($binary).' '.escapeshellarg($tempFile).' - 2>/dev/null');
+
+        $this->assertIsString($output);
+
+        return $output;
+    }
+
+    private function resolveBinary(string $binary): string
+    {
+        foreach ([
+            '/opt/homebrew/bin/'.$binary,
+            '/usr/local/bin/'.$binary,
+            '/usr/bin/'.$binary,
+            '/bin/'.$binary,
+            $binary,
+        ] as $candidate) {
+            if ($candidate === $binary) {
+                return $candidate;
+            }
+
+            if (is_file($candidate) && is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $binary;
     }
 }

@@ -93,7 +93,7 @@ class WorkshopController extends Controller
             $selectedMonth = now()->format('Y-m');
         }
 
-        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
+        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search, true);
 
         $workshops = $this->buildWorkshopAdminQuery($search)
             ->orderBy('starts_at', 'desc')
@@ -163,7 +163,7 @@ class WorkshopController extends Controller
             $selectedMonth = now()->format('Y-m');
         }
 
-        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
+        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search, true);
 
         return DomPdf::loadView('pdf.workshop-month-calendar', [
             'calendarWeeks' => $monthData['calendarWeeks'],
@@ -190,7 +190,9 @@ class WorkshopController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $monthEnd = (clone $monthStart)->endOfMonth();
 
+        /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->where('status', '!=', 'draft')
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -234,7 +236,9 @@ class WorkshopController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $monthEnd = (clone $monthStart)->endOfMonth();
 
+        /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->where('status', '!=', 'draft')
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
@@ -266,20 +270,23 @@ class WorkshopController extends Controller
      *     previousMonth: string
      * }
      */
-    private function buildWorkshopMonthData(string $selectedMonth, string $search): array
+    private function buildWorkshopMonthData(string $selectedMonth, string $search, bool $excludeDrafts = false): array
     {
         $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $monthEnd = (clone $monthStart)->endOfMonth();
         $calendarStart = (clone $monthStart)->startOfWeek(Carbon::SUNDAY);
         $calendarEnd = (clone $monthEnd)->endOfWeek(Carbon::SATURDAY);
 
+        /** @var Collection<int, Workshop> $monthWorkshops */
         $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->when($excludeDrafts, fn (Builder $query): Builder => $query->where('status', '!=', 'draft'))
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->orderBy('starts_at', 'asc')
             ->get();
 
         $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
 
+        /** @var Collection<int, array<string, mixed>> $calendarDays */
         $calendarDays = collect();
         for ($cursor = $calendarStart->copy(); $cursor->lessThanOrEqualTo($calendarEnd); $cursor->addDay()) {
             $dateKey = $cursor->toDateString();
@@ -293,8 +300,13 @@ class WorkshopController extends Controller
             ]);
         }
 
+        /** @var Collection<int, Collection<int, array<string, mixed>>> $calendarWeeks */
+        $calendarWeeks = $calendarDays->chunk(7)->map(
+            fn (Collection $week): Collection => $week->values()
+        )->values();
+
         return [
-            'calendarWeeks' => $calendarDays->chunk(7)->map(fn (Collection $week): Collection => $week->values())->values(),
+            'calendarWeeks' => $calendarWeeks,
             'currentMonthLabel' => $monthStart->format('F Y'),
             'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
             'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
@@ -302,6 +314,9 @@ class WorkshopController extends Controller
         ];
     }
 
+    /**
+     * @return Builder<Workshop>
+     */
     private function buildWorkshopAdminQuery(string $search): Builder
     {
         $query = Workshop::query()

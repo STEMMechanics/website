@@ -37,7 +37,7 @@ class WorkshopPickListService
      * @param Collection<int, Workshop> $workshops
      * @return array{
      *     workshopSummaries: Collection<int, array{workshop: Workshop, participants: int, calculatedItems: Collection<int, array{item_id: int, item_name: string, quantity: int, quantity_text: string, type_note: string}>, pickListNotes: string}>,
-     *     materialRows: Collection<int, array{item_name: string, total_quantity: int, workshopBreakdowns: Collection<string, array{workshop_id: string, workshop_title: string, starts_at_label: string, quantity: int}>}>,
+     *     materialRows: Collection<int, array{item_name: string, total_quantity: int, workshopBreakdowns: Collection<int, array{workshop_id: string, workshop_title: string, starts_at_label: string, quantity: int}>}>,
      *     totalQuantity: int,
      *     uniqueItemCount: int
      * }
@@ -46,9 +46,14 @@ class WorkshopPickListService
     {
         $workshopSummaries = $workshops
             ->map(function (Workshop $workshop): array {
-                return array_merge([
+                $summary = $this->build($workshop);
+
+                return [
                     'workshop' => $workshop,
-                ], $this->build($workshop));
+                    'participants' => $summary['participants'],
+                    'calculatedItems' => $summary['calculatedItems'],
+                    'pickListNotes' => $summary['pickListNotes'],
+                ];
             })
             ->values();
 
@@ -105,6 +110,7 @@ class WorkshopPickListService
                     })
                     ->values();
 
+                /** @var array{item_name: string, total_quantity: int, workshopBreakdowns: Collection<int, array{workshop_id: string, workshop_title: string, starts_at_label: string, quantity: int}>} $row */
                 return $row;
             })
             ->sortBy('item_name')
