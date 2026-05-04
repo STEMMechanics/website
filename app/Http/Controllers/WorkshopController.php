@@ -27,6 +27,8 @@ use App\Services\WorkshopPickListService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
+use Dompdf\Canvas;
+use Dompdf\FontMetrics;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -249,7 +251,7 @@ class WorkshopController extends Controller
 
         $summary = $pickListService->buildMonthMaterials($monthWorkshops);
 
-        return DomPdf::loadView('pdf.workshop-month-materials-summary', [
+        $pdf = DomPdf::loadView('pdf.workshop-month-materials-summary', [
             'currentMonthLabel' => $monthStart->format('F Y'),
             'generatedAt' => now(),
             'materialRows' => $summary['materialRows'],
@@ -258,7 +260,23 @@ class WorkshopController extends Controller
             'workshopSummaries' => $summary['workshopSummaries'],
         ])->setOption([
             'enable_font_subsetting' => true,
-        ])->setPaper('a4', 'landscape')->stream('workshop-month-'.$selectedMonth.'-materials-summary.pdf');
+        ])->setPaper('a4', 'landscape');
+
+        $pdf->getDomPDF()->setCallbacks([[
+            'event' => 'end_document',
+            'f' => function (int $pageNumber, int $pageCount, Canvas $canvas, FontMetrics $fontMetrics): void {
+                $text = sprintf('Page %d of %d', $pageNumber, $pageCount);
+                $font = $fontMetrics->getFont('Helvetica', 'normal');
+                $size = 10;
+                $textWidth = $fontMetrics->getTextWidth($text, $font, $size);
+                $rightMargin = 34.0;
+                $bottomOffset = 20.0;
+
+                $canvas->text($canvas->get_width() - $rightMargin - $textWidth, $canvas->get_height() - $bottomOffset, $text, $font, $size, [0.4, 0.4, 0.4]);
+            },
+        ]]);
+
+        return $pdf->stream('workshop-month-'.$selectedMonth.'-materials-summary.pdf');
     }
 
     /**

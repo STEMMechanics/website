@@ -22,7 +22,6 @@
         .workshop-value { text-align: center; font-size: 10px; font-weight: 700; color: #333; line-height: 1; }
         .total-value { text-align: right; font-size: 10px; font-weight: 700; color: #333; line-height: 1; }
         .empty-state { text-align: center; font-size: 12px; color: #666; padding: 18px 0; }
-        .pdf-footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 0 8mm; font-size: 10px; color: #666; text-align: right; line-height: 1; }
     </style>
 </head>
 <body>
@@ -101,6 +100,5 @@
         </tbody>
     </table>
 
-    <div class="pdf-footer">Page 1 of 1</div>
 </body>
 </html>

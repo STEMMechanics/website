@@ -176,6 +176,38 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
     }
 
+    public function test_admin_workshop_month_materials_pdf_route_numbers_all_pages_in_a_multi_page_summary(): void
+    {
+        $admin = $this->createAdminUser();
+        $monthStart = now()->startOfMonth()->addDays(10);
+        $template = $this->createPickListTemplate(60);
+
+        $this->createWorkshopWithPickList('Long materials workshop', $monthStart, $template, 12);
+
+        $response = $this->actingAs($admin)->get(route('admin.workshop.month.materials.pdf', [
+            'month' => $monthStart->format('Y-m'),
+        ]));
+
+        $response->assertOk();
+        $content = $response->getContent();
+        $this->assertStringStartsWith('%PDF', $content);
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'workshop-month-materials-pdf-');
+        $this->assertNotFalse($tempFile);
+
+        file_put_contents($tempFile, $content);
+        $pdfInfo = $this->runPdfInfo($tempFile);
+        $pdfText = $this->extractPdfText($tempFile);
+        @unlink($tempFile);
+
+        $this->assertIsString($pdfInfo);
+        $this->assertMatchesRegularExpression('/^Pages:\s+[2-9]\d*$/m', $pdfInfo);
+        $this->assertIsString($pdfText);
+        $this->assertMatchesRegularExpression('/Page 1 of \d+/m', $pdfText);
+        $this->assertMatchesRegularExpression('/Page 2 of \d+/m', $pdfText);
+        $this->assertStringNotContainsString('Page 1 of 1', $pdfText);
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();
@@ -217,7 +249,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         ]);
     }
 
-    private function createPickListTemplate(): PickListTemplate
+    private function createPickListTemplate(int $itemCount = 2): PickListTemplate
     {
         $template = PickListTemplate::query()->create([
             'name' => 'Month Export Template',
@@ -239,6 +271,16 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             'quantity_value' => 3,
             'sort_order' => 20,
         ]);
+
+        for ($index = 3; $index <= $itemCount; $index++) {
+            PickListTemplateItem::query()->create([
+                'pick_list_template_id' => $template->id,
+                'item_name' => sprintf('Additional material %02d', $index),
+                'quantity_type' => PickListTemplateItem::TYPE_FIXED,
+                'quantity_value' => 1,
+                'sort_order' => $index * 10,
+            ]);
+        }
 
         return $template;
     }
