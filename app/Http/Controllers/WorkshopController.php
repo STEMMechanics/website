@@ -235,19 +235,29 @@ class WorkshopController extends Controller
             $selectedMonth = now()->format('Y-m');
         }
 
+        $materialsScope = trim((string) $request->query('materials_scope', 'all'));
+        if (! in_array($materialsScope, ['all', 'upcoming'], true)) {
+            $materialsScope = 'all';
+        }
+
         $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $monthEnd = (clone $monthStart)->endOfMonth();
 
         /** @var Collection<int, Workshop> $monthWorkshops */
-        $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+        $monthWorkshopsQuery = $this->buildWorkshopAdminQuery($search)
             ->where('status', '!=', 'draft')
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
             ->with(['pickListTemplate.items'])
             ->withCount([
                 'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
             ])
-            ->orderBy('starts_at', 'asc')
-            ->get();
+            ->orderBy('starts_at', 'asc');
+
+        if ($materialsScope === 'upcoming') {
+            $monthWorkshopsQuery->where('starts_at', '>=', now());
+        }
+
+        $monthWorkshops = $monthWorkshopsQuery->get();
 
         $summary = $pickListService->buildMonthMaterials($monthWorkshops);
 

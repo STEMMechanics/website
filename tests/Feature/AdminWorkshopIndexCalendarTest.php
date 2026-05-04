@@ -62,6 +62,9 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertSee('title="Calendar PDF"', false);
         $response->assertSee('title="Pick Lists PDF"', false);
         $response->assertSee('title="Materials Summary PDF"', false);
+        $response->assertSee('Choose workshop scope');
+        $response->assertSee('All monthly workshops');
+        $response->assertSee('Upcoming workshops');
         $response->assertSee('Workshop this month');
         $response->assertDontSee('Workshop next month');
         $response->assertSee('Previous month');
@@ -174,6 +177,42 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $this->assertMatchesRegularExpression('/Battery pack/i', $pdfText);
         $this->assertMatchesRegularExpression('/Toolkit/i', $pdfText);
         $this->assertStringNotContainsString('Draft workshop', $pdfText);
+    }
+
+    public function test_admin_workshop_month_materials_pdf_route_can_filter_to_upcoming_workshops(): void
+    {
+        $admin = $this->createAdminUser();
+        $fixedNow = \Illuminate\Support\Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone'));
+        \Illuminate\Support\Carbon::setTestNow($fixedNow);
+
+        try {
+            $template = $this->createPickListTemplate();
+
+            $this->createWorkshopWithPickList('Past workshop', $fixedNow->copy()->subDay(), $template, 4);
+            $this->createWorkshopWithPickList('Upcoming workshop', $fixedNow->copy()->addDay(), $template, 6);
+
+            $response = $this->actingAs($admin)->get(route('admin.workshop.month.materials.pdf', [
+                'month' => $fixedNow->format('Y-m'),
+                'materials_scope' => 'upcoming',
+            ]));
+
+            $response->assertOk();
+            $content = $response->getContent();
+            $this->assertStringStartsWith('%PDF', $content);
+
+            $tempFile = tempnam(sys_get_temp_dir(), 'workshop-month-materials-pdf-');
+            $this->assertNotFalse($tempFile);
+
+            file_put_contents($tempFile, $content);
+            $pdfText = $this->extractPdfText($tempFile);
+            @unlink($tempFile);
+
+            $this->assertIsString($pdfText);
+            $this->assertMatchesRegularExpression('/Upcoming workshop/i', $pdfText);
+            $this->assertStringNotContainsString('Past workshop', $pdfText);
+        } finally {
+            \Illuminate\Support\Carbon::setTestNow();
+        }
     }
 
     public function test_admin_workshop_month_materials_pdf_route_numbers_all_pages_in_a_multi_page_summary(): void
@@ -303,21 +342,29 @@ class AdminWorkshopIndexCalendarTest extends TestCase
     private function runPdfInfo(string $tempFile): string
     {
         $binary = $this->resolveBinary('pdfinfo');
-        $output = shell_exec(escapeshellcmd($binary).' '.escapeshellarg($tempFile).' 2>/dev/null');
-
-        $this->assertIsString($output);
-
-        return $output;
+        return $this->runBinaryCommand([$binary, $tempFile]);
     }
 
     private function extractPdfText(string $tempFile): string
     {
         $binary = $this->resolveBinary('pdftotext');
-        $output = shell_exec(escapeshellcmd($binary).' '.escapeshellarg($tempFile).' - 2>/dev/null');
+        return $this->runBinaryCommand([$binary, $tempFile, '-']);
+    }
 
-        $this->assertIsString($output);
+    /**
+     * @param array<int, string> $commandParts
+     */
+    private function runBinaryCommand(array $commandParts): string
+    {
+        $output = [];
+        $exitCode = 0;
+        $command = implode(' ', array_map(static fn (string $part): string => escapeshellarg($part), $commandParts)).' 2>/dev/null';
 
-        return $output;
+        exec($command, $output, $exitCode);
+
+        $this->assertSame(0, $exitCode, 'Command failed: '.$command);
+
+        return implode("\n", $output);
     }
 
     private function resolveBinary(string $binary): string

@@ -6,59 +6,127 @@
     <x-mast title="Workshops" :tabs="$tabs" />
 
     <x-container>
-        <x-ui.toolbar>
-            <x-slot:left class="flex-0">
-                <x-ui.button href="{{ route('admin.workshop.create') }}">Create</x-ui.button>
-            </x-slot:left>
-            <x-slot:right>
+        <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
+            <x-ui.toolbar>
+                <x-slot:left class="flex-0">
+                    <x-ui.button href="{{ route('admin.workshop.create') }}">Create</x-ui.button>
+                </x-slot:left>
+                <x-slot:right>
                     <div class="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
                         @if($view === 'month')
-                        <div class="flex flex-wrap items-center gap-2">
-                            <x-ui.button
-                                href="{{ $monthCalendarPdfRoute }}"
-                                target="_blank"
-                                color="outline"
-                                class="h-10 w-10 shrink-0 px-0"
-                                title="Calendar PDF"
-                                aria-label="Calendar PDF"
-                            >
-                                <i class="fa-regular fa-calendar"></i>
-                            </x-ui.button>
-                            <x-ui.button
-                                href="{{ $monthPickListsPdfRoute }}"
-                                target="_blank"
-                                color="outline"
-                                class="h-10 w-10 shrink-0 px-0"
-                                title="Pick Lists PDF"
-                                aria-label="Pick Lists PDF"
-                            >
-                                <i class="fa-regular fa-file-pdf"></i>
-                            </x-ui.button>
-                            <x-ui.button
-                                href="{{ $monthMaterialsPdfRoute }}"
-                                target="_blank"
-                                color="outline"
-                                class="h-10 w-10 shrink-0 px-0"
-                                title="Materials Summary PDF"
-                                aria-label="Materials Summary PDF"
-                            >
-                                <i class="fa-solid fa-clipboard-list"></i>
-                            </x-ui.button>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <x-ui.button
+                                    href="{{ $monthCalendarPdfRoute }}"
+                                    target="_blank"
+                                    color="outline"
+                                    class="h-10 w-10 shrink-0 px-0"
+                                    title="Calendar PDF"
+                                    aria-label="Calendar PDF"
+                                >
+                                    <i class="fa-regular fa-calendar"></i>
+                                </x-ui.button>
+                                <x-ui.button
+                                    href="{{ $monthPickListsPdfRoute }}"
+                                    target="_blank"
+                                    color="outline"
+                                    class="h-10 w-10 shrink-0 px-0"
+                                    title="Pick Lists PDF"
+                                    aria-label="Pick Lists PDF"
+                                >
+                                    <i class="fa-regular fa-file-pdf"></i>
+                                </x-ui.button>
+                                <x-ui.button
+                                    href="{{ $monthMaterialsPdfRoute }}"
+                                    target="_blank"
+                                    color="outline"
+                                    class="h-10 w-10 shrink-0 px-0"
+                                    title="Materials Summary PDF"
+                                    aria-label="Materials Summary PDF"
+                                    aria-haspopup="dialog"
+                                    x-on:click.prevent="openDialog()"
+                                >
+                                    <i class="fa-solid fa-clipboard-list"></i>
+                                </x-ui.button>
+                            </div>
+                            <div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:justify-start">
+                                <x-ui.button href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
+                                    <i class="fa-solid fa-chevron-left"></i>
+                                </x-ui.button>
+                                <div class="min-w-36 text-center text-sm font-semibold text-gray-900">{{ $currentMonthLabel }}</div>
+                                <x-ui.button href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
+                                    <i class="fa-solid fa-chevron-right"></i>
+                                </x-ui.button>
+                            </div>
+                        @endif
+                        <x-ui.search name="search" label="Search" />
+                    </div>
+                </x-slot:right>
+            </x-ui.toolbar>
+
+            <template x-teleport="body">
+                <div
+                    x-show="open"
+                    x-cloak
+                    class="fixed inset-0 z-[280] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="materials-summary-dialog-title"
+                    @click.self="closeDialog()"
+                    @keydown.escape.window="if (open) { closeDialog() }"
+                >
+                    <div class="flex w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                        <div class="border-b border-gray-200 px-6 py-5">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <div class="text-xs font-semibold uppercase tracking-wide text-primary-color">Materials summary PDF</div>
+                                    <h2 id="materials-summary-dialog-title" class="mt-1 text-xl font-bold text-gray-900">Choose workshop scope</h2>
+                                    <p class="mt-2 text-sm leading-6 text-gray-600">
+                                        Generate a PDF for every workshop in {{ $currentMonthLabel }} or only the workshops that are still upcoming.
+                                    </p>
+                                </div>
+                                <button type="button" class="text-gray-500 transition hover:text-gray-900" @click="closeDialog()" aria-label="Close materials summary dialog">
+                                    <i class="fa-solid fa-xmark text-lg"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:justify-start">
-                            <x-ui.button href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
-                                <i class="fa-solid fa-chevron-left"></i>
-                            </x-ui.button>
-                            <div class="min-w-36 text-center text-sm font-semibold text-gray-900">{{ $currentMonthLabel }}</div>
-                            <x-ui.button href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
-                                <i class="fa-solid fa-chevron-right"></i>
-                            </x-ui.button>
+
+                        <div class="grid gap-3 border-b border-gray-200 px-6 py-6 sm:grid-cols-2">
+                            <button
+                                type="button"
+                                class="flex w-full flex-col items-start gap-2 rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:border-primary-color hover:bg-primary-color-light/10"
+                                @click="launch('all')"
+                            >
+                                <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                                    <i class="fa-solid fa-calendar-days text-primary-color"></i>
+                                    <span>All monthly workshops</span>
+                                </div>
+                                <div class="text-sm leading-5 text-gray-600">
+                                    Includes every workshop in {{ $currentMonthLabel }}.
+                                </div>
+                            </button>
+
+                            <button
+                                type="button"
+                                class="flex w-full flex-col items-start gap-2 rounded-xl border border-primary-color bg-primary-color-light/10 px-4 py-4 text-left transition hover:border-primary-color-dark hover:bg-primary-color-light/20"
+                                @click="launch('upcoming')"
+                            >
+                                <div class="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                                    <i class="fa-solid fa-arrow-up-right-dots text-primary-color"></i>
+                                    <span>Upcoming workshops</span>
+                                </div>
+                                <div class="text-sm leading-5 text-gray-600">
+                                    Starts from now through the rest of {{ $currentMonthLabel }}.
+                                </div>
+                            </button>
                         </div>
-                    @endif
-                    <x-ui.search name="search" label="Search" />
+
+                        <div class="flex justify-end px-6 py-4">
+                            <button type="button" class="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50" @click="closeDialog()">Cancel</button>
+                        </div>
+                    </div>
                 </div>
-            </x-slot:right>
-        </x-ui.toolbar>
+            </template>
+        </div>
 
         @if($view === 'month')
             <div class="mt-6 overflow-x-auto rounded-xl border border-gray-200 bg-white">
