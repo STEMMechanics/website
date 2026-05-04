@@ -422,6 +422,9 @@ Route::middleware(['admin', 'nocache'])->group(function () {
     Route::post('/admin/analytics/prune', [AnalyticsController::class, 'prune'])->name('admin.analytics.prune');
 
     Route::get('/admin/workshops', [WorkshopController::class, 'admin_index'])->name('admin.workshop.index');
+    Route::get('/admin/workshops/month/pdf', [WorkshopController::class, 'admin_month_pdf'])->name('admin.workshop.month.pdf');
+    Route::get('/admin/workshops/month/pick-lists/pdf', [WorkshopController::class, 'admin_month_pick_lists_pdf'])->name('admin.workshop.month.pick-lists.pdf');
+    Route::get('/admin/workshops/month/materials/pdf', [WorkshopController::class, 'admin_month_materials_pdf'])->name('admin.workshop.month.materials.pdf');
     Route::get('/admin/workshops/create', [WorkshopController::class, 'admin_create'])->name('admin.workshop.create');
     Route::get('/admin/workshops/{workshop}/duplicate', [WorkshopController::class, 'admin_duplicate'])->name('admin.workshop.duplicate');
     Route::get('/admin/workshops/{workshop}/tickets', [WorkshopController::class, 'admin_tickets'])->name('admin.workshop.tickets');

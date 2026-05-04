@@ -36,9 +36,11 @@
                         $tabPath = parse_url((string) ($tab['route'] ?? ''), PHP_URL_PATH) ?: '';
                         $tabPath = '/'.trim($tabPath, '/');
                         $tabMatch = (string) ($tab['match'] ?? 'exact');
-                        $isActive = $tabMatch === 'starts_with'
-                            ? ($tabPath !== '/' && str_starts_with($currentPath, rtrim($tabPath, '/').'/')) || $currentPath === $tabPath
-                            : $currentPath === $tabPath;
+                        $isActive = array_key_exists('active', $tab)
+                            ? (bool) $tab['active']
+                            : ($tabMatch === 'starts_with'
+                                ? ($tabPath !== '/' && str_starts_with($currentPath, rtrim($tabPath, '/').'/')) || $currentPath === $tabPath
+                                : $currentPath === $tabPath);
                     @endphp
                     <a href="{{ $tab['route'] }}" class="shrink-0 rounded-t-md px-4 py-2 {{ $isActive ? 'bg-gray-100 text-primary-color-dark' : 'text-white hover:bg-primary-color-dark' }} transition-colors">
                         <span class="inline-flex items-center gap-2">

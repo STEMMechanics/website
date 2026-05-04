@@ -23,9 +23,11 @@ use App\Services\AdminWorkshopTicketService;
 use App\Services\DocumentNumberService;
 use App\Services\ManualWorkshopTicketEmailService;
 use App\Services\SquareApiService;
+use App\Services\WorkshopPickListService;
 use App\Services\WorkshopTicketService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,18 +82,240 @@ class WorkshopController extends Controller
      */
     public function admin_index(Request $request)
     {
-        $query = Workshop::query()->withCount('interests');
-
-        if ($request->has('search')) {
-            $query->where('title', 'like', '%'.$request->search.'%');
-            $query->orWhere('content', 'like', '%'.$request->search.'%');
+        $search = trim((string) $request->query('search', ''));
+        $view = trim((string) $request->query('view', 'list'));
+        if (! in_array($view, ['list', 'month'], true)) {
+            $view = 'list';
         }
 
-        $workshops = $query->orderBy('starts_at', 'desc')->paginate(12)->onEachSide(1);
+        $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
+        if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+
+        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
+
+        $workshops = $this->buildWorkshopAdminQuery($search)
+            ->orderBy('starts_at', 'desc')
+            ->paginate(12)
+            ->onEachSide(1);
+
+        $tabQuery = array_filter([
+            'search' => $search !== '' ? $search : null,
+            'view' => $view === 'month' ? 'month' : null,
+            'month' => $view === 'month' ? $selectedMonth : null,
+        ], fn ($value) => $value !== null && $value !== '');
 
         return view('admin.workshop.index', [
+            'calendarWeeks' => $view === 'month' ? $monthData['calendarWeeks'] : null,
+            'currentMonthLabel' => $monthData['currentMonthLabel'],
+            'hasMonthWorkshops' => $monthData['hasMonthWorkshops'],
+            'monthCalendarPdfRoute' => route('admin.workshop.month.pdf', array_filter([
+                'search' => $search !== '' ? $search : null,
+                'month' => $selectedMonth,
+            ], fn ($value) => $value !== null && $value !== '')),
+            'monthPickListsPdfRoute' => route('admin.workshop.month.pick-lists.pdf', array_filter([
+                'search' => $search !== '' ? $search : null,
+                'month' => $selectedMonth,
+            ], fn ($value) => $value !== null && $value !== '')),
+            'monthMaterialsPdfRoute' => route('admin.workshop.month.materials.pdf', array_filter([
+                'search' => $search !== '' ? $search : null,
+                'month' => $selectedMonth,
+            ], fn ($value) => $value !== null && $value !== '')),
+            'nextMonthRoute' => route('admin.workshop.index', array_merge($tabQuery, [
+                'view' => 'month',
+                'month' => $monthData['nextMonth'],
+            ])),
+            'previousMonthRoute' => route('admin.workshop.index', array_merge($tabQuery, [
+                'view' => 'month',
+                'month' => $monthData['previousMonth'],
+            ])),
+            'search' => $search,
+            'tabs' => [
+                [
+                    'title' => 'List',
+                    'route' => route('admin.workshop.index', array_merge($tabQuery, ['view' => 'list'])),
+                    'active' => $view === 'list',
+                ],
+                [
+                    'title' => 'Month',
+                    'route' => route('admin.workshop.index', array_merge($tabQuery, [
+                        'view' => 'month',
+                        'month' => $selectedMonth,
+                    ])),
+                    'active' => $view === 'month',
+                ],
+            ],
+            'view' => $view,
             'workshops' => $workshops,
         ]);
+    }
+
+    public function admin_month_pdf(Request $request): Response
+    {
+        if (! class_exists(DomPdf::class)) {
+            abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
+        if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+
+        $monthData = $this->buildWorkshopMonthData($selectedMonth, $search);
+
+        return DomPdf::loadView('pdf.workshop-month-calendar', [
+            'calendarWeeks' => $monthData['calendarWeeks'],
+            'currentMonthLabel' => $monthData['currentMonthLabel'],
+            'generatedAt' => now(),
+            'search' => $search,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ])->setPaper('a4', 'landscape')->stream('workshop-month-'.$selectedMonth.'.pdf');
+    }
+
+    public function admin_month_pick_lists_pdf(Request $request, WorkshopPickListService $pickListService): Response
+    {
+        if (! class_exists(DomPdf::class)) {
+            abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
+        if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+
+        $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
+        $monthEnd = (clone $monthStart)->endOfMonth();
+
+        $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->with(['pickListTemplate.items'])
+            ->withCount([
+                'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+            ])
+            ->orderBy('starts_at', 'asc')
+            ->get();
+
+        $workshopPages = $monthWorkshops->map(function (Workshop $workshop) use ($pickListService): array {
+            $pickListData = $pickListService->build($workshop);
+
+            return [
+                'workshop' => $workshop,
+                'participants' => $pickListData['participants'],
+                'calculatedItems' => $pickListData['calculatedItems'],
+                'pickListNotes' => $pickListData['pickListNotes'],
+            ];
+        });
+
+        return DomPdf::loadView('pdf.workshop-month-pick-lists', [
+            'currentMonthLabel' => $monthStart->format('F Y'),
+            'generatedAt' => now(),
+            'workshopPages' => $workshopPages,
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ])->setPaper('a4', 'portrait')->stream('workshop-month-'.$selectedMonth.'-pick-lists.pdf');
+    }
+
+    public function admin_month_materials_pdf(Request $request, WorkshopPickListService $pickListService): Response
+    {
+        if (! class_exists(DomPdf::class)) {
+            abort(500, 'PDF renderer is not available. Please install barryvdh/laravel-dompdf.');
+        }
+
+        $search = trim((string) $request->query('search', ''));
+        $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
+        if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+
+        $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
+        $monthEnd = (clone $monthStart)->endOfMonth();
+
+        $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->with(['pickListTemplate.items'])
+            ->withCount([
+                'tickets as active_tickets_count' => fn ($query) => $query->whereIn('status', Ticket::activePurchasedStatuses()),
+            ])
+            ->orderBy('starts_at', 'asc')
+            ->get();
+
+        $summary = $pickListService->buildMonthMaterials($monthWorkshops);
+
+        return DomPdf::loadView('pdf.workshop-month-materials-summary', [
+            'currentMonthLabel' => $monthStart->format('F Y'),
+            'generatedAt' => now(),
+            'materialRows' => $summary['materialRows'],
+            'totalQuantity' => $summary['totalQuantity'],
+            'uniqueItemCount' => $summary['uniqueItemCount'],
+            'workshopSummaries' => $summary['workshopSummaries'],
+        ])->setOption([
+            'enable_font_subsetting' => true,
+        ])->setPaper('a4', 'landscape')->stream('workshop-month-'.$selectedMonth.'-materials-summary.pdf');
+    }
+
+    /**
+     * @return array{
+     *     calendarWeeks: Collection<int, Collection<int, array<string, mixed>>>,
+     *     currentMonthLabel: string,
+     *     hasMonthWorkshops: bool,
+     *     nextMonth: string,
+     *     previousMonth: string
+     * }
+     */
+    private function buildWorkshopMonthData(string $selectedMonth, string $search): array
+    {
+        $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
+        $monthEnd = (clone $monthStart)->endOfMonth();
+        $calendarStart = (clone $monthStart)->startOfWeek(Carbon::SUNDAY);
+        $calendarEnd = (clone $monthEnd)->endOfWeek(Carbon::SATURDAY);
+
+        $monthWorkshops = $this->buildWorkshopAdminQuery($search)
+            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->orderBy('starts_at', 'asc')
+            ->get();
+
+        $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+
+        $calendarDays = collect();
+        for ($cursor = $calendarStart->copy(); $cursor->lessThanOrEqualTo($calendarEnd); $cursor->addDay()) {
+            $dateKey = $cursor->toDateString();
+            $calendarDays->push([
+                'date' => $dateKey,
+                'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
+                'is_today' => $cursor->isSameDay(now()),
+                'label' => $cursor->format('j'),
+                'full_label' => $cursor->format('D j M Y'),
+                'workshops' => $workshopsByDate->get($dateKey, collect())->values(),
+            ]);
+        }
+
+        return [
+            'calendarWeeks' => $calendarDays->chunk(7)->map(fn (Collection $week): Collection => $week->values())->values(),
+            'currentMonthLabel' => $monthStart->format('F Y'),
+            'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
+            'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
+            'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+        ];
+    }
+
+    private function buildWorkshopAdminQuery(string $search): Builder
+    {
+        $query = Workshop::query()
+            ->with(['hero', 'location'])
+            ->withCount('interests');
+
+        if ($search !== '') {
+            $query->where(function (Builder $builder) use ($search): void {
+                $builder->where('title', 'like', '%'.$search.'%')
+                    ->orWhere('content', 'like', '%'.$search.'%');
+            });
+        }
+
+        return $query;
     }
 
     /**

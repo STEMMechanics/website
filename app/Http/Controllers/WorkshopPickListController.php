@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\PickListTemplate;
 use App\Models\PickListTemplateItem;
-use App\Models\Ticket;
 use App\Models\Workshop;
+use App\Services\WorkshopPickListService;
 use Barryvdh\DomPDF\Facade\Pdf as DomPdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,16 +18,17 @@ use JsonException;
 
 class WorkshopPickListController extends Controller
 {
+    public function __construct(private WorkshopPickListService $pickListService)
+    {
+    }
+
     public function show(Workshop $workshop)
     {
         $workshop->loadMissing('location', 'pickListTemplate.items');
 
-        $participants = $this->resolvedParticipants($workshop);
-        $resolvedItems = $this->resolvedPickListItems($workshop);
-        $pickListNotes = trim((string) ($workshop->pick_list_notes ?? ''));
-        if ($pickListNotes === '') {
-            $pickListNotes = trim((string) ($workshop->pickListTemplate->description ?? ''));
-        }
+        $pickListData = $this->pickListService->build($workshop);
+        $participants = $pickListData['participants'];
+        $resolvedItems = $pickListData['resolvedItems'];
         $resolvedItemIds = $resolvedItems->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)
@@ -44,7 +45,7 @@ class WorkshopPickListController extends Controller
         return view('admin.workshop.pick-list', [
             'workshop' => $workshop,
             'participants' => $participants,
-            'activeTicketCount' => $this->activeTicketCount($workshop),
+            'activeTicketCount' => $this->pickListService->activeTicketCount($workshop),
             'checkedItemIds' => $checkedItemIds,
             'pickListCanvasDataJson' => is_string($workshop->pick_list_canvas_data) ? $workshop->pick_list_canvas_data : null,
             'pickListCanvasThumbnailUrl' => $this->pickListCanvasThumbnailUrl($workshop->pick_list_canvas_thumbnail_path),
@@ -60,9 +61,9 @@ class WorkshopPickListController extends Controller
             'customItems' => $workshop->pick_list_is_customized ? $resolvedItems->values()->all() : [],
             'isCustomized' => (bool) $workshop->pick_list_is_customized,
             'itemSuggestions' => $this->itemSuggestions($resolvedItems),
-            'calculatedItems' => $this->buildCalculatedItems($resolvedItems, $participants),
+            'calculatedItems' => $pickListData['calculatedItems'],
             'lastSavedAt' => $workshop->updated_at,
-            'pickListNotes' => $pickListNotes,
+            'pickListNotes' => $pickListData['pickListNotes'],
         ]);
     }
 
@@ -102,7 +103,7 @@ class WorkshopPickListController extends Controller
             $workshop->pick_list_custom_items = null;
             $workshop->pick_list_is_customized = false;
         } elseif ($customItemsProvided) {
-            $customItems = $this->normalizePickListItems($request->input('pick_list_custom_items'));
+            $customItems = $this->pickListService->normalizePickListItems($request->input('pick_list_custom_items'));
             $workshop->pick_list_custom_items = $customItems;
             $workshop->pick_list_is_customized = true;
         } elseif (! $existingCustomized) {
@@ -114,7 +115,7 @@ class WorkshopPickListController extends Controller
         $workshop->pick_list_participants = $validated['pick_list_participants'] ?? null;
         $workshop->pick_list_notes = $notes !== '' ? $notes : null;
 
-        $resolvedItems = $this->resolvedPickListItems($workshop);
+        $resolvedItems = $this->pickListService->build($workshop)['resolvedItems'];
         $allowedIds = $resolvedItems->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->filter(fn (int $id) => $id > 0)
@@ -179,193 +180,18 @@ class WorkshopPickListController extends Controller
         }
 
         $workshop->loadMissing('location', 'pickListTemplate.items');
-        $participants = $this->resolvedParticipants($workshop);
-        $resolvedItems = $this->resolvedPickListItems($workshop);
+        $pickListData = $this->pickListService->build($workshop);
 
         $pdf = DomPdf::loadView('pdf.workshop-pick-list', [
             'workshop' => $workshop,
-            'participants' => $participants,
-            'calculatedItems' => $this->buildCalculatedItems($resolvedItems, $participants),
+            'participants' => $pickListData['participants'],
+            'calculatedItems' => $pickListData['calculatedItems'],
             'generatedAt' => now(),
         ])->setOption([
             'enable_font_subsetting' => true,
         ]);
 
         return $pdf->stream('workshop-'.$workshop->id.'-pick-list.pdf');
-    }
-
-    private function activeTicketCount(Workshop $workshop): int
-    {
-        if ($workshop->registration !== 'tickets') {
-            return 0;
-        }
-
-        return Ticket::query()
-            ->where('workshop_id', $workshop->id)
-            ->whereIn('status', Ticket::activePurchasedStatuses())
-            ->count();
-    }
-
-    private function resolvedParticipants(Workshop $workshop): int
-    {
-        if ($workshop->registration === 'tickets') {
-            $fromTickets = $this->activeTicketCount($workshop);
-            if ($fromTickets > 0) {
-                return $fromTickets;
-            }
-
-            return 1;
-        }
-
-        $configured = (int) ($workshop->pick_list_participants ?? 0);
-        if ($configured > 0) {
-            return $configured;
-        }
-
-        $fromTickets = $this->activeTicketCount($workshop);
-        if ($fromTickets > 0) {
-            return $fromTickets;
-        }
-
-        return 1;
-    }
-
-    /**
-     * @param Collection<int, array{id: int, item_name: string, quantity_type: string, quantity_value: int, sort_order: int}> $items
-     * @return Collection<int, array{item_id: int, item_name: string, quantity: int, quantity_text: string, type_note: string}>
-     */
-    private function buildCalculatedItems(Collection $items, int $participants): Collection
-    {
-        return $items
-            ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
-            ->map(function (array $item) use ($participants): array {
-                $quantityType = (string) $item['quantity_type'];
-                $quantityValue = (int) $item['quantity_value'];
-                $quantity = $this->computedItemQuantity($participants, $quantityType, $quantityValue);
-
-                return [
-                    'item_id' => (int) $item['id'],
-                    'item_name' => (string) $item['item_name'],
-                    'quantity' => $quantity,
-                    'quantity_text' => (string) $quantity,
-                    'type_note' => $quantityType === PickListTemplateItem::TYPE_PER_PARTICIPANT
-                        ? '('.$quantityValue.' per participant)'
-                        : '',
-                ];
-            })
-            ->values();
-    }
-
-    /**
-     * @return Collection<int, array{id: int, item_name: string, quantity_type: string, quantity_value: int, sort_order: int}>
-     */
-    private function resolvedPickListItems(Workshop $workshop): Collection
-    {
-        if ($workshop->pick_list_is_customized) {
-            return collect($this->normalizePickListItems($workshop->pick_list_custom_items));
-        }
-
-        return ($workshop->pick_list_template_id !== null ? $workshop->pickListTemplate->items : collect())
-            ->sortBy([['sort_order', 'asc'], ['id', 'asc']])
-            ->map(function (PickListTemplateItem $item): array {
-                return [
-                    'id' => (int) $item->id,
-                    'item_name' => (string) $item->item_name,
-                    'quantity_type' => (string) $item->quantity_type,
-                    'quantity_value' => (int) $item->quantity_value,
-                    'sort_order' => (int) ($item->sort_order ?? 0),
-                ];
-            })
-            ->values();
-    }
-
-    /**
-     * @param mixed $value
-     * @return array<int, array{id: int, item_name: string, quantity_type: string, quantity_value: int, sort_order: int}>
-     */
-    private function normalizePickListItems(mixed $value): array
-    {
-        if ($value === null) {
-            return [];
-        }
-
-        if (is_string($value)) {
-            $trimmed = trim($value);
-            if ($trimmed === '') {
-                return [];
-            }
-
-            try {
-                $decoded = json_decode($trimmed, true, 512, JSON_THROW_ON_ERROR);
-            } catch (JsonException) {
-                throw ValidationException::withMessages([
-                    'pick_list_custom_items' => 'Custom pick list items could not be parsed.',
-                ]);
-            }
-        } elseif (is_array($value)) {
-            $decoded = $value;
-        } else {
-            throw ValidationException::withMessages([
-                'pick_list_custom_items' => 'Custom pick list items format is invalid.',
-            ]);
-        }
-
-        if (! is_array($decoded)) {
-            throw ValidationException::withMessages([
-                'pick_list_custom_items' => 'Custom pick list items format is invalid.',
-            ]);
-        }
-
-        $normalized = [];
-        $usedIds = [];
-        $nextId = 1;
-
-        foreach ($decoded as $index => $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
-            $itemName = trim((string) ($row['item_name'] ?? ''));
-            if ($itemName === '') {
-                continue;
-            }
-
-            $quantityType = (string) ($row['quantity_type'] ?? PickListTemplateItem::TYPE_PER_PARTICIPANT);
-            if (! in_array($quantityType, PickListTemplateItem::TYPES, true)) {
-                $quantityType = PickListTemplateItem::TYPE_PER_PARTICIPANT;
-            }
-
-            $quantityValue = max(1, (int) ($row['quantity_value'] ?? 1));
-            $itemId = isset($row['id']) ? (int) $row['id'] : 0;
-            if ($itemId <= 0 || in_array($itemId, $usedIds, true)) {
-                $itemId = $nextId;
-            }
-
-            $nextId = max($nextId + 1, $itemId + 1);
-            $usedIds[] = $itemId;
-
-            $normalized[] = [
-                'id' => $itemId,
-                'item_name' => $itemName,
-                'quantity_type' => $quantityType,
-                'quantity_value' => $quantityValue,
-                'sort_order' => ($index + 1) * 10,
-            ];
-        }
-
-        return $normalized;
-    }
-
-    private function computedItemQuantity(int $participants, string $quantityType, int $quantityValue): int
-    {
-        $participants = max(0, $participants);
-        $quantityValue = max(1, $quantityValue);
-
-        if ($quantityType === PickListTemplateItem::TYPE_PER_PARTICIPANT) {
-            return max(0, $quantityValue * $participants);
-        }
-
-        return $quantityValue;
     }
 
     /**
