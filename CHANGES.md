@@ -30,6 +30,7 @@
 - Show warnings on the STEMCraft punishments page
 - Include offers in workshop event schema
 - Added Cairns Minecraft page and links
+- Added admin workshop calendar view.
 
 ## 1.4.3
 
