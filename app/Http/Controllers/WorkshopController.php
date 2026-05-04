@@ -243,7 +243,7 @@ class WorkshopController extends Controller
         $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
         $monthEnd = (clone $monthStart)->endOfMonth();
 
-        /** @var Collection<int, Workshop> $monthWorkshops */
+        /** @var Builder<Workshop> $monthWorkshopsQuery */
         $monthWorkshopsQuery = $this->buildWorkshopAdminQuery($search)
             ->where('status', '!=', 'draft')
             ->whereBetween('starts_at', [$monthStart, $monthEnd])
