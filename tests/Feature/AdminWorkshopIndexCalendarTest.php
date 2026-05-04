@@ -342,12 +342,20 @@ class AdminWorkshopIndexCalendarTest extends TestCase
     private function runPdfInfo(string $tempFile): string
     {
         $binary = $this->resolveBinary('pdfinfo');
+        if ($binary === null) {
+            $this->markTestSkipped('pdfinfo is not available in this environment.');
+        }
+
         return $this->runBinaryCommand([$binary, $tempFile]);
     }
 
     private function extractPdfText(string $tempFile): string
     {
         $binary = $this->resolveBinary('pdftotext');
+        if ($binary === null) {
+            $this->markTestSkipped('pdftotext is not available in this environment.');
+        }
+
         return $this->runBinaryCommand([$binary, $tempFile, '-']);
     }
 
@@ -367,7 +375,7 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         return implode("\n", $output);
     }
 
-    private function resolveBinary(string $binary): string
+    private function resolveBinary(string $binary): ?string
     {
         foreach ([
             '/opt/homebrew/bin/'.$binary,
@@ -385,6 +393,6 @@ class AdminWorkshopIndexCalendarTest extends TestCase
             }
         }
 
-        return $binary;
+        return null;
     }
 }
