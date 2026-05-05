@@ -1,5 +1,9 @@
 # Changes
 
+## 1.4.5
+
+- Improved UI
+
 ## 1.4.4
 
 - Improved UI

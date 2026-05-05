@@ -129,7 +129,39 @@
         </div>
 
         @if($view === 'month')
-            <div class="mt-6 overflow-x-auto rounded-xl border border-gray-200 bg-white">
+            @php
+                $calendarDays = collect($calendarWeeks)->flatten(1)->filter(fn (array $day): bool => (bool) ($day['in_month'] ?? false))->values();
+            @endphp
+
+            <div class="mt-6 space-y-4 md:hidden">
+                <div class="overflow-hidden border border-gray-200 bg-white">
+                    <div class="divide-y divide-gray-200">
+                        @foreach($calendarDays as $day)
+                            <div class="px-4 py-3 {{ $day['is_today'] ? 'bg-primary-color/5' : '' }}">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="text-sm font-semibold {{ $day['is_today'] ? 'text-primary-color' : 'text-gray-900' }}">
+                                        {{ \Illuminate\Support\Carbon::parse($day['date'])->format('D j M') }}
+                                    </div>
+                                </div>
+
+                                <div class="mt-2 space-y-2">
+                                    @forelse($day['workshops'] as $workshop)
+                                        <a href="{{ route('admin.workshop.edit', $workshop) }}" class="block rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-left text-xs text-gray-700 hover:border-primary-color hover:bg-primary-color-light/10 hover:text-primary-color-dark">
+                                            <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
+                                            <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
+                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getLocationName() }}</div>
+                                        </a>
+                                    @empty
+                                        <div class="text-sm text-gray-500">--</div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
                 <table class="min-w-245 w-full table-fixed border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
