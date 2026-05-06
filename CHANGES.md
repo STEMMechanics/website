@@ -4,6 +4,7 @@
 
 - Improved UI
 - Added workshop and discussion RSS feeds
+- Dependency updates
 
 ## 1.4.4
 
