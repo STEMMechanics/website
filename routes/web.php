@@ -64,6 +64,7 @@ Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.x
 // Route::get('posts/{post}', [PostController::class, 'show'])->name('post.show');
 Route::get('workshops', [WorkshopController::class, 'index'])->name('workshop.index');
 Route::get('workshops/past', [WorkshopController::class, 'past_index'])->name('workshop.past.index');
+Route::get('workshops/feed', [WorkshopController::class, 'feed'])->name('workshop.feed');
 Route::get('workshops/{workshop}', [WorkshopController::class, 'show'])->name('workshop.show');
 Route::post('workshops/{workshop}/private-access', [WorkshopController::class, 'privateAccess'])->name('workshop.private-access');
 Route::post('workshops/{workshop}/interest', [WorkshopController::class, 'interest'])->name('workshop.interest');
@@ -141,6 +142,8 @@ Route::post('/pay/{invoice}/email-documents', [InvoiceController::class, 'public
     Route::post('/webhooks/minecraft/server', [MinecraftWebhookController::class, 'handle'])->name('webhook.minecraft.server');
     Route::post('/webhooks/livekit', [LiveKitWebhookController::class, 'handle'])->name('webhook.livekit');
     Route::get('/link-options', [CustomPageController::class, 'linkOptions'])->name('custom-page.link-options');
+
+Route::get('/forum/feed', [ForumController::class, 'feed'])->name('forum.feed');
 
 Route::middleware('nocache')->group(function () {
     Route::get('/forum', [ForumController::class, 'index'])->name('forum.index');

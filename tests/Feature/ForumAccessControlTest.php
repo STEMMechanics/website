@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ForumCategory;
 use App\Models\ForumPost;
+use App\Models\ForumPostAttachment;
 use App\Models\ForumTopic;
 use App\Models\ClassSession;
 use App\Models\User;
@@ -11,6 +12,7 @@ use App\Models\UserGroup;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ForumAccessControlTest extends TestCase
@@ -73,6 +75,89 @@ class ForumAccessControlTest extends TestCase
             'Cookie',
             (string) $response->headers->get('Vary')
         );
+    }
+
+    public function test_public_forum_feed_exposes_thread_metadata_and_excludes_private_categories(): void
+    {
+        Storage::fake('local');
+
+        $author = User::factory()->create([
+            'firstname' => 'Feed',
+            'surname' => 'Author',
+            'username' => 'feedauthor',
+        ]);
+
+        $publicCategory = $this->createCategory('General Discussion', 'general-discussion', null, null);
+        $membersCategory = $this->createCategory('Members Lounge', 'members-lounge', 'user', null);
+        $adminsCategory = $this->createCategory('Admin Lounge', 'admin-lounge', 'admin', null);
+
+        [$publicTopic, $publicFirstPost] = $this->createTopicWithFirstPost($publicCategory, $author, 'Public forum topic');
+        $publicFirstPost->forceFill([
+            'body' => '<p>Public topic excerpt with <strong>formatting</strong>.</p>',
+        ])->save();
+
+        ForumPost::query()->create([
+            'forum_topic_id' => $publicTopic->id,
+            'parent_forum_post_id' => $publicFirstPost->id,
+            'user_id' => $author->id,
+            'body' => '<p>Public reply body.</p>',
+            'is_approved' => true,
+        ]);
+
+        $imagePath = 'forum-post-attachments/'.(string) $publicFirstPost->id.'/'.'topic-cover.jpg';
+        Storage::disk('local')->put($imagePath, 'image-bytes');
+
+        $imageAttachment = ForumPostAttachment::query()->create([
+            'forum_post_id' => $publicFirstPost->id,
+            'uploaded_by_user_id' => $author->id,
+            'original_filename' => 'topic-cover.jpg',
+            'storage_path' => $imagePath,
+            'mime_type' => 'image/jpeg',
+            'size_bytes' => 11,
+            'sort_order' => 1,
+        ]);
+
+        $publicUpdatedAt = now();
+        $publicTopic->forceFill([
+            'is_pinned' => true,
+            'is_locked' => true,
+            'last_post_at' => $publicUpdatedAt,
+            'last_post_user_id' => $author->id,
+        ])->save();
+
+        $this->createTopicWithFirstPost($membersCategory, $author, 'Members-only forum topic');
+        $this->createTopicWithFirstPost($adminsCategory, $author, 'Admin-only forum topic');
+
+        $indexResponse = $this->get(route('forum.index'));
+        $indexResponse->assertOk();
+        $indexResponse->assertSee(route('forum.feed'));
+
+        $feedResponse = $this->get(route('forum.feed'));
+        $feedResponse->assertOk();
+        $feedResponse->assertHeader('Content-Type', 'application/rss+xml; charset=UTF-8');
+        $feedResponse->assertSee('Public forum topic');
+        $feedResponse->assertSee(route('forum.topic.show', [
+            'categorySlug' => $publicCategory->slug,
+            'topicSlug' => $publicTopic->slug,
+        ]));
+        $feedResponse->assertSee(route('forum.post.attachment.download', [
+            'categorySlug' => $publicCategory->slug,
+            'topicSlug' => $publicTopic->slug,
+            'forumPost' => $publicFirstPost->id,
+            'attachment' => $imageAttachment->id,
+        ]), false);
+        $feedResponse->assertSee('type="image/jpeg"', false);
+        $feedResponse->assertSee('Public topic excerpt with formatting.', false);
+        $feedResponse->assertSee('<sm:category>General Discussion</sm:category>', false);
+        $feedResponse->assertSee('<sm:author>feedauthor</sm:author>', false);
+        $feedResponse->assertSee('<sm:excerpt>Public topic excerpt with formatting.</sm:excerpt>', false);
+        $feedResponse->assertSee('<sm:replyCount>1</sm:replyCount>', false);
+        $feedResponse->assertSee('<sm:locked>true</sm:locked>', false);
+        $feedResponse->assertSee('<sm:pinned>true</sm:pinned>', false);
+        $feedResponse->assertSee('<sm:updatedAt>'.$publicUpdatedAt->toAtomString().'</sm:updatedAt>', false);
+        $feedResponse->assertDontSee('Members-only forum topic');
+        $feedResponse->assertDontSee('Admin-only forum topic');
+        $feedResponse->assertSee('STEMMechanics Discussions');
     }
 
     public function test_helpdesk_example_public_read_logged_in_write(): void

@@ -1,3 +1,7 @@
+@push('head')
+    <link rel="alternate" type="application/rss+xml" title="STEMMechanics Discussions RSS feed" href="{{ route('forum.feed') }}">
+@endpush
+
 <x-layout>
     <x-mast>Discussions</x-mast>
 
@@ -7,6 +11,18 @@
                 <p class="text-sm font-semibold uppercase tracking-[0.22em] text-gray-400">Categories</p>
                 <h1 class="mt-2 text-3xl font-semibold tracking-tight text-gray-900">Browse discussion spaces</h1>
                 <p class="mt-2 max-w-2xl text-base text-gray-600">Explore discussion spaces for workshops, ideas, STEMCraft updates, and general conversation, with new replies easy to spot as you browse.</p>
+            </div>
+            <div class="flex shrink-0 justify-start lg:justify-end">
+                <x-ui.button
+                    href="{{ route('forum.feed') }}"
+                    color="secondary"
+                    class="!w-11 !px-0 !py-2 !rounded-full"
+                    title="RSS feed"
+                    aria-label="RSS feed"
+                >
+                    <i class="fa-solid fa-rss"></i>
+                    <span class="sr-only">RSS feed</span>
+                </x-ui.button>
             </div>
         </div>
 

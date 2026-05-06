@@ -3,6 +3,7 @@
 ## 1.4.5
 
 - Improved UI
+- Added workshop and discussion RSS feeds
 
 ## 1.4.4
 

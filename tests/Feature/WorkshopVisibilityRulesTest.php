@@ -43,6 +43,58 @@ class WorkshopVisibilityRulesTest extends TestCase
         );
     }
 
+    public function test_public_workshop_page_exposes_an_rss_feed_and_feed_excludes_hidden_items(): void
+    {
+        $publicWorkshop = $this->createWorkshop(
+            title: 'Public Robotics Session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            ages: '9-12',
+            summary: 'A public workshop for the feed.',
+            price: '27.5'
+        );
+
+        $hiddenWorkshop = $this->createWorkshop(
+            title: 'Hidden RSS Session',
+            status: 'open',
+            isHidden: true,
+            publishAt: now()->subDay()
+        );
+
+        $draftWorkshop = $this->createWorkshop(
+            title: 'Draft RSS Session',
+            status: 'draft',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+
+        $indexResponse = $this->get(route('workshop.index'));
+        $indexResponse->assertOk();
+        $indexResponse->assertSee(route('workshop.feed'));
+
+        $feedResponse = $this->get(route('workshop.feed'));
+        $feedResponse->assertOk();
+        $feedResponse->assertHeader('Content-Type', 'application/rss+xml; charset=UTF-8');
+        $feedResponse->assertSee('Public Robotics Session');
+        $feedResponse->assertSee(route('workshop.show', $publicWorkshop));
+        $feedResponse->assertSee($publicWorkshop->hero?->url('md'), false);
+        $feedResponse->assertSee('type="image/png"', false);
+        $feedResponse->assertSee('<sm:startDate>', false);
+        $feedResponse->assertSee('<sm:endDate>', false);
+        $feedResponse->assertSee($publicWorkshop->getLocationDisplay(), false);
+        $feedResponse->assertSee('<sm:price>27.50</sm:price>', false);
+        $feedResponse->assertSee('<sm:ages>9-12</sm:ages>', false);
+        $feedResponse->assertSee('<sm:status>Open</sm:status>', false);
+        $feedResponse->assertDontSee('Hidden RSS Session');
+        $feedResponse->assertDontSee('Draft RSS Session');
+        $feedResponse->assertSee('STEMMechanics Workshops');
+
+        $this->assertTrue($publicWorkshop->isPubliclyVisible());
+        $this->assertTrue($hiddenWorkshop->isPubliclyVisible());
+        $this->assertFalse($draftWorkshop->isPubliclyVisible());
+    }
+
     public function test_private_workshops_are_excluded_from_upcoming_email(): void
     {
         $privateWorkshop = $this->createWorkshop(

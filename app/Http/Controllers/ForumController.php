@@ -20,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -49,6 +50,71 @@ class ForumController extends Controller
             'courseCategories' => $courseCategories,
             'unreadCategoryCounts' => $unreadCategoryCounts,
         ]);
+    }
+
+    public function feed(): Response
+    {
+        $publicCategoryIds = ForumCategory::query()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (ForumCategory $category) => ! $category->isDivider() && $category->canRead(null))
+            ->pluck('id')
+            ->all();
+
+        $topics = ForumTopic::query()
+            ->with([
+                'category',
+                'firstPost.user',
+                'user',
+            ])
+            ->withCount('posts')
+            ->where('is_approved', true)
+            ->whereIn('forum_category_id', $publicCategoryIds)
+            ->orderByDesc('is_pinned')
+            ->orderByDesc('last_post_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get()
+            ->map(function (ForumTopic $topic): array {
+                $firstPost = $topic->firstPost;
+                $updatedAt = $topic->last_post_at ?? $topic->created_at ?? now();
+                $replyCount = max(0, (int) $topic->posts_count - 1);
+                $excerpt = $this->forumFeedExcerpt($firstPost ? (string) $firstPost->body : '');
+
+                return [
+                    'author' => trim((string) ($topic->user?->forumDisplayName() ?? 'deleted')),
+                    'category' => trim((string) $topic->category->name),
+                    'description' => implode("\n\n", array_filter([
+                        $excerpt,
+                        $this->forumFeedMetaLine($topic, $replyCount),
+                    ])),
+                    'excerpt' => $excerpt,
+                    'enclosure' => $this->forumFeedEnclosure($topic),
+                    'guid' => route('forum.topic.show', [
+                        'categorySlug' => (string) $topic->category->slug,
+                        'topicSlug' => (string) $topic->slug,
+                    ]),
+                    'link' => route('forum.topic.show', [
+                        'categorySlug' => (string) $topic->category->slug,
+                        'topicSlug' => (string) $topic->slug,
+                    ]),
+                    'locked' => $topic->is_locked ? 'true' : 'false',
+                    'pinned' => $topic->is_pinned ? 'true' : 'false',
+                    'pubDate' => $updatedAt,
+                    'replyCount' => $replyCount,
+                    'title' => $topic->plainTitle(),
+                    'updatedAt' => $updatedAt,
+                ];
+            });
+
+        return response()
+            ->view('forum.feed', [
+                'generatedAt' => now(),
+                'items' => $topics,
+            ])
+            ->header('Content-Type', 'application/rss+xml; charset=UTF-8');
     }
 
     public function showCategory(Request $request, string $categorySlug): View|RedirectResponse
@@ -1290,6 +1356,72 @@ class ForumController extends Controller
             'regularCategories' => $regularCategories,
             'courseCategories' => $courseCategories,
             'unreadCategoryCounts' => $unreadCategoryCounts,
+        ];
+    }
+
+    private function forumFeedExcerpt(string $body): string
+    {
+        $excerpt = trim((string) ForumContent::emailPreviewText($body));
+        if ($excerpt === '') {
+            return '';
+        }
+
+        return Str::limit($excerpt, 240);
+    }
+
+    private function forumFeedMetaLine(ForumTopic $topic, int $replyCount): string
+    {
+        $parts = [];
+
+        $categoryName = trim((string) $topic->category->name);
+        if ($categoryName !== '') {
+            $parts[] = $categoryName;
+        }
+
+        $authorName = trim((string) ($topic->user?->forumDisplayName() ?? ''));
+        if ($authorName !== '') {
+            $parts[] = 'by '.$authorName;
+        }
+
+        $parts[] = $replyCount.' '.Str::plural('reply', $replyCount);
+
+        if ($topic->is_pinned) {
+            $parts[] = 'pinned';
+        }
+
+        if ($topic->is_locked) {
+            $parts[] = 'locked';
+        }
+
+        return implode(' · ', $parts);
+    }
+
+    private function forumFeedEnclosure(ForumTopic $topic): ?array
+    {
+        $firstPost = $topic->firstPost;
+        if (! $firstPost) {
+            return null;
+        }
+
+        $attachment = $firstPost->attachments
+            ->first(function (ForumPostAttachment $postAttachment): bool {
+                $mimeType = trim((string) ($postAttachment->mime_type ?? ''));
+
+                return $mimeType !== '' && str_starts_with(strtolower($mimeType), 'image/');
+            });
+
+        if (! $attachment instanceof ForumPostAttachment) {
+            return null;
+        }
+
+        return [
+            'url' => route('forum.post.attachment.download', [
+                'categorySlug' => (string) $topic->category->slug,
+                'topicSlug' => (string) $topic->slug,
+                'forumPost' => $firstPost->id,
+                'attachment' => $attachment->id,
+            ]),
+            'type' => trim((string) $attachment->mime_type),
         ];
     }
 

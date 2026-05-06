@@ -50,12 +50,7 @@ class WorkshopController extends Controller
      */
     public function index()
     {
-        $query = Workshop::query();
-        $query = $query->publiclyVisible()
-            ->where('starts_at', '>=', Carbon::now()->subDays(8))
-            ->orderBy('starts_at', 'asc');
-
-        $workshops = $query->paginate(12);
+        $workshops = $this->publicWorkshopListingQuery(false)->paginate(12);
 
         return view('workshop.index', [
             'workshops' => $workshops,
@@ -67,16 +62,46 @@ class WorkshopController extends Controller
      */
     public function past_index()
     {
-        $query = Workshop::query();
-        $query = $query->publiclyVisible()
-            ->where('starts_at', '<', Carbon::now())
-            ->orderBy('starts_at', 'desc');
-
-        $workshops = $query->paginate(12);
+        $workshops = $this->publicWorkshopListingQuery(true)->paginate(12);
 
         return view('workshop.index', [
             'workshops' => $workshops,
         ]);
+    }
+
+    public function feed(): Response
+    {
+        $workshops = $this->publicWorkshopListingQuery(false)
+            ->limit(20)
+            ->get()
+            ->map(function (Workshop $workshop): array {
+                $descriptionParts = array_filter([
+                    $workshop->newsletterSummary(240),
+                    $this->workshopFeedDetailLine($workshop),
+                ]);
+
+                return [
+                    'description' => implode("\n\n", $descriptionParts),
+                    'guid' => route('workshop.show', $workshop),
+                    'ages' => trim((string) ($workshop->ages ?? '')),
+                    'enclosure' => $this->workshopFeedEnclosure($workshop),
+                    'link' => route('workshop.show', $workshop),
+                    'location' => trim((string) $workshop->getLocationDisplay()),
+                    'price' => $this->workshopFeedPriceLabel($workshop),
+                    'pubDate' => $workshop->updated_at ?? $workshop->publish_at ?? $workshop->created_at ?? now(),
+                    'status' => $workshop->publicStatusLabel(),
+                    'title' => $workshop->title,
+                    'startDate' => $workshop->effectiveStartsAt(),
+                    'endDate' => $workshop->effectiveEndsAt(),
+                ];
+            });
+
+        return response()
+            ->view('workshop.feed', [
+                'generatedAt' => now(),
+                'items' => $workshops,
+            ])
+            ->header('Content-Type', 'application/rss+xml; charset=UTF-8');
     }
 
     /**
@@ -339,6 +364,70 @@ class WorkshopController extends Controller
             'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
             'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+        ];
+    }
+
+    /**
+     * @return Builder<Workshop>
+     */
+    private function publicWorkshopListingQuery(bool $past): Builder
+    {
+        $query = Workshop::query()
+            ->publiclyVisible()
+            ->with(['hero', 'location']);
+
+        if ($past) {
+            return $query
+                ->where('starts_at', '<', Carbon::now())
+                ->orderBy('starts_at', 'desc');
+        }
+
+        return $query
+            ->where('starts_at', '>=', Carbon::now()->subDays(8))
+            ->orderBy('starts_at', 'asc');
+    }
+
+    private function workshopFeedDetailLine(Workshop $workshop): string
+    {
+        $details = [];
+
+        if ($startsAt = $workshop->effectiveStartsAt()) {
+            $details[] = $startsAt->format('D j M Y g:ia');
+        }
+
+        $location = trim($workshop->getLocationDisplay());
+        if ($location !== '') {
+            $details[] = $location;
+        }
+
+        return implode(' · ', $details);
+    }
+
+    private function workshopFeedPriceLabel(Workshop $workshop): string
+    {
+        $price = trim((string) ($workshop->price ?? ''));
+        if ($price === '' || $price === '0' || $price === '0.00') {
+            return 'Free';
+        }
+
+        if (is_numeric($price)) {
+            return number_format((float) $price, 2, '.', '');
+        }
+
+        return $price;
+    }
+
+    private function workshopFeedEnclosure(Workshop $workshop): ?array
+    {
+        $hero = $workshop->hero;
+        $mimeType = trim((string) $hero->mime_type);
+        if ($hero === null || $mimeType === '' || ! str_starts_with(strtolower($mimeType), 'image/')) {
+            return null;
+        }
+
+        return [
+            'url' => $hero->url('md') ?: $hero->url,
+            'type' => $mimeType,
         ];
     }
 
