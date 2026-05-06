@@ -5,6 +5,7 @@
 - Improved UI
 - Added workshop and discussion RSS feeds
 - Dependency updates
+- Avoid Blade parsing error in RSS and sitemap XML views
 
 ## 1.4.4
 
