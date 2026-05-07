@@ -466,14 +466,14 @@ class WorkshopController extends Controller
                 ],
             ],
             'toggleViewRoute' => route($routeName, $selectedView === 'calendar'
-                ? array_filter([
+                ? [
                     'view' => 'cards',
                     'month' => $selectedMonth,
-                ], fn ($value) => $value !== null && $value !== '')
-                : array_filter([
+                ]
+                : [
                     'view' => 'calendar',
                     'month' => $selectedMonth,
-                ], fn ($value) => $value !== null && $value !== '')
+                ]
             ),
             'toggleViewTitle' => $selectedView === 'calendar' ? 'Card view' : 'Calendar view',
             'toggleViewIcon' => $selectedView === 'calendar' ? 'fa-solid fa-table-cells-large' : 'fa-regular fa-calendar-days',
