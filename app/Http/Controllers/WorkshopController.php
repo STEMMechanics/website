@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Throwable;
 
 class WorkshopController extends Controller
@@ -48,25 +49,17 @@ class WorkshopController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request): View
     {
-        $workshops = $this->publicWorkshopListingQuery(false)->paginate(12);
-
-        return view('workshop.index', [
-            'workshops' => $workshops,
-        ]);
+        return $this->renderPublicWorkshopIndex($request, false);
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function past_index()
+    public function past_index(Request $request): View
     {
-        $workshops = $this->publicWorkshopListingQuery(true)->paginate(12);
-
-        return view('workshop.index', [
-            'workshops' => $workshops,
-        ]);
+        return $this->renderPublicWorkshopIndex($request, true);
     }
 
     public function feed(): Response
@@ -365,6 +358,128 @@ class WorkshopController extends Controller
             'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
         ];
+    }
+
+    /**
+     * @return array{
+     *     calendarWeeks: Collection<int, Collection<int, array<string, mixed>>>,
+     *     currentMonthLabel: string,
+     *     hasMonthWorkshops: bool,
+     *     nextMonth: string,
+     *     previousMonth: string
+     * }
+     */
+    private function buildPublicWorkshopMonthData(string $selectedMonth): array
+    {
+        $monthStart = Carbon::createFromFormat('Y-m-d', $selectedMonth.'-01', config('app.timezone'))->startOfMonth();
+        $monthEnd = (clone $monthStart)->endOfMonth();
+        $calendarStart = (clone $monthStart)->startOfWeek(Carbon::SUNDAY);
+        $calendarEnd = (clone $monthEnd)->endOfWeek(Carbon::SATURDAY);
+
+        /** @var Collection<int, Workshop> $monthWorkshops */
+        $monthWorkshops = Workshop::query()
+            ->publiclyVisible()
+            ->with(['hero', 'location'])
+            ->whereBetween('starts_at', [$monthStart, $monthEnd])
+            ->orderBy('starts_at', 'asc')
+            ->get();
+
+        $workshopsByDate = $monthWorkshops->groupBy(fn (Workshop $workshop): string => $workshop->starts_at?->toDateString() ?? '');
+
+        /** @var Collection<int, array<string, mixed>> $calendarDays */
+        $calendarDays = collect();
+        for ($cursor = $calendarStart->copy(); $cursor->lessThanOrEqualTo($calendarEnd); $cursor->addDay()) {
+            $dateKey = $cursor->toDateString();
+            $calendarDays->push([
+                'date' => $dateKey,
+                'in_month' => $cursor->greaterThanOrEqualTo($monthStart) && $cursor->lessThanOrEqualTo($monthEnd),
+                'is_today' => $cursor->isSameDay(now()),
+                'label' => $cursor->format('j'),
+                'full_label' => $cursor->format('D j M Y'),
+                'workshops' => $workshopsByDate->get($dateKey, collect())->values(),
+            ]);
+        }
+
+        /** @var Collection<int, Collection<int, array<string, mixed>>> $calendarWeeks */
+        $calendarWeeks = $calendarDays->chunk(7)->map(
+            fn (Collection $week): Collection => $week->values()
+        )->values();
+
+        return [
+            'calendarWeeks' => $calendarWeeks,
+            'currentMonthLabel' => $monthStart->format('F Y'),
+            'hasMonthWorkshops' => $monthWorkshops->isNotEmpty(),
+            'nextMonth' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
+            'previousMonth' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+        ];
+    }
+
+    private function renderPublicWorkshopIndex(Request $request, bool $past): View
+    {
+        $selectedView = trim((string) $request->query('view', 'cards'));
+        if (! in_array($selectedView, ['cards', 'calendar'], true)) {
+            $selectedView = 'cards';
+        }
+
+        $selectedMonth = trim((string) $request->query('month', now()->format('Y-m')));
+        if (! preg_match('/^\d{4}-\d{2}$/', $selectedMonth)) {
+            $selectedMonth = now()->format('Y-m');
+        }
+
+        $routeName = $past ? 'workshop.past.index' : 'workshop.index';
+        $tabQuery = array_filter([
+            'view' => $selectedView === 'calendar' ? 'calendar' : null,
+            'month' => $selectedView === 'calendar' ? $selectedMonth : null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        $monthData = $this->buildPublicWorkshopMonthData($selectedMonth);
+
+        $workshops = $selectedView === 'cards'
+            ? $this->publicWorkshopListingQuery($past)->paginate(12)->onEachSide(1)
+            : null;
+
+        return view('workshop.index', [
+            'calendarWeeks' => $selectedView === 'calendar' ? $monthData['calendarWeeks'] : null,
+            'currentMonthLabel' => $monthData['currentMonthLabel'],
+            'hasMonthWorkshops' => $monthData['hasMonthWorkshops'],
+            'isPast' => $past,
+            'nextMonthRoute' => route($routeName, array_merge($tabQuery, [
+                'view' => 'calendar',
+                'month' => $monthData['nextMonth'],
+            ])),
+            'previousMonthRoute' => route($routeName, array_merge($tabQuery, [
+                'view' => 'calendar',
+                'month' => $monthData['previousMonth'],
+            ])),
+            'selectedMonth' => $selectedMonth,
+            'selectedView' => $selectedView,
+            'tabs' => $selectedView === 'calendar' ? null : [
+                [
+                    'title' => 'Upcoming',
+                    'route' => route('workshop.index', $tabQuery),
+                    'active' => ! $past,
+                ],
+                [
+                    'title' => 'Past',
+                    'route' => route('workshop.past.index', $tabQuery),
+                    'active' => $past,
+                ],
+            ],
+            'toggleViewRoute' => route($routeName, $selectedView === 'calendar'
+                ? array_filter([
+                    'view' => 'cards',
+                    'month' => $selectedMonth,
+                ], fn ($value) => $value !== null && $value !== '')
+                : array_filter([
+                    'view' => 'calendar',
+                    'month' => $selectedMonth,
+                ], fn ($value) => $value !== null && $value !== '')
+            ),
+            'toggleViewTitle' => $selectedView === 'calendar' ? 'Card view' : 'Calendar view',
+            'toggleViewIcon' => $selectedView === 'calendar' ? 'fa-solid fa-table-cells-large' : 'fa-regular fa-calendar-days',
+            'view' => $selectedView,
+            'workshops' => $workshops,
+        ]);
     }
 
     /**

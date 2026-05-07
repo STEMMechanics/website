@@ -7,6 +7,7 @@
 - Dependency updates
 - Avoid Blade parsing error in RSS and sitemap XML views
 - /cairns-minecraft is now indexable
+- Added month view to workshops page
 
 ## 1.4.4
 

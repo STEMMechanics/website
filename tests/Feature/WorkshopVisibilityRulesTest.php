@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserGroup;
 use App\Models\Workshop;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -93,6 +94,113 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertTrue($publicWorkshop->isPubliclyVisible());
         $this->assertTrue($hiddenWorkshop->isPubliclyVisible());
         $this->assertFalse($draftWorkshop->isPubliclyVisible());
+    }
+
+    public function test_public_workshop_index_defaults_to_cards_and_exposes_a_calendar_toggle(): void
+    {
+        $publicWorkshop = $this->createWorkshop(
+            title: 'Public Robotics Session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay()
+        );
+
+        $response = $this->get(route('workshop.index'));
+
+        $response->assertOk();
+        $response->assertSee('Public Robotics Session');
+        $response->assertSee(route('workshop.feed'));
+        $response->assertSee('title="Calendar view"', false);
+        $response->assertDontSee('title="Card view"', false);
+        $response->assertSee(route('workshop.index', [
+            'view' => 'calendar',
+            'month' => now()->format('Y-m'),
+        ]));
+
+        $this->assertTrue($publicWorkshop->isPubliclyVisible());
+    }
+
+    public function test_public_workshop_index_calendar_view_groups_workshops_and_shows_month_navigation(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));
+
+        try {
+            $monthStart = now()->startOfMonth()->addDays(10);
+            $nextMonthStart = now()->startOfMonth()->addMonthNoOverflow()->addDays(8);
+
+            $this->createWorkshop(
+                title: 'Workshop this month',
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $monthStart,
+                'ends_at' => $monthStart->copy()->addHours(2),
+            ]);
+
+            $this->createWorkshop(
+                title: 'Workshop next month',
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $nextMonthStart,
+                'ends_at' => $nextMonthStart->copy()->addHours(2),
+            ]);
+
+            $this->createWorkshop(
+                title: 'Hidden calendar session',
+                status: 'open',
+                isHidden: true,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $monthStart->copy()->addDays(2),
+                'ends_at' => $monthStart->copy()->addDays(2)->addHours(2),
+            ]);
+
+            $this->createWorkshop(
+                title: 'Draft calendar session',
+                status: 'draft',
+                isHidden: false,
+                publishAt: now()->subDay()
+            )->update([
+                'starts_at' => $monthStart->copy()->addDays(3),
+                'ends_at' => $monthStart->copy()->addDays(3)->addHours(2),
+            ]);
+
+            $response = $this->get(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $monthStart->format('Y-m'),
+            ]));
+
+            $response->assertOk();
+            $response->assertSee($monthStart->format('F Y'));
+            $response->assertSeeInOrder(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']);
+            $response->assertSee(route('workshop.index'));
+            $response->assertSee('title="Card view"', false);
+            $response->assertSee('title="Previous month"', false);
+            $response->assertSee('title="Next month"', false);
+            $response->assertSee('Workshop this month');
+            $response->assertSee('Open');
+            $response->assertSee('sm-banner-open', false);
+            $response->assertDontSee('Workshop next month');
+            $response->assertDontSee('Hidden calendar session');
+            $response->assertDontSee('Draft calendar session');
+            $response->assertDontSee(route('workshop.past.index', [
+                'view' => 'calendar',
+                'month' => $monthStart->format('Y-m'),
+            ]));
+            $response->assertSee(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $monthStart->copy()->subMonthNoOverflow()->format('Y-m'),
+            ]));
+            $response->assertSee(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
+            ]));
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 
     public function test_private_workshops_are_excluded_from_upcoming_email(): void
