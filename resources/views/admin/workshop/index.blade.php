@@ -221,7 +221,7 @@
                             <tr>
                                 <td>
                                     <div class="flex items-center">
-                                        <div class="w-12 text-center">
+                                        <div class="w-12 text-center hidden sm:inline-block">
                                             <img src="{{ $workshop->hero->thumbnail }}" class="max-h-12 max-w-12 -ml-2 -my-3 mr-3 inline rounded" alt="{{ $workshop->hero->title }}" />
                                         </div>
                                         <div>
