@@ -28,6 +28,6 @@ class CairnsMinecraftPageTest extends TestCase
         $response->assertSeeText('2205-cm-creative-complete.zip');
         $response->assertSeeText('2205-cm-creative.zip');
         $response->assertSeeText('Magnet');
-        $response->assertSee('meta name="robots" content="noindex, nofollow"', false);
+        $response->assertSee('meta name="robots" content="index, follow"', false);
     }
 }

@@ -3,7 +3,6 @@
     description="Cairns Minecraft closed in May 2022 and the archives are preserved here."
     :canonical="route('cairns.minecraft')"
     :ogImage="asset('cairns-minecraft-logo.webp')"
-    :noindex="true"
 >
     <x-container class="py-8">
         <article class="mx-auto max-w-4xl">
