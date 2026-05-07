@@ -59,8 +59,8 @@ class AdminWorkshopIndexCalendarTest extends TestCase
         $response->assertSee(route('admin.workshop.month.materials.pdf', [
             'month' => $monthStart->format('Y-m'),
         ]));
-        $response->assertSee('md:hidden');
-        $response->assertSee('hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block');
+        $response->assertSee('lg:hidden');
+        $response->assertSee('mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block');
         $response->assertSee($monthStart->format('D j M'));
         $response->assertSee('title="Calendar PDF"', false);
         $response->assertSee('title="Pick Lists PDF"', false);
