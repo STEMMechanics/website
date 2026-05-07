@@ -65,7 +65,7 @@
                 </x-container>
             @else
                 <x-container class="mt-6">
-                    <div class="mx-auto w-full max-w-6xl space-y-4 md:hidden">
+                    <div class="mx-auto w-full max-w-6xl space-y-4 lg:hidden">
                         <div class="overflow-hidden border border-gray-200 bg-white">
                             <div class="divide-y divide-gray-200">
                                 @foreach($calendarDays as $day)
@@ -109,7 +109,7 @@
                 </x-container>
 
                 <x-container class="mt-6">
-                    <div class="mx-auto hidden w-full max-w-6xl overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+                    <div class="mx-auto hidden w-full max-w-6xl overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block">
                         <table class="min-w-245 w-full table-fixed border-collapse">
                         <thead>
                             <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">

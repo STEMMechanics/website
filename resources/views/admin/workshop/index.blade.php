@@ -7,35 +7,32 @@
 
     <x-container>
         <div x-data="{ baseRoute: @js($monthMaterialsPdfRoute), open: false, openDialog() { this.open = true }, closeDialog() { this.open = false }, buildUrl(scope) { const url = new URL(this.baseRoute, window.location.origin); url.searchParams.set('materials_scope', scope); return url.toString(); }, launch(scope) { window.open(this.buildUrl(scope), '_blank', 'noopener'); this.closeDialog(); } }">
-            <x-ui.toolbar>
-                <x-slot:left class="flex-0">
-                    <x-ui.button href="{{ route('admin.workshop.create') }}">Create</x-ui.button>
-                </x-slot:left>
-                <x-slot:right>
-                    <div class="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
-                        @if($view === 'month')
-                            <div class="flex flex-wrap items-center gap-2">
-                                <x-ui.button
+            <x-ui.toolbar break="lg">
+                <x-slot:left>
+                    <div class="flex justify-between w-full items-center gap-2">
+                        <x-ui.button href="{{ route('admin.workshop.create') }}" class="w-full sm:w-auto">Create</x-ui.button>
+                        <div class="flex items-center gap-2">
+                            <x-ui.button
                                     href="{{ $monthCalendarPdfRoute }}"
                                     target="_blank"
                                     color="outline"
                                     class="h-10 w-10 shrink-0 px-0"
                                     title="Calendar PDF"
                                     aria-label="Calendar PDF"
-                                >
-                                    <i class="fa-regular fa-calendar"></i>
-                                </x-ui.button>
-                                <x-ui.button
+                            >
+                                <i class="fa-regular fa-calendar"></i>
+                            </x-ui.button>
+                            <x-ui.button
                                     href="{{ $monthPickListsPdfRoute }}"
                                     target="_blank"
                                     color="outline"
                                     class="h-10 w-10 shrink-0 px-0"
                                     title="Pick Lists PDF"
                                     aria-label="Pick Lists PDF"
-                                >
-                                    <i class="fa-regular fa-file-pdf"></i>
-                                </x-ui.button>
-                                <x-ui.button
+                            >
+                                <i class="fa-regular fa-file-pdf"></i>
+                            </x-ui.button>
+                            <x-ui.button
                                     href="{{ $monthMaterialsPdfRoute }}"
                                     target="_blank"
                                     color="outline"
@@ -44,15 +41,20 @@
                                     aria-label="Materials Summary PDF"
                                     aria-haspopup="dialog"
                                     x-on:click.prevent="openDialog()"
-                                >
-                                    <i class="fa-solid fa-clipboard-list"></i>
-                                </x-ui.button>
-                            </div>
+                            >
+                                <i class="fa-solid fa-clipboard-list"></i>
+                            </x-ui.button>
+                        </div>
+                    </div>
+                </x-slot:left>
+                <x-slot:right>
+                    <div class="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+                        @if($view === 'month')
                             <div class="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 lg:justify-start">
                                 <x-ui.button href="{{ $previousMonthRoute }}" color="outline" class="px-4 py-2" title="Previous month" aria-label="Previous month">
                                     <i class="fa-solid fa-chevron-left"></i>
                                 </x-ui.button>
-                                <div class="min-w-36 text-center text-sm font-semibold text-gray-900">{{ $currentMonthLabel }}</div>
+                                <div class="min-w-36 text-center text-sm font-semibold text-gray-900 whitespace-nowrap">{{ $currentMonthLabel }}</div>
                                 <x-ui.button href="{{ $nextMonthRoute }}" color="outline" class="px-4 py-2" title="Next month" aria-label="Next month">
                                     <i class="fa-solid fa-chevron-right"></i>
                                 </x-ui.button>
@@ -133,7 +135,7 @@
                 $calendarDays = collect($calendarWeeks)->flatten(1)->filter(fn (array $day): bool => (bool) ($day['in_month'] ?? false))->values();
             @endphp
 
-            <div class="mt-6 space-y-4 md:hidden">
+            <div class="mt-6 space-y-4 lg:hidden">
                 <div class="overflow-hidden border border-gray-200 bg-white">
                     <div class="divide-y divide-gray-200">
                         @foreach($calendarDays as $day)
@@ -161,7 +163,7 @@
                 </div>
             </div>
 
-            <div class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <div class="mt-6 hidden overflow-x-auto rounded-xl border border-gray-200 bg-white lg:block">
                 <table class="min-w-245 w-full table-fixed border-collapse">
                     <thead>
                         <tr class="border-b border-gray-200 bg-gray-50 text-[11px] font-semibold uppercase tracking-wide text-gray-500">
