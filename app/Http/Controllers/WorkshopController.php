@@ -79,7 +79,7 @@ class WorkshopController extends Controller
                     'ages' => trim((string) ($workshop->ages ?? '')),
                     'enclosure' => $this->workshopFeedEnclosure($workshop),
                     'link' => route('workshop.show', $workshop),
-                    'location' => trim((string) $workshop->getLocationDisplay()),
+                    'location' => trim((string) $workshop->getPublicLocationLabel()),
                     'price' => $this->workshopFeedPriceLabel($workshop),
                     'pubDate' => $workshop->updated_at ?? $workshop->publish_at ?? $workshop->created_at ?? now(),
                     'status' => $workshop->publicStatusLabel(),
@@ -510,7 +510,7 @@ class WorkshopController extends Controller
             $details[] = $startsAt->format('D j M Y g:ia');
         }
 
-        $location = trim($workshop->getLocationDisplay());
+        $location = trim($workshop->getPublicLocationLabel());
         if ($location !== '') {
             $details[] = $location;
         }

@@ -8,6 +8,7 @@
 - Avoid Blade parsing error in RSS and sitemap XML views
 - /cairns-minecraft is now indexable
 - Added month view to workshops page
+- Fix display of private addresses in monthly view
 
 ## 1.4.4
 

@@ -83,7 +83,7 @@ class WorkshopVisibilityRulesTest extends TestCase
         $feedResponse->assertSee('type="image/png"', false);
         $feedResponse->assertSee('<sm:startDate>', false);
         $feedResponse->assertSee('<sm:endDate>', false);
-        $feedResponse->assertSee($publicWorkshop->getLocationDisplay(), false);
+        $feedResponse->assertSee($publicWorkshop->getPublicLocationLabel(), false);
         $feedResponse->assertSee('<sm:price>27.50</sm:price>', false);
         $feedResponse->assertSee('<sm:ages>9-12</sm:ages>', false);
         $feedResponse->assertSee('<sm:status>Open</sm:status>', false);
@@ -94,6 +94,35 @@ class WorkshopVisibilityRulesTest extends TestCase
         $this->assertTrue($publicWorkshop->isPubliclyVisible());
         $this->assertTrue($hiddenWorkshop->isPubliclyVisible());
         $this->assertFalse($draftWorkshop->isPubliclyVisible());
+    }
+
+    public function test_public_workshop_feed_hides_private_addresses_and_shows_hosted_for_labels(): void
+    {
+        $privateVenue = Location::query()->create([
+            'name' => 'Secret Venue',
+            'address' => '88 Secret Lane',
+            'address_url' => 'https://example.com/secret-venue',
+        ]);
+
+        $privateWorkshop = $this->createWorkshop(
+            title: 'Private feed session',
+            status: 'open',
+            isHidden: false,
+            publishAt: now()->subDay(),
+            isPrivate: true
+        );
+
+        $privateWorkshop->update([
+            'location_id' => $privateVenue->id,
+            'hosted_for' => 'Primary School Robotics Club',
+        ]);
+
+        $feedResponse = $this->get(route('workshop.feed'));
+
+        $feedResponse->assertOk();
+        $feedResponse->assertSee('Primary School Robotics Club', false);
+        $feedResponse->assertDontSee('88 Secret Lane');
+        $feedResponse->assertDontSee('Secret Venue');
     }
 
     public function test_public_workshop_index_defaults_to_cards_and_exposes_a_calendar_toggle(): void
@@ -198,6 +227,47 @@ class WorkshopVisibilityRulesTest extends TestCase
                 'view' => 'calendar',
                 'month' => $monthStart->copy()->addMonthNoOverflow()->format('Y-m'),
             ]));
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_public_workshop_index_calendar_view_hides_private_addresses_but_shows_hosted_for_labels(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 15, 12, 0, 0, config('app.timezone')));
+
+        try {
+            $monthStart = now()->startOfMonth()->addDays(10);
+            $privateVenue = Location::query()->create([
+                'name' => 'Secret Venue',
+                'address' => '88 Secret Lane',
+                'address_url' => 'https://example.com/secret-venue',
+            ]);
+
+            $workshop = $this->createWorkshop(
+                title: 'Private robotics session',
+                status: 'open',
+                isHidden: false,
+                publishAt: now()->subDay(),
+                isPrivate: true
+            );
+
+            $workshop->update([
+                'starts_at' => $monthStart,
+                'ends_at' => $monthStart->copy()->addHours(2),
+                'location_id' => $privateVenue->id,
+                'hosted_for' => 'Primary School Robotics Club',
+            ]);
+
+            $response = $this->get(route('workshop.index', [
+                'view' => 'calendar',
+                'month' => $monthStart->format('Y-m'),
+            ]));
+
+            $response->assertOk();
+            $response->assertSee('Primary School Robotics Club');
+            $response->assertDontSee('88 Secret Lane');
+            $response->assertDontSee('Secret Venue');
         } finally {
             Carbon::setTestNow();
         }

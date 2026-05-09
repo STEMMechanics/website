@@ -92,7 +92,7 @@
                                                         <div class="min-w-0">
                                                             <div class="font-semibold text-gray-900">{{ $workshop->starts_at?->format('g:i a') ?? '-' }}</div>
                                                             <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getLocationName() }}</div>
+                                                            <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                         </div>
                                                         <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
                                                     </div>
@@ -151,7 +151,7 @@
                                                                     <div class="shrink-0 rounded-full border border-white/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white sm-banner-{{ strtolower($statusClass) }}">{{ $statusTitle }}</div>
                                                                 </div>
                                                                 <div class="whitespace-normal wrap-break-word leading-snug">{{ $workshop->title }}</div>
-                                                                <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getLocationName() }}</div>
+                                                                <div class="mt-0.5 text-[11px] text-gray-500">{{ $workshop->getPublicLocationLabel() }}</div>
                                                             </div>
                                                         </div>
                                                     </a>

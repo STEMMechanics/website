@@ -172,6 +172,17 @@ class Workshop extends Model
         return $locationName.' - '.$address;
     }
 
+    public function getPublicLocationLabel(): string
+    {
+        if (! $this->isPrivate()) {
+            return $this->getLocationName();
+        }
+
+        $hostedFor = trim((string) ($this->hosted_for ?? ''));
+
+        return $hostedFor !== '' ? $hostedFor : 'Private Location';
+    }
+
     public function newsletterSummary(int $limit = 180): string
     {
         $summary = trim((string) ($this->summary ?? ''));
