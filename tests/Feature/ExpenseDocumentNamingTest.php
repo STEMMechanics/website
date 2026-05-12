@@ -170,6 +170,72 @@ class ExpenseDocumentNamingTest extends TestCase
         $response->assertDontSeeText('With Attachment Supplier');
     }
 
+    public function test_expense_index_can_search_by_total_amount(): void
+    {
+        $admin = $this->createAdminUser();
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Amount Match Supplier',
+            'description' => 'Search should find this expense by total amount',
+            'invoice_id' => 'INV-AMOUNT-1',
+            'paid_on' => '2026-03-03',
+            'total_amount' => 155.25,
+            'gst_amount' => 14.11,
+        ]);
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'Amount Miss Supplier',
+            'description' => 'Different amount',
+            'invoice_id' => 'INV-AMOUNT-2',
+            'paid_on' => '2026-03-04',
+            'total_amount' => 42.00,
+            'gst_amount' => 3.82,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index', [
+            'search' => '155.25',
+        ]));
+
+        $response->assertOk();
+        $response->assertSeeText('Amount Match Supplier');
+        $response->assertDontSeeText('Amount Miss Supplier');
+    }
+
+    public function test_expense_index_can_search_by_gst_amount(): void
+    {
+        $admin = $this->createAdminUser();
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'GST Match Supplier',
+            'description' => 'Search should find this expense by GST amount',
+            'invoice_id' => 'INV-GST-1',
+            'paid_on' => '2026-03-05',
+            'total_amount' => 88.00,
+            'gst_amount' => 7.92,
+        ]);
+
+        Expense::factory()->create([
+            'created_by' => $admin->id,
+            'supplier' => 'GST Miss Supplier',
+            'description' => 'Different GST amount',
+            'invoice_id' => 'INV-GST-2',
+            'paid_on' => '2026-03-06',
+            'total_amount' => 88.00,
+            'gst_amount' => 8.00,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.expense.index', [
+            'search' => '7.92',
+        ]));
+
+        $response->assertOk();
+        $response->assertSeeText('GST Match Supplier');
+        $response->assertDontSeeText('GST Miss Supplier');
+    }
+
     private function createAdminUser(): User
     {
         $admin = User::factory()->create();

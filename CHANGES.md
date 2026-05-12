@@ -9,6 +9,7 @@
 - /cairns-minecraft is now indexable
 - Added month view to workshops page
 - Fix display of private addresses in monthly view
+- Allow searching of amounts and gst in expense view
 
 ## 1.4.4
 

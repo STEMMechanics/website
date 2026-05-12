@@ -7,6 +7,7 @@ use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -17,12 +18,18 @@ class ExpenseController extends Controller
         $query = Expense::query()->with('creator');
 
         if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($builder) use ($search) {
-                $builder->where('supplier', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%')
-                    ->orWhere('invoice_id', 'like', '%'.$search.'%');
-            });
+            $search = trim((string) $request->search);
+            if ($search !== '') {
+                $query->where(function ($builder) use ($search) {
+                    $like = '%'.$search.'%';
+
+                    $builder->where('supplier', 'like', '%'.$search.'%')
+                        ->orWhere('description', 'like', '%'.$search.'%')
+                        ->orWhere('invoice_id', 'like', '%'.$search.'%')
+                        ->orWhereRaw($this->decimalSearchExpression('total_amount').' like ?', [$like])
+                        ->orWhereRaw($this->decimalSearchExpression('gst_amount').' like ?', [$like]);
+                });
+            }
         }
 
         if ($request->boolean('no_attachment')) {
@@ -269,5 +276,15 @@ class ExpenseController extends Controller
             ->filter(fn ($supplier) => $supplier !== '')
             ->values()
             ->all();
+    }
+
+    private function decimalSearchExpression(string $column): string
+    {
+        return match (DB::getDriverName()) {
+            'mysql', 'mariadb' => "CAST({$column} AS CHAR)",
+            'pgsql', 'sqlite' => "CAST({$column} AS TEXT)",
+            'sqlsrv' => "CONVERT(VARCHAR(255), {$column})",
+            default => "CAST({$column} AS CHAR)",
+        };
     }
 }
