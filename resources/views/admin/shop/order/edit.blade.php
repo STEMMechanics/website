@@ -2191,7 +2191,18 @@
                                 <x-ui.input type="textarea" name="public_notes" label="Public Notes" :value="$order->public_notes ?? ''" info="Visible to the customer from their order page. Use for progress updates or collection instructions." />
                             </div>
 
-                            <div class="mt-4 text-right">
+                            <div class="mt-4 flex flex-wrap items-center justify-end gap-4">
+                                <input type="hidden" name="send_update_email" value="0">
+                                <x-ui.checkbox
+                                    name="send_update_email"
+                                    value="1"
+                                    label="Send update email"
+                                    :checked="old('send_update_email', true)"
+                                    inline="true"
+                                    noWrapper="true"
+                                    small="true"
+                                    class="mb-0"
+                                />
                                 <x-ui.button type="submit">
                                     <span>Save All Changes</span>
                                 </x-ui.button>

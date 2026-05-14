@@ -584,7 +584,8 @@ class StoreOrderService
         string $status,
         ?string $notes = null,
         ?string $publicNotes = null,
-        bool $suppressAdminNotifications = false
+        bool $suppressAdminNotifications = false,
+        bool $suppressCustomerNotifications = false
     ): StoreOrder
     {
         $result = DB::transaction(function () use ($order, $status, $notes, $publicNotes): array {
@@ -654,7 +655,7 @@ class StoreOrderService
 
         $freshOrder = $result['order'];
         if ($freshOrder instanceof StoreOrder && ($result['event_ids'] ?? []) !== []) {
-            $this->queueImmediateOrderUpdateNotifications($freshOrder, (array) $result['event_ids'], $suppressAdminNotifications);
+            $this->queueImmediateOrderUpdateNotifications($freshOrder, (array) $result['event_ids'], $suppressAdminNotifications, $suppressCustomerNotifications);
         }
 
         return $freshOrder;
@@ -1194,7 +1195,8 @@ class StoreOrderService
         StoreOrder $order,
         array $actions,
         ?User $actingUser = null,
-        bool $suppressAdminNotifications = false
+        bool $suppressAdminNotifications = false,
+        bool $suppressCustomerNotifications = false
     ): array
     {
         $normalizedActions = $this->normalizeQueuedOrderItemActions($actions);
@@ -1444,7 +1446,7 @@ class StoreOrderService
             ->find((int) ($summary['order_id'] ?? 0));
 
         if ($freshOrder instanceof StoreOrder && ($summary['event_ids'] ?? []) !== []) {
-            $this->queueImmediateOrderUpdateNotifications($freshOrder, (array) $summary['event_ids'], $suppressAdminNotifications);
+            $this->queueImmediateOrderUpdateNotifications($freshOrder, (array) $summary['event_ids'], $suppressAdminNotifications, $suppressCustomerNotifications);
         }
 
         $invoice = ($freshOrder?->invoice instanceof Invoice)
@@ -2150,12 +2152,13 @@ class StoreOrderService
     private function queueImmediateOrderUpdateNotifications(
         StoreOrder $order,
         iterable $eventIds,
-        bool $suppressAdminNotifications = false
+        bool $suppressAdminNotifications = false,
+        bool $suppressCustomerNotifications = false
     ): void
     {
         $customerPayload = $this->orderUpdates->payloadForEvents($eventIds, false);
         $customerRecipient = strtolower(trim((string) $order->billing_email));
-        if ($customerPayload !== null && $customerPayload['orders'] !== [] && $customerRecipient !== '' && filter_var($customerRecipient, FILTER_VALIDATE_EMAIL)) {
+        if (! $suppressCustomerNotifications && $customerPayload !== null && $customerPayload['orders'] !== [] && $customerRecipient !== '' && filter_var($customerRecipient, FILTER_VALIDATE_EMAIL)) {
             dispatch(new SendEmail(
                 $customerRecipient,
                 new StoreOrderCustomerUpdateNotice(

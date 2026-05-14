@@ -365,6 +365,69 @@ class ShopAdminOrderItemsTest extends TestCase
             ->assertDontSeeHtml('x-model="statusValue"');
     }
 
+    public function test_admin_pickup_orders_can_skip_the_customer_email_when_collecting_items(): void
+    {
+        Queue::fake();
+
+        $admin = $this->makeAdminUser();
+        $order = $this->makePhysicalOrder();
+
+        $order->update([
+            'status' => StoreOrder::STATUS_PROCESSING,
+            'shipping_method' => 'Pick up / Collection',
+            'shipping_method_code' => 'pickup',
+            'fulfilled_at' => null,
+        ]);
+
+        $product = Product::factory()->create([
+            'inventory_quantity' => 1,
+        ]);
+
+        $item = StoreOrderItem::factory()->create([
+            'store_order_id' => $order->id,
+            'product_id' => $product->id,
+            'product_title' => 'Pickup Kit',
+            'quantity' => 1,
+            'available_now_quantity' => 1,
+            'delayed_quantity' => 0,
+            'inventory_reserved_quantity' => 1,
+        ]);
+
+        StoreOrderItemCollection::create([
+            'store_order_item_id' => $item->id,
+            'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+            'quantity' => 1,
+            'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_READY,
+            'collected_by_user_id' => null,
+            'notes' => 'Ready for collection.',
+            'collected_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('admin.shop.order.update', $order), [
+                'status' => StoreOrder::STATUS_COLLECTED,
+                'notes' => null,
+                'public_notes' => null,
+                'send_update_email' => 0,
+                'item_actions_json' => json_encode([
+                    [
+                        'type' => 'collection',
+                        'item_id' => $item->id,
+                        'collection_type' => StoreOrderItemCollection::COLLECTION_TYPE_AVAILABLE,
+                        'pickup_state' => StoreOrderItemCollection::PICKUP_STATE_COLLECTED,
+                        'quantity' => 1,
+                        'collected_at' => now()->toDateString(),
+                        'notes' => 'Collected in store.',
+                    ],
+                ]),
+            ])
+            ->assertRedirect();
+
+        Queue::assertNotPushed(SendEmail::class);
+        $this->assertSame(StoreOrder::STATUS_COLLECTED, (string) $order->fresh()->status);
+        $this->assertSame(1, (int) $item->fresh()->collectedQuantity());
+    }
+
     public function test_admin_pickup_orders_display_the_partial_collection_status_label(): void
     {
         $admin = $this->makeAdminUser();

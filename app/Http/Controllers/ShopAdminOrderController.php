@@ -230,13 +230,15 @@ class ShopAdminOrderController extends Controller
             'notes' => ['nullable', 'string'],
             'public_notes' => ['nullable', 'string'],
             'item_actions_json' => ['nullable', 'string'],
+            'send_update_email' => ['nullable', 'boolean'],
         ]);
 
         $itemActions = $this->parseQueuedItemActions($validated['item_actions_json'] ?? null);
+        $sendUpdateEmail = $request->boolean('send_update_email', true);
 
         try {
             $itemSummary = $itemActions !== []
-                ? $orders->applyOrderItemActions($storeOrder, $itemActions, $request->user(), true)
+                ? $orders->applyOrderItemActions($storeOrder, $itemActions, $request->user(), true, ! $sendUpdateEmail)
                 : null;
 
             $orders->updateOrderStatus(
@@ -245,6 +247,7 @@ class ShopAdminOrderController extends Controller
                 $validated['notes'] ?? null,
                 $validated['public_notes'] ?? null,
                 true,
+                ! $sendUpdateEmail,
             );
         } catch (ValidationException $e) {
             return redirect()
